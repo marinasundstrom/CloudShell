@@ -348,7 +348,7 @@ public sealed class ResourceIdentityProvisioningServiceTests
         Assert.Equal("identity:dev", principal.Reference.ProviderId);
         Assert.Equal("Alice Local Developer", principal.DisplayName);
         Assert.Equal("Built-in local user.", principal.Description);
-        Assert.Equal("Alice", principal.PrincipalAttributes["userName"]);
+        Assert.Equal("alice@example.test", principal.PrincipalAttributes["userName"]);
         Assert.False(string.IsNullOrWhiteSpace(principal.PrincipalAttributes["userId"]));
         Assert.Equal("alice@example.test", principal.PrincipalAttributes["email"]);
     }

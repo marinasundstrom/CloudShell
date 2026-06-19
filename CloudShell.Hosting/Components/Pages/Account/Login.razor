@@ -1,5 +1,6 @@
 @page "/account/login"
 @attribute [AllowAnonymous]
+@attribute [ExcludeFromInteractiveRouting]
 @layout AccountLayout
 @inject IAccountService Accounts
 @inject NavigationManager Navigation
@@ -37,9 +38,10 @@ else
 
         @if (Accounts.Mode.Equals("Identity", StringComparison.OrdinalIgnoreCase))
         {
-            <label for="login-user">@L["Email"]</label>
-            <FluentTextField Id="login-user"
-                             @bind-Value="Input!.UserName"
+            <label for="login-email">@L["Email"]</label>
+            <FluentTextField Id="login-email"
+                             Name="Input.Email"
+                             @bind-Value="Input!.Email"
                              AutoComplete="email" />
         }
 
@@ -49,6 +51,7 @@ else
                 : L["Password"])
         </label>
         <FluentTextField Id="login-credential"
+                         Name="Input.Credential"
                          TextFieldType="TextFieldType.Password"
                          @bind-Value="Input!.Credential"
                          AutoComplete="current-password" />
@@ -101,13 +104,13 @@ else
     {
         Errors.Clear();
         if (Accounts.Mode.Equals("Identity", StringComparison.OrdinalIgnoreCase) &&
-            string.IsNullOrWhiteSpace(Input!.UserName))
+            string.IsNullOrWhiteSpace(Input!.Email))
         {
             Errors.Add(L["Email is required."].Value);
             return;
         }
 
-        var result = await Accounts.SignInAsync(Input!.UserName, Input.Credential);
+        var result = await Accounts.SignInAsync(Input!.Email, Input.Credential);
         if (!result.Succeeded)
         {
             Errors.AddRange(result.Errors);
@@ -126,7 +129,7 @@ else
 
     private sealed class LoginInput
     {
-        public string UserName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
 
         [Required]
         public string Credential { get; set; } = string.Empty;

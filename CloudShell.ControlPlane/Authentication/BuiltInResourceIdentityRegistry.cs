@@ -265,16 +265,15 @@ public sealed class BuiltInResourceIdentityProvisioner(
         {
             cancellationToken.ThrowIfCancellationRequested();
             var email = user.Email ?? user.UserName ?? user.Id;
-            var displayName = inMemoryIdentity is not null &&
-                user.UserName is not null &&
-                inMemoryIdentity.Users.TryGetValue(user.UserName, out var configuredUser) &&
-                !string.IsNullOrWhiteSpace(configuredUser.DisplayName)
-                    ? configuredUser.DisplayName.Trim()
-                    : email;
+            var configuredUser = FindConfiguredInMemoryUser(user);
+            var principalKey = configuredUser?.UserName ?? email;
+            var displayName = !string.IsNullOrWhiteSpace(configuredUser?.DisplayName)
+                ? configuredUser.DisplayName.Trim()
+                : email;
             principals.Add(CreateUserPrincipal(
                 new ResourcePrincipalReference(
                     ResourcePrincipalKind.User,
-                    InMemoryIdentityUserOptions.CreatePrincipalId(user.UserName ?? email),
+                    InMemoryIdentityUserOptions.CreatePrincipalId(principalKey),
                     displayName,
                     providerId),
                 user.UserName ?? email,
@@ -284,6 +283,29 @@ public sealed class BuiltInResourceIdentityProvisioner(
         }
 
         return principals;
+    }
+
+    private InMemoryIdentityUserOptions? FindConfiguredInMemoryUser(IdentityUser user)
+    {
+        if (inMemoryIdentity is null)
+        {
+            return null;
+        }
+
+        if (user.Email is not null)
+        {
+            var configuredUser = inMemoryIdentity.Users.FirstOrDefault(configured =>
+                string.Equals(configured.Email, user.Email, StringComparison.OrdinalIgnoreCase));
+            if (configuredUser is not null)
+            {
+                return configuredUser;
+            }
+        }
+
+        return user.UserName is not null &&
+            inMemoryIdentity.Users.TryGetValue(user.UserName, out var userNameMatch)
+                ? userNameMatch
+                : null;
     }
 
     private static ResourcePrincipal CreateUserPrincipal(

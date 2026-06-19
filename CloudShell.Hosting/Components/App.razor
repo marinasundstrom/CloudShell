@@ -1,4 +1,5 @@
 ﻿@using System.Globalization
+@using Microsoft.AspNetCore.Components.Endpoints
 
 <!DOCTYPE html>
 <html lang="@CultureInfo.CurrentUICulture.Name" dir="@GetTextDirection()">
@@ -15,11 +16,11 @@
     <loading-theme storage-name="cloudshell.theme"></loading-theme>
     <ImportMap />
     <link rel="icon" type="image/png" href="@Assets["_content/CloudShell.Hosting/favicon.png"]" />
-    <HeadOutlet />
+    <HeadOutlet @rendermode="PageRenderMode" />
 </head>
 
 <body>
-    <Routes />
+    <Routes @rendermode="PageRenderMode" />
     <ReconnectModal />
     <script src="@Assets["_content/Microsoft.FluentUI.AspNetCore.Components/Microsoft.FluentUI.AspNetCore.Components.lib.module.js"]" type="module" async></script>
     <script src="@Assets["_content/CloudShell.Hosting/shell.js"]"></script>
@@ -29,6 +30,12 @@
 </html>
 
 @code {
+    [CascadingParameter]
+    private Microsoft.AspNetCore.Http.HttpContext HttpContext { get; set; } = default!;
+
+    private IComponentRenderMode? PageRenderMode =>
+        HttpContext.AcceptsInteractiveRouting() ? InteractiveServer : null;
+
     private static string GetTextDirection() =>
         CultureInfo.CurrentUICulture.TextInfo.IsRightToLeft ? "rtl" : "ltr";
 }

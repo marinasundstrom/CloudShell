@@ -42,7 +42,7 @@ public sealed class CloudShellAccountService(
     }
 
     public async Task<AccountOperationResult> SignInAsync(
-        string userName,
+        string email,
         string credential)
     {
         if (IsMode("Secret"))
@@ -58,16 +58,23 @@ public sealed class CloudShellAccountService(
                 "This authentication provider uses its external sign-in flow.");
         }
 
+        var userManager = services.GetRequiredService<UserManager<IdentityUser>>();
+        var user = await userManager.FindByEmailAsync(email.Trim());
+        if (user is null)
+        {
+            return AccountOperationResult.Failure("The email or password is invalid.");
+        }
+
         var signInManager = services.GetRequiredService<SignInManager<IdentityUser>>();
         var result = await signInManager.PasswordSignInAsync(
-            userName,
+            user,
             credential,
             isPersistent: true,
             lockoutOnFailure: true);
 
         return result.Succeeded
             ? AccountOperationResult.Success()
-            : AccountOperationResult.Failure("The username or password is invalid.");
+            : AccountOperationResult.Failure("The email or password is invalid.");
     }
 
     public async Task<AccountOperationResult> CreateAdministratorAsync(

@@ -117,20 +117,18 @@ public static class BuiltInAuthorityEndpointExtensions
             return InvalidClient();
         }
 
-        var userName = form["username"].ToString();
+        var email = form["username"].ToString();
         var password = form["password"].ToString();
-        if (string.IsNullOrWhiteSpace(userName) || string.IsNullOrWhiteSpace(password))
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
         {
-            return InvalidGrant("username and password are required.");
+            return InvalidGrant("email and password are required.");
         }
 
         var userManager = services.GetRequiredService<UserManager<IdentityUser>>();
-        var user =
-            await userManager.FindByNameAsync(userName) ??
-            await userManager.FindByEmailAsync(userName);
+        var user = await userManager.FindByEmailAsync(email.Trim());
         if (user is null)
         {
-            return InvalidGrant("The username or password is invalid.");
+            return InvalidGrant("The email or password is invalid.");
         }
 
         var signInManager = services.GetRequiredService<SignInManager<IdentityUser>>();
@@ -140,7 +138,7 @@ public static class BuiltInAuthorityEndpointExtensions
             lockoutOnFailure: true);
         if (!signInResult.Succeeded)
         {
-            return InvalidGrant("The username or password is invalid.");
+            return InvalidGrant("The email or password is invalid.");
         }
 
         var claims = new List<Claim>

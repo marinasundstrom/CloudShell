@@ -71,8 +71,11 @@ Set `Authentication:Mode` to one of the following values.
 
 ### Local Identity
 
-`Identity` uses ASP.NET Core Identity with the configured persistence provider.
-It is the default mode.
+`Identity` uses the built-in CloudShell identity authority backed by ASP.NET
+Core Identity with the configured persistence provider. It is the default mode.
+CloudShell treats email as the local sign-in identifier for this mode, matching
+the common shape of ASP.NET Core Identity deployments and third-party account
+providers.
 
 ```json
 {
@@ -96,6 +99,19 @@ and basic CloudShell scope claims such as resource-group scope, direct resource
 scope, and a single resource-permission claim. It is not the final provider
 management model; future identity-provider integrations should use a dedicated
 provider/setup surface and provider-neutral hooks.
+
+The built-in identity provider is an authority in its own right. It owns the
+CloudShell-facing endpoints, token issuance, local principal projection, and
+grant application surface for the built-in provider. It is not limited to local
+passwords: because it is based on ASP.NET Core Identity, it can also rely on
+upstream third-party sign-in services such as Microsoft Account, Google, or
+another ASP.NET Core authentication handler. In that shape, the upstream
+provider authenticates the user, ASP.NET Core Identity stores or links the
+local user record, and the built-in CloudShell authority projects the resulting
+user as a principal that can receive resource grants and appear in activity
+logs. Email remains the user-facing login identifier; CloudShell principal IDs
+remain provider-owned stable references and should not be treated as login
+names.
 
 ### Dashboard secret
 

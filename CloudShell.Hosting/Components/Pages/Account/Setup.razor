@@ -1,5 +1,6 @@
 @page "/account/setup"
 @attribute [AllowAnonymous]
+@attribute [ExcludeFromInteractiveRouting]
 @layout AccountLayout
 @inject IAccountService Accounts
 @inject NavigationManager Navigation
@@ -33,11 +34,13 @@ else
 
         <label for="setup-email">@L["Email"]</label>
         <FluentTextField Id="setup-email"
+                         Name="Input.Email"
                          @bind-Value="Input!.Email"
                          AutoComplete="email" />
 
         <label for="setup-password">@L["Password"]</label>
         <FluentTextField Id="setup-password"
+                         Name="Input.Password"
                          TextFieldType="TextFieldType.Password"
                          @bind-Value="Input!.Password"
                          AutoComplete="new-password" />
@@ -45,6 +48,7 @@ else
 
         <label for="setup-confirm">@L["Confirm password"]</label>
         <FluentTextField Id="setup-confirm"
+                         Name="Input.ConfirmPassword"
                          TextFieldType="TextFieldType.Password"
                          @bind-Value="Input!.ConfirmPassword"
                          AutoComplete="new-password" />

@@ -68,23 +68,28 @@ public sealed class CloudShellIdentitySeeder(
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var userName = configuredUser.UserName.Trim();
-            var user = await userManager.FindByNameAsync(userName);
+            var principalKey = configuredUser.UserName.Trim();
+            if (string.IsNullOrWhiteSpace(configuredUser.Email))
+            {
+                throw new InvalidOperationException(
+                    $"In-memory user '{principalKey}' must configure an email address.");
+            }
+
+            var email = configuredUser.Email.Trim();
+            var user = await userManager.FindByEmailAsync(email);
             if (user is null)
             {
                 user = new IdentityUser
                 {
-                    UserName = userName,
-                    Email = string.IsNullOrWhiteSpace(configuredUser.Email)
-                        ? null
-                        : configuredUser.Email.Trim(),
-                    EmailConfirmed = !string.IsNullOrWhiteSpace(configuredUser.Email)
+                    UserName = email,
+                    Email = email,
+                    EmailConfirmed = true
                 };
 
                 var createResult = string.IsNullOrWhiteSpace(configuredUser.Password)
                     ? await userManager.CreateAsync(user)
                     : await userManager.CreateAsync(user, configuredUser.Password);
-                ThrowIfFailed(createResult, $"create in-memory user '{userName}'");
+                ThrowIfFailed(createResult, $"create in-memory user '{principalKey}'");
             }
 
             foreach (var role in configuredUser.Roles.Distinct(StringComparer.OrdinalIgnoreCase))
@@ -95,12 +100,12 @@ public sealed class CloudShellIdentitySeeder(
                 }
 
                 var roleResult = await userManager.AddToRoleAsync(user, role);
-                ThrowIfFailed(roleResult, $"add in-memory user '{userName}' to role '{role}'");
+                ThrowIfFailed(roleResult, $"add in-memory user '{principalKey}' to role '{role}'");
             }
 
             var desiredClaims = configuredUser.Claims
                 .Concat(grantClaims.GetValueOrDefault(
-                    InMemoryIdentityUserOptions.CreatePrincipalId(userName),
+                    InMemoryIdentityUserOptions.CreatePrincipalId(principalKey),
                     []))
                 .ToArray();
             var currentClaims = await userManager.GetClaimsAsync(user);
@@ -112,7 +117,7 @@ public sealed class CloudShellIdentitySeeder(
                 }
 
                 var claimResult = await userManager.AddClaimAsync(user, claim);
-                ThrowIfFailed(claimResult, $"add claim '{claim.Type}' to in-memory user '{userName}'");
+                ThrowIfFailed(claimResult, $"add claim '{claim.Type}' to in-memory user '{principalKey}'");
             }
         }
     }

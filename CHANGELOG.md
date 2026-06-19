@@ -131,6 +131,14 @@ on `git blame --follow`, and then by the broad type of change.
   content root for relative project paths and working directories. This
   preserves the existing project-path authoring model while avoiding competing
   implicit builds when local project resources share dependencies.
+- Built-in local identity sign-in now requires the user's email address, and
+  the account sign-in, setup, and sign-out pages opt out of interactive
+  routing so their Fluent UI forms can set or clear authentication cookies
+  through static SSR posts. In-memory sample users such as Alice can sign in
+  from the browser without accepting the programmatic principal key as a login
+  identifier, and in-memory users now keep the configured key as the
+  CloudShell principal ID while ASP.NET Core Identity uses the user's email for
+  sign-in.
 
 ### 2026-06-18
 

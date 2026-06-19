@@ -52,9 +52,8 @@ http://localhost:5011/account/login
 Sign in with the seeded in-memory user:
 
 ```text
-User name: alice
-Password: CloudShell123!
 Email: alice@example.test
+Password: CloudShell123!
 ```
 
 Alice has the `CloudShell.Reader` role and a programmatic grant for

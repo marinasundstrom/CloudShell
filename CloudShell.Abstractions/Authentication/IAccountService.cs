@@ -12,7 +12,7 @@ public interface IAccountService
 
     Task<bool> HasLocalUsersAsync(CancellationToken cancellationToken = default);
 
-    Task<AccountOperationResult> SignInAsync(string userName, string credential);
+    Task<AccountOperationResult> SignInAsync(string email, string credential);
 
     Task<AccountOperationResult> CreateAdministratorAsync(string email, string password);
 

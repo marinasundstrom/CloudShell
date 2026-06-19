@@ -1130,18 +1130,39 @@ public sealed class SampleSmokeTests
         };
         var loginHtml = await client.GetStringAsync("/account/login");
         Assert.Contains("Sign in to CloudShell", loginHtml);
+        Assert.Contains("name=\"Input.Email\"", loginHtml);
+        Assert.Contains("name=\"Input.Credential\"", loginHtml);
 
         var loginToken = ExtractRequestVerificationToken(loginHtml);
+        using var userNameLoginResponse = await client.PostAsync(
+            "/account/login",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["_handler"] = "login",
+                ["__RequestVerificationToken"] = loginToken,
+                ["Input.Email"] = "alice",
+                ["Input.Credential"] = "CloudShell123!"
+            }));
+        Assert.Equal(HttpStatusCode.OK, userNameLoginResponse.StatusCode);
+        var userNameLoginResponseHtml = await userNameLoginResponse.Content.ReadAsStringAsync();
+        Assert.Contains("The email or password is invalid.", userNameLoginResponseHtml);
+
+        loginHtml = await client.GetStringAsync("/account/login");
+        loginToken = ExtractRequestVerificationToken(loginHtml);
         using var loginResponse = await client.PostAsync(
             "/account/login",
             new FormUrlEncodedContent(new Dictionary<string, string>
             {
                 ["_handler"] = "login",
                 ["__RequestVerificationToken"] = loginToken,
-                ["Input.UserName"] = "alice",
+                ["Input.Email"] = "alice@example.test",
                 ["Input.Credential"] = "CloudShell123!"
             }));
         Assert.Equal(HttpStatusCode.Redirect, loginResponse.StatusCode);
+
+        var dashboardHtml = await client.GetStringAsync("/");
+        Assert.Contains("href=\"/account/logout\"", dashboardHtml);
+        Assert.Contains("data-enhance-nav=\"false\"", dashboardHtml);
 
         var resourcesJson = await client.GetStringAsync("/api/control-plane/v1/resources");
         using var resourcesDocument = JsonDocument.Parse(resourcesJson);
@@ -1177,6 +1198,24 @@ public sealed class SampleSmokeTests
                 grant.GetProperty("principal").GetProperty("id").GetString() == "alice" &&
                 grant.GetProperty("permission").GetString() == CloudShellPermissions.Resources.Manage);
 
+        var logoutHtml = await client.GetStringAsync("/account/logout");
+        var logoutToken = ExtractRequestVerificationToken(logoutHtml);
+        using var logoutResponse = await client.PostAsync(
+            "/account/logout",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["_handler"] = "logout",
+                ["__RequestVerificationToken"] = logoutToken
+            }));
+        Assert.Equal(HttpStatusCode.Redirect, logoutResponse.StatusCode);
+        Assert.Equal("/account/login", logoutResponse.Headers.Location?.AbsolutePath);
+
+        using var signedOutResourcesResponse = await client.GetAsync("/api/control-plane/v1/resources");
+        Assert.Equal(HttpStatusCode.Redirect, signedOutResourcesResponse.StatusCode);
+        Assert.Contains(
+            "/account/login",
+            signedOutResourcesResponse.Headers.Location?.OriginalString ?? string.Empty);
+
         var failedLoginHtml = await client.GetStringAsync("/account/login");
         var failedLoginToken = ExtractRequestVerificationToken(failedLoginHtml);
         using var failedLoginResponse = await client.PostAsync(
@@ -1185,12 +1224,12 @@ public sealed class SampleSmokeTests
             {
                 ["_handler"] = "login",
                 ["__RequestVerificationToken"] = failedLoginToken,
-                ["Input.UserName"] = "alice",
+                ["Input.Email"] = "alice@example.test",
                 ["Input.Credential"] = "WrongPassword123!"
             }));
         Assert.Equal(HttpStatusCode.OK, failedLoginResponse.StatusCode);
         var failedLoginResponseHtml = await failedLoginResponse.Content.ReadAsStringAsync();
-        Assert.Contains("The username or password is invalid.", failedLoginResponseHtml);
+        Assert.Contains("The email or password is invalid.", failedLoginResponseHtml);
     }
 
     [Fact]

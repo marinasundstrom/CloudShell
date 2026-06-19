@@ -1,5 +1,6 @@
 @inject Microsoft.Extensions.Options.IOptionsMonitor<CloudShellDisplayOptions> DisplayOptions
 @inject Microsoft.Extensions.Hosting.IHostEnvironment HostEnvironment
+@inject NavigationManager Navigation
 @inject IStringLocalizer<SharedResource> L
 
 <header class="shell-topbar">
@@ -15,7 +16,10 @@
                 <span class="signed-in-user">
                     @(authentication.User.Identity?.Name ?? L["Authenticated user"])
                 </span>
-                <a href="/account/logout">@L["Sign out"]</a>
+                <a href="/account/logout"
+                   data-enhance-nav="false"
+                   @onclick="NavigateToSignOut"
+                   @onclick:preventDefault="true">@L["Sign out"]</a>
             </Authorized>
         </AuthorizeView>
     </div>
@@ -26,4 +30,7 @@
         string.IsNullOrWhiteSpace(DisplayOptions.CurrentValue.EnvironmentName)
             ? HostEnvironment.EnvironmentName
             : DisplayOptions.CurrentValue.EnvironmentName.Trim();
+
+    private void NavigateToSignOut() =>
+        Navigation.NavigateTo("/account/logout", forceLoad: true);
 }
