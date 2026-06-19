@@ -77,6 +77,17 @@ Open:
 http://localhost:5218/upstream
 ```
 
+To generate a deliberate failed request from frontend to API, open:
+
+```text
+http://localhost:5218/upstream/failure
+```
+
+That route calls the API's `/failure` endpoint through CloudShell service
+discovery. The API returns an intentional HTTP 500 and writes an error log;
+the frontend records the upstream failure and returns HTTP 502. Use this path
+to inspect failed request telemetry, traces, and correlated application logs.
+
 The sample disables startup autostart for these three application resources so
 you can exercise the live dependency path deliberately from Resource Manager.
 

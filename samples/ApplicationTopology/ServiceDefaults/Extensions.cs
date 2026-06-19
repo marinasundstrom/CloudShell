@@ -103,6 +103,10 @@ public static class ApplicationTopologyLogEvents
 
     public static readonly EventId ApiResponseReceived = new(1001, nameof(ApiResponseReceived));
 
+    public static readonly EventId CallingFailingApi = new(1002, nameof(CallingFailingApi));
+
+    public static readonly EventId FailingApiResponseReceived = new(1003, nameof(FailingApiResponseReceived));
+
     public static readonly EventId PreparingMessage = new(2000, nameof(PreparingMessage));
 
     public static readonly EventId MessagePrepared = new(2001, nameof(MessagePrepared));
@@ -110,6 +114,8 @@ public static class ApplicationTopologyLogEvents
     public static readonly EventId CheckingDatabase = new(2100, nameof(CheckingDatabase));
 
     public static readonly EventId DatabaseChecked = new(2101, nameof(DatabaseChecked));
+
+    public static readonly EventId IntentionalFailureInvoked = new(2200, nameof(IntentionalFailureInvoked));
 }
 
 internal sealed class CloudShellTraceExporter(HttpClient httpClient, IHostEnvironment environment) :

@@ -98,6 +98,27 @@ app.MapGet("/database", async (
         databaseTimestamp));
 });
 
+app.MapGet("/failure", (ILoggerFactory loggerFactory) =>
+{
+    var logger = loggerFactory.CreateLogger("CloudShell.ApplicationTopology.Api");
+    using var activity = ApplicationTopologyTraceSources.ActivitySource.StartActivity(
+        "api.intentional-failure",
+        ActivityKind.Internal);
+    activity?.SetTag("cloudshell.sample.resource", "application-topology-api");
+    activity?.SetTag("cloudshell.sample.failure", "intentional");
+    activity?.SetStatus(ActivityStatusCode.Error, "Intentional sample failure");
+
+    logger.LogError(
+        ApplicationTopologyLogEvents.IntentionalFailureInvoked,
+        "Intentional sample failure endpoint invoked on {Machine}",
+        Environment.MachineName);
+
+    return Results.Problem(
+        title: "Intentional sample failure",
+        detail: "The Application Topology API failed deliberately so CloudShell can demonstrate failed request telemetry.",
+        statusCode: StatusCodes.Status500InternalServerError);
+});
+
 app.Run();
 
 static string CreateSqlConnectionString(IConfiguration configuration, Uri endpoint)
