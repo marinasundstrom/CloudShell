@@ -25,10 +25,21 @@ internal sealed class LocalResourceOrchestrationSettings : IResourceOrchestratio
         }
     }
 
+    public ResourceDependencyStartFailureSettings GetDependencyStartFailureSettings()
+    {
+        lock (syncRoot)
+        {
+            return new ResourceDependencyStartFailureSettings(
+                selection.DependencyStartFailureBehavior,
+                selection.UpdatedAt != DateTimeOffset.MinValue);
+        }
+    }
+
     public void Select(
         string orchestratorId,
         string? preferredContainerHostId = null,
-        int healthCheckIntervalSeconds = ResourceOrchestratorSelectionDefaults.DefaultHealthCheckIntervalSeconds)
+        int healthCheckIntervalSeconds = ResourceOrchestratorSelectionDefaults.DefaultHealthCheckIntervalSeconds,
+        DependencyStartFailureBehavior dependencyStartFailureBehavior = DependencyStartFailureBehavior.FailAction)
     {
         selection = new ResourceOrchestratorSelection(
             string.IsNullOrWhiteSpace(orchestratorId)
@@ -36,6 +47,7 @@ internal sealed class LocalResourceOrchestrationSettings : IResourceOrchestratio
                 : orchestratorId,
             preferredContainerHostId,
             ResourceOrchestratorSelectionDefaults.NormalizeHealthCheckInterval(healthCheckIntervalSeconds),
-            DateTimeOffset.UtcNow);
+            DateTimeOffset.UtcNow,
+            dependencyStartFailureBehavior);
     }
 }

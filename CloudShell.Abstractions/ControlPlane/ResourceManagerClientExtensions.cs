@@ -38,7 +38,8 @@ public static class ResourceManagerClientExtensions
         bool ignoreDependentWarning = false,
         string? triggeredBy = null,
         CancellationToken cancellationToken = default,
-        ResourceIdentityReference? actingIdentity = null)
+        ResourceIdentityReference? actingIdentity = null,
+        DependencyStartFailureBehavior? dependencyStartFailureBehavior = null)
     {
         ArgumentNullException.ThrowIfNull(resourceManager);
 
@@ -49,7 +50,8 @@ public static class ResourceManagerClientExtensions
                 startDependencies,
                 ignoreDependentWarning,
                 triggeredBy,
-                actingIdentity),
+                actingIdentity,
+                dependencyStartFailureBehavior),
             cancellationToken);
     }
 
@@ -61,7 +63,8 @@ public static class ResourceManagerClientExtensions
         bool ignoreDependentWarning = false,
         string? triggeredBy = null,
         CancellationToken cancellationToken = default,
-        ResourceIdentityReference? actingIdentity = null)
+        ResourceIdentityReference? actingIdentity = null,
+        DependencyStartFailureBehavior? dependencyStartFailureBehavior = null)
     {
         ArgumentNullException.ThrowIfNull(resource);
         ArgumentNullException.ThrowIfNull(action);
@@ -73,7 +76,8 @@ public static class ResourceManagerClientExtensions
             ignoreDependentWarning,
             triggeredBy,
             cancellationToken,
-            actingIdentity);
+            actingIdentity,
+            dependencyStartFailureBehavior);
     }
 
     public static Task<ResourceProcedureResult> UpdateResourceImageAsync(
@@ -146,25 +150,29 @@ public static class ResourceManagerClientExtensions
         this IResourceManager resourceManager,
         string resourceId,
         bool startDependencies = false,
-        CancellationToken cancellationToken = default) =>
+        CancellationToken cancellationToken = default,
+        DependencyStartFailureBehavior? dependencyStartFailureBehavior = null) =>
         resourceManager.ExecuteResourceActionAsync(
             resourceId,
             ResourceActionIds.Start,
             startDependencies,
-            cancellationToken: cancellationToken);
+            cancellationToken: cancellationToken,
+            dependencyStartFailureBehavior: dependencyStartFailureBehavior);
 
     public static Task<ResourceProcedureResult> StartResourceAsync(
         this IResourceManager resourceManager,
         Resource resource,
         bool startDependencies = false,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        DependencyStartFailureBehavior? dependencyStartFailureBehavior = null)
     {
         ArgumentNullException.ThrowIfNull(resource);
 
         return resourceManager.StartResourceAsync(
             resource.Id,
             startDependencies,
-            cancellationToken);
+            cancellationToken,
+            dependencyStartFailureBehavior);
     }
 
     public static Task<ResourceProcedureResult> StopResourceAsync(
@@ -218,20 +226,23 @@ public static class ResourceManagerClientExtensions
         string resourceId,
         bool startDependencies = false,
         bool ignoreDependentWarning = false,
-        CancellationToken cancellationToken = default) =>
+        CancellationToken cancellationToken = default,
+        DependencyStartFailureBehavior? dependencyStartFailureBehavior = null) =>
         resourceManager.ExecuteResourceActionAsync(
             resourceId,
             ResourceActionIds.Restart,
             startDependencies,
             ignoreDependentWarning,
-            cancellationToken: cancellationToken);
+            cancellationToken: cancellationToken,
+            dependencyStartFailureBehavior: dependencyStartFailureBehavior);
 
     public static Task<ResourceProcedureResult> RestartResourceAsync(
         this IResourceManager resourceManager,
         Resource resource,
         bool startDependencies = false,
         bool ignoreDependentWarning = false,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        DependencyStartFailureBehavior? dependencyStartFailureBehavior = null)
     {
         ArgumentNullException.ThrowIfNull(resource);
 
@@ -239,6 +250,7 @@ public static class ResourceManagerClientExtensions
             resource.Id,
             startDependencies,
             ignoreDependentWarning,
-            cancellationToken);
+            cancellationToken,
+            dependencyStartFailureBehavior);
     }
 }

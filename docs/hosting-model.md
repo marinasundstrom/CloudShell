@@ -362,6 +362,25 @@ update, import, identity-provisioning, image-deployment, and delete controls in
 the hosted UI. It is not a Control Plane security boundary; authorization and
 API enforcement still belong to the Control Plane.
 
+## Orchestrator Dependency Behavior
+
+Resource Manager can control what happens when a Start or Restart action tries
+to auto-start dependencies and one of those dependencies cannot start. The
+default is fail-fast:
+
+```json
+{
+  "ResourceManager": {
+    "DependencyStartFailureBehavior": "FailAction"
+  }
+}
+```
+
+Set `DependencyStartFailureBehavior` to `WarnAndContinue` when the orchestrator
+should record dependency-start warnings but still attempt to start the
+requested resource. The same setting can be changed from Resource Manager
+Settings unless appsettings provides an explicit value.
+
 ## Persistence
 
 Programmatic declarations are startup configuration by default. Calling

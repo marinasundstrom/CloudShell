@@ -66,7 +66,27 @@ public sealed class LocalDevelopmentDefaultsTests
         Assert.Equal(42, selection.HealthCheckIntervalSeconds);
     }
 
-    private static ServiceCollection CreateServices()
+    [Fact]
+    public void ResourceManagerOptions_CanOverrideDependencyStartFailureBehavior()
+    {
+        var services = CreateServices(new ResourceManagerOptions
+        {
+            DependencyStartFailureBehavior = DependencyStartFailureBehavior.WarnAndContinue
+        });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var settings = serviceProvider.GetRequiredService<IResourceOrchestrationSettings>();
+        settings.Select(
+            "default",
+            dependencyStartFailureBehavior: DependencyStartFailureBehavior.FailAction);
+
+        var dependencySettings = settings.GetDependencyStartFailureSettings();
+
+        Assert.True(dependencySettings.IsConfigured);
+        Assert.Equal(DependencyStartFailureBehavior.WarnAndContinue, dependencySettings.Behavior);
+    }
+
+    private static ServiceCollection CreateServices(ResourceManagerOptions? options = null)
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(contentRoot);
@@ -74,7 +94,7 @@ public sealed class LocalDevelopmentDefaultsTests
         var services = new ServiceCollection();
         services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
         services.AddSingleton<IOptionsMonitor<ResourceManagerOptions>>(
-            new TestOptionsMonitor<ResourceManagerOptions>(new ResourceManagerOptions()));
+            new TestOptionsMonitor<ResourceManagerOptions>(options ?? new ResourceManagerOptions()));
         services.AddSingleton<ResourceOrchestratorSelectionStore>();
         services.AddSingleton<IResourceOrchestrationSettings>(
             serviceProvider => serviceProvider.GetRequiredService<ResourceOrchestratorSelectionStore>());

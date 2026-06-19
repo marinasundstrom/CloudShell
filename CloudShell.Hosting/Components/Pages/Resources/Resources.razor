@@ -1374,7 +1374,8 @@ resourceGroups) =>
                 resource,
                 action,
                 startDependencies,
-                ignoreDependentWarning: true);
+                ignoreDependentWarning: true,
+                dependencyStartFailureBehavior: GetDependencyStartFailureBehavior());
             ProcedureMessage = result.Message;
         }
         catch (Exception exception)
@@ -1839,7 +1840,8 @@ resourceGroups) =>
         {
             ExecutingActionKeys.Add(key);
         }
-        else if (notification.Kind == ResourceChangeKind.ResourceActionExecuted)
+        else if (notification.Kind is ResourceChangeKind.ResourceActionExecuted
+            or ResourceChangeKind.ResourceActionFailed)
         {
             ExecutingActionKeys.Remove(key);
         }
@@ -2033,6 +2035,9 @@ resourceGroups) =>
 
     private static bool ShouldStartDependencies(ResourceAction action) =>
         action.Kind is ResourceActionKind.Start or ResourceActionKind.Restart;
+
+    private DependencyStartFailureBehavior GetDependencyStartFailureBehavior() =>
+        OrchestrationSettings.GetDependencyStartFailureSettings().Behavior;
 
     private static bool ShouldWarnDependents(ResourceAction action) =>
         action.Kind is ResourceActionKind.Stop or ResourceActionKind.Restart;

@@ -34,6 +34,9 @@ public sealed class ResourceOrchestrationService(
 
     public string? PreferredContainerHostId => selectionStore.Get().PreferredContainerHostId;
 
+    public DependencyStartFailureBehavior DependencyStartFailureBehavior =>
+        selectionStore.GetDependencyStartFailureSettings().Behavior;
+
     public async Task<ResourceProcedureResult> DeleteAsync(
         Resource resource,
         CancellationToken cancellationToken = default)
@@ -51,29 +54,61 @@ public sealed class ResourceOrchestrationService(
         CancellationToken cancellationToken = default,
         string? triggeredBy = null,
         string? cause = null,
-        Action<ResourceChangeNotification>? notifyResourceChange = null)
+        Action<ResourceChangeNotification>? notifyResourceChange = null,
+        DependencyStartFailureBehavior dependencyStartFailureBehavior = DependencyStartFailureBehavior.FailAction)
     {
+        var dependencyWarnings = new List<string>();
         if (startDependencies && ShouldStartDependencies(action))
         {
-            await StartResourceDependenciesAsync(
-                resource,
-                resource,
-                authorization,
-                new HashSet<string>(StringComparer.OrdinalIgnoreCase),
-                new HashSet<string>(StringComparer.OrdinalIgnoreCase),
-                [],
-                triggeredBy,
-                notifyResourceChange,
-                cancellationToken);
+            try
+            {
+                await StartResourceDependenciesAsync(
+                    resource,
+                    resource,
+                    action,
+                    authorization,
+                    new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+                    new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+                    [],
+                    triggeredBy,
+                    dependencyStartFailureBehavior,
+                    dependencyWarnings,
+                    notifyResourceChange,
+                    cancellationToken);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                AppendResourceActionEvent(
+                    resource,
+                    ResourceEventTypes.Actions.ForFailedAction(action.Id),
+                    $"{GetActionFailedMessage(action)} Reason: A dependency could not start. {exception.Message}",
+                    triggeredBy,
+                    "Warning");
+                AppendLifecycleEvent(
+                    resource,
+                    GetLifecycleEventTypes(action)?.Failed,
+                    $"{GetLifecycleFailedMessage(action)} Reason: A dependency could not start. {exception.Message}",
+                    cause,
+                    triggeredBy,
+                    "Warning");
+                NotifyResourceChange(
+                    notifyResourceChange,
+                    ResourceChangeKind.ResourceActionFailed,
+                    resource,
+                    action);
+
+                throw;
+            }
         }
 
-        return await ExecuteActionCoreAsync(
+        var result = await ExecuteActionCoreAsync(
             resource,
             action,
             cancellationToken,
             triggeredBy,
             cause,
             notifyResourceChange);
+        return AddDependencyWarnings(result, dependencyWarnings);
     }
 
     private async Task<ResourceProcedureResult> ExecuteActionCoreAsync(
@@ -141,6 +176,11 @@ public sealed class ResourceOrchestrationService(
                 cause,
                 triggeredBy,
                 "Warning");
+            NotifyResourceChange(
+                notifyResourceChange,
+                ResourceChangeKind.ResourceActionFailed,
+                resource,
+                action);
 
             throw;
         }
@@ -158,11 +198,14 @@ public sealed class ResourceOrchestrationService(
     private async Task StartResourceDependenciesAsync(
         Resource resource,
         Resource rootResource,
+        ResourceAction rootAction,
         ICloudShellAuthorizationService authorization,
         HashSet<string> visiting,
         HashSet<string> completed,
         List<Resource> path,
         string? triggeredBy,
+        DependencyStartFailureBehavior dependencyStartFailureBehavior,
+        List<string> dependencyWarnings,
         Action<ResourceChangeNotification>? notifyResourceChange,
         CancellationToken cancellationToken)
     {
@@ -180,93 +223,105 @@ public sealed class ResourceOrchestrationService(
         {
             foreach (var dependencyId in resource.DependsOn.Distinct(StringComparer.OrdinalIgnoreCase))
             {
-                if (completed.Contains(dependencyId))
-                {
-                    continue;
-                }
-
-                var dependency = resourceManager.GetResource(dependencyId);
-                if (dependency is null)
-                {
-                    throw CreateDependencyAutoStartException(
-                        rootResource,
-                        dependencyId,
-                        path.Select(FormatResource).Append(dependencyId),
-                        "dependency resource could not be found");
-                }
-
-                if (dependency.State == ResourceState.Running)
-                {
-                    completed.Add(dependency.Id);
-                    continue;
-                }
-
-                var dependencyPath = path.Append(dependency).ToArray();
-                if (!ShouldAutoStartAsDependency(dependency))
-                {
-                    throw CreateDependencyAutoStartException(
-                        rootResource,
-                        dependency,
-                        dependencyPath,
-                        "auto-start is disabled");
-                }
-
-                await StartResourceDependenciesAsync(
-                    dependency,
-                    rootResource,
-                    authorization,
-                    visiting,
-                    completed,
-                    path,
-                    triggeredBy,
-                    notifyResourceChange,
-                    cancellationToken);
-
-                var runAction = dependency.ResourceActions.FirstOrDefault(action =>
-                    action.Kind == ResourceActionKind.Start);
-                if (runAction is null)
-                {
-                    throw CreateDependencyAutoStartException(
-                        rootResource,
-                        dependency,
-                        dependencyPath,
-                        "dependency does not expose a Start action");
-                }
-
-                var group = resourceManager.GetGroupForResource(dependency.Id);
-                if (!authorization.CanAccessResource(
-                        dependency.Id,
-                        group?.Id,
-                        CloudShellPermissions.Resources.Manage))
-                {
-                    throw CreateDependencyAutoStartException(
-                        rootResource,
-                        dependency,
-                        dependencyPath,
-                        $"the '{CloudShellPermissions.Resources.Manage}' permission is required");
-                }
-
                 try
                 {
-                    await ExecuteActionCoreAsync(
-                        dependency,
-                        runAction,
-                        cancellationToken,
-                        triggeredBy ?? rootResource.Id,
-                        $"Dependency auto-start for '{rootResource.Name}' ({rootResource.Id}).",
-                        notifyResourceChange);
-                }
-                catch (Exception exception) when (exception is not OperationCanceledException)
-                {
-                    throw CreateDependencyAutoStartException(
-                        rootResource,
-                        dependency,
-                        dependencyPath,
-                        exception.Message,
-                        exception);
-                }
+                    if (completed.Contains(dependencyId))
+                    {
+                        continue;
+                    }
 
-                completed.Add(dependency.Id);
+                    var dependency = resourceManager.GetResource(dependencyId);
+                    if (dependency is null)
+                    {
+                        throw CreateDependencyAutoStartException(
+                            rootResource,
+                            dependencyId,
+                            path.Select(FormatResource).Append(dependencyId),
+                            "dependency resource could not be found");
+                    }
+
+                    if (dependency.State == ResourceState.Running)
+                    {
+                        completed.Add(dependency.Id);
+                        continue;
+                    }
+
+                    var dependencyPath = path.Append(dependency).ToArray();
+                    if (!ShouldAutoStartAsDependency(dependency))
+                    {
+                        throw CreateDependencyAutoStartException(
+                            rootResource,
+                            dependency,
+                            dependencyPath,
+                            "auto-start is disabled");
+                    }
+
+                    await StartResourceDependenciesAsync(
+                        dependency,
+                        rootResource,
+                        rootAction,
+                        authorization,
+                        visiting,
+                        completed,
+                        path,
+                        triggeredBy,
+                        dependencyStartFailureBehavior,
+                        dependencyWarnings,
+                        notifyResourceChange,
+                        cancellationToken);
+
+                    var runAction = dependency.ResourceActions.FirstOrDefault(action =>
+                        action.Kind == ResourceActionKind.Start);
+                    if (runAction is null)
+                    {
+                        throw CreateDependencyAutoStartException(
+                            rootResource,
+                            dependency,
+                            dependencyPath,
+                            "dependency does not expose a Start action");
+                    }
+
+                    var group = resourceManager.GetGroupForResource(dependency.Id);
+                    if (!authorization.CanAccessResource(
+                            dependency.Id,
+                            group?.Id,
+                            CloudShellPermissions.Resources.Manage))
+                    {
+                        throw CreateDependencyAutoStartException(
+                            rootResource,
+                            dependency,
+                            dependencyPath,
+                            $"the '{CloudShellPermissions.Resources.Manage}' permission is required");
+                    }
+
+                    try
+                    {
+                        await ExecuteActionCoreAsync(
+                            dependency,
+                            runAction,
+                            cancellationToken,
+                            triggeredBy ?? rootResource.Id,
+                            $"Dependency auto-start for '{rootResource.Name}' ({rootResource.Id}).",
+                            notifyResourceChange);
+                    }
+                    catch (Exception exception) when (exception is not OperationCanceledException)
+                    {
+                        throw CreateDependencyAutoStartException(
+                            rootResource,
+                            dependency,
+                            dependencyPath,
+                            exception.Message,
+                            exception);
+                    }
+
+                    completed.Add(dependency.Id);
+                }
+                catch (ControlPlaneException exception)
+                    when (dependencyStartFailureBehavior == DependencyStartFailureBehavior.WarnAndContinue &&
+                        exception.Error.Code == ControlPlaneErrorCodes.DependencyAutoStartFailed)
+                {
+                    AddDependencyStartWarning(rootResource, rootAction, triggeredBy, dependencyWarnings, exception);
+                }
             }
         }
         finally
@@ -274,6 +329,38 @@ public sealed class ResourceOrchestrationService(
             path.RemoveAt(path.Count - 1);
             visiting.Remove(resource.Id);
         }
+    }
+
+    private void AddDependencyStartWarning(
+        Resource rootResource,
+        ResourceAction rootAction,
+        string? triggeredBy,
+        List<string> dependencyWarnings,
+        ControlPlaneException exception)
+    {
+        var warning = $"Dependency auto-start warning: {exception.Message}";
+        dependencyWarnings.Add(warning);
+        AppendResourceActionEvent(
+            rootResource,
+            ResourceEventTypes.Actions.ForAction(rootAction.Id),
+            warning,
+            triggeredBy,
+            "Warning");
+    }
+
+    private static ResourceProcedureResult AddDependencyWarnings(
+        ResourceProcedureResult result,
+        IReadOnlyList<string> dependencyWarnings)
+    {
+        if (dependencyWarnings.Count == 0)
+        {
+            return result;
+        }
+
+        return result with
+        {
+            Message = $"{result.Message} {string.Join(" ", dependencyWarnings)}"
+        };
     }
 
     private void AppendResourceActionEvent(

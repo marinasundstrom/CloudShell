@@ -288,6 +288,7 @@ public enum ResourceChangeKind
     ResourceDeleted,
     ResourceActionStarted,
     ResourceActionExecuted,
+    ResourceActionFailed,
     ResourceImageUpdated,
     ResourceReplicasUpdated,
     ResourceIdentityChanged
@@ -350,7 +351,8 @@ public sealed record ExecuteResourceActionCommand(
     bool StartDependencies = false,
     bool IgnoreDependentWarning = false,
     string? TriggeredBy = null,
-    ResourceIdentityReference? ActingIdentity = null);
+    ResourceIdentityReference? ActingIdentity = null,
+    DependencyStartFailureBehavior? DependencyStartFailureBehavior = null);
 
 public sealed record UpdateResourceImageCommand(
     string ResourceId,

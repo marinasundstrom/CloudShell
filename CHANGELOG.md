@@ -642,8 +642,11 @@ on `git blame --follow`, and then by the broad type of change.
   notifications when lifecycle actions start and when they complete, including
   dependency auto-start actions.
 - In-process resource action procedures now emit failed action change
-  notifications when lifecycle actions fail, so Resource Manager clears
-  dependency auto-start progress indicators after provider failures.
+  notifications when lifecycle actions fail, including the requested resource
+  when its start is blocked because a dependency could not start.
+- Resource Manager orchestration settings now expose configurable dependency
+  start-failure behavior through appsettings and the Orchestrator settings UI:
+  fail the requested action or warn and continue.
 - Resource Manager pages now use action-start/action-complete notifications to
   show lifecycle transition indicators for dependency auto-starts and other
   externally triggered in-process resource actions.

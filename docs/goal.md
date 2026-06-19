@@ -75,6 +75,13 @@ apps or project-backed services, configuration and secrets, identity-backed
 access where needed, SQL Server with mounted storage, logs, traces, networking,
 endpoint exposure, and DNS/name mappings.
 
+The MVP should also prove the failure path for that topology. When an operation
+cannot complete because a container host, dependency, provider runtime, or
+local prerequisite is unavailable, Resource Manager should identify the
+affected resource, explain the dependency or provider failure, and leave users
+with a clear next diagnostic step instead of surfacing only a generic internal
+error or a stuck lifecycle transition.
+
 [Roadmap](roadmap.md) owns milestone scope and ordering.
 [ADR](../ADR.md) owns durable product and architecture decisions.
 [Changelog](../CHANGELOG.md) owns landed implementation changes. This document

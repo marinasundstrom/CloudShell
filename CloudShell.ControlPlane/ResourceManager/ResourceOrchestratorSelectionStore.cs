@@ -58,10 +58,27 @@ public sealed class ResourceOrchestratorSelectionStore : IResourceOrchestrationS
             false);
     }
 
+    public ResourceDependencyStartFailureSettings GetDependencyStartFailureSettings()
+    {
+        var configuredBehavior = _options.CurrentValue.DependencyStartFailureBehavior;
+        if (configuredBehavior is not null &&
+            Enum.IsDefined(configuredBehavior.Value))
+        {
+            return new ResourceDependencyStartFailureSettings(
+                configuredBehavior.Value,
+                true);
+        }
+
+        return new ResourceDependencyStartFailureSettings(
+            Get().DependencyStartFailureBehavior,
+            false);
+    }
+
     public void Select(
         string orchestratorId,
         string? preferredContainerHostId = null,
-        int healthCheckIntervalSeconds = DefaultHealthCheckIntervalSeconds)
+        int healthCheckIntervalSeconds = DefaultHealthCheckIntervalSeconds,
+        DependencyStartFailureBehavior dependencyStartFailureBehavior = DependencyStartFailureBehavior.FailAction)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(orchestratorId);
 
@@ -71,7 +88,8 @@ public sealed class ResourceOrchestratorSelectionStore : IResourceOrchestrationS
                 orchestratorId.Trim(),
                 NormalizeOptional(preferredContainerHostId),
                 NormalizeHealthCheckInterval(healthCheckIntervalSeconds),
-                DateTimeOffset.UtcNow);
+                DateTimeOffset.UtcNow,
+                dependencyStartFailureBehavior);
             Persist();
         }
     }
@@ -111,6 +129,9 @@ public sealed class ResourceOrchestratorSelectionStore : IResourceOrchestrationS
             HealthCheckIntervalSeconds = NormalizeHealthCheckInterval(
                 selection.HealthCheckIntervalSeconds == 0
                     ? DefaultHealthCheckIntervalSeconds
-                    : selection.HealthCheckIntervalSeconds)
+                    : selection.HealthCheckIntervalSeconds),
+            DependencyStartFailureBehavior = Enum.IsDefined(selection.DependencyStartFailureBehavior)
+                ? selection.DependencyStartFailureBehavior
+                : DependencyStartFailureBehavior.FailAction
         };
 }

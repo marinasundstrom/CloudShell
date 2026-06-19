@@ -1069,6 +1069,106 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task ExecuteResourceActionAsync_NotifiesFailedDependencyAutoStart()
+    {
+        var provider = new TestResourceProvider
+        {
+            FailedActionResourceId = "vault",
+            FailureMessage = "Docker is unavailable."
+        };
+        var resourceEvents = new InMemoryResourceEventStore();
+        var controlPlane = CreateControlPlane(
+            [
+                CreateResource("api", ResourceState.Stopped, dependsOn: ["vault"]),
+                CreateResource("vault", ResourceState.Stopped)
+            ],
+            provider,
+            resourceEvents: resourceEvents);
+        var notifications = new List<ResourceChangeNotification>();
+        controlPlane.ResourcesChanged += (_, notification) => notifications.Add(notification);
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
+            controlPlane.ExecuteResourceActionAsync(
+                new ExecuteResourceActionCommand(
+                    "api",
+                    ResourceActionIds.Start,
+                    StartDependencies: true,
+                    TriggeredBy: "operator")));
+
+        Assert.Equal(ControlPlaneErrorCodes.DependencyAutoStartFailed, exception.Error.Code);
+        Assert.Contains("Reason: Docker is unavailable.", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(["vault:start"], provider.ExecutedActions);
+        Assert.Equal(
+            [
+                ResourceChangeKind.ResourceActionStarted,
+                ResourceChangeKind.ResourceActionFailed,
+                ResourceChangeKind.ResourceActionFailed
+            ],
+            notifications.Select(notification => notification.Kind).ToArray());
+        Assert.Equal(["vault", "vault", "api"], notifications.Select(notification => notification.ResourceId!).ToArray());
+        Assert.All(notifications, notification => Assert.Equal(ResourceActionIds.Start, notification.ActionId));
+        Assert.All(notifications, notification => Assert.Contains(notification.ResourceId!, notification.Resources));
+
+        var rootEvents = resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "api"));
+        Assert.Contains(rootEvents, resourceEvent =>
+            resourceEvent.EventType == ResourceEventTypes.Events.Lifecycle.StartFailed &&
+            resourceEvent.Level == "Warning" &&
+            resourceEvent.Message.Contains("A dependency could not start", StringComparison.Ordinal) &&
+            resourceEvent.Message.Contains("Docker is unavailable", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ExecuteResourceActionAsync_CanWarnAndContinueWhenDependencyAutoStartFails()
+    {
+        var provider = new TestResourceProvider
+        {
+            FailedActionResourceId = "vault",
+            FailureMessage = "Docker is unavailable."
+        };
+        var resourceEvents = new InMemoryResourceEventStore();
+        var controlPlane = CreateControlPlane(
+            [
+                CreateResource("api", ResourceState.Stopped, dependsOn: ["vault"]),
+                CreateResource("vault", ResourceState.Stopped)
+            ],
+            provider,
+            resourceEvents: resourceEvents);
+        var notifications = new List<ResourceChangeNotification>();
+        controlPlane.ResourcesChanged += (_, notification) => notifications.Add(notification);
+
+        var result = await controlPlane.ExecuteResourceActionAsync(
+            new ExecuteResourceActionCommand(
+                "api",
+                ResourceActionIds.Start,
+                StartDependencies: true,
+                TriggeredBy: "operator",
+                DependencyStartFailureBehavior: DependencyStartFailureBehavior.WarnAndContinue));
+
+        Assert.Equal(["vault:start", "api:start"], provider.ExecutedActions);
+        Assert.Contains("Executed start.", result.Message, StringComparison.Ordinal);
+        Assert.Contains("Dependency auto-start warning", result.Message, StringComparison.Ordinal);
+        Assert.Contains("Docker is unavailable", result.Message, StringComparison.Ordinal);
+        Assert.Equal(
+            [
+                ResourceChangeKind.ResourceActionStarted,
+                ResourceChangeKind.ResourceActionFailed,
+                ResourceChangeKind.ResourceActionStarted,
+                ResourceChangeKind.ResourceActionExecuted
+            ],
+            notifications.Select(notification => notification.Kind).ToArray());
+        Assert.Equal(["vault", "vault", "api", "api"], notifications.Select(notification => notification.ResourceId!).ToArray());
+
+        var rootEvents = resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "api"));
+        Assert.Contains(rootEvents, resourceEvent =>
+            resourceEvent.EventType == ResourceEventTypes.Actions.ForAction(ResourceActionIds.Start) &&
+            resourceEvent.Level == "Warning" &&
+            resourceEvent.Message.Contains("Dependency auto-start warning", StringComparison.Ordinal) &&
+            resourceEvent.Message.Contains("Docker is unavailable", StringComparison.Ordinal));
+        Assert.DoesNotContain(rootEvents, resourceEvent =>
+            resourceEvent.EventType == ResourceEventTypes.Events.Lifecycle.StartFailed);
+    }
+
+    [Fact]
     public async Task ExecuteResourceActionAsync_BlocksStopWhenRunningDependentsExist()
     {
         var provider = new TestResourceProvider();
@@ -1920,6 +2020,10 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         public List<string> ExecutedActions { get; } = [];
 
+        public string? FailedActionResourceId { get; init; }
+
+        public string FailureMessage { get; init; } = "Action failed.";
+
         public IReadOnlyList<Resource> GetResources() => [];
 
         public Task<ResourceProcedureResult> DeleteAsync(
@@ -1933,6 +2037,11 @@ public sealed class InProcessControlPlaneResourceStateTests
             CancellationToken cancellationToken = default)
         {
             ExecutedActions.Add($"{context.Resource.Id}:{action.Id}");
+            if (string.Equals(context.Resource.Id, FailedActionResourceId, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(FailureMessage);
+            }
+
             context.AppendProviderEvent(
                 Id,
                 "action.executed",

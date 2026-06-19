@@ -7,6 +7,7 @@
 @inject ILogManager LogManager
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject IResourceOrchestrationSettings OrchestrationSettings
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject ResourceManagerDisplaySettings DisplaySettings
 @inject IStringLocalizer<SharedResource> L
@@ -410,7 +411,8 @@
                     Resource.Id,
                     action.Id,
                     StartDependencies: ShouldStartDependencies(action),
-                    IgnoreDependentWarning: true));
+                    IgnoreDependentWarning: true,
+                    DependencyStartFailureBehavior: GetDependencyStartFailureBehavior()));
             ProcedureMessage = result.Message;
             var resource = await ResourceManager.GetResourceAsync(Resource.Id);
             if (resource is not null)
@@ -438,6 +440,9 @@
 
     private static bool ShouldStartDependencies(ResourceAction action) =>
         action.Kind is ResourceActionKind.Start or ResourceActionKind.Restart;
+
+    private DependencyStartFailureBehavior GetDependencyStartFailureBehavior() =>
+        OrchestrationSettings.GetDependencyStartFailureSettings().Behavior;
 
     private static string GetDiagnosticClass(ResourceDiagnosticView diagnostic) =>
         $"generated-diagnostic {diagnostic.Severity.ToLowerInvariant()}";

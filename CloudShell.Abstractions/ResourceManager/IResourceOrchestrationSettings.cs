@@ -6,10 +6,13 @@ public interface IResourceOrchestrationSettings
 
     ResourceHealthCheckIntervalSettings GetHealthCheckIntervalSettings();
 
+    ResourceDependencyStartFailureSettings GetDependencyStartFailureSettings();
+
     void Select(
         string orchestratorId,
         string? preferredContainerHostId = null,
-        int healthCheckIntervalSeconds = ResourceOrchestratorSelectionDefaults.DefaultHealthCheckIntervalSeconds);
+        int healthCheckIntervalSeconds = ResourceOrchestratorSelectionDefaults.DefaultHealthCheckIntervalSeconds,
+        DependencyStartFailureBehavior dependencyStartFailureBehavior = DependencyStartFailureBehavior.FailAction);
 }
 
 public static class ResourceOrchestratorSelectionDefaults
@@ -29,15 +32,27 @@ public sealed record ResourceOrchestratorSelection(
     string OrchestratorId,
     string? PreferredContainerHostId,
     int HealthCheckIntervalSeconds,
-    DateTimeOffset UpdatedAt)
+    DateTimeOffset UpdatedAt,
+    DependencyStartFailureBehavior DependencyStartFailureBehavior = DependencyStartFailureBehavior.FailAction)
 {
     public static ResourceOrchestratorSelection Default { get; } = new(
         "default",
         null,
         ResourceOrchestratorSelectionDefaults.DefaultHealthCheckIntervalSeconds,
-        DateTimeOffset.MinValue);
+        DateTimeOffset.MinValue,
+        DependencyStartFailureBehavior.FailAction);
 }
 
 public sealed record ResourceHealthCheckIntervalSettings(
     int Seconds,
     bool IsConfigured);
+
+public sealed record ResourceDependencyStartFailureSettings(
+    DependencyStartFailureBehavior Behavior,
+    bool IsConfigured);
+
+public enum DependencyStartFailureBehavior
+{
+    FailAction,
+    WarnAndContinue
+}

@@ -590,7 +590,9 @@ public sealed class InProcessControlPlane(
             CreateAuthorizationService(command.ActingIdentity),
             cancellationToken,
             command.TriggeredBy,
-            notifyResourceChange: NotifyResourcesChanged);
+            notifyResourceChange: NotifyResourcesChanged,
+            dependencyStartFailureBehavior:
+                command.DependencyStartFailureBehavior ?? orchestration.DependencyStartFailureBehavior);
 
         return result;
     }

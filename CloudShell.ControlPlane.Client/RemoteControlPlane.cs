@@ -410,6 +410,7 @@ public sealed class RemoteControlPlane : IControlPlane
                 $"resources/{Escape(command.ResourceId)}/actions/{Escape(command.ActionId)}",
                 ("startDependencies", command.StartDependencies.ToString()),
                 ("ignoreDependentWarning", command.IgnoreDependentWarning.ToString()),
+                ("dependencyStartFailureBehavior", command.DependencyStartFailureBehavior?.ToString()),
                 ("triggeredBy", command.TriggeredBy),
                 ("actingIdentityResourceId", command.ActingIdentity?.ResourceId),
                 ("actingIdentityName", command.ActingIdentity?.Name)),

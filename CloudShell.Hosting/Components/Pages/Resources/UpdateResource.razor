@@ -9,6 +9,7 @@
 @inject ICloudShellAuthorizationService Authorization
 @inject IJSRuntime JS
 @inject ResourceHealthCheckService HealthChecks
+@inject IResourceOrchestrationSettings OrchestrationSettings
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject ResourceManagerDisplaySettings DisplaySettings
 @inject IStringLocalizer<SharedResource> L
@@ -637,7 +638,8 @@
         {
             ExecutingActionIds.Add(notification.ActionId);
         }
-        else if (notification.Kind == ResourceChangeKind.ResourceActionExecuted)
+        else if (notification.Kind is ResourceChangeKind.ResourceActionExecuted
+            or ResourceChangeKind.ResourceActionFailed)
         {
             ExecutingActionIds.Remove(notification.ActionId);
         }
@@ -1128,7 +1130,8 @@
                     Resource.Id,
                     action.Id,
                     StartDependencies: ShouldStartDependencies(action),
-                    IgnoreDependentWarning: true));
+                    IgnoreDependentWarning: true,
+                    DependencyStartFailureBehavior: GetDependencyStartFailureBehavior()));
             ProcedureMessage = result.Message;
             await ReloadResourceAsync();
             ResourceContentVersion++;
@@ -1170,6 +1173,9 @@
 
     private static bool ShouldStartDependencies(ResourceAction action) =>
         action.Kind is ResourceActionKind.Start or ResourceActionKind.Restart;
+
+    private DependencyStartFailureBehavior GetDependencyStartFailureBehavior() =>
+        OrchestrationSettings.GetDependencyStartFailureSettings().Behavior;
 
     private static void AddActionIcon(
         RenderTreeBuilder builder,

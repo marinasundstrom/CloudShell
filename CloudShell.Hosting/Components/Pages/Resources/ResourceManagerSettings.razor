@@ -50,6 +50,17 @@
         </div>
         <div class="selected-type-card">
             <span class="resource-kind-icon" aria-hidden="true">
+                <FluentIcon Value="@(new Icons.Regular.Size20.Flowchart())" />
+            </span>
+            <div>
+                <strong>@GetDependencyFailureBehaviorLabel(GetEffectiveDependencyStartFailureBehavior().Behavior)</strong>
+                <p>@(GetEffectiveDependencyStartFailureBehavior().IsConfigured
+                    ? L["Dependency behavior from appsettings"]
+                    : L["Dependency behavior from settings"])</p>
+            </div>
+        </div>
+        <div class="selected-type-card">
+            <span class="resource-kind-icon" aria-hidden="true">
                 <FluentIcon Value="@(new Icons.Regular.Size20.SlideTextSparkle())" />
             </span>
             <div>
@@ -142,6 +153,30 @@
                 }
             </small>
 
+            <label for="dependency-start-failure-behavior">@L["Dependency start failures"]</label>
+            <FluentSelect TOption="string"
+                          Id="dependency-start-failure-behavior"
+                          @bind-Value="SelectedDependencyStartFailureBehavior"
+                          Disabled="@(IsReadOnly || IsDependencyStartFailureBehaviorConfigured)"
+                          Appearance="Appearance.Outline">
+                <FluentOption TOption="string" Value="@DependencyStartFailureBehavior.FailAction.ToString()">
+                    @L["Stop requested action"]
+                </FluentOption>
+                <FluentOption TOption="string" Value="@DependencyStartFailureBehavior.WarnAndContinue.ToString()">
+                    @L["Warn and continue"]
+                </FluentOption>
+            </FluentSelect>
+            <small>
+                @if (IsDependencyStartFailureBehaviorConfigured)
+                {
+                    @L["appsettings ResourceManager:DependencyStartFailureBehavior is overriding this setting."]
+                }
+                else
+                {
+                    @L["Controls whether Start and Restart stop when dependency auto-start fails, or continue after recording a warning."]
+                }
+            </small>
+
             <fieldset class="form-fieldset">
                 <legend>@L["Resource labels"]</legend>
                 <div class="checkbox-stack">
@@ -215,6 +250,8 @@
     private string? SelectedContainerHostId { get; set; }
     private int SelectedHealthCheckIntervalSeconds { get; set; } =
         ResourceOrchestratorSelectionDefaults.DefaultHealthCheckIntervalSeconds;
+    private string SelectedDependencyStartFailureBehavior { get; set; } =
+        DependencyStartFailureBehavior.FailAction.ToString();
     private bool SelectedEnableDisplayNames { get; set; } = true;
     private bool SelectedShowRuntimeManagedResources { get; set; }
     private bool SelectedShowHiddenResources { get; set; }
@@ -229,6 +266,9 @@
 
     private bool IsHealthCheckIntervalConfigured =>
         OrchestrationSettings.GetHealthCheckIntervalSettings().IsConfigured;
+
+    private bool IsDependencyStartFailureBehaviorConfigured =>
+        OrchestrationSettings.GetDependencyStartFailureSettings().IsConfigured;
 
     private bool CanShowRuntimeManagedResources =>
         DisplaySelection.CanShowRuntimeManagedResources;
@@ -248,6 +288,7 @@
         SelectedOrchestratorId = selection.OrchestratorId;
         SelectedContainerHostId = selection.PreferredContainerHostId;
         SelectedHealthCheckIntervalSeconds = selection.HealthCheckIntervalSeconds;
+        SelectedDependencyStartFailureBehavior = GetEffectiveDependencyStartFailureBehavior().Behavior.ToString();
         await ApplyDisplaySelectionAsync();
         OrchestrationSnapshot = await OrchestrationCatalog.GetSnapshotAsync();
         ContainerHosts = GetContainerHosts();
@@ -270,6 +311,8 @@
             (!IsHealthCheckIntervalConfigured &&
                 ResourceOrchestratorSelectionDefaults.NormalizeHealthCheckInterval(SelectedHealthCheckIntervalSeconds) !=
                 selection.HealthCheckIntervalSeconds) ||
+            (!IsDependencyStartFailureBehaviorConfigured &&
+                GetSelectedDependencyStartFailureBehavior() != selection.DependencyStartFailureBehavior) ||
             SelectedEnableDisplayNames != display.EnableDisplayNames ||
             (display.CanShowRuntimeManagedResources &&
                 SelectedShowRuntimeManagedResources != display.ShowRuntimeManagedResources) ||
@@ -307,6 +350,7 @@
         SelectedOrchestratorId = selection.OrchestratorId;
         SelectedContainerHostId = selection.PreferredContainerHostId;
         SelectedHealthCheckIntervalSeconds = selection.HealthCheckIntervalSeconds;
+        SelectedDependencyStartFailureBehavior = GetEffectiveDependencyStartFailureBehavior().Behavior.ToString();
         await ApplyDisplaySelectionAsync();
         ConfigurationWarnings = GetConfigurationWarnings();
         PendingChange = false;
@@ -323,12 +367,14 @@
         OrchestrationSettings.Select(
             SelectedOrchestratorId,
             SelectedContainerHostId,
-            SelectedHealthCheckIntervalSeconds);
+            SelectedHealthCheckIntervalSeconds,
+            GetSelectedDependencyStartFailureBehavior());
         await DisplaySettings.SelectAsync(
             SelectedEnableDisplayNames,
             SelectedShowRuntimeManagedResources,
             SelectedShowHiddenResources);
         SelectedHealthCheckIntervalSeconds = OrchestrationSettings.Get().HealthCheckIntervalSeconds;
+        SelectedDependencyStartFailureBehavior = GetEffectiveDependencyStartFailureBehavior().Behavior.ToString();
         await ApplyDisplaySelectionAsync();
         ConfigurationWarnings = GetConfigurationWarnings();
         PendingChange = false;
@@ -338,6 +384,9 @@
 
     private ResourceHealthCheckIntervalSettings GetEffectiveHealthCheckInterval() =>
         OrchestrationSettings.GetHealthCheckIntervalSettings();
+
+    private ResourceDependencyStartFailureSettings GetEffectiveDependencyStartFailureBehavior() =>
+        OrchestrationSettings.GetDependencyStartFailureSettings();
 
     private async Task ApplyDisplaySelectionAsync()
     {
@@ -362,6 +411,22 @@
             _ => L["Normal only"].Value
         };
     }
+
+    private string GetDependencyFailureBehaviorLabel(DependencyStartFailureBehavior behavior) =>
+        behavior switch
+        {
+            DependencyStartFailureBehavior.WarnAndContinue => L["Warn and continue"].Value,
+            _ => L["Stop requested action"].Value
+        };
+
+    private DependencyStartFailureBehavior GetSelectedDependencyStartFailureBehavior() =>
+        Enum.TryParse<DependencyStartFailureBehavior>(
+            SelectedDependencyStartFailureBehavior,
+            ignoreCase: true,
+            out var behavior) &&
+        Enum.IsDefined(behavior)
+            ? behavior
+            : DependencyStartFailureBehavior.FailAction;
 
     private string GetDefaultDisplayText(bool value) =>
         value ? L["enabled"].Value : L["disabled"].Value;
