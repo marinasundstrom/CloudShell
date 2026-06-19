@@ -68,6 +68,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Generated resource overview diagnostics now include lifecycle readiness
   warnings from Start/Restart capability reasons, so resources without custom
   overview pages still explain blocked local-development preflight checks.
+- Resource list detail blades now show the same lifecycle readiness warnings,
+  making disabled Start/Restart preflight reasons visible without opening the
+  full resource details page.
 
 ### 2026-06-18
 

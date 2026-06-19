@@ -359,6 +359,26 @@
 
             <ResourceStartupDeclarationAlert Resource="selected" />
 
+            @if (GetBladeReadinessDiagnostics(selected) is { Count: > 0 } readinessDiagnostics)
+            {
+                <section class="blade-section">
+                    <h3>@L["Readiness"]</h3>
+                    <div class="generated-list">
+                        @foreach (var diagnostic in readinessDiagnostics)
+                        {
+                            <div class="@GetDiagnosticClass(diagnostic)">
+                                <ResourceSeverityIcon Severity="diagnostic.Severity" />
+                                <div class="generated-diagnostic-content">
+                                    <strong>@diagnostic.Title</strong>
+                                    <span>@diagnostic.Message</span>
+                                    <small>@diagnostic.Severity</small>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </section>
+            }
+
             @if (DeleteConfirmationResourceId == selected.Id)
             {
                 <div class="procedure-confirmation">
@@ -1543,6 +1563,12 @@ resourceGroups) =>
     private ResourceOperationCapabilities GetCapabilities(Resource resource) =>
         ResourceCapabilities.GetValueOrDefault(resource.Id) ??
         ResourceOperationCapabilities.None(resource.Id);
+
+    private IReadOnlyList<ResourceDiagnosticView> GetBladeReadinessDiagnostics(Resource resource) =>
+        ResourceActionReadinessDiagnostics.GetDiagnostics(resource, GetCapabilities(resource));
+
+    private static string GetDiagnosticClass(ResourceDiagnosticView diagnostic) =>
+        $"generated-diagnostic {diagnostic.Severity.ToString().ToLowerInvariant()}";
 
     private static bool IsNetworkResource(Resource resource) =>
         resource.ResourceClass == ResourceClass.Network ||
