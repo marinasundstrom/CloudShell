@@ -44,6 +44,12 @@ relationship explicit:
 - `WithReference(registry).WithServiceDiscovery()` projects registry endpoints
   into the workload's service discovery configuration.
 
+The Docker host, registry resource, and container app all call
+`Persist(overwrite: true)`. This keeps the sample focused on the handoff from
+programmatic declarations into durable Control Plane/provider state. Resource
+Manager should show these as persisted declarations rather than transient
+startup declarations.
+
 Run the sample:
 
 ```bash

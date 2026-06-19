@@ -1304,8 +1304,22 @@ public sealed class SampleSmokeTests
             resource.GetProperty("id").GetString() == "docker:container:sample-registry");
 
         var registryAddress = $"localhost:{registryPort.ToString(CultureInfo.InvariantCulture)}";
-        Assert.Equal(registryAddress, app.GetProperty("attributes").GetProperty("container.registry").GetString());
-        Assert.Equal(registryAddress, registry.GetProperty("attributes").GetProperty("container.registry").GetString());
+        var appAttributes = app.GetProperty("attributes");
+        var registryAttributes = registry.GetProperty("attributes");
+        Assert.Equal(registryAddress, appAttributes.GetProperty("container.registry").GetString());
+        Assert.Equal(registryAddress, registryAttributes.GetProperty("container.registry").GetString());
+        Assert.Equal(
+            ResourceDeclarationPersistence.Persisted.ToString(),
+            appAttributes.GetProperty(ResourceAttributeNames.DeclarationPersistence).GetString());
+        Assert.Equal(
+            ResourceDeclarationPersistence.Persisted.ToString(),
+            registryAttributes.GetProperty(ResourceAttributeNames.DeclarationPersistence).GetString());
+
+        var appDetailsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application:sample-api")}/details");
+        Assert.Contains("Persisted declaration", appDetailsHtml);
+        Assert.DoesNotContain("Startup declaration", appDetailsHtml);
+        Assert.DoesNotContain("UI changes are temporary until the resource is persisted.", appDetailsHtml);
 
         var updateJson = await host.SendJsonAsync(
             HttpMethod.Post,

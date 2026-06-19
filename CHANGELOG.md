@@ -17,6 +17,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Container App Deployment smoke coverage now verifies that resources declared
+  with `Persist(overwrite: true)` are projected and rendered as persisted
+  declarations rather than transient startup declarations.
 - Application Topology smoke coverage now verifies that stopped project-backed
   apps surface Control Plane health feedback on the resource page and in the
   Health workspace.
