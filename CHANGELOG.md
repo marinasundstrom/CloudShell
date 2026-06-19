@@ -57,6 +57,10 @@ on `git blame --follow`, and then by the broad type of change.
   infrastructure instead of a provider-shaped implementation; provider-facing
   lifecycle, template, declaration, orchestration, and availability facets live
   on the concrete application resource providers.
+- Dependency auto-start hard failures now record failed start signals on
+  intermediate resources whose own dependencies failed, so a resource such as
+  an API can show that SQL Server failed underneath it instead of only the
+  originally requested frontend showing the failure.
 
 ### 2026-06-18
 

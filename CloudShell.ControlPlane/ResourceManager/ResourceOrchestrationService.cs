@@ -324,11 +324,50 @@ public sealed class ResourceOrchestrationService(
                 }
             }
         }
+        catch (ControlPlaneException exception)
+            when (!string.Equals(resource.Id, rootResource.Id, StringComparison.OrdinalIgnoreCase) &&
+                exception.Error.Code == ControlPlaneErrorCodes.DependencyAutoStartFailed)
+        {
+            AppendDependencyStartFailureEvent(
+                resource,
+                rootAction,
+                triggeredBy,
+                exception);
+            NotifyResourceChange(
+                notifyResourceChange,
+                ResourceChangeKind.ResourceActionFailed,
+                resource,
+                rootAction);
+
+            throw;
+        }
         finally
         {
             path.RemoveAt(path.Count - 1);
             visiting.Remove(resource.Id);
         }
+    }
+
+    private void AppendDependencyStartFailureEvent(
+        Resource resource,
+        ResourceAction action,
+        string? triggeredBy,
+        ControlPlaneException exception)
+    {
+        var reason = $"Reason: A dependency could not start. {exception.Message}";
+        AppendResourceActionEvent(
+            resource,
+            ResourceEventTypes.Actions.ForFailedAction(action.Id),
+            $"{GetActionFailedMessage(action)} {reason}",
+            triggeredBy,
+            ResourceSignalSeverity.Error);
+        AppendLifecycleEvent(
+            resource,
+            GetLifecycleEventTypes(action)?.Failed,
+            $"{GetLifecycleFailedMessage(action)} {reason}",
+            null,
+            triggeredBy,
+            ResourceSignalSeverity.Error);
     }
 
     private void AddDependencyStartWarning(
