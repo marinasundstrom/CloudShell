@@ -195,7 +195,7 @@
                             <dd>@FormatEndpointNetworkMappingProvider(mapping)</dd>
                         </dl>
                     </div>
-                    <div class="generated-row-actions">
+                    <GeneratedRowActions>
                         <FluentButton Appearance="Appearance.Neutral"
                                       Title="@L["Copy address"]"
                                       Disabled="@string.IsNullOrWhiteSpace(mapping.Address)"
@@ -210,7 +210,7 @@
                                 @L["Open"]
                             </FluentButton>
                         }
-                    </div>
+                    </GeneratedRowActions>
                 </div>
             }
         </div>

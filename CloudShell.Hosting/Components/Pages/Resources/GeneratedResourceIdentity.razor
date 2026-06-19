@@ -72,13 +72,13 @@
     }
 
     private RenderFragment RenderResourceIdentity() => @<text>
-        <div class="generated-row-actions">
+        <GeneratedRowActions>
             <FluentCheckbox Value="@IdentityEnabled"
                             ValueChanged="SetIdentityEnabled"
                             Disabled="@(UpdatingIdentity || IsReadOnly)">
                 @L["Enable identity"]
             </FluentCheckbox>
-        </div>
+        </GeneratedRowActions>
         @if (Resource?.IdentityBinding is { } identity)
         {
             <dl class="detail-list">
@@ -116,13 +116,13 @@
                     </dd>
                 }
             </dl>
-            <div class="generated-row-actions">
+            <GeneratedRowActions>
                 <FluentButton Appearance="Appearance.Neutral"
                               Disabled="@(ProvisioningIdentity || IsReadOnly)"
                               OnClick="ProvisionIdentity">
                     @GetProvisionIdentityButtonLabel()
                 </FluentButton>
-            </div>
+            </GeneratedRowActions>
             @if (IsReadOnly)
             {
                 <ProcedureMessage Compact="true">

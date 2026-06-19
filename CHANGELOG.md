@@ -73,6 +73,8 @@ on `git blame --follow`, and then by the broad type of change.
   errors so `procedure-message` markup is owned by one shared component.
 - Moved `ResourceStateIndicator` into the shared component package and adopted
   it for application replica state pills in scaling and monitoring views.
+- Added a reusable `GeneratedRowActions` component and adopted it for generated
+  action rows in identity, access control, endpoints, and application actions.
 - Resource Manager now includes a top-level Health workspace that polls
   configured resource health checks at the Resource Manager health-check
   interval, summarizes resource status, and links back to resource details.

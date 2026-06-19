@@ -53,13 +53,13 @@ else
                     Replicated container apps with inbound endpoints need ingress or a load balancer for one stable address. Apply scaling, then create a route for this app endpoint.
                     @if (!IsReadOnly)
                     {
-                        <div class="generated-row-actions">
+                        <GeneratedRowActions>
                             <FluentAnchor Appearance="Appearance.Neutral"
                                           IconStart="@(new Icons.Regular.Size20.ArrowRouting())"
                                           Href="@BuildAddLoadBalancerRoute()">
                                 Add load-balancer route
                             </FluentAnchor>
-                        </div>
+                        </GeneratedRowActions>
                     }
                 </ProcedureMessage>
             }

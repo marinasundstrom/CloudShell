@@ -15,25 +15,25 @@ else
             <strong>Expose through load balancer</strong>
             <span>Create a provider-backed route to this application's endpoint.</span>
             <small>@FormatTarget(Resource)</small>
-            <div class="generated-row-actions">
+            <GeneratedRowActions>
                 <FluentAnchor Appearance="Appearance.Neutral"
                               IconStart="@(new Icons.Regular.Size20.ArrowRouting())"
                               Href="@BuildAddLoadBalancerRoute(Resource)">
                     @GetLoadBalancerActionLabel()
                 </FluentAnchor>
-            </div>
+            </GeneratedRowActions>
         </div>
         <div>
             <strong>Add DNS name</strong>
             <span>Create a name mapping for this application's endpoint.</span>
             <small>@FormatTarget(Resource)</small>
-            <div class="generated-row-actions">
+            <GeneratedRowActions>
                 <FluentAnchor Appearance="Appearance.Neutral"
                               IconStart="@(new Icons.Regular.Size20.Globe())"
                               Href="@BuildAddNameMappingRoute(Resource)">
                     Add name mapping
                 </FluentAnchor>
-            </div>
+            </GeneratedRowActions>
         </div>
     </div>
 }

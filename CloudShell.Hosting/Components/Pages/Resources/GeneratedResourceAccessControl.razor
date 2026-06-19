@@ -125,13 +125,13 @@
                                  Placeholder="Provider.Namespace/resources/action" />
             }
 
-            <div class="generated-row-actions">
+            <GeneratedRowActions>
                 <FluentButton Appearance="Appearance.Accent"
                               Disabled="@(GrantingPermission || IsReadOnly)"
                               OnClick="GrantPermission">
                     @GetGrantButtonLabel()
                 </FluentButton>
-            </div>
+            </GeneratedRowActions>
         </div>
         @if (IsReadOnly)
         {
