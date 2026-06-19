@@ -180,19 +180,30 @@ suffixes and public DNS propagation remain provider-specific follow-up work.
 
 ## MVP Direction
 
-This sample is intended to become the full-fidelity local development sample
-for CloudShell. Keep the frontend/backend split: the frontend should stay a
-separate ASP.NET Core project that calls the backend API through CloudShell
-service discovery, while the backend API becomes the place where downstream
-platform services are exercised.
+This sample is the broad local-development MVP proof for CloudShell. Keep the
+frontend/backend split: the frontend stays a separate ASP.NET Core project
+that calls the backend API through CloudShell service discovery, while the
+backend API exercises downstream platform services.
 
-Planned capabilities to add here:
+Already covered by the sample:
+
+- Project-backed frontend and API resources that share ServiceDefaults.
+- SQL Server as a container app with a mounted local-storage volume.
+- Configuration Store and Secrets Vault references injected into the API
+  without leaking secret values.
+- Built-in development resource identity and access grants for settings and
+  secrets.
+- Local DNS/name mapping through the `local-hostnames` publisher.
+- Resource health checks, logs, traces, and the intentional failed request
+  path.
+
+Remaining useful additions:
 
 - Identity-backed SQL Server authentication, so the API can use its CloudShell
   resource identity to access the database in an Azure-like flow.
-- Structured logs from both projects, including fields that correlate to
-  traces and resources.
-- OpenTelemetry traces across frontend, backend, and downstream service calls,
-  visible in the CloudShell traces experience.
-- Container-app and networking variants once those primitives are stable enough
-  for the sample to demonstrate composition instead of platform gaps.
+- A stronger runtime-failure walkthrough after the API, frontend, and SQL
+  resources are started, including correlated failed request logs and traces
+  from `/upstream/failure`.
+- Optional container-app variants for the frontend and API only when they prove
+  a distinct local-development workflow instead of duplicating the
+  project-backed path.

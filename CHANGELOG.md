@@ -17,6 +17,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Refreshed Application Topology sample documentation to separate already
+  covered local-development MVP proof areas from the remaining scenario
+  additions.
 - Application Topology documentation and smoke coverage now reflect the current
   local-hostname workflow: use the Local DNS resource's **Reconcile name
   mappings** action instead of manually editing host mappings outside
