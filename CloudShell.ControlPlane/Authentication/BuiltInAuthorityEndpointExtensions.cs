@@ -117,18 +117,21 @@ public static class BuiltInAuthorityEndpointExtensions
             return InvalidClient();
         }
 
-        var email = form["username"].ToString();
+        var identifier = form["username"].ToString();
         var password = form["password"].ToString();
-        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+        if (string.IsNullOrWhiteSpace(identifier) || string.IsNullOrWhiteSpace(password))
         {
-            return InvalidGrant("email and password are required.");
+            return InvalidGrant(BuiltInIdentityUserLookup.InvalidGrantRequiredDescription(options));
         }
 
         var userManager = services.GetRequiredService<UserManager<IdentityUser>>();
-        var user = await userManager.FindByEmailAsync(email.Trim());
+        var user = await BuiltInIdentityUserLookup.FindBySignInIdentifierAsync(
+            userManager,
+            options,
+            identifier);
         if (user is null)
         {
-            return InvalidGrant("The email or password is invalid.");
+            return InvalidGrant(BuiltInIdentityUserLookup.InvalidCredentialsMessage(options));
         }
 
         var signInManager = services.GetRequiredService<SignInManager<IdentityUser>>();
@@ -138,7 +141,7 @@ public static class BuiltInAuthorityEndpointExtensions
             lockoutOnFailure: true);
         if (!signInResult.Succeeded)
         {
-            return InvalidGrant("The email or password is invalid.");
+            return InvalidGrant(BuiltInIdentityUserLookup.InvalidCredentialsMessage(options));
         }
 
         var claims = new List<Claim>
@@ -149,6 +152,11 @@ public static class BuiltInAuthorityEndpointExtensions
         if (!string.IsNullOrWhiteSpace(user.Email))
         {
             claims.Add(new Claim(ClaimTypes.Email, user.Email));
+        }
+        if (options.BuiltInIdentity.AllowUserNameSignIn &&
+            !string.IsNullOrWhiteSpace(user.UserName))
+        {
+            claims.Add(new Claim("preferred_username", user.UserName));
         }
 
         foreach (var role in await userManager.GetRolesAsync(user))

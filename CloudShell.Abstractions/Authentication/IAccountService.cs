@@ -10,9 +10,11 @@ public interface IAccountService
 
     CloudShellLocalUserStoreKind LocalUserStoreKind { get; }
 
+    bool AllowUserNameSignIn { get; }
+
     Task<bool> HasLocalUsersAsync(CancellationToken cancellationToken = default);
 
-    Task<AccountOperationResult> SignInAsync(string email, string credential);
+    Task<AccountOperationResult> SignInAsync(string identifier, string credential);
 
     Task<AccountOperationResult> CreateAdministratorAsync(string email, string password);
 

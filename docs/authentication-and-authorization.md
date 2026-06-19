@@ -113,6 +113,15 @@ logs. Email remains the user-facing login identifier; CloudShell principal IDs
 remain provider-owned stable references and should not be treated as login
 names.
 
+Username sign-in is an explicit built-in Identity policy, not the default. Set
+`Authentication:BuiltInIdentity:AllowUserNameSignIn` to `true` only when the
+host intentionally allows local ASP.NET Core Identity usernames as sign-in
+identifiers in addition to email addresses. This affects browser sign-in,
+built-in authority password-token requests, and in-memory identity users. When
+disabled, in-memory user names remain CloudShell principal keys for grants and
+directory lookups, while the ASP.NET Core Identity user name and sign-in
+identifier stay email-based.
+
 ### Dashboard secret
 
 `Secret` presents a dashboard-secret login and creates an administrator

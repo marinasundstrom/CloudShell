@@ -13,6 +13,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using System.Security.Claims;
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 
@@ -232,6 +233,52 @@ public sealed class RemoteControlPlaneAuthenticationTests
     }
 
     [Fact]
+    public async Task BuiltInIdentityPasswordGrant_RejectsUserNameByDefault()
+    {
+        await using var app = await CreateIdentityProtectedAppAsync(
+            configureInMemoryIdentity: identity =>
+            {
+                identity.Users.Add(
+                    "alice",
+                    password: "CloudShell123!",
+                    displayName: "Alice Local Developer",
+                    email: "alice@example.test");
+            });
+
+        using var response = await PostPasswordTokenAsync(
+            app.GetTestClient(),
+            "alice",
+            "CloudShell123!");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var error = await response.Content.ReadFromJsonAsync<TokenErrorResponse>();
+        Assert.Equal("invalid_grant", error?.Error);
+        Assert.Equal("The email or password is invalid.", error?.Description);
+    }
+
+    [Fact]
+    public async Task BuiltInIdentityPasswordGrant_AllowsUserNameWhenPolicyIsEnabled()
+    {
+        await using var app = await CreateIdentityProtectedAppAsync(
+            allowUserNameSignIn: true,
+            configureInMemoryIdentity: identity =>
+            {
+                identity.Users.Add(
+                    "alice",
+                    password: "CloudShell123!",
+                    displayName: "Alice Local Developer",
+                    email: "alice@example.test");
+            });
+
+        var token = await GetPasswordTokenAsync(
+            app.GetTestClient(),
+            "alice",
+            "CloudShell123!");
+
+        Assert.False(string.IsNullOrWhiteSpace(token));
+    }
+
+    [Fact]
     public async Task EmptyCredential_CannotCallProtectedControlPlane()
     {
         await using var app = await CreateProtectedAppAsync();
@@ -347,7 +394,9 @@ public sealed class RemoteControlPlaneAuthenticationTests
 
     private static async Task<WebApplication> CreateIdentityProtectedAppAsync(
         bool includeLifecycleResource = false,
-        bool useInMemoryIdentity = false)
+        bool useInMemoryIdentity = false,
+        bool allowUserNameSignIn = false,
+        Action<InMemoryIdentitySetupOptions>? configureInMemoryIdentity = null)
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(contentRoot);
@@ -369,6 +418,8 @@ public sealed class RemoteControlPlaneAuthenticationTests
                 "local-development-ui-secret",
             ["Authentication:BuiltInAuthority:Clients:cloudshell-ui:Scopes:0"] =
                 "ControlPlane.Access",
+            ["Authentication:BuiltInIdentity:AllowUserNameSignIn"] =
+                allowUserNameSignIn.ToString(),
             ["Persistence:Provider"] = "Sqlite",
             ["Persistence:ConnectionString"] = "Data Source=Data/cloudshell-client-identity-auth.db",
             ["Identity:BuiltIn:Persistence:Provider"] = "Sqlite",
@@ -376,9 +427,12 @@ public sealed class RemoteControlPlaneAuthenticationTests
         });
 
         var controlPlane = builder.AddCloudShellControlPlane();
-        if (useInMemoryIdentity)
+        if (useInMemoryIdentity || configureInMemoryIdentity is not null)
         {
-            controlPlane.ConfigureInMemoryIdentity(_ => { });
+            controlPlane.ConfigureInMemoryIdentity(identity =>
+            {
+                configureInMemoryIdentity?.Invoke(identity);
+            });
         }
 
         if (includeLifecycleResource)
@@ -455,7 +509,19 @@ public sealed class RemoteControlPlaneAuthenticationTests
         string userName,
         string password)
     {
-        var response = await client.PostAsync(
+        using var response = await PostPasswordTokenAsync(client, userName, password);
+        response.EnsureSuccessStatusCode();
+
+        var token = await response.Content.ReadFromJsonAsync<TokenResponse>();
+        return token?.AccessToken ??
+            throw new InvalidOperationException("The token endpoint returned no access token.");
+    }
+
+    private static Task<HttpResponseMessage> PostPasswordTokenAsync(
+        HttpClient client,
+        string userName,
+        string password) =>
+        client.PostAsync(
             "/api/auth/v1/token",
             new FormUrlEncodedContent(new Dictionary<string, string>
             {
@@ -466,18 +532,16 @@ public sealed class RemoteControlPlaneAuthenticationTests
                 ["password"] = password,
                 ["scope"] = "ControlPlane.Access"
             }));
-        response.EnsureSuccessStatusCode();
-
-        var token = await response.Content.ReadFromJsonAsync<TokenResponse>();
-        return token?.AccessToken ??
-            throw new InvalidOperationException("The token endpoint returned no access token.");
-    }
 
     private sealed record TokenResponse(
         [property: JsonPropertyName("access_token")] string AccessToken,
         [property: JsonPropertyName("token_type")] string TokenType,
         [property: JsonPropertyName("expires_in")] int ExpiresIn,
         [property: JsonPropertyName("scope")] string? Scope);
+
+    private sealed record TokenErrorResponse(
+        [property: JsonPropertyName("error")] string Error,
+        [property: JsonPropertyName("error_description")] string Description);
 
     private sealed class TestCloudShellResourceCredential(string token) : CloudShellResourceCredential
     {

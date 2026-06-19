@@ -76,12 +76,15 @@ public sealed class CloudShellIdentitySeeder(
             }
 
             var email = configuredUser.Email.Trim();
+            var identityUserName = options.Value.BuiltInIdentity.AllowUserNameSignIn
+                ? principalKey
+                : email;
             var user = await userManager.FindByEmailAsync(email);
             if (user is null)
             {
                 user = new IdentityUser
                 {
-                    UserName = email,
+                    UserName = identityUserName,
                     Email = email,
                     EmailConfirmed = true
                 };
@@ -90,6 +93,12 @@ public sealed class CloudShellIdentitySeeder(
                     ? await userManager.CreateAsync(user)
                     : await userManager.CreateAsync(user, configuredUser.Password);
                 ThrowIfFailed(createResult, $"create in-memory user '{principalKey}'");
+            }
+            else if (!string.Equals(user.UserName, identityUserName, StringComparison.Ordinal))
+            {
+                user.UserName = identityUserName;
+                var updateResult = await userManager.UpdateAsync(user);
+                ThrowIfFailed(updateResult, $"update in-memory user '{principalKey}'");
             }
 
             foreach (var role in configuredUser.Roles.Distinct(StringComparer.OrdinalIgnoreCase))

@@ -38,11 +38,11 @@ else
 
         @if (Accounts.Mode.Equals("Identity", StringComparison.OrdinalIgnoreCase))
         {
-            <label for="login-email">@L["Email"]</label>
-            <FluentTextField Id="login-email"
-                             Name="Input.Email"
-                             @bind-Value="Input!.Email"
-                             AutoComplete="email" />
+            <label for="login-identifier">@GetIdentifierLabel()</label>
+            <FluentTextField Id="login-identifier"
+                             Name="Input.Identifier"
+                             @bind-Value="Input!.Identifier"
+                             AutoComplete="@GetIdentifierAutoComplete()" />
         }
 
         <label for="login-credential">
@@ -104,13 +104,15 @@ else
     {
         Errors.Clear();
         if (Accounts.Mode.Equals("Identity", StringComparison.OrdinalIgnoreCase) &&
-            string.IsNullOrWhiteSpace(Input!.Email))
+            string.IsNullOrWhiteSpace(Input!.Identifier))
         {
-            Errors.Add(L["Email is required."].Value);
+            Errors.Add(Accounts.AllowUserNameSignIn
+                ? L["Email or username is required."].Value
+                : L["Email is required."].Value);
             return;
         }
 
-        var result = await Accounts.SignInAsync(Input!.Email, Input.Credential);
+        var result = await Accounts.SignInAsync(Input!.Identifier, Input.Credential);
         if (!result.Succeeded)
         {
             Errors.AddRange(result.Errors);
@@ -127,9 +129,17 @@ else
             ? ReturnUrl
             : "/";
 
+    private string GetIdentifierLabel() =>
+        Accounts.AllowUserNameSignIn
+            ? L["Email or username"].Value
+            : L["Email"].Value;
+
+    private string GetIdentifierAutoComplete() =>
+        Accounts.AllowUserNameSignIn ? "username" : "email";
+
     private sealed class LoginInput
     {
-        public string Email { get; set; } = string.Empty;
+        public string Identifier { get; set; } = string.Empty;
 
         [Required]
         public string Credential { get; set; } = string.Empty;

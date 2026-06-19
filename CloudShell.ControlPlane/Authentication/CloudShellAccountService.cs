@@ -29,6 +29,8 @@ public sealed class CloudShellAccountService(
                 ? CloudShellLocalUserStoreKind.InMemory
                 : CloudShellLocalUserStoreKind.Persistent;
 
+    public bool AllowUserNameSignIn => options.Value.BuiltInIdentity.AllowUserNameSignIn;
+
     public async Task<bool> HasLocalUsersAsync(CancellationToken cancellationToken = default)
     {
         if (!UsesLocalIdentity)
@@ -42,7 +44,7 @@ public sealed class CloudShellAccountService(
     }
 
     public async Task<AccountOperationResult> SignInAsync(
-        string email,
+        string identifier,
         string credential)
     {
         if (IsMode("Secret"))
@@ -59,10 +61,14 @@ public sealed class CloudShellAccountService(
         }
 
         var userManager = services.GetRequiredService<UserManager<IdentityUser>>();
-        var user = await userManager.FindByEmailAsync(email.Trim());
+        var user = await BuiltInIdentityUserLookup.FindBySignInIdentifierAsync(
+            userManager,
+            options.Value,
+            identifier);
         if (user is null)
         {
-            return AccountOperationResult.Failure("The email or password is invalid.");
+            return AccountOperationResult.Failure(
+                BuiltInIdentityUserLookup.InvalidCredentialsMessage(options.Value));
         }
 
         var signInManager = services.GetRequiredService<SignInManager<IdentityUser>>();
@@ -74,7 +80,8 @@ public sealed class CloudShellAccountService(
 
         return result.Succeeded
             ? AccountOperationResult.Success()
-            : AccountOperationResult.Failure("The email or password is invalid.");
+            : AccountOperationResult.Failure(
+                BuiltInIdentityUserLookup.InvalidCredentialsMessage(options.Value));
     }
 
     public async Task<AccountOperationResult> CreateAdministratorAsync(

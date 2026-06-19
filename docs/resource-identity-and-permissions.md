@@ -201,6 +201,10 @@ creates configured test users as login accounts, exposes them as user
 principals, maps programmatic grants to resource-permission claims, and clears
 that state when the process stops.
 
+The in-memory user name is the CloudShell principal key used by grants and
+directory lookups. Built-in Identity sign-in remains email-only unless the host
+explicitly enables `Authentication:BuiltInIdentity:AllowUserNameSignIn`.
+
 ```csharp
 cloudShell.ConfigureInMemoryIdentity(identity =>
 {

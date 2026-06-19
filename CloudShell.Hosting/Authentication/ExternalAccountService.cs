@@ -14,10 +14,12 @@ internal sealed class ExternalAccountService(IHttpContextAccessor httpContextAcc
 
     public CloudShellLocalUserStoreKind LocalUserStoreKind => CloudShellLocalUserStoreKind.Unavailable;
 
+    public bool AllowUserNameSignIn => false;
+
     public Task<bool> HasLocalUsersAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(false);
 
-    public Task<AccountOperationResult> SignInAsync(string email, string credential) =>
+    public Task<AccountOperationResult> SignInAsync(string identifier, string credential) =>
         Task.FromResult(AccountOperationResult.Failure(
             "This authentication provider uses its external sign-in flow."));
 

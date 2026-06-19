@@ -58,6 +58,9 @@ scope. The programmatic grant makes the guarded Resource Manager view
 intentionally scoped to the resource Alice can access. Activity created from
 Alice's browser/API session is audited with the signed-in account identifier,
 `alice@example.test`; the programmatic grant principal key remains `alice`.
+Username sign-in is disabled by default, so `alice` is not accepted as a login
+identifier unless `Authentication:BuiltInIdentity:AllowUserNameSignIn=true` is
+configured.
 
 Use this sample for both cases:
 

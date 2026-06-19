@@ -1136,7 +1136,7 @@ public sealed class SampleSmokeTests
         Assert.Contains("Sign in to CloudShell", loginHtml);
         Assert.Contains("data-cloudshell-language-select", loginHtml);
         Assert.Contains("data-cloudshell-theme-select", loginHtml);
-        Assert.Contains("name=\"Input.Email\"", loginHtml);
+        Assert.Contains("name=\"Input.Identifier\"", loginHtml);
         Assert.Contains("name=\"Input.Credential\"", loginHtml);
 
         var loginToken = ExtractRequestVerificationToken(loginHtml);
@@ -1146,7 +1146,7 @@ public sealed class SampleSmokeTests
             {
                 ["_handler"] = "login",
                 ["__RequestVerificationToken"] = loginToken,
-                ["Input.Email"] = "alice",
+                ["Input.Identifier"] = "alice",
                 ["Input.Credential"] = "CloudShell123!"
             }));
         Assert.Equal(HttpStatusCode.OK, userNameLoginResponse.StatusCode);
@@ -1161,7 +1161,7 @@ public sealed class SampleSmokeTests
             {
                 ["_handler"] = "login",
                 ["__RequestVerificationToken"] = loginToken,
-                ["Input.Email"] = "alice@example.test",
+                ["Input.Identifier"] = "alice@example.test",
                 ["Input.Credential"] = "CloudShell123!"
             }));
         Assert.Equal(HttpStatusCode.Redirect, loginResponse.StatusCode);
@@ -1247,7 +1247,7 @@ public sealed class SampleSmokeTests
             {
                 ["_handler"] = "login",
                 ["__RequestVerificationToken"] = failedLoginToken,
-                ["Input.Email"] = "alice@example.test",
+                ["Input.Identifier"] = "alice@example.test",
                 ["Input.Credential"] = "WrongPassword123!"
             }));
         Assert.Equal(HttpStatusCode.OK, failedLoginResponse.StatusCode);

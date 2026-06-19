@@ -166,6 +166,10 @@ on `git blame --follow`, and then by the broad type of change.
   command omits `TriggeredBy`; authenticated Control Plane requests take
   precedence over client-supplied actor text, while background/system work can
   still use explicit system actors when no authenticated request is present.
+- Built-in ASP.NET Core Identity sign-in now has an explicit
+  `Authentication:BuiltInIdentity:AllowUserNameSignIn` policy. The default
+  remains email-only; enabling the policy allows local usernames for browser
+  sign-in, password-token requests, and in-memory identity users.
 
 ### 2026-06-18
 

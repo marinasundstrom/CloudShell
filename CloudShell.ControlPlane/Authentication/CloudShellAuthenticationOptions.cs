@@ -35,6 +35,8 @@ public sealed class CloudShellAuthenticationOptions
 
     public BuiltInAuthorityOptions BuiltInAuthority { get; set; } = new();
 
+    public BuiltInIdentityOptions BuiltInIdentity { get; set; } = new();
+
     public ServiceBearerAuthenticationOptions ServiceBearer { get; set; } = new();
 
     public Dictionary<string, string[]> RolePermissions { get; set; } =
@@ -67,6 +69,11 @@ public sealed class CloudShellAuthenticationOptions
         {
             ["CloudShell.Administrator"] = [CloudShellPermissions.All]
         };
+}
+
+public sealed class BuiltInIdentityOptions
+{
+    public bool AllowUserNameSignIn { get; set; }
 }
 
 public sealed class BuiltInAuthorityOptions
