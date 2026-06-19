@@ -552,6 +552,15 @@ public sealed partial class ApplicationResourceService(
             return referenceReason;
         }
 
+        var settingResolutionReason = await GetSettingResolutionUnavailableReasonAsync(
+            application,
+            context.ResourceGroupId,
+            cancellationToken);
+        if (!string.IsNullOrWhiteSpace(settingResolutionReason))
+        {
+            return settingResolutionReason;
+        }
+
         var localProcessReason = GetLocalProcessUnavailableReason(application);
         if (!string.IsNullOrWhiteSpace(localProcessReason))
         {
@@ -589,6 +598,25 @@ public sealed partial class ApplicationResourceService(
         }
 
         return GetEndpointUnavailableReason(application, action.Kind);
+    }
+
+    private async Task<string?> GetSettingResolutionUnavailableReasonAsync(
+        ApplicationResourceDefinition application,
+        string? resourceGroupId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            _ = await ResolveConfiguredEnvironmentVariablesAsync(
+                application,
+                resourceGroupId,
+                cancellationToken);
+            return null;
+        }
+        catch (ResourceSettingResolutionException exception)
+        {
+            return exception.Message;
+        }
     }
 
     private string? GetProjectUnavailableReason(ApplicationResourceDefinition application)

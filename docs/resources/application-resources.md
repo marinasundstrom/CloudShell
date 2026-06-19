@@ -277,6 +277,12 @@ render with reveal and copy actions. Configuration-entry references and secret
 references remain references; the overview does not resolve or display their
 plain values.
 
+Before Start or Restart dispatches, application action availability resolves
+configured app settings and environment variables through the registered
+configuration-entry and secret resolvers. Missing stores, vaults, entries,
+secrets, or read grants report stable action-unavailable reasons before the
+provider starts the workload, without displaying resolved values.
+
 Endpoint variables are generated from the application's referenced resources,
 not from its wait dependencies. For declarative application resources,
 `WithReference(...)` records an endpoint reference, while `DependsOn(...)`

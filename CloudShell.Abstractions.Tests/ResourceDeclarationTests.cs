@@ -1985,6 +1985,74 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task ApplicationProvider_ReportsMissingConfigurationEntryAsActionUnavailable()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider(options =>
+            {
+                options.DefinitionsPath = "application-resources.json";
+                options.RuntimeStatePath = "application-runtime-state.json";
+                options.LogDirectory = "application-logs";
+            })
+            .AddConfigurationProvider()
+            .Resources(resources =>
+            {
+                var settings = resources
+                    .AddConfigurationStore("configuration:app").WithDisplayName("App Settings")
+                    .WithEntry("Message", "hello");
+
+                resources
+                    .AddExecutableApplication(
+                        "application:api",
+                        executablePath: "dotnet")
+                    .WithEnvironment(
+                        "WELCOME_MESSAGE",
+                        settings.Entry("Missing"));
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var resourceProvider = serviceProvider.GetRequiredService<ExecutableApplicationResourceProvider>();
+        var providers = serviceProvider.GetServices<IResourceProvider>().ToArray();
+        var resources = providers
+            .SelectMany(provider => provider.GetResources())
+            .ToArray();
+        var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
+        var registrations = new TestResourceRegistrationStore(
+            [
+                new ResourceRegistration(
+                    resource.Id,
+                    resourceProvider.Id,
+                    null,
+                    DateTimeOffset.UtcNow,
+                    [])
+            ]);
+        var resourceManager = new StaticResourceManagerStore(resources, providers);
+
+        var reason = await resourceProvider.GetActionUnavailableReasonAsync(
+            new ResourceProcedureContext(
+                resource,
+                registrations.GetRegistration(resource.Id),
+                null,
+                registrations,
+                resourceManager),
+            ResourceAction.Start);
+
+        Assert.NotNull(reason);
+        Assert.Contains(
+            "Could not resolve configuration-entry reference for setting 'WELCOME_MESSAGE'.",
+            reason);
+        Assert.Contains(
+            "Configuration entry 'Missing' was not found in 'configuration:app'.",
+            reason);
+    }
+
+    [Fact]
     public async Task ApplicationProvider_ReportsMissingSecretGrantAsActionUnavailable()
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));

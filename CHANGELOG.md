@@ -402,6 +402,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Application overview pages now surface Start readiness using existing
   Resource Manager action availability reasons so preflight blockers are
   visible before invoking lifecycle actions.
+- Application Start and Restart action availability now preflights configured
+  app setting and environment-variable references through registered
+  configuration-entry and secret resolvers, so missing entries or secrets are
+  reported before provider dispatch without exposing resolved values.
 - Container app Deployment tabs now surface image-update and restart readiness
   diagnostics before enabling the Deploy command.
 - Application overview pages now summarize configured app setting and
