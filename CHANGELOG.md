@@ -58,6 +58,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Container app replica rows now avoid showing internal runtime resource IDs
   when the container name, revision, materialization, and host already identify
   the projected replica.
+- Storage and volume relationship rows now prefer display labels and resource
+  type metadata over raw resource IDs when listing owned volumes and volume
+  consumers.
 - Access Control principal search results now render as a vertical list with
   full-width principal rows and disambiguate resource identity display names as
   `<DisplayName> (<resource name>)` when those values differ.

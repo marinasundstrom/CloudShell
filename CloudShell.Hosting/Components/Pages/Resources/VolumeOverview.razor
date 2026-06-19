@@ -61,7 +61,7 @@ else
                             @if (consumer.Mounts.Count == 0)
                             {
                                 <span>@consumer.Resource.Kind</span>
-                                <small>@consumer.Resource.Id</small>
+                                <small>@consumer.Resource.EffectiveTypeId</small>
                             }
                             else
                             {
@@ -145,7 +145,7 @@ else
         var parts = new List<string>
         {
             consumer.Kind,
-            consumer.Id
+            consumer.EffectiveTypeId
         };
 
         if (consumer.ResourceAttributes.TryGetValue(
