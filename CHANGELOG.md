@@ -32,6 +32,9 @@ on `git blame --follow`, and then by the broad type of change.
   provider, and ApplicationTopology now connects its API to the declared
   `application_topology` database while keeping SQL grant-to-user
   materialization explicit future work.
+- SQL Server **Databases** now keeps live databases in the normal list and
+  shows a separate missing-declarations section only after runtime verification
+  proves declared databases do not exist on the server.
 - SQL Server resource overview now leads with SQL service details instead of
   generic container image, revision, and host placement fields.
 
