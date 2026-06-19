@@ -4,6 +4,7 @@
 @inject ICloudShellNavigator ShellNavigator
 @inject IResourceManager ResourceManager
 @inject IResourceEventManager ResourceEvents
+@inject ITraceManager TraceManager
 @inject ResourceHealthCheckService HealthChecks
 @inject IResourceOrchestrationSettings OrchestrationSettings
 @inject IStringLocalizer<SharedResource> L
@@ -49,10 +50,10 @@
         <strong>@UnhealthyResourceCount</strong>
         <small>@L["Resources with failing health checks"]</small>
     </article>
-    <article class="metric-card">
-        <span>@L["Running"]</span>
-        <strong>@RunningResourceCount</strong>
-        <small>@L["Resources currently reporting running state"]</small>
+    <article class="metric-card @(RequestFailureCount > 0 ? "metric-card-warning" : null)">
+        <span>@L["Request failures"]</span>
+        <strong>@RequestFailureCount</strong>
+        <small>@L["Services with failed request spans"]</small>
     </article>
 </section>
 
@@ -61,7 +62,7 @@
         <div class="panel-header">
             <div>
                 <h2>@L["System state"]</h2>
-                <p>@L["Resources that need attention based on lifecycle failures, health checks, or degraded state."]</p>
+                <p>@L["Resources that need attention based on lifecycle failures, health checks, request failures, or degraded state."]</p>
             </div>
         </div>
 
@@ -69,7 +70,7 @@
         {
             <div class="empty-state compact">
                 <strong>@L["No current issues"]</strong>
-                <span>@L["No active resource failures, unhealthy health checks, or degraded lifecycle states were found in the current snapshot."]</span>
+                <span>@L["No active resource failures, unhealthy health checks, failed request spans, or degraded lifecycle states were found in the current snapshot."]</span>
             </div>
         }
         else
@@ -77,7 +78,7 @@
             <div class="activity-list">
                 @foreach (var issue in SystemIssues.Take(8))
                 {
-                    <a class="activity-row" href="@BuildResourceRoute(issue.Resource.Id)">
+                    <a class="activity-row" href="@BuildIssueRoute(issue)">
                         <ResourceKindIcon Resource="issue.Resource" />
                         <div>
                             <strong>@issue.Resource.EffectiveDisplayName</strong>
@@ -129,28 +130,31 @@
     <article class="panel panel-wide">
         <div class="panel-header">
             <div>
-                <h2>@L["Recent failures"]</h2>
-                <p>@L["Latest active failure signals from resource activity."]</p>
+                <h2>@L["Failed requests"]</h2>
+                <p>@L["Open failed traces to inspect request flow and related application logs."]</p>
             </div>
         </div>
 
-        @if (ActiveFailures.Count == 0)
+        @if (ActiveRequestFailures.Count == 0)
         {
             <div class="empty-state compact">
-                <strong>@L["No active failures"]</strong>
-                <span>@L["Recent resource failures have either been superseded or no failures were recorded."]</span>
+                <strong>@L["No failed requests"]</strong>
+                <span>@L["No failed request spans were found in the current telemetry snapshot."]</span>
             </div>
         }
         else
         {
             <div class="activity-list">
-                @foreach (var item in ActiveFailures.Take(6))
+                @foreach (var item in ActiveRequestFailures.Take(6))
                 {
-                    <a class="activity-row" href="@BuildActivityRoute(item.Resource.Id)">
-                        <ResourceSeverityIcon Severity="@item.Failure.Severity" />
+                    <a class="activity-row" href="@BuildTraceRoute(item.Resource.Id, item.TraceId)">
+                        <ResourceSeverityIcon Severity="ResourceSignalSeverity.Error" />
                         <div>
-                            <strong>@ResourceFailureSignalDisplay.GetTitle(item.Failure, L)</strong>
-                            <span>@L["{0} / {1}", item.Resource.EffectiveDisplayName, FormatFailureTime(item.Failure.Timestamp)]</span>
+                            <strong>@item.ServiceName</strong>
+                            <span>@L["{0} / {1} failed span(s) / latest {2}",
+                                item.Resource.EffectiveDisplayName,
+                                item.ErrorSpanCount,
+                                FormatRequestFailureTime(item.LastSeen)]</span>
                         </div>
                     </a>
                 }
@@ -208,6 +212,9 @@
     private IReadOnlyDictionary<string, ResourceFailureSignal> FailureSignals { get; set; } =
         new Dictionary<string, ResourceFailureSignal>(StringComparer.OrdinalIgnoreCase);
 
+    private IReadOnlyDictionary<string, RequestFailureSummary> RequestFailures { get; set; } =
+        new Dictionary<string, RequestFailureSummary>(StringComparer.OrdinalIgnoreCase);
+
     private IReadOnlyDictionary<string, Resource> ResourcesById { get; set; } =
         new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
 
@@ -225,28 +232,38 @@
     private int UnhealthyResourceCount =>
         HealthResults.Values.Count(summary => summary.Status == ResourceHealthStatus.Unhealthy);
 
+    private int RequestFailureCount =>
+        RequestFailures.Count;
+
     private IReadOnlyList<ResourceIssue> SystemIssues =>
         Resources
             .Select(resource => new ResourceIssue(
                 resource,
                 FailureSignals.GetValueOrDefault(resource.Id),
+                RequestFailures.GetValueOrDefault(resource.Id),
                 HealthResults.GetValueOrDefault(resource.Id)))
             .Where(issue =>
                 issue.Failure is not null ||
+                issue.RequestFailure is not null ||
                 issue.Health?.Status == ResourceHealthStatus.Unhealthy ||
                 issue.Resource.State is ResourceState.Degraded or ResourceState.Unknown)
             .OrderBy(issue => GetIssueRank(issue))
             .ThenBy(issue => issue.Resource.EffectiveDisplayName, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-    private IReadOnlyList<ResourceFailureItem> ActiveFailures =>
-        FailureSignals
+    private IReadOnlyList<RequestFailureItem> ActiveRequestFailures =>
+        RequestFailures
             .Select(item => ResourcesById.TryGetValue(item.Key, out var resource)
-                ? new ResourceFailureItem(resource, item.Value)
+                ? new RequestFailureItem(
+                    resource,
+                    item.Value.ServiceName,
+                    item.Value.ErrorSpanCount,
+                    item.Value.LastSeen,
+                    item.Value.TraceId)
                 : null)
             .Where(item => item is not null)
             .Select(item => item!)
-            .OrderByDescending(item => item.Failure.Timestamp)
+            .OrderByDescending(item => item.LastSeen)
             .ToArray();
 
     private IReadOnlyList<ResourceStateSummary> ResourceStateSummaries =>
@@ -278,11 +295,13 @@
 
         var healthTask = HealthChecks.CheckAsync(Resources, cancellationToken);
         var failuresTask = LoadResourceFailureSignalsAsync(Resources);
+        var requestFailuresTask = LoadRequestFailureSignalsAsync();
 
-        await Task.WhenAll(healthTask, failuresTask);
+        await Task.WhenAll(healthTask, failuresTask, requestFailuresTask);
 
         HealthResults = healthTask.Result;
         FailureSignals = failuresTask.Result;
+        RequestFailures = requestFailuresTask.Result;
     }
 
     private void StartDashboardPolling()
@@ -349,11 +368,50 @@
                 StringComparer.OrdinalIgnoreCase);
     }
 
+    private async Task<IReadOnlyDictionary<string, RequestFailureSummary>> LoadRequestFailureSignalsAsync()
+    {
+        var spans = await TraceManager.ListTraceSpansAsync(new TraceQuery(MaxSpans: 1000));
+
+        return spans
+            .Where(IsErrorSpan)
+            .Where(span => !string.IsNullOrWhiteSpace(span.ResourceId))
+            .GroupBy(span => span.ResourceId, StringComparer.OrdinalIgnoreCase)
+            .Select(group =>
+            {
+                var latest = group
+                    .OrderByDescending(span => span.StartTime)
+                    .First();
+
+                var serviceName = group
+                    .Select(span => span.ServiceName)
+                    .FirstOrDefault(serviceName => !string.IsNullOrWhiteSpace(serviceName))
+                    ?? group.Key;
+
+                return new RequestFailureSummary(
+                    group.Key,
+                    serviceName.Trim(),
+                    group.Count(),
+                    latest.StartTime,
+                    latest.TraceId);
+            })
+            .ToDictionary(
+                summary => summary.ResourceId,
+                StringComparer.OrdinalIgnoreCase);
+    }
+
     private string GetIssueSummary(ResourceIssue issue)
     {
         if (issue.Failure is not null)
         {
             return ResourceFailureSignalDisplay.GetMessage(issue.Failure, L);
+        }
+
+        if (issue.RequestFailure is not null)
+        {
+            return L["{0} failed request span(s) for {1} / latest {2}",
+                issue.RequestFailure.ErrorSpanCount,
+                issue.RequestFailure.ServiceName,
+                FormatRequestFailureTime(issue.RequestFailure.LastSeen)].Value;
         }
 
         if (issue.Health?.Status == ResourceHealthStatus.Unhealthy)
@@ -376,6 +434,11 @@
                 : L["Failure"].Value;
         }
 
+        if (issue.RequestFailure is not null)
+        {
+            return L["Request failed"].Value;
+        }
+
         if (issue.Health?.Status == ResourceHealthStatus.Unhealthy)
         {
             return L["Unhealthy"].Value;
@@ -391,7 +454,9 @@
             return "health-unknown";
         }
 
-        if (issue.Failure is not null || issue.Health?.Status == ResourceHealthStatus.Unhealthy)
+        if (issue.Failure is not null ||
+            issue.RequestFailure is not null ||
+            issue.Health?.Status == ResourceHealthStatus.Unhealthy)
         {
             return "health-unhealthy";
         }
@@ -406,9 +471,15 @@
     private static int GetIssueRank(ResourceIssue issue) =>
         issue.Failure?.Severity == ResourceSignalSeverity.Error ? 0 :
         issue.Failure is not null ? 1 :
-        issue.Health?.Status == ResourceHealthStatus.Unhealthy ? 2 :
-        issue.Resource.State == ResourceState.Degraded ? 3 :
+        issue.RequestFailure is not null ? 2 :
+        issue.Health?.Status == ResourceHealthStatus.Unhealthy ? 3 :
+        issue.Resource.State == ResourceState.Degraded ? 4 :
         4;
+
+    private static bool IsErrorSpan(TraceSpan span) =>
+        !string.IsNullOrWhiteSpace(span.Status) &&
+        !string.Equals(span.Status, "Unset", StringComparison.OrdinalIgnoreCase) &&
+        !string.Equals(span.Status, "Ok", StringComparison.OrdinalIgnoreCase);
 
     private string GetStateLabel(ResourceState state) =>
         state.ToString();
@@ -439,14 +510,25 @@
             _ => "state-unknown"
         };
 
-    private string FormatFailureTime(DateTimeOffset timestamp) =>
+    private string FormatRequestFailureTime(DateTimeOffset timestamp) =>
         timestamp.ToLocalTime().ToString("HH:mm:ss");
+
+    private static string BuildIssueRoute(ResourceIssue issue) =>
+        issue.RequestFailure is null
+            ? BuildResourceRoute(issue.Resource.Id)
+            : BuildTraceRoute(issue.Resource.Id, issue.RequestFailure.TraceId);
 
     private static string BuildResourceRoute(string resourceId) =>
         ResourceManagerRoutes.ResourceDetails(resourceId);
 
-    private static string BuildActivityRoute(string resourceId) =>
-        ResourceManagerRoutes.ResourceDetails(resourceId, ResourcePredefinedViewIds.Activity);
+    private static string BuildTraceRoute(string resourceId, string traceId) =>
+        Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
+            "/observability/traces",
+            new Dictionary<string, string?>
+            {
+                ["resourceId"] = resourceId,
+                ["traceId"] = traceId
+            });
 
     public void Dispose()
     {
@@ -457,11 +539,22 @@
     private sealed record ResourceIssue(
         Resource Resource,
         ResourceFailureSignal? Failure,
+        RequestFailureSummary? RequestFailure,
         ResourceHealthSummary? Health);
 
-    private sealed record ResourceFailureItem(
+    private sealed record RequestFailureSummary(
+        string ResourceId,
+        string ServiceName,
+        int ErrorSpanCount,
+        DateTimeOffset LastSeen,
+        string TraceId);
+
+    private sealed record RequestFailureItem(
         Resource Resource,
-        ResourceFailureSignal Failure);
+        string ServiceName,
+        int ErrorSpanCount,
+        DateTimeOffset LastSeen,
+        string TraceId);
 
     private sealed record ResourceStateSummary(
         ResourceState State,

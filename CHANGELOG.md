@@ -105,9 +105,9 @@ on `git blame --follow`, and then by the broad type of change.
   cards for logs, request graph, request map, traces, and metrics, plus
   resource and service summaries from the current telemetry data.
 - The CloudShell dashboard now summarizes environment resources, lifecycle
-  state, active resource failures, health-check status, and operational quick
-  links, refreshing from Resource Manager on the configured health-check
-  interval.
+  state, active resource failures, health-check status, failed request spans,
+  and operational quick links, refreshing from Resource Manager on the
+  configured health-check interval and linking failed requests into traces.
 - Shell navigation parents with sub-items now show a right-aligned collapse
   chevron, and each user's collapsed navigation groups are persisted through
   environment settings.
