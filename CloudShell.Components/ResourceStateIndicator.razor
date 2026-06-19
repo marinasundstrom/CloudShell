@@ -13,12 +13,12 @@
 else if (IsPill)
 {
     <span class="state-pill @GetStateClass(State)" title="@EffectiveTitle" aria-label="@EffectiveTitle">
-        @State
+        @DisplayText
     </span>
 }
 else if (IsInline)
 {
-    <span title="@EffectiveTitle" aria-label="@EffectiveTitle">@State</span>
+    <span title="@EffectiveTitle" aria-label="@EffectiveTitle">@DisplayText</span>
 }
 else
 {

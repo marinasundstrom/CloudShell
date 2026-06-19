@@ -71,6 +71,8 @@ on `git blame --follow`, and then by the broad type of change.
   Manager procedure, read-only, and compact warning messages.
 - Adopted `ProcedureMessage` across application provider warnings and log read
   errors so `procedure-message` markup is owned by one shared component.
+- Moved `ResourceStateIndicator` into the shared component package and adopted
+  it for application replica state pills in scaling and monitoring views.
 - Resource Manager now includes a top-level Health workspace that polls
   configured resource health checks at the Resource Manager health-check
   interval, summarizes resource status, and links back to resource details.

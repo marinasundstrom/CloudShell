@@ -153,9 +153,7 @@ else
                                         </div>
                                     </td>
                                     <td>
-                                        <span class="state-pill @GetStateClass(row.Resource.State)">
-                                            @GetStateLabel(row.Resource.State)
-                                        </span>
+                                        <ResourceStateIndicator State="row.Resource.State" Variant="pill" />
                                     </td>
                                     <td>
                                         <strong>@(row.Snapshot?.Status ?? "Unavailable")</strong>
@@ -341,20 +339,6 @@ else
         resource.ResourceAttributes.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
             ? value
             : fallback;
-
-    private static string GetStateLabel(ResourceState? state) =>
-        state?.ToString() ?? "Unknown";
-
-    private static string GetStateClass(ResourceState? state) => state switch
-    {
-        ResourceState.Running => "state-running",
-        ResourceState.Starting => "state-starting",
-        ResourceState.Stopping => "state-stopping",
-        ResourceState.Paused => "state-paused",
-        ResourceState.Degraded => "state-degraded",
-        ResourceState.Stopped => "state-stopped",
-        _ => "state-unknown"
-    };
 
     private static string FormatValue(double value, string unit) =>
         string.Equals(unit, "bytes", StringComparison.OrdinalIgnoreCase)
