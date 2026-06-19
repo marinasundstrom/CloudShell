@@ -215,17 +215,30 @@ hosting, and deployments.
 
 ## Remaining Tasks
 
-* Identify cross-cutting dependencies.
-* Define common terminology.
-* Define shared platform services.
-* Keep the local development MVP target focused on supported sample
-  confidence, app-centric Resource Manager workflows, readiness diagnostics,
-  settings/secrets/identity polish, and a clear persisted-state handoff.
+* Keep the supported sample smoke suite green, and use Application Topology as
+  the broad local-development proof for container/project-backed apps, SQL
+  Server with mounted storage, configuration, secrets, identity-backed access,
+  logs, traces, local exposure, load-balancer or public endpoint
+  relationships, and DNS/name mapping.
+* Keep the local development MVP target focused on app-centric Resource
+  Manager workflows, readiness diagnostics, settings/secrets/identity polish,
+  and a clear persisted-state handoff.
+* Tighten readiness diagnostics before Start, Restart, image update,
+  configuration update, or provider reconcile can fail for expected local
+  blockers such as missing hosts, unavailable credentials, port or route
+  conflicts, unsupported capabilities, unsafe volume mappings, unresolved
+  references, missing identity grants, and DNS/name materialization gaps.
 * Define programmatic graph promotion from local declarations to persisted
   Control Plane state, and keep deployment through the future orchestrator
   deployment API separate from `Persist()`. Treat an on-premise CloudShell
   environment as a standalone CloudShell cloud environment and deployment target
   alongside future provider targets such as Azure or AWS.
+* Keep Resource Manager release-hardening work focused on generated details,
+  action availability, activity records, explicit not-found states, read-only
+  behavior, transient declaration warnings, and sample documentation.
+* Identify cross-cutting dependencies.
+* Define common terminology.
+* Define shared platform services.
 * Define cross-resource endpoint source precedence and exposure-default policy.
 * Define Resource Manager read-only mode and mutability policy.
 

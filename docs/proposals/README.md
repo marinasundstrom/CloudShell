@@ -43,7 +43,11 @@ changes. Milestone scope remains authoritative in [Roadmap](../roadmap.md).
 
 Work proposal areas in the current product order:
 
-1. Application environment management path through
+1. MVP convergence and Resource Manager reliability through
+   [Platform foundations](core/platform-foundations.md), keeping supported
+   samples green and making Application Topology the broad local-development
+   proof.
+2. Application environment management path through
    [Container applications](containers/container-applications.md), app-owned
    exposure/discovery, virtual networks, public endpoints, load balancers, and
    logical DNS/name mapping through [Virtual network resource](networking/virtual-network-resource.md),
@@ -52,29 +56,29 @@ Work proposal areas in the current product order:
    `cloudshell.service` semantics bounded until
    [Deployments and revisions](deployment/deployments-and-revisions.md)
    clarifies the shared deployment/orchestrator service model.
-2. Stateful application foundation through
+3. Readiness diagnostics for already-supported start, update, storage,
+   identity, route, DNS/name, and provider-reconcile paths.
+4. [Configuration and secrets access](services/secrets-management.md) with
+   targeted [identity and access](core/identity-and-access.md) polish
+5. Stateful application foundation through
    [Storage and volume mappings](storage/volume-mappings.md)
-3. Identity validation beyond the built-in provider through
+6. Identity validation beyond the built-in provider through
    [Identity and access](core/identity-and-access.md), including a third-party
    OIDC/OAuth validation sample
-4. MVP convergence and Resource Manager reliability through
-   [Platform foundations](core/platform-foundations.md)
-5. [Configuration and secrets access](services/secrets-management.md) with
-   targeted [identity and access](core/identity-and-access.md) polish
-6. [Lifecycle orchestration](core/lifecycle-orchestration.md),
+7. [Lifecycle orchestration](core/lifecycle-orchestration.md),
    [traceability/logging infrastructure](core/logging-infrastructure.md), and
    [resource monitoring](core/resource-monitoring.md)
-7. Host and runtime foundation through
+8. Host and runtime foundation through
    [Container host abstraction](containers/container-host-abstraction.md)
-8. [Remote Docker host completion](containers/remote-docker-hosts.md), behind
+9. [Remote Docker host completion](containers/remote-docker-hosts.md), behind
    the local/default host path
-9. Runtime ownership decisions through
+10. Runtime ownership decisions through
    [Runtime-managed resources](core/provider-created-and-runtime-managed-resources.md)
-10. [Deployments and revisions](deployment/deployments-and-revisions.md)
-11. [Shell composition](core/shell-composition.md), after Resource Manager and
+11. [Deployments and revisions](deployment/deployments-and-revisions.md)
+12. [Shell composition](core/shell-composition.md), after Resource Manager and
     supported local-development samples are stable enough to generalize the
     shell primitives
-12. Advanced app and environment concepts, including external-format resource
+13. Advanced app and environment concepts, including external-format resource
     graph import and code generation
 
 Use [Roadmap](../roadmap.md) for the reasoning behind this order and the

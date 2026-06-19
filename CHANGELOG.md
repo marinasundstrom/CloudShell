@@ -17,6 +17,10 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Refreshed the MVP execution order around the current local-development
+  target: Application Topology confidence, app-centric Resource Manager
+  workflows, readiness diagnostics before failure, settings/secrets/identity
+  clarity, persisted-state handoff, and release hardening.
 - Documented the post-MVP shell composition direction: CloudShell UI should
   become an independently useful extensible shell platform with menu groups,
   child items, pages, standard settings, notifications, named content areas,
@@ -637,6 +641,9 @@ on `git blame --follow`, and then by the broad type of change.
 - In-process resource action procedures now emit Resource Manager change
   notifications when lifecycle actions start and when they complete, including
   dependency auto-start actions.
+- In-process resource action procedures now emit failed action change
+  notifications when lifecycle actions fail, so Resource Manager clears
+  dependency auto-start progress indicators after provider failures.
 - Resource Manager pages now use action-start/action-complete notifications to
   show lifecycle transition indicators for dependency auto-starts and other
   externally triggered in-process resource actions.

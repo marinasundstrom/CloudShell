@@ -129,7 +129,9 @@ configuration and secrets resources, built-in identity flow, Keycloak-backed
 identity validation, Resource Manager details, and supported sample smoke
 coverage all exist.
 
-The remaining MVP work should bias toward release-quality behavior:
+The supported sample smoke suite is currently green. The remaining MVP work
+should therefore bias toward release-quality behavior rather than opening new
+platform fronts:
 
 - Keep supported samples building and smoke-testing.
 - Make the primary Resource Manager path understandable without sample-specific
@@ -152,42 +154,54 @@ remains separate and waits for the orchestrator deployment API.
 
 Prioritize the remaining local-dev work in this order:
 
-1. **Supported sample confidence.** Keep the smoke suite green and make the
-   Application Topology sample the broad proof: container app, SQL Server with
-   mounted storage, configuration, secrets, identity, logs, traces, local
-   exposure, and DNS/name mapping should work together without
-   sample-specific knowledge.
-2. **App-centric Resource Manager workflow.** Keep the container app page as
-   the place where a developer understands endpoints, service discovery,
-   exposure, storage, settings/secrets, identity, logs, traces, monitoring,
-   and inbound names. Prefer small UX and diagnostics fixes here over new
-   platform areas.
-3. **Start/update readiness diagnostics.** Before a local Start, Restart, or
-   image/configuration update fails, Resource Manager should explain missing
-   container hosts, unavailable credentials, occupied ports, unsupported host
-   capabilities, unsafe volume mappings, unresolved setting/secret references,
-   and missing identity grants.
-4. **Configuration, secrets, and identity polish.** The settings/secrets flow
+1. **Application Topology confidence.** Keep the smoke suite green and use the
+   Application Topology sample as the broad MVP proof. It should demonstrate
+   container or project-backed apps, SQL Server with mounted storage,
+   configuration, secrets, identity-backed access, logs, traces, local
+   exposure, load-balancer or public endpoint relationships, and DNS/name
+   mapping without sample-specific UI knowledge.
+2. **App-centric Resource Manager path.** Make the application resource page
+   the operator entry point for endpoints, service discovery, exposure,
+   storage, settings/secrets, identity, logs, traces, monitoring, inbound
+   names, and related activity. Prefer small UX and diagnostics fixes on this
+   path over new platform areas.
+3. **Readiness diagnostics before failure.** Before Start, Restart, image
+   update, configuration update, or provider reconcile fails, Resource Manager
+   should explain missing container hosts, unavailable credentials, occupied
+   ports, unsupported host capabilities, unsafe volume mappings, unresolved
+   setting/secret references, missing identity grants, route conflicts, and
+   DNS/name materialization gaps.
+4. **Configuration, secrets, and identity clarity.** The settings/secrets flow
    should be understandable from Resource Manager: saved references must be
    visible without leaking secret values, identity grant status must be clear,
-   and failures should produce stable diagnostics and ProblemDetails.
+   access-control assignment and revocation must remain principal-shaped, and
+   failures should produce stable diagnostics and ProblemDetails.
 5. **Persisted-state handoff.** `Persist()` should stay a clear boundary from
    code-first local declarations to durable Control Plane/provider state.
    Local development can continue after persistence, but deployment remains a
    separate orchestrator concern.
-6. **Shell-composition compatibility.** Keep Resource Manager improvements
-   aligned with the future shell model by preferring reusable view groups,
-   standard settings placement, notification-ready diagnostics, and named
-   extension points over page-specific shortcuts. Do not start the broad shell
-   composition implementation until the local-development sample path is
-   stable.
+6. **Release hardening.** Keep generated details, action availability,
+   activity records, not-found states, read-only behavior, transient
+   declaration warnings, and sample documentation consistent across supported
+   samples.
+
+Defer the following unless a supported MVP sample exposes a blocking gap:
+broad IAM administration, deployment history, autoscaling, advanced service
+resources, shell-composition implementation, provider-backed DNS propagation,
+network-level service registries, external deployment projection,
+external-format import/code generation, and initial on-premise hosting.
 
 ### Immediate Proposal Order
 
 Work the current proposals in this order. For MVP, implement only the slice
 listed here before pulling in broader proposal work.
 
-1. Application environment management path: make container applications,
+1. MVP convergence and Resource Manager reliability: keep supported samples
+   green, keep Application Topology as the broad local-development proof, and
+   tighten generated resource details, action availability, explicit not-found
+   states, read-only behavior, activity records, diagnostics, and state
+   transitions around flows that already work.
+2. Application environment management path: make container applications,
    app-owned exposure, application-level service discovery, virtual networks,
    public endpoints, load-balancer routes, and logical DNS/name mappings form
    one understandable Resource Manager workflow. Keep `cloudshell.service`
@@ -206,7 +220,7 @@ listed here before pulling in broader proposal work.
    `WithReplicas(...)` opt-in. Endpoint-bearing apps now prompt from Scale and
    replicas to create a load-balancer route when replicas are enabled; deeper
    app-owned ingress provider diagnostics remain separate hardening work.
-2. Resource Manager convergence for the same path: keep the app resource page
+3. Resource Manager convergence for the same path: keep the app resource page
    as the operator entry point for endpoints, discovery, storage, identity,
    logs, traces, activity, and inbound name mappings. Fix UI consistency and
    generated details when they block understanding of those resources. Add
@@ -249,7 +263,20 @@ listed here before pulling in broader proposal work.
    a Resource Manager resource gallery to become the default Add Resource entry
    point, with future wizard-based guided setup for resource types that need a
    multi-step UX.
-3. Stateful application foundation: continue the storage and volume-mapping
+4. Start/update and provider-readiness diagnostics: prioritize diagnostics
+   that explain why already-supported local actions will fail, including host
+   resolution, missing or unavailable credentials, route and port conflicts,
+   unsupported storage media, unsafe replica-volume combinations, unresolved
+   references, missing identity grants, and DNS/name provider gaps.
+5. Configuration, secrets, and identity polish: finish the visible
+   settings/secrets assignment and reference experience, keep identity opt-in
+   for early modeling, keep Access control principal-shaped, and close only the
+   built-in access gaps needed by those flows.
+6. Persisted-state handoff: keep `Persist()` focused on resource and
+   provider-owned configuration persistence, keep deployment separate, and make
+   transient startup declarations visible enough that developers understand
+   which UI changes are process-scoped.
+7. Stateful application foundation: continue the storage and volume-mapping
    path now that `cloudshell.storage`, `cloudshell.volume`, `AddVolume(...)`,
    and container app volume mounts exist. Runtime materialization diagnostics
    now project from consuming applications and can be summarized from volume
@@ -265,33 +292,25 @@ listed here before pulling in broader proposal work.
    now project provider-backed filesystem availability through runtime status
    attributes. Next slices should broaden provider-backed storage reporting
    beyond Local Storage root availability.
-4. Identity validation beyond the built-in provider: keep the built-in
+8. Identity validation beyond the built-in provider: keep the built-in
    identity provider for local development, but prove the same resource
    identity and permission model against one third-party OIDC/OAuth provider,
    and keep the Keycloak-backed workload smoke path green before adding broader
    IAM UI.
-5. MVP convergence and Resource Manager reliability: keep supported samples
-   green, tighten generated resource details, lifecycle actions, activity
-   records, diagnostics, and state transitions around the flows that already
-   work.
-6. Configuration, secrets, and identity polish: finish the visible
-   settings/secrets assignment and reference experience, keep identity opt-in
-   for early modeling, and close only the built-in access gaps needed by those
-   flows.
-7. Lifecycle traceability and audit: harden the common lifecycle procedure,
+9. Lifecycle traceability and audit: harden the common lifecycle procedure,
    dependency-start activity, resource-event filtering, and the first audit
    schemas for MVP operations.
-8. Host and runtime foundation: complete the shared host diagnostics needed by
+10. Host and runtime foundation: complete the shared host diagnostics needed by
    container apps, Docker Compose, and provider-owned runtime infrastructure,
    building on the Resource Manager shutdown path that now stops host-scoped
    workloads while leaving detached workloads recoverable.
-9. Network and routing hardening: tighten host-readiness, provider selection,
+11. Network and routing hardening: tighten host-readiness, provider selection,
    route conflicts, endpoint conflicts, configuration preview, and backend
    diagnostics for the supported samples.
-10. Remote Docker host completion: finish concrete remote-host registration and
+12. Remote Docker host completion: finish concrete remote-host registration and
    credentials if it validates the host model, but do not let it block the
    local/default container-host MVP path.
-11. Runtime-managed resources and deployment model: the first ownership,
+13. Runtime-managed resources and deployment model: the first ownership,
    visibility, cleanup, and internal orchestrator deployment/revision contracts
    are in place. Container apps now project desired replica/runtime-container
    children as hidden runtime-managed resources parented to the app, with
@@ -306,7 +325,7 @@ listed here before pulling in broader proposal work.
    those children only where container apps need provider-observed container
    IDs, health, placement, or materialization diagnostics, not as a broad
    public deployment product surface.
-12. Advanced app and environment concepts: defer autoscaling, backend pools,
+14. Advanced app and environment concepts: defer autoscaling, backend pools,
    traffic splitting, provider-backed network-level service discovery,
    provider-backed DNS propagation, external deployment projection,
    external-format resource graph import and code generation, container
