@@ -43,6 +43,8 @@ on `git blame --follow`, and then by the broad type of change.
   a referenced resource is available.
 - Resource monitoring views now refresh automatically while open and expose an
   auto-refresh toggle while keeping manual refresh available.
+- Access Control principal search results now render as a vertical list with
+  full-width principal rows.
 - Resource Manager now includes a top-level Health workspace that polls
   configured resource health checks at the Resource Manager health-check
   interval, summarizes resource status, and links back to resource details.

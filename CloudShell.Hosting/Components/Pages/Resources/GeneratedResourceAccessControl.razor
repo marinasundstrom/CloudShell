@@ -90,11 +90,18 @@
                                 AutoComplete="off"
                                 MaximumSelectedOptions="1"
                                 MaximumOptionsSearch="12"
+                                OptionClass="access-control-principal-option"
                                 Placeholder="@L["Search principals"]"
                                 OptionText="FormatPrincipalOption"
                                 SelectedOptions="@SelectedPrincipals"
                                 SelectedOptionsChanged="SetSelectedPrincipal"
                                 OnOptionsSearch="SearchPrincipals">
+                <OptionTemplate Context="principal">
+                    <div class="access-control-principal-option-row">
+                        <strong>@principal.Name</strong>
+                        <span>@principal.PrincipalKindLabel</span>
+                    </div>
+                </OptionTemplate>
             </FluentAutocomplete>
             @if (PrincipalOptions.Count == 0)
             {
