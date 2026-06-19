@@ -77,6 +77,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Generated environment editors now treat credential-like literal setting and
   environment variable names as sensitive, avoid pre-populating stored values,
   and preserve the stored value when the hidden field is left blank.
+- Environment setting updates now preserve structured procedure signals from
+  app-setting and environment-variable provider results when the Resource
+  Manager combines both updates into one apply response.
 
 ### 2026-06-18
 

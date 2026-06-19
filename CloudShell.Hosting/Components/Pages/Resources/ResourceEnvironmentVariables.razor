@@ -359,7 +359,7 @@ else
                 cancellationToken));
         }
 
-        return CombineResults(results);
+        return ResourceProcedureResult.Combine(results, "No settings were updated.");
     }
 
     private IReadOnlyList<AppSetting> BuildAppSettings() =>
@@ -381,25 +381,6 @@ else
     private void AddVariable() => Variables.Add(new());
 
     private void RemoveVariable(EnvironmentVariableInput variable) => Variables.Remove(variable);
-
-    private static ResourceProcedureResult CombineResults(IReadOnlyList<ResourceProcedureResult> results)
-    {
-        if (results.Count == 0)
-        {
-            return ResourceProcedureResult.Completed("No settings were updated.");
-        }
-
-        var message = string.Join(" ", results
-            .Select(result => result.Message)
-            .Where(message => !string.IsNullOrWhiteSpace(message)));
-        var restart = results.FirstOrDefault(result => result.RestartRequired);
-        return restart is null
-            ? ResourceProcedureResult.Completed(message)
-            : ResourceProcedureResult.CompletedWithRestartRequired(
-                message,
-                restart.RestartResourceId ?? string.Empty,
-                restart.RestartMessage);
-    }
 
     private static bool IsConfigurationStore(Resource resource) =>
         resource.ResourceClass == ResourceClass.Configuration &&

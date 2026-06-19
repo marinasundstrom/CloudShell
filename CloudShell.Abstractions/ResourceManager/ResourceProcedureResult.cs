@@ -33,4 +33,32 @@ public sealed record ResourceProcedureResult
         string resourceId,
         string? restartMessage = null) =>
         new(message, true, resourceId, restartMessage);
+
+    public static ResourceProcedureResult Combine(
+        IReadOnlyList<ResourceProcedureResult> results,
+        string emptyMessage)
+    {
+        ArgumentNullException.ThrowIfNull(results);
+
+        if (results.Count == 0)
+        {
+            return Completed(emptyMessage);
+        }
+
+        var message = string.Join(" ", results
+            .Select(result => result.Message)
+            .Where(message => !string.IsNullOrWhiteSpace(message)));
+        var signals = results
+            .SelectMany(result => result.Signals)
+            .ToArray();
+        var restart = results.FirstOrDefault(result => result.RestartRequired);
+        return restart is null
+            ? new ResourceProcedureResult(message, signals: signals)
+            : new ResourceProcedureResult(
+                message,
+                restartRequired: true,
+                restartResourceId: restart.RestartResourceId ?? string.Empty,
+                restartMessage: restart.RestartMessage,
+                signals: signals);
+    }
 }
