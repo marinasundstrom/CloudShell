@@ -88,17 +88,17 @@
         </div>
 
         <div class="form-panel">
-            <div class="procedure-message">
+            <ProcedureMessage>
                 <strong>@L["CloudShell modes"]</strong>
                 <span>@L["Local dev mode uses the default orchestrator for Aspire-like local resources and resource-owned endpoints. On-premise mode selects an orchestrator such as Docker Compose to own lifecycle, networking, and exposure. Container host registration is independent from orchestrator selection."]</span>
-            </div>
+            </ProcedureMessage>
 
             @if (IsReadOnly)
             {
-                <div class="procedure-message">
+                <ProcedureMessage>
                     <strong>@L["Read-only mode"]</strong>
                     <span>@L["Resource Manager settings can be inspected, but changes are disabled by host configuration."]</span>
-                </div>
+                </ProcedureMessage>
             }
 
             @foreach (var warning in ConfigurationWarnings)

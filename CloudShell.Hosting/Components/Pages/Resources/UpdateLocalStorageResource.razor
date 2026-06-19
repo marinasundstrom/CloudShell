@@ -10,9 +10,9 @@ else
 {
     @if (IsStorageShapeLocked)
     {
-        <div class="procedure-message compact">
+        <ProcedureMessage Compact="true">
             Provider location cannot be changed while this storage resource owns volumes. Remove or move the volumes first.
-        </div>
+        </ProcedureMessage>
     }
 
     <div class="type-registration">

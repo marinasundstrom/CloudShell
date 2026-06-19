@@ -45,9 +45,9 @@ else
         }
         else
         {
-            <div class="procedure-message compact">
+            <ProcedureMessage Compact="true">
                 This volume cannot be deleted while another resource depends on it. Detach the volume from each consumer first.
-            </div>
+            </ProcedureMessage>
             <div class="generated-list">
                 @foreach (var consumer in Consumers)
                 {

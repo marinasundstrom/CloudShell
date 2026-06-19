@@ -36,7 +36,7 @@
 
 @if (StatusMessage is not null)
 {
-    <div class="procedure-message">@StatusMessage</div>
+    <ProcedureMessage Message="@StatusMessage" />
 }
 
 <section class="template-layout">
@@ -93,7 +93,9 @@
 
         @if (isReadOnly)
         {
-            <div class="procedure-message compact">@L["Resource Manager is in read-only mode. Template import is disabled in this UI."]</div>
+            <ProcedureMessage Compact="true">
+                @L["Resource Manager is in read-only mode. Template import is disabled in this UI."]
+            </ProcedureMessage>
         }
 
         <label for="import-json">@L["Template JSON"]</label>

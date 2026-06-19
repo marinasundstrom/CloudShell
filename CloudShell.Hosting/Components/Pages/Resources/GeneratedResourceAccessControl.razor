@@ -6,11 +6,11 @@
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject IStringLocalizer<SharedResource> L
 
-<div class="generated-resource-view">
-    @if (!string.IsNullOrWhiteSpace(ProcedureMessage))
-    {
-        <div class="procedure-message">@ProcedureMessage</div>
-    }
+    <div class="generated-resource-view">
+        @if (!string.IsNullOrWhiteSpace(ProcedureMessage))
+        {
+            <ProcedureMessage Message="@ProcedureMessage" />
+        }
 
     @if (Resource is null)
     {
@@ -135,7 +135,9 @@
         </div>
         @if (IsReadOnly)
         {
-            <div class="procedure-message compact">@L["Resource Manager is in read-only mode. Access control changes are disabled in this UI."]</div>
+            <ProcedureMessage Compact="true">
+                @L["Resource Manager is in read-only mode. Access control changes are disabled in this UI."]
+            </ProcedureMessage>
         }
         <p class="muted">@L["CloudShell records that the selected principal can access this resource. Identity and access providers apply or reconcile the grant when provisioning runs."]</p>
     </text>;

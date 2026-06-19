@@ -74,13 +74,15 @@
 
 @if (ProcedureMessage is not null)
 {
-    <div class="procedure-message">@ProcedureMessage</div>
+    <ProcedureMessage Message="@ProcedureMessage" />
 }
 <ResourceProcedureSignals Signals="ProcedureSignals" />
 
 @if (IsReadOnly)
 {
-    <div class="procedure-message">@L["Resource Manager is in read-only mode. Resource creation, lifecycle actions, updates, and deletes are disabled in this UI."]</div>
+    <ProcedureMessage>
+        @L["Resource Manager is in read-only mode. Resource creation, lifecycle actions, updates, and deletes are disabled in this UI."]
+    </ProcedureMessage>
 }
 
 @if (PendingAction is not null)

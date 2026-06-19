@@ -4,24 +4,15 @@
 
 @foreach (var signal in Signals)
 {
-    <div class="procedure-message @GetSignalClass(signal.Severity)" role="status">
+    <ProcedureMessage Severity="signal.Severity" Role="status">
         <strong>@GetSignalLabel(signal.Severity)</strong>
         <span>@signal.Message</span>
-    </div>
+    </ProcedureMessage>
 }
 
 @code {
     [Parameter]
     public IReadOnlyList<ResourceProcedureSignal> Signals { get; set; } = [];
-
-    private static string GetSignalClass(ResourceSignalSeverity severity) =>
-        severity switch
-        {
-            ResourceSignalSeverity.Success => "success",
-            ResourceSignalSeverity.Info => "info",
-            ResourceSignalSeverity.Error => "error",
-            _ => "warning"
-        };
 
     private string GetSignalLabel(ResourceSignalSeverity severity) =>
         severity switch

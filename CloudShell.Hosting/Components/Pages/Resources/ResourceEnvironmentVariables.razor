@@ -19,7 +19,9 @@ else
 {
     @if (IsReadOnly)
     {
-        <div class="procedure-message compact">@L["Resource Manager is in read-only mode. Environment editing is disabled in this UI."]</div>
+        <ProcedureMessage Compact="true">
+            @L["Resource Manager is in read-only mode. Environment editing is disabled in this UI."]
+        </ProcedureMessage>
     }
 
     @if (AppSettingProvider is not null)

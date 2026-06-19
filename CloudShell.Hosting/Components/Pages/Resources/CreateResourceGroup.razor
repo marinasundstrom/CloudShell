@@ -20,7 +20,9 @@
 
 @if (IsReadOnly)
 {
-    <div class="procedure-message">@L["Resource Manager is in read-only mode. Resource creation, lifecycle actions, updates, and deletes are disabled in this UI."]</div>
+    <ProcedureMessage>
+        @L["Resource Manager is in read-only mode. Resource creation, lifecycle actions, updates, and deletes are disabled in this UI."]
+    </ProcedureMessage>
 }
 else
 {

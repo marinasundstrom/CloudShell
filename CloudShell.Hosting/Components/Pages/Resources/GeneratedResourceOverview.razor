@@ -14,11 +14,11 @@
 @inject ResourceManagerDisplaySettings DisplaySettings
 @inject IStringLocalizer<SharedResource> L
 
-<div class="generated-resource-view">
-    @if (!string.IsNullOrWhiteSpace(ProcedureMessage))
-    {
-        <div class="procedure-message">@ProcedureMessage</div>
-    }
+    <div class="generated-resource-view">
+        @if (!string.IsNullOrWhiteSpace(ProcedureMessage))
+        {
+            <ProcedureMessage Message="@ProcedureMessage" />
+        }
     <ResourceProcedureSignals Signals="ProcedureSignals" />
 
     <GeneratedResourceViewLayout ResourceType="ResourceType"

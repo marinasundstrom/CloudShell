@@ -34,9 +34,9 @@ else
         }
         else
         {
-            <div class="procedure-message compact">
+            <ProcedureMessage Compact="true">
                 This Storage resource cannot be deleted while it owns volumes.
-            </div>
+            </ProcedureMessage>
             <div class="generated-list">
                 @foreach (var volume in Volumes)
                 {

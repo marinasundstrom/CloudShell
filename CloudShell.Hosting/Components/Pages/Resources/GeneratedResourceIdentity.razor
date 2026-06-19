@@ -4,11 +4,11 @@
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject IStringLocalizer<SharedResource> L
 
-<div class="generated-resource-view">
-    @if (!string.IsNullOrWhiteSpace(ProcedureMessage))
-    {
-        <div class="procedure-message">@ProcedureMessage</div>
-    }
+    <div class="generated-resource-view">
+        @if (!string.IsNullOrWhiteSpace(ProcedureMessage))
+        {
+            <ProcedureMessage Message="@ProcedureMessage" />
+        }
 
     @if (Resource is null)
     {
@@ -125,7 +125,9 @@
             </div>
             @if (IsReadOnly)
             {
-                <div class="procedure-message compact">@L["Resource Manager is in read-only mode. Identity provisioning is disabled in this UI."]</div>
+                <ProcedureMessage Compact="true">
+                    @L["Resource Manager is in read-only mode. Identity provisioning is disabled in this UI."]
+                </ProcedureMessage>
             }
         }
         else
@@ -136,7 +138,9 @@
             </div>
             @if (IsReadOnly)
             {
-                <div class="procedure-message compact">@L["Resource Manager is in read-only mode. Identity changes are disabled in this UI."]</div>
+                <ProcedureMessage Compact="true">
+                    @L["Resource Manager is in read-only mode. Identity changes are disabled in this UI."]
+                </ProcedureMessage>
             }
         }
     </text>;
@@ -144,7 +148,8 @@
     private RenderFragment RenderProvisioningStatus() => @<text>
         @if (!string.IsNullOrWhiteSpace(ProvisioningStatusError))
         {
-            <div class="procedure-message compact">@ProvisioningStatusError</div>
+            <ProcedureMessage Message="@ProvisioningStatusError"
+                              Compact="true" />
         }
         else if (ProvisioningStatus is null)
         {

@@ -67,6 +67,8 @@ on `git blame --follow`, and then by the broad type of change.
   custom environment rows unchanged.
 - Added a Resource Manager `ResourceListItem` component for resource-icon list
   rows and adopted it in DNS, storage volume, and volume consumer views.
+- Added a reusable `ProcedureMessage` component and adopted it across Resource
+  Manager procedure, read-only, and compact warning messages.
 - Resource Manager now includes a top-level Health workspace that polls
   configured resource health checks at the Resource Manager health-check
   interval, summarizes resource status, and links back to resource details.

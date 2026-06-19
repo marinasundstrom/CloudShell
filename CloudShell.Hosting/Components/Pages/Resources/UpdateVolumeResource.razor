@@ -10,9 +10,9 @@ else
 {
     @if (IsStorageShapeLocked)
     {
-        <div class="procedure-message compact">
+        <ProcedureMessage Compact="true">
             Storage shape cannot be changed while resources depend on this volume. Detach the volume from its consumers first.
-        </div>
+        </ProcedureMessage>
     }
 
     <div class="type-registration">
