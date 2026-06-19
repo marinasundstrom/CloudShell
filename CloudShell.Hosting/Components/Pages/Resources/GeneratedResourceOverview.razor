@@ -1,10 +1,12 @@
 @using System.Globalization
 @using System.Diagnostics.CodeAnalysis
+@using CloudShell.Abstractions.Authorization
 @using CloudShell.Abstractions.ResourceManager
 @using CloudShell.Abstractions.ControlPlane
 @using Microsoft.AspNetCore.WebUtilities
 @inject IResourceManager ResourceManager
 @inject ILogManager LogManager
+@inject ICloudShellAuthorizationService Authorization
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject IResourceOrchestrationSettings OrchestrationSettings
@@ -66,7 +68,9 @@
         ChildResources = (await ResourceManager.ListResourceChildrenAsync(Resource.Id))
             .Where(DisplaySelection.ShowsResource)
             .ToArray();
-        Logs = await LogManager.ListLogsAsync(new LogQuery(ResourceId: Resource.Id));
+        Logs = Authorization.CanReadLogs()
+            ? await LogManager.ListLogsAsync(new LogQuery(ResourceId: Resource.Id))
+            : [];
         Capabilities = await ResourceManager.GetResourceOperationCapabilitiesAsync(Resource);
         InboundNetworkMappings = await LoadInboundNetworkMappingsAsync();
         InboundLoadBalancerRoutes = await LoadInboundLoadBalancerRoutesAsync();
@@ -96,7 +100,7 @@
             sections.Add(new("relationships", L["Relationships"], 300, RenderRelationships()));
         }
 
-        if (Logs.Count > 0 || Resource.EffectiveObservability != ResourceObservability.None)
+        if (HasVisibleObservability)
         {
             sections.Add(new("observability", L["Observability"], 400, RenderObservability()));
         }
@@ -112,6 +116,12 @@
         InboundNameMappings.Count > 0 ||
         IsNetworkResource ||
         IsLoadBalancerResource;
+
+    private bool HasVisibleObservability =>
+        Logs.Count > 0 ||
+        Authorization.CanReadLogs() && Resource.EffectiveObservability.Logs ||
+        Authorization.CanReadTraces() && Resource.EffectiveObservability.Traces ||
+        Authorization.CanReadMetrics() && Resource.EffectiveObservability.Metrics;
 
     private IReadOnlyList<ResourceDiagnosticView> GetOverviewDiagnostics() =>
         ResourceActionReadinessDiagnostics.GetDiagnostics(Resource, Capabilities)
@@ -254,11 +264,11 @@
             <dt>@L["Signals"]</dt>
             <dd>@FormatObservabilitySummary()</dd>
         </dl>
-        @if (Resource.EffectiveObservability.Traces)
+        @if (Authorization.CanReadTraces() && Resource.EffectiveObservability.Traces)
         {
             <a class="resource-link" href="@BuildTraceRoute()">@L["Open traces"]</a>
         }
-        @if (Resource.EffectiveObservability.Metrics)
+        @if (Authorization.CanReadMetrics() && Resource.EffectiveObservability.Metrics)
         {
             <a class="resource-link" href="@BuildMetricRoute()">@L["Open metrics"]</a>
         }

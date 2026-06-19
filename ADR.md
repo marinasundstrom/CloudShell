@@ -11,6 +11,29 @@ link to the decision so the dependency is visible.
 
 ## 2026-06-19
 
+### ADR-20260619-006: Gate observability by signal permissions and resource read access
+
+Observability is a separate product area from resource inspection and resource
+operation. CloudShell uses a grouped `observability.read` permission for the
+Telemetry workspace plus signal-specific permissions for logs, traces, and
+metrics: `observability.logs.read`, `observability.traces.read`, and
+`observability.metrics.read`.
+
+The grouped permission allows all observability signal views. Signal-specific
+permissions allow hosts and administrators to grant logs, traces, or metrics
+independently while still keeping the views grouped under Observability in the
+shell.
+
+Observability permissions do not override resource access. Control Plane
+telemetry queries must filter log descriptors, trace spans, and metric points
+to resources where the caller has read-level resource access. Resources the
+caller cannot read are not listed in observability data. Reference-level
+resource access can later support locked topology nodes, but detailed logs,
+spans, metrics, attributes, endpoints, and trace rows require resource read
+access.
+
+Related changes: [Changelog](CHANGELOG.md).
+
 ### ADR-20260619-005: Model resource access as ordered effective levels
 
 CloudShell authorization distinguishes whether a caller can discover a

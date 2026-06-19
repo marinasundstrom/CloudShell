@@ -10,7 +10,8 @@ public sealed record NavItemContribution(
     string Group = "Workspace",
     bool ReplacesExisting = false,
     bool ShowInNavigation = true,
-    string? ParentId = null)
+    string? ParentId = null,
+    IReadOnlyList<string>? RequiredPermissions = null)
 {
     public NavItemContribution(
         string text,
@@ -30,4 +31,6 @@ public sealed record NavItemContribution(
             ParentId: parentId)
     {
     }
+
+    public IReadOnlyList<string> PermissionsRequiredForNavigation => RequiredPermissions ?? [];
 }

@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Extensions;
 using CloudShell.Hosting.Components.Pages.Logs;
 
@@ -17,41 +18,50 @@ public sealed class ObservabilityExtension : ICloudShellExtension
     {
         builder
             .RegisterView<Components.Pages.Observability.Observability>(ObservabilityViews.Overview)
-            .AddNavigationItem<Components.Pages.Observability.Observability>("Observability", "pulse", 20)
+            .AddNavigationItem<Components.Pages.Observability.Observability>(
+                "Observability",
+                "pulse",
+                20,
+                requiredPermissions: ObservabilityAuthorization.AnyReadPermissions)
             .RegisterView<Components.Pages.Logs.Logs>(ObservabilityViews.Logs)
             .AddNavigationItem<Components.Pages.Logs.Logs>(
                 ObservabilityViews.Logs,
                 "Logs",
                 "document",
                 21,
-                parentId: ObservabilityViews.Overview)
+                parentId: ObservabilityViews.Overview,
+                requiredPermissions: ObservabilityAuthorization.LogsReadPermissions)
             .RegisterView<Components.Pages.Observability.DependencyGraph>(ObservabilityViews.RequestGraph)
             .AddNavigationItem<Components.Pages.Observability.DependencyGraph>(
                 ObservabilityViews.RequestGraph,
                 "Request graph",
                 "request-graph",
                 22,
-                parentId: ObservabilityViews.Overview)
+                parentId: ObservabilityViews.Overview,
+                requiredPermissions: ObservabilityAuthorization.TracesReadPermissions)
             .RegisterView<Components.Pages.Observability.RequestMap>(ObservabilityViews.RequestMap)
             .AddNavigationItem<Components.Pages.Observability.RequestMap>(
                 ObservabilityViews.RequestMap,
                 "Request map",
                 "request-map",
                 23,
-                parentId: ObservabilityViews.Overview)
+                parentId: ObservabilityViews.Overview,
+                requiredPermissions: ObservabilityAuthorization.TracesReadPermissions)
             .RegisterView<Components.Pages.Observability.Traces>(ObservabilityViews.Traces)
             .AddNavigationItem<Components.Pages.Observability.Traces>(
                 ObservabilityViews.Traces,
                 "Traces",
                 "traces",
                 24,
-                parentId: ObservabilityViews.Overview)
+                parentId: ObservabilityViews.Overview,
+                requiredPermissions: ObservabilityAuthorization.TracesReadPermissions)
             .RegisterView<Components.Pages.Observability.Metrics>(ObservabilityViews.Metrics)
             .AddNavigationItem<Components.Pages.Observability.Metrics>(
                 ObservabilityViews.Metrics,
                 "Metrics",
                 "metrics",
                 25,
-                parentId: ObservabilityViews.Overview);
+                parentId: ObservabilityViews.Overview,
+                requiredPermissions: ObservabilityAuthorization.MetricsReadPermissions);
     }
 }

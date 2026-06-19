@@ -6,8 +6,10 @@
 @inject IResourceEventManager ResourceEvents
 @inject ITraceManager TraceManager
 @inject IResourceHealthManager HealthChecks
+@inject ICloudShellAuthorizationService Authorization
 @inject IResourceOrchestrationSettings OrchestrationSettings
 @inject IStringLocalizer<SharedResource> L
+@using CloudShell.Abstractions.Authorization
 
 <PageTitle>CloudShell</PageTitle>
 
@@ -27,10 +29,13 @@
                       Href="/health">
             @L["Health"]
         </FluentAnchor>
-        <FluentAnchor Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.DataUsage())"
-                      Href="/observability">
-            @L["Observability"]
-        </FluentAnchor>
+        @if (Authorization.CanReadAnyObservability())
+        {
+            <FluentAnchor Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.DataUsage())"
+                          Href="/observability">
+                @L["Observability"]
+            </FluentAnchor>
+        }
     </div>
 </section>
 
@@ -360,6 +365,11 @@
 
     private async Task<IReadOnlyList<RequestFailureSummary>> LoadRequestFailureSignalsAsync()
     {
+        if (!Authorization.CanReadTraces())
+        {
+            return [];
+        }
+
         var spans = await TraceManager.ListTraceSpansAsync(new TraceQuery(MaxSpans: 1000));
 
         return spans

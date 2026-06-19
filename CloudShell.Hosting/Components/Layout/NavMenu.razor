@@ -1,7 +1,9 @@
 ﻿@inject ShellCatalog ShellCatalog
+@inject ICloudShellAuthorizationService Authorization
 @inject ICloudShellUserSettingsProvider Settings
 @inject Microsoft.Extensions.Options.IOptionsMonitor<CloudShellDisplayOptions> DisplayOptions
 @inject IStringLocalizer<SharedResource> L
+@using CloudShell.Abstractions.Authorization
 @using System.Text.Json
 
 <div class="brand">
@@ -21,7 +23,9 @@
                    Title="@L["Primary"]"
                    Margin="0">
     @{
-        var navigationItems = ShellCatalog.NavigationItems;
+        var navigationItems = ShellCatalog.NavigationItems
+            .Where(CanShowNavigationItem)
+            .ToArray();
         var childItemsByParent = navigationItems
             .Where(item => !string.IsNullOrWhiteSpace(item.ParentId))
             .GroupBy(item => item.ParentId!, StringComparer.OrdinalIgnoreCase)
@@ -114,6 +118,10 @@
 
     private static NavLinkMatch GetMatch(string href) =>
         href == "/" ? NavLinkMatch.All : NavLinkMatch.Prefix;
+
+    private bool CanShowNavigationItem(NavItemContribution item) =>
+        item.PermissionsRequiredForNavigation.Count == 0 ||
+        Authorization.HasAnyPermission(item.PermissionsRequiredForNavigation);
 
     private string GetApplicationName() =>
         string.IsNullOrWhiteSpace(DisplayOptions.CurrentValue.ApplicationName)

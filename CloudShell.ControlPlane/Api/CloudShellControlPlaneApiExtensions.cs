@@ -953,12 +953,21 @@ public static class CloudShellControlPlaneApiExtensions
         string? artifactId,
         LogSourceKind? sourceKind,
         ILogManager logs,
-        CancellationToken cancellationToken) =>
-        Results.Ok((await logs.ListLogsAsync(
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Results.Ok((await logs.ListLogsAsync(
                 new LogQuery(resourceId, artifactId, sourceKind),
                 cancellationToken))
             .Select(log => log.ToResponse())
             .ToArray());
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            return ToProblem(exception);
+        }
+    }
 
     private static async Task<IResult> ListResourceEvents(
         string? resourceId,
@@ -990,10 +999,17 @@ public static class CloudShellControlPlaneApiExtensions
         ILogManager logs,
         CancellationToken cancellationToken)
     {
-        var log = await logs.GetLogAsync(logId, cancellationToken);
-        return log is null
-            ? Results.NotFound()
-            : Results.Ok(log.ToResponse());
+        try
+        {
+            var log = await logs.GetLogAsync(logId, cancellationToken);
+            return log is null
+                ? Results.NotFound()
+                : Results.Ok(log.ToResponse());
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            return ToProblem(exception);
+        }
     }
 
     private static async Task<IResult> ReadLogEntries(
@@ -1003,17 +1019,24 @@ public static class CloudShellControlPlaneApiExtensions
         ILogManager logs,
         CancellationToken cancellationToken)
     {
-        if (await logs.GetLogAsync(logId, cancellationToken) is null)
+        try
         {
-            return Results.NotFound();
+            if (await logs.GetLogAsync(logId, cancellationToken) is null)
+            {
+                return Results.NotFound();
+            }
+
+            var entries = await logs.ReadLogAsync(
+                logId,
+                new ReadLogOptions(Math.Clamp(maxEntries ?? 200, 1, 1000), before),
+                cancellationToken);
+
+            return Results.Ok(entries.Select(entry => entry.ToResponse()).ToArray());
         }
-
-        var entries = await logs.ReadLogAsync(
-            logId,
-            new ReadLogOptions(Math.Clamp(maxEntries ?? 200, 1, 1000), before),
-            cancellationToken);
-
-        return Results.Ok(entries.Select(entry => entry.ToResponse()).ToArray());
+        catch (UnauthorizedAccessException exception)
+        {
+            return ToProblem(exception);
+        }
     }
 
     private static async Task<IResult> StreamLogEntries(
@@ -1022,37 +1045,44 @@ public static class CloudShellControlPlaneApiExtensions
         ILogManager logs,
         CancellationToken cancellationToken)
     {
-        var log = await logs.GetLogAsync(logId, cancellationToken);
-        if (log is null)
+        try
         {
-            return Results.NotFound();
-        }
-
-        if (!log.SupportsStreaming)
-        {
-            return Problem(
-                StatusCodes.Status405MethodNotAllowed,
-                "Log streaming is unavailable",
-                "The selected log source does not support streaming.");
-        }
-
-        return Results.Stream(
-            async stream =>
+            var log = await logs.GetLogAsync(logId, cancellationToken);
+            if (log is null)
             {
-                await foreach (var entry in logs.StreamLogAsync(
-                    logId,
-                    new StreamLogOptions(Math.Clamp(initialEntries ?? 50, 0, 1000)),
-                    cancellationToken))
+                return Results.NotFound();
+            }
+
+            if (!log.SupportsStreaming)
+            {
+                return Problem(
+                    StatusCodes.Status405MethodNotAllowed,
+                    "Log streaming is unavailable",
+                    "The selected log source does not support streaming.");
+            }
+
+            return Results.Stream(
+                async stream =>
                 {
-                    await JsonSerializer.SerializeAsync(
-                        stream,
-                        entry.ToResponse(),
-                        cancellationToken: cancellationToken);
-                    await stream.WriteAsync("\n"u8.ToArray(), cancellationToken);
-                    await stream.FlushAsync(cancellationToken);
-                }
-            },
-            "application/x-ndjson");
+                    await foreach (var entry in logs.StreamLogAsync(
+                        logId,
+                        new StreamLogOptions(Math.Clamp(initialEntries ?? 50, 0, 1000)),
+                        cancellationToken))
+                    {
+                        await JsonSerializer.SerializeAsync(
+                            stream,
+                            entry.ToResponse(),
+                            cancellationToken: cancellationToken);
+                        await stream.WriteAsync("\n"u8.ToArray(), cancellationToken);
+                        await stream.FlushAsync(cancellationToken);
+                    }
+                },
+                "application/x-ndjson");
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            return ToProblem(exception);
+        }
     }
 
     private static async Task<IResult> ListTraceSpans(
@@ -1064,8 +1094,11 @@ public static class CloudShellControlPlaneApiExtensions
         string? scopeKind,
         string? deploymentRevision,
         ITraceManager traces,
-        CancellationToken cancellationToken) =>
-        Results.Ok(await traces.ListTraceSpansAsync(
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Results.Ok(await traces.ListTraceSpansAsync(
                 new TraceQuery(
                     resourceId,
                     traceId,
@@ -1076,6 +1109,12 @@ public static class CloudShellControlPlaneApiExtensions
                         scopeKind,
                         deploymentRevision)),
                 cancellationToken));
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            return ToProblem(exception);
+        }
+    }
 
     private static async Task<IResult> IngestTraceSpans(
         TraceIngestRequest request,
@@ -1095,18 +1134,27 @@ public static class CloudShellControlPlaneApiExtensions
         string? scopeKind,
         string? deploymentRevision,
         IMetricManager metrics,
-        CancellationToken cancellationToken) =>
-        Results.Ok(await metrics.ListMetricPointsAsync(
-            new MetricQuery(
-                resourceId,
-                metricName,
-                Math.Clamp(maxPoints ?? 200, 1, 1000),
-                CreateScope(
-                    scopeResourceId,
-                    scopeName,
-                    scopeKind,
-                    deploymentRevision)),
-            cancellationToken));
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Results.Ok(await metrics.ListMetricPointsAsync(
+                new MetricQuery(
+                    resourceId,
+                    metricName,
+                    Math.Clamp(maxPoints ?? 200, 1, 1000),
+                    CreateScope(
+                        scopeResourceId,
+                        scopeName,
+                        scopeKind,
+                        deploymentRevision)),
+                cancellationToken));
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            return ToProblem(exception);
+        }
+    }
 
     private static TelemetryScope? CreateScope(
         string? scopeResourceId,

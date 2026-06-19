@@ -19,7 +19,8 @@ public interface ICloudShellExtensionBuilder
         string icon,
         int order,
         string group = "Workspace",
-        string? parentId = null);
+        string? parentId = null,
+        IReadOnlyList<string>? requiredPermissions = null);
 
     ICloudShellExtensionBuilder AddNavigationItem<TView>(
         string id,
@@ -27,7 +28,8 @@ public interface ICloudShellExtensionBuilder
         string icon,
         int order,
         string group = "Workspace",
-        string? parentId = null);
+        string? parentId = null,
+        IReadOnlyList<string>? requiredPermissions = null);
 
     ICloudShellExtensionBuilder AddNavigationItem(
         string id,
@@ -36,7 +38,8 @@ public interface ICloudShellExtensionBuilder
         string icon,
         int order,
         string group = "Workspace",
-        string? parentId = null);
+        string? parentId = null,
+        IReadOnlyList<string>? requiredPermissions = null);
 
     ICloudShellExtensionBuilder ReplaceNavigationItem<TView>(
         string id,
@@ -44,7 +47,8 @@ public interface ICloudShellExtensionBuilder
         string icon,
         int order,
         string group = "Workspace",
-        string? parentId = null);
+        string? parentId = null,
+        IReadOnlyList<string>? requiredPermissions = null);
 
     ICloudShellExtensionBuilder ReplaceNavigationItem(
         string id,
@@ -53,7 +57,8 @@ public interface ICloudShellExtensionBuilder
         string icon,
         int order,
         string group = "Workspace",
-        string? parentId = null);
+        string? parentId = null,
+        IReadOnlyList<string>? requiredPermissions = null);
 
     ICloudShellExtensionBuilder AddCustomView(
         string id,

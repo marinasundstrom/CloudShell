@@ -735,7 +735,8 @@ public sealed class InProcessControlPlane(
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(ApplyQuery(logs.GetLogs(), query));
+        EnsureCanReadLogs();
+        return Task.FromResult(ApplyQuery(GetReadableLogs(), query));
     }
 
     public Task<IReadOnlyList<ResourceEvent>> ListResourceEventsAsync(
@@ -770,35 +771,62 @@ public sealed class InProcessControlPlane(
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(logs.GetLog(logId));
+        EnsureCanReadLogs();
+        return Task.FromResult(GetReadableLog(logId));
     }
 
     public Task<IReadOnlyList<LogEntry>> ReadLogAsync(
         string logId,
         ReadLogOptions? options = null,
-        CancellationToken cancellationToken = default) =>
-        logs.ReadLogAsync(
+        CancellationToken cancellationToken = default)
+    {
+        EnsureCanReadLogs();
+        if (GetReadableLog(logId) is null)
+        {
+            return Task.FromResult<IReadOnlyList<LogEntry>>([]);
+        }
+
+        return logs.ReadLogAsync(
             logId,
             options?.MaxEntries ?? 200,
             options?.Before,
             cancellationToken);
+    }
 
     public IAsyncEnumerable<LogEntry> StreamLogAsync(
         string logId,
         StreamLogOptions? options = null,
-        CancellationToken cancellationToken = default) =>
-        logs.StreamLogAsync(logId, options?.InitialEntries ?? 50, cancellationToken);
+        CancellationToken cancellationToken = default)
+    {
+        EnsureCanReadLogs();
+        if (GetReadableLog(logId) is null)
+        {
+            return AsyncEnumerable.Empty<LogEntry>();
+        }
+
+        return logs.StreamLogAsync(logId, options?.InitialEntries ?? 50, cancellationToken);
+    }
 
     public Task<IReadOnlyList<TraceSpan>> ListTraceSpansAsync(
         TraceQuery? query = null,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(traces.GetSpans(
+        EnsureCanReadTraces();
+        var readableResourceIds = GetReadableResourceIds();
+        if (query?.ResourceId is not null &&
+            !readableResourceIds.Contains(query.ResourceId))
+        {
+            return Task.FromResult<IReadOnlyList<TraceSpan>>([]);
+        }
+
+        return Task.FromResult<IReadOnlyList<TraceSpan>>(traces.GetSpans(
             query?.ResourceId,
             query?.TraceId,
             query?.MaxSpans ?? 200,
-            query?.Scope));
+            query?.Scope)
+            .Where(span => readableResourceIds.Contains(span.ResourceId))
+            .ToArray());
     }
 
     public Task IngestTraceSpansAsync(
@@ -815,11 +843,21 @@ public sealed class InProcessControlPlane(
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(metrics.GetPoints(
+        EnsureCanReadMetrics();
+        var readableResourceIds = GetReadableResourceIds();
+        if (query?.ResourceId is not null &&
+            !readableResourceIds.Contains(query.ResourceId))
+        {
+            return Task.FromResult<IReadOnlyList<MetricPoint>>([]);
+        }
+
+        return Task.FromResult<IReadOnlyList<MetricPoint>>(metrics.GetPoints(
             query?.ResourceId,
             query?.MetricName,
             query?.MaxPoints ?? 200,
-            query?.Scope));
+            query?.Scope)
+            .Where(point => readableResourceIds.Contains(point.ResourceId))
+            .ToArray());
     }
 
     public Task IngestMetricPointsAsync(
@@ -1104,6 +1142,57 @@ public sealed class InProcessControlPlane(
 
         return ResourceIdentityCanAccessResource(actingIdentity, resourceId, permission);
     }
+
+    private void EnsureCanReadLogs() =>
+        EnsureHasAnyPermission(
+            ObservabilityAuthorization.LogsReadPermissions,
+            "logs");
+
+    private void EnsureCanReadTraces() =>
+        EnsureHasAnyPermission(
+            ObservabilityAuthorization.TracesReadPermissions,
+            "traces");
+
+    private void EnsureCanReadMetrics() =>
+        EnsureHasAnyPermission(
+            ObservabilityAuthorization.MetricsReadPermissions,
+            "metrics");
+
+    private void EnsureHasAnyPermission(
+        IReadOnlyList<string> permissions,
+        string area)
+    {
+        if (authorization.HasAnyPermission(permissions))
+        {
+            return;
+        }
+
+        throw new ControlPlaneAccessDeniedException(new ControlPlaneError(
+            ControlPlaneErrorCodes.InsufficientPermission,
+            $"One of the following permissions is required to read observability {area}: {string.Join(", ", permissions.Select(permission => $"'{permission}'"))}."));
+    }
+
+    private IReadOnlyList<LogDescriptor> GetReadableLogs()
+    {
+        var readableResourceIds = GetReadableResourceIds();
+        return logs.GetLogs()
+            .Where(log => log.ResourceId is null || readableResourceIds.Contains(log.ResourceId))
+            .ToArray();
+    }
+
+    private LogDescriptor? GetReadableLog(string logId) =>
+        GetReadableLogs()
+            .FirstOrDefault(log => string.Equals(log.Id, logId, StringComparison.OrdinalIgnoreCase));
+
+    private HashSet<string> GetReadableResourceIds() =>
+        resourceManager.GetResources()
+            .Where(resource =>
+                authorization.GetResourceAccessLevel(
+                    resource.Id,
+                    resourceManager.GetGroupForResource(resource.Id)?.Id)
+                    .AllowsRead())
+            .Select(resource => resource.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
     private void AuthorizeResourceIdentityProvisioning(ResourceIdentityProvisioningPlan plan)
     {

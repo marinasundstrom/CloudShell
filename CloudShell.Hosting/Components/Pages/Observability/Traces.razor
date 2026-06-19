@@ -1,12 +1,24 @@
 @page "/observability/traces"
 @rendermode InteractiveServer
+@inject ICloudShellAuthorizationService Authorization
 @inject IStringLocalizer<SharedResource> L
+@using CloudShell.Abstractions.Authorization
 
 <PageTitle>@L["Traces"]</PageTitle>
 
-<TraceExplorer ResourceId="@ResourceId"
-               TraceId="@TraceId"
-               ScopeResourceId="@ScopeResourceId" />
+@if (!Authorization.CanReadTraces())
+{
+    <section class="empty-state">
+        <strong>@L["Access denied"]</strong>
+        <span>@L["Your identity does not have permission to view observability traces."]</span>
+    </section>
+}
+else
+{
+    <TraceExplorer ResourceId="@ResourceId"
+                   TraceId="@TraceId"
+                   ScopeResourceId="@ScopeResourceId" />
+}
 
 @code {
     [Parameter]

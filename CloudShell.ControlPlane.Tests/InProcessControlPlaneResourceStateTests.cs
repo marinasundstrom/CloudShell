@@ -1904,7 +1904,58 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.Null(provider.CreatedRequest);
     }
 
-    private static IResourceManager CreateControlPlane(
+    [Fact]
+    public async Task ListTraceSpansAsync_RequiresTraceReadPermission()
+    {
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            authorization: new DenyAuthorizationService());
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneAccessDeniedException>(() =>
+            controlPlane.ListTraceSpansAsync());
+
+        Assert.Equal(ControlPlaneErrorCodes.InsufficientPermission, exception.Error.Code);
+        Assert.Contains(CloudShellPermissions.Observability.Traces.Read, exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ObservabilityQueries_FilterSignalsToReadableResources()
+    {
+        var logStore = new TestLogStore(
+            new LogDescriptor("visible-log", "Visible", "test", "visible", LogSourceKind.Resource, "visible"),
+            new LogDescriptor("hidden-log", "Hidden", "test", "hidden", LogSourceKind.Resource, "hidden"));
+        var traceStore = new TestTraceStore(
+            CreateTraceSpan("visible-trace", "visible"),
+            CreateTraceSpan("hidden-trace", "hidden"));
+        var metricStore = new TestMetricStore(
+            CreateMetricPoint("visible", "visible"),
+            CreateMetricPoint("hidden", "hidden"));
+        var controlPlane = CreateControlPlane(
+            [
+                CreateResource("visible", ResourceState.Running),
+                CreateResource("hidden", ResourceState.Running)
+            ],
+            authorization: new PermissionAndResourceAuthorizationService(
+                [
+                    CloudShellPermissions.Observability.Logs.Read,
+                    CloudShellPermissions.Observability.Traces.Read,
+                    CloudShellPermissions.Observability.Metrics.Read
+                ],
+                ("visible", CloudShellPermissions.Resources.Read)),
+            logStore: logStore,
+            traceStore: traceStore,
+            metricStore: metricStore);
+
+        var logs = await controlPlane.ListLogsAsync();
+        var spans = await controlPlane.ListTraceSpansAsync();
+        var points = await controlPlane.ListMetricPointsAsync();
+
+        Assert.Equal("visible", Assert.Single(logs).ResourceId);
+        Assert.Equal("visible", Assert.Single(spans).ResourceId);
+        Assert.Equal("visible", Assert.Single(points).ResourceId);
+    }
+
+    private static IControlPlane CreateControlPlane(
         IReadOnlyList<Resource> resources,
         IResourceProvider? provider = null,
         IReadOnlyList<ResourceGroup>? groups = null,
@@ -1919,7 +1970,10 @@ public sealed class InProcessControlPlaneResourceStateTests
         IReadOnlyList<IContainerHostProvider>? containerHostProviders = null,
         IReadOnlyList<IResourceActionAvailabilityProvider>? actionAvailabilityProviders = null,
         Action<ResourceDeclarationStore>? configureDeclarations = null,
-        IResourceEventStore? resourceEvents = null)
+        IResourceEventStore? resourceEvents = null,
+        ILogStore? logStore = null,
+        ITraceStore? traceStore = null,
+        IMetricStore? metricStore = null)
     {
         provider ??= new TestResourceProvider();
         var registrations = new TestResourceRegistrationStore(resources.Select(resource =>
@@ -1973,9 +2027,9 @@ public sealed class InProcessControlPlaneResourceStateTests
             identityProvisioning,
             identityProviderSetup,
             templates,
-            new EmptyLogStore(),
-            new EmptyTraceStore(),
-            new EmptyMetricStore(),
+            logStore ?? new EmptyLogStore(),
+            traceStore ?? new EmptyTraceStore(),
+            metricStore ?? new EmptyMetricStore(),
             new InMemoryResourceHealthStore(Options.Create(new ResourceHealthOptions())),
             new ResourceHealthProbeService(new TestHttpClientFactory()),
             new ResourceHealthRefreshCoordinator(),
@@ -2010,6 +2064,27 @@ public sealed class InProcessControlPlaneResourceStateTests
                 ResourceAction.Pause,
                 ResourceAction.Restart
             ]);
+
+    private static TraceSpan CreateTraceSpan(string traceId, string resourceId) =>
+        new(
+            traceId,
+            $"{traceId}-span",
+            null,
+            "GET /test",
+            resourceId,
+            $"{resourceId}-service",
+            "server",
+            "ok",
+            DateTimeOffset.UtcNow,
+            TimeSpan.FromMilliseconds(10));
+
+    private static MetricPoint CreateMetricPoint(string name, string resourceId) =>
+        new(
+            name,
+            resourceId,
+            $"{resourceId}-service",
+            1,
+            DateTimeOffset.UtcNow);
 
     private static Resource CreateIdentityResource(string id, string identityName) =>
         CreateResource(id, ResourceState.Running) with
@@ -2625,6 +2700,77 @@ public sealed class InProcessControlPlaneResourceStateTests
         }
     }
 
+    private sealed class TestLogStore(params LogDescriptor[] logs) : ILogStore
+    {
+        public IReadOnlyList<ILogProvider> Providers => [];
+
+        public IReadOnlyList<LogDescriptor> GetLogs() => logs;
+
+        public IReadOnlyList<LogDescriptor> GetLogsForResource(string resourceId) =>
+            logs
+                .Where(log => string.Equals(log.ResourceId, resourceId, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+
+        public LogDescriptor? GetLog(string logId) =>
+            logs.FirstOrDefault(log => string.Equals(log.Id, logId, StringComparison.OrdinalIgnoreCase));
+
+        public Task<IReadOnlyList<LogEntry>> ReadLogAsync(
+            string logId,
+            int maxEntries = 200,
+            DateTimeOffset? before = null,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<LogEntry>>([]);
+
+        public async IAsyncEnumerable<LogEntry> StreamLogAsync(
+            string logId,
+            int initialEntries = 50,
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            await Task.CompletedTask;
+            yield break;
+        }
+    }
+
+    private sealed class TestTraceStore(params TraceSpan[] spans) : ITraceStore
+    {
+        public IReadOnlyList<TraceSpan> GetSpans(
+            string? resourceId = null,
+            string? traceId = null,
+            int maxSpans = 200,
+            TelemetryScope? scope = null) =>
+            spans
+                .Where(span => string.IsNullOrWhiteSpace(resourceId) ||
+                    string.Equals(span.ResourceId, resourceId, StringComparison.OrdinalIgnoreCase))
+                .Where(span => string.IsNullOrWhiteSpace(traceId) ||
+                    string.Equals(span.TraceId, traceId, StringComparison.OrdinalIgnoreCase))
+                .Take(maxSpans)
+                .ToArray();
+
+        public void AddSpans(IEnumerable<TraceSpan> spans)
+        {
+        }
+    }
+
+    private sealed class TestMetricStore(params MetricPoint[] points) : IMetricStore
+    {
+        public IReadOnlyList<MetricPoint> GetPoints(
+            string? resourceId = null,
+            string? metricName = null,
+            int maxPoints = 200,
+            TelemetryScope? scope = null) =>
+            points
+                .Where(point => string.IsNullOrWhiteSpace(resourceId) ||
+                    string.Equals(point.ResourceId, resourceId, StringComparison.OrdinalIgnoreCase))
+                .Where(point => string.IsNullOrWhiteSpace(metricName) ||
+                    string.Equals(point.Name, metricName, StringComparison.OrdinalIgnoreCase))
+                .Take(maxPoints)
+                .ToArray();
+
+        public void AddPoints(IEnumerable<MetricPoint> points)
+        {
+        }
+    }
+
     private sealed class TestHttpClientFactory : IHttpClientFactory
     {
         public HttpClient CreateClient(string name) => new();
@@ -2678,6 +2824,29 @@ public sealed class InProcessControlPlaneResourceStateTests
         public bool HasPermission(string permission) => false;
 
         public bool CanAccessResourceGroup(string? resourceGroupId, string permission) => false;
+
+        public bool CanAccessResource(string resourceId, string? resourceGroupId, string permission) =>
+            grants.Contains(CreateKey(resourceId, permission));
+
+        private static string CreateKey(string resourceId, string permission) =>
+            $"{resourceId}\n{permission}";
+    }
+
+    private sealed class PermissionAndResourceAuthorizationService(
+        IReadOnlyList<string> permissions,
+        params (string ResourceId, string Permission)[] grants) : ICloudShellAuthorizationService
+    {
+        private readonly HashSet<string> permissions = new(permissions, StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> grants = new(
+            grants.Select(grant => CreateKey(grant.ResourceId, grant.Permission)),
+            StringComparer.OrdinalIgnoreCase);
+
+        public bool IsAuthenticated => true;
+
+        public bool HasPermission(string permission) => permissions.Contains(permission);
+
+        public bool CanAccessResourceGroup(string? resourceGroupId, string permission) =>
+            HasPermission(permission);
 
         public bool CanAccessResource(string resourceId, string? resourceGroupId, string permission) =>
             grants.Contains(CreateKey(resourceId, permission));

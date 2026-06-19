@@ -43,14 +43,16 @@ internal sealed class CloudShellExtensionBuilder(
         string icon,
         int order,
         string group = "Workspace",
-        string? parentId = null) =>
+        string? parentId = null,
+        IReadOnlyList<string>? requiredPermissions = null) =>
         AddNavigationItem<TView>(
             GetRegisteredView(typeof(TView)).Id,
             text,
             icon,
             order,
             group,
-            parentId);
+            parentId,
+            requiredPermissions);
 
     public ICloudShellExtensionBuilder AddNavigationItem<TView>(
         string id,
@@ -58,7 +60,8 @@ internal sealed class CloudShellExtensionBuilder(
         string icon,
         int order,
         string group = "Workspace",
-        string? parentId = null) =>
+        string? parentId = null,
+        IReadOnlyList<string>? requiredPermissions = null) =>
         AddNavigationItem(
             id,
             text,
@@ -66,7 +69,8 @@ internal sealed class CloudShellExtensionBuilder(
             icon,
             order,
             group,
-            parentId);
+            parentId,
+            requiredPermissions);
 
     public ICloudShellExtensionBuilder AddNavigationItem(
         string id,
@@ -75,7 +79,8 @@ internal sealed class CloudShellExtensionBuilder(
         string icon,
         int order,
         string group = "Workspace",
-        string? parentId = null)
+        string? parentId = null,
+        IReadOnlyList<string>? requiredPermissions = null)
     {
         AddNavigationItem(
             id,
@@ -85,6 +90,7 @@ internal sealed class CloudShellExtensionBuilder(
             order,
             group,
             parentId,
+            requiredPermissions,
             replacesExisting: false);
 
         return this;
@@ -96,7 +102,8 @@ internal sealed class CloudShellExtensionBuilder(
         string icon,
         int order,
         string group = "Workspace",
-        string? parentId = null) =>
+        string? parentId = null,
+        IReadOnlyList<string>? requiredPermissions = null) =>
         ReplaceNavigationItem(
             id,
             text,
@@ -104,7 +111,8 @@ internal sealed class CloudShellExtensionBuilder(
             icon,
             order,
             group,
-            parentId);
+            parentId,
+            requiredPermissions);
 
     public ICloudShellExtensionBuilder ReplaceNavigationItem(
         string id,
@@ -113,7 +121,8 @@ internal sealed class CloudShellExtensionBuilder(
         string icon,
         int order,
         string group = "Workspace",
-        string? parentId = null)
+        string? parentId = null,
+        IReadOnlyList<string>? requiredPermissions = null)
     {
         AddNavigationItem(
             id,
@@ -123,6 +132,7 @@ internal sealed class CloudShellExtensionBuilder(
             order,
             group,
             parentId,
+            requiredPermissions,
             replacesExisting: true);
 
         return this;
@@ -479,6 +489,7 @@ internal sealed class CloudShellExtensionBuilder(
         int order,
         string group,
         string? parentId,
+        IReadOnlyList<string>? requiredPermissions,
         bool replacesExisting)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
@@ -496,7 +507,8 @@ internal sealed class CloudShellExtensionBuilder(
             order,
             group,
             replacesExisting,
-            ParentId: parentId));
+            ParentId: parentId,
+            RequiredPermissions: requiredPermissions));
     }
 
     private ShellViewContribution GetRegisteredView(string viewId) =>

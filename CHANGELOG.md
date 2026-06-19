@@ -127,6 +127,13 @@ on `git blame --follow`, and then by the broad type of change.
   permissions. Programmatic resource declarations can grant typed access
   profiles through `ResourceAccessPermissions`. This follows
   [ADR-20260619-005](ADR.md#adr-20260619-005-model-resource-access-as-ordered-effective-levels).
+- Observability now has grouped and signal-specific read permissions:
+  `observability.read`, `observability.logs.read`,
+  `observability.traces.read`, and `observability.metrics.read`. Control Plane
+  log, trace, and metric queries enforce those permissions and filter returned
+  telemetry to resources the caller can read, while shell navigation and
+  observability pages hide or block unavailable signal areas. This follows
+  [ADR-20260619-006](ADR.md#adr-20260619-006-gate-observability-by-signal-permissions-and-resource-read-access).
 - The Application Topology sample now includes an intentional frontend-to-API
   failure route so failed request telemetry, traces, and correlated application
   logs can be exercised from the sample.

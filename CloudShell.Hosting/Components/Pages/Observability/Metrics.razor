@@ -1,11 +1,23 @@
 @page "/observability/metrics"
 @rendermode InteractiveServer
+@inject ICloudShellAuthorizationService Authorization
 @inject IStringLocalizer<SharedResource> L
+@using CloudShell.Abstractions.Authorization
 
 <PageTitle>@L["Metrics"]</PageTitle>
 
-<MetricExplorer ResourceId="@ResourceId"
-                ScopeResourceId="@ScopeResourceId" />
+@if (!Authorization.CanReadMetrics())
+{
+    <section class="empty-state">
+        <strong>@L["Access denied"]</strong>
+        <span>@L["Your identity does not have permission to view observability metrics."]</span>
+    </section>
+}
+else
+{
+    <MetricExplorer ResourceId="@ResourceId"
+                    ScopeResourceId="@ScopeResourceId" />
+}
 
 @code {
     [Parameter]

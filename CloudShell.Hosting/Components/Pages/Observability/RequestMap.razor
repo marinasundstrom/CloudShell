@@ -1,11 +1,23 @@
 @page "/observability/request-map"
 @rendermode InteractiveServer
+@inject ICloudShellAuthorizationService Authorization
 @inject IStringLocalizer<SharedResource> L
+@using CloudShell.Abstractions.Authorization
 
 <PageTitle>@L["Request map"]</PageTitle>
 
-<ServiceDependencyGraph HeadingTitle="@L["Request map"].Value"
-                        HeadingDescription="@L["Visualize service-to-service request flow from OpenTelemetry traces."].Value"
-                        PanelTitle="@L["Live request flow"].Value"
-                        GraphModeSelectId="request-map-mode"
-                        ShowMap="true" />
+@if (!Authorization.CanReadTraces())
+{
+    <section class="empty-state">
+        <strong>@L["Access denied"]</strong>
+        <span>@L["Your identity does not have permission to view observability traces."]</span>
+    </section>
+}
+else
+{
+    <ServiceDependencyGraph HeadingTitle="@L["Request map"].Value"
+                            HeadingDescription="@L["Visualize service-to-service request flow from OpenTelemetry traces."].Value"
+                            PanelTitle="@L["Live request flow"].Value"
+                            GraphModeSelectId="request-map-mode"
+                            ShowMap="true" />
+}

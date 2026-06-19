@@ -50,13 +50,15 @@ public sealed class CloudShellAuthenticationOptions
                 CloudShellPermissions.Resources.Read,
                 CloudShellPermissions.Resources.ReadRuntimeManaged,
                 CloudShellPermissions.Resources.Create,
-                CloudShellPermissions.Resources.Manage
+                CloudShellPermissions.Resources.Manage,
+                CloudShellPermissions.Observability.Read
             ],
             ["CloudShell.Reader"] =
             [
                 CloudShellPermissions.Shell.Read,
                 CloudShellPermissions.ResourceGroups.Read,
-                CloudShellPermissions.Resources.Read
+                CloudShellPermissions.Resources.Read,
+                CloudShellPermissions.Observability.Read
             ]
         };
 

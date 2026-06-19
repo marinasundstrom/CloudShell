@@ -92,6 +92,26 @@ public static class CloudShellPermissions
         }
     }
 
+    public static class Observability
+    {
+        public const string Read = "observability.read";
+
+        public static class Logs
+        {
+            public const string Read = "observability.logs.read";
+        }
+
+        public static class Traces
+        {
+            public const string Read = "observability.traces.read";
+        }
+
+        public static class Metrics
+        {
+            public const string Read = "observability.metrics.read";
+        }
+    }
+
     public static class Network
     {
         public static class Actions

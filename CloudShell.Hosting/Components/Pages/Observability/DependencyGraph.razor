@@ -1,12 +1,24 @@
 @page "/observability/dependencies"
 @page "/observability/request-graph"
 @rendermode InteractiveServer
+@inject ICloudShellAuthorizationService Authorization
 @inject IStringLocalizer<SharedResource> L
+@using CloudShell.Abstractions.Authorization
 
 <PageTitle>@L["Request graph"]</PageTitle>
 
-<ServiceDependencyGraph HeadingTitle="@L["Request graph"].Value"
-                        HeadingDescription="@L["Inspect OpenTelemetry service request relationships as edge data."].Value"
-                        PanelTitle="@L["Request paths"].Value"
-                        GraphModeSelectId="request-graph-mode"
-                        ShowMap="false" />
+@if (!Authorization.CanReadTraces())
+{
+    <section class="empty-state">
+        <strong>@L["Access denied"]</strong>
+        <span>@L["Your identity does not have permission to view observability traces."]</span>
+    </section>
+}
+else
+{
+    <ServiceDependencyGraph HeadingTitle="@L["Request graph"].Value"
+                            HeadingDescription="@L["Inspect OpenTelemetry service request relationships as edge data."].Value"
+                            PanelTitle="@L["Request paths"].Value"
+                            GraphModeSelectId="request-graph-mode"
+                            ShowMap="false" />
+}

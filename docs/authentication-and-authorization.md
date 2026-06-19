@@ -404,8 +404,9 @@ Roles map to permissions through configuration. The default roles are:
 
 - `CloudShell.Administrator`: all permissions and all scopes.
 - `CloudShell.Contributor`: shell read plus resource read, runtime-managed
-  resource inspection, create, and manage permissions.
-- `CloudShell.Reader`: shell and resource read permissions.
+  resource inspection, observability read, create, and manage permissions.
+- `CloudShell.Reader`: shell, resource read, and observability read
+  permissions.
 
 Available permissions are:
 
@@ -418,6 +419,10 @@ Available permissions are:
 - `resources.runtime-managed.read`
 - `resources.create`
 - `resources.manage`
+- `observability.read`
+- `observability.logs.read`
+- `observability.traces.read`
+- `observability.metrics.read`
 - `CloudShell.Resources/resources/lifecycle/action`
 - `CloudShell.Resources/resources/actions/execute/action`
 - `CloudShell.Network/networks/reconcileEndpointMappings/action`
@@ -430,6 +435,14 @@ declare a specific operation permission, such as
 `CloudShell.Network/loadBalancers/applyConfiguration/action`; otherwise they use
 `CloudShell.Resources/resources/actions/execute/action`. `resources.manage`
 remains a compatibility superset for resource actions.
+
+Observability permissions gate access to telemetry signal areas. The grouped
+`observability.read` permission allows logs, traces, metrics, request graph,
+request map, and the telemetry workspace. Signal-specific permissions can be
+granted independently with `observability.logs.read`,
+`observability.traces.read`, and `observability.metrics.read`. These
+permissions do not override resource access: telemetry rows are returned only
+for resources the caller can read.
 
 Resource operation permissions should be documented when they are added. The
 current resource-type and resource-class operation catalog is:

@@ -1,12 +1,24 @@
 @page "/logs"
 @rendermode InteractiveServer
+@inject ICloudShellAuthorizationService Authorization
 @inject IStringLocalizer<SharedResource> L
+@using CloudShell.Abstractions.Authorization
 
 <PageTitle>@L["Logs"]</PageTitle>
 
-<LogExplorer ResourceId="@ResourceId"
-             LogId="@LogId"
-             TraceId="@TraceId" />
+@if (!Authorization.CanReadLogs())
+{
+    <section class="empty-state">
+        <strong>@L["Access denied"]</strong>
+        <span>@L["Your identity does not have permission to view observability logs."]</span>
+    </section>
+}
+else
+{
+    <LogExplorer ResourceId="@ResourceId"
+                 LogId="@LogId"
+                 TraceId="@TraceId" />
+}
 
 @code {
     [Parameter]

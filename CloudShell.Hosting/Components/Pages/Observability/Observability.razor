@@ -3,50 +3,73 @@
 @inject ILogManager LogManager
 @inject ITraceManager TraceManager
 @inject IMetricManager MetricManager
+@inject ICloudShellAuthorizationService Authorization
 @inject IStringLocalizer<SharedResource> L
+@using CloudShell.Abstractions.Authorization
 
 <PageTitle>@L["Observability"]</PageTitle>
 
-<section class="page-heading compact">
-    <div>
-        <span class="eyebrow">@L["Observability"]</span>
-        <h1>@L["Telemetry workspace"]</h1>
-        <p>@L["Review telemetry coverage, recent service signals, and the shared observability views for this CloudShell environment."]</p>
-    </div>
-    <div class="heading-actions">
-        <FluentAnchor Appearance="Appearance.Neutral" Href="/observability/request-graph">
-            @L["Request graph"]
-        </FluentAnchor>
-        <FluentAnchor Appearance="Appearance.Accent" Href="/observability/request-map">
-            @L["Request map"]
-        </FluentAnchor>
-    </div>
-</section>
+@if (!Authorization.CanReadAnyObservability())
+{
+    <section class="empty-state">
+        <strong>@L["Access denied"]</strong>
+        <span>@L["Your identity does not have permission to view observability data."]</span>
+    </section>
+}
+else
+{
+    <section class="page-heading compact">
+        <div>
+            <span class="eyebrow">@L["Observability"]</span>
+            <h1>@L["Telemetry workspace"]</h1>
+            <p>@L["Review telemetry coverage, recent service signals, and the shared observability views for this CloudShell environment."]</p>
+        </div>
+        @if (Authorization.CanReadTraces())
+        {
+            <div class="heading-actions">
+                <FluentAnchor Appearance="Appearance.Neutral" Href="/observability/request-graph">
+                    @L["Request graph"]
+                </FluentAnchor>
+                <FluentAnchor Appearance="Appearance.Accent" Href="/observability/request-map">
+                    @L["Request map"]
+                </FluentAnchor>
+            </div>
+        }
+    </section>
 
-<section class="metric-grid">
-    <article class="metric-card">
-        <span>@L["Telemetry resources"]</span>
-        <strong>@TelemetryResourceCount</strong>
-        <small>@L["Resources declaring logs, traces, or metrics"]</small>
-    </article>
-    <article class="metric-card">
-        <span>@L["Log sources"]</span>
-        <strong>@Logs.Count</strong>
-        <small>@L["Available operational streams"]</small>
-    </article>
-    <article class="metric-card">
-        <span>@L["Trace spans"]</span>
-        <strong>@TraceSpans.Count</strong>
-        <small>@L["{0} request edge(s)", RequestEdgeCount]</small>
-    </article>
-    <article class="metric-card">
-        <span>@L["Metric points"]</span>
-        <strong>@MetricPoints.Count</strong>
-        <small>@L["{0} observed service(s)", ObservedServices.Count]</small>
-    </article>
-</section>
+    <section class="metric-grid">
+        <article class="metric-card">
+            <span>@L["Telemetry resources"]</span>
+            <strong>@TelemetryResourceCount</strong>
+            <small>@L["Resources declaring logs, traces, or metrics"]</small>
+        </article>
+        @if (Authorization.CanReadLogs())
+        {
+            <article class="metric-card">
+                <span>@L["Log sources"]</span>
+                <strong>@Logs.Count</strong>
+                <small>@L["Available operational streams"]</small>
+            </article>
+        }
+        @if (Authorization.CanReadTraces())
+        {
+            <article class="metric-card">
+                <span>@L["Trace spans"]</span>
+                <strong>@TraceSpans.Count</strong>
+                <small>@L["{0} request edge(s)", RequestEdgeCount]</small>
+            </article>
+        }
+        @if (Authorization.CanReadMetrics())
+        {
+            <article class="metric-card">
+                <span>@L["Metric points"]</span>
+                <strong>@MetricPoints.Count</strong>
+                <small>@L["{0} observed service(s)", ObservedServices.Count]</small>
+            </article>
+        }
+    </section>
 
-<section class="dashboard-grid">
+    <section class="dashboard-grid">
     <article class="panel panel-wide">
         <div class="panel-header">
             <div>
@@ -102,7 +125,8 @@
             </div>
         }
     </article>
-</section>
+    </section>
+}
 
 @code {
     private IReadOnlyList<Resource> Resources { get; set; } = [];
@@ -125,10 +149,21 @@
 
     protected override async Task OnInitializedAsync()
     {
+        if (!Authorization.CanReadAnyObservability())
+        {
+            return;
+        }
+
         var resourcesTask = ResourceManager.ListResourcesAsync();
-        var logsTask = LogManager.ListLogsAsync();
-        var spansTask = TraceManager.ListTraceSpansAsync(new TraceQuery(MaxSpans: 1000));
-        var metricsTask = MetricManager.ListMetricPointsAsync(new MetricQuery(MaxPoints: 1000));
+        var logsTask = Authorization.CanReadLogs()
+            ? LogManager.ListLogsAsync()
+            : Task.FromResult<IReadOnlyList<LogDescriptor>>([]);
+        var spansTask = Authorization.CanReadTraces()
+            ? TraceManager.ListTraceSpansAsync(new TraceQuery(MaxSpans: 1000))
+            : Task.FromResult<IReadOnlyList<TraceSpan>>([]);
+        var metricsTask = Authorization.CanReadMetrics()
+            ? MetricManager.ListMetricPointsAsync(new MetricQuery(MaxPoints: 1000))
+            : Task.FromResult<IReadOnlyList<MetricPoint>>([]);
 
         await Task.WhenAll(resourcesTask, logsTask, spansTask, metricsTask);
 
@@ -143,39 +178,53 @@
         WorkspaceViews = BuildWorkspaceViews();
     }
 
-    private IReadOnlyList<WorkspaceView> BuildWorkspaceViews() =>
-    [
-        new(
-            L["Logs"].Value,
-            L["Browse operational log streams from resources, providers, and artifacts."].Value,
-            "/logs",
-            "document",
-            L["{0} source(s)", Logs.Count].Value),
-        new(
-            L["Request graph"].Value,
-            L["Inspect OpenTelemetry service request relationships as edge data."].Value,
-            "/observability/request-graph",
-            "request-graph",
-            L["{0} edge(s)", RequestEdgeCount].Value),
-        new(
-            L["Request map"].Value,
-            L["Follow live request flow between mapped telemetry services."].Value,
-            "/observability/request-map",
-            "request-map",
-            L["{0} service(s)", ObservedServices.Count].Value),
-        new(
-            L["Traces"].Value,
-            L["Inspect spans, trace details, related logs, and resource activity."].Value,
-            "/observability/traces",
-            "traces",
-            L["{0} span(s)", TraceSpans.Count].Value),
-        new(
-            L["Metrics"].Value,
-            L["Review telemetry metric points by resource and service scope."].Value,
-            "/observability/metrics",
-            "metrics",
-            L["{0} point(s)", MetricPoints.Count].Value)
-    ];
+    private IReadOnlyList<WorkspaceView> BuildWorkspaceViews()
+    {
+        var views = new List<WorkspaceView>();
+        if (Authorization.CanReadLogs())
+        {
+            views.Add(new(
+                L["Logs"].Value,
+                L["Browse operational log streams from resources, providers, and artifacts."].Value,
+                "/logs",
+                "document",
+                L["{0} source(s)", Logs.Count].Value));
+        }
+
+        if (Authorization.CanReadTraces())
+        {
+            views.Add(new(
+                L["Request graph"].Value,
+                L["Inspect OpenTelemetry service request relationships as edge data."].Value,
+                "/observability/request-graph",
+                "request-graph",
+                L["{0} edge(s)", RequestEdgeCount].Value));
+            views.Add(new(
+                L["Request map"].Value,
+                L["Follow live request flow between mapped telemetry services."].Value,
+                "/observability/request-map",
+                "request-map",
+                L["{0} service(s)", ObservedServices.Count].Value));
+            views.Add(new(
+                L["Traces"].Value,
+                L["Inspect spans, trace details, related logs, and resource activity."].Value,
+                "/observability/traces",
+                "traces",
+                L["{0} span(s)", TraceSpans.Count].Value));
+        }
+
+        if (Authorization.CanReadMetrics())
+        {
+            views.Add(new(
+                L["Metrics"].Value,
+                L["Review telemetry metric points by resource and service scope."].Value,
+                "/observability/metrics",
+                "metrics",
+                L["{0} point(s)", MetricPoints.Count].Value));
+        }
+
+        return views;
+    }
 
     private IReadOnlyList<ObservedServiceSummary> BuildObservedServices()
     {

@@ -15,6 +15,7 @@
 @inject IStringLocalizer<SharedResource> L
 @inject IServiceProvider Services
 @implements IDisposable
+@using CloudShell.Abstractions.Authorization
 
 <PageTitle>@L["Resource details"]</PageTitle>
 <FluentMenuProvider />
@@ -608,7 +609,9 @@
 
     private async Task LoadResourceAffordancesAsync(Resource resource)
     {
-        ResourceLogs = await LogManager.ListLogsAsync(new LogQuery(ResourceId: resource.Id));
+        ResourceLogs = Authorization.CanReadLogs()
+            ? await LogManager.ListLogsAsync(new LogQuery(ResourceId: resource.Id))
+            : [];
         HasResourceMonitoring = resource.HasCapability(ResourceCapabilityIds.Monitoring) &&
             await MonitoringManager.HasResourceMonitoringAsync(resource.Id);
         OperationCapabilities = await ResourceManager.GetResourceOperationCapabilitiesAsync(resource);

@@ -1,6 +1,7 @@
 @page "/resources"
 @rendermode InteractiveServer
 @implements IAsyncDisposable
+@using CloudShell.Abstractions.Authorization
 @using System.Globalization
 @using Microsoft.Extensions.Logging
 @inject IResourceManager ResourceManager
@@ -891,7 +892,9 @@ StringComparer.OrdinalIgnoreCase);
             ResourceInventory.Select(resource => resource.Id).ToArray());
         ResourceFailureSignals = await LoadResourceFailureSignalsAsync(ResourceInventory);
 
-        var logs = await LogManager.ListLogsAsync();
+        var logs = Authorization.CanReadLogs()
+            ? await LogManager.ListLogsAsync()
+            : [];
         LogsByResourceId = logs
             .Where(log => !string.IsNullOrWhiteSpace(log.ResourceId))
             .GroupBy(log => log.ResourceId!, StringComparer.OrdinalIgnoreCase)
