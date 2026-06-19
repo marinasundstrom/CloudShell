@@ -1334,6 +1334,7 @@ public sealed class PlatformResourceProvider(
             ?? throw new InvalidOperationException("Resource Manager is required to apply load balancer configuration.");
         var definition = store.GetLoadBalancer(context.Resource.Id)
             ?? throw new InvalidOperationException($"Load balancer resource '{context.Resource.Id}' is not configured.");
+        ValidateLoadBalancerRoutes(definition);
         var host = ResolveLoadBalancerHost(resourceManager, definition);
         return new LoadBalancerProviderContext(
             context.Resource,

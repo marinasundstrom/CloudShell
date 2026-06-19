@@ -1676,6 +1676,9 @@ on `git blame --follow`, and then by the broad type of change.
   and missing route target endpoints. The default host marker is treated as the
   implicit container-host selection and displayed as `Default container host`
   instead of a broken resource reference.
+- Load-balancer action availability now revalidates route shape before apply
+  and lifecycle execution, so persisted or loaded definitions with conflicting
+  route matches report a stable unavailable reason before provider dispatch.
 
 #### Samples
 

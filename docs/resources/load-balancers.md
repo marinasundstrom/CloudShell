@@ -161,8 +161,8 @@ same entrypoint are rejected.
 
 Resource action capabilities evaluate the same provider context used by apply
 and lifecycle execution. If the selected provider, host resource, route target,
-or target endpoint cannot be resolved, Resource Manager can show the reason
-before the action is invoked.
+target endpoint, or route match cannot be resolved cleanly, Resource Manager
+can show the reason before the action is invoked.
 
 ## API Projection
 

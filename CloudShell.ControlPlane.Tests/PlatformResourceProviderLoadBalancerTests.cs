@@ -470,6 +470,48 @@ public sealed class PlatformResourceProviderLoadBalancerTests
     }
 
     [Fact]
+    public async Task GetActionUnavailableReasonAsync_ReturnsRouteConflictReasonForApply()
+    {
+        var store = CreatePlatformStore();
+        var runtimeProvider = new TestLoadBalancerRuntimeProvider();
+        var provider = new PlatformResourceProvider(
+            store,
+            new PlatformResourceOptions(),
+            loadBalancerProviders: [runtimeProvider]);
+        var definition = CreateRuntimeLoadBalancerDefinition() with
+        {
+            Routes =
+            [
+                new LoadBalancerRoute(
+                    "web-app",
+                    "Web app",
+                    LoadBalancerRouteKind.Http,
+                    "web",
+                    new LoadBalancerRouteMatch("app.local", "/"),
+                    new LoadBalancerRouteTarget("application:web", "http")),
+                new LoadBalancerRoute(
+                    "web-copy",
+                    "Web copy",
+                    LoadBalancerRouteKind.Http,
+                    "web",
+                    new LoadBalancerRouteMatch("app.local", "/"),
+                    new LoadBalancerRouteTarget("application:web", "http"))
+            ]
+        };
+        store.SaveLoadBalancer(definition, persist: false);
+        var loadBalancer = provider.GetResources().Single(resource => resource.Id == definition.Id);
+        var resourceManager = CreateRuntimeResourceManager(loadBalancer);
+
+        var reason = await ((IResourceActionAvailabilityProvider)provider).GetActionUnavailableReasonAsync(
+            new ResourceProcedureContext(loadBalancer, null, null, new TestResourceRegistrationStore([]), resourceManager),
+            loadBalancer.ResourceActions.Single(action => action.Id == PlatformResourceProvider.ApplyLoadBalancerConfigurationActionId));
+
+        Assert.Equal(
+            "Load balancer resource 'load-balancer:runtime' has conflicting route match 'Http:web:app.local:/' on routes: web-app, web-copy.",
+            reason);
+    }
+
+    [Fact]
     public async Task GetActionUnavailableReasonAsync_ReturnsRouteResolutionReasonForApply()
     {
         var store = CreatePlatformStore();
