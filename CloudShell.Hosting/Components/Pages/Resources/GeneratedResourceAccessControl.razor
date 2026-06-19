@@ -363,7 +363,7 @@
         $"{principal.ProviderId}\u001f{principal.Kind}\u001f{principal.Id}";
 
     private static string FormatPrincipalOption(PrincipalOption principal) =>
-        $"{principal.Name} ({principal.PrincipalKindLabel})";
+        principal.Name;
 
     private void SearchPrincipals(OptionsSearchEventArgs<PrincipalOption> args)
     {
@@ -376,6 +376,7 @@
     private static bool MatchesPrincipalSearch(PrincipalOption principal, string search)
     {
         return Contains(principal.Name, search) ||
+            Contains(principal.ResourceName, search) ||
             Contains(principal.PrincipalKindLabel, search) ||
             Contains(principal.Principal.Id, search) ||
             Contains(principal.Principal.DisplayName, search) ||
@@ -411,7 +412,7 @@
         principal.Kind == ResourcePrincipalKind.ResourceIdentity &&
         !string.IsNullOrWhiteSpace(principal.SourceResourceId)
             ? ResourcesById.GetValueOrDefault(principal.SourceResourceId) is { } resource
-                ? GetResourceLabel(resource)
+                ? FormatResourcePrincipalName(resource)
                 : principal.SourceResourceId
             : principal.DisplayName ?? principal.Id;
 
@@ -431,7 +432,7 @@
                 ResourceManagerRoutes.ResourceDetails(resource.Id, ResourcePredefinedViewIds.Identity));
         }
 
-        builder.AddContent(sequence++, resource is null ? principal.DisplayName ?? principal.Id : GetResourceLabel(resource));
+        builder.AddContent(sequence++, resource is null ? principal.DisplayName ?? principal.Id : FormatResourcePrincipalName(resource));
         builder.OpenElement(sequence++, "small");
         builder.AddContent(sequence++, FormatPrincipalLabel(principal));
         builder.CloseElement();
@@ -451,6 +452,23 @@
             : !string.IsNullOrWhiteSpace(resource.Name)
                 ? resource.Name
                 : resource.Id;
+
+    private static string FormatResourcePrincipalName(Resource resource)
+    {
+        var displayName = GetResourceLabel(resource);
+        var resourceName = GetResourceName(resource);
+
+        return string.Equals(displayName, resourceName, StringComparison.Ordinal)
+            ? displayName
+            : $"{displayName} ({resourceName})";
+    }
+
+    private static string GetResourceName(Resource resource) =>
+        string.IsNullOrWhiteSpace(resource.Name)
+            ? CloudShell.Abstractions.ResourceManager.ResourceId.TryParse(resource.Id, out var resourceId)
+                ? resourceId.Name
+                : resource.Id
+            : resource.Name;
 
     private static string FormatPrincipalLabel(ResourcePrincipalReference principal) =>
         principal.Kind == ResourcePrincipalKind.ResourceIdentity
@@ -520,10 +538,15 @@
         Resource? Resource,
         string Key)
     {
-        public string Name => Resource?.Name ??
-            ResourcePrincipal.DisplayName ??
-            Principal.DisplayName ??
-            Principal.Id;
+        public string Name => Resource is null
+            ? ResourcePrincipal.DisplayName ??
+                Principal.DisplayName ??
+                Principal.Id
+            : FormatResourcePrincipalName(Resource);
+
+        public string ResourceName => Resource is null
+            ? string.Empty
+            : GetResourceName(Resource);
 
         public string PrincipalKindLabel => Principal.Kind switch
         {
