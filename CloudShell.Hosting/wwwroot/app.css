@@ -265,6 +265,15 @@ h3 {
     font-size: .82rem;
 }
 
+.activity-row .health-pill,
+.activity-row .state-pill,
+.resource-table td .health-pill,
+.resource-table td .state-pill {
+    display: inline-flex;
+    color: white;
+    font-size: .76rem;
+}
+
 .group-meta {
     text-align: right;
 }
