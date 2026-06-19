@@ -106,6 +106,22 @@ You can override the SQL Server development password with:
 }
 ```
 
+Health checks are cached by the Control Plane so UI instances do not probe the
+application services directly. By default, the local development host keeps the
+latest health state only. To retain health snapshots in the Resource Manager
+database configured by `Persistence`, opt in with:
+
+```json
+{
+  "ResourceManager": {
+    "Health": {
+      "SnapshotStore": "Database",
+      "RetainedSnapshotsPerResource": 500
+    }
+  }
+}
+```
+
 Runtime state is stored under `samples/ApplicationTopology/Host/Data/` and is
 ignored by git.
 

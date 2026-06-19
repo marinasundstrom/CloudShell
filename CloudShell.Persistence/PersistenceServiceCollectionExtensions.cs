@@ -47,6 +47,7 @@ public static class PersistenceServiceCollectionExtensions
                 identityPersistenceOptions.ConnectionString));
         services.AddSingleton<EfCoreResourceStore>();
         services.AddSingleton<EfCoreExtensionActivationStore>();
+        services.AddSingleton<EfCoreResourceHealthStore>();
         services.TryAddSingleton<IResourceEventStore, EfCoreResourceEventStore>();
         services.TryAddSingleton<IResourceEventSink>(
             serviceProvider => serviceProvider.GetRequiredService<IResourceEventStore>());
@@ -108,6 +109,7 @@ public static class PersistenceServiceCollectionExtensions
     {
         EnsureExtensionActivationsTable(context);
         EnsureResourceEventsTable(context);
+        EnsureResourceHealthSnapshotsTable(context);
     }
 
     private static void EnsureExtensionActivationsTable(DbContext context)
@@ -247,6 +249,53 @@ public static class PersistenceServiceCollectionExtensions
                 END;
                 """);
         }
+    }
+
+    private static void EnsureResourceHealthSnapshotsTable(DbContext context)
+    {
+        if (TableExists(context, "ResourceHealthSnapshots"))
+        {
+            return;
+        }
+
+        if (context.Database.IsSqlite())
+        {
+            context.Database.ExecuteSqlRaw("""
+                CREATE TABLE IF NOT EXISTS "ResourceHealthSnapshots" (
+                    "Id" INTEGER NOT NULL CONSTRAINT "PK_ResourceHealthSnapshots" PRIMARY KEY AUTOINCREMENT,
+                    "ResourceId" TEXT NOT NULL,
+                    "Status" TEXT NOT NULL,
+                    "CheckedAt" INTEGER NOT NULL,
+                    "ChecksJson" TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS "IX_ResourceHealthSnapshots_CheckedAt" ON "ResourceHealthSnapshots" ("CheckedAt");
+                CREATE INDEX IF NOT EXISTS "IX_ResourceHealthSnapshots_ResourceId" ON "ResourceHealthSnapshots" ("ResourceId");
+                """);
+            return;
+        }
+
+        if (context.Database.IsSqlServer())
+        {
+            context.Database.ExecuteSqlRaw("""
+                IF OBJECT_ID(N'[dbo].[ResourceHealthSnapshots]', N'U') IS NULL
+                BEGIN
+                    CREATE TABLE [ResourceHealthSnapshots] (
+                        [Id] bigint NOT NULL IDENTITY,
+                        [ResourceId] nvarchar(500) NOT NULL,
+                        [Status] nvarchar(50) NOT NULL,
+                        [CheckedAt] bigint NOT NULL,
+                        [ChecksJson] nvarchar(max) NOT NULL,
+                        CONSTRAINT [PK_ResourceHealthSnapshots] PRIMARY KEY ([Id])
+                    );
+                    CREATE INDEX [IX_ResourceHealthSnapshots_CheckedAt] ON [ResourceHealthSnapshots] ([CheckedAt]);
+                    CREATE INDEX [IX_ResourceHealthSnapshots_ResourceId] ON [ResourceHealthSnapshots] ([ResourceId]);
+                END;
+                """);
+            return;
+        }
+
+        throw new InvalidOperationException(
+            $"Unsupported persistence provider '{context.Database.ProviderName}'.");
     }
 
     private static void EnsureColumn(

@@ -7,7 +7,7 @@
 @inject IResourceEventManager ResourceEvents
 @inject ILogManager LogManager
 @inject ShellCatalog ShellCatalog
-@inject ResourceHealthCheckService HealthChecks
+@inject IResourceHealthManager HealthChecks
 @inject IResourceOrchestrationSettings OrchestrationSettings
 @inject ResourceManagerDisplaySettings DisplaySettings
 @inject NavigationManager Navigation
@@ -1208,7 +1208,7 @@ resourceGroups) =>
                 StateHasChanged();
             });
 
-            var healthResults = await HealthChecks.CheckAsync(ResourceInventory, cancellationToken);
+            var healthResults = await HealthChecks.ListResourceHealthAsync(cancellationToken);
 
             await InvokeAsync(() =>
             {

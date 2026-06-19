@@ -645,6 +645,56 @@ public sealed class RemoteControlPlane : IControlPlane
         await EnsureSuccessAsync(response, cancellationToken);
     }
 
+    public Task<IReadOnlyDictionary<string, ResourceHealthSummary>> ListResourceHealthAsync(
+        CancellationToken cancellationToken = default) =>
+        GetRequiredAsync<IReadOnlyDictionary<string, ResourceHealthSummary>>(
+            "resource-health",
+            cancellationToken);
+
+    public Task<ResourceHealthSummary?> GetResourceHealthAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default) =>
+        GetOptionalAsync<ResourceHealthSummary>(
+            $"resources/{Escape(resourceId)}/health",
+            cancellationToken);
+
+    public Task<IReadOnlyList<ResourceHealthSummary>> ListResourceHealthSnapshotsAsync(
+        string resourceId,
+        int maxSnapshots = 100,
+        CancellationToken cancellationToken = default) =>
+        GetRequiredAsync<IReadOnlyList<ResourceHealthSummary>>(
+            $"resources/{Escape(resourceId)}/health/snapshots",
+            cancellationToken,
+            ("maxSnapshots", Math.Clamp(maxSnapshots, 1, 10_000).ToString()));
+
+    public async Task<IReadOnlyDictionary<string, ResourceHealthSummary>> RefreshResourceHealthAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.PostAsync(
+            BuildUri("resource-health/refresh"),
+            null,
+            cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await ReadRequiredAsync<IReadOnlyDictionary<string, ResourceHealthSummary>>(response, cancellationToken);
+    }
+
+    public async Task<ResourceHealthSummary?> RefreshResourceHealthAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.PostAsync(
+            BuildUri($"resources/{Escape(resourceId)}/health/refresh"),
+            null,
+            cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await ReadRequiredAsync<ResourceHealthSummary>(response, cancellationToken);
+    }
+
     public Task<bool> HasResourceMonitoringAsync(
         string resourceId,
         CancellationToken cancellationToken = default) =>

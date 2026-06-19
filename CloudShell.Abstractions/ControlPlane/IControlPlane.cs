@@ -12,6 +12,7 @@ public interface IControlPlane :
     ILogManager,
     ITraceManager,
     IMetricManager,
+    IResourceHealthManager,
     IResourceMonitoringManager;
 
 public interface IResourceManager
@@ -188,6 +189,28 @@ public interface IMetricManager
 
     Task IngestMetricPointsAsync(
         IEnumerable<MetricPoint> points,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IResourceHealthManager
+{
+    Task<IReadOnlyDictionary<string, ResourceHealthSummary>> ListResourceHealthAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<ResourceHealthSummary?> GetResourceHealthAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<ResourceHealthSummary>> ListResourceHealthSnapshotsAsync(
+        string resourceId,
+        int maxSnapshots = 100,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyDictionary<string, ResourceHealthSummary>> RefreshResourceHealthAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<ResourceHealthSummary?> RefreshResourceHealthAsync(
+        string resourceId,
         CancellationToken cancellationToken = default);
 }
 

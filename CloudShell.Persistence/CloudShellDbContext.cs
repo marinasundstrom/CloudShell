@@ -13,6 +13,8 @@ public sealed class CloudShellDbContext(DbContextOptions<CloudShellDbContext> op
 
     internal DbSet<ResourceEventEntity> ResourceEvents => Set<ResourceEventEntity>();
 
+    internal DbSet<ResourceHealthSnapshotEntity> ResourceHealthSnapshots => Set<ResourceHealthSnapshotEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<ResourceGroupEntity>(entity =>
@@ -69,6 +71,19 @@ public sealed class CloudShellDbContext(DbContextOptions<CloudShellDbContext> op
             entity.HasIndex(resourceEvent => resourceEvent.EventType);
             entity.HasIndex(resourceEvent => resourceEvent.TraceId);
             entity.HasIndex(resourceEvent => resourceEvent.Timestamp);
+        });
+
+        modelBuilder.Entity<ResourceHealthSnapshotEntity>(entity =>
+        {
+            entity.ToTable("ResourceHealthSnapshots");
+            entity.HasKey(snapshot => snapshot.Id);
+            entity.Property(snapshot => snapshot.ResourceId).HasMaxLength(500).IsRequired();
+            entity.Property(snapshot => snapshot.Status).HasMaxLength(50).IsRequired();
+            entity.Property(snapshot => snapshot.CheckedAt)
+                .HasConversion(new DateTimeOffsetToBinaryConverter());
+            entity.Property(snapshot => snapshot.ChecksJson).IsRequired();
+            entity.HasIndex(snapshot => snapshot.ResourceId);
+            entity.HasIndex(snapshot => snapshot.CheckedAt);
         });
     }
 }

@@ -20,6 +20,10 @@ public sealed class InProcessControlPlane(
     ILogStore logs,
     ITraceStore traces,
     IMetricStore metrics,
+    IResourceHealthStore resourceHealth,
+    ResourceHealthProbeService healthProbes,
+    ResourceHealthRefreshCoordinator healthRefreshes,
+    IResourceOrchestrationSettings orchestrationSettings,
     IEnumerable<IResourceMonitoringProvider> monitoringProviders,
     ICloudShellAuthorizationService authorization,
     IResourceEventStore? resourceEvents = null,
@@ -827,6 +831,74 @@ public sealed class InProcessControlPlane(
         return Task.CompletedTask;
     }
 
+    public async Task<IReadOnlyDictionary<string, ResourceHealthSummary>> ListResourceHealthAsync(
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var resources = resourceManager.GetResources()
+            .Where(resource => resource.ResourceHealthChecks.Count > 0)
+            .ToArray();
+
+        await RefreshStaleResourceHealthAsync(resources, cancellationToken);
+
+        return CreateHealthSummaryDictionary(resources);
+    }
+
+    public async Task<ResourceHealthSummary?> GetResourceHealthAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var resource = resourceManager.GetResource(resourceId);
+        if (resource is null ||
+            resource.ResourceHealthChecks.Count == 0)
+        {
+            return null;
+        }
+
+        await RefreshStaleResourceHealthAsync([resource], cancellationToken);
+
+        return resourceHealth.GetLatest(resource.Id) ?? CreateUnknownHealthSummary(resource);
+    }
+
+    public Task<IReadOnlyList<ResourceHealthSummary>> ListResourceHealthSnapshotsAsync(
+        string resourceId,
+        int maxSnapshots = 100,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(resourceHealth.GetSnapshots(
+            resourceId,
+            Math.Clamp(maxSnapshots, 1, 10_000)));
+    }
+
+    public async Task<IReadOnlyDictionary<string, ResourceHealthSummary>> RefreshResourceHealthAsync(
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var resources = resourceManager.GetResources()
+            .Where(resource => resource.ResourceHealthChecks.Count > 0)
+            .ToArray();
+        await RefreshResourceHealthCoreAsync(resources, cancellationToken);
+        return CreateHealthSummaryDictionary(resources);
+    }
+
+    public async Task<ResourceHealthSummary?> RefreshResourceHealthAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var resource = resourceManager.GetResource(resourceId);
+        if (resource is null ||
+            resource.ResourceHealthChecks.Count == 0)
+        {
+            return null;
+        }
+
+        await RefreshResourceHealthCoreAsync([resource], cancellationToken);
+        return resourceHealth.GetLatest(resource.Id);
+    }
+
     public Task<bool> HasResourceMonitoringAsync(
         string resourceId,
         CancellationToken cancellationToken = default)
@@ -873,6 +945,78 @@ public sealed class InProcessControlPlane(
 
     private void NotifyResourcesChanged(ResourceChangeNotification notification) =>
         ResourcesChanged?.Invoke(this, notification);
+
+    private IReadOnlyDictionary<string, ResourceHealthSummary> CreateHealthSummaryDictionary(
+        IReadOnlyList<Resource> resources)
+    {
+        var summaries = resourceHealth.GetLatest(resources.Select(resource => resource.Id));
+        return resources.ToDictionary(
+            resource => resource.Id,
+            resource => summaries.GetValueOrDefault(resource.Id) ?? CreateUnknownHealthSummary(resource),
+            StringComparer.OrdinalIgnoreCase);
+    }
+
+    private async Task RefreshStaleResourceHealthAsync(
+        IReadOnlyList<Resource> resources,
+        CancellationToken cancellationToken)
+    {
+        var staleResources = GetStaleHealthResources(resources);
+        if (staleResources.Count == 0)
+        {
+            return;
+        }
+
+        using var refresh = await healthRefreshes.TryEnterAsync(cancellationToken);
+        if (refresh is null)
+        {
+            return;
+        }
+
+        staleResources = GetStaleHealthResources(resources);
+        if (staleResources.Count == 0)
+        {
+            return;
+        }
+
+        var summaries = await healthProbes.CheckAsync(staleResources, cancellationToken);
+        resourceHealth.AddRange(summaries.Values);
+    }
+
+    private async Task RefreshResourceHealthCoreAsync(
+        IReadOnlyList<Resource> resources,
+        CancellationToken cancellationToken)
+    {
+        using var refresh = await healthRefreshes.EnterAsync(cancellationToken);
+
+        var summaries = await healthProbes.CheckAsync(resources, cancellationToken);
+        resourceHealth.AddRange(summaries.Values);
+    }
+
+    private IReadOnlyList<Resource> GetStaleHealthResources(IReadOnlyList<Resource> resources)
+    {
+        var interval = TimeSpan.FromSeconds(orchestrationSettings.GetHealthCheckIntervalSettings().Seconds);
+        var now = DateTimeOffset.UtcNow;
+        return resources
+            .Where(resource =>
+            {
+                var summary = resourceHealth.GetLatest(resource.Id);
+                return summary is null || now - summary.CheckedAt >= interval;
+            })
+            .ToArray();
+    }
+
+    private static ResourceHealthSummary CreateUnknownHealthSummary(Resource resource) =>
+        new(
+            resource.Id,
+            ResourceHealthStatus.Unknown,
+            DateTimeOffset.UtcNow,
+            resource.ResourceHealthChecks
+                .Select(check => new ResourceHealthCheckResult(
+                    check,
+                    ResourceHealthStatus.Unknown,
+                    "No cached health result",
+                    null))
+                .ToArray());
 
     private static bool ShouldWarnDependents(ResourceAction action) =>
         action.Kind is ResourceActionKind.Stop or ResourceActionKind.Restart or ResourceActionKind.Pause;

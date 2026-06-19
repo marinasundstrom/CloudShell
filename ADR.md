@@ -11,6 +11,36 @@ link to the decision so the dependency is visible.
 
 ## 2026-06-19
 
+### ADR-20260619-004: Store resource health as Control Plane snapshots
+
+Resources declare health checks as resource-model intent, but the Control
+Plane owns executing those checks and storing observed health snapshots. UI
+hosts and other clients must read the latest Control Plane health state instead
+of probing resource endpoints directly. This keeps browser sessions and split
+UI hosts from multiplying probe load against managed services.
+
+The latest health state is an operational cache and should always be available
+when resources declare checks. Historical health snapshot retention is separate
+and should be opt-in for local development, because short-lived local sessions
+often need current state without accumulating history. Health state is retained
+through a store abstraction so the local development host can start with a
+latest-state cache and optional bounded in-memory history while database-backed
+persistence can retain health history across restarts. Hosts opt into retained
+history through appsettings under `ResourceManager:Health`, including the
+snapshot store and retained snapshot count. Database-backed snapshots use the
+Resource Manager persistence database configured under `Persistence`.
+
+This follows the same direction as logs, traces, metrics, and resource events:
+operational data is collected or ingested into the Control Plane, then queried
+by UI and API clients.
+
+Historical health snapshots are useful beyond the Health workspace. They should
+be queryable for future correlation with traces, logs, metrics, lifecycle
+events, and larger environment snapshots that summarize state across several
+operational areas.
+
+Related changes: [Changelog](CHANGELOG.md).
+
 ### ADR-20260619-003: Split built-in application resources by provider boundary
 
 The built-in application capability is a package of resource providers, not a

@@ -2,7 +2,7 @@
 @rendermode InteractiveServer
 @implements IDisposable
 @inject IResourceManager ResourceManager
-@inject ResourceHealthCheckService HealthChecks
+@inject IResourceHealthManager HealthChecks
 @inject IResourceOrchestrationSettings OrchestrationSettings
 @inject ShellCatalog ShellCatalog
 @inject IStringLocalizer<SharedResource> L
@@ -199,7 +199,7 @@
     protected override async Task OnInitializedAsync()
     {
         Resources = await ResourceManager.ListResourcesAsync();
-        await RefreshHealthAsync();
+        await LoadHealthAsync();
         StartHealthPolling();
     }
 
@@ -213,7 +213,20 @@
         IsCheckingHealth = true;
         try
         {
-            HealthResults = await HealthChecks.CheckAsync(Resources, cancellationToken);
+            HealthResults = await HealthChecks.RefreshResourceHealthAsync(cancellationToken);
+        }
+        finally
+        {
+            IsCheckingHealth = false;
+        }
+    }
+
+    private async Task LoadHealthAsync(CancellationToken cancellationToken = default)
+    {
+        IsCheckingHealth = true;
+        try
+        {
+            HealthResults = await HealthChecks.ListResourceHealthAsync(cancellationToken);
         }
         finally
         {
@@ -241,7 +254,7 @@
                 await InvokeAsync(async () =>
                 {
                     Resources = await ResourceManager.ListResourcesAsync(cancellationToken: cancellationToken);
-                    await RefreshHealthAsync(cancellationToken);
+                    await LoadHealthAsync(cancellationToken);
                     StateHasChanged();
                 });
             }

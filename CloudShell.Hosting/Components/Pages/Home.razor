@@ -5,7 +5,7 @@
 @inject IResourceManager ResourceManager
 @inject IResourceEventManager ResourceEvents
 @inject ITraceManager TraceManager
-@inject ResourceHealthCheckService HealthChecks
+@inject IResourceHealthManager HealthChecks
 @inject IResourceOrchestrationSettings OrchestrationSettings
 @inject IStringLocalizer<SharedResource> L
 
@@ -283,7 +283,7 @@
     {
         Resources = await ResourceManager.ListResourcesAsync(cancellationToken: cancellationToken);
 
-        var healthTask = HealthChecks.CheckAsync(Resources, cancellationToken);
+        var healthTask = HealthChecks.ListResourceHealthAsync(cancellationToken);
         var failuresTask = LoadResourceFailureSignalsAsync(Resources);
         var requestFailuresTask = LoadRequestFailureSignalsAsync();
 

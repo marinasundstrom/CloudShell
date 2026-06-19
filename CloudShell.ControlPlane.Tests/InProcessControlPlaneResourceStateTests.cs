@@ -1976,6 +1976,10 @@ public sealed class InProcessControlPlaneResourceStateTests
             new EmptyLogStore(),
             new EmptyTraceStore(),
             new EmptyMetricStore(),
+            new InMemoryResourceHealthStore(Options.Create(new ResourceHealthOptions())),
+            new ResourceHealthProbeService(new TestHttpClientFactory()),
+            new ResourceHealthRefreshCoordinator(),
+            CreateSelectionStore(),
             [],
             authorization ?? new AllowAllAuthorizationService(),
             resourceEvents,
@@ -2619,6 +2623,11 @@ public sealed class InProcessControlPlaneResourceStateTests
         public void AddPoints(IEnumerable<MetricPoint> points)
         {
         }
+    }
+
+    private sealed class TestHttpClientFactory : IHttpClientFactory
+    {
+        public HttpClient CreateClient(string name) => new();
     }
 
     private sealed class AllowAllAuthorizationService : ICloudShellAuthorizationService

@@ -8,7 +8,7 @@
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
 @inject IJSRuntime JS
-@inject ResourceHealthCheckService HealthChecks
+@inject IResourceHealthManager HealthChecks
 @inject IResourceOrchestrationSettings OrchestrationSettings
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject ResourceManagerDisplaySettings DisplaySettings
@@ -627,8 +627,7 @@
         IsCheckingHealth = true;
         try
         {
-            var healthResults = await HealthChecks.CheckAsync(new[] { resource });
-            HealthSummary = healthResults.GetValueOrDefault(resource.Id);
+            HealthSummary = await HealthChecks.GetResourceHealthAsync(resource.Id);
         }
         finally
         {

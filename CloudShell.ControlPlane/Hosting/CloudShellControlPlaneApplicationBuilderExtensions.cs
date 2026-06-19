@@ -35,6 +35,8 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
         builder.Services.AddCloudShellControlPlaneOpenApi();
         builder.Services.Configure<ResourceManagerOptions>(
             builder.Configuration.GetSection(ResourceManagerOptions.SectionName));
+        builder.Services.Configure<ResourceHealthOptions>(
+            builder.Configuration.GetSection(ResourceHealthOptions.SectionName));
         builder.Services.Configure<ResourceIdentityOptions>(
             builder.Configuration.GetSection(ResourceIdentityOptions.SectionName));
 
@@ -61,6 +63,19 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
             ServiceDescriptor.Scoped<ILogProvider, ResourceEventLogProvider>());
         builder.Services.AddSingleton<ITraceStore, InMemoryTraceStore>();
         builder.Services.AddSingleton<IMetricStore, InMemoryMetricStore>();
+        builder.Services.TryAddSingleton<ResourceHealthRefreshCoordinator>();
+        builder.Services.TryAddSingleton<InMemoryResourceHealthStore>();
+        builder.Services.AddSingleton<IResourceHealthStore>(serviceProvider =>
+        {
+            var options = serviceProvider.GetRequiredService<IOptions<ResourceHealthOptions>>().Value;
+            return string.Equals(
+                options.SnapshotStore,
+                ResourceHealthSnapshotStores.Database,
+                StringComparison.OrdinalIgnoreCase)
+                ? serviceProvider.GetRequiredService<EfCoreResourceHealthStore>()
+                : serviceProvider.GetRequiredService<InMemoryResourceHealthStore>();
+        });
+        builder.Services.AddScoped<ResourceHealthProbeService>();
         builder.Services.AddScoped<ResourceTemplateService>();
         builder.Services.AddScoped<IContainerHostResolver, ContainerHostResolver>();
         builder.Services.AddScoped<ResourceOrchestrationService>();
@@ -123,6 +138,8 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
             serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
         builder.Services.AddScoped<IMetricManager>(
             serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
+        builder.Services.AddScoped<IResourceHealthManager>(
+            serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
         builder.Services.AddScoped<IResourceMonitoringManager>(
             serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
         builder.Services.AddScoped<ControlPlaneUserSettingsProvider>();
@@ -136,6 +153,8 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
             ServiceDescriptor.Scoped<IResourceOrchestrator, DefaultResourceOrchestrator>());
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, HostScopedResourceShutdownService>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IHostedService, ResourceHealthPollingService>());
 
         return controlPlane;
     }

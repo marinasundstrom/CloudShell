@@ -199,6 +199,21 @@ public static class CloudShellControlPlaneApiExtensions
             .AllowAnonymous()
             .ExcludeFromDescription();
 
+        api.MapGet("/resource-health", ListResourceHealth)
+            .WithName("CloudShellControlPlane_ListResourceHealth");
+
+        api.MapPost("/resource-health/refresh", RefreshResourceHealth)
+            .WithName("CloudShellControlPlane_RefreshResourceHealth");
+
+        api.MapGet("/resources/{resourceId}/health", GetResourceHealth)
+            .WithName("CloudShellControlPlane_GetResourceHealth");
+
+        api.MapGet("/resources/{resourceId}/health/snapshots", ListResourceHealthSnapshots)
+            .WithName("CloudShellControlPlane_ListResourceHealthSnapshots");
+
+        api.MapPost("/resources/{resourceId}/health/refresh", RefreshResourceHealthForResource)
+            .WithName("CloudShellControlPlane_RefreshResourceHealthForResource");
+
         api.MapGet("/resources/{resourceId}/monitoring/availability", HasResourceMonitoring)
             .WithName("CloudShellControlPlane_HasResourceMonitoring");
 
@@ -1118,6 +1133,44 @@ public static class CloudShellControlPlaneApiExtensions
     {
         await metrics.IngestMetricPointsAsync(request.Points, cancellationToken);
         return Results.Accepted();
+    }
+
+    private static async Task<IResult> ListResourceHealth(
+        IResourceHealthManager health,
+        CancellationToken cancellationToken) =>
+        Results.Ok(await health.ListResourceHealthAsync(cancellationToken));
+
+    private static async Task<IResult> RefreshResourceHealth(
+        IResourceHealthManager health,
+        CancellationToken cancellationToken) =>
+        Results.Ok(await health.RefreshResourceHealthAsync(cancellationToken));
+
+    private static async Task<IResult> GetResourceHealth(
+        string resourceId,
+        IResourceHealthManager health,
+        CancellationToken cancellationToken)
+    {
+        var summary = await health.GetResourceHealthAsync(resourceId, cancellationToken);
+        return summary is null ? Results.NotFound() : Results.Ok(summary);
+    }
+
+    private static async Task<IResult> ListResourceHealthSnapshots(
+        string resourceId,
+        int? maxSnapshots,
+        IResourceHealthManager health,
+        CancellationToken cancellationToken) =>
+        Results.Ok(await health.ListResourceHealthSnapshotsAsync(
+            resourceId,
+            Math.Clamp(maxSnapshots ?? 100, 1, 10_000),
+            cancellationToken));
+
+    private static async Task<IResult> RefreshResourceHealthForResource(
+        string resourceId,
+        IResourceHealthManager health,
+        CancellationToken cancellationToken)
+    {
+        var summary = await health.RefreshResourceHealthAsync(resourceId, cancellationToken);
+        return summary is null ? Results.NotFound() : Results.Ok(summary);
     }
 
     private static async Task<IResult> HasResourceMonitoring(

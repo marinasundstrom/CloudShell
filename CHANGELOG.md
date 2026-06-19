@@ -114,6 +114,12 @@ on `git blame --follow`, and then by the broad type of change.
 - The CloudShell dashboard now groups failed request telemetry by trace and
   keeps those entries out of the resource system-state list, avoiding duplicate
   dashboard rows for the same request failure.
+- Resource health checks now run through the Control Plane, which caches the
+  latest health state and can retain opt-in bounded in-memory health snapshots
+  or database-backed health snapshots behind a store abstraction so UI clients
+  read shared health state instead of probing resource endpoints directly. This
+  follows
+  [ADR-20260619-004](ADR.md#adr-20260619-004-store-resource-health-as-control-plane-snapshots).
 - The Application Topology sample now includes an intentional frontend-to-API
   failure route so failed request telemetry, traces, and correlated application
   logs can be exercised from the sample.

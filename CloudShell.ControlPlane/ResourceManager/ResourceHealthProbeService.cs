@@ -1,14 +1,10 @@
 using CloudShell.Abstractions.ResourceManager;
 
-namespace CloudShell.Hosting.ResourceManager;
+namespace CloudShell.ControlPlane.ResourceManager;
 
-public sealed class ResourceHealthCheckService
+public sealed class ResourceHealthProbeService(IHttpClientFactory httpClientFactory)
 {
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(5);
-    private static readonly HttpClient Client = new()
-    {
-        Timeout = System.Threading.Timeout.InfiniteTimeSpan
-    };
 
     public async Task<IReadOnlyDictionary<string, ResourceHealthSummary>> CheckAsync(
         IReadOnlyList<Resource> resources,
@@ -72,8 +68,9 @@ public sealed class ResourceHealthCheckService
 
         try
         {
+            var client = httpClientFactory.CreateClient();
             using var request = new HttpRequestMessage(HttpMethod.Get, uri);
-            using var response = await Client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
+            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
             var status = (int)response.StatusCode < 400
                 ? ResourceHealthStatus.Healthy
                 : ResourceHealthStatus.Unhealthy;
@@ -136,36 +133,10 @@ public sealed class ResourceHealthCheckService
             resource.Endpoints.FirstOrDefault(endpoint => HasResolvableEndpointAddress(resource, endpoint));
     }
 
-    private static bool HasResolvableEndpointAddress(Resource resource, ResourceEndpoint endpoint)
-    {
-        if (!string.IsNullOrWhiteSpace(resource.GetEndpointNetworkAddress(endpoint.Name)))
-        {
-            return true;
-        }
-
-        return false;
-    }
+    private static bool HasResolvableEndpointAddress(Resource resource, ResourceEndpoint endpoint) =>
+        !string.IsNullOrWhiteSpace(resource.GetEndpointNetworkAddress(endpoint.Name));
 
     private static bool IsHttpScheme(string? scheme) =>
         string.Equals(scheme, "http", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(scheme, "https", StringComparison.OrdinalIgnoreCase);
 }
-
-public enum ResourceHealthStatus
-{
-    Healthy,
-    Unhealthy,
-    Unknown
-}
-
-public sealed record ResourceHealthSummary(
-    string ResourceId,
-    ResourceHealthStatus Status,
-    DateTimeOffset CheckedAt,
-    IReadOnlyList<ResourceHealthCheckResult> Checks);
-
-public sealed record ResourceHealthCheckResult(
-    ResourceHealthCheck Check,
-    ResourceHealthStatus Status,
-    string Detail,
-    Uri? Uri);
