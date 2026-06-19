@@ -34,6 +34,7 @@ public sealed class InProcessControlPlane(
     IEnumerable<IResourceIdentityDirectoryProvider>? identityDirectoryProviders = null) : IControlPlane
 {
     private const string PreferredUsernameClaimType = "preferred_username";
+    private const string UnauthenticatedRequestActor = "user";
 
     public event EventHandler<ResourceChangeNotification>? ResourcesChanged;
 
@@ -624,10 +625,16 @@ public sealed class InProcessControlPlane(
 
     private string? ResolveTriggeredBy(string? explicitTriggeredBy)
     {
-        var user = httpContextAccessor?.HttpContext?.User;
+        var httpContext = httpContextAccessor?.HttpContext;
+        var user = httpContext?.User;
         if (user?.Identity?.IsAuthenticated == true)
         {
             return FindActorClaim(user);
+        }
+
+        if (httpContext is not null)
+        {
+            return UnauthenticatedRequestActor;
         }
 
         return string.IsNullOrWhiteSpace(explicitTriggeredBy)

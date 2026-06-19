@@ -1338,6 +1338,7 @@ public sealed class SampleSmokeTests
         Assert.Contains("Activity", activityHtml);
         Assert.Contains("Event type", activityHtml);
         Assert.Contains("Triggered by", activityHtml);
+        Assert.Contains("Triggered by user", activityHtml);
         Assert.Contains("Time range", activityHtml);
         Assert.Contains("Lifecycle actions", activityHtml);
         Assert.Contains("Lifecycle events", activityHtml);

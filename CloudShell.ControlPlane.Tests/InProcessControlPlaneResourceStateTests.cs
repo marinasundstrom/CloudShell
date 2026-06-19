@@ -1054,6 +1054,79 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task ExecuteResourceActionAsync_UsesUserActorForUnauthenticatedHttpRequestWhenTriggeredByIsOmitted()
+    {
+        var provider = new TestResourceProvider();
+        var resourceEvents = new InMemoryResourceEventStore();
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            provider,
+            resourceEvents: resourceEvents,
+            httpContextAccessor: CreateUnauthenticatedHttpContextAccessor());
+
+        await controlPlane.ExecuteResourceActionAsync(
+            new ExecuteResourceActionCommand(
+                "target",
+                ResourceActionIds.Stop));
+
+        var events = resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "target"));
+        Assert.Contains(events, resourceEvent =>
+            resourceEvent.EventType == ResourceEventTypes.Actions.ForAction(ResourceActionIds.Stop) &&
+            resourceEvent.TriggeredBy == "user");
+        Assert.Contains(events, resourceEvent =>
+            resourceEvent.EventType == ResourceEventTypes.Events.Lifecycle.Stopped &&
+            resourceEvent.TriggeredBy == "user");
+    }
+
+    [Fact]
+    public async Task ExecuteResourceActionAsync_UnauthenticatedHttpRequestActorOverridesClientSuppliedTriggeredBy()
+    {
+        var provider = new TestResourceProvider();
+        var resourceEvents = new InMemoryResourceEventStore();
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            provider,
+            resourceEvents: resourceEvents,
+            httpContextAccessor: CreateUnauthenticatedHttpContextAccessor());
+
+        await controlPlane.ExecuteResourceActionAsync(
+            new ExecuteResourceActionCommand(
+                "target",
+                ResourceActionIds.Stop,
+                TriggeredBy: "system"));
+
+        var events = resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "target"));
+        Assert.Contains(events, resourceEvent =>
+            resourceEvent.EventType == ResourceEventTypes.Actions.ForAction(ResourceActionIds.Stop) &&
+            resourceEvent.TriggeredBy == "user");
+        Assert.DoesNotContain(events, resourceEvent => resourceEvent.TriggeredBy == "system");
+    }
+
+    [Fact]
+    public async Task ExecuteResourceActionAsync_LeavesActorEmptyForSystemWorkWithoutRequestContext()
+    {
+        var provider = new TestResourceProvider();
+        var resourceEvents = new InMemoryResourceEventStore();
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            provider,
+            resourceEvents: resourceEvents);
+
+        await controlPlane.ExecuteResourceActionAsync(
+            new ExecuteResourceActionCommand(
+                "target",
+                ResourceActionIds.Stop));
+
+        var events = resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "target"));
+        Assert.Contains(events, resourceEvent =>
+            resourceEvent.EventType == ResourceEventTypes.Actions.ForAction(ResourceActionIds.Stop) &&
+            resourceEvent.TriggeredBy is null);
+        Assert.Contains(events, resourceEvent =>
+            resourceEvent.EventType == ResourceEventTypes.Events.Lifecycle.Stopped &&
+            resourceEvent.TriggeredBy is null);
+    }
+
+    [Fact]
     public async Task ExecuteResourceActionAsync_PrefersPrincipalIdentifierClaimsOverDisplayName()
     {
         var provider = new TestResourceProvider();
@@ -2171,6 +2244,12 @@ public sealed class InProcessControlPlaneResourceStateTests
             }
         };
     }
+
+    private static IHttpContextAccessor CreateUnauthenticatedHttpContextAccessor() =>
+        new HttpContextAccessor
+        {
+            HttpContext = new DefaultHttpContext()
+        };
 
     private static Resource CreateResource(
         string id,

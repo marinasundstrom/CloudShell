@@ -17,6 +17,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Unauthenticated request-bound resource operations now record activity with
+  the generic `user` actor instead of falling through to system activity, while
+  background work without a request context remains system-owned.
 - ResourceHost sample smoke coverage now verifies that an in-memory user
   principal grant is visible in the Resource Manager Access control tab.
 - SQL Server Add Resource and Configuration views now use SQL service language

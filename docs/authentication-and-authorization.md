@@ -504,6 +504,10 @@ the built-in provider with in-memory users or use the disabled-authentication
 claim-evaluation mode in tests. When the Control Plane or UI is placed on a
 shared host, keep `Authentication:Enabled=true` and either continue with the
 built-in provider or integrate the host with an external identity provider.
+Request-bound resource operations are still audited as user activity in the
+permissive local development mode. Without an authenticated principal, the
+Control Plane records the generic actor `user`; background work without an HTTP
+request remains system activity unless the caller supplies an explicit actor.
 
 ## Direct claims
 
