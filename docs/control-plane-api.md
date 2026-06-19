@@ -39,10 +39,13 @@ PUT /api/container-apps/v1/{containerAppId}/replicas
 ```
 
 That endpoint still uses the Control Plane authentication boundary,
-authorization checks, OpenAPI document, and domain manager implementation. It is
-separate from `/api/control-plane/v1/resources` so the core Resource Manager
-route group does not accumulate resource-type-specific commands. See
-[Container apps](resources/container-apps.md).
+authorization checks, OpenAPI document, domain manager implementation, and
+normal ProblemDetails error contract. Image update preflight failures use
+`resourceImageUpdateUnavailable`, and replica update preflight failures use
+`resourceReplicasUpdateUnavailable`, preserving the provider's readiness
+message in `detail`. It is separate from `/api/control-plane/v1/resources` so
+the core Resource Manager route group does not accumulate
+resource-type-specific commands. See [Container apps](resources/container-apps.md).
 
 Load balancers currently use the core Resource Manager API. Routes are projected
 on the resource response, and provider application runs through the advertised

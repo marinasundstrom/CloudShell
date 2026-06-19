@@ -282,6 +282,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Control Plane API ProblemDetails for setting reference resolution failures
   now include `settingName` and `referenceKind` extensions while preserving
   the `resourceActionUnavailable` error code.
+- Control Plane image and replica update preflight failures now return stable
+  `resourceImageUpdateUnavailable` and `resourceReplicasUpdateUnavailable`
+  ProblemDetails codes instead of collapsing provider readiness failures into a
+  generic operation failure.
 - Denied resource actions now record warning resource activity entries using
   the failed action event type before returning the insufficient-permission
   error.

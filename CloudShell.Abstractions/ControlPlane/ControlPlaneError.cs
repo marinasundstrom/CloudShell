@@ -53,10 +53,16 @@ public sealed record ControlPlaneError(
             ControlPlaneErrorCodes.ResourceImageUpdateUnsupported,
             $"Resource '{resourceName}' does not support image updates.");
 
+    public static ControlPlaneError ResourceImageUpdateUnavailable(string message) =>
+        new(ControlPlaneErrorCodes.ResourceImageUpdateUnavailable, message);
+
     public static ControlPlaneError ResourceReplicasUpdateUnsupported(string resourceName) =>
         new(
             ControlPlaneErrorCodes.ResourceReplicasUpdateUnsupported,
             $"Resource '{resourceName}' does not support replica updates.");
+
+    public static ControlPlaneError ResourceReplicasUpdateUnavailable(string message) =>
+        new(ControlPlaneErrorCodes.ResourceReplicasUpdateUnavailable, message);
 
     public static ControlPlaneError DependentResourcesRunning(string message) =>
         new(ControlPlaneErrorCodes.DependentResourcesRunning, message);
@@ -88,7 +94,9 @@ public static class ControlPlaneErrorCodes
     public const string ResourceActionUnsupported = "resourceActionUnsupported";
     public const string ResourceDeleteUnsupported = "resourceDeleteUnsupported";
     public const string ResourceImageUpdateUnsupported = "resourceImageUpdateUnsupported";
+    public const string ResourceImageUpdateUnavailable = "resourceImageUpdateUnavailable";
     public const string ResourceReplicasUpdateUnsupported = "resourceReplicasUpdateUnsupported";
+    public const string ResourceReplicasUpdateUnavailable = "resourceReplicasUpdateUnavailable";
     public const string ResourceGroupNotFound = "resourceGroupNotFound";
     public const string ResourceSelfDependency = "resourceSelfDependency";
     public const string DependentResourcesRunning = "dependentResourcesRunning";

@@ -675,12 +675,22 @@ public sealed class InProcessControlPlane(
         }
 
         var triggeredBy = ResolveTriggeredBy(command.TriggeredBy);
-        var result = await provider.UpdateImageAsync(
-            CreateProcedureContext(resource),
-            image,
-            command.RestartIfRunning,
-            triggeredBy,
-            cancellationToken);
+        ResourceProcedureResult result;
+        try
+        {
+            result = await provider.UpdateImageAsync(
+                CreateProcedureContext(resource),
+                image,
+                command.RestartIfRunning,
+                triggeredBy,
+                cancellationToken);
+        }
+        catch (InvalidOperationException exception) when (exception is not ControlPlaneException)
+        {
+            throw new ControlPlaneException(
+                ControlPlaneError.ResourceImageUpdateUnavailable(exception.Message),
+                exception);
+        }
 
         var updatedResource = resourceManager.GetResource(resource.Id);
         var revision = updatedResource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerRevision);
@@ -732,12 +742,22 @@ public sealed class InProcessControlPlane(
         }
 
         var triggeredBy = ResolveTriggeredBy(command.TriggeredBy);
-        var result = await provider.UpdateReplicasAsync(
-            CreateProcedureContext(resource),
-            command.Replicas,
-            command.RestartIfRunning,
-            triggeredBy,
-            cancellationToken);
+        ResourceProcedureResult result;
+        try
+        {
+            result = await provider.UpdateReplicasAsync(
+                CreateProcedureContext(resource),
+                command.Replicas,
+                command.RestartIfRunning,
+                triggeredBy,
+                cancellationToken);
+        }
+        catch (InvalidOperationException exception) when (exception is not ControlPlaneException)
+        {
+            throw new ControlPlaneException(
+                ControlPlaneError.ResourceReplicasUpdateUnavailable(exception.Message),
+                exception);
+        }
 
         resourceEvents?.Append(new ResourceEvent(
             resource.Id,

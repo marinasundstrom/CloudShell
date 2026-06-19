@@ -1497,6 +1497,27 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task UpdateResourceImageAsync_ReturnsUnavailableWhenProviderPreflightFails()
+    {
+        var provider = new TestImageUpdateResourceProvider
+        {
+            FailureMessage = "Container app resource 'target' cannot update image and restart because restart is blocked."
+        };
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            provider);
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
+            controlPlane.UpdateResourceImageAsync(new UpdateResourceImageCommand("target", "example/api:1")));
+
+        Assert.Equal(ControlPlaneErrorCodes.ResourceImageUpdateUnavailable, exception.Error.Code);
+        Assert.Equal(
+            "Container app resource 'target' cannot update image and restart because restart is blocked.",
+            exception.Message);
+        Assert.Empty(provider.UpdatedImages);
+    }
+
+    [Fact]
     public async Task UpdateResourceImageAsync_DispatchesToImageUpdateProvider()
     {
         var provider = new TestImageUpdateResourceProvider();
@@ -1578,6 +1599,27 @@ public sealed class InProcessControlPlaneResourceStateTests
             controlPlane.UpdateResourceReplicasAsync(new UpdateResourceReplicasCommand("target", 2)));
 
         Assert.Equal(ControlPlaneErrorCodes.InsufficientPermission, exception.Error.Code);
+        Assert.Empty(provider.UpdatedReplicas);
+    }
+
+    [Fact]
+    public async Task UpdateResourceReplicasAsync_ReturnsUnavailableWhenProviderPreflightFails()
+    {
+        var provider = new TestReplicaUpdateResourceProvider
+        {
+            FailureMessage = "Container app resource 'target' cannot update replicas and restart because restart is blocked."
+        };
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            provider);
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
+            controlPlane.UpdateResourceReplicasAsync(new UpdateResourceReplicasCommand("target", 3)));
+
+        Assert.Equal(ControlPlaneErrorCodes.ResourceReplicasUpdateUnavailable, exception.Error.Code);
+        Assert.Equal(
+            "Container app resource 'target' cannot update replicas and restart because restart is blocked.",
+            exception.Message);
         Assert.Empty(provider.UpdatedReplicas);
     }
 
@@ -2462,6 +2504,8 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         public List<string> UpdatedImages { get; } = [];
 
+        public string? FailureMessage { get; init; }
+
         public IReadOnlyList<Resource> GetResources() => [];
 
         public bool CanUpdateImage(Resource resource) => true;
@@ -2473,6 +2517,11 @@ public sealed class InProcessControlPlaneResourceStateTests
             string? triggeredBy = null,
             CancellationToken cancellationToken = default)
         {
+            if (!string.IsNullOrWhiteSpace(FailureMessage))
+            {
+                throw new InvalidOperationException(FailureMessage);
+            }
+
             UpdatedImages.Add($"{context.Resource.Id}:{image}:{restartIfRunning}:{triggeredBy}");
             return Task.FromResult(ResourceProcedureResult.Completed($"Updated {context.Resource.Id}."));
         }
@@ -2486,6 +2535,8 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         public List<string> UpdatedReplicas { get; } = [];
 
+        public string? FailureMessage { get; init; }
+
         public IReadOnlyList<Resource> GetResources() => [];
 
         public bool CanUpdateReplicas(Resource resource) => true;
@@ -2497,6 +2548,11 @@ public sealed class InProcessControlPlaneResourceStateTests
             string? triggeredBy = null,
             CancellationToken cancellationToken = default)
         {
+            if (!string.IsNullOrWhiteSpace(FailureMessage))
+            {
+                throw new InvalidOperationException(FailureMessage);
+            }
+
             UpdatedReplicas.Add($"{context.Resource.Id}:{replicas}:{restartIfRunning}:{triggeredBy}");
             return Task.FromResult(ResourceProcedureResult.Completed($"Updated {context.Resource.Id}."));
         }
