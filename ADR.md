@@ -27,6 +27,12 @@ orchestration. Shared infrastructure should not reintroduce an active aggregate
 provider boundary. The legacy `applications` provider id is compatibility
 metadata for old templates and declarations, not a registered built-in provider.
 
+Provider capability interfaces should also follow the resource boundary.
+Shared infrastructure may implement reusable operations internally, but only
+the provider whose resource type owns a capability should advertise that facet
+through interfaces such as image update, replica update, or orchestrator
+service procedures.
+
 Related changes: [Changelog](CHANGELOG.md).
 
 ### ADR-20260619-002: Make CloudShell UI a generic extensible shell

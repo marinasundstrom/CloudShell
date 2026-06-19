@@ -7,18 +7,17 @@ internal abstract class ApplicationResourceTypeProvider(
     ApplicationResourceService applications) :
     IResourceProvider,
     IResourceProcedureProvider,
-    IResourceImageUpdateProvider,
-    IResourceReplicaUpdateProvider,
     IResourceTemplateProvider,
     IProgrammaticResourceDeclarationProvider,
     IResourceAutoStartPolicyProvider,
     IResourceOrchestrationDescriptorProvider,
-    IResourceOrchestratorServiceProcedureProvider,
     IResourceActionAvailabilityProvider
 {
     public abstract string Id { get; }
 
     public string DisplayName => "Applications";
+
+    protected ApplicationResourceService Applications { get; } = applications;
 
     protected abstract ApplicationResourceProjection Projection { get; }
 
@@ -28,59 +27,37 @@ internal abstract class ApplicationResourceTypeProvider(
     public Task<ResourceProcedureResult> DeleteAsync(
         ResourceProcedureContext context,
         CancellationToken cancellationToken = default) =>
-        applications.DeleteAsync(context, cancellationToken);
+        Applications.DeleteAsync(context, cancellationToken);
 
     public Task<ResourceProcedureResult> ExecuteActionAsync(
         ResourceProcedureContext context,
         ResourceAction action,
         CancellationToken cancellationToken = default) =>
-        applications.ExecuteActionAsync(context, action, cancellationToken);
-
-    public bool CanUpdateImage(Resource resource) =>
-        applications.CanUpdateImage(resource);
-
-    public Task<ResourceProcedureResult> UpdateImageAsync(
-        ResourceProcedureContext context,
-        string image,
-        bool restartIfRunning,
-        string? triggeredBy = null,
-        CancellationToken cancellationToken = default) =>
-        applications.UpdateImageAsync(context, image, restartIfRunning, triggeredBy, cancellationToken);
-
-    public bool CanUpdateReplicas(Resource resource) =>
-        applications.CanUpdateReplicas(resource);
-
-    public Task<ResourceProcedureResult> UpdateReplicasAsync(
-        ResourceProcedureContext context,
-        int replicas,
-        bool restartIfRunning,
-        string? triggeredBy = null,
-        CancellationToken cancellationToken = default) =>
-        applications.UpdateReplicasAsync(context, replicas, restartIfRunning, triggeredBy, cancellationToken);
+        Applications.ExecuteActionAsync(context, action, cancellationToken);
 
     public bool CanExport(Resource resource) =>
-        Projection.CanProject(applications.GetApplication(resource.Id) ?? EmptyDefinition(resource)) &&
-        applications.CanExport(resource);
+        Projection.CanProject(Applications.GetApplication(resource.Id) ?? EmptyDefinition(resource)) &&
+        Applications.CanExport(resource);
 
     public async Task<ResourceTemplateDefinition> ExportAsync(
         Resource resource,
         ResourceTemplateExportContext context,
         CancellationToken cancellationToken = default)
     {
-        var template = await applications.ExportAsync(resource, context, cancellationToken);
+        var template = await Applications.ExportAsync(resource, context, cancellationToken);
         return template with { ProviderId = Id };
     }
 
     public bool CanImport(ResourceTemplateDefinition template) =>
         string.Equals(template.ProviderId, Id, StringComparison.OrdinalIgnoreCase) &&
         Projection.CanProject(EmptyDefinition(template.ResourceId ?? template.Name, template.ResourceType)) &&
-        applications.CanImport(template);
+        Applications.CanImport(template);
 
     public Task<ResourceTemplateImportResult> ImportAsync(
         ResourceTemplateDefinition template,
         ResourceTemplateImportContext context,
         CancellationToken cancellationToken = default) =>
-        applications.ImportAsync(template, context, cancellationToken);
+        Applications.ImportAsync(template, context, cancellationToken);
 
     public bool CanApplyDeclaration(ResourceDeclaration declaration) =>
         string.Equals(declaration.ProviderId, Id, StringComparison.OrdinalIgnoreCase);
@@ -89,54 +66,32 @@ internal abstract class ApplicationResourceTypeProvider(
         ResourceDeclaration declaration,
         IResourceRegistrationStore registrations,
         CancellationToken cancellationToken = default) =>
-        applications.ApplyDeclarationAsync(declaration, registrations, cancellationToken);
+        Applications.ApplyDeclarationAsync(declaration, registrations, cancellationToken);
 
     public bool CanEvaluateAutoStartPolicy(ResourceDeclaration declaration) =>
         CanApplyDeclaration(declaration);
 
     public ResourceAutoStartPolicy GetAutoStartPolicy(ResourceDeclaration declaration) =>
-        applications.GetAutoStartPolicy(declaration);
+        Applications.GetAutoStartPolicy(declaration);
 
     public bool CanDescribe(Resource resource) =>
-        applications.CanDescribe(resource) &&
-        Projection.CanProject(applications.GetApplication(resource.Id) ?? EmptyDefinition(resource));
+        Applications.CanDescribe(resource) &&
+        Projection.CanProject(Applications.GetApplication(resource.Id) ?? EmptyDefinition(resource));
 
     public Task<ResourceOrchestrationDescriptor> DescribeAsync(
         Resource resource,
         ResourceOrchestrationDescriptorContext context,
         CancellationToken cancellationToken = default) =>
-        applications.DescribeAsync(resource, context, cancellationToken);
-
-    public bool CanExecuteOrchestratorService(
-        Resource resource,
-        ResourceAction action) =>
-        applications.CanExecuteOrchestratorService(resource, action);
-
-    public Task<ResourceOrchestratorService> CreateOrchestratorServiceAsync(
-        ResourceProcedureContext context,
-        CancellationToken cancellationToken = default) =>
-        applications.CreateOrchestratorServiceAsync(context, cancellationToken);
-
-    public Task PrepareOrchestratorServiceAsync(
-        ResourceOrchestratorServiceProcedureContext context,
-        ResourceAction action,
-        CancellationToken cancellationToken = default) =>
-        applications.PrepareOrchestratorServiceAsync(context, action, cancellationToken);
-
-    public Task ExecuteOrchestratorServiceInstanceAsync(
-        ResourceOrchestratorServiceInstanceContext context,
-        ResourceAction action,
-        CancellationToken cancellationToken = default) =>
-        applications.ExecuteOrchestratorServiceInstanceAsync(context, action, cancellationToken);
+        Applications.DescribeAsync(resource, context, cancellationToken);
 
     public bool CanEvaluateAction(Resource resource, ResourceAction action) =>
-        applications.CanEvaluateAction(resource, action);
+        Applications.CanEvaluateAction(resource, action);
 
     public Task<string?> GetActionUnavailableReasonAsync(
         ResourceProcedureContext context,
         ResourceAction action,
         CancellationToken cancellationToken = default) =>
-        applications.GetActionUnavailableReasonAsync(context, action, cancellationToken);
+        Applications.GetActionUnavailableReasonAsync(context, action, cancellationToken);
 
     private static ApplicationResourceDefinition EmptyDefinition(Resource resource) =>
         EmptyDefinition(resource.Id, resource.EffectiveTypeId, resource.Name);

@@ -48,6 +48,11 @@ on `git blame --follow`, and then by the broad type of change.
   aggregate `applications` resource provider. Executable apps, ASP.NET Core
   projects, container apps, and SQL Server now register as separate provider
   boundaries while sharing internal application infrastructure.
+- Application resource providers now advertise type-specific capability facets:
+  generic container apps expose image updates, replica updates, and
+  orchestrator service procedures, while executable apps, ASP.NET Core
+  projects, and SQL Server keep those container-app facets off their provider
+  boundary.
 
 ### 2026-06-18
 

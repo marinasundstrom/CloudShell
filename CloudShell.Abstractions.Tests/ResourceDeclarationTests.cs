@@ -2234,6 +2234,23 @@ public sealed class ResourceDeclarationTests
                 .GetResources()
                 .Select(resource => resource.Id)
                 .ToArray());
+        Assert.DoesNotContain(
+            new IResourceProvider[]
+            {
+                serviceProvider.GetRequiredService<ExecutableApplicationResourceProvider>(),
+                serviceProvider.GetRequiredService<AspNetCoreProjectResourceProvider>(),
+                serviceProvider.GetRequiredService<SqlServerApplicationResourceProvider>()
+            },
+            provider =>
+                provider is IResourceImageUpdateProvider or
+                IResourceReplicaUpdateProvider or
+                IResourceOrchestratorServiceProcedureProvider);
+        Assert.IsAssignableFrom<IResourceImageUpdateProvider>(
+            serviceProvider.GetRequiredService<ContainerApplicationResourceProvider>());
+        Assert.IsAssignableFrom<IResourceReplicaUpdateProvider>(
+            serviceProvider.GetRequiredService<ContainerApplicationResourceProvider>());
+        Assert.IsAssignableFrom<IResourceOrchestratorServiceProcedureProvider>(
+            serviceProvider.GetRequiredService<ContainerApplicationResourceProvider>());
     }
 
     [Fact]
