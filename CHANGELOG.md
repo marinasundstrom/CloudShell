@@ -17,6 +17,10 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Re-evaluated the local-development MVP target after the recent readiness
+  hardening slices: Control Plane feedback and Resource Manager surfacing
+  remain core quality, while the urgent work now returns to Application
+  Topology proof and the full app-centric developer experience.
 - Refreshed the MVP execution order around the current local-development
   target: Application Topology confidence, app-centric Resource Manager
   workflows, readiness diagnostics before failure, settings/secrets/identity

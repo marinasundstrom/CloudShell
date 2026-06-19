@@ -157,6 +157,14 @@ front. When choosing work, prefer the slice that most improves a developer's
 ability to run, understand, diagnose, and persist a realistic distributed
 application from Resource Manager.
 
+After the recent action-readiness and container deployment hardening, keep
+Control Plane feedback and Resource Manager surfacing as core MVP quality, but
+judge that work through the full developer experience rather than as an
+isolated backend checklist. The next urgent MVP slice is to prove the
+Application Topology sample end to end and make the app-centric Resource
+Manager path explain the runtime model without requiring sample-specific
+knowledge.
+
 Use this decision filter:
 
 1. Does the work make Application Topology or another supported sample more
@@ -208,7 +216,9 @@ Prioritize the remaining local-dev work in this order:
    should explain missing container hosts, unavailable credentials, occupied
    ports, unsupported host capabilities, unsafe volume mappings, unresolved
    setting/secret references, missing identity grants, route conflicts, and
-   DNS/name materialization gaps.
+   DNS/name materialization gaps. Prioritize feedback loops that materially
+   improve the supported local-dev experience, especially when a sample exposes
+   a blocker or confusing failure.
 4. **Configuration, secrets, and identity clarity.** The app experience should
    make runtime-impacting settings and secret references understandable:
    references must be visible without leaking secret values, identity grant
