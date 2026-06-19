@@ -38,22 +38,44 @@ else
         <EmptyState Title="Loading databases"
                     Message="CloudShell is querying the running SQL Server instance." />
     }
-    else if (DatabaseRows.Count == 0)
+    else if (DatabaseRows.Count == 0 && MissingDeclaredDatabaseRows.Count == 0)
     {
         <EmptyState Title="No databases"
                     Message="@GetEmptyMessage()" />
     }
     else
     {
-        <div class="generated-list">
-            @foreach (var database in DatabaseRows)
-            {
-                <GeneratedListItem Title="@database.Label"
-                                   Summary="@FormatDatabaseSummary(database)"
-                                   Metadata="@FormatDatabaseMetadata(database)"
-                                   SecondaryMetadata="@FormatDatabaseVerification(database)" />
-            }
-        </div>
+        @if (DatabaseRows.Count > 0)
+        {
+            <div class="generated-list">
+                @foreach (var database in DatabaseRows)
+                {
+                    <GeneratedListItem Title="@database.Label"
+                                       Summary="@FormatDatabaseSummary(database)"
+                                       Metadata="@FormatDatabaseMetadata(database)"
+                                       SecondaryMetadata="@FormatDatabaseVerification(database)" />
+                }
+            </div>
+        }
+
+        @if (MissingDeclaredDatabaseRows.Count > 0)
+        {
+            <div class="blade-section-header">
+                <div>
+                    <h3>Declared databases not found</h3>
+                    <p>These declarations were not returned by the live SQL Server instance.</p>
+                </div>
+            </div>
+            <div class="generated-list">
+                @foreach (var database in MissingDeclaredDatabaseRows)
+                {
+                    <GeneratedListItem Title="@database.Label"
+                                       Summary="@FormatDatabaseSummary(database)"
+                                       Metadata="@FormatDatabaseMetadata(database)"
+                                       SecondaryMetadata="@FormatDatabaseVerification(database)" />
+                }
+            </div>
+        }
     }
 }
 
@@ -64,6 +86,8 @@ else
     private ApplicationResourceDefinition? Application { get; set; }
 
     private IReadOnlyList<SqlServerDatabaseRow> DatabaseRows { get; set; } = [];
+
+    private IReadOnlyList<SqlServerDatabaseRow> MissingDeclaredDatabaseRows { get; set; } = [];
 
     private string? QueryErrorMessage { get; set; }
 
@@ -84,6 +108,7 @@ else
     private async Task RefreshDatabasesAsync()
     {
         DatabaseRows = [];
+        MissingDeclaredDatabaseRows = [];
         QueryErrorMessage = null;
         IsLoading = false;
         WasLiveQueryAttempted = false;
@@ -113,7 +138,13 @@ else
             }
         }
 
-        DatabaseRows = CreateDatabaseRows(Application, liveDatabases, WasLiveQueryAttempted);
+        var rows = CreateDatabaseRows(Application, liveDatabases, WasLiveQueryAttempted);
+        MissingDeclaredDatabaseRows = rows
+            .Where(database => database.IsDeclared && database.WasLiveQueryAttempted && !database.ExistsOnServer)
+            .ToArray();
+        DatabaseRows = rows
+            .Except(MissingDeclaredDatabaseRows)
+            .ToArray();
         if (IsServerRunning &&
             WasLiveQueryAttempted &&
             string.IsNullOrWhiteSpace(QueryErrorMessage) &&
