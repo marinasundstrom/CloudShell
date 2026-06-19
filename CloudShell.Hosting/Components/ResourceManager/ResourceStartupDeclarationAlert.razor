@@ -2,10 +2,12 @@
 
 @if (IsStartupDeclaration)
 {
-    <div class="resource-alert warning startup-declaration-alert" role="note">
-        <strong>@L["Startup declaration"]</strong>
+    <ResourceCallout Severity="ResourceCalloutSeverity.Warning"
+                     Title="@L["Startup declaration"].Value"
+                     Class="startup-declaration-alert"
+                     Role="note">
         <span>@L["Declared by code for this host process. UI changes are temporary until the resource is persisted."]</span>
-    </div>
+    </ResourceCallout>
 }
 
 @code {

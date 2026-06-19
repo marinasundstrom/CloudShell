@@ -1,0 +1,37 @@
+<div class="@CssClass" role="@Role">
+    <ResourceSeverityIcon Severity="Severity" Class="resource-alert-icon" />
+    <div class="resource-alert-content">
+        @if (!string.IsNullOrWhiteSpace(Title))
+        {
+            <strong>@Title</strong>
+        }
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public ResourceCalloutSeverity Severity { get; set; } = ResourceCalloutSeverity.Info;
+
+    [Parameter]
+    public string? Title { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    [Parameter]
+    public string? Role { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    private string CssClass =>
+        string.Join(
+            ' ',
+            new[]
+            {
+                "resource-alert",
+                Severity.ToString().ToLowerInvariant(),
+                Class
+            }.Where(value => !string.IsNullOrWhiteSpace(value)));
+}

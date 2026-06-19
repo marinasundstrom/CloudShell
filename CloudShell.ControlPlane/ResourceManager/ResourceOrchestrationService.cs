@@ -83,14 +83,14 @@ public sealed class ResourceOrchestrationService(
                     ResourceEventTypes.Actions.ForFailedAction(action.Id),
                     $"{GetActionFailedMessage(action)} Reason: A dependency could not start. {exception.Message}",
                     triggeredBy,
-                    "Warning");
+                    "Error");
                 AppendLifecycleEvent(
                     resource,
                     GetLifecycleEventTypes(action)?.Failed,
                     $"{GetLifecycleFailedMessage(action)} Reason: A dependency could not start. {exception.Message}",
                     cause,
                     triggeredBy,
-                    "Warning");
+                    "Error");
                 NotifyResourceChange(
                     notifyResourceChange,
                     ResourceChangeKind.ResourceActionFailed,
@@ -168,14 +168,14 @@ public sealed class ResourceOrchestrationService(
                 ResourceEventTypes.Actions.ForFailedAction(action.Id),
                 $"{GetActionFailedMessage(action)}{FormatCause(cause)} Reason: {exception.Message}",
                 triggeredBy,
-                "Warning");
+                "Error");
             AppendLifecycleEvent(
                 resource,
                 GetLifecycleEventTypes(action)?.Failed,
                 $"{GetLifecycleFailedMessage(action)} Reason: {exception.Message}",
                 cause,
                 triggeredBy,
-                "Warning");
+                "Error");
             NotifyResourceChange(
                 notifyResourceChange,
                 ResourceChangeKind.ResourceActionFailed,

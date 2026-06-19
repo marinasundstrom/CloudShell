@@ -37,6 +37,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource list rows now show a warning triangle for resources with the latest
   unsuperseded lifecycle/action failure so operators can scan the list, click
   the row, and inspect the matching blade failure summary.
+- Resource Manager severity callouts now use consistent success, info, warning,
+  and error iconography and coloring; hard lifecycle/action failures are
+  recorded and displayed as errors while dependency startup warnings remain
+  warnings.
 
 ### 2026-06-18
 

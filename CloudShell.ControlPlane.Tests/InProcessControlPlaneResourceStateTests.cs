@@ -1112,7 +1112,7 @@ public sealed class InProcessControlPlaneResourceStateTests
         var rootEvents = resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "api"));
         Assert.Contains(rootEvents, resourceEvent =>
             resourceEvent.EventType == ResourceEventTypes.Events.Lifecycle.StartFailed &&
-            resourceEvent.Level == "Warning" &&
+            resourceEvent.Level == "Error" &&
             resourceEvent.Message.Contains("A dependency could not start", StringComparison.Ordinal) &&
             resourceEvent.Message.Contains("Docker is unavailable", StringComparison.Ordinal));
     }

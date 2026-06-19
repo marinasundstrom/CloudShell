@@ -5,16 +5,15 @@
 
 @if (Resource is not null && Failure is not null)
 {
-    <div class="@CssClass" role="alert" aria-live="polite">
-        <ResourceFailureIndicator Signal="Failure" Class="resource-failure-summary-icon" />
-        <div>
-            <strong>@ResourceFailureSignalDisplay.GetTitle(Failure, L)</strong>
-            <span>@ResourceFailureSignalDisplay.GetMessage(Failure, L)</span>
-            <FluentAnchor Href="@BuildActivityRoute(Resource.Id)">
-                @L["View activity"]
-            </FluentAnchor>
-        </div>
-    </div>
+    <ResourceCallout Severity="Failure.Severity"
+                     Title="@ResourceFailureSignalDisplay.GetTitle(Failure, L)"
+                     Class="@CalloutClass"
+                     Role="alert">
+        <span>@ResourceFailureSignalDisplay.GetMessage(Failure, L)</span>
+        <FluentAnchor Href="@BuildActivityRoute(Resource.Id)">
+            @L["View activity"]
+        </FluentAnchor>
+    </ResourceCallout>
 }
 
 @code {
@@ -28,7 +27,7 @@
 
     private ResourceFailureSignal? Failure { get; set; }
 
-    private string CssClass => string.IsNullOrWhiteSpace(Class)
+    private string CalloutClass => string.IsNullOrWhiteSpace(Class)
         ? "resource-failure-summary"
         : $"resource-failure-summary {Class}";
 

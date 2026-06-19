@@ -29,18 +29,20 @@
 
         @if (IsLocalHostNameProviderSelected)
         {
-            <div class="resource-alert info" role="status">
-                <strong>Local host-name publishing</strong>
+            <ResourceCallout Severity="ResourceCalloutSeverity.Info"
+                             Title="Local host-name publishing"
+                             Role="status">
                 <span>Local host-name publishing writes exact host mappings to the configured hosts-file target when name mappings are reconciled.</span>
-            </div>
+            </ResourceCallout>
         }
 
         @if (ShouldWarnAboutLocalSuffix(ZoneName) || (CreateNameMapping && ShouldWarnAboutLocalSuffix(HostName)))
         {
-            <div class="resource-alert warning" role="alert">
-                <strong>Local suffix warning</strong>
+            <ResourceCallout Severity="ResourceCalloutSeverity.Warning"
+                             Title="Local suffix warning"
+                             Role="alert">
                 <span>Names ending in .local may conflict with mDNS/Bonjour on the host network. Use them intentionally for local development and reconcile them only on hosts where this suffix is acceptable.</span>
-            </div>
+            </ResourceCallout>
         }
 
         <ResourceGroupSelect Id="dns-zone-group"
