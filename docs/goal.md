@@ -66,6 +66,28 @@ cloud-inspired architecture understandable, manageable, and testable in local
 or self-hosted environments, while keeping a path to provider-backed
 implementations.
 
+## Local Development MVP Goal
+
+The current MVP target is the local-development flow. A developer should be
+able to start with programmatic resource declarations, run a realistic
+distributed application locally, use Resource Manager to understand and operate
+the graph, and then explicitly persist the resource graph when the environment
+is ready to become Control Plane-owned state.
+
+That handoff is not deployment. `Persist()` records resources and
+provider-owned configuration so the flow can move from code-first declarations
+to durable environment state. Deploying the graph to a target such as an
+on-premise CloudShell environment, Azure, or AWS remains a separate
+orchestrator concern and should wait for the deployment API.
+
+For this MVP, Resource Manager should feel like a solid developer cockpit for
+the application environment, but not a fully finished portal. The application
+resource page should connect the things that matter to running and
+understanding the app: endpoints, service discovery, exposure, storage,
+identity-backed configuration and secrets where they affect runtime behavior,
+logs, traces, monitoring, activity, and inbound names. Secondary editing tabs
+should be improved only when they block that primary experience.
+
 ## MVP Proof
 
 The MVP should prove that a common-hosted CloudShell environment can manage a
@@ -81,6 +103,13 @@ local prerequisite is unavailable, Resource Manager should identify the
 affected resource, explain the dependency or provider failure, and leave users
 with a clear next diagnostic step instead of surfacing only a generic internal
 error or a stuck lifecycle transition.
+
+The local-development proof is ready only when supported samples build and
+smoke-test, Resource Manager explains the application graph without leaking
+secret values, action capability reasons explain failures before dispatch,
+transient code-first declarations remain visibly distinct from persisted
+Control Plane state, and the main experience feels coherent without being
+overbuilt.
 
 [Roadmap](roadmap.md) owns milestone scope and ordering.
 [ADR](../ADR.md) owns durable product and architecture decisions.

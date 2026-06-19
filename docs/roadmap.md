@@ -34,8 +34,9 @@ these milestones instead of redefining release scope independently.
 
 ### MVP
 
-Goal: make CloudShell useful as a combined-hosted local and team-owned control
-plane while preserving the split-hosting path.
+Goal: make CloudShell useful first as a combined-hosted local-development
+control plane while preserving the split-hosting and team-owned environment
+paths.
 
 MVP scope:
 
@@ -47,8 +48,8 @@ MVP scope:
 | Storage and volume mappings | Mountable volume resources and app volume attachments can be modeled, inspected, and mapped into container apps or executables through provider-neutral storage intent, without forcing object storage, databases, or backups into the same abstraction. |
 | Identity, Built-in | The built-in ASP.NET Core identity provider is enough for simple local-development cases: it can provision resource identities, issue scoped resource-permission tokens, expose provisioned resource identity clients through the standard principal lookup hook, and enforce permissions for Control Plane actions, configuration reads, and secret reads. |
 | Identity, external OIDC validation | The identity model is proven against at least one standards-compliant third-party OIDC/OAuth provider, such as Keycloak, without changing the CloudShell resource identity contract. |
-| App settings and secrets integrations | App settings, configuration-entry references, and secret references work through programmatic declarations, Resource Manager assignment flows, runtime transfer, redaction, and authorization. |
-| UX polish | Resource Manager common workflows are understandable, diagnostics are actionable, generated details are useful, and identity, configuration, secrets, networking, and app controls are discoverable without bespoke sample code. |
+| App settings and secrets integrations | App settings, configuration-entry references, and secret references work through programmatic declarations, runtime transfer, redaction, authorization, and Resource Manager views that explain runtime impact without leaking values. |
+| UX polish | Resource Manager common workflows are solid and understandable without being overdone: diagnostics are actionable, generated details are useful, and the app-centric path for identity, configuration, secrets, networking, storage, telemetry, and app controls is discoverable without bespoke sample code. |
 | Samples should work | Supported samples build and smoke-test, including combined hosting, split hosting, container host, settings and secrets, host virtual networking, load balancer, project references, third-party identity, application topology, and container app deployment. |
 
 The execution plan and readiness notes below define the implementation order
@@ -130,14 +131,19 @@ identity validation, Resource Manager details, and supported sample smoke
 coverage all exist.
 
 The supported sample smoke suite is currently green. The remaining MVP work
-should therefore bias toward release-quality behavior rather than opening new
-platform fronts:
+should therefore bias toward release-quality local-development behavior rather
+than opening new platform fronts or repeatedly polishing secondary editor
+surfaces:
 
 - Keep supported samples building and smoke-testing.
-- Make the primary Resource Manager path understandable without sample-specific
-  knowledge.
+- Make the primary application Resource Manager path understandable without
+  sample-specific knowledge.
 - Tighten action capability reasons, diagnostics, and ProblemDetails responses
   around already-supported flows.
+- Spend UI polish on the app-centric experience, overview details, readiness
+  diagnostics, and clear next actions until the experience is solid. Do not
+  overbuild or spend multiple cycles on tabs such as Environment unless they
+  block the main app experience or leak sensitive data.
 - Keep endpoint contracts address-less and require concrete reachability through
   endpoint network mappings.
 - Avoid broad IAM, deployment history, autoscaling, advanced service resources,
@@ -162,20 +168,24 @@ Prioritize the remaining local-dev work in this order:
    mapping without sample-specific UI knowledge.
 2. **App-centric Resource Manager path.** Make the application resource page
    the operator entry point for endpoints, service discovery, exposure,
-   storage, settings/secrets, identity, logs, traces, monitoring, inbound
-   names, and related activity. Prefer small UX and diagnostics fixes on this
-   path over new platform areas.
+   storage, runtime-impacting settings/secrets, identity, logs, traces,
+   monitoring, inbound names, and related activity. Prefer UX and diagnostics
+   fixes that make that app page and its immediate actions solid over
+   polishing secondary editor tabs.
 3. **Readiness diagnostics before failure.** Before Start, Restart, image
    update, configuration update, or provider reconcile fails, Resource Manager
    should explain missing container hosts, unavailable credentials, occupied
    ports, unsupported host capabilities, unsafe volume mappings, unresolved
    setting/secret references, missing identity grants, route conflicts, and
    DNS/name materialization gaps.
-4. **Configuration, secrets, and identity clarity.** The settings/secrets flow
-   should be understandable from Resource Manager: saved references must be
-   visible without leaking secret values, identity grant status must be clear,
+4. **Configuration, secrets, and identity clarity.** The app experience should
+   make runtime-impacting settings and secret references understandable:
+   references must be visible without leaking secret values, identity grant
+   status must be clear where it affects startup or service calls,
    access-control assignment and revocation must remain principal-shaped, and
-   failures should produce stable diagnostics and ProblemDetails.
+   failures should produce stable diagnostics and ProblemDetails. Keep this
+   solid, not exhaustive; do not treat the Environment tab itself as the MVP
+   target unless it blocks this flow.
 5. **Persisted-state handoff.** `Persist()` should stay a clear boundary from
    code-first local declarations to durable Control Plane/provider state.
    Local development can continue after persistence, but deployment remains a
@@ -268,10 +278,12 @@ listed here before pulling in broader proposal work.
    resolution, missing or unavailable credentials, route and port conflicts,
    unsupported storage media, unsafe replica-volume combinations, unresolved
    references, missing identity grants, and DNS/name provider gaps.
-5. Configuration, secrets, and identity polish: finish the visible
-   settings/secrets assignment and reference experience, keep identity opt-in
-   for early modeling, keep Access control principal-shaped, and close only the
-   built-in access gaps needed by those flows.
+5. Configuration, secrets, and identity polish: keep the app runtime story
+   clear when settings, secrets, identities, and grants affect whether the app
+   starts or can call backing services. Keep identity opt-in for early
+   modeling, keep Access control principal-shaped, and close only the built-in
+   access gaps needed by those flows. Do not keep cycling on editor polish
+   once the app-centric experience is understandable and values are not leaked.
 6. Persisted-state handoff: keep `Persist()` focused on resource and
    provider-owned configuration persistence, keep deployment separate, and make
    transient startup declarations visible enough that developers understand
@@ -350,6 +362,12 @@ listed here before pulling in broader proposal work.
   decision. The orchestrator deployment API is not ready yet, so near-term MVP
   work should keep the boundary explicit and avoid overloading persistence with
   deployment behavior.
+- Optimize for the experience a developer follows repeatedly: inspect the app,
+  understand dependencies and exposure, start or restart it, diagnose why it
+  cannot start, inspect runtime signals, and decide whether the graph is ready
+  to persist. Make that loop solid before widening scope. Improvements outside
+  that loop should wait unless they are security fixes or unblock the supported
+  sample proof.
 - Keep CloudShell's resource addressing layers distinct. Concrete endpoint
   addresses belong to endpoint network mappings; resource endpoints remain
   address-less contracts. Topology-scoped reachability, Aspire-compatible
@@ -501,6 +519,11 @@ listed here before pulling in broader proposal work.
   service-integration flow: a resource can model settings and secrets first,
   then opt into identity and resource-scoped grants when access enforcement is
   needed.
+- Treat settings and secrets UI as supporting evidence for the app experience,
+  not as the center of the MVP. The important UI outcome is that the app page
+  explains what references exist, whether referenced resources and grants are
+  available, and why startup or service calls will fail. Assignment/editing
+  views should stay functional and safe, but deeper editor ergonomics can wait.
 - Make Resource Manager generated details predictable for common resources:
   Overview first, resource-specific tabs next, Management tabs for resource
   concerns such as Environment, Identity, Monitoring, and Activity near the
@@ -555,14 +578,19 @@ listed here before pulling in broader proposal work.
   as the current-state feature documentation and
   [Identity and access](proposals/core/identity-and-access.md) as the open-work
   tracker.
-- Finish the Resource Manager assignment experience for literal settings,
-  configuration-entry references, and vault-backed secret references on
-  resources that advertise environment-variable support.
+- Keep configuration, secrets, and identity work tied to the local developer's
+  app loop: understanding references, startup readiness, service-call
+  authorization, and clear diagnostics. Avoid spending additional MVP cycles on
+  secondary Environment-tab ergonomics unless they block that loop.
+- Finish only the Resource Manager assignment pieces needed for the main app
+  flow: literal settings, configuration-entry references, and vault-backed
+  secret references should remain safe to inspect and apply on resources that
+  advertise environment-variable support.
 - Show saved references and diagnostics without displaying resolved secret
   values. Application overview now renders app-setting and environment-variable
   references as source labels and target references instead of resolved values
-  or raw CloudShell reference strings, and shows basic target availability and
-  identity-grant status.
+  or raw CloudShell reference strings, shows basic target availability and
+  identity-grant status, and masks credential-like literal values.
 - Verify assignment flows against identity-backed configuration and secret read
   authorization. Runtime resolution failures now use typed diagnostics and
   project as resource-action-unavailable API errors instead of generic
@@ -900,13 +928,18 @@ Before treating the MVP as ready, verify:
   container host, settings and secrets, host virtual networking, load balancer,
   project references, third-party identity, application topology, and container
   app deployment.
-- Resource Manager can create, inspect, update, operate, and diagnose the main
-  app environment path without relying on programmatic-only sample knowledge.
+- Resource Manager can inspect, operate, and diagnose the main app environment
+  path from the application resource page without relying on programmatic-only
+  sample knowledge. Create/update flows should support that path, but the MVP
+  should not be judged by deep editor completeness.
 - API/client projections preserve the same domain-shaped model as Resource
   Manager, including endpoint network mappings, resource actions,
   capabilities, identity, events, and diagnostics.
 - Failure states return stable action capability reasons, diagnostics, or
   ProblemDetails codes rather than provider-specific exception text.
+- Sensitive values are not rendered in Resource Manager overview or editing
+  paths, while references and grant/readiness status remain visible enough to
+  explain app behavior.
 
 ## Tracking Work
 

@@ -21,6 +21,10 @@ on `git blame --follow`, and then by the broad type of change.
   target: Application Topology confidence, app-centric Resource Manager
   workflows, readiness diagnostics before failure, settings/secrets/identity
   clarity, persisted-state handoff, and release hardening.
+- Refreshed the local-development MVP goal and roadmap to frame Resource
+  Manager as a solid but not overbuilt app-centric developer cockpit, with
+  `Persist()` as a state handoff and deployment left to the future
+  orchestrator API.
 - Documented the post-MVP shell composition direction: CloudShell UI should
   become an independently useful extensible shell platform with menu groups,
   child items, pages, standard settings, notifications, named content areas,
