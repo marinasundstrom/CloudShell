@@ -116,7 +116,8 @@ app.MapGet("/failure", (ILoggerFactory loggerFactory) =>
     return Results.Problem(
         title: "Intentional sample failure",
         detail: "The Application Topology API failed deliberately so CloudShell can demonstrate failed request telemetry.",
-        statusCode: StatusCodes.Status500InternalServerError);
+        statusCode: StatusCodes.Status500InternalServerError,
+        extensions: ApplicationTopologyProblemDetails.CreateFailureExtensions("application-topology-api"));
 });
 
 app.Run();

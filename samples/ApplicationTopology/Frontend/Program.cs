@@ -117,7 +117,10 @@ app.MapGet("/upstream/failure", async (
     return Results.Problem(
         title: "Intentional upstream failure",
         detail: $"The Application Topology API failure endpoint returned {(int)response.StatusCode}.",
-        statusCode: StatusCodes.Status502BadGateway);
+        statusCode: StatusCodes.Status502BadGateway,
+        extensions: ApplicationTopologyProblemDetails.CreateFailureExtensions(
+            "application-topology-frontend",
+            (int)response.StatusCode));
 });
 
 app.Run();

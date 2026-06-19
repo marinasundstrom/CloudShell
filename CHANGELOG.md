@@ -17,6 +17,10 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Application Topology intentional failure responses now include trace,
+  resource, sample-failure, and upstream-status ProblemDetails extensions so
+  failed runtime requests can be correlated with Resource Manager traces and
+  logs.
 - Refreshed Application Topology sample documentation to separate already
   covered local-development MVP proof areas from the remaining scenario
   additions.

@@ -85,8 +85,17 @@ http://localhost:5218/upstream/failure
 
 That route calls the API's `/failure` endpoint through CloudShell service
 discovery. The API returns an intentional HTTP 500 and writes an error log;
-the frontend records the upstream failure and returns HTTP 502. Use this path
-to inspect failed request telemetry, traces, and correlated application logs.
+the frontend records the upstream failure and returns HTTP 502. The
+ProblemDetails response includes `traceId`, `resourceName`,
+`sampleFailureKind`, and `upstreamStatusCode` extension fields so you can copy
+the trace ID into Resource Manager.
+
+Use this path to verify the failure loop:
+
+1. Open `/upstream/failure` and note the returned `traceId`.
+2. Open Resource Manager and inspect the frontend and API **Traces** tabs.
+3. Use the related-log links from the trace view to inspect the frontend
+   warning and API error log entries for the same failed request.
 
 The sample disables startup autostart for these three application resources so
 you can exercise the live dependency path deliberately from Resource Manager.
@@ -201,7 +210,7 @@ Remaining useful additions:
 
 - Identity-backed SQL Server authentication, so the API can use its CloudShell
   resource identity to access the database in an Azure-like flow.
-- A stronger runtime-failure walkthrough after the API, frontend, and SQL
+- A smoke-testable full runtime walkthrough after the API, frontend, and SQL
   resources are started, including correlated failed request logs and traces
   from `/upstream/failure`.
 - Optional container-app variants for the frontend and API only when they prove

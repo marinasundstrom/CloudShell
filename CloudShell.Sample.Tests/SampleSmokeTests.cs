@@ -8,6 +8,7 @@ using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ApplicationTopology.ServiceDefaults;
 using CloudShell.ContainerHost;
 using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.Providers.Applications;
@@ -728,6 +729,21 @@ public sealed class SampleSmokeTests
         Assert.Contains("Deploy image", sqlDeploymentHtml);
         Assert.Contains("No image change", sqlDeploymentHtml);
         Assert.Contains("Image update preflight", sqlDeploymentHtml);
+    }
+
+    [Fact]
+    public void ApplicationTopologyFailureProblemExtensions_IncludeTraceResourceAndUpstreamStatus()
+    {
+        using var activity = new Activity("application-topology-failure").Start();
+
+        var extensions = ApplicationTopologyProblemDetails.CreateFailureExtensions(
+            "application-topology-frontend",
+            upstreamStatusCode: 500);
+
+        Assert.Equal("application-topology-frontend", extensions["resourceName"]);
+        Assert.Equal("intentional", extensions["sampleFailureKind"]);
+        Assert.Equal(500, extensions["upstreamStatusCode"]);
+        Assert.Equal(activity.TraceId.ToHexString(), extensions["traceId"]);
     }
 
     [Fact]

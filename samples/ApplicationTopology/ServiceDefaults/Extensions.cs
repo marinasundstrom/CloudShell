@@ -118,6 +118,41 @@ public static class ApplicationTopologyLogEvents
     public static readonly EventId IntentionalFailureInvoked = new(2200, nameof(IntentionalFailureInvoked));
 }
 
+public static class ApplicationTopologyProblemDetails
+{
+    public static IDictionary<string, object?> CreateFailureExtensions(
+        string resourceName,
+        int? upstreamStatusCode = null)
+    {
+        var extensions = new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["resourceName"] = resourceName,
+            ["sampleFailureKind"] = "intentional"
+        };
+
+        var traceId = GetCurrentTraceId();
+        if (traceId is not null)
+        {
+            extensions["traceId"] = traceId;
+        }
+
+        if (upstreamStatusCode is not null)
+        {
+            extensions["upstreamStatusCode"] = upstreamStatusCode.Value;
+        }
+
+        return extensions;
+    }
+
+    private static string? GetCurrentTraceId()
+    {
+        var current = Activity.Current;
+        return current is null || current.TraceId == default
+            ? null
+            : current.TraceId.ToHexString();
+    }
+}
+
 internal sealed class CloudShellTraceExporter(HttpClient httpClient, IHostEnvironment environment) :
     BaseExporter<Activity>
 {
