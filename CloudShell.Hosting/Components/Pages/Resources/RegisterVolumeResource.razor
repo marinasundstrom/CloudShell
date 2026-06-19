@@ -28,7 +28,7 @@
             <FluentOption TOption="string" Value="">Direct filesystem path</FluentOption>
             @foreach (var storage in StorageResources)
             {
-                <FluentOption TOption="string" Value="@storage.Id">@GetResourceLabel(storage)</FluentOption>
+                <FluentOption TOption="string" Value="@storage.Id">@ResourceDisplayLabels.GetLabel(storage)</FluentOption>
             }
         </FluentSelect>
 
@@ -88,7 +88,7 @@
         StorageGroupsByResourceId = ResourceManagerUiAccess.CreateGroupLookup(ResourceGroups);
         StorageResources = (await ResourceManager.ListResourcesAsync())
             .Where(resource => resource.HasCapability(ResourceCapabilityIds.StorageProvider))
-            .OrderBy(GetResourceLabel, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(ResourceDisplayLabels.GetLabel, StringComparer.OrdinalIgnoreCase)
             .ToArray();
         SelectedStorageResourceId = GetRequestedStorageResourceId() ?? string.Empty;
         ApplySelectedStorageGroup();
@@ -211,13 +211,6 @@
 
     private static string BuildStorageVolumesRoute(string resourceId) =>
         ResourceManagerRoutes.ResourceDetails(resourceId, ResourcePredefinedViewIds.Volumes);
-
-    private static string GetResourceLabel(Resource resource) =>
-        !string.IsNullOrWhiteSpace(resource.DisplayName)
-            ? resource.DisplayName
-            : !string.IsNullOrWhiteSpace(resource.Name)
-                ? resource.Name
-                : resource.Id;
 
     private string GetLocationPlaceholder() =>
         HasSelectedStorage ? "postgres-data" : "./data/postgres or /mnt/share/postgres";

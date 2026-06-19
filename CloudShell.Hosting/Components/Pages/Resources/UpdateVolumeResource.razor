@@ -39,7 +39,7 @@ else
                 <FluentOption TOption="string" Value="">Direct filesystem path</FluentOption>
                 @foreach (var storage in StorageResources)
                 {
-                    <FluentOption TOption="string" Value="@storage.Id">@GetResourceLabel(storage)</FluentOption>
+                    <FluentOption TOption="string" Value="@storage.Id">@ResourceDisplayLabels.GetLabel(storage)</FluentOption>
                 }
             </FluentSelect>
 
@@ -97,7 +97,7 @@ else
         ResourceGroups = await ResourceManager.ListResourceGroupsAsync();
         StorageResources = (await ResourceManager.ListResourcesAsync())
             .Where(resource => resource.HasCapability(ResourceCapabilityIds.StorageProvider))
-            .OrderBy(GetResourceLabel, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(ResourceDisplayLabels.GetLabel, StringComparer.OrdinalIgnoreCase)
             .ToArray();
         Volume = string.IsNullOrWhiteSpace(ResourceId)
             ? null
@@ -113,7 +113,7 @@ else
                 .Where(resource => !string.Equals(resource.Id, Volume.Id, StringComparison.OrdinalIgnoreCase))
                 .Where(resource => resource.DependsOn.Any(dependency =>
                     string.Equals(dependency, Volume.Id, StringComparison.OrdinalIgnoreCase)))
-                .OrderBy(GetResourceLabel, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(ResourceDisplayLabels.GetLabel, StringComparer.OrdinalIgnoreCase)
                 .ToArray();
             Name = Volume.Name;
             SelectedGroupId = ResourceGroup?.Id ?? string.Empty;
@@ -210,13 +210,6 @@ else
 
     private string GetLocationPlaceholder() =>
         HasSelectedStorage ? "postgres-data" : "./data/postgres or /mnt/share/postgres";
-
-    private static string GetResourceLabel(Resource resource) =>
-        !string.IsNullOrWhiteSpace(resource.DisplayName)
-            ? resource.DisplayName
-            : !string.IsNullOrWhiteSpace(resource.Name)
-                ? resource.Name
-                : resource.Id;
 
     private static string GetAccessModeLabel(VolumeAccessMode mode) =>
         mode switch

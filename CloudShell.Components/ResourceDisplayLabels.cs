@@ -14,6 +14,11 @@ public static class ResourceDisplayLabels
                 ? fallback
                 : resource.EffectiveDisplayName;
 
+    public static string GetLabel(IEnumerable<Resource> resources, string resourceId) =>
+        resources.FirstOrDefault(resource => string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase)) is { } resource
+            ? GetLabel(resource)
+            : resourceId;
+
     public static string GetName(Resource resource) =>
         !string.IsNullOrWhiteSpace(resource.Name)
             ? resource.Name

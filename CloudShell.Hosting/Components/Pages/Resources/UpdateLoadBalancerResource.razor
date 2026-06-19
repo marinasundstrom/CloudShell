@@ -35,7 +35,7 @@ else
                 <FluentOption TOption="string" Value="">Default container host</FluentOption>
                 @foreach (var host in GetHostCandidates())
                 {
-                    <FluentOption TOption="string" Value="@host.Id">@GetResourceLabel(host)</FluentOption>
+                    <FluentOption TOption="string" Value="@host.Id">@ResourceDisplayLabels.GetLabel(host)</FluentOption>
                 }
             </FluentSelect>
 
@@ -127,7 +127,7 @@ else
                     <FluentOption TOption="string" Value="">Select a resource</FluentOption>
                     @foreach (var target in GetTargetCandidates())
                     {
-                        <FluentOption TOption="string" Value="@target.Id">@GetResourceLabel(target)</FluentOption>
+                        <FluentOption TOption="string" Value="@target.Id">@ResourceDisplayLabels.GetLabel(target)</FluentOption>
                     }
                 </FluentSelect>
 
@@ -393,7 +393,7 @@ else
             .Where(resource => !string.Equals(resource.EffectiveTypeId, LoadBalancerResourceType, StringComparison.OrdinalIgnoreCase))
             .Where(IsContainerHostCandidate)
             .Where(IsInLoadBalancerGroup)
-            .OrderBy(GetResourceLabel, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(ResourceDisplayLabels.GetLabel, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private IReadOnlyList<Resource> GetTargetCandidates() =>
@@ -402,7 +402,7 @@ else
             .Where(resource => !string.Equals(resource.Id, LoadBalancer?.Id, StringComparison.OrdinalIgnoreCase))
             .Where(resource => resource.Endpoints.Count > 0 || resource.HasCapability(ResourceCapabilityIds.EndpointSource))
             .Where(IsInLoadBalancerGroup)
-            .OrderBy(GetResourceLabel, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(ResourceDisplayLabels.GetLabel, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private IReadOnlyList<ResourceEndpoint> GetTargetEndpoints(string resourceId) =>
@@ -587,7 +587,7 @@ else
     {
         var resource = Resources.FirstOrDefault(candidate =>
             string.Equals(candidate.Id, target.ResourceId, StringComparison.OrdinalIgnoreCase));
-        var label = resource is null ? target.ResourceId : GetResourceLabel(resource);
+        var label = resource is null ? target.ResourceId : ResourceDisplayLabels.GetLabel(resource);
         return !string.IsNullOrWhiteSpace(target.EndpointName)
             ? $"{label}/{target.EndpointName}"
             : target.Port is null ? label : $"{label}:{target.Port.Value}";
@@ -595,22 +595,10 @@ else
 
     private string FormatRouteName(LoadBalancerRouteKind kind, LoadBalancerRouteTarget target) =>
         kind == LoadBalancerRouteKind.Tcp
-            ? $"TCP {ResolveEntrypointPort(EntrypointName).ToString(CultureInfo.InvariantCulture)} to {GetResourceLabel(target.ResourceId)}"
+            ? $"TCP {ResolveEntrypointPort(EntrypointName).ToString(CultureInfo.InvariantCulture)} to {ResourceDisplayLabels.GetLabel(Resources, target.ResourceId)}"
             : string.IsNullOrWhiteSpace(HttpPathPrefix)
-                ? $"{HttpHost} to {GetResourceLabel(target.ResourceId)}"
-                : $"{HttpHost}{HttpPathPrefix} to {GetResourceLabel(target.ResourceId)}";
-
-    private string GetResourceLabel(string resourceId) =>
-        Resources.FirstOrDefault(resource => string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase)) is { } resource
-            ? GetResourceLabel(resource)
-            : resourceId;
-
-    private static string GetResourceLabel(Resource resource) =>
-        !string.IsNullOrWhiteSpace(resource.DisplayName)
-            ? resource.DisplayName
-            : !string.IsNullOrWhiteSpace(resource.Name)
-                ? resource.Name
-                : resource.Id;
+                ? $"{HttpHost} to {ResourceDisplayLabels.GetLabel(Resources, target.ResourceId)}"
+                : $"{HttpHost}{HttpPathPrefix} to {ResourceDisplayLabels.GetLabel(Resources, target.ResourceId)}";
 
     private static string CreateRouteId(params string?[] parts)
     {

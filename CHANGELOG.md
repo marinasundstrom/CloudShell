@@ -67,6 +67,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Adopted the shared resource display-label helper in application overview,
   app setting references, and volume display helpers to keep app-centric
   resource labels consistent.
+- Adopted the shared resource display-label helper in DNS, name-mapping,
+  load-balancer, service, storage, volume, and environment-reference forms so
+  resource picker labels and ordering share one formatting path.
 - Added a shared volume-mount display helper for mount summaries and
   materialization labels, replacing duplicate formatting in application,
   storage, and volume views.
