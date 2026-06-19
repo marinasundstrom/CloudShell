@@ -103,6 +103,9 @@ on `git blame --follow`, and then by the broad type of change.
   links, state/type metadata, and incoming dependents so the app-centric
   Resource Manager path explains local resource relationships, not only a
   dependency count.
+- Generated resource overview pages now include direct incoming dependents in
+  the Relationships section, so backing resources such as configuration stores
+  and secret vaults show which application resources use them.
 - Observability now includes separate Request graph and Request map views that
   derive OpenTelemetry-style edges from trace parent/child spans, animate
   active request paths in the map, link mapped services back to CloudShell

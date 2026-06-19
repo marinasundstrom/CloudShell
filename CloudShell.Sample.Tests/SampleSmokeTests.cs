@@ -531,6 +531,12 @@ public sealed class SampleSmokeTests
         Assert.DoesNotContain("CloudShell-Passw0rd!", apiDetailsHtml);
         Assert.DoesNotContain("local-development-api-key", apiDetailsHtml);
 
+        var settingsDetailsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("configuration:application-topology")}/details");
+        Assert.Contains(">Relationships<", settingsDetailsHtml);
+        Assert.Contains(">Used by<", settingsDetailsHtml);
+        Assert.Contains("application-topology-api", settingsDetailsHtml);
+
         var settingsIdentityHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("configuration:application-topology")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Identity.Value)}");
         Assert.Contains("Enable identity", settingsIdentityHtml);
@@ -547,6 +553,12 @@ public sealed class SampleSmokeTests
         Assert.Contains("application-topology-api", settingsAccessControlHtml);
         Assert.Contains(ConfigurationStoreResourceOperationPermissions.ReadEntries, settingsAccessControlHtml);
         Assert.DoesNotContain("Secrets: read", settingsAccessControlHtml);
+
+        var secretsDetailsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("secrets-vault:application-topology")}/details");
+        Assert.Contains(">Relationships<", secretsDetailsHtml);
+        Assert.Contains(">Used by<", secretsDetailsHtml);
+        Assert.Contains("application-topology-api", secretsDetailsHtml);
 
         var secretsIdentityHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("secrets-vault:application-topology")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Identity.Value)}");

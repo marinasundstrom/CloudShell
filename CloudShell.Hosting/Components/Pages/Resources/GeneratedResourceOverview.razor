@@ -42,6 +42,7 @@
     public EventCallback<Resource> ResourceUpdated { get; set; }
 
     private IReadOnlyList<Resource> ChildResources { get; set; } = [];
+    private IReadOnlyList<Resource> DependentResources { get; set; } = [];
     private ResourceManagerDisplaySelection DisplaySelection { get; set; } =
         ResourceManagerDisplaySelection.Default;
     private IReadOnlyList<LogDescriptor> Logs { get; set; } = [];
@@ -68,6 +69,7 @@
         ChildResources = (await ResourceManager.ListResourceChildrenAsync(Resource.Id))
             .Where(DisplaySelection.ShowsResource)
             .ToArray();
+        DependentResources = await LoadDependentResourcesAsync();
         Logs = Authorization.CanReadLogs()
             ? await LogManager.ListLogsAsync(new LogQuery(ResourceId: Resource.Id))
             : [];
@@ -95,7 +97,7 @@
             sections.Add(new("diagnostics", L["Diagnostics"], 200, RenderDiagnostics(diagnostics)));
         }
 
-        if (Resource.DependsOn.Count > 0 || ChildResources.Count > 0)
+        if (Resource.DependsOn.Count > 0 || ChildResources.Count > 0 || DependentResources.Count > 0)
         {
             sections.Add(new("relationships", L["Relationships"], 300, RenderRelationships()));
         }
@@ -247,6 +249,22 @@
         {
             <dt>@L["Children"]</dt>
             <dd>@L["{0} child resource(s)", ChildResources.Count]</dd>
+        }
+        @if (DependentResources.Count > 0)
+        {
+            <dt>@L["Used by"]</dt>
+            <dd>
+                <div class="dependency-list">
+                    @foreach (var dependent in DependentResources.Take(4))
+                    {
+                        @ResourceLink(dependent)
+                    }
+                    @if (DependentResources.Count > 4)
+                    {
+                        <span class="generated-pill-link">@L["+{0} more", DependentResources.Count - 4]</span>
+                    }
+                </div>
+            </dd>
         }
     </dl>;
 
@@ -668,10 +686,21 @@
 
     private string GetResourceLabel(Resource resource) => DisplaySelection.GetResourceLabel(resource);
 
+    private async Task<IReadOnlyList<Resource>> LoadDependentResourcesAsync() =>
+        (await ResourceManager.ListResourcesAsync())
+            .Where(DisplaySelection.ShowsResource)
+            .Where(candidate =>
+                !string.Equals(candidate.Id, Resource.Id, StringComparison.OrdinalIgnoreCase) &&
+                candidate.DependsOn.Contains(Resource.Id, StringComparer.OrdinalIgnoreCase))
+            .OrderBy(DisplaySelection.GetResourceLabel, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(candidate => candidate.Id, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
     private async Task<IReadOnlyDictionary<string, Resource>> LoadRelatedResourcesAsync()
     {
         var ids = Resource.DependsOn
             .Concat(ChildResources.Select(resource => resource.Id))
+            .Concat(DependentResources.Select(resource => resource.Id))
             .Concat(InboundNetworkMappings.Select(mapping => mapping.Network.Id))
             .Concat(InboundLoadBalancerRoutes.Select(route => route.LoadBalancer.Id))
             .Concat(InboundNameMappings.Select(mapping => mapping.Mapping.Id))
