@@ -2145,6 +2145,86 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task ApplicationProvider_ThrowsWhenContainerHostProcessExitsDuringStartup()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(contentRoot);
+        var fakeDocker = CreateFailingContainerHostExecutable(contentRoot);
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .UseContainerHost(new ContainerHostDescriptor(
+                "docker:test",
+                "Test Docker",
+                ContainerHostKind.Docker,
+                "unix:///var/run/docker.sock",
+                Metadata: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["cloudshell.executable"] = fakeDocker
+                },
+                Capabilities:
+                [
+                    ContainerHostCapabilityIds.ContainerImage,
+                    ContainerHostCapabilityIds.StorageMountFileSystem
+                ]))
+            .AddApplicationProvider(options =>
+            {
+                options.DefinitionsPath = "application-resources.json";
+                options.RuntimeStatePath = "application-runtime-state.json";
+                options.LogDirectory = "application-logs";
+                options.ContainerStartConfirmationDelay = TimeSpan.FromMilliseconds(25);
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceProvider>();
+        var registrations = new MutableResourceRegistrationStore();
+        try
+        {
+            await provider.SetupApplicationAsync(
+                new ApplicationResourceDefinition(
+                    "application:sql",
+                    "SQL Server",
+                    string.Empty,
+                    containerImage: "mcr.microsoft.com/mssql/server:2022-latest",
+                    containerHostId: "docker:test",
+                    resourceType: ApplicationResourceTypes.SqlServer),
+                resourceGroupId: null,
+                registrations);
+            var resourceManager = new TestResourceManagerStore(provider, registrations);
+            var resource = Assert.Single(resourceManager.GetResources());
+            var orchestrator = new DefaultResourceOrchestrator();
+
+            var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                orchestrator.ExecuteActionAsync(
+                    new ResourceOrchestrationContext(
+                        resource,
+                        registrations.GetRegistration(resource.Id),
+                        null,
+                        resourceManager,
+                        registrations),
+                    ResourceAction.Start));
+
+            Assert.Contains("exited during startup", exception.Message, StringComparison.Ordinal);
+            Assert.Contains("Cannot connect to Docker daemon", exception.Message, StringComparison.Ordinal);
+            Assert.Equal(ResourceState.Stopped, Assert.Single(resourceManager.GetResources()).State);
+        }
+        finally
+        {
+            if (Directory.Exists(contentRoot))
+            {
+                Directory.Delete(contentRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public void ApplicationProvider_RegistersResourceMonitoringProvider()
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
@@ -8202,6 +8282,32 @@ public sealed class ResourceDeclarationTests
 
     private static string QuoteShellArgument(string value) =>
         $"'{value.Replace("'", "'\\''", StringComparison.Ordinal)}'";
+
+    private static string CreateFailingContainerHostExecutable(string directory)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            throw new PlatformNotSupportedException("The fake container host executable test helper uses Unix file mode.");
+        }
+
+        var path = Path.Combine(directory, "fake-docker");
+        File.WriteAllText(
+            path,
+            """
+            #!/bin/sh
+            echo "Cannot connect to Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?" >&2
+            exit 1
+            """);
+        File.SetUnixFileMode(
+            path,
+            UnixFileMode.UserRead |
+            UnixFileMode.UserExecute |
+            UnixFileMode.GroupRead |
+            UnixFileMode.GroupExecute |
+            UnixFileMode.OtherRead |
+            UnixFileMode.OtherExecute);
+        return path;
+    }
 
     private static async Task<bool> WaitForExitAsync(Process process, TimeSpan timeout)
     {

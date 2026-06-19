@@ -20,6 +20,8 @@ public sealed class ApplicationProviderOptions
 
     public bool EnableObservabilityByDefault { get; set; } = true;
 
+    public TimeSpan ContainerStartConfirmationDelay { get; set; } = TimeSpan.FromMilliseconds(500);
+
     public string? OtlpEndpoint { get; set; }
 
     public string? OtlpProtocol { get; set; }

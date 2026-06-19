@@ -53,6 +53,7 @@ public sealed partial class ApplicationResourceProvider(
     private static readonly JsonSerializerOptions TemplateSerializerOptions = new(JsonSerializerDefaults.Web);
     private static readonly TimeSpan StartingStateTimeout = TimeSpan.FromMinutes(5);
     private const string DefaultContainerNetworkName = "cloudshell";
+    private const string ContainerHostExecutableMetadataKey = "cloudshell.executable";
     private const string AspNetCoreUrlsEnvironmentVariable = "ASPNETCORE_URLS";
     private const string DotNetWatchRestartOnRudeEditEnvironmentVariable = "DOTNET_WATCH_RESTART_ON_RUDE_EDIT";
     public const string HiddenResourceEnvironmentVariable = "CloudShell__ResourceManager__Hidden";
@@ -2142,6 +2143,32 @@ public sealed partial class ApplicationResourceProvider(
         process.Start();
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
+
+        var earlyExitCode = await WaitForEarlyContainerHostExitAsync(
+            process,
+            options.ContainerStartConfirmationDelay,
+            cancellationToken);
+        if (earlyExitCode is not null)
+        {
+            process.WaitForExit();
+            var now = DateTimeOffset.UtcNow;
+            runtimeStates.Save(new ApplicationRuntimeState(
+                definition.Id,
+                process.Id,
+                null,
+                now,
+                earlyExitCode,
+                logPath,
+                VolumeMounts: MarkVolumeMountsNotActive(
+                    volumeMaterializations.Select(mount => mount.RuntimeState),
+                    now)));
+            var failureMessage = CreateContainerStartFailureMessage(
+                processLog,
+                instance.Name,
+                earlyExitCode.Value);
+            process.Dispose();
+            throw new InvalidOperationException(failureMessage);
+        }
 
         var startedAt = TryGetStartTime(process);
         runtimeStates.Save(new ApplicationRuntimeState(
@@ -4258,10 +4285,10 @@ public sealed partial class ApplicationResourceProvider(
         var application = store.GetApplication(resourceId)
             ?? throw new InvalidOperationException(
                 $"Container app resource '{resourceId}' is not configured.");
-        if (!ApplicationResourceTypes.IsContainerApp(application.ResourceType))
+        if (!IsContainerBacked(application))
         {
             throw new InvalidOperationException(
-                $"Resource '{resourceId}' is not a container app.");
+                $"Resource '{resourceId}' is not a container-backed application.");
         }
 
         return application;
@@ -4928,8 +4955,53 @@ public sealed partial class ApplicationResourceProvider(
             ? value
             : string.Empty;
 
+    private static async Task<int?> WaitForEarlyContainerHostExitAsync(
+        Process process,
+        TimeSpan confirmationDelay,
+        CancellationToken cancellationToken)
+    {
+        if (confirmationDelay <= TimeSpan.Zero)
+        {
+            return process.HasExited ? process.ExitCode : null;
+        }
+
+        var exitTask = process.WaitForExitAsync(cancellationToken);
+        var delayTask = Task.Delay(confirmationDelay, cancellationToken);
+        var completedTask = await Task.WhenAny(exitTask, delayTask);
+        if (completedTask == exitTask)
+        {
+            await exitTask;
+            return process.ExitCode;
+        }
+
+        await delayTask;
+        return process.HasExited ? process.ExitCode : null;
+    }
+
+    private static string CreateContainerStartFailureMessage(
+        ApplicationProcessLog processLog,
+        string instanceName,
+        int exitCode)
+    {
+        var details = processLog
+            .Read(10, before: null)
+            .Where(entry => string.Equals(entry.Severity, "Error", StringComparison.OrdinalIgnoreCase))
+            .Select(entry => entry.Message.Trim())
+            .FirstOrDefault(message =>
+                !string.IsNullOrWhiteSpace(message) &&
+                !message.StartsWith("Container replica '", StringComparison.OrdinalIgnoreCase));
+
+        var message = $"Container replica '{instanceName}' exited during startup with code {exitCode.ToString(CultureInfo.InvariantCulture)}.";
+        return string.IsNullOrWhiteSpace(details)
+            ? message
+            : $"{message} {details}";
+    }
+
     private static string GetContainerHostExecutable(ContainerHostDescriptor engine) =>
-        engine.Kind == ContainerHostKind.Podman ? "podman" : "docker";
+        engine.HostMetadata.TryGetValue(ContainerHostExecutableMetadataKey, out var executable) &&
+        !string.IsNullOrWhiteSpace(executable)
+            ? executable
+            : engine.Kind == ContainerHostKind.Podman ? "podman" : "docker";
 
     private static void ConfigureContainerHostEnvironment(
         ProcessStartInfo startInfo,

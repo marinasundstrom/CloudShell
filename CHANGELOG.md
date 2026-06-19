@@ -650,6 +650,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Dependency auto-start now walks transitive dependencies even when an
   intermediate dependency is already running, so missing backing dependencies
   still block or warn the requested action according to orchestrator settings.
+- Container-backed application resources now treat immediate container-host
+  process exits as start failures, including Docker daemon errors, instead of
+  recording a successful start that later projects as stopped.
 - Resource Manager pages now use action-start/action-complete notifications to
   show lifecycle transition indicators for dependency auto-starts and other
   externally triggered in-process resource actions.
