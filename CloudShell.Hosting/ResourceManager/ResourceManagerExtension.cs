@@ -16,7 +16,7 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
         "Resource Manager",
         "A shared resource registry, inventory, lifecycle state, relationships, groups, and endpoints.",
         "0.1.0",
-        ["resource-manager.resources", "resource-manager.lifecycle", "resource-manager.relationships"],
+        ["resource-manager.resources", "resource-manager.lifecycle", "resource-manager.relationships", "resource-manager.health"],
         ["shell.commands"]);
 
     public void Configure(ICloudShellExtensionBuilder builder)
@@ -24,6 +24,8 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
         builder
             .RegisterView<Resources>(ResourceManagerViews.Resources)
             .AddNavigationItem<Resources>("Resources", "server", 10)
+            .RegisterView<Health>(ResourceManagerViews.Health)
+            .AddNavigationItem<Health>("Health", "health", 15)
             .RegisterView<AddResource>(ResourceManagerViews.AddResource)
             .RegisterView<CreateResourceGroup>(ResourceManagerViews.CreateResourceGroup)
             .RegisterView<ResourceTemplates>(ResourceManagerViews.ResourceTemplates)

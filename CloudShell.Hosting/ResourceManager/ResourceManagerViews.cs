@@ -4,6 +4,8 @@ public static class ResourceManagerViews
 {
     public const string Resources = "cloudshell.resource-manager.resources";
 
+    public const string Health = "cloudshell.resource-manager.health";
+
     public const string AddResource = "cloudshell.resource-manager.resources.add";
 
     public const string CreateResourceGroup = "cloudshell.resource-manager.resources.groups.new";

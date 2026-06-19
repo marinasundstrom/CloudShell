@@ -10,6 +10,7 @@ public static class ShellNavigationIcons
         {
             "grid" or "overview" or "home" => new Icons.Regular.Size20.HomeMore(),
             "server" or "resources" or "resource" => new Icons.Regular.Size20.AppFolder(),
+            "health" or "health-checks" => new Icons.Regular.Size20.HeartPulseCheckmark(),
             "pulse" or "observability" => new Icons.Regular.Size20.DataUsage(),
             "document" or "logs" or "log" => new Icons.Regular.Size20.SlideTextSparkle(),
             "request-graph" => new Icons.Regular.Size20.BranchFork(),
