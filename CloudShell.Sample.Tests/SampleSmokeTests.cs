@@ -501,8 +501,11 @@ public sealed class SampleSmokeTests
         var apiDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details");
         Assert.Contains(">Identity<", apiDetailsHtml);
-        Assert.Contains("Start readiness", apiDetailsHtml);
+        Assert.Contains("Action readiness", apiDetailsHtml);
         Assert.Contains("Start preflight checks passed.", apiDetailsHtml);
+        Assert.Contains("Resource status", apiDetailsHtml);
+        Assert.Contains("Unhealthy", apiDetailsHtml);
+        Assert.Contains("Checked", apiDetailsHtml);
         Assert.Contains("Startup declaration", apiDetailsHtml);
         Assert.Contains("Declared by code for this host process.", apiDetailsHtml);
         Assert.Contains("UI changes are temporary until the resource is persisted.", apiDetailsHtml);
@@ -534,6 +537,14 @@ public sealed class SampleSmokeTests
         Assert.Contains(SecretsVaultResourceOperationPermissions.ReadSecrets, apiDetailsHtml);
         Assert.DoesNotContain("CloudShell-Passw0rd!", apiDetailsHtml);
         Assert.DoesNotContain("local-development-api-key", apiDetailsHtml);
+
+        var healthHtml = await host.GetStringAsync("/health");
+        Assert.Contains("Review configured resource health checks", healthHtml);
+        Assert.Contains("application-topology-api", healthHtml);
+        Assert.Contains("application-topology-frontend", healthHtml);
+        Assert.Contains("/health", healthHtml);
+        Assert.Contains("/healthz", healthHtml);
+        Assert.Contains("Unhealthy", healthHtml);
 
         var settingsDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("configuration:application-topology")}/details");

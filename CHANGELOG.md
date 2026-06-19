@@ -17,6 +17,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Application Topology smoke coverage now verifies that stopped project-backed
+  apps surface Control Plane health feedback on the resource page and in the
+  Health workspace.
 - Clarified that local-development MVP work should be planned and verified
   through concrete use cases that combine scenario proof, Control Plane
   feedback, Resource Manager surfacing, and app-centric diagnostics.
