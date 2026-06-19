@@ -24,6 +24,8 @@ internal static class ResourceTypeIcons
             "service" => new Icons.Regular.Size20.Server(),
             "storage" => new Icons.Regular.Size20.Storage(),
             "database" => new Icons.Regular.Size20.DatabaseMultiple(),
+            "database-server" => new Icons.Regular.Size20.CloudDatabase(),
+            "database-item" => new Icons.Regular.Size20.TableSimple(),
             "configuration-store" => new Icons.Regular.Size20.AppsSettings(),
             "key" => new Icons.Regular.Size20.KeyMultiple(),
             "lock-closed" => new Icons.Regular.Size20.LockClosed(),
@@ -38,8 +40,12 @@ internal static class ResourceTypeIcons
                 normalized.Contains("vault", StringComparison.Ordinal) ||
                 normalized.Contains("key", StringComparison.Ordinal) => new Icons.Regular.Size20.KeyMultiple(),
             _ when normalized.Contains("lock", StringComparison.Ordinal) => new Icons.Regular.Size20.LockClosed(),
-            _ when normalized.Contains("sql", StringComparison.Ordinal) ||
-                normalized.Contains("database", StringComparison.Ordinal) => new Icons.Regular.Size20.DatabaseMultiple(),
+            "application.sql-server" => new Icons.Regular.Size20.CloudDatabase(),
+            "application.sql-database" => new Icons.Regular.Size20.TableSimple(),
+            _ when normalized.Contains("sql-database", StringComparison.Ordinal) => new Icons.Regular.Size20.TableSimple(),
+            _ when normalized.Contains("sql-server", StringComparison.Ordinal) => new Icons.Regular.Size20.CloudDatabase(),
+            _ when normalized.Contains("database", StringComparison.Ordinal) => new Icons.Regular.Size20.DatabaseMultiple(),
+            _ when normalized.Contains("sql", StringComparison.Ordinal) => new Icons.Regular.Size20.CloudDatabase(),
             _ when normalized.Contains("storage", StringComparison.Ordinal) ||
                 normalized.Contains("volume", StringComparison.Ordinal) => new Icons.Regular.Size20.Storage(),
             _ when normalized.Contains("docker", StringComparison.Ordinal) => new Icons.Regular.Size20.Server(),

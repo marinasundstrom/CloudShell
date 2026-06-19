@@ -17,6 +17,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- SQL Server service resources and projected SQL database child resources now
+  use distinct Resource Manager icons so the server and database levels are
+  visually distinguishable.
 - SQL Server resources can now declare projected databases through
   `WithDatabase(...)`. The application provider projects those databases as
   provider-managed `application.sql-database` child resources and adds a SQL

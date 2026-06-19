@@ -101,7 +101,7 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 ApplicationResourceTypes.SqlServer,
                 "SQL Server",
                 "Register a local SQL Server container with a TDS endpoint for direct access and service discovery.",
-                "database",
+                "database-server",
                 23,
                 resourceClass: ResourceClass.Service)
             .AddResourceTypeEndpoint(
@@ -225,7 +225,7 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 "Databases",
                 35,
                 groupTitle: "Data",
-                icon: "database")
+                icon: "database-item")
             .AddResourcePredefinedViewSection<Pages.ApplicationEndpointActions>(
                 ApplicationResourceTypes.SqlServer,
                 ResourcePredefinedViewIds.Endpoints,
