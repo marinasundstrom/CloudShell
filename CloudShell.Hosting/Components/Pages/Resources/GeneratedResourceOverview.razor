@@ -217,45 +217,36 @@
     private RenderFragment RenderDiagnostics(IReadOnlyList<ResourceDiagnosticView> diagnostics) =>
         @<ResourceDiagnosticList Diagnostics="@diagnostics" />;
 
-    private RenderFragment RenderRelationships() => @<dl class="detail-list">
-        @if (Resource.DependsOn.Count > 0)
+    private RenderFragment RenderRelationships() => @<text>
+        @if (Resource.DependsOn.Count > 0 || DependentResources.Count > 0)
         {
-            <dt>@L["Dependencies"]</dt>
-            <dd>
-                <div class="dependency-list">
-                    @foreach (var dependency in Resource.DependsOn.Order(StringComparer.OrdinalIgnoreCase).Take(4))
-                    {
-                        @ResourceLink(dependency)
-                    }
-                    @if (Resource.DependsOn.Count > 4)
-                    {
-                        <span class="generated-pill-link">@L["+{0} more", Resource.DependsOn.Count - 4]</span>
-                    }
-                </div>
-            </dd>
+            <ResourceRelationshipGraph DependsOnTitle="@L["Depends on"].Value"
+                                       DependsOn="@GetDependencyNodes()"
+                                       EmptyDependsOnTitle="@L["None"].Value"
+                                       EmptyDependsOnSummary="@L["No direct dependencies"].Value"
+                                       CurrentCaption="@L["Current"].Value"
+                                       CurrentLabel="@GetResourceLabel(Resource)"
+                                       CurrentMetadata="@Resource.EffectiveTypeId"
+                                       UsedByTitle="@L["Used by"].Value"
+                                       UsedBy="@GetDependentNodes()"
+                                       EmptyUsedByTitle="@L["None"].Value"
+                                       EmptyUsedBySummary="@L["No direct dependents"].Value" />
         }
         @if (ChildResources.Count > 0)
         {
-            <dt>@L["Children"]</dt>
-            <dd>@L["{0} child resource(s)", ChildResources.Count]</dd>
+            <dl class="detail-list">
+                <dt>@L["Children"]</dt>
+                <dd>
+                    <div class="dependency-list">
+                        @foreach (var child in ChildResources)
+                        {
+                            @ResourceLink(child)
+                        }
+                    </div>
+                </dd>
+            </dl>
         }
-        @if (DependentResources.Count > 0)
-        {
-            <dt>@L["Used by"]</dt>
-            <dd>
-                <div class="dependency-list">
-                    @foreach (var dependent in DependentResources.Take(4))
-                    {
-                        @ResourceLink(dependent)
-                    }
-                    @if (DependentResources.Count > 4)
-                    {
-                        <span class="generated-pill-link">@L["+{0} more", DependentResources.Count - 4]</span>
-                    }
-                </div>
-            </dd>
-        }
-    </dl>;
+    </text>;
 
     private RenderFragment RenderObservability() => @<text>
         <dl class="detail-list">
@@ -635,6 +626,49 @@
     }
 
     private string GetResourceLabel(Resource resource) => DisplaySelection.GetResourceLabel(resource);
+
+    private IReadOnlyList<ResourceRelationshipNode> GetDependencyNodes() =>
+        Resource.DependsOn
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .Select(dependencyId =>
+            {
+                var dependency = FindRelatedResource(dependencyId);
+                return new ResourceRelationshipNode(
+                    dependency is null ? dependencyId : GetResourceLabel(dependency),
+                    dependency is null ? null : BuildResourceRoute(dependency.Id),
+                    FormatRelationshipSummary(dependency, dependencyId),
+                    FormatRelationshipMetadata(dependency),
+                    dependency is null);
+            })
+            .ToArray();
+
+    private IReadOnlyList<ResourceRelationshipNode> GetDependentNodes() =>
+        DependentResources
+            .Select(dependent =>
+                new ResourceRelationshipNode(
+                    GetResourceLabel(dependent),
+                    BuildResourceRoute(dependent.Id),
+                    FormatRelationshipSummary(dependent, dependent.Id),
+                    FormatRelationshipMetadata(dependent)))
+            .ToArray();
+
+    private string FormatRelationshipSummary(Resource? resource, string resourceId)
+    {
+        if (resource is null)
+        {
+            return L["{0} is unavailable.", resourceId].Value;
+        }
+
+        return resource.State is null
+            ? L["Registered resource"].Value
+            : L["State: {0}", resource.State].Value;
+    }
+
+    private string FormatRelationshipMetadata(Resource? resource) =>
+        resource is null
+            ? L["Missing resource"].Value
+            : resource.EffectiveTypeId;
 
     private async Task<IReadOnlyList<Resource>> LoadDependentResourcesAsync() =>
         (await ResourceManager.ListResourcesAsync())

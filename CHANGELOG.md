@@ -47,6 +47,10 @@ on `git blame --follow`, and then by the broad type of change.
   a referenced resource is available.
 - Resource monitoring views now refresh automatically while open and expose an
   auto-refresh toggle while keeping manual refresh available.
+- Resource overview relationship sections now use a shared immediate
+  relationship graph that shows direct dependencies, the current resource, and
+  resources that depend on it, with application overview using the same
+  component.
 - Access Control principal search results now render as a vertical list with
   full-width principal rows and disambiguate resource identity display names as
   `<DisplayName> (<resource name>)` when those values differ.

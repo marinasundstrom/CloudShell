@@ -1,0 +1,99 @@
+<div class="resource-relationship-graph">
+    <div class="resource-relationship-group">
+        <h4>@DependsOnTitle</h4>
+        @RenderNodes(DependsOn, EmptyDependsOnTitle, EmptyDependsOnSummary)
+    </div>
+    <div class="resource-relationship-current">
+        <span>@CurrentCaption</span>
+        <strong>@CurrentLabel</strong>
+        @if (!string.IsNullOrWhiteSpace(CurrentMetadata))
+        {
+            <small>@CurrentMetadata</small>
+        }
+    </div>
+    <div class="resource-relationship-group">
+        <h4>@UsedByTitle</h4>
+        @RenderNodes(UsedBy, EmptyUsedByTitle, EmptyUsedBySummary)
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string DependsOnTitle { get; set; } = "Depends on";
+
+    [Parameter]
+    public IReadOnlyList<ResourceRelationshipNode> DependsOn { get; set; } = [];
+
+    [Parameter]
+    public string EmptyDependsOnTitle { get; set; } = "None";
+
+    [Parameter]
+    public string EmptyDependsOnSummary { get; set; } = "No direct dependencies";
+
+    [Parameter]
+    public string CurrentCaption { get; set; } = "Current";
+
+    [Parameter, EditorRequired]
+    public string CurrentLabel { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? CurrentMetadata { get; set; }
+
+    [Parameter]
+    public string UsedByTitle { get; set; } = "Used by";
+
+    [Parameter]
+    public IReadOnlyList<ResourceRelationshipNode> UsedBy { get; set; } = [];
+
+    [Parameter]
+    public string EmptyUsedByTitle { get; set; } = "None";
+
+    [Parameter]
+    public string EmptyUsedBySummary { get; set; } = "No direct dependents";
+
+    private RenderFragment RenderNodes(
+        IReadOnlyList<ResourceRelationshipNode> nodes,
+        string emptyTitle,
+        string emptySummary) => @<text>
+        @if (nodes.Count == 0)
+        {
+            <div class="resource-relationship-node empty">
+                <strong>@emptyTitle</strong>
+                <span>@emptySummary</span>
+            </div>
+        }
+        else
+        {
+            @foreach (var node in nodes)
+            {
+                <div class="@GetNodeClass(node)">
+                    <strong>
+                        @if (string.IsNullOrWhiteSpace(node.Href))
+                        {
+                            @node.Label
+                        }
+                        else
+                        {
+                            <a class="resource-link" href="@node.Href">
+                                @node.Label
+                            </a>
+                        }
+                    </strong>
+                    @if (!string.IsNullOrWhiteSpace(node.Summary))
+                    {
+                        <span>@node.Summary</span>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(node.Metadata))
+                    {
+                        <small>@node.Metadata</small>
+                    }
+                </div>
+            }
+        }
+    </text>;
+
+    private static string GetNodeClass(ResourceRelationshipNode node) =>
+        node.IsMissing
+            ? "resource-relationship-node missing"
+            : "resource-relationship-node";
+}

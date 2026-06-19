@@ -1060,20 +1060,20 @@ h3 {
     overflow-wrap: anywhere;
 }
 
-.application-dependency-graph {
+.resource-relationship-graph {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     gap: .65rem;
     align-items: stretch;
 }
 
-.application-dependency-group {
+.resource-relationship-group {
     display: grid;
     gap: .45rem;
     min-width: 0;
 }
 
-.application-dependency-group h4 {
+.resource-relationship-group h4 {
     margin: 0;
     color: var(--cloudshell-text-muted);
     font-size: .78rem;
@@ -1081,8 +1081,8 @@ h3 {
     text-transform: uppercase;
 }
 
-.application-dependency-node,
-.application-dependency-current {
+.resource-relationship-node,
+.resource-relationship-current {
     display: grid;
     gap: .12rem;
     min-width: 0;
@@ -1092,34 +1092,34 @@ h3 {
     background: var(--cloudshell-surface-muted);
 }
 
-.application-dependency-node strong,
-.application-dependency-node span,
-.application-dependency-node small,
-.application-dependency-current strong,
-.application-dependency-current span,
-.application-dependency-current small {
+.resource-relationship-node strong,
+.resource-relationship-node span,
+.resource-relationship-node small,
+.resource-relationship-current strong,
+.resource-relationship-current span,
+.resource-relationship-current small {
     min-width: 0;
     overflow-wrap: anywhere;
 }
 
-.application-dependency-node span,
-.application-dependency-node small,
-.application-dependency-current span,
-.application-dependency-current small {
+.resource-relationship-node span,
+.resource-relationship-node small,
+.resource-relationship-current span,
+.resource-relationship-current small {
     color: var(--cloudshell-text-muted);
 }
 
-.application-dependency-node.missing {
+.resource-relationship-node.missing {
     border-color: #f2c94c;
     background: var(--cloudshell-warning-fill);
 }
 
-.application-dependency-node.empty {
+.resource-relationship-node.empty {
     border-style: dashed;
     background: transparent;
 }
 
-.application-dependency-current {
+.resource-relationship-current {
     align-self: center;
     min-width: 8.5rem;
     border-color: var(--cloudshell-accent);
@@ -1128,11 +1128,11 @@ h3 {
 }
 
 @media (max-width: 860px) {
-    .application-dependency-graph {
+    .resource-relationship-graph {
         grid-template-columns: minmax(0, 1fr);
     }
 
-    .application-dependency-current {
+    .resource-relationship-current {
         justify-self: stretch;
     }
 }

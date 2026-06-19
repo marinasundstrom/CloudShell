@@ -123,71 +123,11 @@ else
     {
         <section class="blade-section">
             <h3>Dependency graph</h3>
-            <div class="application-dependency-graph">
-                <div class="application-dependency-group">
-                    <h4>Depends on</h4>
-                    @if (EffectiveDependencies.Count == 0)
-                    {
-                        <div class="application-dependency-node empty">
-                            <strong>None</strong>
-                            <span>No direct dependencies</span>
-                        </div>
-                    }
-                    else
-                    {
-                        @foreach (var dependencyId in EffectiveDependencies.Order(StringComparer.OrdinalIgnoreCase))
-                        {
-                            var dependency = ResolveMappingResource(dependencyId);
-                            <div class="@GetDependencyNodeClass(dependency)">
-                                <strong>
-                                    @if (dependency is null)
-                                    {
-                                        @dependencyId
-                                    }
-                                    else
-                                    {
-                                        <a class="resource-link" href="@BuildResourceRoute(dependency.Id)">
-                                            @GetResourceLabel(dependency)
-                                        </a>
-                                    }
-                                </strong>
-                                <span>@FormatDependencySummary(dependency, dependencyId)</span>
-                                <small>@FormatDependencyMetadata(dependency)</small>
-                            </div>
-                        }
-                    }
-                </div>
-                <div class="application-dependency-current">
-                    <span>current</span>
-                    <strong>@GetCurrentResourceLabel()</strong>
-                    <small>@Application.ResourceType</small>
-                </div>
-                <div class="application-dependency-group">
-                    <h4>Used by</h4>
-                    @if (DependentResources.Count == 0)
-                    {
-                        <div class="application-dependency-node empty">
-                            <strong>None</strong>
-                            <span>No direct dependents</span>
-                        </div>
-                    }
-                    else
-                    {
-                        @foreach (var dependent in DependentResources)
-                        {
-                            <div class="application-dependency-node">
-                                <strong>
-                                    <a class="resource-link" href="@BuildResourceRoute(dependent.Id)">
-                                        @GetResourceLabel(dependent)
-                                    </a>
-                                </strong>
-                                <span>@FormatDependencySummary(dependent, dependent.Id)</span>
-                                <small>@FormatDependencyMetadata(dependent)</small>
-                            </div>
-                        }
-                    }
-                </div>
-            </div>
+            <ResourceRelationshipGraph CurrentCaption="current"
+                                       CurrentLabel="@GetCurrentResourceLabel()"
+                                       CurrentMetadata="@Application.ResourceType"
+                                       DependsOn="@GetDependencyNodes()"
+                                       UsedBy="@GetDependentNodes()" />
         </section>
     }
 
@@ -1180,10 +1120,31 @@ else
             ? "Missing resource"
             : dependency.EffectiveTypeId;
 
-    private static string GetDependencyNodeClass(Resource? resource) =>
-        resource is null
-            ? "application-dependency-node missing"
-            : "application-dependency-node";
+    private IReadOnlyList<ResourceRelationshipNode> GetDependencyNodes() =>
+        EffectiveDependencies
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .Select(dependencyId =>
+            {
+                var dependency = ResolveMappingResource(dependencyId);
+                return new ResourceRelationshipNode(
+                    dependency is null ? dependencyId : GetResourceLabel(dependency),
+                    dependency is null ? null : BuildResourceRoute(dependency.Id),
+                    FormatDependencySummary(dependency, dependencyId),
+                    FormatDependencyMetadata(dependency),
+                    dependency is null);
+            })
+            .ToArray();
+
+    private IReadOnlyList<ResourceRelationshipNode> GetDependentNodes() =>
+        DependentResources
+            .Select(dependent =>
+                new ResourceRelationshipNode(
+                    GetResourceLabel(dependent),
+                    BuildResourceRoute(dependent.Id),
+                    FormatDependencySummary(dependent, dependent.Id),
+                    FormatDependencyMetadata(dependent)))
+            .ToArray();
 
     private IReadOnlyList<Resource> GetDependentResources(string resourceId) =>
         ResourceManager
