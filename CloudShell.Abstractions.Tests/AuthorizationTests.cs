@@ -298,9 +298,14 @@ public sealed class AuthorizationTests
 
         Assert.True(authorization.HasPermission(CloudShellPermissions.Shell.Configure));
         Assert.True(authorization.HasPermission(CloudShellPermissions.Resources.Manage));
+        Assert.True(authorization.CanReadAnyObservability());
+        Assert.True(authorization.CanReadLogs());
+        Assert.True(authorization.CanReadTraces());
+        Assert.True(authorization.CanReadMetrics());
         Assert.True(authorization.CanAccessResourceGroup(
             "any-group",
             CloudShellPermissions.ResourceGroups.Manage));
+        Assert.True(authorization.GetResourceAccessLevel("resource:any", null).AllowsManage());
     }
 
     [Fact]
