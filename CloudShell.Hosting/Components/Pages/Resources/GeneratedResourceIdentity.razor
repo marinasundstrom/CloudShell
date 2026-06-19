@@ -309,7 +309,9 @@
 
     private string FormatIdentityReference(ResourceIdentityReference identity)
     {
-        var label = FindRelatedResource(identity.ResourceId)?.Name ?? identity.ResourceId;
+        var label = FindRelatedResource(identity.ResourceId) is { } resource
+            ? GetResourceIdentityLabel(resource)
+            : identity.ResourceId;
         if (string.IsNullOrWhiteSpace(identity.Name))
         {
             return label;
@@ -399,6 +401,17 @@
             : !string.IsNullOrWhiteSpace(resource.Name)
                 ? resource.Name
                 : resource.Id;
+
+    private static string GetResourceIdentityLabel(Resource resource)
+    {
+        var displayName = GetResourceLabel(resource);
+        var resourceName = string.IsNullOrWhiteSpace(resource.Name)
+            ? resource.Id
+            : resource.Name;
+        return string.Equals(displayName, resourceName, StringComparison.Ordinal)
+            ? displayName
+            : $"{displayName} ({resourceName})";
+    }
 
     private string GetProvisionIdentityButtonLabel() =>
         ProvisioningIdentity
