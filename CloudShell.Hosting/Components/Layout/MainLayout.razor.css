@@ -78,7 +78,7 @@
 }
 
 .shell.nav-collapsed ::deep .nav-subitems {
-    margin-inline-start: 0;
+    display: none;
 }
 
 .shell.nav-collapsed ::deep .sidebar-footer {
