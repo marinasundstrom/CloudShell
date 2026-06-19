@@ -3,6 +3,7 @@ using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Client.Authentication;
+using Microsoft.Data.SqlClient;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
@@ -1274,6 +1275,50 @@ public sealed partial class ApplicationResourceService(
         (IsContainerBacked(application)
             ? TryGetRunningProcess(application, out _)
             : localProcesses.IsRunning(CreateLocalProcessDefinition(application)));
+
+    public async Task<IReadOnlyList<SqlServerDatabaseInfo>> QuerySqlServerDatabasesAsync(
+        string sqlServerResourceId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sqlServerResourceId);
+
+        var application = GetApplication(sqlServerResourceId);
+        if (application is null ||
+            !string.Equals(application.ResourceType, ApplicationResourceTypes.SqlServer, StringComparison.OrdinalIgnoreCase) ||
+            !IsRunning(application.Id))
+        {
+            return [];
+        }
+
+        var server = GetResources().FirstOrDefault(resource =>
+            string.Equals(resource.Id, application.Id, StringComparison.OrdinalIgnoreCase));
+        if (server is null ||
+            !TryCreateSqlServerConnectionString(application, server, "master", out var connectionString))
+        {
+            return [];
+        }
+
+        var databases = new List<SqlServerDatabaseInfo>();
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT [name], [state_desc],
+                CAST(CASE WHEN [database_id] <= 4 THEN 1 ELSE 0 END AS bit) AS [is_system]
+            FROM sys.databases
+            ORDER BY [database_id]
+            """;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            databases.Add(new SqlServerDatabaseInfo(
+                reader.GetString(0),
+                reader.GetString(1),
+                reader.GetBoolean(2)));
+        }
+
+        return databases;
+    }
 
     public bool CanDescribe(Resource resource) =>
         ApplicationResourceTypes.IsApplication(resource.EffectiveTypeId) &&
@@ -3201,6 +3246,55 @@ public sealed partial class ApplicationResourceService(
             DisplayName: string.IsNullOrWhiteSpace(database.DisplayName)
                 ? database.Name
                 : database.DisplayName);
+    }
+
+    private static bool TryCreateSqlServerConnectionString(
+        ApplicationResourceDefinition server,
+        Resource serverResource,
+        string databaseName,
+        out string connectionString)
+    {
+        connectionString = string.Empty;
+
+        if (!serverResource.TryGetResolvedEndpointUri("tds", out var endpoint))
+        {
+            return false;
+        }
+
+        var password = GetSqlServerPassword(server);
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            return false;
+        }
+
+        var builder = new SqlConnectionStringBuilder
+        {
+            DataSource = CreateSqlDataSource(endpoint),
+            UserID = "sa",
+            Password = password,
+            InitialCatalog = string.IsNullOrWhiteSpace(databaseName) ? "master" : databaseName.Trim(),
+            Encrypt = false,
+            TrustServerCertificate = true,
+            ConnectTimeout = 5
+        };
+        connectionString = builder.ConnectionString;
+        return true;
+    }
+
+    private static string? GetSqlServerPassword(ApplicationResourceDefinition application) =>
+        application.EnvironmentVariables.FirstOrDefault(variable =>
+            string.Equals(variable.Name, "MSSQL_SA_PASSWORD", StringComparison.OrdinalIgnoreCase))?.Value;
+
+    private static string CreateSqlDataSource(Uri endpoint)
+    {
+        if (string.IsNullOrWhiteSpace(endpoint.Host))
+        {
+            return endpoint.ToString();
+        }
+
+        return endpoint.Port > 0
+            ? $"{endpoint.Host},{endpoint.Port.ToString(CultureInfo.InvariantCulture)}"
+            : endpoint.Host;
     }
 
     private static IReadOnlyList<ResourceCapability> CreateCapabilities(

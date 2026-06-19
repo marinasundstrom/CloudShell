@@ -1,5 +1,4 @@
 @inject ApplicationResourceService ApplicationProvider
-@inject IResourceManagerStore ResourceManager
 
 @if (Application is null)
 {
@@ -9,28 +8,53 @@
 else if (!IsSqlServer(Application))
 {
     <EmptyState Title="Databases are not supported"
-                Message="This resource type does not project SQL Server databases." />
-}
-else if (Databases.Count == 0)
-{
-    <EmptyState Title="No databases"
-                Message="No SQL Server databases are currently projected for this resource." />
+                Message="This resource type does not expose SQL Server databases." />
 }
 else
 {
-    <div class="generated-list">
-        @foreach (var database in Databases)
-        {
-            <GeneratedListItem Summary="@GetDatabaseSummary(database)"
-                               Metadata="@GetDatabaseMetadata(database)">
-                <TitleContent>
-                    <ResourcePillLink Label="@GetDatabaseLabel(database)"
-                                      Href="@ResourceManagerRoutes.ResourceOverview(database.Id)"
-                                      Metadata="@database.EffectiveTypeId" />
-                </TitleContent>
-            </GeneratedListItem>
-        }
+    <div class="blade-section-header">
+        <div>
+            <h3>Databases</h3>
+            <p>@GetSummaryMessage()</p>
+        </div>
+        <FluentButton Appearance="Appearance.Neutral"
+                      IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                      Disabled="@IsLoading"
+                      OnClick="RefreshDatabasesAsync">
+            @(IsLoading ? "Refreshing" : "Refresh")
+        </FluentButton>
     </div>
+
+    @if (!string.IsNullOrWhiteSpace(QueryErrorMessage))
+    {
+        <div class="generated-list">
+            <GeneratedListItem Title="Live database query unavailable"
+                               Summary="@QueryErrorMessage" />
+        </div>
+    }
+
+    @if (IsLoading)
+    {
+        <EmptyState Title="Loading databases"
+                    Message="CloudShell is querying the running SQL Server instance." />
+    }
+    else if (DatabaseRows.Count == 0)
+    {
+        <EmptyState Title="No databases"
+                    Message="@GetEmptyMessage()" />
+    }
+    else
+    {
+        <div class="generated-list">
+            @foreach (var database in DatabaseRows)
+            {
+                <GeneratedListItem Title="@database.Label"
+                                   Summary="@FormatDatabaseSummary(database)"
+                                   Metadata="@FormatDatabaseMetadata(database)"
+                                   SecondaryMetadata="@FormatDatabaseVerification(database)" />
+            }
+        </div>
+    }
 }
 
 @code {
@@ -39,37 +63,153 @@ else
 
     private ApplicationResourceDefinition? Application { get; set; }
 
-    private IReadOnlyList<Resource> Databases { get; set; } = [];
+    private IReadOnlyList<SqlServerDatabaseRow> DatabaseRows { get; set; } = [];
 
-    protected override void OnParametersSet()
+    private string? QueryErrorMessage { get; set; }
+
+    private bool IsLoading { get; set; }
+
+    private bool WasLiveQueryAttempted { get; set; }
+
+    private bool IsServerRunning { get; set; }
+
+    protected override async Task OnParametersSetAsync()
     {
         Application = string.IsNullOrWhiteSpace(ResourceId)
             ? null
             : ApplicationProvider.GetApplication(ResourceId);
-        Databases = Application is null
-            ? []
-            : ResourceManager.GetResources()
-                .Where(resource =>
-                    string.Equals(resource.ParentResourceId, Application.Id, StringComparison.OrdinalIgnoreCase) &&
-                    string.Equals(resource.EffectiveTypeId, ApplicationResourceTypes.SqlDatabase, StringComparison.OrdinalIgnoreCase))
-                .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
-                .ToArray();
+        await RefreshDatabasesAsync();
+    }
+
+    private async Task RefreshDatabasesAsync()
+    {
+        DatabaseRows = [];
+        QueryErrorMessage = null;
+        IsLoading = false;
+        WasLiveQueryAttempted = false;
+        IsServerRunning = Application is not null && ApplicationProvider.IsRunning(Application.Id);
+
+        if (Application is null || !IsSqlServer(Application))
+        {
+            return;
+        }
+
+        IReadOnlyList<SqlServerDatabaseInfo> liveDatabases = [];
+        if (IsServerRunning)
+        {
+            IsLoading = true;
+            try
+            {
+                WasLiveQueryAttempted = true;
+                liveDatabases = await ApplicationProvider.QuerySqlServerDatabasesAsync(Application.Id);
+            }
+            catch (Exception exception)
+            {
+                QueryErrorMessage = $"CloudShell could not query live SQL Server databases. {exception.Message}";
+            }
+            finally
+            {
+                IsLoading = false;
+            }
+        }
+
+        DatabaseRows = CreateDatabaseRows(Application, liveDatabases, WasLiveQueryAttempted);
+        if (IsServerRunning &&
+            WasLiveQueryAttempted &&
+            string.IsNullOrWhiteSpace(QueryErrorMessage) &&
+            liveDatabases.Count == 0)
+        {
+            QueryErrorMessage = "The running SQL Server instance did not return any databases.";
+        }
     }
 
     private static bool IsSqlServer(ApplicationResourceDefinition application) =>
         string.Equals(application.ResourceType, ApplicationResourceTypes.SqlServer, StringComparison.OrdinalIgnoreCase);
 
-    private static string GetDatabaseLabel(Resource database) =>
-        database.EffectiveDisplayName;
+    private string GetSummaryMessage() =>
+        IsServerRunning
+            ? "Declared databases are compared with the live SQL Server instance."
+            : "Declared databases are shown until the SQL Server instance is running.";
 
-    private static string GetDatabaseSummary(Resource database) =>
-        database.ResourceAttributes.TryGetValue(ResourceAttributeNames.DatabaseSource, out var source) &&
-        string.Equals(source, "declared", StringComparison.OrdinalIgnoreCase)
-            ? "Declared database"
-            : "Projected database";
+    private string GetEmptyMessage() =>
+        IsServerRunning
+            ? "No declared or live SQL Server databases are available."
+            : "No databases are declared for this SQL Server resource.";
 
-    private static string GetDatabaseMetadata(Resource database) =>
-        database.ResourceAttributes.TryGetValue(ResourceAttributeNames.DatabaseName, out var name)
-            ? $"Database: {name}"
-            : database.Id;
+    private static IReadOnlyList<SqlServerDatabaseRow> CreateDatabaseRows(
+        ApplicationResourceDefinition application,
+        IReadOnlyList<SqlServerDatabaseInfo> liveDatabases,
+        bool wasLiveQueryAttempted)
+    {
+        var rows = new Dictionary<string, SqlServerDatabaseRow>(StringComparer.OrdinalIgnoreCase);
+        var liveByName = liveDatabases.ToDictionary(database => database.Name, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var declared in application.SqlDatabases)
+        {
+            liveByName.TryGetValue(declared.Name, out var live);
+            rows[declared.Name] = new SqlServerDatabaseRow(
+                declared.Name,
+                string.IsNullOrWhiteSpace(declared.DisplayName) ? declared.Name : declared.DisplayName,
+                IsDeclared: true,
+                ExistsOnServer: live is not null,
+                IsSystem: live?.IsSystem ?? false,
+                State: live?.State,
+                WasLiveQueryAttempted: wasLiveQueryAttempted);
+        }
+
+        foreach (var live in liveDatabases)
+        {
+            if (rows.ContainsKey(live.Name))
+            {
+                continue;
+            }
+
+            rows[live.Name] = new SqlServerDatabaseRow(
+                live.Name,
+                live.Name,
+                IsDeclared: false,
+                ExistsOnServer: true,
+                live.IsSystem,
+                live.State,
+                WasLiveQueryAttempted: wasLiveQueryAttempted);
+        }
+
+        return rows.Values
+            .OrderByDescending(database => database.IsDeclared)
+            .ThenBy(database => database.IsSystem)
+            .ThenBy(database => database.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static string FormatDatabaseSummary(SqlServerDatabaseRow database) =>
+        database switch
+        {
+            { IsDeclared: true, ExistsOnServer: true } => "Declared database, exists on server",
+            { IsDeclared: true, WasLiveQueryAttempted: true } => "Declared database, not found on server",
+            { IsDeclared: true } => "Declared database",
+            { IsSystem: true } => "Existing system database",
+            _ => "Existing database"
+        };
+
+    private static string FormatDatabaseMetadata(SqlServerDatabaseRow database) =>
+        string.IsNullOrWhiteSpace(database.State)
+            ? $"Database: {database.Name}"
+            : $"Database: {database.Name}; State: {database.State}";
+
+    private static string FormatDatabaseVerification(SqlServerDatabaseRow database) =>
+        database switch
+        {
+            { ExistsOnServer: true } => "Verified from live SQL Server",
+            { WasLiveQueryAttempted: true } => "Not found in live SQL Server",
+            _ => "Existence not verified"
+        };
+
+    private sealed record SqlServerDatabaseRow(
+        string Name,
+        string Label,
+        bool IsDeclared,
+        bool ExistsOnServer,
+        bool IsSystem,
+        string? State,
+        bool WasLiveQueryAttempted);
 }

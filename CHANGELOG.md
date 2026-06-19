@@ -22,6 +22,9 @@ on `git blame --follow`, and then by the broad type of change.
 - SQL Server Add Resource and Configuration views now use SQL service language
   and hide provider runtime image/host settings behind advanced controls instead
   of presenting the resource as a container app.
+- SQL Server **Databases** now merges declared database intent with a read-only
+  live query against the running instance so Resource Manager can show whether
+  declared databases exist and list additional databases on the server.
 
 ### 2026-06-19
 

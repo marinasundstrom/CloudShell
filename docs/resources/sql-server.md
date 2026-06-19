@@ -91,13 +91,17 @@ resources
 The application provider projects each declared database as an
 `application.sql-database` child resource with `ProviderManaged` management and
 diagnostic visibility. The child resource records its parent SQL Server
-resource, database name, and projection source. Resource Manager displays those
-children in the SQL Server **Databases** tab.
+resource, database name, and projection source.
 
-This first slice is projection-only. CloudShell does not yet inspect the
-running SQL Server instance, create or drop databases, reconcile declared
-databases into SQL Server, or materialize SQL users and roles from access
-grants.
+Resource Manager displays declared databases in the SQL Server **Databases**
+tab even when the SQL Server instance is stopped. When the instance is running,
+the provider connects to SQL Server using the configured instance password and
+lists `sys.databases`; the tab merges those live rows with the declared
+databases and indicates whether each declaration was found on the server.
+
+This slice is read-only. CloudShell does not yet create or drop databases,
+reconcile declared databases into SQL Server, materialize SQL users and roles
+from access grants, or project database connection strings for workloads.
 
 ## Overview
 

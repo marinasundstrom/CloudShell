@@ -167,11 +167,14 @@ available through contextual diagnostics or runtime-managed resource views, not
 as the SQL Server resource's primary management model.
 
 The page includes a first database-oriented **Databases** tab for declared
-database children. When provider inspection can list databases, that tab should
-also show inspected database child resources with name, state, size,
-compatibility level, owner or identity metadata when available, connection
-metadata, and available database actions. It should remain an instance-scoped
-view of child resources, not a separate global database inventory by default.
+database children. The current local provider also performs a read-only live
+query against `sys.databases` when the SQL Server instance is running, then
+merges declared databases and live databases into one list so users can see
+which declarations really exist. Future provider inspection can enrich those
+rows with size, compatibility level, owner or identity metadata when available,
+connection metadata, and available database actions. It should remain an
+instance-scoped view of child resources, not a separate global database
+inventory by default.
 
 ## Database Resources
 

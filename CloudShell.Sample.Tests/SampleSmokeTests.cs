@@ -775,7 +775,8 @@ public sealed class SampleSmokeTests
         Assert.Contains("Application Topology", sqlDatabasesHtml);
         Assert.Contains("Declared database", sqlDatabasesHtml);
         Assert.Contains("Database: application_topology", sqlDatabasesHtml);
-        Assert.Contains("application.sql-database", sqlDatabasesHtml);
+        Assert.Contains("Existence not verified", sqlDatabasesHtml);
+        Assert.Contains("Declared databases are shown until the SQL Server instance is running.", sqlDatabasesHtml);
 
         var sqlIdentityHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Identity.Value)}");
@@ -905,6 +906,15 @@ public sealed class SampleSmokeTests
             Assert.True(upstream.GetProperty("settings").GetProperty("externalApiKeyConfigured").GetBoolean());
             Assert.Equal("ok", upstream.GetProperty("database").GetProperty("status").GetString());
             Assert.Equal("mssql", upstream.GetProperty("database").GetProperty("provider").GetString());
+
+            var databasesTabId = new ResourceViewId(ResourceTabGroupIds.Application, "databases");
+            var sqlDatabasesHtml = await host.GetStringAsync(
+                $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(databasesTabId.Value)}");
+            Assert.Contains("Application Topology", sqlDatabasesHtml);
+            Assert.Contains("Declared database, not found on server", sqlDatabasesHtml);
+            Assert.Contains("Existing system database", sqlDatabasesHtml);
+            Assert.Contains("master", sqlDatabasesHtml);
+            Assert.Contains("Verified from live SQL Server", sqlDatabasesHtml);
 
             var frontendFailureJson = await host.WaitForAbsoluteHttpStatusAsync(
                 $"http://localhost:{frontendPort}/upstream/failure",

@@ -7910,6 +7910,7 @@ public sealed class ResourceDeclarationTests
         var descriptor = await provider.DescribeAsync(
             resource,
             new ResourceOrchestrationDescriptorContext(null, null, null!));
+        var liveDatabases = await provider.QuerySqlServerDatabasesAsync("application:sql");
         var workload = descriptor.Configuration.Deserialize<ResourceWorkloadConfiguration>(
             new JsonSerializerOptions(JsonSerializerDefaults.Web));
         var environment = workload?.WorkloadEnvironmentVariables
@@ -8115,6 +8116,7 @@ public sealed class ResourceDeclarationTests
         var descriptor = await provider.DescribeAsync(
             resource,
             new ResourceOrchestrationDescriptorContext(null, null, null!));
+        var liveDatabases = await provider.QuerySqlServerDatabasesAsync("application:sql");
         var workload = descriptor.Configuration.Deserialize<ResourceWorkloadConfiguration>(
             new JsonSerializerOptions(JsonSerializerDefaults.Web));
         var environment = workload?.WorkloadEnvironmentVariables
@@ -8137,6 +8139,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("1", resource.ResourceAttributes[ResourceAttributeNames.VolumeMountCount]);
         Assert.Equal("1", resource.ResourceAttributes[ResourceAttributeNames.DatabaseCount]);
         Assert.True(resource.HasCapability(ResourceCapabilityIds.StorageVolumeConsumer));
+        Assert.Empty(liveDatabases);
         var application = provider.GetApplication("application:sql");
         Assert.Equal(ApplicationLifetime.Detached, application?.Lifetime);
         var declaredDatabase = Assert.Single(application?.SqlDatabases ?? []);
