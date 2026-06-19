@@ -1169,6 +1169,60 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task ExecuteResourceActionAsync_WarnsWhenTransitiveDependencyOfRunningDependencyFails()
+    {
+        var provider = new TestResourceProvider
+        {
+            FailedActionResourceId = "sql",
+            FailureMessage = "Docker is unavailable."
+        };
+        var resourceEvents = new InMemoryResourceEventStore();
+        var controlPlane = CreateControlPlane(
+            [
+                CreateResource("frontend", ResourceState.Stopped, dependsOn: ["api"]),
+                CreateResource("api", ResourceState.Running, dependsOn: ["sql"]),
+                CreateResource("sql", ResourceState.Stopped)
+            ],
+            provider,
+            resourceEvents: resourceEvents);
+        var notifications = new List<ResourceChangeNotification>();
+        controlPlane.ResourcesChanged += (_, notification) => notifications.Add(notification);
+
+        var result = await controlPlane.ExecuteResourceActionAsync(
+            new ExecuteResourceActionCommand(
+                "frontend",
+                ResourceActionIds.Start,
+                StartDependencies: true,
+                TriggeredBy: "operator",
+                DependencyStartFailureBehavior: DependencyStartFailureBehavior.WarnAndContinue));
+
+        Assert.Equal(["sql:start", "frontend:start"], provider.ExecutedActions);
+        Assert.Contains("Executed start.", result.Message, StringComparison.Ordinal);
+        Assert.Contains("Dependency auto-start warning", result.Message, StringComparison.Ordinal);
+        Assert.Contains("Docker is unavailable", result.Message, StringComparison.Ordinal);
+        Assert.Equal(
+            [
+                ResourceChangeKind.ResourceActionStarted,
+                ResourceChangeKind.ResourceActionFailed,
+                ResourceChangeKind.ResourceActionStarted,
+                ResourceChangeKind.ResourceActionExecuted
+            ],
+            notifications.Select(notification => notification.Kind).ToArray());
+        Assert.Equal(
+            ["sql", "sql", "frontend", "frontend"],
+            notifications.Select(notification => notification.ResourceId!).ToArray());
+
+        var rootEvents = resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "frontend"));
+        Assert.Contains(rootEvents, resourceEvent =>
+            resourceEvent.EventType == ResourceEventTypes.Actions.ForAction(ResourceActionIds.Start) &&
+            resourceEvent.Level == "Warning" &&
+            resourceEvent.Message.Contains("Dependency auto-start warning", StringComparison.Ordinal) &&
+            resourceEvent.Message.Contains("Docker is unavailable", StringComparison.Ordinal));
+        Assert.DoesNotContain(rootEvents, resourceEvent =>
+            resourceEvent.EventType == ResourceEventTypes.Events.Lifecycle.StartFailed);
+    }
+
+    [Fact]
     public async Task ExecuteResourceActionAsync_BlocksStopWhenRunningDependentsExist()
     {
         var provider = new TestResourceProvider();

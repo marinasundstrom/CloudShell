@@ -647,6 +647,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager orchestration settings now expose configurable dependency
   start-failure behavior through appsettings and the Orchestrator settings UI:
   fail the requested action or warn and continue.
+- Dependency auto-start now walks transitive dependencies even when an
+  intermediate dependency is already running, so missing backing dependencies
+  still block or warn the requested action according to orchestrator settings.
 - Resource Manager pages now use action-start/action-complete notifications to
   show lifecycle transition indicators for dependency auto-starts and other
   externally triggered in-process resource actions.

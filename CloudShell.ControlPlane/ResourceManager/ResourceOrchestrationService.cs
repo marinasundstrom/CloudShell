@@ -240,12 +240,6 @@ public sealed class ResourceOrchestrationService(
                             "dependency resource could not be found");
                     }
 
-                    if (dependency.State == ResourceState.Running)
-                    {
-                        completed.Add(dependency.Id);
-                        continue;
-                    }
-
                     var dependencyPath = path.Append(dependency).ToArray();
                     if (!ShouldAutoStartAsDependency(dependency))
                     {
@@ -269,6 +263,12 @@ public sealed class ResourceOrchestrationService(
                         dependencyWarnings,
                         notifyResourceChange,
                         cancellationToken);
+
+                    if (dependency.State == ResourceState.Running)
+                    {
+                        completed.Add(dependency.Id);
+                        continue;
+                    }
 
                     var runAction = dependency.ResourceActions.FirstOrDefault(action =>
                         action.Kind == ResourceActionKind.Start);
