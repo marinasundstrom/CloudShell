@@ -471,6 +471,31 @@ Role permissions and group scopes can be replaced in configuration:
 
 The role claim type is configured with `Authentication:RoleClaimType`.
 
+## Permission evaluation modes
+
+CloudShell supports four authorization modes. Use the same model for the UI
+and Control Plane API so behavior stays consistent in combined and split
+hosts:
+
+| Case | Configuration | Behavior |
+| --- | --- | --- |
+| Permissive local development | `Authentication:Enabled=false` and `Authentication:EvaluateClaimsWhenDisabled=false` | No authentication fallback policy is installed, the Control Plane API is unauthenticated, and CloudShell allows all shell, resource, resource-action, and observability operations. |
+| Local permission-boundary testing | `Authentication:Enabled=false` and `Authentication:EvaluateClaimsWhenDisabled=true` | ASP.NET Core authentication remains disabled, but CloudShell evaluates the supplied mock authenticated principal's permissions, scopes, and resource grants. |
+| Built-in identity | `Authentication:Enabled=true` and `Authentication:Mode=Identity` | CloudShell uses the built-in ASP.NET Core Identity-backed provider. This is useful for local team testing, simple self-hosting, and gradual identity adoption with in-memory or persisted users. |
+| External identity | `Authentication:Enabled=true` with the configured external schemes and role claim mapping | CloudShell evaluates claims from the host's identity provider, such as OIDC/OAuth, Entra ID, Active Directory federation, or another host-integrated authority. |
+
+In-memory users and programmatic grants are test data for the built-in identity
+path. They do not turn authorization on by themselves; authorization is
+enforced only when authentication is enabled, or when a local test explicitly
+sets `EvaluateClaimsWhenDisabled` and supplies a mock authenticated principal.
+
+For the early local development loop, disable authentication and treat the
+environment as fully trusted. When you need to prove user boundaries, enable
+the built-in provider with in-memory users or use the disabled-authentication
+claim-evaluation mode in tests. When the Control Plane or UI is placed on a
+shared host, keep `Authentication:Enabled=true` and either continue with the
+built-in provider or integrate the host with an external identity provider.
+
 ## Direct claims
 
 Identity providers can issue permissions and scopes directly:

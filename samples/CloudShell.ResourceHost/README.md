@@ -18,6 +18,15 @@ Open:
 http://localhost:5102
 ```
 
+The sample configuration enables the built-in Identity mode so the in-memory
+`alice` user and programmatic resource grant are exercised by default. Open the
+sign-in page and use:
+
+```text
+Email: alice@example.test
+Password: CloudShell123!
+```
+
 Useful routes:
 
 ```text
@@ -26,39 +35,37 @@ http://localhost:5102/api/control-plane/v1/resources
 http://localhost:5102/openapi/control-plane-v1.json
 ```
 
-You can also check the resource API from the command line:
+Browser requests after sign-in use the CloudShell authentication cookie. For a
+fully permissive local-development run, disable authentication explicitly:
+
+```bash
+dotnet run --project samples/CloudShell.ResourceHost -- --urls http://localhost:5102 --Authentication:Enabled=false
+```
+
+In permissive mode, the Control Plane API is unauthenticated and authorization
+allows all operations, so command-line inspection works without a cookie:
 
 ```bash
 curl http://localhost:5102/api/control-plane/v1/resources
 ```
 
-## Run With Authentication
-
-The default sample configuration keeps authentication disabled so the resource
-extension and Control Plane API can be inspected without signing in. To test the
-built-in in-memory identity provider and guard the UI, enable identity
-authentication from the command line:
-
-```bash
-dotnet run --project samples/CloudShell.ResourceHost -- --urls http://localhost:5011 --Authentication:Enabled=true --Authentication:Mode=Identity
-```
-
-Open:
-
-```text
-http://localhost:5011/account/login
-```
-
-Sign in with the seeded in-memory user:
-
-```text
-Email: alice@example.test
-Password: CloudShell123!
-```
+## Access Model
 
 Alice has the `CloudShell.Reader` role and a programmatic grant for
-`resources.manage` on `sample:database`. This means the guarded Resource
-Manager view is intentionally scoped to the resource Alice can access.
+`resources.manage` on `sample:database`. The reader role grants shell,
+resource read, and observability read permissions, but no wildcard resource
+scope. The programmatic grant makes the guarded Resource Manager view
+intentionally scoped to the resource Alice can access. Activity created from
+Alice's browser/API session is audited with the signed-in account identifier,
+`alice@example.test`; the programmatic grant principal key remains `alice`.
+
+Use this sample for both cases:
+
+- Default run: authentication is enabled and the UI/API enforce Alice's
+  permissions and resource grants.
+- Permissive run: pass `--Authentication:Enabled=false` when you want the
+  early local-development behavior where every resource and operation is
+  visible.
 
 ## What To Look For
 

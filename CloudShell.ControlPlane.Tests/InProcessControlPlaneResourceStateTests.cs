@@ -1003,6 +1003,81 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task ExecuteResourceActionAsync_UsesAuthenticatedActorWhenTriggeredByIsOmitted()
+    {
+        var provider = new TestResourceProvider();
+        var resourceEvents = new InMemoryResourceEventStore();
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            provider,
+            resourceEvents: resourceEvents,
+            httpContextAccessor: CreateHttpContextAccessor(
+                new Claim(ClaimTypes.Name, "alice"),
+                new Claim(ClaimTypes.NameIdentifier, "alice-id")));
+
+        await controlPlane.ExecuteResourceActionAsync(
+            new ExecuteResourceActionCommand(
+                "target",
+                ResourceActionIds.Stop));
+
+        var events = resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "target"));
+        Assert.Contains(events, resourceEvent =>
+            resourceEvent.EventType == ResourceEventTypes.Actions.ForAction(ResourceActionIds.Stop) &&
+            resourceEvent.TriggeredBy == "alice");
+        Assert.Contains(events, resourceEvent =>
+            resourceEvent.EventType == ResourceEventTypes.Events.Lifecycle.Stopped &&
+            resourceEvent.TriggeredBy == "alice");
+    }
+
+    [Fact]
+    public async Task ExecuteResourceActionAsync_AuthenticatedActorOverridesClientSuppliedTriggeredBy()
+    {
+        var provider = new TestResourceProvider();
+        var resourceEvents = new InMemoryResourceEventStore();
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            provider,
+            resourceEvents: resourceEvents,
+            httpContextAccessor: CreateHttpContextAccessor(new Claim(ClaimTypes.Name, "alice")));
+
+        await controlPlane.ExecuteResourceActionAsync(
+            new ExecuteResourceActionCommand(
+                "target",
+                ResourceActionIds.Stop,
+                TriggeredBy: "system"));
+
+        var events = resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "target"));
+        Assert.Contains(events, resourceEvent =>
+            resourceEvent.EventType == ResourceEventTypes.Actions.ForAction(ResourceActionIds.Stop) &&
+            resourceEvent.TriggeredBy == "alice");
+        Assert.DoesNotContain(events, resourceEvent => resourceEvent.TriggeredBy == "system");
+    }
+
+    [Fact]
+    public async Task ExecuteResourceActionAsync_PrefersPrincipalIdentifierClaimsOverDisplayName()
+    {
+        var provider = new TestResourceProvider();
+        var resourceEvents = new InMemoryResourceEventStore();
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            provider,
+            resourceEvents: resourceEvents,
+            httpContextAccessor: CreateHttpContextAccessor(
+                new Claim(ClaimTypes.Name, "Alice Local Developer"),
+                new Claim(ClaimTypes.Email, "alice@example.test")));
+
+        await controlPlane.ExecuteResourceActionAsync(
+            new ExecuteResourceActionCommand(
+                "target",
+                ResourceActionIds.Stop));
+
+        var events = resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "target"));
+        Assert.Contains(events, resourceEvent =>
+            resourceEvent.EventType == ResourceEventTypes.Actions.ForAction(ResourceActionIds.Stop) &&
+            resourceEvent.TriggeredBy == "alice@example.test");
+    }
+
+    [Fact]
     public async Task ExecuteResourceActionAsync_LogsDependencyLifecycleEventsOnDependencyResource()
     {
         var provider = new TestResourceProvider();
@@ -1971,6 +2046,7 @@ public sealed class InProcessControlPlaneResourceStateTests
         IReadOnlyList<IResourceActionAvailabilityProvider>? actionAvailabilityProviders = null,
         Action<ResourceDeclarationStore>? configureDeclarations = null,
         IResourceEventStore? resourceEvents = null,
+        IHttpContextAccessor? httpContextAccessor = null,
         ILogStore? logStore = null,
         ITraceStore? traceStore = null,
         IMetricStore? metricStore = null)
@@ -2037,8 +2113,21 @@ public sealed class InProcessControlPlaneResourceStateTests
             [],
             authorization ?? new AllowAllAuthorizationService(),
             resourceEvents,
+            httpContextAccessor,
             new ResourceIdentityProviderCatalog(identityProviders ?? []),
             identityDirectoryProviders ?? []);
+    }
+
+    private static IHttpContextAccessor CreateHttpContextAccessor(params Claim[] claims)
+    {
+        var identity = new ClaimsIdentity(claims, "Test", ClaimTypes.Name, ClaimTypes.Role);
+        return new HttpContextAccessor
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(identity)
+            }
+        };
     }
 
     private static Resource CreateResource(

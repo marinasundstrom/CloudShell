@@ -156,6 +156,16 @@ on `git blame --follow`, and then by the broad type of change.
 - Account sign-in, setup, and sign-out pages now use browser-local language
   and color-scheme selectors instead of the user-scoped interactive shell
   selectors, so they work before the user has signed in.
+- Clarified authentication and authorization modes across the docs, including
+  permissive local development, local claim-evaluation tests, built-in
+  identity, and external identity. The ResourceHost sample now explicitly runs
+  in built-in Identity mode by default while documenting the
+  `Authentication:Enabled=false` override for permissive local development.
+- Resource action, image update, and replica update activity now default the
+  audit actor from the current authenticated Control Plane principal when the
+  command omits `TriggeredBy`; authenticated Control Plane requests take
+  precedence over client-supplied actor text, while background/system work can
+  still use explicit system actors when no authenticated request is present.
 
 ### 2026-06-18
 

@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Hosting;
+using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ContainerHost;
 using CloudShell.ControlPlane.ResourceManager;
@@ -1047,7 +1048,10 @@ public sealed class SampleSmokeTests
     {
         using var host = await SampleProcess.StartAsync(
             "samples/CloudShell.ResourceHost/CloudShell.ResourceHost.csproj",
-            await GetFreePortAsync());
+            await GetFreePortAsync(),
+            [
+                ("Authentication__Enabled", "false")
+            ]);
 
         await host.WaitForHttpOkAsync("/", StartupTimeout);
 
@@ -1183,6 +1187,23 @@ public sealed class SampleSmokeTests
             "/api/control-plane/v1/resources/sample%3Adatabase");
         using var databaseDocument = JsonDocument.Parse(databaseJson);
         Assert.Equal("sample:database", databaseDocument.RootElement.GetProperty("id").GetString());
+        var stopHref = databaseDocument.RootElement
+            .GetProperty("resourceActions")
+            .GetProperty("stop")
+            .GetProperty("href")
+            .GetString() ?? throw new InvalidOperationException("The database stop action did not include an href.");
+        using var stopResponse = await client.PostAsync(stopHref, null);
+        Assert.Equal(HttpStatusCode.OK, stopResponse.StatusCode);
+
+        var eventsJson = await client.GetStringAsync(
+            "/api/control-plane/v1/resource-events?resourceId=sample%3Adatabase&triggeredBy=alice%40example.test");
+        using var eventsDocument = JsonDocument.Parse(eventsJson);
+        Assert.Contains(
+            eventsDocument.RootElement.EnumerateArray(),
+            resourceEvent =>
+                resourceEvent.GetProperty("eventType").GetString() ==
+                    ResourceEventTypes.Actions.ForAction(ResourceActionIds.Stop) &&
+                resourceEvent.GetProperty("triggeredBy").GetString() == "alice@example.test");
 
         var principalsJson = await client.GetStringAsync(
             "/api/control-plane/v1/resource-principals?kinds=User&searchText=alice");

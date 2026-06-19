@@ -66,6 +66,13 @@ CloudShell is configured to read that claim through:
 The role names are not provider-specific. They are CloudShell roles mapped to
 CloudShell permissions in `appsettings.json`.
 
+The reader and contributor roles in this sample include grouped
+`observability.read`, so logs, traces, metrics, request graph, request map, and
+the Telemetry workspace are visible for resources the signed-in user can read.
+CloudShell still filters observability rows to the user's readable resources;
+the observability permission does not reveal resources outside the user's
+resource or resource-group scope.
+
 ## Resource Identity Provisioning
 
 The sample also declares the external resource identity boundary:

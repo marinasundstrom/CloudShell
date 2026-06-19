@@ -4,6 +4,8 @@ using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager;
+using Microsoft.AspNetCore.Http;
+using System.Security.Claims;
 using System.Text.Json;
 
 namespace CloudShell.ControlPlane;
@@ -27,9 +29,12 @@ public sealed class InProcessControlPlane(
     IEnumerable<IResourceMonitoringProvider> monitoringProviders,
     ICloudShellAuthorizationService authorization,
     IResourceEventStore? resourceEvents = null,
+    IHttpContextAccessor? httpContextAccessor = null,
     ResourceIdentityProviderCatalog? identityProviders = null,
     IEnumerable<IResourceIdentityDirectoryProvider>? identityDirectoryProviders = null) : IControlPlane
 {
+    private const string PreferredUsernameClaimType = "preferred_username";
+
     public event EventHandler<ResourceChangeNotification>? ResourcesChanged;
 
     private readonly ResourceIdentityProviderCatalog identityProviders =
@@ -554,9 +559,10 @@ public sealed class InProcessControlPlane(
 
         var group = resourceManager.GetGroupForResource(resource.Id);
         var actionPermission = ResourceActionPermissions.GetRequiredPermission(action);
+        var triggeredBy = ResolveTriggeredBy(command.TriggeredBy);
         if (!CanAccessResource(resource.Id, group?.Id, actionPermission, command.ActingIdentity))
         {
-            RecordDeniedResourceAction(resource, action, actionPermission, command.TriggeredBy);
+            RecordDeniedResourceAction(resource, action, actionPermission, triggeredBy);
             throw ControlPlaneAccessDeniedException.ForResource(
                 resource.Id,
                 FormatPermissionRequirement(actionPermission));
@@ -593,7 +599,7 @@ public sealed class InProcessControlPlane(
             command.StartDependencies,
             CreateAuthorizationService(command.ActingIdentity),
             cancellationToken,
-            command.TriggeredBy,
+            triggeredBy,
             notifyResourceChange: NotifyResourcesChanged,
             dependencyStartFailureBehavior:
                 command.DependencyStartFailureBehavior ?? orchestration.DependencyStartFailureBehavior);
@@ -615,6 +621,32 @@ public sealed class InProcessControlPlane(
             triggeredBy,
             Severity: ResourceSignalSeverity.Warning));
     }
+
+    private string? ResolveTriggeredBy(string? explicitTriggeredBy)
+    {
+        var user = httpContextAccessor?.HttpContext?.User;
+        if (user?.Identity?.IsAuthenticated == true)
+        {
+            return FindActorClaim(user);
+        }
+
+        return string.IsNullOrWhiteSpace(explicitTriggeredBy)
+            ? null
+            : explicitTriggeredBy.Trim();
+    }
+
+    private static string? FindActorClaim(ClaimsPrincipal user, string claimType) =>
+        user.Claims
+            .Where(claim => string.Equals(claim.Type, claimType, StringComparison.Ordinal))
+            .Select(claim => claim.Value?.Trim())
+            .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+
+    private static string? FindActorClaim(ClaimsPrincipal user) =>
+        FindActorClaim(user, PreferredUsernameClaimType) ??
+        FindActorClaim(user, ClaimTypes.Upn) ??
+        FindActorClaim(user, ClaimTypes.Email) ??
+        FindActorClaim(user, ClaimTypes.Name) ??
+        FindActorClaim(user, ClaimTypes.NameIdentifier);
 
     public async Task<ResourceProcedureResult> UpdateResourceImageAsync(
         UpdateResourceImageCommand command,
@@ -642,11 +674,12 @@ public sealed class InProcessControlPlane(
             throw new ControlPlaneException(ControlPlaneError.ResourceImageUpdateUnsupported(resource.Name));
         }
 
+        var triggeredBy = ResolveTriggeredBy(command.TriggeredBy);
         var result = await provider.UpdateImageAsync(
             CreateProcedureContext(resource),
             image,
             command.RestartIfRunning,
-            command.TriggeredBy,
+            triggeredBy,
             cancellationToken);
 
         var updatedResource = resourceManager.GetResource(resource.Id);
@@ -658,7 +691,7 @@ public sealed class InProcessControlPlane(
                 ? $"Updated image to '{image}'. Restart if running: {command.RestartIfRunning.ToString().ToLowerInvariant()}."
                 : $"Updated image to '{image}' and created revision '{revision}'. Restart if running: {command.RestartIfRunning.ToString().ToLowerInvariant()}.",
             DateTimeOffset.UtcNow,
-            command.TriggeredBy));
+            triggeredBy));
 
         NotifyResourcesChanged(new ResourceChangeNotification(
             ResourceChangeKind.ResourceImageUpdated,
@@ -698,11 +731,12 @@ public sealed class InProcessControlPlane(
             throw new ControlPlaneException(ControlPlaneError.ResourceReplicasUpdateUnsupported(resource.Name));
         }
 
+        var triggeredBy = ResolveTriggeredBy(command.TriggeredBy);
         var result = await provider.UpdateReplicasAsync(
             CreateProcedureContext(resource),
             command.Replicas,
             command.RestartIfRunning,
-            command.TriggeredBy,
+            triggeredBy,
             cancellationToken);
 
         resourceEvents?.Append(new ResourceEvent(
@@ -710,7 +744,7 @@ public sealed class InProcessControlPlane(
             ResourceEventTypes.Events.Deployment.ReplicasUpdated,
             $"Updated replicas to '{command.Replicas}'. Restart if running: {command.RestartIfRunning.ToString().ToLowerInvariant()}.",
             DateTimeOffset.UtcNow,
-            command.TriggeredBy));
+            triggeredBy));
 
         NotifyResourcesChanged(new ResourceChangeNotification(
             ResourceChangeKind.ResourceReplicasUpdated,

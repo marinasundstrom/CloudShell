@@ -534,8 +534,11 @@ narrower operation exists yet.
 
 ## Local Development
 
-When `Authentication:Enabled` is `false`, CloudShell does not enforce
-token-based user authorization at the Control Plane boundary. Resource identity
+When `Authentication:Enabled` is `false` and
+`Authentication:EvaluateClaimsWhenDisabled` is not set, CloudShell runs in the
+permissive local-development mode. The Control Plane API is unauthenticated,
+user authorization is not enforced at the boundary, and all resource,
+resource-action, and observability operations are allowed. Resource identity
 metadata can still be projected and diagnosed. This allows local hosts,
 templates, providers, and Resource Manager UI surfaces to exercise the intended
 identity shape before a production identity provider is configured.
@@ -545,6 +548,11 @@ Local permission-boundary tests can set
 authenticated principal. CloudShell then evaluates the normal permission,
 resource-group, resource, and resource-permission claims even though the
 authentication pipeline itself is disabled.
+
+In-memory users belong to the built-in identity provider. They are useful for
+turning on real sign-in and resource grants in local samples, but they do not
+change the permissive behavior unless authentication is enabled or a test opts
+into disabled-authentication claim evaluation.
 
 Programmatic identity grants can still be evaluated in this mode. Passing an
 explicit acting resource identity to a resource action checks the declared

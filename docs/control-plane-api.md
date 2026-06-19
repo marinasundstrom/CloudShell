@@ -141,7 +141,11 @@ authentication pipeline and CloudShell authorization checks. It is protected
 whenever CloudShell authentication is enabled. Disable that boundary only for
 isolated local development by setting `Authentication:Enabled` to `false`; in
 that mode, the Control Plane API is intentionally unauthenticated and
-authorization allows all operations.
+authorization allows all operations, including resource inspection, resource
+actions, and observability queries. Local permission-boundary tests can still
+exercise claim evaluation while ASP.NET Core authentication is disabled by
+setting `Authentication:EvaluateClaimsWhenDisabled` to `true` and supplying a
+mock authenticated principal.
 
 The Control Plane API should use the same authorization decisions regardless of
 whether it is called in-process or over HTTP. The transport is the part that
