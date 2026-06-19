@@ -121,9 +121,10 @@ projected container image and revision.
 The Deployment tab also shows update readiness before enabling the deploy
 command. It reports missing manage permission, missing image input, no-op image
 updates, and restart blockers such as a missing or unavailable restart action.
-The provider runs the same restart readiness checks before saving the new image
-when automatic restart is requested for a running app, so a known restart
-blocker does not leave the app on a new revision that failed to start.
+The provider runs the same restart readiness checks before saving a new image
+or replica count when automatic restart is requested for a running app, so a
+known restart blocker does not leave the app on a partially applied deployment
+change.
 
 The same tab shows the app's current internal deployment projection: deployment
 status, orchestrator service id, scaling mode, desired replicas, and projected
@@ -168,6 +169,8 @@ Container apps project replica intent through `container.replicas.enabled` and
 autoscaling policy, traffic splitting, and replica health are future
 resource-model work. The Scale and replicas tab is also diagnostic: it lists
 projected runtime replica artifacts only after scaling is enabled.
+When updating replicas with automatic restart for a running app, the provider
+preflights restart readiness before saving the new desired count.
 
 When a container app has inbound endpoints and replicas are enabled,
 CloudShell needs ingress or a load balancer so traffic can be distributed

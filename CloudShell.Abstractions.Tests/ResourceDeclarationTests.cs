@@ -8889,6 +8889,70 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("Updated api to 3 replicas.", result.Message);
     }
 
+    [Fact]
+    public async Task ContainerApplicationProvider_PreflightsRestartBeforeReplicaUpdate()
+    {
+        var services = new ServiceCollection();
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddExtension<ApplicationProviderExtension>()
+            .AddConfigurationProvider()
+            .Resources(resources =>
+            {
+                var settings = resources
+                    .AddConfigurationStore("configuration:app").WithDisplayName("App Settings")
+                    .WithEntry("Message", "hello");
+
+                resources
+                    .AddContainer("api", "example/api:latest", replicas: 2)
+                    .WithContainerHost("docker")
+                    .WithEnvironment(
+                        "WELCOME_MESSAGE",
+                        settings.Entry("Missing"));
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var declarationStore = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+        var registrations = new DeclarationRegistrationStore(declarationStore);
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var providers = serviceProvider.GetServices<IResourceProvider>().ToArray();
+        var resources = providers
+            .SelectMany(provider => provider.GetResources())
+            .ToArray();
+        var runtimeStates = serviceProvider.GetRequiredService<ApplicationRuntimeStateStore>();
+        var resource = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == "application:api");
+        var resourceManager = new StaticResourceManagerStore(resources, providers);
+        var currentProcess = Process.GetCurrentProcess();
+        runtimeStates.Save(new ApplicationRuntimeState(
+            resource.Id,
+            currentProcess.Id,
+            currentProcess.StartTime,
+            DateTimeOffset.UtcNow));
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            provider.UpdateReplicasAsync(
+                new ResourceProcedureContext(
+                    resource,
+                    registrations.GetRegistration(resource.Id),
+                    null,
+                    registrations,
+                    resourceManager),
+                3,
+                restartIfRunning: true));
+        var updated = provider.GetApplication("application:api");
+
+        Assert.Contains(
+            "Container app resource 'application:api' cannot update replicas and restart because Could not resolve configuration-entry reference for setting 'WELCOME_MESSAGE'.",
+            exception.Message);
+        Assert.NotNull(updated);
+        Assert.True(updated.ReplicasEnabled);
+        Assert.Equal(2, updated.Replicas);
+    }
+
 
     private sealed class ParentMetadataExtension : ICloudShellExtension
     {

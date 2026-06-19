@@ -910,15 +910,10 @@ public sealed partial class ApplicationResourceService(
         var wasRunning = IsRunning(application.Id);
         if (restartIfRunning && wasRunning)
         {
-            var restartReason = await GetActionUnavailableReasonAsync(
+            await EnsureContainerRestartAvailableForUpdateAsync(
                 context,
-                ResourceAction.Restart,
+                "update image",
                 cancellationToken);
-            if (!string.IsNullOrWhiteSpace(restartReason))
-            {
-                throw new InvalidOperationException(
-                    $"Container app resource '{context.Resource.Id}' cannot update image and restart because {restartReason}");
-            }
         }
 
         var nextRevision = CreateContainerRevision();
@@ -1004,6 +999,14 @@ public sealed partial class ApplicationResourceService(
         }
 
         var wasRunning = IsRunning(application.Id);
+        if (restartIfRunning && wasRunning)
+        {
+            await EnsureContainerRestartAvailableForUpdateAsync(
+                context,
+                "update replicas",
+                cancellationToken);
+        }
+
         var updated = NormalizeDefinition(application with
         {
             Replicas = replicas,
@@ -1059,6 +1062,22 @@ public sealed partial class ApplicationResourceService(
                 "The container app is running. Restart it to apply the replica count.")
             : ResourceProcedureResult.Completed(
                 $"Updated {application.Name} to {updated.Replicas} replica{Pluralize(updated.Replicas)}.");
+    }
+
+    private async Task EnsureContainerRestartAvailableForUpdateAsync(
+        ResourceProcedureContext context,
+        string operation,
+        CancellationToken cancellationToken)
+    {
+        var restartReason = await GetActionUnavailableReasonAsync(
+            context,
+            ResourceAction.Restart,
+            cancellationToken);
+        if (!string.IsNullOrWhiteSpace(restartReason))
+        {
+            throw new InvalidOperationException(
+                $"Container app resource '{context.Resource.Id}' cannot {operation} and restart because {restartReason}");
+        }
     }
 
     private void AppendConfigurationEvent(
