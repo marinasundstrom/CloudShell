@@ -43,6 +43,12 @@ changes. Milestone scope remains authoritative in [Roadmap](../roadmap.md).
 
 Work proposal areas in the current product order:
 
+For MVP work, pull from these proposals only when the slice improves the
+current local app-development loop: sample confidence, app-centric Resource
+Manager understanding, preflight diagnostics, runtime-impacting
+configuration/secrets/identity clarity, persisted-state handoff, or release
+hardening.
+
 1. MVP convergence and Resource Manager reliability through
    [Platform foundations](core/platform-foundations.md), keeping supported
    samples green and making Application Topology the broad local-development

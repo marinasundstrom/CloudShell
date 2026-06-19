@@ -21,6 +21,10 @@ on `git blame --follow`, and then by the broad type of change.
   target: Application Topology confidence, app-centric Resource Manager
   workflows, readiness diagnostics before failure, settings/secrets/identity
   clarity, persisted-state handoff, and release hardening.
+- Realigned the current MVP decision filter around the repeated local
+  app-development loop: run, understand, diagnose, and persist a realistic
+  distributed application from Resource Manager before opening new platform
+  fronts.
 - Refreshed the local-development MVP goal and roadmap to frame Resource
   Manager as a solid but not overbuilt app-centric developer cockpit, with
   `Persist()` as a state handoff and deployment left to the future

@@ -150,6 +150,35 @@ surfaces:
   broad shell-composition work, and on-premise hosting work unless a supported
   MVP sample exposes a blocking gap.
 
+### Current MVP Alignment
+
+The next MVP target is the local app-development loop, not another platform
+front. When choosing work, prefer the slice that most improves a developer's
+ability to run, understand, diagnose, and persist a realistic distributed
+application from Resource Manager.
+
+Use this decision filter:
+
+1. Does the work make Application Topology or another supported sample more
+   faithful, repeatable, or diagnosable?
+2. Does it keep users on the application resource page while explaining
+   endpoints, dependencies, exposure, storage, settings/secrets, identity,
+   telemetry, monitoring, or activity?
+3. Does it explain an action failure before dispatch, with stable capability
+   reasons, diagnostics, or ProblemDetails instead of provider exception text?
+4. Does it clarify the code-first-to-`Persist()` handoff without mixing in
+   deployment behavior?
+5. Does it remove confusion from labels, generated details, resource
+   references, or not-found/read-only/transient states in the primary app
+   workflow?
+
+If the answer is no, defer the work unless it is a security fix, keeps the
+supported sample suite green, or removes a direct blocker from one of the
+items above. In particular, do not spend additional MVP cycles on broad
+Environment-tab polish, IAM administration, shell-composition implementation,
+deployment history, autoscaling, external deployment projection, or
+on-premise-hosting features unless they become blocking sample evidence.
+
 ### Local Development MVP Target
 
 For the local development experience, the most urgent target is a developer
@@ -161,17 +190,19 @@ remains separate and waits for the orchestrator deployment API.
 Prioritize the remaining local-dev work in this order:
 
 1. **Application Topology confidence.** Keep the smoke suite green and use the
-   Application Topology sample as the broad MVP proof. It should demonstrate
-   container or project-backed apps, SQL Server with mounted storage,
-   configuration, secrets, identity-backed access, logs, traces, local
-   exposure, load-balancer or public endpoint relationships, and DNS/name
-   mapping without sample-specific UI knowledge.
+   Application Topology sample as the broad MVP proof. The sample should be
+   faithful enough to exercise the real local-development path: container or
+   project-backed apps, SQL Server with mounted storage, configuration,
+   secrets, identity-backed access, logs, traces, local exposure,
+   load-balancer or public endpoint relationships, DNS/name mapping, and a
+   deliberate failure path. The UI should explain that topology without
+   sample-specific knowledge.
 2. **App-centric Resource Manager path.** Make the application resource page
    the operator entry point for endpoints, service discovery, exposure,
    storage, runtime-impacting settings/secrets, identity, logs, traces,
-   monitoring, inbound names, and related activity. Prefer UX and diagnostics
-   fixes that make that app page and its immediate actions solid over
-   polishing secondary editor tabs.
+   monitoring, inbound names, immediate dependencies, incoming dependents, and
+   related activity. Prefer improvements that keep the user in this context
+   over polishing secondary editor tabs.
 3. **Readiness diagnostics before failure.** Before Start, Restart, image
    update, configuration update, or provider reconcile fails, Resource Manager
    should explain missing container hosts, unavailable credentials, occupied
@@ -189,7 +220,8 @@ Prioritize the remaining local-dev work in this order:
 5. **Persisted-state handoff.** `Persist()` should stay a clear boundary from
    code-first local declarations to durable Control Plane/provider state.
    Local development can continue after persistence, but deployment remains a
-   separate orchestrator concern.
+   separate orchestrator concern and should wait for the orchestrator
+   deployment API.
 6. **Release hardening.** Keep generated details, action availability,
    activity records, not-found states, read-only behavior, transient
    declaration warnings, and sample documentation consistent across supported
