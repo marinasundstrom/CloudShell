@@ -121,6 +121,27 @@ endpoint discovery. Use `WithReference(...)` for discovery, and use identity
 bindings plus grants for authorization. Do not treat their endpoint variables as
 part of the resource identity credential contract.
 
+Programmatic declarations can also model resource access grants. Use the
+typed `ResourceAccessPermissions` profiles when the intended level is
+resource reference, read, operate, or manage:
+
+```csharp
+var frontend = resources.AddAspNetCoreProject("frontend", "../Frontend/Frontend.csproj");
+var api = resources
+    .AddAspNetCoreProject("api", "../Api/Api.csproj")
+    .WithIdentity("development", name: "api-service");
+
+frontend.Allow(api, ResourceAccessPermissions.Reference);
+api.Allow(frontend, ResourceAccessPermissions.Read);
+api.Allow(frontend, ResourceAccessPermissions.Operate(
+    CommonResourceOperationPermissions.LifecycleAction));
+```
+
+`Reference` lets the principal see the target as a locked relationship without
+granting inspection. `Read` grants inspection, operation permission sets grant
+action-specific operation access, and `Manage` grants administrative resource
+management.
+
 Programmatic application declarations default to host-scoped lifetime for local
 development. Executable applications, ASP.NET Core projects, and container apps
 are stopped with the CloudShell host and reconciled on the next Control Plane

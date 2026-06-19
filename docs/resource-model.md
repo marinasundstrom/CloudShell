@@ -189,6 +189,38 @@ Rules:
 - Owner is not necessarily parent.
 - Hidden/runtime-managed resources still belong to the unified resource graph.
 - Internal implementation artifacts should normally be hidden or diagnostic.
+- Resource visibility is provider/default graph behavior, not caller
+  authorization. Caller authorization is represented by effective resource
+  access levels.
+
+## Resource Access
+
+Resource access is the caller-specific authorization result for a resource.
+It is ordered from no knowledge to full management:
+
+```csharp
+public enum ResourceAccessLevel
+{
+    None,
+    Reference,
+    Read,
+    Operate,
+    Manage
+}
+```
+
+`None` means the resource should not be disclosed to the caller. `Reference`
+means the resource may appear as a locked or redacted relationship node when it
+is needed to explain an authorized resource, topology edge, trace, health
+rollup, or dependency, but the caller cannot inspect details. `Read` allows
+inspection of the resource and its non-secret operational data. `Operate`
+allows resource operations and includes read-level inspection. `Manage` allows
+administrative resource management and remains the compatibility superset for
+resource actions.
+
+Do not use `ResourceVisibility` for caller permissions. A hidden diagnostic
+resource can still be readable by an operator with the right permission, and a
+normal resource can still be only a locked reference for another caller.
 
 ## Endpoints
 

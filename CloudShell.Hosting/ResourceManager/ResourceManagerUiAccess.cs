@@ -61,10 +61,24 @@ public static class ResourceManagerUiAccess
         ICloudShellAuthorizationService authorization,
         Resource resource,
         string? resourceGroupId) =>
-        authorization.CanAccessResource(
-            resource.Id,
-            resourceGroupId,
-            CloudShellPermissions.Resources.Manage);
+        GetResourceAccessLevel(authorization, resource, resourceGroupId)
+            .AllowsManage();
+
+    public static bool CanReferenceResource(
+        ICloudShellAuthorizationService authorization,
+        Resource resource,
+        IReadOnlyDictionary<string, ResourceGroup> groupsByResourceId) =>
+        CanReferenceResource(
+            authorization,
+            resource,
+            GetResourceGroupId(groupsByResourceId, resource.Id));
+
+    public static bool CanReferenceResource(
+        ICloudShellAuthorizationService authorization,
+        Resource resource,
+        string? resourceGroupId) =>
+        GetResourceAccessLevel(authorization, resource, resourceGroupId)
+            .AllowsReference();
 
     public static bool CanReadResource(
         ICloudShellAuthorizationService authorization,
@@ -79,9 +93,26 @@ public static class ResourceManagerUiAccess
         ICloudShellAuthorizationService authorization,
         Resource resource,
         string? resourceGroupId) =>
-        authorization.CanAccessResource(
+        GetResourceAccessLevel(authorization, resource, resourceGroupId)
+            .AllowsRead();
+
+    public static ResourceAccessLevel GetResourceAccessLevel(
+        ICloudShellAuthorizationService authorization,
+        Resource resource,
+        IReadOnlyDictionary<string, ResourceGroup> groupsByResourceId) =>
+        GetResourceAccessLevel(
+            authorization,
+            resource,
+            GetResourceGroupId(groupsByResourceId, resource.Id));
+
+    public static ResourceAccessLevel GetResourceAccessLevel(
+        ICloudShellAuthorizationService authorization,
+        Resource resource,
+        string? resourceGroupId) =>
+        authorization.GetResourceAccessLevel(
             resource.Id,
             resourceGroupId,
-            CloudShellPermissions.Resources.Read) ||
-        CanManageResource(authorization, resource, resourceGroupId);
+            resource.ResourceActions
+                .Select(ResourceActionPermissions.GetRequiredPermission)
+                .Distinct(StringComparer.OrdinalIgnoreCase));
 }

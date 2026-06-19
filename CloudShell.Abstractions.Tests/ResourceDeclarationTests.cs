@@ -352,6 +352,86 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void ResourcePermissionGrantExtensions_CanGrantAccessPermissionSet()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                var api = resources
+                    .Declare("applications", "application:api")
+                    .WithIdentity("development", name: "api-service");
+
+                resources
+                    .Declare("applications", "application:frontend")
+                    .Allow(api, ResourceAccessPermissions.Reference);
+
+                resources
+                    .Declare("configuration", "configuration:app")
+                    .Allow(api.Principal, ResourceAccessPermissions.Read);
+
+                resources
+                    .Declare("applications", "application:worker")
+                    .Allow(api.Principal, ResourceAccessPermissions.Manage);
+            });
+
+        var store = services
+            .BuildServiceProvider()
+            .GetRequiredService<ResourceDeclarationStore>();
+        var grants = store.GetPermissionGrants();
+
+        Assert.Contains(
+            grants,
+            grant => grant.TargetResourceId == "application:frontend" &&
+                     grant.Permission == CloudShellPermissions.Resources.Reference);
+        Assert.Contains(
+            grants,
+            grant => grant.TargetResourceId == "configuration:app" &&
+                     grant.Permission == CloudShellPermissions.Resources.Read);
+        Assert.Contains(
+            grants,
+            grant => grant.TargetResourceId == "application:worker" &&
+                     grant.Permission == CloudShellPermissions.Resources.Manage);
+    }
+
+    [Fact]
+    public void ResourcePermissionGrantExtensions_CanGrantOperatePermissionSet()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                var api = resources
+                    .Declare("applications", "application:api")
+                    .WithIdentity("development", name: "api-service");
+
+                resources
+                    .Declare("applications", "application:frontend")
+                    .Allow(api, ResourceAccessPermissions.Operate(
+                        CommonResourceOperationPermissions.LifecycleAction,
+                        CommonResourceOperationPermissions.ExecuteCustomAction,
+                        CommonResourceOperationPermissions.ExecuteCustomAction));
+            });
+
+        var store = services
+            .BuildServiceProvider()
+            .GetRequiredService<ResourceDeclarationStore>();
+        var grants = store.GetPermissionGrants();
+
+        Assert.Equal(2, grants.Count);
+        Assert.Contains(
+            grants,
+            grant => grant.Permission == CommonResourceOperationPermissions.LifecycleAction);
+        Assert.Contains(
+            grants,
+            grant => grant.Permission == CommonResourceOperationPermissions.ExecuteCustomAction);
+    }
+
+    [Fact]
     public void ResourcePermissionGrantEvaluator_EvaluatesDeclaredGrants()
     {
         var evaluator = new ResourcePermissionGrantEvaluator(

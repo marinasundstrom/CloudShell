@@ -105,6 +105,7 @@ else
                 <label for="user-direct-permission">@L["Resource permission"]</label>
                 <FluentSelect TOption="string" Id="user-direct-permission" @bind-Value="Input.DirectPermission">
                     <FluentOption TOption="string" Value="">No resource permission</FluentOption>
+                    <FluentOption TOption="string" Value="@CloudShellPermissions.Resources.Reference">resources.reference</FluentOption>
                     <FluentOption TOption="string" Value="@CloudShellPermissions.Resources.Read">resources.read</FluentOption>
                     <FluentOption TOption="string" Value="@CloudShellPermissions.Resources.Manage">resources.manage</FluentOption>
                     <FluentOption TOption="string" Value="@CloudShellPermissions.Resources.Actions.Lifecycle">lifecycle action</FluentOption>

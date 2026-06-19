@@ -519,12 +519,37 @@ public static class ResourceDeclarationBuilderExtensions
 
     public static TBuilder Allow<TBuilder>(
         this TBuilder builder,
+        ResourcePrincipalReference principal,
+        ResourceAccessPermissionSet access)
+        where TBuilder : IResourceBuilder
+    {
+        ArgumentNullException.ThrowIfNull(access);
+        foreach (var permission in access.Permissions)
+        {
+            builder.Allow(principal, permission);
+        }
+
+        return builder;
+    }
+
+    public static TBuilder Allow<TBuilder>(
+        this TBuilder builder,
         IResourceBuilder resource,
         string permission)
         where TBuilder : IResourceBuilder
     {
         ArgumentNullException.ThrowIfNull(resource);
         return builder.Allow(resource.Principal, permission);
+    }
+
+    public static TBuilder Allow<TBuilder>(
+        this TBuilder builder,
+        IResourceBuilder resource,
+        ResourceAccessPermissionSet access)
+        where TBuilder : IResourceBuilder
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        return builder.Allow(resource.Principal, access);
     }
 
     private static string? NormalizeOptional(string? value) =>

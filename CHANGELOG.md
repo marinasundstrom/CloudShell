@@ -120,6 +120,13 @@ on `git blame --follow`, and then by the broad type of change.
   read shared health state instead of probing resource endpoints directly. This
   follows
   [ADR-20260619-004](ADR.md#adr-20260619-004-store-resource-health-as-control-plane-snapshots).
+- Resource access is now modeled as ordered effective levels: none, reference,
+  read, operate, and manage. `resources.reference` supports locked resource
+  references without granting inspection, and shared helpers evaluate the
+  caller's effective access from reference, read, action, and manage
+  permissions. Programmatic resource declarations can grant typed access
+  profiles through `ResourceAccessPermissions`. This follows
+  [ADR-20260619-005](ADR.md#adr-20260619-005-model-resource-access-as-ordered-effective-levels).
 - The Application Topology sample now includes an intentional frontend-to-API
   failure route so failed request telemetry, traces, and correlated application
   logs can be exercised from the sample.

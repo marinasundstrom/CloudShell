@@ -11,6 +11,31 @@ link to the decision so the dependency is visible.
 
 ## 2026-06-19
 
+### ADR-20260619-005: Model resource access as ordered effective levels
+
+CloudShell authorization distinguishes whether a caller can discover a
+resource as a graph reference, inspect it, operate it, or manage it. This is
+modeled as an ordered `ResourceAccessLevel`: `None`, `Reference`, `Read`,
+`Operate`, and `Manage`.
+
+`Reference` is a first-class access level, not a UI workaround. It allows a
+resource to appear as a locked or redacted node when it is needed to explain an
+authorized resource, dependency, topology edge, trace, health rollup, or other
+relationship, without exposing resource details, telemetry attributes,
+endpoints, configuration, logs, health details, or actions. `Read` allows
+inspection. `Operate` allows resource operations and therefore includes
+inspection. `Manage` allows administrative management and remains the
+compatibility superset for resource actions.
+
+Provider-declared `ResourceVisibility` remains separate. Visibility describes
+the resource's default graph/display behavior, such as normal, hidden, or
+diagnostic. `ResourceAccessLevel` describes the current caller's effective
+authorization. The Control Plane should compute and enforce effective access at
+manager/API boundaries; UI components should render the resulting state and may
+show locked references where the caller has only `Reference`.
+
+Related changes: [Changelog](CHANGELOG.md).
+
 ### ADR-20260619-004: Store resource health as Control Plane snapshots
 
 Resources declare health checks as resource-model intent, but the Control

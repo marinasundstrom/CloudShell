@@ -246,6 +246,17 @@ var database = resources.Declare("database", "database:app");
 database.Allow(api.Principal, "Database/databases/readWrite/action");
 ```
 
+Use `ResourceAccessPermissions` when the grant represents a resource access
+level instead of a provider-specific operation string:
+
+```csharp
+frontend.Allow(api, ResourceAccessPermissions.Reference);
+api.Allow(frontend, ResourceAccessPermissions.Read);
+api.Allow(frontend, ResourceAccessPermissions.Manage);
+api.Allow(frontend, ResourceAccessPermissions.Operate(
+    CommonResourceOperationPermissions.LifecycleAction));
+```
+
 These grants can be evaluated against the declaration model with
 `ResourcePermissionGrantEvaluator`, and the Control Plane exposes read/evaluate
 operations through `IResourceManager` and the HTTP API:
@@ -472,6 +483,22 @@ resource identities directly so Resource Manager can assign resource-to-resource
 grants before the first provisioning run.
 
 ## Operation Permissions
+
+Resource access is evaluated as an ordered effective level:
+
+| Level | Meaning |
+| --- | --- |
+| `None` | The resource is not disclosed. |
+| `Reference` | The resource may appear as a locked or redacted relationship node but cannot be inspected. |
+| `Read` | The caller can inspect resource details and non-secret operational data. |
+| `Operate` | The caller can execute at least one resource operation and can inspect the resource. |
+| `Manage` | The caller can administer the resource and use management-level operations. |
+
+`resources.reference` grants reference-level discovery. `resources.read`
+grants read-level inspection. Resource operation permissions grant
+operate-level access for matching actions. `resources.manage` grants
+manage-level access and remains the compatibility superset for resource
+actions.
 
 Resource actions use Azure RBAC-style operation names. Resource Manager checks
 the required operation permission before executing an action. `resources.manage`
