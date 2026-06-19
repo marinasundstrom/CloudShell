@@ -75,6 +75,22 @@ Required outcome:
 | Integration points | Providers, CloudShell extensions, webhooks, WebSocket/streaming subscriptions, and API clients can react to resource events and lifecycle state without replacing the core orchestrator path. |
 | Validation samples | More complex samples prove multi-resource application topology, public ingress, DNS/name mapping, service discovery, identity-backed configuration/secrets, and operator UI workflows. |
 
+### Post-MVP: Extensible Shell Composition
+
+Goal: make CloudShell UI an independently useful extensible shell platform
+that Resource Manager can fully exploit, rather than treating Resource Manager
+as the shell itself.
+
+Required outcome:
+
+| Area | Required outcome |
+| --- | --- |
+| Layout contributions | Extensions can add validated menu groups, menu items, child items, pages, and hosted workspaces with stable IDs, ordering, route targets, and permission-aware visibility. |
+| Standard settings | Extensions can add settings pages or sections to a common settings surface while keeping UI-local, Control Plane-backed, provider-backed, and external-service-backed state boundaries explicit. |
+| Notifications | Extensions and Control Plane event sources can produce notifications that render as transient toasts and durable off-canvas notification history. |
+| Extension areas | Shell and Resource Manager pages expose named content areas so extensions can add scoped content without replacing whole pages or relying on brittle page internals. |
+| Resource Manager alignment | Resource Manager uses the generic shell composition primitives for its own navigation, pages, settings, notifications, and extension areas while keeping resource-specific provider UI on Resource Manager contracts. |
+
 ## MVP Execution Plan
 
 This section is the current task queue. Keep it focused on implementation
@@ -123,8 +139,8 @@ The remaining MVP work should bias toward release-quality behavior:
 - Keep endpoint contracts address-less and require concrete reachability through
   endpoint network mappings.
 - Avoid broad IAM, deployment history, autoscaling, advanced service resources,
-  and on-premise hosting work unless a supported MVP sample exposes a blocking
-  gap.
+  broad shell-composition work, and on-premise hosting work unless a supported
+  MVP sample exposes a blocking gap.
 
 ### Local Development MVP Target
 
@@ -159,6 +175,12 @@ Prioritize the remaining local-dev work in this order:
    code-first local declarations to durable Control Plane/provider state.
    Local development can continue after persistence, but deployment remains a
    separate orchestrator concern.
+6. **Shell-composition compatibility.** Keep Resource Manager improvements
+   aligned with the future shell model by preferring reusable view groups,
+   standard settings placement, notification-ready diagnostics, and named
+   extension points over page-specific shortcuts. Do not start the broad shell
+   composition implementation until the local-development sample path is
+   stable.
 
 ### Immediate Proposal Order
 

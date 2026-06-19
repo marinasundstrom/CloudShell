@@ -5,6 +5,12 @@ page behavior. They run in the CloudShell UI app and should depend on the
 domain-shaped shell integration APIs instead of internal Control Plane stores
 or provider implementations.
 
+The long-term shell direction is broader than the current APIs. CloudShell UI
+should act as an extensible shell platform where extensions can eventually add
+menu groups, menu items, child items, pages, settings pages, notifications, and
+named content areas. The current view and navigation APIs are the first
+programmatic layer of that model.
+
 This is the base UI extension architecture. Resource Manager UI extensions
 build on these same Blazor, routing, navigation, and activation mechanisms for
 resource-specific presentation. Resource-specific UI such as Add Resource
@@ -72,6 +78,12 @@ builder
         icon: "grid",
         order: 0);
 ```
+
+Future menu-group and child-item APIs should keep the same shape: stable
+contribution IDs, explicit targets, host-owned ordering, permission-aware
+visibility, and startup validation. Existing navigation items should be viewed
+as the flat form of that future contribution model rather than a competing
+system.
 
 ## Navigation
 
@@ -241,3 +253,24 @@ builder
 Only one installed extension can configure the start route. This keeps
 customization explicit and prevents competing extensions from silently
 changing the root experience.
+
+## Future Shell Areas
+
+The planned post-MVP composition model should generalize the layout pattern
+that already exists in shell-hosted views and Resource Manager detail tabs,
+then add standardized shell areas for:
+
+- Settings pages contributed by extensions but rendered inside a common
+  settings surface.
+- Notifications contributed by extensions or Control Plane event sources and
+  presented through toasts and an off-canvas notification center.
+- Named content areas where extensions can add scoped content to an existing
+  shell or Resource Manager page without replacing it.
+
+Those areas should use the same principles as views and navigation: stable
+extension-owned IDs, host validation, permission-aware visibility, grouped
+local navigation where useful, dynamic component hosting, named content areas,
+and a clear boundary between UI composition and Control Plane behavior.
+
+See the [shell composition proposal](../proposals/core/shell-composition.md)
+for the target direction.

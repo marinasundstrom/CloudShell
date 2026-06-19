@@ -20,14 +20,15 @@ distribution model is NuGet: a capability package can ship one or more
 assemblies that expose `ICloudShellExtension` implementations, host
 registration methods, UI components, provider services, and client helpers.
 
-See [shell customization design goals](shell-customization.md) for the broader
-product objectives behind these extension points.
+See [shell customization design goals](shell-customization.md) and the
+[shell composition proposal](proposals/core/shell-composition.md) for the
+broader product objectives behind these extension points.
 
 ## Specification Docs
 
 | Area | Use |
 | --- | --- |
-| [UI extension architecture](extensions/ui.md) | Base shell UI extension model: shell views, sidebar navigation, shell-hosted views, cross-extension navigation, and start page customization. |
+| [UI extension architecture](extensions/ui.md) | Base shell UI extension model: shell views, sidebar navigation, shell-hosted views, cross-extension navigation, and start page customization. Future shell composition extends this into menu groups, child items, settings pages, notifications, and named content areas. |
 | [Resource Manager UI extensions](extensions/resource-manager-ui.md) | Resource-specific UI built on the base UI extension architecture: Add Resource forms, update components, generated details, tabs, detail routes, and resource UI actions. |
 | [Control Plane resource providers](extensions/control-plane-resource-providers.md) | Non-UI resource-provider extensions: resource projection, creation, procedures, logs, templates, programmatic declarations, and provider examples. |
 | [Resource provider integration workflow](extensions/control-plane-resource-manager.md) | How user-facing resource providers pair Control Plane behavior with Resource Manager UI integration. |

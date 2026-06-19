@@ -35,8 +35,9 @@ changes. Milestone scope remains authoritative in [Roadmap](../roadmap.md).
 | 14 | [Provider-created and runtime-managed resources](core/provider-created-and-runtime-managed-resources.md) | In progress | MVP foundation for container app diagnostics; broader runtime projection later | Resource source, management mode, visibility, owner, and cleanup metadata now project through Resource, API, remote client, and Resource Manager inventory filtering. Container apps now project desired replica/container children as hidden runtime-managed resources, and Resource Manager can opt into hidden/runtime-managed views separately; next work is provider-observed IDs, health, placement, and materialization diagnostics. |
 | 15 | [Deployments and revisions](deployment/deployments-and-revisions.md) | In progress | MVP internal foundation, with current-revision support | Internal orchestrator deployment/revision data contracts exist for container app/provider/orchestrator use. Rich rollout history, rollback, retention, traffic splitting, and public management APIs remain deferred. |
 | 16 | [Deployment projection](deployment/deployment-projection.md) | In progress | Later portability | Tracks external deployment artifact projection and should not displace the MVP control-plane milestone. |
-| 17 | [Resource graph import and code generation](core/resource-graph-import.md) | Proposed | Later portability and advanced authoring | Tracks external file import into CloudShell graph drafts, starting with Docker Compose YAML, with generated programmatic declarations as the preferred first output. |
-| 18 | [Managed SQL Server resource](resources/managed-sql-server.md) | Proposed | Post-MVP managed database resource shape | Tracks the future SQL Server managed resource surface. The current `application.sql-server` implementation remains a local-development container-backed bridge, but future SQL Server UX should not expose generic container-app deployment controls by default. |
+| 17 | [Shell composition](core/shell-composition.md) | Proposed | Post-MVP extensible shell platform | Tracks the future CloudShell UI direction: menu groups, child items, pages, standard settings, notifications, named content areas, and Resource Manager alignment with generic shell primitives. |
+| 18 | [Resource graph import and code generation](core/resource-graph-import.md) | Proposed | Later portability and advanced authoring | Tracks external file import into CloudShell graph drafts, starting with Docker Compose YAML, with generated programmatic declarations as the preferred first output. |
+| 19 | [Managed SQL Server resource](resources/managed-sql-server.md) | Proposed | Post-MVP managed database resource shape | Tracks the future SQL Server managed resource surface. The current `application.sql-server` implementation remains a local-development container-backed bridge, but future SQL Server UX should not expose generic container-app deployment controls by default. |
 
 ## Current proposal order
 
@@ -70,7 +71,10 @@ Work proposal areas in the current product order:
 9. Runtime ownership decisions through
    [Runtime-managed resources](core/provider-created-and-runtime-managed-resources.md)
 10. [Deployments and revisions](deployment/deployments-and-revisions.md)
-11. Advanced app and environment concepts, including external-format resource
+11. [Shell composition](core/shell-composition.md), after Resource Manager and
+    supported local-development samples are stable enough to generalize the
+    shell primitives
+12. Advanced app and environment concepts, including external-format resource
     graph import and code generation
 
 Use [Roadmap](../roadmap.md) for the reasoning behind this order and the

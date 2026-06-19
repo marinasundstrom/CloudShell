@@ -17,6 +17,11 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Documented the post-MVP shell composition direction: CloudShell UI should
+  become an independently useful extensible shell platform with menu groups,
+  child items, pages, standard settings, notifications, named content areas,
+  and Resource Manager alignment with generic shell primitives. This follows
+  [ADR-20260619-002](ADR.md#adr-20260619-002-make-cloudshell-ui-a-generic-extensible-shell).
 - Built-in identity persistence is now configured under
   `Identity:BuiltIn:Persistence` with its own provider and connection string,
   and Resource Manager persistence rejects sharing the same database with the

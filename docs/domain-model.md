@@ -75,7 +75,8 @@ referenced by host applications. It can contribute:
 - Resource actions, logs, templates, diagnostics, and capabilities.
 - Resource Manager UI support such as add/update components, tabs, detail
   routes, and UI actions.
-- Shell-level UI such as navigation, workspaces, and operational dashboards.
+- Shell-level UI such as navigation, workspaces, settings pages,
+  notifications, named content areas, and operational dashboards.
 - SDK clients or helper packages for authored services.
 
 Capability packages are packaging and environment boundaries, not resource

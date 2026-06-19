@@ -11,6 +11,39 @@ link to the decision so the dependency is visible.
 
 ## 2026-06-19
 
+### ADR-20260619-002: Make CloudShell UI a generic extensible shell
+
+CloudShell UI should evolve into an independently useful shell platform, not a
+Resource Manager-specific application. Resource Manager remains the most
+important built-in shell extension and the primary MVP proof, but the shell
+should own generic composition primitives that Resource Manager and other
+extensions can share.
+
+The target shell model includes validated menu groups, menu items, child
+items, pages, shell-hosted workspaces, standardized settings pages,
+notifications, and named content areas. It should generalize the reusable
+layout ideas already present in shell-hosted views and Resource Manager tabs:
+grouped local navigation, selected page state in the URL, dynamic component
+hosting, ordered sections, and context injection. Extensions contribute
+components, metadata, labels, icons, capability declarations, and calls to
+public domain managers. The host owns layout rules, route mapping, ordering,
+accessibility, startup validation, permission-aware visibility, and conflict
+handling.
+
+This keeps Resource Manager UI extensions resource-specific while avoiding a
+Resource Manager-only shell. Resource Manager should adapt its tab, predefined
+view, and section contracts onto generic shell composition primitives rather
+than making `ResourceTabContribution` the generic shell API. A provider can
+contribute resource tabs and sections through Resource Manager contracts, and
+can also contribute broader shell pages, settings, notifications, or dashboard
+content through generic shell contracts.
+
+For MVP, broad shell composition is deferred behind local-development
+convergence. Resource Manager changes should still avoid page-specific
+shortcuts that would block the future composition model.
+
+Related changes: [Changelog](CHANGELOG.md).
+
 ### ADR-20260619-001: Keep built-in identity persistence separate from Resource Manager persistence
 
 CloudShell uses two persistent stores when the built-in identity provider is

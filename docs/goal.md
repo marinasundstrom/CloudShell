@@ -28,6 +28,10 @@ Resource Manager workflows, provider integrations, and API-driven automation.
 - CloudShell should be self-hosted and extensible. Capability packages can add
   providers, resource types, Resource Manager UI, shell views, services,
   diagnostics, and client helpers without owning the whole product.
+- The CloudShell UI should become an independently useful extensible shell
+  platform. Resource Manager is the first major shell extension, but the shell
+  should support other installed product areas through common menu, page,
+  settings, notification, and content-area contribution models.
 - The WebUI and Control Plane remain separate application surfaces even when
   hosted together for local development.
 - CloudShell should use established packages, protocols, and container images

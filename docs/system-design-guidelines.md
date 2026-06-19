@@ -48,6 +48,10 @@ hosting and extension packaging:
 - The CloudShell UI is the Blazor shell application. It renders navigation,
   Resource Manager, shell views, and UI integrations, and it talks to the
   Control Plane through the domain-shaped client abstractions.
+- The CloudShell UI should remain useful without Resource Manager being the
+  only product surface. The shell owns common layout, navigation, settings,
+  notifications, and extensible content areas; Resource Manager and other
+  installed product areas plug into those shell primitives.
 - The Control Plane is the service application boundary that owns resource
   state, provider coordination, lifecycle operations, logs, templates, API
   projection, validation, and authorization.
