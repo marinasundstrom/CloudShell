@@ -98,6 +98,9 @@ on `git blame --follow`, and then by the broad type of change.
   active request paths in the map, link mapped services back to CloudShell
   resources and request edges back to traces, and show node status from
   telemetry errors or resource lifecycle state.
+- The Telemetry workspace now acts as an observability dashboard with linked
+  cards for logs, request graph, request map, traces, and metrics, plus
+  resource and service summaries from the current telemetry data.
 - Shell navigation parents with sub-items now show a right-aligned collapse
   chevron, and each user's collapsed navigation groups are persisted through
   environment settings.

@@ -1,5 +1,8 @@
 @page "/observability"
 @inject IResourceManager ResourceManager
+@inject ILogManager LogManager
+@inject ITraceManager TraceManager
+@inject IMetricManager MetricManager
 @inject IStringLocalizer<SharedResource> L
 
 <PageTitle>@L["Observability"]</PageTitle>
@@ -8,72 +11,329 @@
     <div>
         <span class="eyebrow">@L["Observability"]</span>
         <h1>@L["Telemetry workspace"]</h1>
-        <p>@L["Placeholder surface for logs, traces, metrics, and resource-aware diagnostics."]</p>
+        <p>@L["Review telemetry coverage, recent service signals, and the shared observability views for this CloudShell environment."]</p>
     </div>
     <div class="heading-actions">
-        <FluentButton Appearance="Appearance.Neutral">@L["Import OTLP"]</FluentButton>
-        <FluentButton Appearance="Appearance.Accent">@L["Connect collector"]</FluentButton>
+        <FluentAnchor Appearance="Appearance.Neutral" Href="/observability/request-graph">
+            @L["Request graph"]
+        </FluentAnchor>
+        <FluentAnchor Appearance="Appearance.Accent" Href="/observability/request-map">
+            @L["Request map"]
+        </FluentAnchor>
     </div>
+</section>
+
+<section class="metric-grid">
+    <article class="metric-card">
+        <span>@L["Telemetry resources"]</span>
+        <strong>@TelemetryResourceCount</strong>
+        <small>@L["Resources declaring logs, traces, or metrics"]</small>
+    </article>
+    <article class="metric-card">
+        <span>@L["Log sources"]</span>
+        <strong>@Logs.Count</strong>
+        <small>@L["Available operational streams"]</small>
+    </article>
+    <article class="metric-card">
+        <span>@L["Trace spans"]</span>
+        <strong>@TraceSpans.Count</strong>
+        <small>@L["{0} request edge(s)", RequestEdgeCount]</small>
+    </article>
+    <article class="metric-card">
+        <span>@L["Metric points"]</span>
+        <strong>@MetricPoints.Count</strong>
+        <small>@L["{0} observed service(s)", ObservedServices.Count]</small>
+    </article>
 </section>
 
 <section class="dashboard-grid">
     <article class="panel panel-wide">
         <div class="panel-header">
             <div>
-                <h2>@L["Signal coverage"]</h2>
-                <p>@L["Telemetry tabs will bind to resources through Resource Manager."]</p>
+                <h2>@L["Workspace views"]</h2>
+                <p>@L["Open the shared telemetry surfaces for logs, traces, metrics, and service request relationships."]</p>
             </div>
         </div>
 
-        <div class="signal-grid">
-            <div>
-                <span>@L["Logs"]</span>
-                <strong>@Resources.Count(resource => resource.EffectiveObservability.Logs)</strong>
-            </div>
-            <div>
-                <span>@L["Traces"]</span>
-                <strong>@Resources.Count(resource => resource.EffectiveObservability.Traces)</strong>
-            </div>
-            <div>
-                <span>@L["Metrics"]</span>
-                <strong>@Resources.Count(resource => resource.EffectiveObservability.Metrics)</strong>
-            </div>
+        <div class="activity-list">
+            @foreach (var view in WorkspaceViews)
+            {
+                <a class="activity-row" href="@view.Href">
+                    <ShellNavigationIcon Icon="@view.Icon" />
+                    <div>
+                        <strong>@L[view.Title]</strong>
+                        <small class="muted">@L[view.Description]</small>
+                    </div>
+                    <span>@view.Summary</span>
+                </a>
+            }
         </div>
     </article>
 
     <article class="panel">
         <div class="panel-header">
             <div>
-                <h2>@L["Resource focus"]</h2>
-                <p>@L["Current inventory states."]</p>
+                <h2>@L["Observed services"]</h2>
+                <p>@L["Services with trace spans or metric points in the current telemetry window."]</p>
             </div>
         </div>
 
-        <div class="activity-list">
-            @foreach (var resource in Resources.Take(8))
-            {
-                <div class="activity-row">
-                    <ResourceKindIcon Resource="resource" />
-                    <div>
-                        <strong>@resource.Name</strong>
-                        <span>@resource.Kind</span>
-                    </div>
-                    @if (ResourceLifecycleDisplay.ShouldShowStatus(resource))
-                    {
-                        <ResourceStateIndicator State="resource.State" />
-                    }
-                </div>
-            }
-        </div>
+        @if (ObservedServices.Count == 0)
+        {
+            <div class="empty-state compact">
+                <strong>@L["No telemetry observed"]</strong>
+                <span>@L["Start resources and send traffic to populate traces and metrics."]</span>
+            </div>
+        }
+        else
+        {
+            <div class="activity-list">
+                @foreach (var service in ObservedServices.Take(8))
+                {
+                    <a class="activity-row" href="@BuildObservedServiceHref(service)">
+                        <ShellNavigationIcon Icon="observability" />
+                        <div>
+                            <strong>@service.ServiceName</strong>
+                            <small class="muted">@FormatObservedServiceSummary(service)</small>
+                        </div>
+                        <span>@FormatLastSeen(service.LastSeen)</span>
+                    </a>
+                }
+            </div>
+        }
     </article>
 </section>
 
 @code {
     private IReadOnlyList<Resource> Resources { get; set; } = [];
+    private IReadOnlyList<LogDescriptor> Logs { get; set; } = [];
+    private IReadOnlyList<TraceSpan> TraceSpans { get; set; } = [];
+    private IReadOnlyList<MetricPoint> MetricPoints { get; set; } = [];
+    private IReadOnlyList<ObservedServiceSummary> ObservedServices { get; set; } = [];
+    private IReadOnlyList<WorkspaceView> WorkspaceViews { get; set; } = [];
+    private IReadOnlySet<string> ObservedTelemetryResourceIds { get; set; } =
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyDictionary<string, Resource> ResourcesById { get; set; } =
+        new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
+
+    private int TelemetryResourceCount =>
+        Resources.Count(resource =>
+            resource.EffectiveObservability.HasAnySignal ||
+            ObservedTelemetryResourceIds.Contains(resource.Id));
+
+    private int RequestEdgeCount { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
-        Resources = await ResourceManager.ListResourcesAsync();
+        var resourcesTask = ResourceManager.ListResourcesAsync();
+        var logsTask = LogManager.ListLogsAsync();
+        var spansTask = TraceManager.ListTraceSpansAsync(new TraceQuery(MaxSpans: 1000));
+        var metricsTask = MetricManager.ListMetricPointsAsync(new MetricQuery(MaxPoints: 1000));
+
+        await Task.WhenAll(resourcesTask, logsTask, spansTask, metricsTask);
+
+        Resources = resourcesTask.Result;
+        Logs = logsTask.Result;
+        TraceSpans = spansTask.Result;
+        MetricPoints = metricsTask.Result;
+        ResourcesById = Resources.ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+        ObservedTelemetryResourceIds = BuildObservedTelemetryResourceIds();
+        RequestEdgeCount = CountRequestEdges(TraceSpans);
+        ObservedServices = BuildObservedServices();
+        WorkspaceViews = BuildWorkspaceViews();
     }
 
+    private IReadOnlyList<WorkspaceView> BuildWorkspaceViews() =>
+    [
+        new(
+            L["Logs"].Value,
+            L["Browse operational log streams from resources, providers, and artifacts."].Value,
+            "/logs",
+            "document",
+            L["{0} source(s)", Logs.Count].Value),
+        new(
+            L["Request graph"].Value,
+            L["Inspect OpenTelemetry service request relationships as edge data."].Value,
+            "/observability/request-graph",
+            "request-graph",
+            L["{0} edge(s)", RequestEdgeCount].Value),
+        new(
+            L["Request map"].Value,
+            L["Follow live request flow between mapped telemetry services."].Value,
+            "/observability/request-map",
+            "request-map",
+            L["{0} service(s)", ObservedServices.Count].Value),
+        new(
+            L["Traces"].Value,
+            L["Inspect spans, trace details, related logs, and resource activity."].Value,
+            "/observability/traces",
+            "traces",
+            L["{0} span(s)", TraceSpans.Count].Value),
+        new(
+            L["Metrics"].Value,
+            L["Review telemetry metric points by resource and service scope."].Value,
+            "/observability/metrics",
+            "metrics",
+            L["{0} point(s)", MetricPoints.Count].Value)
+    ];
+
+    private IReadOnlyList<ObservedServiceSummary> BuildObservedServices()
+    {
+        var services = new Dictionary<string, ObservedServiceBuilder>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var span in TraceSpans)
+        {
+            var service = GetOrAddObservedService(services, span.ServiceName, span.ResourceId);
+            service.TraceSpanCount++;
+            service.LastSeen = Max(service.LastSeen, span.StartTime);
+        }
+
+        foreach (var point in MetricPoints)
+        {
+            var service = GetOrAddObservedService(services, point.ServiceName, point.ResourceId);
+            service.MetricPointCount++;
+            service.LastSeen = Max(service.LastSeen, point.Timestamp);
+        }
+
+        return services.Values
+            .Select(service => new ObservedServiceSummary(
+                service.ServiceName,
+                service.ResourceId,
+                service.TraceSpanCount,
+                service.MetricPointCount,
+                service.LastSeen))
+            .OrderByDescending(service => service.LastSeen)
+            .ThenBy(service => service.ServiceName, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static ObservedServiceBuilder GetOrAddObservedService(
+        IDictionary<string, ObservedServiceBuilder> services,
+        string serviceName,
+        string resourceId)
+    {
+        var normalizedName = string.IsNullOrWhiteSpace(serviceName)
+            ? resourceId
+            : serviceName.Trim();
+
+        if (!services.TryGetValue(normalizedName, out var service))
+        {
+            service = new ObservedServiceBuilder(normalizedName, resourceId);
+            services[normalizedName] = service;
+        }
+
+        return service;
+    }
+
+    private static int CountRequestEdges(IReadOnlyList<TraceSpan> spans)
+    {
+        var spansByTraceAndId = spans
+            .GroupBy(span => (span.TraceId, span.SpanId))
+            .ToDictionary(group => group.Key, group => group.First());
+
+        return spans
+            .Where(span => !string.IsNullOrWhiteSpace(span.ParentSpanId))
+            .Select(span => spansByTraceAndId.TryGetValue((span.TraceId, span.ParentSpanId!), out var parent)
+                ? (Source: parent.ServiceName, Target: span.ServiceName)
+                : default)
+            .Where(edge =>
+                !string.IsNullOrWhiteSpace(edge.Source) &&
+                !string.IsNullOrWhiteSpace(edge.Target) &&
+                !string.Equals(edge.Source, edge.Target, StringComparison.OrdinalIgnoreCase))
+            .Distinct()
+            .Count();
+    }
+
+    private IReadOnlySet<string> BuildObservedTelemetryResourceIds()
+    {
+        var resourceIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var log in Logs)
+        {
+            if (!string.IsNullOrWhiteSpace(log.ResourceId))
+            {
+                resourceIds.Add(log.ResourceId);
+            }
+        }
+
+        foreach (var span in TraceSpans)
+        {
+            resourceIds.Add(span.ResourceId);
+        }
+
+        foreach (var point in MetricPoints)
+        {
+            resourceIds.Add(point.ResourceId);
+        }
+
+        return resourceIds;
+    }
+
+    private string BuildObservedServiceHref(ObservedServiceSummary service)
+    {
+        if (ResourcesById.ContainsKey(service.ResourceId))
+        {
+            return ResourceManagerRoutes.ResourceDetails(service.ResourceId);
+        }
+
+        var route = service.TraceSpanCount > 0
+            ? "/observability/traces"
+            : "/observability/metrics";
+
+        return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
+            route,
+            new Dictionary<string, string?> { ["resourceId"] = service.ResourceId });
+    }
+
+    private string FormatObservedServiceSummary(ObservedServiceSummary service)
+    {
+        var resourceLabel = ResourcesById.TryGetValue(service.ResourceId, out var resource)
+            ? (resource.DisplayName ?? resource.Name)
+            : service.ResourceId;
+
+        return L["{0} / {1} span(s) / {2} metric point(s)",
+            resourceLabel,
+            service.TraceSpanCount,
+            service.MetricPointCount].Value;
+    }
+
+    private string FormatLastSeen(DateTimeOffset timestamp)
+    {
+        if (timestamp == default)
+        {
+            return L["No timestamp"].Value;
+        }
+
+        return timestamp.LocalDateTime.ToString("g");
+    }
+
+    private static DateTimeOffset Max(DateTimeOffset first, DateTimeOffset second) =>
+        first >= second ? first : second;
+
+    private sealed record WorkspaceView(
+        string Title,
+        string Description,
+        string Href,
+        string Icon,
+        string Summary);
+
+    private sealed record ObservedServiceSummary(
+        string ServiceName,
+        string ResourceId,
+        int TraceSpanCount,
+        int MetricPointCount,
+        DateTimeOffset LastSeen);
+
+    private sealed class ObservedServiceBuilder(string serviceName, string resourceId)
+    {
+        public string ServiceName { get; } = serviceName;
+
+        public string ResourceId { get; } = resourceId;
+
+        public int TraceSpanCount { get; set; }
+
+        public int MetricPointCount { get; set; }
+
+        public DateTimeOffset LastSeen { get; set; }
+    }
 }
