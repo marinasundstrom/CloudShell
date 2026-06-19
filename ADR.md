@@ -11,6 +11,24 @@ link to the decision so the dependency is visible.
 
 ## 2026-06-19
 
+### ADR-20260619-003: Split built-in application resources by provider boundary
+
+The built-in application capability is a package of resource providers, not a
+single provider that owns every application-shaped resource. Executable
+applications, ASP.NET Core projects, container apps, and SQL Server each have
+their own provider identity for registration, lifecycle dispatch, templates,
+programmatic declarations, orchestration descriptors, and future resource model
+evolution.
+
+These providers may share internal application infrastructure for common
+runtime concerns such as local process execution, container-backed startup,
+environment variables, endpoint projection, logs, monitoring, templates, and
+orchestration. Shared infrastructure should not reintroduce an active aggregate
+provider boundary. The legacy `applications` provider id is compatibility
+metadata for old templates and declarations, not a registered built-in provider.
+
+Related changes: [Changelog](CHANGELOG.md).
+
 ### ADR-20260619-002: Make CloudShell UI a generic extensible shell
 
 CloudShell UI should evolve into an independently useful shell platform, not a

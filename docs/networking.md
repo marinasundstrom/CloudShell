@@ -395,7 +395,7 @@ The authoring shape is:
 cloudShell.Resources(resources =>
 {
     var hostNetworking = resources.AddLocalHostNetworking();
-    var api = resources.Declare("applications", "application:api");
+    var api = resources.Declare("applications.aspnet-core-project", "application:api");
 
     var network = resources.AddVirtualNetwork(
         "network:app",

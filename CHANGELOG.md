@@ -44,6 +44,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource severity is now modeled with the shared `ResourceSignalSeverity`
   abstraction, with `ResourceEvent` using typed severity directly and Resource
   Manager diagnostics using the same severity vocabulary.
+- The built-in application provider package no longer registers the legacy
+  aggregate `applications` resource provider. Executable apps, ASP.NET Core
+  projects, container apps, and SQL Server now register as separate provider
+  boundaries while sharing internal application infrastructure.
 
 ### 2026-06-18
 

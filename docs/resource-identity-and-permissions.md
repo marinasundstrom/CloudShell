@@ -109,7 +109,7 @@ resources.AddIdentityProvider(
     useAsDefault: true);
 
 var api = resources
-    .Declare("applications", "application:api")
+    .Declare("applications.aspnet-core-project", "application:api")
     .RequireIdentity();
 ```
 

@@ -245,7 +245,7 @@ var appNetwork = resources
     .AddNetwork("app", isDefault: true)
     .WithDisplayName("App Network");
 
-var api = resources.Declare("applications", "application:example-web-api");
+var api = resources.Declare("applications.aspnet-core-project", "application:example-web-api");
 var gateway = resources.Declare("networking", "networking:gateway");
 var publicEndpoint = appNetwork.RequestHttpEndpoint("api");
 

@@ -108,7 +108,7 @@ var vnet = resources.AddVirtualNetwork(
     "network:app",
     "Application Network");
 
-var api = resources.Declare("applications", "application:api");
+var api = resources.Declare("applications.aspnet-core-project", "application:api");
 var gateway = resources.Declare("networking", "networking:gateway");
 
 var ingress = vnet.RequestHttpEndpoint(
@@ -187,7 +187,7 @@ var vnet = resources.AddVirtualNetwork(
     "network:app",
     "Application Network");
 
-var api = resources.Declare("applications", "application:api");
+var api = resources.Declare("applications.aspnet-core-project", "application:api");
 var loadBalancer = resources.Declare("networking", "networking:lb");
 
 var backendPool = vnet.AddBackendPool("pool:api")

@@ -2,6 +2,8 @@ namespace CloudShell.Providers.Applications;
 
 public static class ApplicationResourceProviderIds
 {
+    // Legacy aggregate id. Kept for persisted template compatibility; new
+    // resources should use a resource-type-specific provider id.
     public const string Applications = "applications";
     public const string Executable = "applications.executable";
     public const string AspNetCoreProject = "applications.aspnet-core-project";

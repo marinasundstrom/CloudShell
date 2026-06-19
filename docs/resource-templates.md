@@ -21,7 +21,7 @@ A resource group template uses a common envelope:
   "resources": [
     {
       "name": "Example Web API",
-      "providerId": "applications",
+      "providerId": "applications.aspnet-core-project",
       "resourceType": "application.aspnet-core-project",
       "dependsOn": [],
       "providerConfigurationVersion": "1.0",
@@ -53,9 +53,16 @@ A resource group template uses a common envelope:
 The `configuration` object is provider-owned JSON. CloudShell carries it in the
 template document, but does not interpret the provider-specific fields.
 
-The application provider preserves specific application-backed resource types,
+The application provider package preserves specific application-backed resource types,
 including `application.executable`, `application.aspnet-core-project`,
 `application.container-app`, and `application.sql-server`.
+
+New exports use the resource-type-specific provider id, such as
+`applications.executable`, `applications.aspnet-core-project`,
+`applications.container-app`, or `applications.sql-server`. Older templates
+may still contain the legacy aggregate `applications` provider id; that id is
+accepted only as a compatibility boundary and is not an active built-in
+provider registration.
 
 Application provider templates also preserve app settings and environment
 variables, including literal values, configuration-entry references, and

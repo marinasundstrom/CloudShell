@@ -2204,7 +2204,12 @@ public sealed class ResourceDeclarationTests
             resourceGroupId: null,
             registrations);
 
-        Assert.Empty(serviceProvider.GetRequiredService<ApplicationProviderRouter>().GetResources());
+        Assert.DoesNotContain(
+            serviceProvider.GetServices<IResourceProvider>(),
+            provider => string.Equals(
+                provider.Id,
+                ApplicationResourceProviderIds.Applications,
+                StringComparison.OrdinalIgnoreCase));
         Assert.Equal(
             ["application:worker"],
             serviceProvider.GetRequiredService<ExecutableApplicationResourceProvider>()

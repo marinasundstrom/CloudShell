@@ -59,7 +59,6 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
             serviceProvider => serviceProvider.GetRequiredService<SqlServerApplicationResourceProvider>());
 
         builder
-            .AddResourceProvider<ApplicationProviderRouter>()
             .AddResourceProvider<ExecutableApplicationResourceProvider>()
             .AddResourceProvider<AspNetCoreProjectResourceProvider>()
             .AddResourceProvider<ContainerApplicationResourceProvider>()
