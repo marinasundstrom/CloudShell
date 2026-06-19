@@ -458,7 +458,12 @@
 
     private bool ShouldShowSqlGrantMaterializationNotice() =>
         Resource is not null &&
-        string.Equals(Resource.EffectiveTypeId, SqlServerResourceType, StringComparison.OrdinalIgnoreCase);
+        string.Equals(Resource.EffectiveTypeId, SqlServerResourceType, StringComparison.OrdinalIgnoreCase) &&
+        (string.Equals(SelectedPermission, DatabaseResourceOperationPermissions.ReadWrite, StringComparison.OrdinalIgnoreCase) ||
+         InboundGrants.Any(grant => string.Equals(
+             grant.Permission,
+             DatabaseResourceOperationPermissions.ReadWrite,
+             StringComparison.OrdinalIgnoreCase)));
 
     private sealed record PermissionOption(
         string Label,
