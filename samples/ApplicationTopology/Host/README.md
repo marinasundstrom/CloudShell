@@ -133,46 +133,50 @@ CloudShell can expose applications through generated hostnames such as:
 app.application-topology.cloudshell.local
 ```
 
-Currently, CloudShell does not automatically register these hostnames with the operating system. As a temporary workaround, you must manually add the hostname to your local hosts file.
+The sample declares a CloudShell Local DNS zone that uses the `local-hostnames`
+publisher. Open the `Application Topology Local DNS` resource in Resource
+Manager and run **Reconcile name mappings** to apply or re-apply the expected
+local host mappings.
+
+By default the local host-name publisher targets the system hosts file, which
+may require elevated permissions. To inspect the generated entries without
+changing the system hosts file, set `CLOUDSHELL_LOCAL_HOSTS_FILE` before
+running the sample:
+
+```bash
+CLOUDSHELL_LOCAL_HOSTS_FILE=samples/ApplicationTopology/Host/Data/cloudshell.hosts \
+  dotnet run --project samples/ApplicationTopology/Host -- --urls http://localhost:5104
+```
 
 ### macOS and Linux
 
-Edit `/etc/hosts` and add an entry similar to:
+When using the default system hosts file target, the publisher writes entries
+equivalent to:
 
 ```text
 127.0.0.1 app.application-topology.cloudshell.local
 ```
 
-For example:
-
-```bash
-sudo nano /etc/hosts
-```
+The action may need to run with permissions that can update `/etc/hosts`.
 
 ### Windows
 
-Edit:
-
-```text
-C:\Windows\System32\drivers\etc\hosts
-```
-
-and add:
+When using the default system hosts file target, the publisher writes entries
+equivalent to:
 
 ```text
 127.0.0.1 app.application-topology.cloudshell.local
 ```
 
+The action may need to run with permissions that can update
+`C:\Windows\System32\drivers\etc\hosts`.
+
 ### Why is this required?
 
-The operating system must be able to resolve the hostname to an IP address before a browser can connect to the application. Until CloudShell provides local DNS integration, the hosts file serves as a simple way to map generated hostnames to the local machine.
-
-### Future Improvements
-
-Manual hosts file configuration is intended as a temporary development-time workaround.
-
-A future version of CloudShell may include a local system service or daemon responsible for hostname registration and DNS integration. This would allow CloudShell to automatically register and remove application hostnames without requiring manual edits to the hosts file.
-
+The operating system must be able to resolve the hostname to an IP address
+before a browser can connect to the application. The current local development
+publisher materializes exact host mappings through the hosts file. Wildcard
+suffixes and public DNS propagation remain provider-specific follow-up work.
 
 ## MVP Direction
 

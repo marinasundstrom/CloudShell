@@ -17,6 +17,10 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Application Topology documentation and smoke coverage now reflect the current
+  local-hostname workflow: use the Local DNS resource's **Reconcile name
+  mappings** action instead of manually editing host mappings outside
+  Resource Manager.
 - Container App Deployment smoke coverage now verifies that resources declared
   with `Persist(overwrite: true)` are projected and rendered as persisted
   declarations rather than transient startup declarations.

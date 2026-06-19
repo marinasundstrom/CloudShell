@@ -472,6 +472,10 @@ public sealed class SampleSmokeTests
             dnsZoneAttributes.GetProperty(ResourceAttributeNames.DnsZoneName).GetString());
         Assert.Equal("local-hostnames", dnsZoneAttributes.GetProperty(ResourceAttributeNames.DnsProvider).GetString());
         Assert.Equal("1", dnsZoneAttributes.GetProperty(ResourceAttributeNames.DnsRecordCount).GetString());
+        var reconcileNameMappingsAction = dnsZone
+            .GetProperty("resourceActions")
+            .GetProperty("reconcileNameMappings");
+        Assert.Equal("Reconcile name mappings", reconcileNameMappingsAction.GetProperty("displayName").GetString());
         Assert.Equal("dns:application-topology-local", nameMapping.GetProperty("parentResourceId").GetString());
         Assert.Equal(
             "application:application-topology-frontend",
@@ -629,6 +633,11 @@ public sealed class SampleSmokeTests
         Assert.Contains("Zone: Local DNS", frontendDetailsHtml);
         Assert.Contains("Provider: local-hostnames", frontendDetailsHtml);
         Assert.Contains("Materialization: provider selected", frontendDetailsHtml);
+
+        var dnsDetailsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("dns:application-topology-local")}/details");
+        Assert.Contains("app.application-topology.cloudshell.local", dnsDetailsHtml);
+        Assert.Contains("local-hostnames", dnsDetailsHtml);
 
         var sqlEndpointsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Endpoints.Value)}");
