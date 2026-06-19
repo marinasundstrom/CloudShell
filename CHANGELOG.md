@@ -108,6 +108,9 @@ on `git blame --follow`, and then by the broad type of change.
   state, active resource failures, health-check status, failed request spans,
   and operational quick links, refreshing from Resource Manager on the
   configured health-check interval and linking failed requests into traces.
+- The CloudShell dashboard now groups failed request telemetry by trace and
+  keeps those entries out of the resource system-state list, avoiding duplicate
+  dashboard rows for the same request failure.
 - The Application Topology sample now includes an intentional frontend-to-API
   failure route so failed request telemetry, traces, and correlated application
   logs can be exercised from the sample.
