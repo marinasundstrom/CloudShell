@@ -62,6 +62,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added a reusable `GeneratedListItem` component and adopted it for generated
   endpoint, DNS, and identity rows that share the standard title, summary, and
   metadata layout.
+- Adopted `GeneratedListItem` in application overview identity, service
+  discovery, networking, readiness, and diagnostics summaries while leaving
+  custom environment rows unchanged.
 - Resource Manager now includes a top-level Health workspace that polls
   configured resource health checks at the Resource Manager health-check
   interval, summarizes resource status, and links back to resource details.

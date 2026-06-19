@@ -216,43 +216,37 @@ else
         <section class="blade-section">
             <h3>Resource identity</h3>
             <div class="generated-list">
-                <div>
-                    <strong>
+                <GeneratedListItem Summary="@FormatIdentitySummary(identity)"
+                                   Metadata="@($"Provider: {FormatIdentityProvider(identity)}")">
+                    <TitleContent>
                         <a class="resource-link" href="@BuildResourceTabRoute(ProjectedResource.Id, ResourcePredefinedViewIds.Identity)">
                             @FormatIdentityName(identity)
                         </a>
-                    </strong>
-                    <span>@FormatIdentitySummary(identity)</span>
-                    <small>Provider: @FormatIdentityProvider(identity)</small>
-                </div>
+                    </TitleContent>
+                </GeneratedListItem>
                 @if (!string.IsNullOrWhiteSpace(IdentityProvisioningStatusError))
                 {
-                    <div>
-                        <strong>Provisioning</strong>
-                        <span>@IdentityProvisioningStatusError</span>
-                        <small>Status unavailable</small>
-                    </div>
+                    <GeneratedListItem Title="Provisioning"
+                                       Summary="@IdentityProvisioningStatusError"
+                                       Metadata="Status unavailable" />
                 }
                 else if (IdentityProvisioningStatus is not null)
                 {
-                    <div>
-                        <strong>Provisioning</strong>
-                        <span>@FormatProvisioningState()</span>
-                        <small>@FormatProvisioningDetail()</small>
-                    </div>
+                    <GeneratedListItem Title="Provisioning"
+                                       Summary="@FormatProvisioningState()"
+                                       Metadata="@FormatProvisioningDetail()" />
                 }
                 @foreach (var grant in OutboundPermissionGrants)
                 {
                     var target = ResolveMappingResource(grant.TargetResourceId);
-                    <div>
-                        <strong>Can access</strong>
-                        <span>
+                    <GeneratedListItem Title="Can access"
+                                       Metadata="@grant.Permission">
+                        <SummaryContent>
                             <ResourcePillLink Label="@(target is null ? grant.TargetResourceId : GetResourceLabel(target))"
                                               Href="@BuildResourceRoute(grant.TargetResourceId)"
                                               Metadata="@target?.EffectiveTypeId" />
-                        </span>
-                        <small>@grant.Permission</small>
-                    </div>
+                        </SummaryContent>
+                    </GeneratedListItem>
                 }
             </div>
         </section>
@@ -322,11 +316,9 @@ else
         <section class="blade-section">
             <h3>Start readiness</h3>
             <div class="generated-list">
-                <div>
-                    <strong>@startReadiness.Status</strong>
-                    <span>@startReadiness.Message</span>
-                    <small>@startReadiness.ActionLabel preflight</small>
-                </div>
+                <GeneratedListItem Title="@startReadiness.Status"
+                                   Summary="@startReadiness.Message"
+                                   Metadata="@($"{startReadiness.ActionLabel} preflight")" />
             </div>
         </section>
     }
@@ -338,8 +330,9 @@ else
             <div class="generated-list">
                 @foreach (var reference in ServiceDiscoveryReferences)
                 {
-                    <div>
-                        <strong>
+                    <GeneratedListItem Summary="@FormatServiceDiscoveryReference(reference)"
+                                       Metadata="@FormatServiceDiscoveryBindings(reference)">
+                        <TitleContent>
                             @if (reference.Resource is null)
                             {
                                 @reference.ResourceId
@@ -350,10 +343,8 @@ else
                                     @GetResourceLabel(reference.Resource)
                                 </a>
                             }
-                        </strong>
-                        <span>@FormatServiceDiscoveryReference(reference)</span>
-                        <small>@FormatServiceDiscoveryBindings(reference)</small>
-                    </div>
+                        </TitleContent>
+                    </GeneratedListItem>
                 }
             </div>
         </section>
@@ -400,39 +391,36 @@ else
                 <div class="generated-list">
                     @foreach (var mapping in InboundNetworkMappings)
                     {
-                        <div>
-                            <strong>
+                        <GeneratedListItem Summary="@FormatMappingSummary(mapping.Mapping, mapping.Network, Application.Id)"
+                                           Metadata="@FormatMappingProvider(mapping.Mapping)">
+                            <TitleContent>
                                 <a class="resource-link" href="@BuildResourceRoute(mapping.Network.Id)">
                                     @GetResourceLabel(mapping.Network)
                                 </a>
-                            </strong>
-                            <span>@FormatMappingSummary(mapping.Mapping, mapping.Network, Application.Id)</span>
-                            <small>@FormatMappingProvider(mapping.Mapping)</small>
-                        </div>
+                            </TitleContent>
+                        </GeneratedListItem>
                     }
                     @foreach (var route in InboundLoadBalancerRoutes)
                     {
-                        <div>
-                            <strong>
+                        <GeneratedListItem Summary="@FormatLoadBalancerRoute(route.Route)"
+                                           Metadata="Load-balancer route">
+                            <TitleContent>
                                 <a class="resource-link" href="@BuildResourceRoute(route.LoadBalancer.Id)">
                                     @GetResourceLabel(route.LoadBalancer)
                                 </a>
-                            </strong>
-                            <span>@FormatLoadBalancerRoute(route.Route)</span>
-                            <small>Load-balancer route</small>
-                        </div>
+                            </TitleContent>
+                        </GeneratedListItem>
                     }
                     @foreach (var mapping in InboundNameMappings)
                     {
-                        <div>
-                            <strong>
+                        <GeneratedListItem Summary="@ApplicationNameMappingDisplay.GetSummary(mapping.Mapping, Application.Name)"
+                                           Metadata="@FormatNameMappingMetadata(mapping)">
+                            <TitleContent>
                                 <a class="resource-link" href="@BuildResourceRoute(mapping.Mapping.Id)">
                                     @ApplicationNameMappingDisplay.GetHostName(mapping.Mapping)
                                 </a>
-                            </strong>
-                            <span>@ApplicationNameMappingDisplay.GetSummary(mapping.Mapping, Application.Name)</span>
-                            <small>@FormatNameMappingMetadata(mapping)</small>
-                        </div>
+                            </TitleContent>
+                        </GeneratedListItem>
                     }
                 </div>
             }
@@ -442,38 +430,35 @@ else
     <section class="blade-section">
         <h3>Diagnostics</h3>
         <div class="generated-list">
-            <div>
-                <strong>
+            <GeneratedListItem Summary="Lifecycle and provider events for this application."
+                               Metadata="Resource activity">
+                <TitleContent>
                     <a class="resource-link" href="@BuildActivityRoute(Application.Id)">
                         Activity
                     </a>
-                </strong>
-                <span>Lifecycle and provider events for this application.</span>
-                <small>Resource activity</small>
-            </div>
+                </TitleContent>
+            </GeneratedListItem>
             @if (Logs.Count > 0)
             {
-                <div>
-                    <strong>
+                <GeneratedListItem Summary="@GetLogsSummary(Logs)"
+                                   Metadata="@GetLogSourcesSummary(Logs)">
+                    <TitleContent>
                         <a class="resource-link" href="@BuildLogsRoute(Application.Id, Logs)">
                             Logs
                         </a>
-                    </strong>
-                    <span>@GetLogsSummary(Logs)</span>
-                    <small>@GetLogSourcesSummary(Logs)</small>
-                </div>
+                    </TitleContent>
+                </GeneratedListItem>
             }
             @if (HasTraceObservability(Application))
             {
-                <div>
-                    <strong>
+                <GeneratedListItem Summary="Distributed traces attributed to this application."
+                                   Metadata="Observability signal enabled">
+                    <TitleContent>
                         <a class="resource-link" href="@BuildTraceRoute(Application.Id)">
                             Traces
                         </a>
-                    </strong>
-                    <span>Distributed traces attributed to this application.</span>
-                    <small>Observability signal enabled</small>
-                </div>
+                    </TitleContent>
+                </GeneratedListItem>
             }
         </div>
     </section>
