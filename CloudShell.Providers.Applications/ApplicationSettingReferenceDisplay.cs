@@ -1,5 +1,6 @@
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.Components;
 
 namespace CloudShell.Providers.Applications;
 
@@ -193,7 +194,7 @@ internal static class ApplicationSettingReferenceDisplay
         string resourceId,
         string itemName,
         Resource? resource) =>
-        $"{(resource is null ? resourceId : GetResourceLabel(resource))} / {itemName}";
+        $"{ResourceDisplayLabels.GetLabel(resource, resourceId)} / {itemName}";
 
     private static string FormatReferenceDetail(
         string resourceId,
@@ -225,9 +226,6 @@ internal static class ApplicationSettingReferenceDisplay
         string.IsNullOrWhiteSpace(identityBinding.Name)
             ? applicationResourceId
             : $"{applicationResourceId}/{identityBinding.Name}";
-
-    private static string GetResourceLabel(Resource resource) =>
-        resource.EffectiveDisplayName;
 
 }
 

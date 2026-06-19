@@ -10,11 +10,9 @@ public static class ResourceDisplayLabels
     public static string GetLabel(Resource? resource, string fallback) =>
         resource is null
             ? fallback
-            : !string.IsNullOrWhiteSpace(resource.DisplayName)
-                ? resource.DisplayName
-                : !string.IsNullOrWhiteSpace(resource.Name)
-                    ? resource.Name
-                    : fallback;
+            : string.IsNullOrWhiteSpace(resource.EffectiveDisplayName)
+                ? fallback
+                : resource.EffectiveDisplayName;
 
     public static string GetName(Resource resource) =>
         !string.IsNullOrWhiteSpace(resource.Name)

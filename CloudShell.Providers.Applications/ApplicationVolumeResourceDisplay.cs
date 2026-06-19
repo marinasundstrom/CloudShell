@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.Components;
 
 namespace CloudShell.Providers.Applications;
 
@@ -12,8 +13,8 @@ internal static class ApplicationVolumeResourceDisplay
     {
         var medium = GetVolumeStorageMedium(resource);
         return string.IsNullOrWhiteSpace(medium)
-            ? GetResourceLabel(resource)
-            : $"{GetResourceLabel(resource)} ({medium})";
+            ? ResourceDisplayLabels.GetLabel(resource)
+            : $"{ResourceDisplayLabels.GetLabel(resource)} ({medium})";
     }
 
     public static string GetMountSourceLabel(ResourceVolumeMount mount, Resource? volume) =>
@@ -32,6 +33,4 @@ internal static class ApplicationVolumeResourceDisplay
             ? medium
             : string.Empty;
 
-    private static string GetResourceLabel(Resource resource) =>
-        resource.EffectiveDisplayName;
 }
