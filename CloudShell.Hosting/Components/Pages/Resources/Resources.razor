@@ -229,7 +229,12 @@
                         }
                     </span>
                     <span>@HealthIndicator(resource)</span>
-                    <span class="endpoint">@EndpointLink(resource.PrimaryEndpoint)</span>
+                    <span class="endpoint">
+                        <EndpointLink Address="@resource.PrimaryEndpoint"
+                                      EmptyText="@L["n/a"].Value"
+                                      EmptyClass="muted"
+                                      StopClickPropagation="true" />
+                    </span>
                     <span class="resource-row-actions" @onclick:stopPropagation="true">
                         @ResourceActionControls(resource, includeDetailsAction: true)
                     </span>
@@ -470,7 +475,10 @@
                             <span>@FormatEndpointSummary(endpoint)</span>
                             @if (GetEndpointNetworkMapping(selected, endpoint.Name) is { } mapping)
                             {
-                                @EndpointLink(mapping.Address)
+                                <EndpointLink Address="@mapping.Address"
+                                              EmptyText="@L["n/a"].Value"
+                                              EmptyClass="muted"
+                                              StopClickPropagation="true" />
                             }
                             <small>@FormatExposure(endpoint.Exposure)</small>
                         </div>
@@ -2185,40 +2193,6 @@ resourceGroups) =>
 
     private string GetLogsActionLabel(int logCount) =>
         logCount == 1 ? L["Logs"].Value : L["Logs ({0})", logCount].Value;
-
-    private RenderFragment EndpointLink(string? address) => builder =>
-    {
-        if (string.IsNullOrWhiteSpace(address))
-        {
-            builder.OpenElement(0, "span");
-            builder.AddAttribute(1, "class", "muted");
-            builder.AddContent(2, L["n/a"]);
-            builder.CloseElement();
-            return;
-        }
-
-        if (!IsLinkEndpoint(address))
-        {
-            builder.OpenElement(3, "span");
-            builder.AddContent(4, address);
-            builder.CloseElement();
-            return;
-        }
-
-        builder.OpenElement(5, "a");
-        builder.AddAttribute(6, "class", "endpoint-link");
-        builder.AddAttribute(7, "href", address);
-        builder.AddAttribute(8, "target", "_blank");
-        builder.AddAttribute(9, "rel", "noopener noreferrer");
-        builder.AddEventStopPropagationAttribute(10, "onclick", true);
-        builder.AddContent(11, address);
-        builder.CloseElement();
-    };
-
-    private static bool IsLinkEndpoint(string address) =>
-        Uri.TryCreate(address, UriKind.Absolute, out var uri) &&
-        (uri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
-         uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase));
 
     private static string GetStateClass(ResourceState? state) => state switch
     {

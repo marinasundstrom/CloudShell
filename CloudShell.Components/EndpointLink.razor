@@ -1,0 +1,57 @@
+@if (string.IsNullOrWhiteSpace(Address))
+{
+    <span class="@EmptyCssClass">@EmptyText</span>
+}
+else if (CanLink(Address))
+{
+    <a class="@CssClass"
+       href="@Address"
+       target="_blank"
+       rel="noopener noreferrer"
+       @onclick:stopPropagation="StopClickPropagation">@DisplayText</a>
+}
+else
+{
+    <span>@DisplayText</span>
+}
+
+@code {
+    [Parameter]
+    public string? Address { get; set; }
+
+    [Parameter]
+    public string? Text { get; set; }
+
+    [Parameter]
+    public string EmptyText { get; set; } = "none";
+
+    [Parameter]
+    public string? EmptyClass { get; set; }
+
+    [Parameter]
+    public bool StopClickPropagation { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    private string DisplayText =>
+        !string.IsNullOrWhiteSpace(Text)
+            ? Text
+            : Address ?? string.Empty;
+
+    private string? EmptyCssClass =>
+        string.IsNullOrWhiteSpace(EmptyClass)
+            ? null
+            : EmptyClass;
+
+    private string CssClass =>
+        string.IsNullOrWhiteSpace(Class)
+            ? "endpoint-link"
+            : $"endpoint-link {Class}";
+
+    public static bool CanLink(string? address) =>
+        !string.IsNullOrWhiteSpace(address) &&
+        Uri.TryCreate(address, UriKind.Absolute, out var uri) &&
+        (uri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
+         uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase));
+}

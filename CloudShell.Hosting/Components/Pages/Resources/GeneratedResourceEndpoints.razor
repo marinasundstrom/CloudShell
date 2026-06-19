@@ -184,7 +184,7 @@
                         <strong>@mapping.Name</strong>
                         <dl class="endpoint-detail-list">
                             <dt>@L["Address"]</dt>
-                            <dd>@EndpointLink(mapping.Address)</dd>
+                            <dd><EndpointLink Address="@mapping.Address" EmptyText="@L["none"].Value" /></dd>
                             <dt>@L["Target endpoint"]</dt>
                             <dd>@EndpointReference(mapping.Target, Resource)</dd>
                             <dt>@L["Topology"]</dt>
@@ -202,7 +202,7 @@
                                       OnClick="() => CopyEndpoint(mapping.Address)">
                             @L["Copy"]
                         </FluentButton>
-                        @if (IsLinkEndpoint(mapping.Address))
+                        @if (EndpointLink.CanLink(mapping.Address))
                         {
                             <FluentButton Appearance="Appearance.Neutral"
                                           Title="@L["Open address"]"
@@ -641,26 +641,6 @@
         return FindRelatedResource(resourceId);
     }
 
-    private RenderFragment EndpointLink(string address) => builder =>
-    {
-        if (Uri.TryCreate(address, UriKind.Absolute, out var uri) &&
-            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
-        {
-            builder.OpenElement(0, "a");
-            builder.AddAttribute(1, "class", "endpoint-link");
-            builder.AddAttribute(2, "href", address);
-            builder.AddAttribute(3, "target", "_blank");
-            builder.AddAttribute(4, "rel", "noopener noreferrer");
-            builder.AddContent(5, address);
-            builder.CloseElement();
-            return;
-        }
-
-        builder.OpenElement(6, "span");
-        builder.AddContent(7, string.IsNullOrWhiteSpace(address) ? L["none"] : address);
-        builder.CloseElement();
-    };
-
     private RenderFragment ResourceLink(string resourceId)
     {
         var resource = FindRelatedResource(resourceId);
@@ -761,10 +741,6 @@
 
     private static string BuildResourceTabRoute(string resourceId, ResourceViewId tabId) =>
         ResourceManagerRoutes.ResourceDetails(resourceId, tabId);
-
-    private static bool IsLinkEndpoint(string address) =>
-        Uri.TryCreate(address, UriKind.Absolute, out var uri) &&
-        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
 
     private async Task CopyEndpoint(string address)
     {

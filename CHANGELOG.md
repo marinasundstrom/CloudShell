@@ -53,6 +53,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added a reusable `ResourcePillLink` component for display-name-aware resource
   relationship pills and adopted it in application overview, generated
   resource views, Access Control, and the resource-list blade.
+- Added a reusable `EndpointLink` component for endpoint address rendering and
+  adopted it in application overview, generated endpoint/overview views, and
+  the resource list.
 - Resource Manager now includes a top-level Health workspace that polls
   configured resource health checks at the Resource Manager health-check
   interval, summarizes resource status, and links back to resource details.
