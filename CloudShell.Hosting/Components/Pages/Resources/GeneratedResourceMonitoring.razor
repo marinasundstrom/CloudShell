@@ -1,4 +1,5 @@
 @using System.Globalization
+@implements IDisposable
 @inject IResourceMonitoringManager MonitoringManager
 @inject IStringLocalizer<SharedResource> L
 
@@ -10,6 +11,8 @@
 </div>
 
 @code {
+    private static readonly TimeSpan AutoRefreshInterval = TimeSpan.FromSeconds(5);
+
     [Parameter]
     public string? ResourceId { get; set; }
 
@@ -17,13 +20,31 @@
     public ResourceTypeContribution? ResourceType { get; set; }
 
     private ResourceMonitoringSnapshot? Snapshot { get; set; }
+    private System.Threading.Timer? RefreshTimer { get; set; }
     private bool IsLoading { get; set; }
+    private bool IsDisposed { get; set; }
+    private bool AutoRefresh { get; set; } = true;
+
+    protected override void OnInitialized()
+    {
+        RefreshTimer = new System.Threading.Timer(
+            _ =>
+            {
+                if (!IsDisposed && AutoRefresh)
+                {
+                    _ = InvokeAsync(Refresh);
+                }
+            },
+            null,
+            AutoRefreshInterval,
+            AutoRefreshInterval);
+    }
 
     protected override Task OnParametersSetAsync() => Refresh();
 
     private async Task Refresh()
     {
-        if (string.IsNullOrWhiteSpace(ResourceId) || IsLoading)
+        if (string.IsNullOrWhiteSpace(ResourceId) || IsLoading || IsDisposed)
         {
             return;
         }
@@ -36,7 +57,17 @@
         finally
         {
             IsLoading = false;
+            if (!IsDisposed)
+            {
+                await InvokeAsync(StateHasChanged);
+            }
         }
+    }
+
+    public void Dispose()
+    {
+        IsDisposed = true;
+        RefreshTimer?.Dispose();
     }
 
     private IReadOnlyList<GeneratedResourceViewSection> BuildSections() =>
@@ -50,10 +81,15 @@
                 <h3>@L["Monitoring"]</h3>
                 <span>@GetStatusText()</span>
             </div>
-            <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSync())"
-                          Disabled="@IsLoading" OnClick="Refresh">
-                @(IsLoading ? L["Refreshing"] : L["Refresh"])
-            </FluentButton>
+            <div class="resource-monitoring-actions">
+                <FluentCheckbox @bind-Value="AutoRefresh">
+                    @L["Auto-refresh"]
+                </FluentCheckbox>
+                <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                              Disabled="@IsLoading" OnClick="Refresh">
+                    @(IsLoading ? L["Refreshing"] : L["Refresh"])
+                </FluentButton>
+            </div>
         </div>
 
         @if (Snapshot is null)

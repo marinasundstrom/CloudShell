@@ -41,6 +41,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager primary labels, alerts, and resource reference pickers now
   prefer resolved display names or resource names instead of resource IDs when
   a referenced resource is available.
+- Resource monitoring views now refresh automatically while open and expose an
+  auto-refresh toggle while keeping manual refresh available.
 - Resource list rows now show a warning triangle for resources with the latest
   unsuperseded lifecycle/action failure so operators can scan the list, click
   the row, and inspect the matching blade failure summary.

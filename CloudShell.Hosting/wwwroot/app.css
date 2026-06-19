@@ -1150,6 +1150,14 @@ h3 {
     font-size: .82rem;
 }
 
+.resource-monitoring-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: .5rem;
+}
+
 .resource-activity-filters {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
