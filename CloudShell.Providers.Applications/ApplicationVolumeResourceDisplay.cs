@@ -12,8 +12,8 @@ internal static class ApplicationVolumeResourceDisplay
     {
         var medium = GetVolumeStorageMedium(resource);
         return string.IsNullOrWhiteSpace(medium)
-            ? resource.Name
-            : $"{resource.Name} ({medium})";
+            ? GetResourceLabel(resource)
+            : $"{GetResourceLabel(resource)} ({medium})";
     }
 
     public static string GetMountSourceLabel(ResourceVolumeMount mount, Resource? volume) =>
@@ -31,4 +31,7 @@ internal static class ApplicationVolumeResourceDisplay
         resource.ResourceAttributes.TryGetValue(ResourceAttributeNames.VolumeStorageMedium, out var medium)
             ? medium
             : string.Empty;
+
+    private static string GetResourceLabel(Resource resource) =>
+        resource.EffectiveDisplayName;
 }

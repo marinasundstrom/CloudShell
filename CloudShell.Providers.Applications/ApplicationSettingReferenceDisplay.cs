@@ -193,7 +193,7 @@ internal static class ApplicationSettingReferenceDisplay
         string resourceId,
         string itemName,
         Resource? resource) =>
-        $"{resource?.Name ?? resourceId} / {itemName}";
+        $"{(resource is null ? resourceId : GetResourceLabel(resource))} / {itemName}";
 
     private static string FormatReferenceDetail(
         string resourceId,
@@ -225,6 +225,9 @@ internal static class ApplicationSettingReferenceDisplay
         string.IsNullOrWhiteSpace(identityBinding.Name)
             ? applicationResourceId
             : $"{applicationResourceId}/{identityBinding.Name}";
+
+    private static string GetResourceLabel(Resource resource) =>
+        resource.EffectiveDisplayName;
 
 }
 

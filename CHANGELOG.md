@@ -108,6 +108,9 @@ on `git blame --follow`, and then by the broad type of change.
   and secret vaults show which application resources use them.
 - Resource list detail blades now render dependencies as display/name-aware
   resource links and include direct incoming dependents in a `Used by` section.
+- Application overview pages now use projected display names for related
+  resources in dependency, service discovery, networking, environment
+  reference, identity grant, and storage mount summaries.
 - Observability now includes separate Request graph and Request map views that
   derive OpenTelemetry-style edges from trace parent/child spans, animate
   active request paths in the map, link mapped services back to CloudShell

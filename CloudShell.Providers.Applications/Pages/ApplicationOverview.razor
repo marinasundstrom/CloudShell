@@ -147,7 +147,7 @@ else
                                     else
                                     {
                                         <a class="resource-link" href="@BuildResourceRoute(dependency.Id)">
-                                            @dependency.Name
+                                            @GetResourceLabel(dependency)
                                         </a>
                                     }
                                 </strong>
@@ -159,7 +159,7 @@ else
                 </div>
                 <div class="application-dependency-current">
                     <span>current</span>
-                    <strong>@Application.Name</strong>
+                    <strong>@GetCurrentResourceLabel()</strong>
                     <small>@Application.ResourceType</small>
                 </div>
                 <div class="application-dependency-group">
@@ -178,7 +178,7 @@ else
                             <div class="application-dependency-node">
                                 <strong>
                                     <a class="resource-link" href="@BuildResourceRoute(dependent.Id)">
-                                        @dependent.Name
+                                        @GetResourceLabel(dependent)
                                     </a>
                                 </strong>
                                 <span>@FormatDependencySummary(dependent, dependent.Id)</span>
@@ -295,7 +295,7 @@ else
                         @if (ContainerHostPlacement.HostResource is { } hostResource)
                         {
                             <a class="resource-link" href="@BuildResourceRoute(hostResource.Id)">
-                                @host.Name
+                                @GetResourceLabel(hostResource)
                             </a>
                         }
                         else
@@ -342,7 +342,7 @@ else
                             else
                             {
                                 <a class="resource-link" href="@BuildResourceRoute(reference.Resource.Id)">
-                                    @reference.Resource.Name
+                                    @GetResourceLabel(reference.Resource)
                                 </a>
                             }
                         </strong>
@@ -398,7 +398,7 @@ else
                         <div>
                             <strong>
                                 <a class="resource-link" href="@BuildResourceRoute(mapping.Network.Id)">
-                                    @mapping.Network.Name
+                                    @GetResourceLabel(mapping.Network)
                                 </a>
                             </strong>
                             <span>@FormatMappingSummary(mapping.Mapping, mapping.Network, Application.Id)</span>
@@ -410,7 +410,7 @@ else
                         <div>
                             <strong>
                                 <a class="resource-link" href="@BuildResourceRoute(route.LoadBalancer.Id)">
-                                    @route.LoadBalancer.Name
+                                    @GetResourceLabel(route.LoadBalancer)
                                 </a>
                             </strong>
                             <span>@FormatLoadBalancerRoute(route.Route)</span>
@@ -667,7 +667,9 @@ else
                 grant.ResourceIdentity is { } grantIdentity &&
                 string.Equals(grantIdentity.ResourceId, resource.Id, StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(grantIdentity.Name, identity.Name, StringComparison.OrdinalIgnoreCase))
-            .OrderBy(grant => ResolveMappingResource(grant.TargetResourceId)?.Name ?? grant.TargetResourceId, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(grant => ResolveMappingResource(grant.TargetResourceId) is { } target
+                ? GetResourceLabel(target)
+                : grant.TargetResourceId, StringComparer.OrdinalIgnoreCase)
             .ThenBy(grant => grant.Permission, StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
@@ -706,9 +708,12 @@ else
                 : $"{Application.ContainerHostId} (unavailable)";
         }
 
+        var label = ContainerHostPlacement.HostResource is null
+            ? ContainerHostPlacement.Host.Name
+            : GetResourceLabel(ContainerHostPlacement.HostResource);
         return string.IsNullOrWhiteSpace(Application.ContainerHostId)
-            ? $"{ContainerHostPlacement.Host.Name} (default)"
-            : ContainerHostPlacement.Host.Name;
+            ? $"{label} (default)"
+            : label;
     }
 
     private static string GetContainerHostSelectionLabel(ApplicationResourceDefinition application) =>
@@ -843,7 +848,7 @@ else
                     resourceId,
                     StringComparison.OrdinalIgnoreCase))
                 .Select(mapping => new NetworkEndpointMappingView(network, mapping)))
-            .OrderBy(mapping => mapping.Network.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(mapping => GetResourceLabel(mapping.Network), StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private IReadOnlyList<LoadBalancerRouteView> GetInboundLoadBalancerRoutes(string resourceId) =>
@@ -855,7 +860,7 @@ else
                     resourceId,
                     StringComparison.OrdinalIgnoreCase))
                 .Select(route => new LoadBalancerRouteView(loadBalancer, route)))
-            .OrderBy(route => route.LoadBalancer.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(route => GetResourceLabel(route.LoadBalancer), StringComparer.OrdinalIgnoreCase)
             .ThenBy(route => route.Route.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
@@ -898,7 +903,9 @@ else
                         ? ApplicationServiceDiscoveryDisplay.GetEndpointBindings(resource)
                         : []);
             })
-            .OrderBy(reference => reference.Resource?.Name ?? reference.ResourceId, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(reference => reference.Resource is null
+                ? reference.ResourceId
+                : GetResourceLabel(reference.Resource), StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private string FormatServiceDiscoveryReference(ServiceDiscoveryReferenceView reference)
@@ -1011,7 +1018,7 @@ else
         var summary = endpoint is null
             ? null
             : $" ({FormatEndpointSummary(endpoint)})";
-        return $"{resource?.Name ?? reference.ResourceId}/{reference.EndpointName}{summary}";
+        return $"{(resource is null ? reference.ResourceId : GetResourceLabel(resource))}/{reference.EndpointName}{summary}";
     }
 
     private string FormatEndpointReference(
@@ -1022,8 +1029,8 @@ else
         var endpoint = resource?.Endpoints.FirstOrDefault(endpoint =>
             string.Equals(endpoint.Name, reference.EndpointName, StringComparison.OrdinalIgnoreCase));
         var label = string.Equals(reference.ResourceId, targetResourceId, StringComparison.OrdinalIgnoreCase)
-            ? Application?.Name ?? reference.ResourceId
-            : resource?.Name ?? reference.ResourceId;
+            ? GetCurrentResourceLabel(reference.ResourceId)
+            : resource is null ? reference.ResourceId : GetResourceLabel(resource);
         var summary = endpoint is null
             ? null
             : $" ({FormatEndpointSummary(endpoint)})";
@@ -1051,7 +1058,7 @@ else
         var provider = ResolveMappingResource(providerId);
         return provider is null
             ? $"Provider: {providerId}"
-            : $"Provider: {provider.Name}";
+            : $"Provider: {GetResourceLabel(provider)}";
     }
 
     private string FormatLoadBalancerRoute(LoadBalancerRoute route) =>
@@ -1076,8 +1083,8 @@ else
     {
         var resource = ResolveMappingResource(target.ResourceId);
         var label = string.Equals(target.ResourceId, Application?.Id, StringComparison.OrdinalIgnoreCase)
-            ? Application?.Name ?? target.ResourceId
-            : resource?.Name ?? target.ResourceId;
+            ? GetCurrentResourceLabel(target.ResourceId)
+            : resource is null ? target.ResourceId : GetResourceLabel(resource);
         if (!string.IsNullOrWhiteSpace(target.EndpointName))
         {
             return $"{label}/{target.EndpointName}";
@@ -1099,7 +1106,7 @@ else
 
         if (view.Zone is not null)
         {
-            parts.Insert(0, $"Zone: {view.Zone.Name}");
+            parts.Insert(0, $"Zone: {GetResourceLabel(view.Zone)}");
         }
 
         return string.Join(" · ", parts);
@@ -1113,7 +1120,7 @@ else
             var provider = ResolveMappingResource(providerResourceId);
             return provider is null
                 ? $"Provider: {providerResourceId}"
-                : $"Provider: {provider.Name}";
+                : $"Provider: {GetResourceLabel(provider)}";
         }
 
         return $"Provider: {ApplicationNameMappingDisplay.GetProviderLabel(mapping)}";
@@ -1158,6 +1165,14 @@ else
     private static string FormatCount(int count, string singular, string plural) =>
         count == 1 ? $"1 {singular}" : $"{count} {plural}";
 
+    private static string GetResourceLabel(Resource resource) =>
+        resource.EffectiveDisplayName;
+
+    private string GetCurrentResourceLabel(string? fallbackResourceId = null) =>
+        ProjectedResource is null
+            ? Application?.Name ?? fallbackResourceId ?? ResourceId ?? "resource"
+            : GetResourceLabel(ProjectedResource);
+
     private static string FormatDependencySummary(Resource? dependency, string dependencyId)
     {
         if (dependency is null)
@@ -1187,7 +1202,7 @@ else
                 !string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase) &&
                 resource.DependsOn.Any(dependency =>
                     string.Equals(dependency, resourceId, StringComparison.OrdinalIgnoreCase)))
-            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(GetResourceLabel, StringComparer.OrdinalIgnoreCase)
             .ThenBy(resource => resource.Id, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
@@ -1482,24 +1497,7 @@ else
         builder.OpenElement(0, "a");
         builder.AddAttribute(1, "class", "resource-link generated-pill-link");
         builder.AddAttribute(2, "href", BuildResourceRoute(resourceId));
-        builder.AddContent(3, resource?.Name ?? resourceId);
-        if (resource is not null)
-        {
-            builder.OpenElement(4, "small");
-            builder.AddContent(5, resource.EffectiveTypeId);
-            builder.CloseElement();
-        }
-
-        builder.CloseElement();
-    };
-
-    private RenderFragment DependencyLink(string resourceId) => builder =>
-    {
-        var resource = ResolveMappingResource(resourceId);
-        builder.OpenElement(0, "a");
-        builder.AddAttribute(1, "class", "resource-link generated-pill-link");
-        builder.AddAttribute(2, "href", BuildResourceRoute(resourceId));
-        builder.AddContent(3, resource?.Name ?? resourceId);
+        builder.AddContent(3, resource is null ? resourceId : GetResourceLabel(resource));
         if (resource is not null)
         {
             builder.OpenElement(4, "small");

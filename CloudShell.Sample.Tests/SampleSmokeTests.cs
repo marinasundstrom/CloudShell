@@ -511,13 +511,17 @@ public sealed class SampleSmokeTests
         Assert.Contains(">Used by<", apiDetailsHtml);
         Assert.Contains("application-topology-sql-server", apiDetailsHtml);
         Assert.Contains("application-topology-frontend", apiDetailsHtml);
+        Assert.Contains(">Settings<", apiDetailsHtml);
+        Assert.Contains(">Secrets<", apiDetailsHtml);
         Assert.Contains("application.container-app", apiDetailsHtml);
         Assert.Contains("Environment references", apiDetailsHtml);
         Assert.Contains("ApplicationTopology__Message", apiDetailsHtml);
         Assert.Contains("Configuration entry", apiDetailsHtml);
+        Assert.Contains("Settings / ApplicationTopology:Message", apiDetailsHtml);
         Assert.Contains("ApplicationTopology__SqlServer__Password", apiDetailsHtml);
         Assert.Contains("ApplicationTopology__ExternalApiKey", apiDetailsHtml);
         Assert.Contains("Secret reference", apiDetailsHtml);
+        Assert.Contains("Secrets / external-api-key", apiDetailsHtml);
         Assert.Contains(">Hidden<", apiDetailsHtml);
         Assert.Contains(">Granted<", apiDetailsHtml);
         Assert.Contains("Resource identity", apiDetailsHtml);
@@ -611,7 +615,7 @@ public sealed class SampleSmokeTests
         Assert.Contains("application.aspnet-core-project", frontendDetailsHtml);
         Assert.Contains("app.application-topology.cloudshell.local", frontendDetailsHtml);
         Assert.Contains("app.application-topology.cloudshell.local -&gt; application-topology-frontend/http", frontendDetailsHtml);
-        Assert.Contains("Zone: application-topology-local", frontendDetailsHtml);
+        Assert.Contains("Zone: Local DNS", frontendDetailsHtml);
         Assert.Contains("Provider: local-hostnames", frontendDetailsHtml);
         Assert.Contains("Materialization: provider selected", frontendDetailsHtml);
 
@@ -683,7 +687,7 @@ public sealed class SampleSmokeTests
         var sqlDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details");
         Assert.Contains("Storage mounts", sqlDetailsHtml);
-        Assert.Contains("application-topology-sql-data (FileSystem)", sqlDetailsHtml);
+        Assert.Contains("SQL Data (FileSystem)", sqlDetailsHtml);
         Assert.Contains("/var/opt/mssql", sqlDetailsHtml);
         Assert.Contains("Read/write", sqlDetailsHtml);
         AssertResourceTabsInOrder(
