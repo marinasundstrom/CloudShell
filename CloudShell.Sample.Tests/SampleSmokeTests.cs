@@ -1130,6 +1130,8 @@ public sealed class SampleSmokeTests
         };
         var loginHtml = await client.GetStringAsync("/account/login");
         Assert.Contains("Sign in to CloudShell", loginHtml);
+        Assert.Contains("data-cloudshell-language-select", loginHtml);
+        Assert.Contains("data-cloudshell-theme-select", loginHtml);
         Assert.Contains("name=\"Input.Email\"", loginHtml);
         Assert.Contains("name=\"Input.Credential\"", loginHtml);
 

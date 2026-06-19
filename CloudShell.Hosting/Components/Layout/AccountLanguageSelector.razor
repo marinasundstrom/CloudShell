@@ -1,0 +1,51 @@
+@using System.Globalization
+@using Microsoft.AspNetCore.Builder
+@inject Microsoft.Extensions.Options.IOptions<RequestLocalizationOptions> LocalizationOptions
+@inject IStringLocalizer<SharedResource> L
+
+@{
+    var cultures = GetSupportedCultures();
+}
+
+@if (cultures.Count > 0)
+{
+    var selectedCulture = GetSelectedCulture(cultures);
+
+    <div class="language-selector">
+        <span class="language-icon" aria-hidden="true">
+            <FluentIcon Icon="@(Icons.Regular.Size16.Globe)" Color="Color.Neutral" />
+        </span>
+        <fluent-select class="language-select"
+                       aria-label="@L["Language"]"
+                       data-cloudshell-language-select
+                       value="@selectedCulture.Name">
+            @foreach (var culture in cultures)
+            {
+                <fluent-option value="@culture.Name" selected="@IsSelected(culture, selectedCulture)">
+                    @GetCultureDisplayName(culture)
+                </fluent-option>
+            }
+        </fluent-select>
+    </div>
+}
+
+@code {
+    private IReadOnlyList<CultureInfo> GetSupportedCultures() =>
+        (LocalizationOptions.Value.SupportedUICultures ?? [])
+            .DistinctBy(culture => culture.Name)
+            .OrderBy(culture => culture.NativeName, StringComparer.CurrentCultureIgnoreCase)
+            .ToArray();
+
+    private static string GetCultureDisplayName(CultureInfo culture) =>
+        culture.NativeName.Length == 0
+            ? culture.Name
+            : char.ToUpper(culture.NativeName[0], culture) + culture.NativeName[1..];
+
+    private static CultureInfo GetSelectedCulture(IReadOnlyList<CultureInfo> cultures) =>
+        cultures.FirstOrDefault(culture =>
+            culture.Name.Equals(CultureInfo.CurrentUICulture.Name, StringComparison.OrdinalIgnoreCase))
+        ?? cultures[0];
+
+    private static bool IsSelected(CultureInfo culture, CultureInfo selectedCulture) =>
+        culture.Name.Equals(selectedCulture.Name, StringComparison.OrdinalIgnoreCase);
+}

@@ -1,0 +1,25 @@
+.theme-selector {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    color: var(--cloudshell-text-muted);
+    font-size: .78rem;
+    font-weight: 650;
+}
+
+.theme-icon {
+    width: 1.15rem;
+    height: 1.15rem;
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 1.15rem;
+}
+
+.theme-icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+fluent-select.theme-select {
+    min-width: 7.5rem;
+}

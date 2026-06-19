@@ -139,6 +139,9 @@ on `git blame --follow`, and then by the broad type of change.
   identifier, and in-memory users now keep the configured key as the
   CloudShell principal ID while ASP.NET Core Identity uses the user's email for
   sign-in.
+- Account sign-in, setup, and sign-out pages now use browser-local language
+  and color-scheme selectors instead of the user-scoped interactive shell
+  selectors, so they work before the user has signed in.
 
 ### 2026-06-18
 

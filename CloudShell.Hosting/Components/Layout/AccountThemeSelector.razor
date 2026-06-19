@@ -1,0 +1,15 @@
+@inject IStringLocalizer<SharedResource> L
+
+<div class="theme-selector">
+    <span class="theme-icon" aria-hidden="true">
+        <FluentIcon Icon="@(Icons.Regular.Size20.DarkTheme)" Color="Color.Neutral" />
+    </span>
+    <fluent-select class="theme-select"
+                   aria-label="@L["Theme"]"
+                   data-cloudshell-theme-select
+                   value="system">
+        <fluent-option value="system" selected>@L["System"]</fluent-option>
+        <fluent-option value="light">@L["Light"]</fluent-option>
+        <fluent-option value="dark">@L["Dark"]</fluent-option>
+    </fluent-select>
+</div>

@@ -1,7 +1,9 @@
 (function () {
     var navCollapsedStorageKey = "cloudshell.navigation.collapsed";
+    var themeStorageKey = "cloudshell.theme";
 
     setNavCollapsed(readStoredNavCollapsed() === true);
+    initializeAccountSelectors();
 
     window.cloudShellNav = {
         setCollapsed: function (collapsed, persist) {
@@ -25,18 +27,11 @@
                 return;
             }
 
-            var normalizedMode = normalizeThemeMode(mode);
-
-            try {
-                var existing = JSON.parse(localStorage.getItem(storageKey) || "{}");
-                existing.mode = normalizedMode;
-                localStorage.setItem(storageKey, JSON.stringify(existing));
-            } catch {
-                try {
-                    localStorage.setItem(storageKey, JSON.stringify({ mode: normalizedMode }));
-                } catch {
-                }
-            }
+            writeStoredThemeMode(storageKey, mode);
+            applyThemeMode(mode);
+        },
+        applyMode: function (mode) {
+            applyThemeMode(mode);
         }
     };
 
@@ -62,6 +57,118 @@
         return value === "dark" || value === "light"
             ? value
             : null;
+    }
+
+    function readStoredThemeMode(storageKey) {
+        try {
+            var storedTheme = JSON.parse(localStorage.getItem(storageKey) || "{}");
+            return normalizeThemeMode(storedTheme.mode);
+        } catch {
+            return null;
+        }
+    }
+
+    function writeStoredThemeMode(storageKey, mode) {
+        var normalizedMode = normalizeThemeMode(mode);
+
+        try {
+            var existing = JSON.parse(localStorage.getItem(storageKey) || "{}");
+            existing.mode = normalizedMode;
+            localStorage.setItem(storageKey, JSON.stringify(existing));
+        } catch {
+            try {
+                localStorage.setItem(storageKey, JSON.stringify({ mode: normalizedMode }));
+            } catch {
+            }
+        }
+    }
+
+    function applyThemeMode(mode) {
+        var effectiveMode = normalizeThemeMode(mode) || getSystemThemeMode();
+        document.body.dataset.theme = effectiveMode;
+        document.documentElement.style.colorScheme = effectiveMode;
+
+        document.querySelectorAll("fluent-design-theme").forEach(function (theme) {
+            theme.setAttribute("mode", effectiveMode);
+        });
+    }
+
+    function getSystemThemeMode() {
+        return window.matchMedia &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light";
+    }
+
+    function initializeAccountSelectors() {
+        initializeAccountLanguageSelectors();
+        initializeAccountThemeSelectors();
+    }
+
+    function initializeAccountLanguageSelectors() {
+        document.querySelectorAll("[data-cloudshell-language-select]").forEach(function (select) {
+            if (select.dataset.cloudshellInitialized === "true") {
+                return;
+            }
+
+            select.dataset.cloudshellInitialized = "true";
+            select.addEventListener("change", function () {
+                var culture = select.value || select.getAttribute("value");
+                if (!culture) {
+                    return;
+                }
+
+                var returnUrl = window.location.pathname + window.location.search;
+                var target = "/localization/set?culture=" +
+                    encodeURIComponent(culture) +
+                    "&returnUrl=" +
+                    encodeURIComponent(returnUrl);
+                window.location.assign(target);
+            });
+        });
+    }
+
+    function initializeAccountThemeSelectors() {
+        document.querySelectorAll("[data-cloudshell-theme-select]").forEach(function (select) {
+            if (select.dataset.cloudshellInitialized === "true") {
+                return;
+            }
+
+            select.dataset.cloudshellInitialized = "true";
+            var storedMode = readStoredThemeMode(themeStorageKey) || "system";
+            setFluentSelectValue(select, storedMode);
+            whenFluentSelectDefined(function () {
+                setFluentSelectValue(select, storedMode);
+            });
+
+            select.addEventListener("change", function () {
+                var mode = select.value || select.getAttribute("value") || "system";
+                setFluentSelectValue(select, mode);
+                writeStoredThemeMode(themeStorageKey, mode);
+                applyThemeMode(mode);
+            });
+        });
+    }
+
+    function whenFluentSelectDefined(callback) {
+        if (!window.customElements || !customElements.whenDefined) {
+            callback();
+            return;
+        }
+
+        customElements.whenDefined("fluent-select").then(callback);
+    }
+
+    function setFluentSelectValue(select, value) {
+        select.value = value;
+        select.setAttribute("value", value);
+        select.querySelectorAll("fluent-option").forEach(function (option) {
+            if (option.getAttribute("value") === value) {
+                option.setAttribute("selected", "");
+            } else {
+                option.removeAttribute("selected");
+            }
+        });
     }
 
     function readStoredNavCollapsed() {
