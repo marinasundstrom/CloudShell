@@ -292,6 +292,7 @@
             .Where(resource => string.Equals(resource.ParentResourceId, selected.Id, StringComparison.OrdinalIgnoreCase))
             .OrderBy(GetResourceSortLabel, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+        var dependents = GetDependentResources(selected);
 
         <aside class="resource-blade panel">
             @if (parent is not null)
@@ -617,9 +618,24 @@
                     <section class="blade-section">
                         <h3>@L["Dependencies"]</h3>
                         <div class="dependency-list">
-                            @foreach (var dependency in selected.DependsOn)
+                            @foreach (var dependency in selected.DependsOn
+                                .Distinct(StringComparer.OrdinalIgnoreCase)
+                                .OrderBy(dependencyId => dependencyId, StringComparer.OrdinalIgnoreCase))
                             {
-                                <span>@dependency</span>
+                                @ResourceRelationshipLink(dependency)
+                            }
+                        </div>
+                    </section>
+                }
+
+                @if (dependents.Count > 0)
+                {
+                    <section class="blade-section">
+                        <h3>@L["Used by"]</h3>
+                        <div class="dependency-list">
+                            @foreach (var dependent in dependents)
+                            {
+                                @ResourceRelationshipLink(dependent)
                             }
                         </div>
                     </section>
@@ -1521,6 +1537,14 @@ resourceGroups) =>
             .OrderBy(candidate => candidate.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
+    private IReadOnlyList<Resource> GetDependentResources(Resource resource) =>
+        ResourceInventory
+            .Where(candidate => !string.Equals(candidate.Id, resource.Id, StringComparison.OrdinalIgnoreCase))
+            .Where(candidate => candidate.DependsOn.Contains(resource.Id, StringComparer.OrdinalIgnoreCase))
+            .OrderBy(GetResourceSortLabel, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(candidate => candidate.Id, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
     private bool CanManage(Resource resource) =>
         !IsReadOnly &&
         IsUserManagedNormalResource(resource) &&
@@ -1835,10 +1859,50 @@ resourceGroups) =>
     }
 
     private string FormatResourceName(string resourceId) =>
-        ResourceInventory.FirstOrDefault(resource =>
-            string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase)) is { } resource
+        FindResource(resourceId) is { } resource
                 ? GetResourceLabel(resource)
                 : resourceId;
+
+    private Resource? FindResource(string resourceId) =>
+        ResourceInventory.FirstOrDefault(resource =>
+            string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase));
+
+    private RenderFragment ResourceRelationshipLink(string resourceId) => builder =>
+    {
+        var resource = FindResource(resourceId);
+        if (resource is null)
+        {
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "class", "generated-pill-link");
+            builder.AddContent(2, resourceId);
+            builder.OpenElement(3, "small");
+            builder.AddContent(4, L["Missing resource"]);
+            builder.CloseElement();
+            builder.CloseElement();
+            return;
+        }
+
+        builder.OpenElement(5, "a");
+        builder.AddAttribute(6, "class", "resource-link generated-pill-link");
+        builder.AddAttribute(7, "href", ResourceManagerRoutes.ResourceOverview(resource.Id));
+        builder.AddContent(8, GetResourceLabel(resource));
+        builder.OpenElement(9, "small");
+        builder.AddContent(10, resource.EffectiveTypeId);
+        builder.CloseElement();
+        builder.CloseElement();
+    };
+
+    private RenderFragment ResourceRelationshipLink(Resource resource) => builder =>
+    {
+        builder.OpenElement(0, "a");
+        builder.AddAttribute(1, "class", "resource-link generated-pill-link");
+        builder.AddAttribute(2, "href", ResourceManagerRoutes.ResourceOverview(resource.Id));
+        builder.AddContent(3, GetResourceLabel(resource));
+        builder.OpenElement(4, "small");
+        builder.AddContent(5, resource.EffectiveTypeId);
+        builder.CloseElement();
+        builder.CloseElement();
+    };
 
     private string FormatLoadBalancerRouteCounts(Resource resource)
     {
