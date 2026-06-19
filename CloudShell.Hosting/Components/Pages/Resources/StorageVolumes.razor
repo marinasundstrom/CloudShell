@@ -45,7 +45,7 @@ else
                                       Metadata="@GetVolumeMetadata(volume)">
                         <TitleContent>
                             <a class="resource-link" href="@BuildResourceRoute(volume.Volume.Id)">
-                                @GetResourceLabel(volume.Volume)
+                                @ResourceDisplayLabels.GetLabel(volume.Volume)
                             </a>
                         </TitleContent>
                         <ChildContent>
@@ -101,7 +101,7 @@ else
             .Select(volume => new StorageVolumeView(
                 volume,
                 GetConsumersForVolume(volume, resources, orchestrationSnapshot)))
-            .OrderBy(volume => GetResourceLabel(volume.Volume), StringComparer.OrdinalIgnoreCase)
+            .OrderBy(volume => ResourceDisplayLabels.GetLabel(volume.Volume), StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
 
@@ -196,15 +196,8 @@ else
             label = $"{label} ({materializedCount}/{mountCount})";
         }
 
-        return $"{GetResourceLabel(consumer.Resource)}: {label}";
+        return $"{ResourceDisplayLabels.GetLabel(consumer.Resource)}: {label}";
     }
-
-    private static string GetResourceLabel(Resource resource) =>
-        !string.IsNullOrWhiteSpace(resource.DisplayName)
-            ? resource.DisplayName
-            : !string.IsNullOrWhiteSpace(resource.Name)
-                ? resource.Name
-                : resource.Id;
 
     private static string GetVolumeMountMaterializationStatusLabel(string status) =>
         status switch

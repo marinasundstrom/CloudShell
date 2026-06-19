@@ -414,7 +414,7 @@
         principal.Kind == ResourcePrincipalKind.ResourceIdentity &&
         !string.IsNullOrWhiteSpace(principal.SourceResourceId)
             ? ResourcesById.GetValueOrDefault(principal.SourceResourceId) is { } resource
-                ? FormatResourcePrincipalName(resource)
+                ? ResourceDisplayLabels.GetQualifiedLabel(resource)
                 : principal.SourceResourceId
             : principal.DisplayName ?? principal.Id;
 
@@ -425,7 +425,7 @@
             : ResourcesById.GetValueOrDefault(principal.SourceResourceId);
         var label = resource is null
             ? principal.DisplayName ?? principal.Id
-            : FormatResourcePrincipalName(resource);
+            : ResourceDisplayLabels.GetQualifiedLabel(resource);
         var href = resource is null
             ? null
             : ResourceManagerRoutes.ResourceDetails(resource.Id, ResourcePredefinedViewIds.Identity);
@@ -434,30 +434,6 @@
                                   Metadata="@FormatPrincipalLabel(principal)"
                                   SecondaryMetadata="@resource?.EffectiveTypeId" />;
     }
-
-    private static string GetResourceLabel(Resource resource) =>
-        !string.IsNullOrWhiteSpace(resource.DisplayName)
-            ? resource.DisplayName
-            : !string.IsNullOrWhiteSpace(resource.Name)
-                ? resource.Name
-                : resource.Id;
-
-    private static string FormatResourcePrincipalName(Resource resource)
-    {
-        var displayName = GetResourceLabel(resource);
-        var resourceName = GetResourceName(resource);
-
-        return string.Equals(displayName, resourceName, StringComparison.Ordinal)
-            ? displayName
-            : $"{displayName} ({resourceName})";
-    }
-
-    private static string GetResourceName(Resource resource) =>
-        string.IsNullOrWhiteSpace(resource.Name)
-            ? CloudShell.Abstractions.ResourceManager.ResourceId.TryParse(resource.Id, out var resourceId)
-                ? resourceId.Name
-                : resource.Id
-            : resource.Name;
 
     private static string FormatPrincipalLabel(ResourcePrincipalReference principal) =>
         principal.Kind == ResourcePrincipalKind.ResourceIdentity
@@ -531,11 +507,11 @@
             ? ResourcePrincipal.DisplayName ??
                 Principal.DisplayName ??
                 Principal.Id
-            : FormatResourcePrincipalName(Resource);
+            : ResourceDisplayLabels.GetQualifiedLabel(Resource);
 
         public string ResourceName => Resource is null
             ? string.Empty
-            : GetResourceName(Resource);
+            : ResourceDisplayLabels.GetName(Resource);
 
         public string PrincipalKindLabel => Principal.Kind switch
         {

@@ -310,7 +310,7 @@
     private string FormatIdentityReference(ResourceIdentityReference identity)
     {
         var label = FindRelatedResource(identity.ResourceId) is { } resource
-            ? GetResourceIdentityLabel(resource)
+            ? ResourceDisplayLabels.GetQualifiedLabel(resource)
             : identity.ResourceId;
         if (string.IsNullOrWhiteSpace(identity.Name))
         {
@@ -389,28 +389,10 @@
     private RenderFragment ResourceLink(string resourceId)
     {
         var resource = FindRelatedResource(resourceId);
-        var label = resource is null ? resourceId : GetResourceLabel(resource);
+        var label = ResourceDisplayLabels.GetLabel(resource, resourceId);
         return @<ResourcePillLink Label="@label"
                                   Href="@BuildResourceRoute(resourceId)"
                                   Metadata="@resource?.EffectiveTypeId" />;
-    }
-
-    private static string GetResourceLabel(Resource resource) =>
-        !string.IsNullOrWhiteSpace(resource.DisplayName)
-            ? resource.DisplayName
-            : !string.IsNullOrWhiteSpace(resource.Name)
-                ? resource.Name
-                : resource.Id;
-
-    private static string GetResourceIdentityLabel(Resource resource)
-    {
-        var displayName = GetResourceLabel(resource);
-        var resourceName = string.IsNullOrWhiteSpace(resource.Name)
-            ? resource.Id
-            : resource.Name;
-        return string.Equals(displayName, resourceName, StringComparison.Ordinal)
-            ? displayName
-            : $"{displayName} ({resourceName})";
     }
 
     private string GetProvisionIdentityButtonLabel() =>
