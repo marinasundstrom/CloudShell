@@ -525,6 +525,15 @@ public static class ResourceDiagnosticDisplay
 }
 
 public sealed record ResourceDiagnosticView(
-    string Severity,
+    ResourceSignalSeverity Severity,
     string Title,
-    string Message);
+    string Message)
+{
+    public ResourceDiagnosticView(
+        string severity,
+        string title,
+        string message)
+        : this(ResourceSignalSeverityParser.FromName(severity), title, message)
+    {
+    }
+}

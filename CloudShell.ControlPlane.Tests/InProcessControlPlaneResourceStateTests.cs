@@ -360,7 +360,7 @@ public sealed class InProcessControlPlaneResourceStateTests
             ResourceId: "target",
             EventType: ResourceEventTypes.Actions.ForFailedAction(ResourceActionIds.Stop))));
         Assert.Equal("operator", resourceEvent.TriggeredBy);
-        Assert.Equal("Warning", resourceEvent.Level);
+        Assert.Equal(ResourceSignalSeverity.Warning, resourceEvent.Severity);
         Assert.Equal(
             "Stop action was denied. The 'CloudShell.Resources/resources/lifecycle/action' or 'resources.manage' permission is required for resource 'target'.",
             resourceEvent.Message);
@@ -1112,7 +1112,7 @@ public sealed class InProcessControlPlaneResourceStateTests
         var rootEvents = resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "api"));
         Assert.Contains(rootEvents, resourceEvent =>
             resourceEvent.EventType == ResourceEventTypes.Events.Lifecycle.StartFailed &&
-            resourceEvent.Level == "Error" &&
+            resourceEvent.Severity == ResourceSignalSeverity.Error &&
             resourceEvent.Message.Contains("A dependency could not start", StringComparison.Ordinal) &&
             resourceEvent.Message.Contains("Docker is unavailable", StringComparison.Ordinal));
     }
@@ -1161,7 +1161,7 @@ public sealed class InProcessControlPlaneResourceStateTests
         var rootEvents = resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "api"));
         Assert.Contains(rootEvents, resourceEvent =>
             resourceEvent.EventType == ResourceEventTypes.Actions.ForAction(ResourceActionIds.Start) &&
-            resourceEvent.Level == "Warning" &&
+            resourceEvent.Severity == ResourceSignalSeverity.Warning &&
             resourceEvent.Message.Contains("Dependency auto-start warning", StringComparison.Ordinal) &&
             resourceEvent.Message.Contains("Docker is unavailable", StringComparison.Ordinal));
         Assert.DoesNotContain(rootEvents, resourceEvent =>
@@ -1215,7 +1215,7 @@ public sealed class InProcessControlPlaneResourceStateTests
         var rootEvents = resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "frontend"));
         Assert.Contains(rootEvents, resourceEvent =>
             resourceEvent.EventType == ResourceEventTypes.Actions.ForAction(ResourceActionIds.Start) &&
-            resourceEvent.Level == "Warning" &&
+            resourceEvent.Severity == ResourceSignalSeverity.Warning &&
             resourceEvent.Message.Contains("Dependency auto-start warning", StringComparison.Ordinal) &&
             resourceEvent.Message.Contains("Docker is unavailable", StringComparison.Ordinal));
         Assert.DoesNotContain(rootEvents, resourceEvent =>

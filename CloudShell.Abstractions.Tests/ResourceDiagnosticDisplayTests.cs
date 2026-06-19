@@ -17,7 +17,7 @@ public sealed class ResourceDiagnosticDisplayTests
             CreateNameMappingRelatedResources());
 
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Equal("Warning", diagnostic.Severity);
+        Assert.Equal(ResourceSignalSeverity.Warning, diagnostic.Severity);
         Assert.Equal("DNS publisher unavailable", diagnostic.Title);
         Assert.Equal(
             "Provider resource 'networking:missing' could not be found. CloudShell cannot verify that this name mapping can be published.",
@@ -46,7 +46,7 @@ public sealed class ResourceDiagnosticDisplayTests
             CreateNameMappingRelatedResources(provider));
 
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Equal("Warning", diagnostic.Severity);
+        Assert.Equal(ResourceSignalSeverity.Warning, diagnostic.Severity);
         Assert.Equal("DNS publisher capability missing", diagnostic.Title);
         Assert.Equal(
             "Provider resource 'Resolver' does not advertise the DNS name publisher capability.",
@@ -75,7 +75,7 @@ public sealed class ResourceDiagnosticDisplayTests
             CreateNameMappingRelatedResources(provider));
 
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Equal("Info", diagnostic.Severity);
+        Assert.Equal(ResourceSignalSeverity.Info, diagnostic.Severity);
         Assert.Equal("Name mapping pending publish", diagnostic.Title);
         Assert.Equal(
             "Provider selected. Run Reconcile name mappings on the DNS zone to apply it.",
@@ -94,7 +94,7 @@ public sealed class ResourceDiagnosticDisplayTests
             CreateNameMappingRelatedResources());
 
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Equal("Info", diagnostic.Severity);
+        Assert.Equal(ResourceSignalSeverity.Info, diagnostic.Severity);
         Assert.Equal("Name mapping pending publish", diagnostic.Title);
         Assert.Equal(
             "DNS provider 'local-hostnames' is responsible for publishing this name. Run Reconcile name mappings on the DNS zone to apply it.",
@@ -123,15 +123,15 @@ public sealed class ResourceDiagnosticDisplayTests
             CreateNameMappingRelatedResources());
 
         Assert.Contains(diagnostics, diagnostic =>
-            diagnostic.Severity == "Info" &&
+            diagnostic.Severity == ResourceSignalSeverity.Info &&
             diagnostic.Title == "Local host-name target" &&
             diagnostic.Message == "Published to custom hosts-file target '/tmp/cloudshell-hosts'.");
         Assert.Contains(diagnostics, diagnostic =>
-            diagnostic.Severity == "Info" &&
+            diagnostic.Severity == ResourceSignalSeverity.Info &&
             diagnostic.Title == "Resolver cache not refreshed" &&
             diagnostic.Message.Contains("custom hosts-file target", StringComparison.Ordinal));
         Assert.Contains(diagnostics, diagnostic =>
-            diagnostic.Severity == "Warning" &&
+            diagnostic.Severity == ResourceSignalSeverity.Warning &&
             diagnostic.Title == "Local suffix warning" &&
             diagnostic.Message.Contains("mDNS/Bonjour", StringComparison.Ordinal));
     }
@@ -161,7 +161,7 @@ public sealed class ResourceDiagnosticDisplayTests
             CreateNameMappingRelatedResources(provider));
 
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Equal("Warning", diagnostic.Severity);
+        Assert.Equal(ResourceSignalSeverity.Warning, diagnostic.Severity);
         Assert.Equal("Name mapping publish failed", diagnostic.Title);
         Assert.Equal("Could not update hosts file.", diagnostic.Message);
     }
@@ -202,7 +202,7 @@ public sealed class ResourceDiagnosticDisplayTests
             new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase));
 
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Equal("Warning", diagnostic.Severity);
+        Assert.Equal(ResourceSignalSeverity.Warning, diagnostic.Severity);
         Assert.Equal("Name mapping target unavailable", diagnostic.Title);
         Assert.Equal("Target resource 'application:api' could not be found.", diagnostic.Message);
     }
@@ -226,7 +226,7 @@ public sealed class ResourceDiagnosticDisplayTests
             CreateNameMappingRelatedResources(target));
 
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Equal("Warning", diagnostic.Severity);
+        Assert.Equal(ResourceSignalSeverity.Warning, diagnostic.Severity);
         Assert.Equal("Name mapping target endpoint unavailable", diagnostic.Title);
         Assert.Equal("Target endpoint 'http' could not be found on resource 'API'.", diagnostic.Message);
     }
@@ -247,7 +247,7 @@ public sealed class ResourceDiagnosticDisplayTests
             CreateNameMappingRelatedResources());
 
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Equal("Warning", diagnostic.Severity);
+        Assert.Equal(ResourceSignalSeverity.Warning, diagnostic.Severity);
         Assert.Equal("Name mapping target address unavailable", diagnostic.Title);
         Assert.Equal(
             "Target endpoint 'http' on resource 'API' does not have a mapped address for local host-name publishing.",
@@ -268,7 +268,7 @@ public sealed class ResourceDiagnosticDisplayTests
             });
 
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Equal("Warning", diagnostic.Severity);
+        Assert.Equal(ResourceSignalSeverity.Warning, diagnostic.Severity);
         Assert.Equal("Endpoint mapping provider unavailable", diagnostic.Title);
         Assert.Equal(
             "Mapping 'API' requires provider resource 'networking:missing', but that resource could not be found.",
@@ -291,7 +291,7 @@ public sealed class ResourceDiagnosticDisplayTests
             });
 
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Equal("Warning", diagnostic.Severity);
+        Assert.Equal(ResourceSignalSeverity.Warning, diagnostic.Severity);
         Assert.Equal("Endpoint mapping provider capability missing", diagnostic.Title);
         Assert.Equal(
             "Mapping 'API' provider resource 'Proxy' does not advertise the endpoint mapper capability.",
@@ -308,7 +308,7 @@ public sealed class ResourceDiagnosticDisplayTests
             new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase));
 
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Equal("Warning", diagnostic.Severity);
+        Assert.Equal(ResourceSignalSeverity.Warning, diagnostic.Severity);
         Assert.Equal("Endpoint mapping target unavailable", diagnostic.Title);
         Assert.Equal(
             "Mapping 'API' target resource 'application:api' could not be found.",
@@ -329,7 +329,7 @@ public sealed class ResourceDiagnosticDisplayTests
             });
 
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Equal("Warning", diagnostic.Severity);
+        Assert.Equal(ResourceSignalSeverity.Warning, diagnostic.Severity);
         Assert.Equal("Endpoint mapping target endpoint unavailable", diagnostic.Title);
         Assert.Equal(
             "Mapping 'API' target endpoint 'http' could not be found on resource 'API'.",
@@ -346,7 +346,7 @@ public sealed class ResourceDiagnosticDisplayTests
             new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase));
 
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Equal("Warning", diagnostic.Severity);
+        Assert.Equal(ResourceSignalSeverity.Warning, diagnostic.Severity);
         Assert.Equal("Load balancer host unavailable", diagnostic.Title);
         Assert.Equal(
             "Container host resource 'docker:missing' could not be found. Provider-owned load balancer runtime may not be placeable.",
@@ -386,7 +386,7 @@ public sealed class ResourceDiagnosticDisplayTests
             new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase));
 
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Equal("Warning", diagnostic.Severity);
+        Assert.Equal(ResourceSignalSeverity.Warning, diagnostic.Severity);
         Assert.Equal("Load balancer route target unavailable", diagnostic.Title);
         Assert.Equal(
             "Route 'API' targets resource 'application:api', but that resource could not be found.",
@@ -429,7 +429,7 @@ public sealed class ResourceDiagnosticDisplayTests
             });
 
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Equal("Warning", diagnostic.Severity);
+        Assert.Equal(ResourceSignalSeverity.Warning, diagnostic.Severity);
         Assert.Equal("Load balancer route endpoint unavailable", diagnostic.Title);
         Assert.Equal(
             "Route 'API' targets endpoint 'http' on resource 'API', but that endpoint could not be found.",
@@ -444,7 +444,7 @@ public sealed class ResourceDiagnosticDisplayTests
         var diagnostics = ResourceDiagnosticDisplay.GetDiagnostics(resource);
 
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Equal("Warning", diagnostic.Severity);
+        Assert.Equal(ResourceSignalSeverity.Warning, diagnostic.Severity);
         Assert.Equal("Storage mounts not fully materialized", diagnostic.Title);
         Assert.Equal(
             "Only some declared storage mounts are materialized. 1 of 2 declared storage mounts are materialized.",
@@ -459,7 +459,7 @@ public sealed class ResourceDiagnosticDisplayTests
         var diagnostics = ResourceDiagnosticDisplay.GetDiagnostics(resource);
 
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Equal("Warning", diagnostic.Severity);
+        Assert.Equal(ResourceSignalSeverity.Warning, diagnostic.Severity);
         Assert.Equal("Storage mounts not fully materialized", diagnostic.Title);
         Assert.Equal(
             "CloudShell has not observed storage mount materialization yet. 0 of 1 declared storage mounts are materialized.",
@@ -489,7 +489,7 @@ public sealed class ResourceDiagnosticDisplayTests
         var diagnostics = ResourceDiagnosticDisplay.GetDiagnostics(resource);
 
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Equal("Warning", diagnostic.Severity);
+        Assert.Equal(ResourceSignalSeverity.Warning, diagnostic.Severity);
         Assert.Equal("Storage provider unavailable", diagnostic.Title);
         Assert.Equal(
             "Local Storage root '/tmp/cloudshell-missing' does not exist yet.",
@@ -513,7 +513,7 @@ public sealed class ResourceDiagnosticDisplayTests
             [storage, volume, consumer]);
 
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Equal("Warning", diagnostic.Severity);
+        Assert.Equal(ResourceSignalSeverity.Warning, diagnostic.Severity);
         Assert.Equal("Storage volume mounts not fully materialized", diagnostic.Title);
         Assert.Equal(
             "1 consumer of volumes owned by this Storage resource reports storage mounts that are not fully materialized: API: unknown (0/1 materialized).",

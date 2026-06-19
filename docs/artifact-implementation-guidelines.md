@@ -614,11 +614,11 @@ model.
 Implementation:
 
 - Record actor or trigger information when available.
-- Use stable event types and levels. Standard lifecycle action event types use
-  the `action.lifecycle.*` namespace, such as `action.lifecycle.start` and
-  `action.lifecycle.stop`. Custom action event types are derived from the
-  requested action ID under `action.*`; authors may namespace their own action
-  IDs, such as `database.backup`.
+- Use stable event types and `ResourceSignalSeverity`. Standard lifecycle
+  action event types use the `action.lifecycle.*` namespace, such as
+  `action.lifecycle.start` and `action.lifecycle.stop`. Custom action event
+  types are derived from the requested action ID under `action.*`; authors may
+  namespace their own action IDs, such as `database.backup`.
   Standard lifecycle event types describe lifecycle phases and outcomes, such
   as `event.lifecycle.starting`, `event.lifecycle.started`,
   `event.lifecycle.stopping`, and `event.lifecycle.stopped`. Event types are

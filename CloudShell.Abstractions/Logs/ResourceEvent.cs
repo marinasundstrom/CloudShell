@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.Abstractions.Logs;
 
@@ -8,7 +9,7 @@ public sealed record ResourceEvent(
     string Message,
     DateTimeOffset Timestamp,
     string? TriggeredBy = null,
-    string Level = "Information",
+    ResourceSignalSeverity Severity = ResourceSignalSeverity.Info,
     string? TraceId = null,
     string? SpanId = null)
 {

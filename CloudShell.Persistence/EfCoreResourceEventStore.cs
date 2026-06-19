@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Logs;
+using CloudShell.Abstractions.ResourceManager;
 using Microsoft.EntityFrameworkCore;
 
 namespace CloudShell.Persistence;
@@ -22,7 +23,7 @@ public sealed class EfCoreResourceEventStore(
             Message = enrichedEvent.Message.Trim(),
             Timestamp = enrichedEvent.Timestamp,
             TriggeredBy = NormalizeOptional(enrichedEvent.TriggeredBy),
-            Level = Normalize(enrichedEvent.Level, "Information"),
+            Level = ResourceSignalSeverityParser.ToLevel(enrichedEvent.Severity),
             TraceId = NormalizeOptional(enrichedEvent.TraceId),
             SpanId = NormalizeOptional(enrichedEvent.SpanId)
         });
@@ -86,7 +87,7 @@ public sealed class EfCoreResourceEventStore(
                 resourceEvent.Message,
                 resourceEvent.Timestamp,
                 resourceEvent.TriggeredBy,
-                resourceEvent.Level,
+                ResourceSignalSeverityParser.FromName(resourceEvent.Level),
                 resourceEvent.TraceId,
                 resourceEvent.SpanId))
             .ToArray();

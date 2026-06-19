@@ -1112,7 +1112,7 @@ public sealed class PlatformResourceProvider(
                 ProviderId,
                 "dns.nameMappings.publish.failed",
                 $"CloudShell platform provider failed to apply DNS name mappings through '{provider.ProviderName}'. Reason: {exception.Message}",
-                "Warning");
+                ResourceSignalSeverity.Warning);
             throw;
         }
     }

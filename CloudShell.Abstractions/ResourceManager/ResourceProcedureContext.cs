@@ -17,7 +17,7 @@ public sealed record ResourceProcedureContext(
         string providerId,
         string eventName,
         string message,
-        string level = "Information")
+        ResourceSignalSeverity severity = ResourceSignalSeverity.Info)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(providerId);
         ArgumentException.ThrowIfNullOrWhiteSpace(eventName);
@@ -33,6 +33,6 @@ public sealed record ResourceProcedureContext(
             effectiveMessage,
             DateTimeOffset.UtcNow,
             TriggeredBy,
-            level));
+            severity));
     }
 }

@@ -4,7 +4,7 @@
 
 @code {
     [Parameter]
-    public ResourceCalloutSeverity Severity { get; set; } = ResourceCalloutSeverity.Info;
+    public ResourceSignalSeverity Severity { get; set; } = ResourceSignalSeverity.Info;
 
     [Parameter]
     public string? Class { get; set; }
@@ -22,9 +22,9 @@
     private Icon ResolveIcon() =>
         Severity switch
         {
-            ResourceCalloutSeverity.Success => new Icons.Regular.Size20.CheckmarkCircle(),
-            ResourceCalloutSeverity.Info => new Icons.Regular.Size20.InfoShield(),
-            ResourceCalloutSeverity.Error => new Icons.Regular.Size20.ErrorCircle(),
+            ResourceSignalSeverity.Success => new Icons.Regular.Size20.CheckmarkCircle(),
+            ResourceSignalSeverity.Info => new Icons.Regular.Size20.InfoShield(),
+            ResourceSignalSeverity.Error => new Icons.Regular.Size20.ErrorCircle(),
             _ => new Icons.Regular.Size20.Important()
         };
 }

@@ -689,6 +689,15 @@ They are queryable activity records, not just text log lines. Resource Manager
 presents this stream as Activity, while provider resource logs remain separate
 operational streams.
 
+Operational severity is a resource-domain concept. CloudShell uses
+`ResourceSignalSeverity` values (`Success`, `Info`, `Warning`, and `Error`)
+for resource diagnostics, current failure summaries, and UI callouts. Resource
+events use typed severity in the domain model, and API/persistence projections
+serialize that severity as stable strings. Hard lifecycle/action failures
+should be `Error`; warning-level dependency or startup conditions remain
+`Warning` when the requested action can continue or when the warning is
+advisory.
+
 Standard resource actions and standard resource events are related but
 separate concepts. `ResourceActionIds` names standard operations such as
 `start`, `stop`, `pause`, and `restart`. `ResourceEventTypes` names standard

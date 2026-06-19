@@ -302,7 +302,7 @@ public sealed record ResourceEventResponse(
     string Message,
     DateTimeOffset Timestamp,
     string? TriggeredBy,
-    string Level,
+    string Severity,
     string? TraceId,
     string? SpanId);
 
@@ -645,7 +645,7 @@ internal static class CloudShellControlPlaneDtoMapper
             resourceEvent.Message,
             resourceEvent.Timestamp,
             resourceEvent.TriggeredBy,
-            resourceEvent.Level,
+            ResourceSignalSeverityParser.ToLevel(resourceEvent.Severity),
             resourceEvent.TraceId,
             resourceEvent.SpanId);
 

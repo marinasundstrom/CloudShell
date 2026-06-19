@@ -459,6 +459,14 @@ Logs, resource events, and traces are not embedded in `Resource`. They are
 queried through managers such as `ILogManager`, `IResourceEventManager`, and
 `ITraceManager`.
 
+Resource-facing operational signals use the shared
+`ResourceSignalSeverity` vocabulary: `Success`, `Info`, `Warning`, and
+`Error`. Resource events expose typed severity in the domain model; API and
+persistence projections serialize that severity as stable strings for
+transport and storage compatibility. Resource Manager diagnostics and callouts
+use the same severity vocabulary so providers, Control Plane behavior, and UI
+surfaces do not drift into separate string conventions.
+
 ## Identity
 
 `Identity` contains optional `ResourceIdentityBinding` metadata. It describes

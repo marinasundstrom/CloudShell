@@ -609,7 +609,7 @@ public sealed class InProcessControlPlane(
             $"{action.DisplayName} action was denied. The '{FormatPermissionRequirement(permission)}' permission is required for resource '{resource.Id}'.",
             DateTimeOffset.UtcNow,
             triggeredBy,
-            Level: "Warning"));
+            Severity: ResourceSignalSeverity.Warning));
     }
 
     public async Task<ResourceProcedureResult> UpdateResourceImageAsync(

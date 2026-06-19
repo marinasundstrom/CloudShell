@@ -478,7 +478,7 @@ public sealed class RemoteControlPlaneContractTests
                 ResourceId: "network:contract",
                 EventType: ResourceEventTypes.Actions.ForFailedAction(
                     PlatformResourceProvider.ReconcileEndpointMappingsActionId))));
-        Assert.Equal("Warning", deniedEvent.Level);
+        Assert.Equal(ResourceSignalSeverity.Warning, deniedEvent.Severity);
         Assert.Equal(
             $"Reconcile endpoint mappings action was denied. The '{NetworkResourceOperationPermissions.ReconcileEndpointMappings}' or '{CloudShellPermissions.Resources.Manage}' permission is required for resource 'network:contract'.",
             deniedEvent.Message);
@@ -632,7 +632,7 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(ContractImageResourceProvider.ResourceId, resourceEvent.ResourceId);
         Assert.Equal(ResourceEventTypes.Events.Deployment.ImageUpdated, resourceEvent.EventType);
         Assert.Equal("build-server", resourceEvent.TriggeredBy);
-        Assert.Equal("Information", resourceEvent.Level);
+        Assert.Equal(ResourceSignalSeverity.Info, resourceEvent.Severity);
         Assert.False(string.IsNullOrWhiteSpace(resourceEvent.TraceId));
         Assert.False(string.IsNullOrWhiteSpace(resourceEvent.SpanId));
         Assert.Contains("example/api:20260608", resourceEvent.Message, StringComparison.Ordinal);
@@ -689,7 +689,8 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(ContractImageResourceProvider.ResourceId, resourceEvent.GetProperty("resourceId").GetString());
         Assert.Equal(ResourceEventTypes.Events.Deployment.ImageUpdated, resourceEvent.GetProperty("eventType").GetString());
         Assert.Equal("build-server", resourceEvent.GetProperty("triggeredBy").GetString());
-        Assert.Equal("Information", resourceEvent.GetProperty("level").GetString());
+        Assert.Equal("Information", resourceEvent.GetProperty("severity").GetString());
+        Assert.False(resourceEvent.TryGetProperty("level", out _));
         Assert.Contains("example/api:20260609", resourceEvent.GetProperty("message").GetString(), StringComparison.Ordinal);
     }
 

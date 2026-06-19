@@ -25,7 +25,7 @@
 
         @if (ShouldWarnAboutLocalSuffix(HostName))
         {
-            <ResourceCallout Severity="ResourceCalloutSeverity.Warning"
+            <ResourceCallout Severity="ResourceSignalSeverity.Warning"
                              Title="Local suffix warning"
                              Role="alert">
                 <span>Names ending in .local may conflict with mDNS/Bonjour on the host network. Use them intentionally for local development and reconcile them only on hosts where this suffix is acceptable.</span>
@@ -34,7 +34,7 @@
 
         @if (IsSelectedZoneLocalHostNameProvider())
         {
-            <ResourceCallout Severity="ResourceCalloutSeverity.Info"
+            <ResourceCallout Severity="ResourceSignalSeverity.Info"
                              Title="Local host-name publishing"
                              Role="status">
                 <span>This DNS zone uses local host-name publishing. Reconcile name mappings on the DNS zone to write exact host mappings to the configured hosts-file target.</span>

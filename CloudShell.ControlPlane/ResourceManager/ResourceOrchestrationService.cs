@@ -83,14 +83,14 @@ public sealed class ResourceOrchestrationService(
                     ResourceEventTypes.Actions.ForFailedAction(action.Id),
                     $"{GetActionFailedMessage(action)} Reason: A dependency could not start. {exception.Message}",
                     triggeredBy,
-                    "Error");
+                    ResourceSignalSeverity.Error);
                 AppendLifecycleEvent(
                     resource,
                     GetLifecycleEventTypes(action)?.Failed,
                     $"{GetLifecycleFailedMessage(action)} Reason: A dependency could not start. {exception.Message}",
                     cause,
                     triggeredBy,
-                    "Error");
+                    ResourceSignalSeverity.Error);
                 NotifyResourceChange(
                     notifyResourceChange,
                     ResourceChangeKind.ResourceActionFailed,
@@ -168,14 +168,14 @@ public sealed class ResourceOrchestrationService(
                 ResourceEventTypes.Actions.ForFailedAction(action.Id),
                 $"{GetActionFailedMessage(action)}{FormatCause(cause)} Reason: {exception.Message}",
                 triggeredBy,
-                "Error");
+                ResourceSignalSeverity.Error);
             AppendLifecycleEvent(
                 resource,
                 GetLifecycleEventTypes(action)?.Failed,
                 $"{GetLifecycleFailedMessage(action)} Reason: {exception.Message}",
                 cause,
                 triggeredBy,
-                "Error");
+                ResourceSignalSeverity.Error);
             NotifyResourceChange(
                 notifyResourceChange,
                 ResourceChangeKind.ResourceActionFailed,
@@ -345,7 +345,7 @@ public sealed class ResourceOrchestrationService(
             ResourceEventTypes.Actions.ForAction(rootAction.Id),
             warning,
             triggeredBy,
-            "Warning");
+            ResourceSignalSeverity.Warning);
     }
 
     private static ResourceProcedureResult AddDependencyWarnings(
@@ -368,14 +368,14 @@ public sealed class ResourceOrchestrationService(
         string eventType,
         string message,
         string? triggeredBy,
-        string level = "Information") =>
+        ResourceSignalSeverity severity = ResourceSignalSeverity.Info) =>
         resourceEvents?.Append(new ResourceEvent(
             resource.Id,
             eventType,
             message,
             DateTimeOffset.UtcNow,
             triggeredBy,
-            level));
+            severity));
 
     private static void NotifyResourceChange(
         Action<ResourceChangeNotification>? notifyResourceChange,
@@ -394,7 +394,7 @@ public sealed class ResourceOrchestrationService(
         string? message,
         string? cause,
         string? triggeredBy,
-        string level = "Information")
+        ResourceSignalSeverity severity = ResourceSignalSeverity.Info)
     {
         if (string.IsNullOrWhiteSpace(eventType) ||
             string.IsNullOrWhiteSpace(message))
@@ -407,7 +407,7 @@ public sealed class ResourceOrchestrationService(
             eventType,
             $"{message}{FormatCause(cause)}",
             triggeredBy,
-            level);
+            severity);
     }
 
     private static string GetActionEventType(ResourceAction action) =>

@@ -139,8 +139,8 @@
                                     class="resource-activity-group @ResourceEventDisplayNames.GetGroupClass(resourceEvent.EventType)">
                                     @ResourceEventDisplayNames.GetGroupName(resourceEvent.EventType, L)
                                 </span>
-                                <span class="resource-activity-level @GetLevelClass(resourceEvent.Level)">
-                                    @resourceEvent.Level
+                                <span class="resource-activity-level @GetSeverityClass(resourceEvent.Severity)">
+                                    @ResourceSignalSeverityParser.ToLevel(resourceEvent.Severity)
                                 </span>
                             </div>
                         </footer>
@@ -272,12 +272,13 @@
     private static string FormatTimestamp(DateTimeOffset timestamp) =>
         timestamp.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
 
-    private static string GetLevelClass(string? level) =>
-        string.Equals(level, "Warning", StringComparison.OrdinalIgnoreCase)
-            ? "warning"
-            : string.Equals(level, "Error", StringComparison.OrdinalIgnoreCase)
-                ? "error"
-                : "information";
+    private static string GetSeverityClass(ResourceSignalSeverity severity) =>
+        severity switch
+        {
+            ResourceSignalSeverity.Warning => "warning",
+            ResourceSignalSeverity.Error => "error",
+            _ => "information"
+        };
 
     private sealed record ResourceActivityGroup(
         string DisplayName,

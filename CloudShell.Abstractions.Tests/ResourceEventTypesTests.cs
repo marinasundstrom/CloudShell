@@ -41,4 +41,43 @@ public sealed class ResourceEventTypesTests
             "event.deployment.replicas.updated",
             ResourceEventTypes.Events.Deployment.ReplicasUpdated);
     }
+
+    [Theory]
+    [InlineData("Success", ResourceSignalSeverity.Success)]
+    [InlineData("Information", ResourceSignalSeverity.Info)]
+    [InlineData("Info", ResourceSignalSeverity.Info)]
+    [InlineData("Warning", ResourceSignalSeverity.Warning)]
+    [InlineData("Error", ResourceSignalSeverity.Error)]
+    [InlineData("custom", ResourceSignalSeverity.Warning)]
+    public void ResourceSignalSeverityParser_FromName_MapsStableSeverityNames(
+        string level,
+        ResourceSignalSeverity expectedSeverity)
+    {
+        Assert.Equal(expectedSeverity, ResourceSignalSeverityParser.FromName(level));
+    }
+
+    [Theory]
+    [InlineData(ResourceSignalSeverity.Success, "Success")]
+    [InlineData(ResourceSignalSeverity.Info, "Information")]
+    [InlineData(ResourceSignalSeverity.Warning, "Warning")]
+    [InlineData(ResourceSignalSeverity.Error, "Error")]
+    public void ResourceSignalSeverityParser_ToLevel_ReturnsCompatibleEventLevels(
+        ResourceSignalSeverity severity,
+        string expectedLevel)
+    {
+        Assert.Equal(expectedLevel, ResourceSignalSeverityParser.ToLevel(severity));
+    }
+
+    [Fact]
+    public void ResourceEvent_ProjectsTypedSeverityFromCompatibleLevel()
+    {
+        var resourceEvent = new ResourceEvent(
+            "application:test",
+            ResourceEventTypes.Events.Lifecycle.StartFailed,
+            "Resource failed to start.",
+            DateTimeOffset.UtcNow,
+            Severity: ResourceSignalSeverity.Error);
+
+        Assert.Equal(ResourceSignalSeverity.Error, resourceEvent.Severity);
+    }
 }

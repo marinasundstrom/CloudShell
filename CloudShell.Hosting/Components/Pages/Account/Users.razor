@@ -39,7 +39,7 @@ else
 
     @if (Accounts.LocalUserStoreKind == CloudShellLocalUserStoreKind.InMemory)
     {
-        <ResourceCallout Severity="ResourceCalloutSeverity.Info"
+        <ResourceCallout Severity="ResourceSignalSeverity.Info"
                          Title="@L["In-memory user store"].Value"
                          Class="account-store-alert"
                          Role="status">

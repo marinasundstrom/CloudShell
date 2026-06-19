@@ -41,6 +41,9 @@ on `git blame --follow`, and then by the broad type of change.
   and error iconography and coloring; hard lifecycle/action failures are
   recorded and displayed as errors while dependency startup warnings remain
   warnings.
+- Resource severity is now modeled with the shared `ResourceSignalSeverity`
+  abstraction, with `ResourceEvent` using typed severity directly and Resource
+  Manager diagnostics using the same severity vocabulary.
 
 ### 2026-06-18
 

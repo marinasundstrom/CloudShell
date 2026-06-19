@@ -334,7 +334,7 @@
         @foreach (var diagnostic in diagnostics)
         {
             <div class="@GetDiagnosticClass(diagnostic)">
-                <ResourceSeverityIcon Severity="@GetDiagnosticSeverity(diagnostic)" />
+                    <ResourceSeverityIcon Severity="diagnostic.Severity" />
                 <div class="generated-diagnostic-content">
                     <strong>@diagnostic.Title</strong>
                     <span>@diagnostic.Message</span>
@@ -770,10 +770,7 @@
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
 
     private static string GetDiagnosticClass(ResourceDiagnosticView diagnostic) =>
-        $"generated-diagnostic {diagnostic.Severity.ToLowerInvariant()}";
-
-    private static ResourceCalloutSeverity GetDiagnosticSeverity(ResourceDiagnosticView diagnostic) =>
-        ResourceCalloutSeverityParser.FromName(diagnostic.Severity);
+        $"generated-diagnostic {diagnostic.Severity.ToString().ToLowerInvariant()}";
 
     private static string BuildResourceRoute(string resourceId) =>
         ResourceManagerRoutes.ResourceOverview(resourceId);

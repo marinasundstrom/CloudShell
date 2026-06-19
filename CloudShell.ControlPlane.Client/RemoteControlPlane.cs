@@ -1099,7 +1099,7 @@ file sealed record ResourceEventResponse(
     string Message,
     DateTimeOffset Timestamp,
     string? TriggeredBy,
-    string Level,
+    string Severity,
     string? TraceId,
     string? SpanId);
 
@@ -1479,7 +1479,7 @@ file static class RemoteControlPlaneMapper
             response.Message,
             response.Timestamp,
             response.TriggeredBy,
-            response.Level,
+            ResourceSignalSeverityParser.FromName(response.Severity),
             response.TraceId,
             response.SpanId);
 }

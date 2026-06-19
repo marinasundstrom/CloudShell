@@ -7,7 +7,7 @@ namespace CloudShell.Hosting.ResourceManager;
 
 public sealed record ResourceFailureSignal(
     ResourceFailureKind Kind,
-    ResourceCalloutSeverity Severity,
+    ResourceSignalSeverity Severity,
     string Message,
     string EventType,
     DateTimeOffset Timestamp);
@@ -77,10 +77,10 @@ internal static class ResourceFailureSignalResolver
         return ResourceFailureKind.Operation;
     }
 
-    private static ResourceCalloutSeverity GetFailureSeverity(ResourceEvent resourceEvent) =>
-        string.Equals(resourceEvent.Level, "Warning", StringComparison.OrdinalIgnoreCase)
-            ? ResourceCalloutSeverity.Warning
-            : ResourceCalloutSeverity.Error;
+    private static ResourceSignalSeverity GetFailureSeverity(ResourceEvent resourceEvent) =>
+        resourceEvent.Severity == ResourceSignalSeverity.Warning
+            ? ResourceSignalSeverity.Warning
+            : ResourceSignalSeverity.Error;
 
     private static string TrimMessage(string? message)
     {
@@ -97,7 +97,7 @@ internal static class ResourceFailureSignalResolver
 
     private static bool IsFailureEvent(ResourceEvent resourceEvent) =>
         resourceEvent.EventType.EndsWith(FailedEventSuffix, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(resourceEvent.Level, "Error", StringComparison.OrdinalIgnoreCase);
+        resourceEvent.Severity == ResourceSignalSeverity.Error;
 
     private static bool IsLifecycleSuccessEvent(ResourceEvent resourceEvent) =>
         MatchesAny(
