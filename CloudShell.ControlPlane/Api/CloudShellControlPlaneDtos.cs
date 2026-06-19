@@ -284,7 +284,12 @@ public sealed record ResourceProcedureResponse(
     string Message,
     bool RestartRequired = false,
     string? RestartResourceId = null,
-    string? RestartMessage = null);
+    string? RestartMessage = null,
+    IReadOnlyList<ResourceProcedureSignalResponse>? Signals = null);
+
+public sealed record ResourceProcedureSignalResponse(
+    string Severity,
+    string Message);
 
 public sealed record LogResponse(
     string Id,

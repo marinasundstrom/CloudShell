@@ -75,6 +75,7 @@
 {
     <div class="procedure-message">@ProcedureMessage</div>
 }
+<ResourceProcedureSignals Signals="ProcedureSignals" />
 
 @if (IsReadOnly)
 {
@@ -629,6 +630,7 @@
     private Resource? SelectedResource { get; set; }
     private string? DeleteConfirmationResourceId { get; set; }
     private string? ProcedureMessage { get; set; }
+    private IReadOnlyList<ResourceProcedureSignal> ProcedureSignals { get; set; } = [];
     private HashSet<string> ExecutingActionKeys { get; } = new(StringComparer.OrdinalIgnoreCase);
     private PendingResourceAction? PendingAction { get; set; }
     private bool IsCheckingHealth { get; set; }
@@ -1281,11 +1283,13 @@ resourceGroups) =>
         if (IsReadOnly)
         {
             ProcedureMessage = L["Resource Manager is in read-only mode."].Value;
+            ProcedureSignals = [];
             return;
         }
 
         DeleteConfirmationResourceId = resource.Id;
         ProcedureMessage = null;
+        ProcedureSignals = [];
     }
 
     private void CancelDelete() => DeleteConfirmationResourceId = null;
@@ -1295,6 +1299,7 @@ resourceGroups) =>
         if (IsReadOnly)
         {
             ProcedureMessage = L["Resource Manager is in read-only mode."].Value;
+            ProcedureSignals = [];
             DeleteConfirmationResourceId = null;
             return;
         }
@@ -1303,6 +1308,7 @@ resourceGroups) =>
         {
             var result = await ResourceManager.DeleteResourceAsync(resource.Id);
             ProcedureMessage = result.Message;
+            ProcedureSignals = result.Signals;
             DeleteConfirmationResourceId = null;
             SelectedResource = null;
             await LoadResourceModelAsync();
@@ -1310,6 +1316,7 @@ resourceGroups) =>
         catch (Exception exception)
         {
             ProcedureMessage = exception.Message;
+            ProcedureSignals = [];
         }
     }
 
@@ -1318,6 +1325,7 @@ resourceGroups) =>
         if (IsReadOnly)
         {
             ProcedureMessage = L["Resource Manager is in read-only mode."].Value;
+            ProcedureSignals = [];
             return;
         }
 
@@ -1337,6 +1345,7 @@ resourceGroups) =>
                 RequiresDependencyChoice: false,
                 RequiresDependentWarning: true);
             ProcedureMessage = null;
+            ProcedureSignals = [];
             return;
         }
 
@@ -1350,6 +1359,7 @@ resourceGroups) =>
                 RequiresDependencyChoice: true,
                 RequiresDependentWarning: false);
             ProcedureMessage = null;
+            ProcedureSignals = [];
             return;
         }
 
@@ -1363,6 +1373,7 @@ resourceGroups) =>
                 RequiresDependencyChoice: false,
                 RequiresDependentWarning: false);
             ProcedureMessage = null;
+            ProcedureSignals = [];
             return;
         }
 
@@ -1413,11 +1424,13 @@ resourceGroups) =>
         if (IsReadOnly)
         {
             ProcedureMessage = L["Resource Manager is in read-only mode."].Value;
+            ProcedureSignals = [];
             return;
         }
 
         ExecutingActionKeys.Add(GetActionKey(resource, action));
         ProcedureMessage = null;
+        ProcedureSignals = [];
         try
         {
             var result = await ResourceManager.ExecuteResourceActionAsync(
@@ -1427,10 +1440,12 @@ resourceGroups) =>
                 ignoreDependentWarning: true,
                 dependencyStartFailureBehavior: GetDependencyStartFailureBehavior());
             ProcedureMessage = result.Message;
+            ProcedureSignals = result.Signals;
         }
         catch (Exception exception)
         {
             ProcedureMessage = exception.Message;
+            ProcedureSignals = [];
         }
         finally
         {

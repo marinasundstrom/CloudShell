@@ -1211,8 +1211,11 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         Assert.Equal(["vault:start", "api:start"], provider.ExecutedActions);
         Assert.Contains("Executed start.", result.Message, StringComparison.Ordinal);
-        Assert.Contains("Dependency auto-start warning", result.Message, StringComparison.Ordinal);
-        Assert.Contains("Docker is unavailable", result.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("Dependency auto-start warning", result.Message, StringComparison.Ordinal);
+        var signal = Assert.Single(result.Signals);
+        Assert.Equal(ResourceSignalSeverity.Warning, signal.Severity);
+        Assert.Contains("Dependency auto-start warning", signal.Message, StringComparison.Ordinal);
+        Assert.Contains("Docker is unavailable", signal.Message, StringComparison.Ordinal);
         Assert.Equal(
             [
                 ResourceChangeKind.ResourceActionStarted,
@@ -1263,8 +1266,11 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         Assert.Equal(["sql:start", "frontend:start"], provider.ExecutedActions);
         Assert.Contains("Executed start.", result.Message, StringComparison.Ordinal);
-        Assert.Contains("Dependency auto-start warning", result.Message, StringComparison.Ordinal);
-        Assert.Contains("Docker is unavailable", result.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("Dependency auto-start warning", result.Message, StringComparison.Ordinal);
+        var signal = Assert.Single(result.Signals);
+        Assert.Equal(ResourceSignalSeverity.Warning, signal.Severity);
+        Assert.Contains("Dependency auto-start warning", signal.Message, StringComparison.Ordinal);
+        Assert.Contains("Docker is unavailable", signal.Message, StringComparison.Ordinal);
         Assert.Equal(
             [
                 ResourceChangeKind.ResourceActionStarted,

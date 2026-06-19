@@ -770,6 +770,26 @@ h3 {
     color: var(--cloudshell-text-muted);
 }
 
+.procedure-message.warning {
+    border-color: #f2c94c;
+    background: var(--cloudshell-warning-fill);
+}
+
+.procedure-message.error {
+    border-color: #c50f1f;
+    background: color-mix(in srgb, #c50f1f 10%, transparent);
+}
+
+.procedure-message.success {
+    border-color: #107c10;
+    background: color-mix(in srgb, #107c10 10%, transparent);
+}
+
+.procedure-message.info {
+    border-color: var(--cloudshell-border);
+    background: var(--cloudshell-surface-muted);
+}
+
 .blade-section {
     padding-top: .2rem;
 }

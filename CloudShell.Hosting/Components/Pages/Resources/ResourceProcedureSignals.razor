@@ -1,0 +1,34 @@
+@using CloudShell.Abstractions.ResourceManager
+@using CloudShell.Hosting.Localization
+@inject IStringLocalizer<SharedResource> L
+
+@foreach (var signal in Signals)
+{
+    <div class="procedure-message @GetSignalClass(signal.Severity)" role="status">
+        <strong>@GetSignalLabel(signal.Severity)</strong>
+        <span>@signal.Message</span>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public IReadOnlyList<ResourceProcedureSignal> Signals { get; set; } = [];
+
+    private static string GetSignalClass(ResourceSignalSeverity severity) =>
+        severity switch
+        {
+            ResourceSignalSeverity.Success => "success",
+            ResourceSignalSeverity.Info => "info",
+            ResourceSignalSeverity.Error => "error",
+            _ => "warning"
+        };
+
+    private string GetSignalLabel(ResourceSignalSeverity severity) =>
+        severity switch
+        {
+            ResourceSignalSeverity.Success => L["Success"].Value,
+            ResourceSignalSeverity.Info => L["Information"].Value,
+            ResourceSignalSeverity.Error => L["Error"].Value,
+            _ => L["Warning"].Value
+        };
+}

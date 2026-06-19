@@ -17,6 +17,7 @@
     {
         <div class="procedure-message">@ProcedureMessage</div>
     }
+    <ResourceProcedureSignals Signals="ProcedureSignals" />
 
     <GeneratedResourceViewLayout ResourceType="ResourceType"
                                  ResourceId="@Resource.Id"
@@ -51,6 +52,7 @@
         ResourceOperationCapabilities.None(string.Empty);
     private HashSet<string> ExecutingActionIds { get; } = new(StringComparer.OrdinalIgnoreCase);
     private string? ProcedureMessage { get; set; }
+    private IReadOnlyList<ResourceProcedureSignal> ProcedureSignals { get; set; } = [];
     private bool IsReadOnly => ResourceManagerUiOptions.Value.ReadOnly;
 
     private bool IsNetworkResource => Resource.ResourceClass == ResourceClass.Network ||
@@ -388,6 +390,7 @@
             if (IsReadOnly)
             {
                 ProcedureMessage = L["Resource Manager is in read-only mode."].Value;
+                ProcedureSignals = [];
             }
 
             return;
@@ -407,6 +410,7 @@
 
         ExecutingActionIds.Add(action.Id);
         ProcedureMessage = null;
+        ProcedureSignals = [];
         try
         {
             var result = await ResourceManager.ExecuteResourceActionAsync(
@@ -417,6 +421,7 @@
                     IgnoreDependentWarning: true,
                     DependencyStartFailureBehavior: GetDependencyStartFailureBehavior()));
             ProcedureMessage = result.Message;
+            ProcedureSignals = result.Signals;
             var resource = await ResourceManager.GetResourceAsync(Resource.Id);
             if (resource is not null)
             {
@@ -431,6 +436,7 @@
         catch (Exception exception)
         {
             ProcedureMessage = exception.Message;
+            ProcedureSignals = [];
         }
         finally
         {

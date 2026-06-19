@@ -63,6 +63,14 @@ Management > Monitoring tab. The second route returns the current provider
 snapshot when one is available. See
 [Resource monitoring](proposals/core/resource-monitoring.md).
 
+Resource procedure responses return a primary `message`, optional restart
+metadata, and a `signals` collection. Signals use the shared Resource Manager
+severity vocabulary (`Success`, `Information`, `Warning`, `Error`) and carry
+secondary procedure outcomes that should remain distinct from the main
+completion message. For example, a start action can complete while dependency
+auto-start runs in warn-and-continue mode and returns a warning signal for the
+dependency that failed to start.
+
 Application telemetry remains resource-owned. `ResourceResponse.observability`
 projects the stable signal declarations, provider-declared telemetry sources,
 and selectable telemetry scopes for a resource. Consumers can list retained

@@ -61,6 +61,10 @@ on `git blame --follow`, and then by the broad type of change.
   intermediate resources whose own dependencies failed, so a resource such as
   an API can show that SQL Server failed underneath it instead of only the
   originally requested frontend showing the failure.
+- Resource procedure results now carry structured success/info/warning/error
+  signals. Dependency auto-start warn-and-continue results keep the action
+  success message separate from warning signals, and Resource Manager action
+  surfaces render those warnings explicitly.
 
 ### 2026-06-18
 

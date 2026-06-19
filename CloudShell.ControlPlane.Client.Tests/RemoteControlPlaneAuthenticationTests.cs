@@ -117,6 +117,9 @@ public sealed class RemoteControlPlaneAuthenticationTests
         Assert.False(capability.CanDelete);
         Assert.True(capability.CanExecuteAction(ResourceActionIds.Stop));
         Assert.Equal("Executed stop.", result.Message);
+        var signal = Assert.Single(result.Signals);
+        Assert.Equal(ResourceSignalSeverity.Warning, signal.Severity);
+        Assert.Equal("Contract warning.", signal.Message);
         var provider = app.Services.GetRequiredService<ContractLifecycleResourceProvider>();
         Assert.Equal([ResourceActionIds.Stop], provider.ExecutedActions);
     }
@@ -536,7 +539,10 @@ public sealed class RemoteControlPlaneAuthenticationTests
             CancellationToken cancellationToken = default)
         {
             ExecutedActions.Add(action.Id);
-            return Task.FromResult(ResourceProcedureResult.Completed($"Executed {action.Id}."));
+            return Task.FromResult(ResourceProcedureResult.Completed($"Executed {action.Id}.") with
+            {
+                Signals = [ResourceProcedureSignal.Warning("Contract warning.")]
+            });
         }
     }
 

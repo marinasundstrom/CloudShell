@@ -1081,7 +1081,12 @@ file sealed record ResourceProcedureResponse(
     string Message,
     bool RestartRequired = false,
     string? RestartResourceId = null,
-    string? RestartMessage = null);
+    string? RestartMessage = null,
+    IReadOnlyList<ResourceProcedureSignalResponse>? Signals = null);
+
+file sealed record ResourceProcedureSignalResponse(
+    string Severity,
+    string Message);
 
 file sealed record LogResponse(
     string Id,
@@ -1446,7 +1451,12 @@ file static class RemoteControlPlaneMapper
             response.Message,
             response.RestartRequired,
             response.RestartResourceId,
-            response.RestartMessage);
+            response.RestartMessage,
+            response.Signals?
+                .Select(signal => new ResourceProcedureSignal(
+                    ResourceSignalSeverityParser.FromName(signal.Severity),
+                    signal.Message))
+                .ToArray());
 
     public static LogDescriptor ToLogDescriptor(this LogResponse response) =>
         new(

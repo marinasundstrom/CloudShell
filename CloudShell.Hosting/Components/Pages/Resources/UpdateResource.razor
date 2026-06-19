@@ -98,6 +98,7 @@
     {
         <div class="procedure-message">@ProcedureMessage</div>
     }
+    <ResourceProcedureSignals Signals="ProcedureSignals" />
 
     @if (isReadOnly)
     {
@@ -266,6 +267,7 @@
     private bool IsReadOnly => ResourceManagerUiOptions.Value.ReadOnly;
     private ResourceViewId? SelectedTabId { get; set; }
     private string? ProcedureMessage { get; set; }
+    private IReadOnlyList<ResourceProcedureSignal> ProcedureSignals { get; set; } = [];
     private PendingResourceRestart? PendingRestart { get; set; }
     private bool IsApplying { get; set; }
     private bool IsRestarting { get; set; }
@@ -338,6 +340,7 @@
     {
         SelectedTabId = tabId;
         ProcedureMessage = null;
+        ProcedureSignals = [];
         PendingRestart = null;
         if (!string.IsNullOrWhiteSpace(ResourceId))
         {
@@ -405,21 +408,25 @@
             if (IsReadOnly)
             {
                 ProcedureMessage = L["Resource Manager is in read-only mode."].Value;
+                ProcedureSignals = [];
             }
 
             return;
         }
 
         IsApplying = true;
+        ProcedureSignals = [];
         try
         {
             var result = await ConfigurationContext.ApplyAsync();
             ProcedureMessage = result.Message;
+            ProcedureSignals = result.Signals;
             PendingRestart = CreatePendingRestart(result);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             ProcedureMessage = L["Apply failed: {0}", exception.Message].Value;
+            ProcedureSignals = [];
             PendingRestart = null;
         }
         finally
@@ -467,12 +474,14 @@
         }
 
         IsRestarting = true;
+        ProcedureSignals = [];
         try
         {
             var result = await ResourceManager.RestartResourceAsync(
                 PendingRestart.ResourceId,
                 ignoreDependentWarning: true);
             ProcedureMessage = result.Message;
+            ProcedureSignals = result.Signals;
             PendingRestart = null;
 
             await ReloadResourceAsync();
@@ -480,6 +489,7 @@
         catch (Exception exception)
         {
             ProcedureMessage = exception.Message;
+            ProcedureSignals = [];
         }
         finally
         {
@@ -496,12 +506,14 @@
             if (IsReadOnly)
             {
                 ProcedureMessage = L["Resource Manager is in read-only mode."].Value;
+                ProcedureSignals = [];
             }
 
             return;
         }
 
         ProcedureMessage = null;
+        ProcedureSignals = [];
         PendingRestart = null;
         ConfirmDelete = true;
     }
@@ -521,6 +533,7 @@
             if (IsReadOnly)
             {
                 ProcedureMessage = L["Resource Manager is in read-only mode."].Value;
+                ProcedureSignals = [];
             }
 
             ConfirmDelete = false;
@@ -529,6 +542,7 @@
 
         IsDeleting = true;
         ProcedureMessage = null;
+        ProcedureSignals = [];
         try
         {
             await ResourceManager.DeleteResourceAsync(Resource.Id);
@@ -538,6 +552,7 @@
         catch (Exception exception)
         {
             ProcedureMessage = exception.Message;
+            ProcedureSignals = [];
         }
         finally
         {
@@ -1104,6 +1119,7 @@
             if (IsReadOnly)
             {
                 ProcedureMessage = L["Resource Manager is in read-only mode."].Value;
+                ProcedureSignals = [];
             }
 
             return;
@@ -1123,6 +1139,7 @@
 
         ExecutingActionIds.Add(action.Id);
         ProcedureMessage = null;
+        ProcedureSignals = [];
         PendingRestart = null;
         try
         {
@@ -1134,12 +1151,14 @@
                     IgnoreDependentWarning: true,
                     DependencyStartFailureBehavior: GetDependencyStartFailureBehavior()));
             ProcedureMessage = result.Message;
+            ProcedureSignals = result.Signals;
             await ReloadResourceAsync();
             ResourceContentVersion++;
         }
         catch (Exception exception)
         {
             ProcedureMessage = exception.Message;
+            ProcedureSignals = [];
         }
         finally
         {

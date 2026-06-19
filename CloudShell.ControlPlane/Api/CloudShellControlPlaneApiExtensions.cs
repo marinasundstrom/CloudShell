@@ -1337,7 +1337,12 @@ public static class CloudShellControlPlaneApiExtensions
             result.Message,
             result.RestartRequired,
             result.RestartResourceId,
-            result.RestartMessage);
+            result.RestartMessage,
+            result.Signals
+                .Select(signal => new ResourceProcedureSignalResponse(
+                    ResourceSignalSeverityParser.ToLevel(signal.Severity),
+                    signal.Message))
+                .ToArray());
 
     private static IResult ToProblem(Exception exception)
     {

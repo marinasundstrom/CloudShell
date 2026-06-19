@@ -398,7 +398,9 @@ public sealed class ResourceOrchestrationService(
 
         return result with
         {
-            Message = $"{result.Message} {string.Join(" ", dependencyWarnings)}"
+            Signals = result.Signals
+                .Concat(dependencyWarnings.Select(ResourceProcedureSignal.Warning))
+                .ToArray()
         };
     }
 
