@@ -1,115 +1,469 @@
 ﻿@page "/"
+@implements IDisposable
 @inject ShellCatalog ShellCatalog
 @inject ICloudShellNavigator ShellNavigator
+@inject IResourceManager ResourceManager
+@inject IResourceEventManager ResourceEvents
+@inject ResourceHealthCheckService HealthChecks
+@inject IResourceOrchestrationSettings OrchestrationSettings
 @inject IStringLocalizer<SharedResource> L
 
 <PageTitle>CloudShell</PageTitle>
 
-@{
-    var navigationItems = ShellCatalog.NavigationItems;
-    var customViews = ShellCatalog.CustomViews;
-    var viewMenuItems = customViews.Sum(view => view.ViewMenuItems.Count);
-    var capabilities = ShellCatalog.Extensions
-        .SelectMany(extension => extension.Provides)
-        .Distinct(StringComparer.OrdinalIgnoreCase)
-        .OrderBy(capability => capability, StringComparer.OrdinalIgnoreCase)
-        .ToArray();
-}
-
 <section class="page-heading">
     <div>
-        <span class="eyebrow">@L["Composable shell"]</span>
-        <h1>@L["CloudShell workspace"]</h1>
-        <p>@L["Extension-driven navigation, hosted workspaces, and opt-in capabilities for controlled shell customization."]</p>
+        <span class="eyebrow">@L["Environment"]</span>
+        <h1>@L["Dashboard"]</h1>
+        <p>@L["Overview of resources, lifecycle state, health checks, and recent operational failures in this CloudShell environment."]</p>
     </div>
     <div class="heading-actions">
-        <FluentAnchor Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.PuzzlePiece())"
-                      Href="/extensions">
-            @L["Extensions"]</FluentAnchor>
+        <span class="toolbar-meta">@L["Polling every {0}s", GetDashboardIntervalSeconds()]</span>
+        <FluentAnchor Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.AppFolder())"
+                      Href="/resources">
+            @L["Resources"]
+        </FluentAnchor>
+        <FluentAnchor Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.HeartPulseCheckmark())"
+                      Href="/health">
+            @L["Health"]
+        </FluentAnchor>
+        <FluentAnchor Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.DataUsage())"
+                      Href="/observability">
+            @L["Observability"]
+        </FluentAnchor>
+    </div>
+</section>
+
+<section class="metric-grid">
+    <article class="metric-card">
+        <span>@L["Resources"]</span>
+        <strong>@Resources.Count</strong>
+        <small>@L["{0} with lifecycle state", StatefulResourceCount]</small>
+    </article>
+    <article class="metric-card @(ActiveFailureCount > 0 ? "metric-card-warning" : null)">
+        <span>@L["Active failures"]</span>
+        <strong>@ActiveFailureCount</strong>
+        <small>@L["Latest unsuperseded resource failures"]</small>
+    </article>
+    <article class="metric-card @(UnhealthyResourceCount > 0 ? "metric-card-warning" : null)">
+        <span>@L["Unhealthy"]</span>
+        <strong>@UnhealthyResourceCount</strong>
+        <small>@L["Resources with failing health checks"]</small>
+    </article>
+    <article class="metric-card">
+        <span>@L["Running"]</span>
+        <strong>@RunningResourceCount</strong>
+        <small>@L["Resources currently reporting running state"]</small>
+    </article>
+</section>
+
+<section class="dashboard-grid">
+    <article class="panel panel-wide">
+        <div class="panel-header">
+            <div>
+                <h2>@L["System state"]</h2>
+                <p>@L["Resources that need attention based on lifecycle failures, health checks, or degraded state."]</p>
+            </div>
         </div>
-    </section>
 
-    <section class="metric-grid">
-        <article class="metric-card">
-            <span>@L["Extensions"]</span>
-            <strong>@ShellCatalog.Extensions.Count</strong>
-            <small>@L["Registered through DI"]</small>
-        </article>
-        <article class="metric-card">
-            <span>@L["Shell views"]</span>
-            <strong>@navigationItems.Count</strong>
-            <small>@L["Navigation contributions"]</small>
-        </article>
-        <article class="metric-card">
-            <span>@L["View menu items"]</span>
-            <strong>@viewMenuItems</strong>
-            <small>@L["Across {0} shell views", customViews.Count]</small>
-        </article>
-        <article class="metric-card">
-            <span>@L["Capabilities"]</span>
-            <strong>@capabilities.Length</strong>
-            <small>@L["Opt-in feature contracts"]</small>
-        </article>
-    </section>
-
-    <section class="dashboard-grid">
-        <article class="panel panel-wide">
-            <div class="panel-header">
-                <div>
-                    <h2>@L["Installed capabilities"]</h2>
-                    <p>@L["Features contributed by the installed extension set."]</p>
-                </div>
+        @if (SystemIssues.Count == 0)
+        {
+            <div class="empty-state compact">
+                <strong>@L["No current issues"]</strong>
+                <span>@L["No active resource failures, unhealthy health checks, or degraded lifecycle states were found in the current snapshot."]</span>
             </div>
-
-            @if (capabilities.Length == 0)
-            {
-                <div class="empty-state compact">
-                    <strong>@L["No capabilities"]</strong>
-                    <span>@L["Install extensions to add shell features."]</span>
-                </div>
-            }
-            else
-            {
-                <div class="tag-row">
-                    @foreach (var capability in capabilities)
-                    {
-                        <span>@capability</span>
-                    }
-                </div>
-            }
-        </article>
-
-        <article class="panel">
-            <div class="panel-header">
-                <div>
-                    <h2>@L["Navigation"]</h2>
-                    <p>@L["Current shell content areas."]</p>
-                </div>
-            </div>
-
+        }
+        else
+        {
             <div class="activity-list">
-                @foreach (var item in navigationItems.Take(8))
+                @foreach (var issue in SystemIssues.Take(8))
                 {
-                    <a class="activity-row" href="@item.Href">
-                        <ShellNavigationIcon Icon="@item.Icon" />
+                    <a class="activity-row" href="@BuildResourceRoute(issue.Resource.Id)">
+                        <ResourceKindIcon Resource="issue.Resource" />
                         <div>
-                            <strong>@L[item.Text]</strong>
-                            <span>@L[item.Group]</span>
+                            <strong>@issue.Resource.EffectiveDisplayName</strong>
+                            <span>@GetIssueSummary(issue)</span>
+                        </div>
+                        <span class="health-pill @GetIssueClass(issue)">
+                            @GetIssueLabel(issue)
+                        </span>
+                    </a>
+                }
+            </div>
+        }
+    </article>
+
+    <article class="panel">
+        <div class="panel-header">
+            <div>
+                <h2>@L["Resource state"]</h2>
+                <p>@L["Current resource inventory by lifecycle state."]</p>
+            </div>
+        </div>
+
+        @if (ResourceStateSummaries.Count == 0)
+        {
+            <div class="empty-state compact">
+                <strong>@L["No stateful resources"]</strong>
+                <span>@L["Resources without lifecycle state are still available in Resource Manager."]</span>
+            </div>
+        }
+        else
+        {
+            <div class="activity-list">
+                @foreach (var state in ResourceStateSummaries)
+                {
+                    <a class="activity-row" href="/resources">
+                        <span class="state-dot @GetStateClass(state.State)"></span>
+                        <div>
+                            <strong>@GetStateLabel(state.State)</strong>
+                            <span>@L["{0} resource(s)", state.Count]</span>
                         </div>
                     </a>
                 }
             </div>
-        </article>
-    </section>
+        }
+    </article>
+</section>
+
+<section class="dashboard-grid">
+    <article class="panel panel-wide">
+        <div class="panel-header">
+            <div>
+                <h2>@L["Recent failures"]</h2>
+                <p>@L["Latest active failure signals from resource activity."]</p>
+            </div>
+        </div>
+
+        @if (ActiveFailures.Count == 0)
+        {
+            <div class="empty-state compact">
+                <strong>@L["No active failures"]</strong>
+                <span>@L["Recent resource failures have either been superseded or no failures were recorded."]</span>
+            </div>
+        }
+        else
+        {
+            <div class="activity-list">
+                @foreach (var item in ActiveFailures.Take(6))
+                {
+                    <a class="activity-row" href="@BuildActivityRoute(item.Resource.Id)">
+                        <ResourceSeverityIcon Severity="@item.Failure.Severity" />
+                        <div>
+                            <strong>@ResourceFailureSignalDisplay.GetTitle(item.Failure, L)</strong>
+                            <span>@L["{0} / {1}", item.Resource.EffectiveDisplayName, FormatFailureTime(item.Failure.Timestamp)]</span>
+                        </div>
+                    </a>
+                }
+            </div>
+        }
+    </article>
+
+    <article class="panel">
+        <div class="panel-header">
+            <div>
+                <h2>@L["Quick views"]</h2>
+                <p>@L["Open the main operational workspaces."]</p>
+            </div>
+        </div>
+
+        <div class="activity-list">
+            <a class="activity-row" href="/resources">
+                <ShellNavigationIcon Icon="resources" />
+                <div>
+                    <strong>@L["Resources"]</strong>
+                    <span>@L["Inventory, lifecycle actions, relationships"]</span>
+                </div>
+            </a>
+            <a class="activity-row" href="/health">
+                <ShellNavigationIcon Icon="health" />
+                <div>
+                    <strong>@L["Health"]</strong>
+                    <span>@L["Configured health checks"]</span>
+                </div>
+            </a>
+            <a class="activity-row" href="/observability">
+                <ShellNavigationIcon Icon="observability" />
+                <div>
+                    <strong>@L["Observability"]</strong>
+                    <span>@L["Logs, traces, metrics, request flow"]</span>
+                </div>
+            </a>
+            <a class="activity-row" href="/extensions">
+                <ShellNavigationIcon Icon="extensions" />
+                <div>
+                    <strong>@L["Extensions"]</strong>
+                    <span>@L["Installed capabilities and shell contributions"]</span>
+                </div>
+            </a>
+        </div>
+    </article>
+</section>
 
 @code {
-    protected override void OnInitialized()
+    private IReadOnlyList<Resource> Resources { get; set; } = [];
+
+    private IReadOnlyDictionary<string, ResourceHealthSummary> HealthResults { get; set; } =
+        new Dictionary<string, ResourceHealthSummary>(StringComparer.OrdinalIgnoreCase);
+
+    private IReadOnlyDictionary<string, ResourceFailureSignal> FailureSignals { get; set; } =
+        new Dictionary<string, ResourceFailureSignal>(StringComparer.OrdinalIgnoreCase);
+
+    private IReadOnlyDictionary<string, Resource> ResourcesById { get; set; } =
+        new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
+
+    private CancellationTokenSource? PollingCancellation { get; set; }
+
+    private int StatefulResourceCount =>
+        Resources.Count(resource => resource.State is not null);
+
+    private int RunningResourceCount =>
+        Resources.Count(resource => resource.State == ResourceState.Running);
+
+    private int ActiveFailureCount =>
+        FailureSignals.Count;
+
+    private int UnhealthyResourceCount =>
+        HealthResults.Values.Count(summary => summary.Status == ResourceHealthStatus.Unhealthy);
+
+    private IReadOnlyList<ResourceIssue> SystemIssues =>
+        Resources
+            .Select(resource => new ResourceIssue(
+                resource,
+                FailureSignals.GetValueOrDefault(resource.Id),
+                HealthResults.GetValueOrDefault(resource.Id)))
+            .Where(issue =>
+                issue.Failure is not null ||
+                issue.Health?.Status == ResourceHealthStatus.Unhealthy ||
+                issue.Resource.State is ResourceState.Degraded or ResourceState.Unknown)
+            .OrderBy(issue => GetIssueRank(issue))
+            .ThenBy(issue => issue.Resource.EffectiveDisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private IReadOnlyList<ResourceFailureItem> ActiveFailures =>
+        FailureSignals
+            .Select(item => ResourcesById.TryGetValue(item.Key, out var resource)
+                ? new ResourceFailureItem(resource, item.Value)
+                : null)
+            .Where(item => item is not null)
+            .Select(item => item!)
+            .OrderByDescending(item => item.Failure.Timestamp)
+            .ToArray();
+
+    private IReadOnlyList<ResourceStateSummary> ResourceStateSummaries =>
+        Resources
+            .Where(resource => resource.State is not null)
+            .GroupBy(resource => resource.State!.Value)
+            .Select(group => new ResourceStateSummary(group.Key, group.Count()))
+            .OrderBy(summary => GetStateRank(summary.State))
+            .ThenBy(summary => summary.State.ToString(), StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    protected override async Task OnInitializedAsync()
     {
         if (!string.IsNullOrWhiteSpace(ShellCatalog.StartRoute) &&
             !ShellCatalog.StartRoute.Equals("/", StringComparison.Ordinal))
         {
             ShellNavigator.NavigateToHref(ShellCatalog.StartRoute, replace: true);
+            return;
+        }
+
+        await LoadDashboardAsync(CancellationToken.None);
+        StartDashboardPolling();
+    }
+
+    private async Task LoadDashboardAsync(CancellationToken cancellationToken)
+    {
+        Resources = await ResourceManager.ListResourcesAsync(cancellationToken: cancellationToken);
+        ResourcesById = Resources.ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+
+        var healthTask = HealthChecks.CheckAsync(Resources, cancellationToken);
+        var failuresTask = LoadResourceFailureSignalsAsync(Resources);
+
+        await Task.WhenAll(healthTask, failuresTask);
+
+        HealthResults = healthTask.Result;
+        FailureSignals = failuresTask.Result;
+    }
+
+    private void StartDashboardPolling()
+    {
+        PollingCancellation?.Cancel();
+        PollingCancellation?.Dispose();
+
+        PollingCancellation = new CancellationTokenSource();
+        _ = PollDashboardAsync(PollingCancellation.Token);
+    }
+
+    private async Task PollDashboardAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                await Task.Delay(GetDashboardInterval(), cancellationToken);
+
+                await InvokeAsync(async () =>
+                {
+                    await LoadDashboardAsync(cancellationToken);
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
         }
     }
 
+    private TimeSpan GetDashboardInterval() =>
+        TimeSpan.FromSeconds(GetDashboardIntervalSeconds());
+
+    private int GetDashboardIntervalSeconds() =>
+        OrchestrationSettings.GetHealthCheckIntervalSettings().Seconds;
+
+    private async Task<IReadOnlyDictionary<string, ResourceFailureSignal>> LoadResourceFailureSignalsAsync(
+        IReadOnlyList<Resource> resources)
+    {
+        if (resources.Count == 0)
+        {
+            return new Dictionary<string, ResourceFailureSignal>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var resourceIds = resources
+            .Select(resource => resource.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var maxEvents = Math.Clamp(resources.Count * 20, 100, 1000);
+
+        var events = await ResourceEvents.ListResourceEventsAsync(new ResourceEventQuery(MaxEvents: maxEvents));
+        return events
+            .Where(resourceEvent => resourceIds.Contains(resourceEvent.ResourceId))
+            .GroupBy(resourceEvent => resourceEvent.ResourceId, StringComparer.OrdinalIgnoreCase)
+            .Select(group => new
+            {
+                ResourceId = group.Key,
+                Failure = ResourceFailureSignalResolver.GetActiveFailure(group)
+            })
+            .Where(item => item.Failure is not null)
+            .ToDictionary(
+                item => item.ResourceId,
+                item => item.Failure!,
+                StringComparer.OrdinalIgnoreCase);
+    }
+
+    private string GetIssueSummary(ResourceIssue issue)
+    {
+        if (issue.Failure is not null)
+        {
+            return ResourceFailureSignalDisplay.GetMessage(issue.Failure, L);
+        }
+
+        if (issue.Health?.Status == ResourceHealthStatus.Unhealthy)
+        {
+            var failed = issue.Health.Checks.Count(check => check.Status == ResourceHealthStatus.Unhealthy);
+            return L["{0} failing health check(s)", failed].Value;
+        }
+
+        return issue.Resource.State is null
+            ? L["No lifecycle state"].Value
+            : L["Lifecycle state: {0}", issue.Resource.State].Value;
+    }
+
+    private string GetIssueLabel(ResourceIssue issue)
+    {
+        if (issue.Failure is not null)
+        {
+            return issue.Failure.Severity == ResourceSignalSeverity.Warning
+                ? L["Warning"].Value
+                : L["Failure"].Value;
+        }
+
+        if (issue.Health?.Status == ResourceHealthStatus.Unhealthy)
+        {
+            return L["Unhealthy"].Value;
+        }
+
+        return issue.Resource.State?.ToString() ?? L["Unknown"].Value;
+    }
+
+    private static string GetIssueClass(ResourceIssue issue)
+    {
+        if (issue.Failure?.Severity == ResourceSignalSeverity.Warning)
+        {
+            return "health-unknown";
+        }
+
+        if (issue.Failure is not null || issue.Health?.Status == ResourceHealthStatus.Unhealthy)
+        {
+            return "health-unhealthy";
+        }
+
+        return issue.Resource.State switch
+        {
+            ResourceState.Degraded => "health-unhealthy",
+            _ => "health-unknown"
+        };
+    }
+
+    private static int GetIssueRank(ResourceIssue issue) =>
+        issue.Failure?.Severity == ResourceSignalSeverity.Error ? 0 :
+        issue.Failure is not null ? 1 :
+        issue.Health?.Status == ResourceHealthStatus.Unhealthy ? 2 :
+        issue.Resource.State == ResourceState.Degraded ? 3 :
+        4;
+
+    private string GetStateLabel(ResourceState state) =>
+        state.ToString();
+
+    private static int GetStateRank(ResourceState state) =>
+        state switch
+        {
+            ResourceState.Degraded => 0,
+            ResourceState.Unknown => 1,
+            ResourceState.Starting => 2,
+            ResourceState.Stopping => 3,
+            ResourceState.Running => 4,
+            ResourceState.Paused => 5,
+            ResourceState.Stopped => 6,
+            _ => 7
+        };
+
+    private static string GetStateClass(ResourceState state) =>
+        state switch
+        {
+            ResourceState.Running => "state-running",
+            ResourceState.Starting => "state-starting",
+            ResourceState.Stopping => "state-stopping",
+            ResourceState.Paused => "state-paused",
+            ResourceState.Degraded => "state-degraded",
+            ResourceState.Stopped => "state-stopped",
+            ResourceState.Unknown => "state-unknown",
+            _ => "state-unknown"
+        };
+
+    private string FormatFailureTime(DateTimeOffset timestamp) =>
+        timestamp.ToLocalTime().ToString("HH:mm:ss");
+
+    private static string BuildResourceRoute(string resourceId) =>
+        ResourceManagerRoutes.ResourceDetails(resourceId);
+
+    private static string BuildActivityRoute(string resourceId) =>
+        ResourceManagerRoutes.ResourceDetails(resourceId, ResourcePredefinedViewIds.Activity);
+
+    public void Dispose()
+    {
+        PollingCancellation?.Cancel();
+        PollingCancellation?.Dispose();
+    }
+
+    private sealed record ResourceIssue(
+        Resource Resource,
+        ResourceFailureSignal? Failure,
+        ResourceHealthSummary? Health);
+
+    private sealed record ResourceFailureItem(
+        Resource Resource,
+        ResourceFailureSignal Failure);
+
+    private sealed record ResourceStateSummary(
+        ResourceState State,
+        int Count);
 }
