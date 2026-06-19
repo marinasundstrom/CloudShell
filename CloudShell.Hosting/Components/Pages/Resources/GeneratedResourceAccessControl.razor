@@ -141,6 +141,12 @@
                 @L["Resource Manager is in read-only mode. Access control changes are disabled in this UI."]
             </ProcedureMessage>
         }
+        @if (ShouldShowSqlGrantMaterializationNotice())
+        {
+            <FluentMessageBar Intent="MessageIntent.Warning">
+                @L["Database grants are saved in CloudShell. The SQL Server provider does not create users or roles yet, so workloads must use configured SQL credentials."]
+            </FluentMessageBar>
+        }
         <p class="muted">@L["CloudShell records that the selected principal can access this resource. Identity and access providers apply or reconcile the grant when provisioning runs."]</p>
     </text>;
 
@@ -449,6 +455,10 @@
         !string.IsNullOrWhiteSpace(principal.SourceResourceId) &&
         Resource is not null &&
         string.Equals(principal.SourceResourceId, Resource.Id, StringComparison.OrdinalIgnoreCase);
+
+    private bool ShouldShowSqlGrantMaterializationNotice() =>
+        Resource is not null &&
+        string.Equals(Resource.EffectiveTypeId, SqlServerResourceType, StringComparison.OrdinalIgnoreCase);
 
     private sealed record PermissionOption(
         string Label,

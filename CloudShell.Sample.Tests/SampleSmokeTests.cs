@@ -799,6 +799,8 @@ public sealed class SampleSmokeTests
             $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.AccessControl.Value)}");
         Assert.Contains("Search principals", sqlAccessControlHtml);
         Assert.Contains("Assigned principals", sqlAccessControlHtml);
+        Assert.Contains("Database grants are saved in CloudShell.", sqlAccessControlHtml);
+        Assert.Contains("The SQL Server provider does not create users or roles yet", sqlAccessControlHtml);
         Assert.Contains("Database: read/write", sqlAccessControlHtml);
         Assert.Contains("application-topology-api", sqlAccessControlHtml);
         Assert.Contains(DatabaseResourceOperationPermissions.ReadWrite, sqlAccessControlHtml);

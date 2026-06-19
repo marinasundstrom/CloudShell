@@ -37,6 +37,8 @@ on `git blame --follow`, and then by the broad type of change.
   proves declared databases do not exist on the server.
 - SQL Server overview now warns when database access grants are modeled in
   CloudShell but have not been materialized as SQL Server users or roles yet.
+- SQL Server Access control now shows the same provider-side materialization
+  warning before users assign database grants.
 - SQL Server resource overview now leads with SQL service details instead of
   generic container image, revision, and host placement fields.
 
