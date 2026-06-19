@@ -578,6 +578,16 @@ public sealed partial class ApplicationResourceService(
             context.ResourceManager,
             context.PreferredContainerHostId,
             cancellationToken);
+        var containerHostReason = await GetContainerHostUnavailableReasonAsync(
+            application,
+            context.ResourceManager,
+            context.PreferredContainerHostId,
+            cancellationToken);
+        if (!string.IsNullOrWhiteSpace(containerHostReason))
+        {
+            return containerHostReason;
+        }
+
         if (containerHost is not null)
         {
             var registryCredentialReason = GetRegistryCredentialUnavailableReason(application);
@@ -730,6 +740,7 @@ public sealed partial class ApplicationResourceService(
             application,
             context.ResourceContext.ResourceManager,
             context.ResourceContext.PreferredContainerHostId,
+            ContainerHostCapabilityIds.ContainerImage,
             cancellationToken);
         var processLog = GetProcessLog(application.Id);
 
@@ -2123,6 +2134,7 @@ public sealed partial class ApplicationResourceService(
             definition,
             resourceManager,
             preferredContainerHostId,
+            ContainerHostCapabilityIds.ContainerBuild,
             cancellationToken);
         var log = GetProcessLog(definition.Id);
         var imageReference = CreateProjectContainerImageReference(definition);
@@ -2186,6 +2198,7 @@ public sealed partial class ApplicationResourceService(
             definition,
             resourceManager,
             preferredContainerHostId,
+            ContainerHostCapabilityIds.ContainerImage,
             cancellationToken);
         procedureContext?.AppendProviderEvent(
             Id,
@@ -2458,6 +2471,7 @@ public sealed partial class ApplicationResourceService(
                 application.ContainerHostId,
                 preferredContainerHostId,
                 resourceManager,
+                requiredCapability: null,
                 cancellationToken);
             if (engine is not null)
             {
@@ -2547,6 +2561,7 @@ public sealed partial class ApplicationResourceService(
             definition.ContainerHostId,
             preferredContainerHostId,
             resourceManager,
+            requiredCapability: null,
             cancellationToken);
         if (engine is null)
         {
@@ -4574,6 +4589,7 @@ public sealed partial class ApplicationResourceService(
         ApplicationResourceDefinition definition,
         IResourceManagerStore? resourceManager,
         string? preferredContainerHostId,
+        string requiredCapability,
         CancellationToken cancellationToken)
     {
         if (resourceManager is null)
@@ -4586,6 +4602,7 @@ public sealed partial class ApplicationResourceService(
             definition.ContainerHostId,
             preferredContainerHostId,
             resourceManager,
+            requiredCapability,
             cancellationToken)
             ?? throw new InvalidOperationException(
                 $"Resource '{definition.Name}' is container-backed but no default container host is registered. Use UseDocker(), UseContainerHost(...), or set WithContainerHost(...).");
@@ -4609,6 +4626,7 @@ public sealed partial class ApplicationResourceService(
                 definition.ContainerHostId,
                 preferredContainerHostId,
                 resourceManager,
+                ContainerHostCapabilityIds.ContainerImage,
                 cancellationToken);
         }
         catch (InvalidOperationException)
@@ -4617,25 +4635,89 @@ public sealed partial class ApplicationResourceService(
         }
     }
 
+    private async Task<string?> GetContainerHostUnavailableReasonAsync(
+        ApplicationResourceDefinition definition,
+        IResourceManagerStore? resourceManager,
+        string? preferredContainerHostId,
+        CancellationToken cancellationToken)
+    {
+        if (!IsContainerBacked(definition))
+        {
+            return null;
+        }
+
+        if (resourceManager is null)
+        {
+            return $"Container resource '{definition.Name}' requires resource manager context to resolve a container host.";
+        }
+
+        try
+        {
+            _ = await ResolveContainerHostAsync(
+                definition.ContainerHostId,
+                preferredContainerHostId,
+                resourceManager,
+                ContainerHostCapabilityIds.ContainerImage,
+                cancellationToken);
+
+            if (definition.ProjectContainerBuild)
+            {
+                _ = await ResolveContainerHostAsync(
+                    definition.ContainerHostId,
+                    preferredContainerHostId,
+                    resourceManager,
+                    ContainerHostCapabilityIds.ContainerBuild,
+                    cancellationToken);
+            }
+        }
+        catch (InvalidOperationException exception)
+        {
+            return exception.Message;
+        }
+
+        return null;
+    }
+
     private async Task<ContainerHostDescriptor?> ResolveContainerHostAsync(
         string? containerHostId,
         string? preferredContainerHostId,
         IResourceManagerStore resourceManager,
+        string? requiredCapability,
         CancellationToken cancellationToken)
     {
         var selectedEngineId = FirstNonEmpty(containerHostId, preferredContainerHostId);
         if (!string.IsNullOrWhiteSpace(selectedEngineId))
         {
-            return await ResolveContainerHostByIdAsync(selectedEngineId, resourceManager, cancellationToken)
+            var selectedHost = await ResolveContainerHostByIdAsync(selectedEngineId, resourceManager, cancellationToken)
                 ?? throw new InvalidOperationException(
                     $"Container host '{selectedEngineId}' is not registered.");
+            ValidateContainerHostCapability(selectedHost, requiredCapability);
+            return selectedHost;
         }
 
-        return GetContainerHosts()
+        var defaultHost = GetContainerHosts()
             .Where(engine => engine.IsDefault)
             .OrderBy(engine => engine.Name, StringComparer.OrdinalIgnoreCase)
             .FirstOrDefault()
             ?? await ResolveDefaultContainerHostResourceAsync(resourceManager, cancellationToken);
+        if (defaultHost is not null)
+        {
+            ValidateContainerHostCapability(defaultHost, requiredCapability);
+        }
+
+        return defaultHost;
+    }
+
+    private static void ValidateContainerHostCapability(
+        ContainerHostDescriptor containerHost,
+        string? requiredCapability)
+    {
+        if (!string.IsNullOrWhiteSpace(requiredCapability) &&
+            !containerHost.HostCapabilities.Contains(requiredCapability, StringComparer.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Container host '{containerHost.Id}' does not advertise required capability '{requiredCapability}'.");
+        }
     }
 
     private ContainerHostDescriptor? ResolveStaticContainerHost(ApplicationResourceDefinition definition)

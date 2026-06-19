@@ -6589,6 +6589,107 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task ApplicationActionAvailability_ReturnsContainerHostImageCapabilityReason()
+    {
+        var services = new ServiceCollection();
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .UseContainerHost(new ContainerHostDescriptor(
+                "docker:build-only",
+                "Build-only Docker",
+                ContainerHostKind.Docker,
+                "unix:///var/run/docker.sock",
+                Capabilities: [ContainerHostCapabilityIds.ContainerBuild]))
+            .AddApplicationProvider();
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var resourceProvider = serviceProvider.GetRequiredService<ContainerApplicationResourceProvider>();
+        var registrations = new MutableResourceRegistrationStore();
+        await provider.SetupApplicationAsync(
+            new ApplicationResourceDefinition(
+                "application:api",
+                "API",
+                string.Empty,
+                containerImage: "redis:7.2",
+                containerHostId: "docker:build-only",
+                resourceType: ApplicationResourceTypes.ContainerApp),
+            resourceGroupId: null,
+            registrations);
+        var resource = Assert.Single(provider.GetResources(), resource => resource.IsNormalResource);
+        var resourceManager = new StaticResourceManagerStore([resource]);
+
+        var reason = await resourceProvider.GetActionUnavailableReasonAsync(
+            new ResourceProcedureContext(
+                resource,
+                registrations.GetRegistration(resource.Id),
+                null,
+                registrations,
+                resourceManager),
+            resource.ResourceActions.Single(action => action.Kind == ResourceActionKind.Start));
+
+        Assert.Equal(
+            "Container host 'docker:build-only' does not advertise required capability 'container.image'.",
+            reason);
+    }
+
+    [Fact]
+    public async Task ApplicationActionAvailability_ReturnsContainerHostBuildCapabilityReason()
+    {
+        var services = new ServiceCollection();
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var projectPath = Path.Combine("src", "API", "API.csproj");
+        var resolvedProjectPath = Path.Combine(contentRoot, projectPath);
+
+        Directory.CreateDirectory(Path.GetDirectoryName(resolvedProjectPath)!);
+        await File.WriteAllTextAsync(resolvedProjectPath, "<Project />");
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .UseContainerHost(new ContainerHostDescriptor(
+                "docker:run-only",
+                "Run-only Docker",
+                ContainerHostKind.Docker,
+                "unix:///var/run/docker.sock",
+                Capabilities: [ContainerHostCapabilityIds.ContainerImage]))
+            .AddApplicationProvider();
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var resourceProvider = serviceProvider.GetRequiredService<ContainerApplicationResourceProvider>();
+        var registrations = new MutableResourceRegistrationStore();
+        await provider.SetupApplicationAsync(
+            new ApplicationResourceDefinition(
+                "application:api",
+                "API",
+                string.Empty,
+                projectPath: projectPath,
+                projectContainerBuild: true,
+                containerHostId: "docker:run-only",
+                resourceType: ApplicationResourceTypes.ContainerApp),
+            resourceGroupId: null,
+            registrations);
+        var resource = Assert.Single(provider.GetResources(), resource => resource.IsNormalResource);
+        var resourceManager = new StaticResourceManagerStore([resource]);
+
+        var reason = await resourceProvider.GetActionUnavailableReasonAsync(
+            new ResourceProcedureContext(
+                resource,
+                registrations.GetRegistration(resource.Id),
+                null,
+                registrations,
+                resourceManager),
+            resource.ResourceActions.Single(action => action.Kind == ResourceActionKind.Start));
+
+        Assert.Equal(
+            "Container host 'docker:run-only' does not advertise required capability 'container.build'.",
+            reason);
+    }
+
+    [Fact]
     public async Task ApplicationProvider_ProjectsVolumeMountMaterializationStatus()
     {
         var services = new ServiceCollection();

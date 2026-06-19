@@ -105,6 +105,11 @@ that the configured password environment variable is present when registry
 credentials are configured, and reports an action-unavailable reason without
 exposing the password value.
 
+Start and Restart readiness also validate that the selected container host
+advertises the capability needed by the workload. Image-backed apps require
+`container.image`; project-container builds additionally require
+`container.build`.
+
 The Container app registration and configuration tabs expose the registry next
 to the image setting. Docker host registration/configuration exposes a registry
 setting for Docker child-container resources; that setting also defaults to

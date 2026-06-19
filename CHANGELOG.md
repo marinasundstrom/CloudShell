@@ -100,6 +100,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Container app resources now report missing registry credential password
   environment variables as Start/Restart unavailable reasons before attempting
   registry login, without exposing secret values.
+- Container app Start/Restart availability now reports unsupported selected
+  container host capabilities before provider dispatch: image-backed apps
+  require `container.image`, and project-container builds require
+  `container.build`.
 - Access Control principal search results now render as a vertical list with
   full-width principal rows and disambiguate resource identity display names as
   `<DisplayName> (<resource name>)` when those values differ.
