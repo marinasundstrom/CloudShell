@@ -41,11 +41,13 @@ through `UseLocalDevelopmentDefaults()`, but it projects as an
 `application.sql-server` service resource instead of a generic container app.
 The resource publishes a local `tds` endpoint on `localhost:14334` by default
 and mounts a Local Storage-backed volume so database files can survive
-restarts of the SQL Server resource. The backend API references SQL Server
-through CloudShell service discovery and exposes `/database`, which opens a SQL
-connection and executes a small timestamp query. The frontend calls both
-`/message` and `/database` through the API so the sample exercises
-frontend-to-API and API-to-SQL dependencies.
+restarts of the SQL Server resource. The sample also declares an
+`application_topology` database, which projects as a provider-managed
+`application.sql-database` child and appears in the SQL Server **Databases**
+tab. The backend API references SQL Server through CloudShell service discovery
+and exposes `/database`, which opens a SQL connection and executes a small
+timestamp query. The frontend calls both `/message` and `/database` through
+the API so the sample exercises frontend-to-API and API-to-SQL dependencies.
 
 The backend API also receives Configuration Store and Secrets Vault references
 as environment variables. `/settings` returns the configured message, mode,
@@ -202,8 +204,8 @@ backend API exercises downstream platform services.
 Already covered by the sample:
 
 - Project-backed frontend and API resources that share ServiceDefaults.
-- SQL Server as a service resource with a mounted local-storage volume and a
-  local container-backed runtime.
+- SQL Server as a service resource with a mounted local-storage volume, a
+  declared database child, and a local container-backed runtime.
 - Configuration Store and Secrets Vault references injected into the API
   without leaking secret values.
 - Built-in development resource identity and access grants for settings,
@@ -220,8 +222,9 @@ Already covered by the sample:
 
 Remaining useful additions:
 
-- Provider-side SQL Server grant materialization, so the API can use its
-  CloudShell resource identity to access the database in an Azure-like flow.
+- Provider-side SQL Server database reconciliation and grant materialization,
+  so the API can use its CloudShell resource identity to access the database
+  in an Azure-like flow.
 - Optional container-app variants for the frontend and API only when they prove
   a distinct local-development workflow instead of duplicating the
   project-backed path.

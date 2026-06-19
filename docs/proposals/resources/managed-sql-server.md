@@ -81,6 +81,9 @@ Implemented today:
   Scale and replicas tabs by default.
 * Database read/write grant intent can be assigned to SQL Server resources
   through the existing Access control model.
+* Programmatic declarations can add declared databases with `WithDatabase(...)`;
+  those project as provider-managed `application.sql-database` child resources
+  and display in a SQL Server **Databases** tab.
 
 Implementation caveat: because the provider currently stores SQL Server as an
 application resource and uses the same runtime path as container-backed
@@ -163,23 +166,29 @@ If a provider uses a container internally, that runtime artifact may be
 available through contextual diagnostics or runtime-managed resource views, not
 as the SQL Server resource's primary management model.
 
-The page should include a database-oriented **Databases** tab when provider
-inspection can list databases. That tab should show projected database child
-resources with name, state, size, compatibility level, owner or identity
-metadata when available, connection metadata, and available database actions.
-It should be an instance-scoped view of child resources, not a separate global
-database inventory by default.
+The page includes a first database-oriented **Databases** tab for declared
+database children. When provider inspection can list databases, that tab should
+also show inspected database child resources with name, state, size,
+compatibility level, owner or identity metadata when available, connection
+metadata, and available database actions. It should remain an instance-scoped
+view of child resources, not a separate global database inventory by default.
 
 ## Database Resources
 
-The SQL Server instance should first be able to project discovered child
-database resources after provider inspection exists. A future resource type
-could be named `sqlserver.database` or use another database resource naming
-convention once the domain model has a database resource class or a durable
-database resource convention.
+The current provider projects declared database children as
+`application.sql-database` resources under the SQL Server instance. A future
+resource type could be named `sqlserver.database` or use another database
+resource naming convention once the domain model has a database resource class
+or a durable database resource convention.
 
-Projected database children should use stable resource IDs derived from the
-server and database name, for example:
+Projected database children use stable resource IDs derived from the server and
+database name. The current application-provider form is:
+
+```text
+application:main/database:orders
+```
+
+A future dedicated SQL Server provider may use:
 
 ```text
 sqlserver:main/database:orders
@@ -187,9 +196,10 @@ sqlserver:main/database:orders
 
 They should set `ParentResourceId` to the SQL Server instance and inherit the
 resource group through the parent unless explicitly modeled otherwise. They
-should not appear as top-level inventory resources by default. Resource Manager
-should show them from the SQL Server **Databases** tab and in relationship
-views when the caller has permission to inspect them.
+should not appear as top-level inventory resources by default. The current
+projection uses diagnostic visibility so Resource Manager can show them from
+the SQL Server **Databases** tab without treating them as ordinary top-level
+inventory resources.
 
 Database resources should support database-oriented management such as:
 
@@ -335,11 +345,13 @@ MVP container app, storage, networking, and identity primitives are stable.
   validated SQL Server version/edition choices or provider policy.
 * Expand the provider-owned SQL-oriented builder with validated SQL Server
   version/edition choices instead of arbitrary image override.
-* Define a database resource type, resource ID convention, parent relationship,
-  and Resource Manager Databases tab for SQL Server databases.
+* Decide whether the current `application.sql-database` child type remains or
+  whether a dedicated provider type such as `sqlserver.database` replaces it.
 * Decide when declarative SQL database resources should be supported, after
   projected database children and provider inspection are in place.
 * Add provider inspection for databases, version, edition, storage, and health.
+* Add create/drop/reconcile semantics for declared databases once provider
+  inspection exists.
 * Add identity-backed SQL login/database user provisioning.
 * Define stable database permission names and map them to SQL Server logins,
   database users, roles, and provider-specific identity integration.

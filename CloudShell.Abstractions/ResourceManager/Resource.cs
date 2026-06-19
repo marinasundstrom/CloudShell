@@ -233,6 +233,10 @@ public static class ResourceAttributeNames
     public const string StorageVolumeCount = "storage.volumes";
     public const string StorageRuntimeStatus = "storage.runtimeStatus";
     public const string StorageRuntimeStatusReason = "storage.runtimeStatusReason";
+    public const string DatabaseCount = "database.count";
+    public const string DatabaseName = "database.name";
+    public const string DatabaseServerResourceId = "database.serverResourceId";
+    public const string DatabaseSource = "database.source";
     public const string EndpointCount = "endpoints.count";
     public const string ConfigurationEntryCount = "configuration.entries";
     public const string InfrastructureKind = "infrastructure.kind";

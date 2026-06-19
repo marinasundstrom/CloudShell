@@ -315,14 +315,17 @@ cloudShell.Resources(resources =>
 
     resources
         .AddSqlServer("main", dataVolume: sqlData, port: 14334)
+        .WithDatabase("appdb", "Application DB")
         .WithDisplayName("Main SQL Server");
 });
 ```
 
 The current local provider still uses a SQL Server container image internally,
 but callers receive an `application.sql-server` service resource rather than a
-container-app builder. Future SQL Server builder slices should add validated
-SQL Server concepts such as version and edition instead of arbitrary image
+container-app builder. Declared databases project as provider-managed
+`application.sql-database` children and appear on the SQL Server resource's
+Databases tab. Future SQL Server builder slices should add validated SQL
+Server concepts such as version and edition instead of arbitrary image
 selection. Top-level container applications are the place where image
 selection is part of the logical declaration:
 

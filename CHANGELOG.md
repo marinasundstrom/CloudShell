@@ -17,6 +17,11 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- SQL Server resources can now declare projected databases through
+  `WithDatabase(...)`. The application provider projects those databases as
+  provider-managed `application.sql-database` child resources and adds a SQL
+  Server **Databases** tab so Resource Manager can display them without
+  exposing generic container-app controls.
 - SQL Server can now be declared through a provider-owned `AddSqlServer(...)`
   builder that projects `application.sql-server` as a service resource while
   keeping the local runtime container-backed. ApplicationTopology and

@@ -8092,6 +8092,7 @@ public sealed class ResourceDeclarationTests
                         administratorPassword: "CloudShell-Passw0rd!",
                         dataVolume: volume,
                         port: 14333)
+                    .WithDatabase("appdb", "Application DB")
                     .WithIdentity(identityProvider)
                     .WithContainerHost("docker:dev")
                     .WithLifetime(ResourceLifetime.Detached);
@@ -8108,6 +8109,9 @@ public sealed class ResourceDeclarationTests
         var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
         var resource = Assert.Single(provider.GetResources(), resource =>
             resource.Id == "application:sql");
+        var database = Assert.Single(provider.GetResources(), resource =>
+            resource.ParentResourceId == "application:sql" &&
+            resource.EffectiveTypeId == ApplicationResourceTypes.SqlDatabase);
         var descriptor = await provider.DescribeAsync(
             resource,
             new ResourceOrchestrationDescriptorContext(null, null, null!));
@@ -8131,8 +8135,13 @@ public sealed class ResourceDeclarationTests
             resource.ResourceAttributes[ResourceAttributeNames.ContainerImage]);
         Assert.Equal("docker:dev", resource.ResourceAttributes[ResourceAttributeNames.ContainerHostId]);
         Assert.Equal("1", resource.ResourceAttributes[ResourceAttributeNames.VolumeMountCount]);
+        Assert.Equal("1", resource.ResourceAttributes[ResourceAttributeNames.DatabaseCount]);
         Assert.True(resource.HasCapability(ResourceCapabilityIds.StorageVolumeConsumer));
-        Assert.Equal(ApplicationLifetime.Detached, provider.GetApplication("application:sql")?.Lifetime);
+        var application = provider.GetApplication("application:sql");
+        Assert.Equal(ApplicationLifetime.Detached, application?.Lifetime);
+        var declaredDatabase = Assert.Single(application?.SqlDatabases ?? []);
+        Assert.Equal("appdb", declaredDatabase.Name);
+        Assert.Equal("Application DB", declaredDatabase.DisplayName);
         Assert.Equal(ResourceWorkloadKind.ContainerImage, workload?.Kind);
         Assert.Equal(ApplicationProviderServiceCollectionExtensions.DefaultSqlServerImage, workload?.Image);
         Assert.Equal("docker:dev", workload?.ContainerHostId);
@@ -8157,6 +8166,20 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("application:api", grant.Principal.SourceResourceId);
         Assert.Equal("api", grant.Principal.SourceIdentityName);
         Assert.Equal(DatabaseResourceOperationPermissions.ReadWrite, grant.Permission);
+
+        Assert.Equal("application:sql/database:appdb", database.Id);
+        Assert.Equal("appdb", database.Name);
+        Assert.Equal("Application DB", database.DisplayName);
+        Assert.Equal("SQL database", database.Kind);
+        Assert.Equal(ResourceClass.Service, database.ResourceClass);
+        Assert.Equal(ResourceSource.Provider, database.Source);
+        Assert.Equal(ResourceManagementMode.ProviderManaged, database.ManagementMode);
+        Assert.Equal(ResourceVisibility.Diagnostic, database.Visibility);
+        Assert.Equal("application:sql", database.OwnerResourceId);
+        Assert.Equal(ResourceCleanupBehavior.DeleteWithOwner, database.CleanupBehavior);
+        Assert.Equal("appdb", database.ResourceAttributes[ResourceAttributeNames.DatabaseName]);
+        Assert.Equal("application:sql", database.ResourceAttributes[ResourceAttributeNames.DatabaseServerResourceId]);
+        Assert.Equal("declared", database.ResourceAttributes[ResourceAttributeNames.DatabaseSource]);
     }
 
     [Fact]

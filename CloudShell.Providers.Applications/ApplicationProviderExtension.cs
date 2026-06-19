@@ -219,6 +219,13 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 30,
                 showsApplyButton: true,
                 groupTitle: ResourceTabGroupTitles.Storage)
+            .AddResourceTab<Pages.SqlServerDatabases>(
+                ApplicationResourceTypes.SqlServer,
+                new ResourceViewId(ResourceTabGroupIds.Application, "databases"),
+                "Databases",
+                35,
+                groupTitle: "Data",
+                icon: "database")
             .AddResourcePredefinedViewSection<Pages.ApplicationEndpointActions>(
                 ApplicationResourceTypes.SqlServer,
                 ResourcePredefinedViewIds.Endpoints,

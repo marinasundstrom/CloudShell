@@ -122,6 +122,7 @@ cloudShell.Resources(resources =>
             administratorPassword: sqlPassword,
             dataVolume: sqlData,
             port: sqlPort)
+        .WithDatabase("application_topology", "Application Topology")
         .WithIdentity(identityProvider, name: "application-topology-sql-server")
         .WithResourceGroup(groupId)
         .WithAutoStart(false)

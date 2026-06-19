@@ -88,6 +88,17 @@ public sealed partial class ApplicationResourceService(
     {
         yield return CreateResource(application, projection);
 
+        if (string.Equals(
+                application.ResourceType,
+                ApplicationResourceTypes.SqlServer,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            foreach (var database in CreateSqlDatabaseResources(application))
+            {
+                yield return database;
+            }
+        }
+
         if (!ApplicationResourceTypes.IsContainerApp(application.ResourceType))
         {
             yield break;
@@ -1136,7 +1147,8 @@ public sealed partial class ApplicationResourceService(
             application.AspNetCoreHotReload,
             ProjectContainerBuild: application.ProjectContainerBuild,
             UseLaunchSettingsEndpoints: application.UseLaunchSettingsEndpoints,
-            ReplicasEnabled: application.ReplicasEnabled);
+            ReplicasEnabled: application.ReplicasEnabled,
+            SqlDatabases: application.SqlDatabases);
 
         return Task.FromResult(new ResourceTemplateDefinition(
             application.Name,
@@ -1197,7 +1209,8 @@ public sealed partial class ApplicationResourceService(
             projectArguments: configuration.ProjectArguments,
             aspNetCoreHotReload: configuration.AspNetCoreHotReload,
             useLaunchSettingsEndpoints: configuration.UseLaunchSettingsEndpoints,
-            replicasEnabled: configuration.ReplicasEnabled);
+            replicasEnabled: configuration.ReplicasEnabled,
+            sqlDatabases: configuration.SqlDatabases);
 
         await SetupApplicationAsync(
             definition,
@@ -3149,6 +3162,47 @@ public sealed partial class ApplicationResourceService(
             CleanupBehavior: ResourceCleanupBehavior.DeleteWithOwner);
     }
 
+    private static IReadOnlyList<Resource> CreateSqlDatabaseResources(ApplicationResourceDefinition application) =>
+        application.SqlDatabases
+            .Select(database => CreateSqlDatabaseResource(application, database))
+            .ToArray();
+
+    private static Resource CreateSqlDatabaseResource(
+        ApplicationResourceDefinition application,
+        SqlServerDatabaseDefinition database)
+    {
+        var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [ResourceAttributeNames.DatabaseName] = database.Name,
+            [ResourceAttributeNames.DatabaseServerResourceId] = application.Id,
+            [ResourceAttributeNames.DatabaseSource] = "declared"
+        };
+
+        return new Resource(
+            CreateSqlDatabaseResourceId(application.Id, database.Name),
+            database.Name,
+            "SQL database",
+            "Applications",
+            "local",
+            null,
+            [],
+            ApplicationResourceProjectionSupport.GetContainerVersion(application) ?? string.Empty,
+            DateTimeOffset.UtcNow,
+            [application.Id],
+            ParentResourceId: application.Id,
+            TypeId: ApplicationResourceTypes.SqlDatabase,
+            ResourceClass: ResourceClass.Service,
+            Attributes: attributes,
+            Source: ResourceSource.Provider,
+            ManagementMode: ResourceManagementMode.ProviderManaged,
+            Visibility: ResourceVisibility.Diagnostic,
+            OwnerResourceId: application.Id,
+            CleanupBehavior: ResourceCleanupBehavior.DeleteWithOwner,
+            DisplayName: string.IsNullOrWhiteSpace(database.DisplayName)
+                ? database.Name
+                : database.DisplayName);
+    }
+
     private static IReadOnlyList<ResourceCapability> CreateCapabilities(
         ApplicationResourceDefinition application,
         IReadOnlyList<ResourceEndpoint> endpoints)
@@ -3183,6 +3237,12 @@ public sealed partial class ApplicationResourceService(
             [ResourceAttributeNames.EndpointCount] = application.EndpointPorts.Count.ToString(CultureInfo.InvariantCulture),
             [ResourceAttributeNames.VolumeMountCount] = application.VolumeMounts.Count.ToString(CultureInfo.InvariantCulture)
         };
+
+        if (string.Equals(application.ResourceType, ApplicationResourceTypes.SqlServer, StringComparison.OrdinalIgnoreCase))
+        {
+            attributes[ResourceAttributeNames.DatabaseCount] =
+                application.SqlDatabases.Count.ToString(CultureInfo.InvariantCulture);
+        }
 
         if (application.VolumeMounts.Count > 0)
         {
@@ -3877,7 +3937,8 @@ public sealed partial class ApplicationResourceService(
             Observability = NormalizeObservability(definition.Observability),
             AppSettings = NormalizeAppSettings(definition.AppSettings),
             EnvironmentVariables = NormalizeEnvironmentVariables(definition.EnvironmentVariables),
-            VolumeMounts = NormalizeVolumeMounts(definition.VolumeMounts)
+            VolumeMounts = NormalizeVolumeMounts(definition.VolumeMounts),
+            SqlDatabases = NormalizeSqlDatabases(definition.SqlDatabases)
         };
     }
 
@@ -4905,6 +4966,19 @@ public sealed partial class ApplicationResourceService(
             })
             .ToArray();
 
+    private static IReadOnlyList<SqlServerDatabaseDefinition> NormalizeSqlDatabases(
+        IReadOnlyList<SqlServerDatabaseDefinition> databases) =>
+        databases
+            .Where(database => !string.IsNullOrWhiteSpace(database.Name))
+            .Select(database => new SqlServerDatabaseDefinition(
+                NormalizeDatabaseName(database.Name),
+                NormalizeNullable(database.DisplayName)))
+            .DistinctBy(database => database.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private static string NormalizeDatabaseName(string name) =>
+        name.Trim();
+
     private static uint StableHash(string value)
     {
         const uint offset = 2166136261;
@@ -4928,6 +5002,9 @@ public sealed partial class ApplicationResourceService(
 
     private static string CreateRuntimeContainerResourceId(string resourceId, int replica) =>
         $"runtime-container:{CreateStableIdentifier(resourceId)}:replica-{Math.Max(1, replica).ToString(CultureInfo.InvariantCulture)}";
+
+    private static string CreateSqlDatabaseResourceId(string serverResourceId, string databaseName) =>
+        $"{serverResourceId}/database:{CreateStableIdentifier(databaseName)}";
 
     private static string GetContainerName(string resourceId, int replica = 1, int replicas = 1)
     {
@@ -5731,7 +5808,8 @@ public sealed partial class ApplicationResourceService(
         bool AspNetCoreHotReload = false,
         bool ProjectContainerBuild = false,
         bool UseLaunchSettingsEndpoints = false,
-        bool ReplicasEnabled = false);
+        bool ReplicasEnabled = false,
+        IReadOnlyList<SqlServerDatabaseDefinition>? SqlDatabases = null);
 
     private sealed record ProjectContainerImageReference(
         string Reference,

@@ -12,6 +12,8 @@ public static class ApplicationResourceTypes
 
     public const string SqlServer = "application.sql-server";
 
+    public const string SqlDatabase = "application.sql-database";
+
     public static bool IsApplication(string? resourceType) =>
         string.Equals(resourceType, ExecutableApplication, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(resourceType, AspNetCoreProject, StringComparison.OrdinalIgnoreCase) ||

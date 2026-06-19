@@ -35,7 +35,8 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         IReadOnlyList<AppSetting>? appSettings = null,
         bool projectContainerBuild = false,
         IReadOnlyList<ResourceVolumeMount>? volumeMounts = null,
-        bool replicasEnabled = false)
+        bool replicasEnabled = false,
+        IReadOnlyList<SqlServerDatabaseDefinition>? sqlDatabases = null)
     {
         Id = id;
         Name = name;
@@ -70,6 +71,7 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         ContainerRevision = containerRevision;
         ContainerRegistryCredentials = containerRegistryCredentials;
         VolumeMounts = volumeMounts ?? [];
+        SqlDatabases = sqlDatabases ?? [];
     }
 
     public string Id { get; init; }
@@ -133,7 +135,13 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
     public ContainerRegistryCredentials? ContainerRegistryCredentials { get; init; }
 
     public IReadOnlyList<ResourceVolumeMount> VolumeMounts { get; init; }
+
+    public IReadOnlyList<SqlServerDatabaseDefinition> SqlDatabases { get; init; }
 }
+
+public sealed record SqlServerDatabaseDefinition(
+    string Name,
+    string? DisplayName = null);
 
 public enum ApplicationLifetime
 {

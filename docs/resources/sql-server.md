@@ -69,6 +69,7 @@ var sql = resources
         administratorPassword: "Your-strong-dev-password!",
         dataVolume: sqlData,
         port: 14334)
+    .WithDatabase("appdb", "Application DB")
     .WithIdentity(identityProvider);
 ```
 
@@ -76,6 +77,27 @@ This declares `application.sql-server` with `ResourceClass.Service`. The local
 provider still uses the SQL Server Linux container image to run the service,
 but callers do not receive a container-app builder and should not configure
 generic image deployment or replicas through the SQL Server API.
+
+## Databases
+
+SQL Server resources can declare databases through the programmatic builder:
+
+```csharp
+resources
+    .AddSqlServer("main")
+    .WithDatabase("orders", "Orders");
+```
+
+The application provider projects each declared database as an
+`application.sql-database` child resource with `ProviderManaged` management and
+diagnostic visibility. The child resource records its parent SQL Server
+resource, database name, and projection source. Resource Manager displays those
+children in the SQL Server **Databases** tab.
+
+This first slice is projection-only. CloudShell does not yet inspect the
+running SQL Server instance, create or drop databases, reconcile declared
+databases into SQL Server, or materialize SQL users and roles from access
+grants.
 
 ## Overview
 
@@ -158,9 +180,10 @@ future provider capability.
 
 ## Future Database Resources
 
-`application.sql-server` represents the SQL Server instance. A future
-SQL Server provider should be able to inspect a running instance and project
-individual databases as separate database resources, for example a
+`application.sql-server` represents the SQL Server instance. The current
+provider can project declared `application.sql-database` child resources. A
+future SQL Server provider should also be able to inspect a running instance
+and project discovered databases, possibly through a dedicated
 `sqlserver.database` resource type with a database-oriented resource class when
 that class is added to the domain model.
 

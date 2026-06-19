@@ -477,6 +477,8 @@ public interface ISqlServerResourceBuilder :
         IResourceBuilder volume,
         string targetPath = ApplicationProviderServiceCollectionExtensions.DefaultSqlServerDataPath);
 
+    ISqlServerResourceBuilder WithDatabase(string name, string? displayName = null);
+
     ISqlServerResourceBuilder WithContainerHost(string containerHostId);
 
     ISqlServerResourceBuilder WithContainerHost(IResourceBuilder containerHost);
@@ -893,6 +895,19 @@ internal sealed class ExecutableApplicationResourceBuilder(
             VolumeMounts = declared.Definition.VolumeMounts
                 .Where(mount => !string.Equals(mount.Name, "data", StringComparison.OrdinalIgnoreCase))
                 .Append(new ResourceVolumeMount(volume.ResourceId, targetPath, Name: "data"))
+                .ToArray()
+        };
+        return this;
+    }
+
+    ISqlServerResourceBuilder ISqlServerResourceBuilder.WithDatabase(string name, string? displayName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        declared.Definition = declared.Definition with
+        {
+            SqlDatabases = declared.Definition.SqlDatabases
+                .Append(new SqlServerDatabaseDefinition(name.Trim(), NormalizeNullable(displayName)))
+                .DistinctBy(database => database.Name, StringComparer.OrdinalIgnoreCase)
                 .ToArray()
         };
         return this;

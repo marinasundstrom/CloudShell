@@ -357,6 +357,8 @@ public sealed class SampleSmokeTests
             resource.GetProperty("id").GetString() == "volume:application-topology-sql-data");
         var sqlServer = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "application:application-topology-sql-server");
+        var sqlDatabase = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application:application-topology-sql-server/database:application-topology");
         var settings = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "configuration:application-topology");
         var secrets = Assert.Single(resources, resource =>
@@ -376,6 +378,7 @@ public sealed class SampleSmokeTests
         var storageAttributes = storage.GetProperty("attributes");
         var volumeAttributes = volume.GetProperty("attributes");
         var sqlAttributes = sqlServer.GetProperty("attributes");
+        var sqlDatabaseAttributes = sqlDatabase.GetProperty("attributes");
         var apiAttributes = api.GetProperty("attributes");
         var frontendAttributes = frontend.GetProperty("attributes");
         var dnsZoneAttributes = dnsZone.GetProperty("attributes");
@@ -402,6 +405,7 @@ public sealed class SampleSmokeTests
 
         Assert.Equal(ApplicationResourceTypes.SqlServer, sqlServer.GetProperty("typeId").GetString());
         Assert.Equal($"tcp://localhost:{sqlPort}", GetEndpointAddress(sqlServer, "tds"));
+        Assert.Equal("1", sqlAttributes.GetProperty(ResourceAttributeNames.DatabaseCount).GetString());
         Assert.Equal("1", sqlAttributes.GetProperty(ResourceAttributeNames.VolumeMountCount).GetString());
         Assert.Equal("0", sqlAttributes.GetProperty(ResourceAttributeNames.VolumeMountMaterializedCount).GetString());
         Assert.Equal(
@@ -414,6 +418,12 @@ public sealed class SampleSmokeTests
         var sqlIdentity = sqlServer.GetProperty("identity");
         Assert.Equal("identity:development", sqlIdentity.GetProperty("providerId").GetString());
         Assert.Equal("application-topology-sql-server", sqlIdentity.GetProperty("name").GetString());
+        Assert.Equal(ApplicationResourceTypes.SqlDatabase, sqlDatabase.GetProperty("typeId").GetString());
+        Assert.Equal("application:application-topology-sql-server", sqlDatabase.GetProperty("parentResourceId").GetString());
+        Assert.Equal("Application Topology", sqlDatabase.GetProperty("displayName").GetString());
+        Assert.Equal("application_topology", sqlDatabaseAttributes.GetProperty(ResourceAttributeNames.DatabaseName).GetString());
+        Assert.Equal("application:application-topology-sql-server", sqlDatabaseAttributes.GetProperty(ResourceAttributeNames.DatabaseServerResourceId).GetString());
+        Assert.Equal("declared", sqlDatabaseAttributes.GetProperty(ResourceAttributeNames.DatabaseSource).GetString());
 
         Assert.Equal("configuration.store", settings.GetProperty("typeId").GetString());
         Assert.Equal("secrets.vault", secrets.GetProperty("typeId").GetString());
@@ -730,12 +740,21 @@ public sealed class SampleSmokeTests
             ">Endpoints<",
             ">DNS<",
             ">Storage<",
+            ">Databases<",
             ">Environment<",
             ">Identity<",
             ">Access control<",
             ">Activity<");
         Assert.DoesNotContain(">Deployment<", sqlDetailsHtml);
         Assert.DoesNotContain(">Scale and replicas<", sqlDetailsHtml);
+
+        var databasesTabId = new ResourceViewId(ResourceTabGroupIds.Application, "databases");
+        var sqlDatabasesHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(databasesTabId.Value)}");
+        Assert.Contains("Application Topology", sqlDatabasesHtml);
+        Assert.Contains("Declared database", sqlDatabasesHtml);
+        Assert.Contains("Database: application_topology", sqlDatabasesHtml);
+        Assert.Contains("application.sql-database", sqlDatabasesHtml);
 
         var sqlIdentityHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Identity.Value)}");

@@ -1,0 +1,75 @@
+@inject ApplicationResourceService ApplicationProvider
+@inject IResourceManagerStore ResourceManager
+
+@if (Application is null)
+{
+    <EmptyState Title="SQL Server is unavailable"
+                Message="The resource may have been removed or is no longer visible." />
+}
+else if (!IsSqlServer(Application))
+{
+    <EmptyState Title="Databases are not supported"
+                Message="This resource type does not project SQL Server databases." />
+}
+else if (Databases.Count == 0)
+{
+    <EmptyState Title="No databases"
+                Message="No SQL Server databases are currently projected for this resource." />
+}
+else
+{
+    <div class="generated-list">
+        @foreach (var database in Databases)
+        {
+            <GeneratedListItem Summary="@GetDatabaseSummary(database)"
+                               Metadata="@GetDatabaseMetadata(database)">
+                <TitleContent>
+                    <ResourcePillLink Label="@GetDatabaseLabel(database)"
+                                      Href="@ResourceManagerRoutes.ResourceOverview(database.Id)"
+                                      Metadata="@database.EffectiveTypeId" />
+                </TitleContent>
+            </GeneratedListItem>
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private ApplicationResourceDefinition? Application { get; set; }
+
+    private IReadOnlyList<Resource> Databases { get; set; } = [];
+
+    protected override void OnParametersSet()
+    {
+        Application = string.IsNullOrWhiteSpace(ResourceId)
+            ? null
+            : ApplicationProvider.GetApplication(ResourceId);
+        Databases = Application is null
+            ? []
+            : ResourceManager.GetResources()
+                .Where(resource =>
+                    string.Equals(resource.ParentResourceId, Application.Id, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(resource.EffectiveTypeId, ApplicationResourceTypes.SqlDatabase, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+    }
+
+    private static bool IsSqlServer(ApplicationResourceDefinition application) =>
+        string.Equals(application.ResourceType, ApplicationResourceTypes.SqlServer, StringComparison.OrdinalIgnoreCase);
+
+    private static string GetDatabaseLabel(Resource database) =>
+        database.EffectiveDisplayName;
+
+    private static string GetDatabaseSummary(Resource database) =>
+        database.ResourceAttributes.TryGetValue(ResourceAttributeNames.DatabaseSource, out var source) &&
+        string.Equals(source, "declared", StringComparison.OrdinalIgnoreCase)
+            ? "Declared database"
+            : "Projected database";
+
+    private static string GetDatabaseMetadata(Resource database) =>
+        database.ResourceAttributes.TryGetValue(ResourceAttributeNames.DatabaseName, out var name)
+            ? $"Database: {name}"
+            : database.Id;
+}
