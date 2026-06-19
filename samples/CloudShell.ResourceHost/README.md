@@ -32,6 +32,35 @@ You can also check the resource API from the command line:
 curl http://localhost:5102/api/control-plane/v1/resources
 ```
 
+## Run With Authentication
+
+The default sample configuration keeps authentication disabled so the resource
+extension and Control Plane API can be inspected without signing in. To test the
+built-in in-memory identity provider and guard the UI, enable identity
+authentication from the command line:
+
+```bash
+dotnet run --project samples/CloudShell.ResourceHost -- --urls http://localhost:5011 --Authentication:Enabled=true --Authentication:Mode=Identity
+```
+
+Open:
+
+```text
+http://localhost:5011/account/login
+```
+
+Sign in with the seeded in-memory user:
+
+```text
+User name: alice
+Password: CloudShell123!
+Email: alice@example.test
+```
+
+Alice has the `CloudShell.Reader` role and a programmatic grant for
+`resources.manage` on `sample:database`. This means the guarded Resource
+Manager view is intentionally scoped to the resource Alice can access.
+
 ## What To Look For
 
 - The project references `CloudShell.Hosting`, the reusable Razor class library
