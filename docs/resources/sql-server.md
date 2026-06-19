@@ -17,6 +17,10 @@ future managed database shape, see the
 The current SQL Server resource reuses the container-backed application runtime
 because it is an MVP-local development implementation. That is a transitional
 provider detail, not the desired long-term Resource Manager experience.
+SQL Server has its own application resource provider boundary today so
+templates, registrations, and future model work can evolve independently from
+generic container apps even while the current implementation delegates to the
+container-backed application infrastructure.
 
 A future managed SQL Server resource should not expose generic container app
 controls such as image deployment, revisions, replicas, or app ingress by

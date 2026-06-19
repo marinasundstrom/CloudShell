@@ -653,6 +653,12 @@ on `git blame --follow`, and then by the broad type of change.
 - Container-backed application resources now treat immediate container-host
   process exits as start failures, including Docker daemon errors, instead of
   recording a successful start that later projects as stopped.
+- Application resources now register separate provider boundaries for
+  executable apps, ASP.NET Core projects, container apps, and SQL Server while
+  sharing internal application infrastructure inside the applications
+  capability package. SQL Server still runs through the container application
+  infrastructure today, but now has a provider boundary that can evolve toward
+  a managed SQL Server resource type.
 - Resource Manager pages now use action-start/action-complete notifications to
   show lifecycle transition indicators for dependency auto-starts and other
   externally triggered in-process resource actions.

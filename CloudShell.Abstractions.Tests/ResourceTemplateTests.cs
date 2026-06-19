@@ -25,7 +25,7 @@ public sealed class ResourceTemplateTests
                 fixture.Registrations.GetRegistration(resource.Id)!,
                 fixture.Group));
 
-        Assert.Equal("applications", template.ProviderId);
+        Assert.Equal(ApplicationResourceProviderIds.Executable, template.ProviderId);
         Assert.Equal("application:example-web-api", template.ResourceId);
         Assert.Equal("application.executable", template.ResourceType);
         Assert.Equal("1.0", template.ProviderConfigurationVersion);
@@ -278,7 +278,7 @@ public sealed class ResourceTemplateTests
             [
                 new ResourceTemplateDefinition(
                     "Imported API",
-                    "applications",
+                    ApplicationResourceProviderIds.Executable,
                     "application.executable",
                     ["postgres-main"],
                     "1.0",
@@ -345,7 +345,7 @@ public sealed class ResourceTemplateTests
             [
                 new ResourceTemplateDefinition(
                     "Imported API",
-                    "applications",
+                    ApplicationResourceProviderIds.Executable,
                     "application.executable",
                     ["configuration:app", "secrets-vault:app"],
                     "1.0",
@@ -404,7 +404,7 @@ public sealed class ResourceTemplateTests
             var runtimeStates = new ApplicationRuntimeStateStore(processOptions, environment);
             var localProcesses = new LocalProcessRunner(runtimeStates, processOptions, environment);
             var services = new ServiceCollection().BuildServiceProvider();
-            Provider = new ApplicationResourceProvider(
+            Provider = new ApplicationResourceService(
                 store,
                 runtimeStates,
                 localProcesses,
@@ -416,10 +416,11 @@ public sealed class ResourceTemplateTests
                 [],
                 [],
                 new ResourceDeclarationStore());
+            ResourceProvider = new ExecutableApplicationResourceProvider(Provider, Provider);
             Group = new ResourceGroup("group-1", "Local Development", "Development resources", ["application:example-web-api"]);
             Registrations = new TestRegistrationStore();
             ResourceGroups = new TestResourceGroupStore(Group);
-            ResourceManager = new TestResourceManagerStore(Provider, ResourceGroups);
+            ResourceManager = new TestResourceManagerStore(Provider, ResourceProvider, ResourceGroups);
 
             Provider.SetupApplicationAsync(
                     new ApplicationResourceDefinition(
@@ -436,7 +437,9 @@ public sealed class ResourceTemplateTests
                 .GetResult();
         }
 
-        public ApplicationResourceProvider Provider { get; }
+        public ApplicationResourceService Provider { get; }
+
+        public ExecutableApplicationResourceProvider ResourceProvider { get; }
 
         public ResourceGroup Group { get; }
 
@@ -471,10 +474,11 @@ public sealed class ResourceTemplateTests
     }
 
     private sealed class TestResourceManagerStore(
-        ApplicationResourceProvider provider,
+        ApplicationResourceService provider,
+        IResourceProvider resourceProvider,
         TestResourceGroupStore resourceGroups) : IResourceManagerStore
     {
-        public IReadOnlyList<IResourceProvider> Providers { get; } = [provider];
+        public IReadOnlyList<IResourceProvider> Providers { get; } = [resourceProvider];
 
         public IReadOnlyList<ResourceGroup> GetResourceGroups() => resourceGroups.GetResourceGroups();
 

@@ -28,24 +28,43 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
         builder.Services.AddLocalProcessRunner();
         builder.Services.TryAddSingleton<ApplicationResourceStore>();
         builder.Services.TryAddSingleton<ApplicationRuntimeStateStore>();
+        builder.Services.TryAddSingleton<ApplicationResourceService>();
+        builder.Services.TryAddSingleton<IApplicationResourceProjectionSource>(
+            serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceService>());
         builder.Services.TryAddSingleton<IResourceVolumeMountMaterializationStore>(
             serviceProvider => serviceProvider.GetRequiredService<ApplicationRuntimeStateStore>());
-        builder.Services.AddSingleton<IResourceOrchestrationDescriptorProvider>(
-            serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceProvider>());
         builder.Services.AddSingleton<IResourceMonitoringProvider>(
-            serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceProvider>());
-        builder.Services.AddSingleton<IResourceActionAvailabilityProvider>(
-            serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceProvider>());
+            serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceService>());
         builder.Services.AddSingleton<IResourceAppSettingConfigurationProvider>(
-            serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceProvider>());
+            serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceService>());
         builder.Services.AddSingleton<IResourceEnvironmentVariableConfigurationProvider>(
-            serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceProvider>());
+            serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceService>());
         builder.Services.AddSingleton<IHostScopedResourceCleanupProvider>(
-            serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceProvider>());
+            serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceService>());
+        builder.Services.AddSingleton<IResourceOrchestrationDescriptorProvider>(
+            serviceProvider => serviceProvider.GetRequiredService<ExecutableApplicationResourceProvider>());
+        builder.Services.AddSingleton<IResourceOrchestrationDescriptorProvider>(
+            serviceProvider => serviceProvider.GetRequiredService<AspNetCoreProjectResourceProvider>());
+        builder.Services.AddSingleton<IResourceOrchestrationDescriptorProvider>(
+            serviceProvider => serviceProvider.GetRequiredService<ContainerApplicationResourceProvider>());
+        builder.Services.AddSingleton<IResourceOrchestrationDescriptorProvider>(
+            serviceProvider => serviceProvider.GetRequiredService<SqlServerApplicationResourceProvider>());
+        builder.Services.AddSingleton<IResourceActionAvailabilityProvider>(
+            serviceProvider => serviceProvider.GetRequiredService<ExecutableApplicationResourceProvider>());
+        builder.Services.AddSingleton<IResourceActionAvailabilityProvider>(
+            serviceProvider => serviceProvider.GetRequiredService<AspNetCoreProjectResourceProvider>());
+        builder.Services.AddSingleton<IResourceActionAvailabilityProvider>(
+            serviceProvider => serviceProvider.GetRequiredService<ContainerApplicationResourceProvider>());
+        builder.Services.AddSingleton<IResourceActionAvailabilityProvider>(
+            serviceProvider => serviceProvider.GetRequiredService<SqlServerApplicationResourceProvider>());
 
         builder
-            .AddResourceProvider<ApplicationResourceProvider>()
-            .AddLogProvider<ApplicationResourceProvider>()
+            .AddResourceProvider<ApplicationProviderRouter>()
+            .AddResourceProvider<ExecutableApplicationResourceProvider>()
+            .AddResourceProvider<AspNetCoreProjectResourceProvider>()
+            .AddResourceProvider<ContainerApplicationResourceProvider>()
+            .AddResourceProvider<SqlServerApplicationResourceProvider>()
+            .AddLogProvider<ApplicationResourceService>()
             .AddResourceType<Pages.RegisterApplicationResource>(
                 ApplicationResourceTypes.ExecutableApplication,
                 "Executable application",

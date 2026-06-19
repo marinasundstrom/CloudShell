@@ -51,7 +51,7 @@ public sealed class SampleSmokeTests
         var platformResources = platformProvider
             .GetResources()
             .ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
-        var applicationProvider = ActivatorUtilities.CreateInstance<ApplicationResourceProvider>(serviceProvider);
+        var applicationProvider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
         var sqlServer = Assert.Single(applicationProvider.GetResources(), resource =>
             resource.Id == "application:sql-server");
         var descriptor = await applicationProvider.DescribeAsync(

@@ -75,7 +75,7 @@ public static class ApplicationProviderServiceCollectionExtensions
             .Add(declared);
 
         var resource = builder.Declare(
-            "applications",
+            ApplicationResourceProviderIds.Executable,
             id,
             onChanged: declaration =>
             {
@@ -130,7 +130,7 @@ public static class ApplicationProviderServiceCollectionExtensions
             .Add(declared);
 
         var resource = builder.Declare(
-            "applications",
+            ApplicationResourceProviderIds.AspNetCoreProject,
             id,
             onChanged: declaration =>
             {
@@ -289,7 +289,7 @@ public static class ApplicationProviderServiceCollectionExtensions
             .Add(declared);
 
         var resource = builder.Declare(
-            "applications",
+            ApplicationResourceProviderIds.ContainerApplication,
             id,
             onChanged: declaration =>
             {

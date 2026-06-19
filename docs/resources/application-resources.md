@@ -34,6 +34,29 @@ provider-native services, non-application targets, or advanced routing. A
 normal container app should not require a separate Service resource just to act
 like a managed service.
 
+## Provider Boundaries And Shared Infrastructure
+
+`AddApplicationProvider(...)` registers the built-in application capability
+package as a group of Control Plane resource providers, not as one provider
+that owns every application-shaped resource. Executable apps, ASP.NET Core
+projects, container apps, and SQL Server each have their own provider identity
+for projection, templates, declarations, lifecycle dispatch, and future
+resource-type evolution.
+
+The providers still share internal application infrastructure for common
+concerns such as local process execution, container-backed startup,
+environment variables, app settings, endpoint projection, logs, monitoring,
+templates, and orchestration. This keeps each provider responsible for its own
+resource boundary while avoiding repeated implementation work for behavior
+that application-style resources naturally share.
+
+The long-term direction is to turn this internal base into a stable foundation
+that other CloudShell-owned or third-party application resource providers can
+build on, with or without their own provider identity. That extension surface
+is not stable yet; provider authors should treat the current shared
+application service as built-in infrastructure until the abstractions are
+documented and promoted.
+
 ## Endpoint And Exposure Model
 
 Application resources are the primary owners of service endpoints. The endpoint

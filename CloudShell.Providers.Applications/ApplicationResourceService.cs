@@ -19,7 +19,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CloudShell.Providers.Applications;
 
-public sealed partial class ApplicationResourceProvider(
+public sealed partial class ApplicationResourceService(
     ApplicationResourceStore store,
     ApplicationRuntimeStateStore runtimeStates,
     LocalProcessRunner localProcesses,
@@ -31,9 +31,8 @@ public sealed partial class ApplicationResourceProvider(
     IEnumerable<IConfigurationEntryReferenceResolver> configurationEntryResolvers,
     IEnumerable<ISecretReferenceResolver> secretResolvers,
     ResourceDeclarationStore declarations,
-    ILogger<ApplicationResourceProvider>? logger = null,
+    ILogger<ApplicationResourceService>? logger = null,
     IResourceEventSink? resourceEvents = null) :
-    IResourceProvider,
     ILogProvider,
     IResourceMonitoringProvider,
     IResourceProcedureProvider,
@@ -41,12 +40,12 @@ public sealed partial class ApplicationResourceProvider(
     IResourceReplicaUpdateProvider,
     IResourceTemplateProvider,
     IProgrammaticResourceDeclarationProvider,
-    IResourceAutoStartPolicyProvider,
     IResourceOrchestrationDescriptorProvider,
     IResourceOrchestratorServiceProcedureProvider,
     IResourceActionAvailabilityProvider,
     IResourceAppSettingConfigurationProvider,
     IResourceEnvironmentVariableConfigurationProvider,
+    IApplicationResourceProjectionSource,
     IHostScopedResourceCleanupProvider,
     IDisposable
 {
@@ -62,10 +61,10 @@ public sealed partial class ApplicationResourceProvider(
         new(StringComparer.OrdinalIgnoreCase);
     private readonly IReadOnlyList<IResourceIdentityCredentialEnvironmentProvider> identityCredentialEnvironmentProviders =
         identityCredentialEnvironmentProviders.ToArray();
-    private readonly ILogger<ApplicationResourceProvider> _logger =
-        logger ?? NullLogger<ApplicationResourceProvider>.Instance;
+    private readonly ILogger<ApplicationResourceService> _logger =
+        logger ?? NullLogger<ApplicationResourceService>.Instance;
 
-    public string Id => "applications";
+    public string Id => ApplicationResourceProviderIds.Applications;
 
     public string DisplayName => "Applications";
 
@@ -73,12 +72,28 @@ public sealed partial class ApplicationResourceProvider(
         .GetApplications()
         .Select(ResolveDefinition)
         .Where(application => !IsHidden(application))
-        .SelectMany(CreateResourceProjection)
+        .SelectMany(application => CreateResourceProjection(
+            application,
+            CreateInfrastructureProjection(application)))
         .ToArray();
 
-    private IEnumerable<Resource> CreateResourceProjection(ApplicationResourceDefinition application)
+    IReadOnlyList<Resource> IApplicationResourceProjectionSource.GetResources(
+        ApplicationResourceProjection projection) =>
+        GetResources(projection);
+
+    internal IReadOnlyList<Resource> GetResources(ApplicationResourceProjection projection) => store
+        .GetApplications()
+        .Select(ResolveDefinition)
+        .Where(application => !IsHidden(application))
+        .Where(projection.CanProject)
+        .SelectMany(application => CreateResourceProjection(application, projection))
+        .ToArray();
+
+    private IEnumerable<Resource> CreateResourceProjection(
+        ApplicationResourceDefinition application,
+        ApplicationResourceProjection projection)
     {
-        yield return CreateResource(application);
+        yield return CreateResource(application, projection);
 
         if (!ApplicationResourceTypes.IsContainerApp(application.ResourceType))
         {
@@ -398,7 +413,7 @@ public sealed partial class ApplicationResourceProvider(
         store.Save(normalized);
 
         await registrations.RegisterAsync(
-            Id,
+            ApplicationResourceProviderIds.ForResourceType(normalized.ResourceType),
             normalized.Id,
             NormalizeGroupId(resourceGroupId),
             normalized.DependsOn,
@@ -977,7 +992,7 @@ public sealed partial class ApplicationResourceProvider(
     }
 
     public bool CanImport(ResourceTemplateDefinition template) =>
-        string.Equals(template.ProviderId, Id, StringComparison.OrdinalIgnoreCase) &&
+        ApplicationResourceProviderIds.IsApplicationProvider(template.ProviderId) &&
         ApplicationResourceTypes.IsApplication(template.ResourceType) &&
         string.Equals(template.ProviderConfigurationVersion, "1.0", StringComparison.OrdinalIgnoreCase);
 
@@ -1049,7 +1064,7 @@ public sealed partial class ApplicationResourceProvider(
         .ToArray();
 
     public bool CanApplyDeclaration(ResourceDeclaration declaration) =>
-        string.Equals(declaration.ProviderId, Id, StringComparison.OrdinalIgnoreCase);
+        ApplicationResourceProviderIds.IsApplicationProvider(declaration.ProviderId);
 
     public bool CanEvaluateAutoStartPolicy(ResourceDeclaration declaration) =>
         CanApplyDeclaration(declaration);
@@ -1893,7 +1908,7 @@ public sealed partial class ApplicationResourceProvider(
         await PrepareOrchestratorServiceAsync(
             new ResourceOrchestratorServiceProcedureContext(
                 new ResourceProcedureContext(
-                    CreateResource(definition),
+                    CreateResource(definition, CreateInfrastructureProjection(definition)),
                     null,
                     resourceGroupId,
                     registrations,
@@ -2820,36 +2835,89 @@ public sealed partial class ApplicationResourceProvider(
         }
     }
 
-    private Resource CreateResource(ApplicationResourceDefinition application)
+    private Resource CreateResource(
+        ApplicationResourceDefinition application,
+        ApplicationResourceProjection projection)
     {
         var state = GetState(application.Id);
         var endpoints = CreateEndpoints(application);
         return new Resource(
             application.Id,
             GetResourceName(application.Id),
-            GetResourceKind(application),
+            projection.GetResourceKind(application),
             DisplayName,
             "local",
             state,
             endpoints,
-            ApplicationResourceTypes.IsContainerApp(application.ResourceType)
-                ? GetEffectiveContainerRevision(application)
-                : IsContainerBacked(application)
-                    ? FirstNonEmpty(application.ContainerImage, application.ContainerBuildContext) ?? "container"
-                : IsAspNetCoreProject(application)
-                    ? FirstNonEmpty(Path.GetFileName(application.ProjectPath), "project") ?? "project"
-                : Path.GetFileName(application.ExecutablePath),
+            projection.GetResourceVersion(application),
             DateTimeOffset.UtcNow,
             application.DependsOn,
             TypeId: application.ResourceType,
             Actions: CreateActions(state),
             HealthChecks: application.HealthChecks,
             Observability: GetEffectiveObservability(application),
-            ResourceClass: GetResourceClass(application),
-            Attributes: CreateAttributes(application, state),
+            ResourceClass: projection.GetResourceClass(application),
+            Attributes: CreateAttributes(application, state, projection),
             Capabilities: CreateCapabilities(application, endpoints),
             EndpointNetworkMappings: CreateEndpointNetworkMappings(application),
             DisplayName: application.Name);
+    }
+
+    private static ApplicationResourceProjection CreateInfrastructureProjection(
+        ApplicationResourceDefinition application)
+    {
+        if (string.Equals(
+                application.ResourceType,
+                ApplicationResourceTypes.AspNetCoreProject,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return new ApplicationResourceProjection(
+                _ => true,
+                _ => "ASP.NET Core project",
+                current => ApplicationResourceProjectionSupport.FirstNonEmpty(
+                    Path.GetFileName(current.ProjectPath),
+                    "project") ?? "project",
+                _ => ResourceWorkloadKind.AspNetCoreProject.ToString(),
+                _ => ResourceClass.Project);
+        }
+
+        if (string.Equals(
+                application.ResourceType,
+                ApplicationResourceTypes.SqlServer,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return new ApplicationResourceProjection(
+                _ => true,
+                _ => "SQL Server",
+                ApplicationResourceProjectionSupport.GetContainerVersion,
+                ApplicationResourceProjectionSupport.GetContainerWorkloadKind,
+                _ => ResourceClass.Service);
+        }
+
+        if (ApplicationResourceTypes.IsContainerApp(application.ResourceType))
+        {
+            return new ApplicationResourceProjection(
+                _ => true,
+                _ => "Container app",
+                ApplicationResourceProjectionSupport.GetContainerVersion,
+                ApplicationResourceProjectionSupport.GetContainerWorkloadKind,
+                _ => ResourceClass.Container);
+        }
+
+        return new ApplicationResourceProjection(
+            _ => true,
+            current => ApplicationResourceProjectionSupport.IsContainerBacked(current)
+                ? "Container app"
+                : "Executable application",
+            current => ApplicationResourceProjectionSupport.IsContainerBacked(current)
+                ? ApplicationResourceProjectionSupport.GetContainerVersion(current)
+                : Path.GetFileName(current.ExecutablePath),
+            current => ApplicationResourceProjectionSupport.IsContainerBacked(current)
+                ? ApplicationResourceProjectionSupport.GetContainerWorkloadKind(current)
+                : ResourceWorkloadKind.LocalExecutable.ToString(),
+            current => ApplicationResourceProjectionSupport.IsContainerBacked(current)
+                ? ResourceClass.Container
+                : ResourceClass.Executable);
     }
 
     private IReadOnlyList<Resource> CreateRuntimeContainerResources(ApplicationResourceDefinition application)
@@ -2937,11 +3005,12 @@ public sealed partial class ApplicationResourceProvider(
 
     private IReadOnlyDictionary<string, string> CreateAttributes(
         ApplicationResourceDefinition application,
-        ResourceState state)
+        ResourceState state,
+        ApplicationResourceProjection projection)
     {
         var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            [ResourceAttributeNames.WorkloadKind] = CreateWorkloadKind(application),
+            [ResourceAttributeNames.WorkloadKind] = projection.GetWorkloadKind(application),
             [ResourceAttributeNames.EndpointCount] = application.EndpointPorts.Count.ToString(CultureInfo.InvariantCulture),
             [ResourceAttributeNames.VolumeMountCount] = application.VolumeMounts.Count.ToString(CultureInfo.InvariantCulture)
         };
@@ -3040,27 +3109,6 @@ public sealed partial class ApplicationResourceProvider(
             : "notActive";
     }
 
-    private static string CreateWorkloadKind(ApplicationResourceDefinition application)
-    {
-        if (!string.IsNullOrWhiteSpace(application.ContainerImage))
-        {
-            return ResourceWorkloadKind.ContainerImage.ToString();
-        }
-
-        if (application.ProjectContainerBuild ||
-            !string.IsNullOrWhiteSpace(application.ContainerBuildContext))
-        {
-            return ResourceWorkloadKind.ContainerBuild.ToString();
-        }
-
-        if (IsAspNetCoreProject(application))
-        {
-            return ResourceWorkloadKind.AspNetCoreProject.ToString();
-        }
-
-        return ResourceWorkloadKind.LocalExecutable.ToString();
-    }
-
     private static void AddIfNotEmpty(
         IDictionary<string, string> attributes,
         string name,
@@ -3075,15 +3123,6 @@ public sealed partial class ApplicationResourceProvider(
     private static string Pluralize(int count) =>
         count == 1 ? string.Empty : "s";
 
-    private static ResourceClass GetResourceClass(ApplicationResourceDefinition application) =>
-        application.ResourceType switch
-        {
-            ApplicationResourceTypes.AspNetCoreProject => ResourceClass.Project,
-            var type when ApplicationResourceTypes.IsContainerApp(type) => ResourceClass.Container,
-            ApplicationResourceTypes.SqlServer => ResourceClass.Service,
-            _ => IsContainerBacked(application) ? ResourceClass.Container : ResourceClass.Executable
-        };
-
     private static bool IsAspNetCoreProject(ApplicationResourceDefinition application) =>
         string.Equals(
             application.ResourceType,
@@ -3093,15 +3132,6 @@ public sealed partial class ApplicationResourceProvider(
     private static bool IsProjectBacked(ApplicationResourceDefinition application) =>
         IsAspNetCoreProject(application) ||
         !string.IsNullOrWhiteSpace(application.ProjectPath);
-
-    private static string GetResourceKind(ApplicationResourceDefinition application) =>
-        application.ResourceType switch
-        {
-            ApplicationResourceTypes.AspNetCoreProject => "ASP.NET Core project",
-            var type when ApplicationResourceTypes.IsContainerApp(type) => "Container app",
-            ApplicationResourceTypes.SqlServer => "SQL Server",
-            _ => IsContainerBacked(application) ? "Container app" : "Executable application"
-        };
 
     private ResourceState GetState(string applicationId)
     {

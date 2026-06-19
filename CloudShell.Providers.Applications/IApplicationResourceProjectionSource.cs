@@ -1,0 +1,15 @@
+using CloudShell.Abstractions.ResourceManager;
+
+namespace CloudShell.Providers.Applications;
+
+internal interface IApplicationResourceProjectionSource
+{
+    IReadOnlyList<Resource> GetResources(ApplicationResourceProjection projection);
+}
+
+internal sealed record ApplicationResourceProjection(
+    Func<ApplicationResourceDefinition, bool> CanProject,
+    Func<ApplicationResourceDefinition, string> GetResourceKind,
+    Func<ApplicationResourceDefinition, string> GetResourceVersion,
+    Func<ApplicationResourceDefinition, string> GetWorkloadKind,
+    Func<ApplicationResourceDefinition, ResourceClass> GetResourceClass);
