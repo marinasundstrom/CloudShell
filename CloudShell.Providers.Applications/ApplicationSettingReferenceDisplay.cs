@@ -5,6 +5,19 @@ namespace CloudShell.Providers.Applications;
 
 internal static class ApplicationSettingReferenceDisplay
 {
+    private static readonly string[] SensitiveLiteralNameTokens =
+    [
+        "apikey",
+        "api_key",
+        "clientsecret",
+        "client_secret",
+        "connectionstring",
+        "credential",
+        "password",
+        "secret",
+        "token"
+    ];
+
     public static ApplicationSettingDisplayRow Create(
         AppSetting setting,
         string applicationResourceId,
@@ -226,8 +239,16 @@ internal static class ApplicationSettingReferenceDisplay
             ? applicationResourceId
             : $"{applicationResourceId}/{identityBinding.Name}";
 
-    private static bool IsSensitiveLiteralName(string name) =>
-        name.Contains("password", StringComparison.OrdinalIgnoreCase);
+    private static bool IsSensitiveLiteralName(string name)
+    {
+        var normalizedName = name
+            .Replace(":", string.Empty, StringComparison.Ordinal)
+            .Replace("_", string.Empty, StringComparison.Ordinal)
+            .Replace("-", string.Empty, StringComparison.Ordinal);
+        return SensitiveLiteralNameTokens.Any(token =>
+            normalizedName.Contains(token.Replace("_", string.Empty, StringComparison.Ordinal), StringComparison.OrdinalIgnoreCase) ||
+            name.Contains(token, StringComparison.OrdinalIgnoreCase));
+    }
 }
 
 public sealed record ApplicationSettingDisplayRow(

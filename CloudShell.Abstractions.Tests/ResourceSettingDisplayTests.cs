@@ -92,6 +92,40 @@ public sealed class ResourceSettingDisplayTests
         Assert.Null(row.Detail);
     }
 
+    [Theory]
+    [InlineData("Sample:ApiKey")]
+    [InlineData("Sample:AccessToken")]
+    [InlineData("Orders--Api--ClientSecret")]
+    [InlineData("ConnectionStrings:Default")]
+    [InlineData("Registry__Credentials")]
+    public void ApplicationSettingReferenceDisplay_HidesSensitiveLiteralNames(string name)
+    {
+        var row = ApplicationSettingReferenceDisplay.Create(
+            AppSetting.Literal(name, "local-development-secret"),
+            "application:api",
+            null,
+            _ => null);
+
+        Assert.Equal("Hidden", row.Status);
+        Assert.Equal("info", row.StatusKind);
+        Assert.True(row.IsSensitiveLiteral);
+        Assert.Equal("local-development-secret", row.Target);
+    }
+
+    [Fact]
+    public void ApplicationSettingReferenceDisplay_DoesNotHideBenignLiteralNames()
+    {
+        var row = ApplicationSettingReferenceDisplay.Create(
+            AppSetting.Literal("Sample:Mode", "Development"),
+            "application:api",
+            null,
+            _ => null);
+
+        Assert.Equal("Visible", row.Status);
+        Assert.Equal("ok", row.StatusKind);
+        Assert.False(row.IsSensitiveLiteral);
+    }
+
     [Fact]
     public void ApplicationSettingReferenceDisplay_FlagsMissingConfigurationStore()
     {

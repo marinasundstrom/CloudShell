@@ -71,6 +71,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource list detail blades now show the same lifecycle readiness warnings,
   making disabled Start/Restart preflight reasons visible without opening the
   full resource details page.
+- Application overview environment references now mask literal values for
+  common credential-like names such as API keys, tokens, client secrets,
+  credentials, and connection strings instead of only password names.
 
 ### 2026-06-18
 
