@@ -1628,7 +1628,7 @@ public sealed class ResourceDeclarationTests
             ]);
         var resourceManager = new StaticResourceManagerStore([resource], [resourceProvider]);
 
-        var reason = await ((IResourceActionAvailabilityProvider)provider).GetActionUnavailableReasonAsync(
+        var reason = await resourceProvider.GetActionUnavailableReasonAsync(
             new ResourceProcedureContext(
                 resource,
                 registrations.GetRegistration(resource.Id),
@@ -1676,6 +1676,7 @@ public sealed class ResourceDeclarationTests
 
         using var serviceProvider = services.BuildServiceProvider();
         var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var resourceProvider = serviceProvider.GetRequiredService<ExecutableApplicationResourceProvider>();
         var providers = serviceProvider.GetServices<IResourceProvider>().ToArray();
         var resources = providers
             .SelectMany(provider => provider.GetResources())
@@ -1685,14 +1686,14 @@ public sealed class ResourceDeclarationTests
             [
                 new ResourceRegistration(
                     resource.Id,
-                    provider.Id,
+                    resourceProvider.Id,
                     null,
                     DateTimeOffset.UtcNow,
                     [])
             ]);
         var resourceManager = new StaticResourceManagerStore(resources, providers);
 
-        var reason = await ((IResourceActionAvailabilityProvider)provider).GetActionUnavailableReasonAsync(
+        var reason = await resourceProvider.GetActionUnavailableReasonAsync(
             new ResourceProcedureContext(
                 resource,
                 registrations.GetRegistration(resource.Id),
@@ -1759,7 +1760,7 @@ public sealed class ResourceDeclarationTests
                 ]);
             var resourceManager = new StaticResourceManagerStore([resource], [resourceProvider]);
 
-            var reason = await ((IResourceActionAvailabilityProvider)provider).GetActionUnavailableReasonAsync(
+            var reason = await resourceProvider.GetActionUnavailableReasonAsync(
                 new ResourceProcedureContext(
                     resource,
                     registrations.GetRegistration(resource.Id),
@@ -1820,7 +1821,7 @@ public sealed class ResourceDeclarationTests
             var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
             var resourceManager = new StaticResourceManagerStore([resource], [resourceProvider]);
 
-            var reason = await ((IResourceActionAvailabilityProvider)provider).GetActionUnavailableReasonAsync(
+            var reason = await resourceProvider.GetActionUnavailableReasonAsync(
                 new ResourceProcedureContext(
                     resource,
                     registrations.GetRegistration(resource.Id),
@@ -2210,6 +2211,12 @@ public sealed class ResourceDeclarationTests
                 provider.Id,
                 ApplicationResourceProviderIds.Applications,
                 StringComparison.OrdinalIgnoreCase));
+        Assert.IsNotAssignableFrom<IResourceProvider>(applications);
+        Assert.IsNotAssignableFrom<IResourceProcedureProvider>(applications);
+        Assert.IsNotAssignableFrom<IResourceTemplateProvider>(applications);
+        Assert.IsNotAssignableFrom<IProgrammaticResourceDeclarationProvider>(applications);
+        Assert.IsNotAssignableFrom<IResourceOrchestrationDescriptorProvider>(applications);
+        Assert.IsNotAssignableFrom<IResourceActionAvailabilityProvider>(applications);
         Assert.Equal(
             ["application:worker"],
             serviceProvider.GetRequiredService<ExecutableApplicationResourceProvider>()
@@ -5882,6 +5889,7 @@ public sealed class ResourceDeclarationTests
 
         using var serviceProvider = services.BuildServiceProvider();
         var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var resourceProvider = serviceProvider.GetRequiredService<ContainerApplicationResourceProvider>();
         var registrations = new MutableResourceRegistrationStore();
         await provider.SetupApplicationAsync(
             new ApplicationResourceDefinition(
@@ -5917,7 +5925,7 @@ public sealed class ResourceDeclarationTests
             Capabilities: [new(ResourceCapabilityIds.StorageVolume)]);
         var resourceManager = new StaticResourceManagerStore([resource, volume]);
 
-        var reason = await ((IResourceActionAvailabilityProvider)provider).GetActionUnavailableReasonAsync(
+        var reason = await resourceProvider.GetActionUnavailableReasonAsync(
             new ResourceProcedureContext(
                 resource,
                 registrations.GetRegistration(resource.Id),
@@ -5954,6 +5962,7 @@ public sealed class ResourceDeclarationTests
 
         using var serviceProvider = services.BuildServiceProvider();
         var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var resourceProvider = serviceProvider.GetRequiredService<ContainerApplicationResourceProvider>();
         var registrations = new MutableResourceRegistrationStore();
         await provider.SetupApplicationAsync(
             new ApplicationResourceDefinition(
@@ -5990,7 +5999,7 @@ public sealed class ResourceDeclarationTests
             Capabilities: [new(ResourceCapabilityIds.StorageVolume)]);
         var resourceManager = new StaticResourceManagerStore([resource, volume]);
 
-        var reason = await ((IResourceActionAvailabilityProvider)provider).GetActionUnavailableReasonAsync(
+        var reason = await resourceProvider.GetActionUnavailableReasonAsync(
             new ResourceProcedureContext(
                 resource,
                 registrations.GetRegistration(resource.Id),

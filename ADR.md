@@ -33,6 +33,10 @@ the provider whose resource type owns a capability should advertise that facet
 through interfaces such as image update, replica update, or orchestrator
 service procedures.
 
+The shared application service is infrastructure, not a provider. It may expose
+methods used by built-in providers, but it should not implement provider-facing
+facet interfaces directly.
+
 Related changes: [Changelog](CHANGELOG.md).
 
 ### ADR-20260619-002: Make CloudShell UI a generic extensible shell

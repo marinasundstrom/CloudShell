@@ -53,6 +53,10 @@ on `git blame --follow`, and then by the broad type of change.
   orchestrator service procedures, while executable apps, ASP.NET Core
   projects, and SQL Server keep those container-app facets off their provider
   boundary.
+- `ApplicationResourceService` is now treated as shared application
+  infrastructure instead of a provider-shaped implementation; provider-facing
+  lifecycle, template, declaration, orchestration, and availability facets live
+  on the concrete application resource providers.
 
 ### 2026-06-18
 
