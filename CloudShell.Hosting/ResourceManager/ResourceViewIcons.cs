@@ -31,7 +31,7 @@ internal static class ResourceViewIcons
             "scaling" or "scale" => new Icons.Regular.Size20.ChartMultiple(),
             "entries" => new Icons.Regular.Size20.DocumentBulletList(),
             "secrets" => new Icons.Regular.Size20.KeyMultiple(),
-            "database-item" or "databases" => new Icons.Regular.Size20.TableSimple(),
+            "database-item" or "databases" => new Icons.Regular.Size20.Database(),
             _ => ResourceTypeIcons.FromName(normalized)
         };
     }
