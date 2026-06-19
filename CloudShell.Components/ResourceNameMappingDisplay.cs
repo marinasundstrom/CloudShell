@@ -1,8 +1,8 @@
 using CloudShell.Abstractions.ResourceManager;
 
-namespace CloudShell.Providers.Applications;
+namespace CloudShell.Components;
 
-internal static class ApplicationNameMappingDisplay
+public static class ResourceNameMappingDisplay
 {
     private const string NameMappingResourceType = "cloudshell.nameMapping";
 

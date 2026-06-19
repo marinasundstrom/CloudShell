@@ -76,6 +76,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Added a shared application resource display helper for lifetime and
   container-host labels, replacing duplicate formatting across application
   overview and application resource editors.
+- Added a shared name-mapping display helper for DNS host, target, exposure,
+  provider, materialization, and target-resource matching, replacing duplicate
+  formatting across generated resource views, DNS zone overview, resource-list
+  blades, and application overview.
 - Access Control principal search results now render as a vertical list with
   full-width principal rows and disambiguate resource identity display names as
   `<DisplayName> (<resource name>)` when those values differ.

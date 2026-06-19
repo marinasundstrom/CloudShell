@@ -353,11 +353,11 @@ else
                     }
                     @foreach (var mapping in InboundNameMappings)
                     {
-                        <GeneratedListItem Summary="@ApplicationNameMappingDisplay.GetSummary(mapping.Mapping, Application.Name)"
+                        <GeneratedListItem Summary="@ResourceNameMappingDisplay.GetSummary(mapping.Mapping, Application.Name)"
                                            Metadata="@FormatNameMappingMetadata(mapping)">
                             <TitleContent>
                                 <a class="resource-link" href="@BuildResourceRoute(mapping.Mapping.Id)">
-                                    @ApplicationNameMappingDisplay.GetHostName(mapping.Mapping)
+                                    @ResourceNameMappingDisplay.GetHostName(mapping.Mapping)
                                 </a>
                             </TitleContent>
                         </GeneratedListItem>
@@ -805,10 +805,10 @@ else
 
     private IReadOnlyList<NameMappingView> GetInboundNameMappings(string resourceId) =>
         ResourceManager.GetResources()
-            .Where(resource => ApplicationNameMappingDisplay.IsNameMappingResource(resource))
-            .Where(resource => ApplicationNameMappingDisplay.TargetsResource(resource, resourceId))
+            .Where(resource => ResourceNameMappingDisplay.IsNameMappingResource(resource))
+            .Where(resource => ResourceNameMappingDisplay.TargetsResource(resource, resourceId))
             .Select(resource => new NameMappingView(ResolveParentResource(resource), resource))
-            .OrderBy(mapping => ApplicationNameMappingDisplay.GetHostName(mapping.Mapping), StringComparer.OrdinalIgnoreCase)
+            .OrderBy(mapping => ResourceNameMappingDisplay.GetHostName(mapping.Mapping), StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private IReadOnlyList<VolumeMountView> GetVolumeMounts(IReadOnlyList<ResourceVolumeMount> mounts) =>
@@ -1030,9 +1030,9 @@ else
     {
         var parts = new List<string>
         {
-            $"Exposure: {ApplicationNameMappingDisplay.GetExposureLabel(view.Mapping)}",
+            $"Exposure: {ResourceNameMappingDisplay.GetExposureLabel(view.Mapping)}",
             FormatNameMappingProvider(view.Mapping),
-            $"Materialization: {ApplicationNameMappingDisplay.GetMaterializationLabel(view.Mapping)}"
+            $"Materialization: {ResourceNameMappingDisplay.GetMaterializationLabel(view.Mapping)}"
         };
 
         if (view.Zone is not null)
@@ -1045,7 +1045,7 @@ else
 
     private string FormatNameMappingProvider(Resource mapping)
     {
-        var providerResourceId = ApplicationNameMappingDisplay.GetProviderResourceId(mapping);
+        var providerResourceId = ResourceNameMappingDisplay.GetProviderResourceId(mapping);
         if (!string.IsNullOrWhiteSpace(providerResourceId))
         {
             var provider = ResolveMappingResource(providerResourceId);
@@ -1054,7 +1054,7 @@ else
                 : $"Provider: {GetResourceLabel(provider)}";
         }
 
-        return $"Provider: {ApplicationNameMappingDisplay.GetProviderLabel(mapping)}";
+        return $"Provider: {ResourceNameMappingDisplay.GetProviderLabel(mapping)}";
     }
 
     private static bool IsLoadBalancerResource(Resource resource) =>
@@ -1178,7 +1178,7 @@ else
     {
         if (InboundNameMappings.Count == 1)
         {
-            return ApplicationNameMappingDisplay.GetHostName(InboundNameMappings[0].Mapping);
+            return ResourceNameMappingDisplay.GetHostName(InboundNameMappings[0].Mapping);
         }
 
         return FormatCount(InboundNameMappings.Count, "name mapping", "name mappings");
@@ -1283,20 +1283,20 @@ else
         var mapping = InboundNameMappings
             .Select(view => view.Mapping)
             .OrderBy(GetNameMappingExposureRank)
-            .ThenBy(ApplicationNameMappingDisplay.GetHostName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(ResourceNameMappingDisplay.GetHostName, StringComparer.OrdinalIgnoreCase)
             .FirstOrDefault();
         if (mapping is null)
         {
             return null;
         }
 
-        var hostName = ApplicationNameMappingDisplay.GetHostName(mapping);
+        var hostName = ResourceNameMappingDisplay.GetHostName(mapping);
         if (string.IsNullOrWhiteSpace(hostName))
         {
             return null;
         }
 
-        var endpointName = ApplicationNameMappingDisplay.GetTargetEndpointName(mapping);
+        var endpointName = ResourceNameMappingDisplay.GetTargetEndpointName(mapping);
         var endpoint = ProjectedResource?.Endpoints.FirstOrDefault(endpoint =>
                 string.Equals(endpoint.Name, endpointName, StringComparison.OrdinalIgnoreCase)) ??
             ProjectedResource?.Endpoints.FirstOrDefault();
@@ -1311,11 +1311,11 @@ else
         var address = CreateMappedEndpointAddress(hostName, endpointUri);
         return new OverviewEndpoint(
             address,
-            $"{ApplicationNameMappingDisplay.GetExposureLabel(mapping)} DNS name");
+            $"{ResourceNameMappingDisplay.GetExposureLabel(mapping)} DNS name");
     }
 
     private static int GetNameMappingExposureRank(Resource mapping) =>
-        ApplicationNameMappingDisplay.GetExposureLabel(mapping) switch
+        ResourceNameMappingDisplay.GetExposureLabel(mapping) switch
         {
             nameof(ResourceExposureScope.Public) => 0,
             nameof(ResourceExposureScope.Network) => 1,

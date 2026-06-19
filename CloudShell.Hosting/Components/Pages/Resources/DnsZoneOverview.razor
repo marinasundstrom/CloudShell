@@ -44,7 +44,7 @@ else
                                       Metadata="@GetMappingMetadata(mapping)">
                         <TitleContent>
                             <a class="resource-link" href="@BuildResourceRoute(mapping.Id, ResourcePredefinedViewIds.Overview)">
-                                @GetNameMappingHostName(mapping)
+                                @ResourceNameMappingDisplay.GetHostName(mapping)
                             </a>
                         </TitleContent>
                     </ResourceListItem>
@@ -55,8 +55,6 @@ else
 }
 
 @code {
-    private const string NameMappingResourceType = "cloudshell.nameMapping";
-
     [Parameter]
     public string? ResourceId { get; set; }
 
@@ -91,12 +89,12 @@ else
             ? []
             : resources
                 .Where(IsOwnedNameMapping)
-                .OrderBy(GetNameMappingHostName, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(ResourceNameMappingDisplay.GetHostName, StringComparer.OrdinalIgnoreCase)
                 .ToArray();
     }
 
     private bool IsOwnedNameMapping(Resource resource) =>
-        string.Equals(resource.EffectiveTypeId, NameMappingResourceType, StringComparison.OrdinalIgnoreCase) &&
+        ResourceNameMappingDisplay.IsNameMappingResource(resource) &&
         string.Equals(resource.ParentResourceId, DnsZone?.Id, StringComparison.OrdinalIgnoreCase);
 
     private string GetMappingSummary(Resource mapping)
@@ -116,7 +114,7 @@ else
         {
             $"Exposure: {GetAttribute(mapping, ResourceAttributeNames.NameMappingExposure, ResourceExposureScope.Public.ToString())}",
             GetProviderLabel(mapping),
-            $"Materialization: {GetMaterializationLabel(mapping)}"
+            $"Materialization: {ResourceNameMappingDisplay.GetMaterializationLabel(mapping)}"
         };
 
         if (!string.Equals(
@@ -143,24 +141,11 @@ else
         return $"Provider: {GetAttribute(mapping, ResourceAttributeNames.DnsProvider, "logical")}";
     }
 
-    private static string GetMaterializationLabel(Resource mapping) =>
-        GetAttribute(mapping, ResourceAttributeNames.NameMappingMaterializationStatus, "unknown") switch
-        {
-            "LogicalOnly" => "logical only",
-            "ProviderSelected" => "provider selected",
-            "Published" => "published",
-            "PublishFailed" => "publish failed",
-            var value => value
-        };
-
     private string GetZoneAttribute(string name, string fallback) =>
         DnsZone?.ResourceAttributes.TryGetValue(name, out var value) == true &&
         !string.IsNullOrWhiteSpace(value)
             ? value
             : fallback;
-
-    private static string GetNameMappingHostName(Resource mapping) =>
-        GetAttribute(mapping, ResourceAttributeNames.NameMappingHostName, mapping.Name);
 
     private static string GetAttribute(Resource resource, string name, string fallback) =>
         resource.ResourceAttributes.TryGetValue(name, out var value) &&
