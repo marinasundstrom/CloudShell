@@ -109,10 +109,8 @@
                         <div class="generated-list">
                             @foreach (var claim in identity.IdentityClaims.OrderBy(claim => claim.Key, StringComparer.OrdinalIgnoreCase))
                             {
-                                <div>
-                                    <strong>@claim.Key</strong>
-                                    <span>@claim.Value</span>
-                                </div>
+                                <GeneratedListItem Title="@claim.Key"
+                                                   Summary="@claim.Value" />
                             }
                         </div>
                     </dd>
@@ -167,18 +165,13 @@
                 <div class="generated-list">
                     @foreach (var status in ProvisioningStatus.Statuses)
                     {
-                        <div>
-                            <strong>@FormatIdentityReference(status.Identity)</strong>
-                            <span>@status.State</span>
-                            @if (!string.IsNullOrWhiteSpace(status.Detail))
-                            {
-                                <small>@status.Detail</small>
-                            }
-                            @if (status.ObservedAt is { } observedAt)
-                            {
-                                <small>@L["Observed {0}", observedAt.ToLocalTime().ToString("g")]</small>
-                            }
-                        </div>
+                        var observedAt = status.ObservedAt is { } timestamp
+                            ? L["Observed {0}", timestamp.ToLocalTime().ToString("g")].Value
+                            : null;
+                        <GeneratedListItem Title="@FormatIdentityReference(status.Identity)"
+                                           Summary="@status.State.ToString()"
+                                           Metadata="@status.Detail"
+                                           SecondaryMetadata="@observedAt" />
                     }
                 </div>
             }
@@ -187,14 +180,9 @@
                 <div class="generated-list">
                     @foreach (var diagnostic in ProvisioningStatus.ProvisioningDiagnostics)
                     {
-                        <div>
-                            <strong>@diagnostic.Severity</strong>
-                            <span>@diagnostic.Message</span>
-                            @if (diagnostic.Identity is not null)
-                            {
-                                <small>@FormatIdentityReference(diagnostic.Identity)</small>
-                            }
-                        </div>
+                        <GeneratedListItem Title="@diagnostic.Severity.ToString()"
+                                           Summary="@diagnostic.Message"
+                                           Metadata="@(diagnostic.Identity is null ? null : FormatIdentityReference(diagnostic.Identity))" />
                     }
                 </div>
             }
@@ -207,11 +195,11 @@
             <div class="generated-list">
                 @foreach (var grant in OutboundPermissionGrants)
                 {
-                    <div>
-                        <strong>@L["Can access"]</strong>
-                        <span>@ResourceLink(grant.TargetResourceId)</span>
-                        <small>@grant.Permission</small>
-                    </div>
+                    var title = L["Can access"].Value;
+                    <GeneratedListItem Title="@title"
+                                       Metadata="@grant.Permission">
+                        <SummaryContent>@ResourceLink(grant.TargetResourceId)</SummaryContent>
+                    </GeneratedListItem>
                 }
             </div>
         }
@@ -220,11 +208,10 @@
             <div class="generated-list">
                 @foreach (var grant in InboundPermissionGrants)
                 {
-                    <div>
-                        <strong>@FormatIdentityReference(grant.ResourceIdentity!)</strong>
-                        <span>@L["Can access this resource"]</span>
-                        <small>@grant.Permission</small>
-                    </div>
+                    var summary = L["Can access this resource"].Value;
+                    <GeneratedListItem Title="@FormatIdentityReference(grant.ResourceIdentity!)"
+                                       Summary="@summary"
+                                       Metadata="@grant.Permission" />
                 }
             </div>
         }

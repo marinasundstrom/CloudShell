@@ -219,30 +219,29 @@
     private RenderFragment RenderNetworkExposure() => @<div class="generated-list">
         @foreach (var exposure in InboundNetworkMappings)
         {
-            <div>
-                <strong>@ResourceLink(exposure.Network)</strong>
-                <span>
+            <GeneratedListItem Metadata="@FormatInboundNetworkMappingSummary(exposure)">
+                <TitleContent>@ResourceLink(exposure.Network)</TitleContent>
+                <SummaryContent>
                     @EndpointReference(exposure.Mapping.Source, exposure.Network)
                     <span aria-hidden="true">-&gt;</span>
                     @EndpointReference(exposure.Mapping.Target, Resource!)
-                </span>
-                <small>@FormatInboundNetworkMappingSummary(exposure)</small>
-            </div>
+                </SummaryContent>
+            </GeneratedListItem>
         }
     </div>;
 
     private RenderFragment RenderLoadBalancerExposure() => @<div class="generated-list">
         @foreach (var exposure in InboundLoadBalancerRoutes)
         {
-            <div>
-                <strong>@ResourceLink(exposure.LoadBalancer)</strong>
-                <span>
+            var entrypoint = L["Entrypoint: {0}", exposure.Route.EntrypointName].Value;
+            <GeneratedListItem Metadata="@entrypoint">
+                <TitleContent>@ResourceLink(exposure.LoadBalancer)</TitleContent>
+                <SummaryContent>
                     @FormatLoadBalancerRouteMatch(exposure.Route)
                     <span aria-hidden="true">-&gt;</span>
                     @FormatLoadBalancerRouteTarget(exposure.Route.Target)
-                </span>
-                <small>@L["Entrypoint: {0}", exposure.Route.EntrypointName]</small>
-            </div>
+                </SummaryContent>
+            </GeneratedListItem>
         }
     </div>;
 
@@ -303,30 +302,29 @@
     private RenderFragment RenderEndpointMappings() => @<div class="generated-list">
         @foreach (var mapping in Resource!.ResourceEndpointMappings)
         {
-            <div>
-                <strong>@mapping.Name</strong>
-                <span>
+            <GeneratedListItem Title="@mapping.Name"
+                               Metadata="@MappingProviderLabel(mapping)">
+                <SummaryContent>
                     @EndpointReference(mapping.Source, Resource)
                     <span aria-hidden="true">-&gt;</span>
                     @EndpointReference(mapping.Target)
-                </span>
-                <small>@MappingProviderLabel(mapping)</small>
-            </div>
+                </SummaryContent>
+            </GeneratedListItem>
         }
     </div>;
 
     private RenderFragment RenderLoadBalancerRoutes() => @<div class="generated-list">
         @foreach (var route in Resource!.ResourceLoadBalancerRoutes)
         {
-            <div>
-                <strong>@route.Name</strong>
-                <span>
+            var entrypoint = L["Entrypoint: {0}", route.EntrypointName].Value;
+            <GeneratedListItem Title="@route.Name"
+                               Metadata="@entrypoint">
+                <SummaryContent>
                     @FormatLoadBalancerRouteMatch(route)
                     <span aria-hidden="true">-&gt;</span>
                     @FormatLoadBalancerRouteTarget(route.Target)
-                </span>
-                <small>@L["Entrypoint: {0}", route.EntrypointName]</small>
-            </div>
+                </SummaryContent>
+            </GeneratedListItem>
         }
     </div>;
 

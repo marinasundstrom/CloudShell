@@ -84,11 +84,10 @@
             <div class="generated-list">
                 @foreach (var exposure in InboundNameMappings)
                 {
-                    <div>
-                        <strong>@ResourceLink(exposure.Mapping)</strong>
-                        <span>@FormatNameMappingSummary(exposure.Mapping)</span>
-                        <small>@FormatNameMappingMetadata(exposure)</small>
-                    </div>
+                    <GeneratedListItem Summary="@FormatNameMappingSummary(exposure.Mapping)"
+                                       Metadata="@FormatNameMappingMetadata(exposure)">
+                        <TitleContent>@ResourceLink(exposure.Mapping)</TitleContent>
+                    </GeneratedListItem>
                 }
             </div>
         }

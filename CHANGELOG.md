@@ -59,6 +59,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added a reusable Resource Manager diagnostic list component so generated
   resource views, storage overview, and resource-list blades render diagnostic
   rows consistently.
+- Added a reusable `GeneratedListItem` component and adopted it for generated
+  endpoint, DNS, and identity rows that share the standard title, summary, and
+  metadata layout.
 - Resource Manager now includes a top-level Health workspace that polls
   configured resource health checks at the Resource Manager health-check
   interval, summarizes resource status, and links back to resource details.
