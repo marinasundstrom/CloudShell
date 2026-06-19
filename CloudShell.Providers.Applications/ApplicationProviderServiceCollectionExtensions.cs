@@ -7,6 +7,12 @@ namespace CloudShell.Providers.Applications;
 
 public static class ApplicationProviderServiceCollectionExtensions
 {
+    public const string DefaultSqlServerImage = "mcr.microsoft.com/mssql/server:2022-latest";
+
+    public const string DefaultSqlServerAdministratorPassword = "CloudShell-Passw0rd!";
+
+    public const string DefaultSqlServerDataPath = "/var/opt/mssql";
+
     public static ICloudShellBuilder AddApplicationProvider(
         this ICloudShellBuilder builder,
         Action<ApplicationProviderOptions>? configure = null,
@@ -210,6 +216,75 @@ public static class ApplicationProviderServiceCollectionExtensions
         return builder.WithContainerHost(containerHost.ResourceId);
     }
 
+    public static ISqlServerResourceBuilder AddSqlServer(
+        this IResourceDeclarationBuilder builder,
+        string name,
+        string? administratorPassword = null,
+        IResourceBuilder? dataVolume = null,
+        int port = 14334)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        var id = CreateApplicationResourceId(name);
+        var endpointPorts = new[]
+        {
+            new ServicePort(
+                "tds",
+                1433,
+                port,
+                "tcp",
+                ResourceExposureScope.Local,
+                ResourceEndpointAssignment.Manual)
+        };
+        var definition = new ApplicationResourceDefinition(
+            id,
+            CreateDisplayName(id),
+            executablePath: string.Empty,
+            environmentVariables:
+            [
+                new EnvironmentVariableAssignment("ACCEPT_EULA", "Y"),
+                new EnvironmentVariableAssignment(
+                    "MSSQL_SA_PASSWORD",
+                    string.IsNullOrWhiteSpace(administratorPassword)
+                        ? DefaultSqlServerAdministratorPassword
+                        : administratorPassword)
+            ],
+            lifetime: ApplicationLifetime.ControlPlaneScoped,
+            containerImage: DefaultSqlServerImage,
+            endpointPorts: endpointPorts,
+            resourceType: ApplicationResourceTypes.SqlServer,
+            volumeMounts: dataVolume is null
+                ? []
+                : [new ResourceVolumeMount(dataVolume.ResourceId, DefaultSqlServerDataPath, Name: "data")]);
+        var declared = new DeclaredApplicationResource(definition);
+
+        builder.Services
+            .GetOrAddApplicationProviderOptions()
+            .DeclaredApplications
+            .Add(declared);
+
+        var resource = builder.Declare(
+            ApplicationResourceProviderIds.SqlServer,
+            id,
+            onChanged: declaration =>
+            {
+                declared.Definition = declared.Definition with
+                {
+                    Name = GetDisplayName(declaration, CreateDisplayName(id)),
+                    DependsOn = declaration.DependsOn
+                };
+                declared.Persist = declaration.Persistence == ResourceDeclarationPersistence.Persisted;
+                declared.OverwritePersistedState = declaration.OverwritePersistedState;
+            });
+
+        if (dataVolume is not null)
+        {
+            resource.DependsOn(dataVolume);
+        }
+
+        return new ExecutableApplicationResourceBuilder(resource, declared);
+    }
+
     /// <summary>
     /// Declares a container app resource using an Aspire-compatible shorthand
     /// name.
@@ -391,6 +466,22 @@ public static class ApplicationProviderServiceCollectionExtensions
     }
 }
 
+public interface ISqlServerResourceBuilder :
+    ILifetimeBoundResourceBuilder<ISqlServerResourceBuilder>
+{
+    ISqlServerResourceBuilder WithAdministratorPassword(string password);
+
+    ISqlServerResourceBuilder WithTdsEndpoint(int? port = null, int targetPort = 1433);
+
+    ISqlServerResourceBuilder WithDataVolume(
+        IResourceBuilder volume,
+        string targetPath = ApplicationProviderServiceCollectionExtensions.DefaultSqlServerDataPath);
+
+    ISqlServerResourceBuilder WithContainerHost(string containerHostId);
+
+    ISqlServerResourceBuilder WithContainerHost(IResourceBuilder containerHost);
+}
+
 internal interface IProjectContainerBuildResourceBuilder
 {
     IProjectResourceBuilder AsProjectContainerBuild(
@@ -404,6 +495,7 @@ internal sealed class ExecutableApplicationResourceBuilder(
     IExecutableResourceBuilder,
     IProjectResourceBuilder,
     IContainerResourceBuilder,
+    ISqlServerResourceBuilder,
     IProjectContainerBuildResourceBuilder
 {
     public ICloudShellBuilder CloudShellBuilder => inner.CloudShellBuilder;
@@ -752,6 +844,60 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return WithContainerHost(containerEngine.ResourceId);
     }
 
+    ISqlServerResourceBuilder ISqlServerResourceBuilder.WithContainerHost(string containerHostId)
+    {
+        WithContainerHost(containerHostId);
+        return this;
+    }
+
+    ISqlServerResourceBuilder ISqlServerResourceBuilder.WithContainerHost(IResourceBuilder containerHost)
+    {
+        WithContainerHost(containerHost);
+        return this;
+    }
+
+    ISqlServerResourceBuilder ISqlServerResourceBuilder.WithAdministratorPassword(string password)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(password);
+        declared.Definition = declared.Definition with
+        {
+            EnvironmentVariables = declared.Definition.EnvironmentVariables
+                .Where(variable => !string.Equals(variable.Name, "MSSQL_SA_PASSWORD", StringComparison.OrdinalIgnoreCase))
+                .Append(new EnvironmentVariableAssignment("MSSQL_SA_PASSWORD", password))
+                .ToArray()
+        };
+        return this;
+    }
+
+    ISqlServerResourceBuilder ISqlServerResourceBuilder.WithTdsEndpoint(int? port, int targetPort)
+    {
+        declared.Definition = declared.Definition with
+        {
+            EndpointPorts = declared.Definition.EndpointPorts
+                .Where(endpoint => !string.Equals(endpoint.Name, "tds", StringComparison.OrdinalIgnoreCase))
+                .Append(CreateDeclaredServicePort("tds", targetPort, port, "tcp", ResourceExposureScope.Local))
+                .ToArray()
+        };
+        return this;
+    }
+
+    ISqlServerResourceBuilder ISqlServerResourceBuilder.WithDataVolume(
+        IResourceBuilder volume,
+        string targetPath)
+    {
+        ArgumentNullException.ThrowIfNull(volume);
+        ArgumentException.ThrowIfNullOrWhiteSpace(targetPath);
+        DependsOn(volume);
+        declared.Definition = declared.Definition with
+        {
+            VolumeMounts = declared.Definition.VolumeMounts
+                .Where(mount => !string.Equals(mount.Name, "data", StringComparison.OrdinalIgnoreCase))
+                .Append(new ResourceVolumeMount(volume.ResourceId, targetPath, Name: "data"))
+                .ToArray()
+        };
+        return this;
+    }
+
     public IContainerResourceBuilder WithEndpoint(
         string name,
         int targetPort,
@@ -850,6 +996,16 @@ internal sealed class ExecutableApplicationResourceBuilder(
     }
 
     public IContainerResourceBuilder WithLifetime(ResourceLifetime lifetime)
+    {
+        declared.Definition = declared.Definition with
+        {
+            Lifetime = ToApplicationLifetime(lifetime)
+        };
+        return this;
+    }
+
+    ISqlServerResourceBuilder ILifetimeBoundResourceBuilder<ISqlServerResourceBuilder>.WithLifetime(
+        ResourceLifetime lifetime)
     {
         declared.Definition = declared.Definition with
         {

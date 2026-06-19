@@ -303,23 +303,27 @@ lb.MapTcp(5432, postgres, endpoint: "postgres");
 See [Load balancers](resources/load-balancers.md).
 
 Provider-specific resources should stay logical at the declaration site. For
-example, a future SQL Server provider should be able to expose a top-level
-resource without making the caller choose a Docker host:
+example, the built-in SQL Server builder exposes a top-level SQL Server
+resource without making the caller declare a generic container app:
 
 ```csharp
 cloudShell.Resources(resources =>
 {
+    var sqlData = resources
+        .AddVolume("sql-data")
+        .WithDisplayName("SQL Data");
+
     resources
-        .AddSqlServer("sql:main")
-        .WithVersion("2022")
-        .WithEdition("Developer")
+        .AddSqlServer("main", dataVolume: sqlData, port: 14334)
         .WithDisplayName("Main SQL Server");
 });
 ```
 
-That SQL Server provider can use a container internally, but callers choose
-SQL Server concepts such as version and edition rather than an arbitrary
-container image. Top-level container applications are the place where image
+The current local provider still uses a SQL Server container image internally,
+but callers receive an `application.sql-server` service resource rather than a
+container-app builder. Future SQL Server builder slices should add validated
+SQL Server concepts such as version and edition instead of arbitrary image
+selection. Top-level container applications are the place where image
 selection is part of the logical declaration:
 
 ```csharp

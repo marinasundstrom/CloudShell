@@ -22,8 +22,8 @@ CloudShell has two usage modes:
 - On-premise mode: an orchestrator such as Docker Compose owns lifecycle,
   networking, and exposure for the resource graph.
 
-The sample also shows a provider-style SQL Server binding with a resource-owned
-local endpoint and a Local Storage-backed data volume:
+The sample also shows a lightweight SQL Server service resource with a
+resource-owned local endpoint and a Local Storage-backed data volume:
 
 ```csharp
 var localStorage = resources
@@ -40,14 +40,12 @@ resources
     .AddSqlServer("sql-server", dataVolume: sqlData);
 ```
 
-`AddSqlServer(...)` is implemented locally by composing the core
-`AddContainer(...)` method, declaring a `tds` endpoint on the resource itself,
-optionally mounting a data volume at `/var/opt/mssql`, and returning
-`IContainerResourceBuilder`. This is a sample shortcut, not the future managed
-SQL Server service API. A provider-owned SQL Server builder should expose
-validated SQL Server settings such as version and edition rather than arbitrary
-container image override. Service resources are optional in local development;
-resource-owned endpoints are enough for direct access and service discovery.
+`AddSqlServer(...)` is provided by the application provider. It projects an
+`application.sql-server` service resource, declares a `tds` endpoint on the
+resource itself, and optionally mounts a data volume at `/var/opt/mssql`. The
+local implementation is still container-backed, but the SQL Server resource is
+not exposed as a generic container app and does not use the container app image
+deployment or replica surface.
 
 The storage graph is intentionally explicit. The Local Storage resource is a
 `Storage` class resource that announces the `FileSystem` medium. The SQL data

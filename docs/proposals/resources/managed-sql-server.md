@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed.
+Partially implemented.
 
 The current `application.sql-server` resource is a transitional local
 development implementation. It is authored as a first-class SQL Server
@@ -64,6 +64,9 @@ configuration to the user.
 Implemented today:
 
 * Resource type `application.sql-server`.
+* Provider-owned programmatic `AddSqlServer(...)` builder that projects the
+  SQL Server resource type and returns a SQL-oriented builder instead of a
+  container-app builder.
 * Resource Manager create flow with image, SA password, container host,
   TDS endpoint, resource group, and optional data volume.
 * Container-backed runtime using `mcr.microsoft.com/mssql/server:2022-latest`.
@@ -73,7 +76,11 @@ Implemented today:
 * Volume selector and Storage tab inherited from the application resource
   provider.
 * ApplicationTopology and Container Host samples that use SQL Server as a
-  stateful dependency.
+  stateful dependency through the provider-owned builder.
+* Resource Manager SQL Server pages omit generic container-app Deployment and
+  Scale and replicas tabs by default.
+* Database read/write grant intent can be assigned to SQL Server resources
+  through the existing Access control model.
 
 Implementation caveat: because the provider currently stores SQL Server as an
 application resource and uses the same runtime path as container-backed
@@ -81,14 +88,12 @@ applications, SQL Server can inherit container-oriented implementation details.
 That is acceptable for the current local-development flow, but not the desired
 future managed SQL Server experience.
 
-Sample caveat: the current sample-local `AddSqlServer(...)` helpers are
-implemented by composing `AddContainer(...)` and returning
-`IContainerResourceBuilder`. Those helpers are useful for ApplicationTopology
-and ContainerHost samples, but they are not the intended canonical SQL Server
-declaration API. A provider-owned SQL Server builder should return a
-SQL-oriented builder or the common resource builder, project the SQL Server
-type, and expose SQL Server version/edition settings instead of arbitrary
-container image settings.
+Implementation caveat: the first provider-owned `AddSqlServer(...)` builder
+still maps to the shared local application runtime and fixed SQL Server Linux
+container image. It intentionally does not expose arbitrary image or replica
+configuration through the SQL-facing builder. Future slices should replace the
+remaining local-development image-oriented setup fields with validated SQL
+Server version/edition choices or provider policy.
 
 ## Resource Type and Kind
 
@@ -313,9 +318,10 @@ runtime-specific storage remain provider configuration behind those builders.
 ## MVP Position
 
 For the MVP, leave the current container-backed SQL Server implementation in
-place. It is useful for proving local stateful dependencies, mounted storage,
-service discovery, configuration/secrets integration, and observability in
-ApplicationTopology.
+place while presenting SQL Server as a service resource. It is useful for
+proving local stateful dependencies, mounted storage, service discovery,
+configuration/secrets integration, identity/access grant intent, and
+observability in ApplicationTopology.
 
 Do not broaden SQL Server-specific managed database work until the immediate
 MVP container app, storage, networking, and identity primitives are stable.
@@ -325,12 +331,10 @@ MVP container app, storage, networking, and identity primitives are stable.
 * Decide whether `application.sql-server` remains the long-term resource type
   or whether a provider-specific type such as `sqlserver.server` replaces it.
 * Decide the durable resource class for SQL Server and database children.
-* Hide or replace generic container-app controls for SQL Server when the
-  managed resource UI is introduced.
-* Replace sample-local `AddSqlServer(...)` helpers with a provider-owned
-  SQL-oriented builder that projects the SQL Server resource type and exposes
-  validated SQL Server version/edition choices instead of arbitrary image
-  override.
+* Replace the Resource Manager create/update image-oriented setup fields with
+  validated SQL Server version/edition choices or provider policy.
+* Expand the provider-owned SQL-oriented builder with validated SQL Server
+  version/edition choices instead of arbitrary image override.
 * Define a database resource type, resource ID convention, parent relationship,
   and Resource Manager Databases tab for SQL Server databases.
 * Decide when declarative SQL database resources should be supported, after

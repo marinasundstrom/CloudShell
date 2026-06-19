@@ -56,6 +56,27 @@ mcr.microsoft.com/mssql/server:2022-latest
 
 The resource exposes a `tds` endpoint with container target port `1433`.
 
+Programmatic declarations should use the provider-owned SQL Server builder:
+
+```csharp
+var sqlData = resources
+    .AddVolume("sql-data")
+    .WithDisplayName("SQL Data");
+
+var sql = resources
+    .AddSqlServer(
+        "sql-server",
+        administratorPassword: "Your-strong-dev-password!",
+        dataVolume: sqlData,
+        port: 14334)
+    .WithIdentity(identityProvider);
+```
+
+This declares `application.sql-server` with `ResourceClass.Service`. The local
+provider still uses the SQL Server Linux container image to run the service,
+but callers do not receive a container-app builder and should not configure
+generic image deployment or replicas through the SQL Server API.
+
 ## Overview
 
 The SQL Server overview shows the projected TDS endpoint, a convenience
@@ -124,6 +145,16 @@ Identity access should be modeled through resource identity and scoped grants,
 not by projecting database credentials as ordinary secrets into dependent
 resources. Database-scoped permissions will likely become clearer when SQL
 Server can project individual databases as child database resources.
+
+The current builder can record grant intent on the SQL Server resource:
+
+```csharp
+sql.Allow(api.Principal, CloudShellPermissions.Database.Actions.ReadWrite);
+```
+
+For now, that grant is visible in Resource Manager Access control and identity
+views. Materializing SQL logins, database users, and roles from the grant is a
+future provider capability.
 
 ## Future Database Resources
 

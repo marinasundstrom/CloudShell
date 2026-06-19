@@ -7,6 +7,7 @@ using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Client.Authentication;
 using CloudShell.Components;
+using CloudShell.ControlPlane.Hosting;
 using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.Hosting.Components.Pages.Resources;
 using CloudShell.Hosting.ResourceManager;
@@ -8060,6 +8061,102 @@ public sealed class ResourceDeclarationTests
         var endpoint = Assert.Single(resource.Endpoints);
         var mapping = Assert.Single(resource.ResourceEndpointNetworkMappings);
         Assert.Equal("tcp://localhost:14333", mapping.Address);
+    }
+
+    [Fact]
+    public async Task SqlServerBuilder_DeclaresServiceResourceWithStorageAndDatabaseGrant()
+    {
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        services
+            .AddControlPlane()
+            .ConfigureInMemoryIdentity(setup =>
+            {
+                setup.ProviderId = "identity:development";
+                setup.ProviderName = "Development Identity";
+                setup.UseAsDefaultProvider = true;
+            })
+            .AddExtension<ApplicationProviderExtension>()
+            .Resources(resources =>
+            {
+                var identityProvider = resources.GetIdentityProvider();
+                var volume = resources.AddVolume("volume:sql-data").WithDisplayName("SQL Data");
+                var api = resources
+                    .AddExecutableApplication("application:api", "dotnet")
+                    .WithIdentity(identityProvider, name: "api");
+                var sql = resources
+                    .AddSqlServer(
+                        "sql",
+                        administratorPassword: "CloudShell-Passw0rd!",
+                        dataVolume: volume,
+                        port: 14333)
+                    .WithIdentity(identityProvider)
+                    .WithContainerHost("docker:dev")
+                    .WithLifetime(ResourceLifetime.Detached);
+
+                sql.Allow(api.Principal, DatabaseResourceOperationPermissions.ReadWrite);
+
+                Assert.IsAssignableFrom<ILifetimeBoundResourceBuilder<ISqlServerResourceBuilder>>(sql);
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var store = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+        var declaration = Assert.Single(store.GetDeclarations(), declaration =>
+            declaration.ResourceId == "application:sql");
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var resource = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == "application:sql");
+        var descriptor = await provider.DescribeAsync(
+            resource,
+            new ResourceOrchestrationDescriptorContext(null, null, null!));
+        var workload = descriptor.Configuration.Deserialize<ResourceWorkloadConfiguration>(
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        var environment = workload?.WorkloadEnvironmentVariables
+            .ToDictionary(variable => variable.Name, variable => variable.Value);
+        var grant = Assert.Single(store.GetPermissionGrants(), grant =>
+            string.Equals(grant.TargetResourceId, "application:sql", StringComparison.OrdinalIgnoreCase));
+
+        Assert.Equal(ApplicationResourceProviderIds.SqlServer, declaration.ProviderId);
+        Assert.Equal(["volume:sql-data"], declaration.DependsOn);
+        Assert.Equal("identity:development", declaration.IdentityBinding?.ProviderId);
+        Assert.Equal(ApplicationResourceTypes.SqlServer, resource.EffectiveTypeId);
+        Assert.Equal(ResourceClass.Service, resource.ResourceClass);
+        Assert.Equal(
+            ResourceWorkloadKind.ContainerImage.ToString(),
+            resource.ResourceAttributes[ResourceAttributeNames.WorkloadKind]);
+        Assert.Equal(
+            ApplicationProviderServiceCollectionExtensions.DefaultSqlServerImage,
+            resource.ResourceAttributes[ResourceAttributeNames.ContainerImage]);
+        Assert.Equal("docker:dev", resource.ResourceAttributes[ResourceAttributeNames.ContainerHostId]);
+        Assert.Equal("1", resource.ResourceAttributes[ResourceAttributeNames.VolumeMountCount]);
+        Assert.True(resource.HasCapability(ResourceCapabilityIds.StorageVolumeConsumer));
+        Assert.Equal(ApplicationLifetime.Detached, provider.GetApplication("application:sql")?.Lifetime);
+        Assert.Equal(ResourceWorkloadKind.ContainerImage, workload?.Kind);
+        Assert.Equal(ApplicationProviderServiceCollectionExtensions.DefaultSqlServerImage, workload?.Image);
+        Assert.Equal("docker:dev", workload?.ContainerHostId);
+        Assert.Equal(ResourceLifetime.Detached, workload?.Lifetime);
+        Assert.Equal("Y", environment?["ACCEPT_EULA"]);
+        Assert.Equal("CloudShell-Passw0rd!", environment?["MSSQL_SA_PASSWORD"]);
+        var mount = Assert.Single(workload?.WorkloadVolumeMounts ?? []);
+        Assert.Equal("volume:sql-data", mount.VolumeReference);
+        Assert.Equal("/var/opt/mssql", mount.TargetPath);
+        Assert.False(mount.ReadOnly);
+        Assert.Equal("data", mount.Name);
+        Assert.Equal(StorageVolumeResourceOperationPermissions.MountWrite, mount.RequiredPermission);
+        var port = Assert.Single(workload?.WorkloadPorts ?? []);
+        Assert.Equal("tds", port.Name);
+        Assert.Equal(1433, port.TargetPort);
+        Assert.Equal(14333, port.Port);
+        Assert.Equal("tcp", port.Protocol);
+        Assert.Equal(ResourceEndpointAssignment.Manual, port.Assignment);
+        var mapping = Assert.Single(resource.ResourceEndpointNetworkMappings);
+        Assert.Equal("tcp://localhost:14333", mapping.Address);
+        Assert.Equal(ResourcePrincipalKind.ResourceIdentity, grant.Principal.Kind);
+        Assert.Equal("application:api", grant.Principal.SourceResourceId);
+        Assert.Equal("api", grant.Principal.SourceIdentityName);
+        Assert.Equal(DatabaseResourceOperationPermissions.ReadWrite, grant.Permission);
     }
 
     [Fact]

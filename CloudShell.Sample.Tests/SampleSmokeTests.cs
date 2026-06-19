@@ -15,7 +15,7 @@ using CloudShell.Providers.Applications;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
-using ApplicationTopologySqlServerResources = CloudShell.ApplicationTopology.SqlServerResourceBuilderExtensions;
+using SqlServerResources = CloudShell.Providers.Applications.ApplicationProviderServiceCollectionExtensions;
 
 namespace CloudShell.Sample.Tests;
 
@@ -84,8 +84,8 @@ public sealed class SampleSmokeTests
         Assert.Equal("sql-server", volume.ResourceAttributes[ResourceAttributeNames.VolumeSubPath]);
         Assert.Equal(StorageMedia.FileSystem, volume.ResourceAttributes[ResourceAttributeNames.VolumeStorageMedium]);
 
-        Assert.Equal(ApplicationResourceTypes.ContainerApp, sqlServer.EffectiveTypeId);
-        Assert.Equal(ResourceClass.Container, sqlServer.ResourceClass);
+        Assert.Equal(ApplicationResourceTypes.SqlServer, sqlServer.EffectiveTypeId);
+        Assert.Equal(ResourceClass.Service, sqlServer.ResourceClass);
         Assert.True(sqlServer.HasCapability(ResourceCapabilityIds.StorageVolumeConsumer));
         Assert.Equal("1", sqlServer.ResourceAttributes[ResourceAttributeNames.VolumeMountCount]);
 
@@ -400,17 +400,20 @@ public sealed class SampleSmokeTests
         Assert.Equal("sql-server", volumeAttributes.GetProperty(ResourceAttributeNames.VolumeSubPath).GetString());
         Assert.Equal(StorageMedia.FileSystem, volumeAttributes.GetProperty(ResourceAttributeNames.VolumeStorageMedium).GetString());
 
-        Assert.Equal(ApplicationResourceTypes.ContainerApp, sqlServer.GetProperty("typeId").GetString());
+        Assert.Equal(ApplicationResourceTypes.SqlServer, sqlServer.GetProperty("typeId").GetString());
         Assert.Equal($"tcp://localhost:{sqlPort}", GetEndpointAddress(sqlServer, "tds"));
         Assert.Equal("1", sqlAttributes.GetProperty(ResourceAttributeNames.VolumeMountCount).GetString());
         Assert.Equal("0", sqlAttributes.GetProperty(ResourceAttributeNames.VolumeMountMaterializedCount).GetString());
         Assert.Equal(
             ResourceVolumeMountMaterializationStatus.NotActive,
             sqlAttributes.GetProperty(ResourceAttributeNames.VolumeMountMaterializationStatus).GetString());
-        Assert.Equal("mcr.microsoft.com/mssql/server:2022-latest", sqlAttributes.GetProperty(ResourceAttributeNames.ContainerImage).GetString());
+        Assert.Equal(SqlServerResources.DefaultSqlServerImage, sqlAttributes.GetProperty(ResourceAttributeNames.ContainerImage).GetString());
         Assert.Contains(
             "volume:application-topology-sql-data",
             sqlServer.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+        var sqlIdentity = sqlServer.GetProperty("identity");
+        Assert.Equal("identity:development", sqlIdentity.GetProperty("providerId").GetString());
+        Assert.Equal("application-topology-sql-server", sqlIdentity.GetProperty("name").GetString());
 
         Assert.Equal("configuration.store", settings.GetProperty("typeId").GetString());
         Assert.Equal("secrets.vault", secrets.GetProperty("typeId").GetString());
@@ -450,8 +453,14 @@ public sealed class SampleSmokeTests
             grant =>
                 grant.GetProperty("targetResourceId").GetString() == "configuration:application-topology" &&
                 grant.GetProperty("permission").GetString() == ConfigurationStoreResourceOperationPermissions.ReadEntries);
+        Assert.Contains(
+            grants,
+            grant =>
+                grant.GetProperty("targetResourceId").GetString() == "application:application-topology-sql-server" &&
+                grant.GetProperty("permission").GetString() == DatabaseResourceOperationPermissions.ReadWrite);
 
         await AssertProvisionedIdentityStatusAsync(host, "application:application-topology-api");
+        await AssertProvisionedIdentityStatusAsync(host, "application:application-topology-sql-server");
         await AssertProvisionedIdentityStatusAsync(host, "configuration:application-topology");
         await AssertProvisionedIdentityStatusAsync(host, "secrets-vault:application-topology");
 
@@ -522,7 +531,7 @@ public sealed class SampleSmokeTests
         Assert.Contains("application-topology-frontend", apiDetailsHtml);
         Assert.Contains(">Settings<", apiDetailsHtml);
         Assert.Contains(">Secrets<", apiDetailsHtml);
-        Assert.Contains("application.container-app", apiDetailsHtml);
+        Assert.Contains("application.sql-server", apiDetailsHtml);
         Assert.Contains("Environment references", apiDetailsHtml);
         Assert.Contains("ApplicationTopology__Message", apiDetailsHtml);
         Assert.Contains("Configuration entry", apiDetailsHtml);
@@ -708,6 +717,8 @@ public sealed class SampleSmokeTests
 
         var sqlDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details");
+        Assert.Contains(">Identity<", sqlDetailsHtml);
+        Assert.Contains("Access control", sqlDetailsHtml);
         Assert.Contains("Storage mounts", sqlDetailsHtml);
         Assert.Contains("SQL Data (FileSystem)", sqlDetailsHtml);
         Assert.Contains("/var/opt/mssql", sqlDetailsHtml);
@@ -718,18 +729,30 @@ public sealed class SampleSmokeTests
             ">Configuration<",
             ">Endpoints<",
             ">DNS<",
-            ">Deployment<",
-            ">Scale and replicas<",
             ">Storage<",
             ">Environment<",
+            ">Identity<",
+            ">Access control<",
             ">Activity<");
+        Assert.DoesNotContain(">Deployment<", sqlDetailsHtml);
+        Assert.DoesNotContain(">Scale and replicas<", sqlDetailsHtml);
 
-        var deploymentTabId = new ResourceViewId(ResourceTabGroupIds.Application, "deployment");
-        var sqlDeploymentHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(deploymentTabId.Value)}");
-        Assert.Contains("Deploy image", sqlDeploymentHtml);
-        Assert.Contains("No image change", sqlDeploymentHtml);
-        Assert.Contains("Image update preflight", sqlDeploymentHtml);
+        var sqlIdentityHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Identity.Value)}");
+        Assert.Contains("Enable identity", sqlIdentityHtml);
+        Assert.Contains("Provisioned", sqlIdentityHtml);
+        Assert.Contains("Built-in resource identity client is registered.", sqlIdentityHtml);
+        Assert.Contains("application-topology-api / application-topology-api", sqlIdentityHtml);
+        Assert.Contains(DatabaseResourceOperationPermissions.ReadWrite, sqlIdentityHtml);
+
+        var sqlAccessControlHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.AccessControl.Value)}");
+        Assert.Contains("Search principals", sqlAccessControlHtml);
+        Assert.Contains("Assigned principals", sqlAccessControlHtml);
+        Assert.Contains("Database: read/write", sqlAccessControlHtml);
+        Assert.Contains("application-topology-api", sqlAccessControlHtml);
+        Assert.Contains(DatabaseResourceOperationPermissions.ReadWrite, sqlAccessControlHtml);
+        Assert.DoesNotContain("Deploy image", sqlAccessControlHtml);
     }
 
     [Fact]
@@ -804,7 +827,7 @@ public sealed class SampleSmokeTests
     public async Task ApplicationTopologyHost_SqlInclusiveRuntimePathConnectsFrontendApiAndDatabase()
     {
         if (!await DockerComposeStack.IsAvailableAsync() ||
-            !await DockerComposeStack.IsImageAvailableAsync(ApplicationTopologySqlServerResources.DefaultSqlServerImage))
+            !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.DefaultSqlServerImage))
         {
             return;
         }

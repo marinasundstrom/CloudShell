@@ -54,6 +54,12 @@ public static class SecretsVaultResourceOperationPermissions
         "CloudShell.Secrets/vaults/secrets/read/action";
 }
 
+public static class DatabaseResourceOperationPermissions
+{
+    public const string ReadWrite =
+        "CloudShell.Database/databases/readWrite/action";
+}
+
 public static class ResourceIdentityProvisioningOperationPermissions
 {
     public const string ProvisionIdentities =
@@ -160,6 +166,15 @@ public static class CloudShellPermissions
         {
             public const string ProvisionIdentities =
                 ResourceIdentityProvisioningOperationPermissions.ProvisionIdentities;
+        }
+    }
+
+    public static class Database
+    {
+        public static class Actions
+        {
+            public const string ReadWrite =
+                DatabaseResourceOperationPermissions.ReadWrite;
         }
     }
 }

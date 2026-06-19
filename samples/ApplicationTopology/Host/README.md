@@ -12,8 +12,8 @@ The host currently declares:
 - `Application Topology Frontend` on `http://localhost:5218`
 - `Application Topology Local Storage`, backed by `./Data/storage`
 - `Application Topology SQL Data`, a volume under the local storage resource
-- `application-topology-sql-server`, a SQL Server container app with the data
-  volume mounted at `/var/opt/mssql`
+- `application-topology-sql-server`, a SQL Server service resource with the
+  data volume mounted at `/var/opt/mssql`
 - `Application Topology Settings`, a Configuration Store with sample
   application settings injected into the backend API
 - `Application Topology Secrets`, a Secrets Vault with a sample secret
@@ -35,22 +35,27 @@ HTTP client service discovery, JSON console logs, and OpenTelemetry tracing.
 The host injects CloudShell trace ingestion settings so `/observability/traces`
 can show spans across both services.
 
-The SQL Server resource is intentionally sample-local composition over the
-current container app primitives. It uses Docker through
-`UseLocalDevelopmentDefaults()`, publishes a local `tds` endpoint on
-`localhost:14334` by default, and mounts a Local Storage-backed volume so
-database files can survive restarts of the SQL Server resource. The backend
-API references SQL Server through CloudShell service discovery and exposes
-`/database`, which opens a SQL connection and executes a small timestamp
-query. The frontend calls both `/message` and `/database` through the API so
-the sample exercises frontend-to-API and API-to-SQL dependencies.
+The SQL Server resource uses the provider-owned `AddSqlServer(...)` builder.
+It is still materialized locally with the SQL Server Linux container image
+through `UseLocalDevelopmentDefaults()`, but it projects as an
+`application.sql-server` service resource instead of a generic container app.
+The resource publishes a local `tds` endpoint on `localhost:14334` by default
+and mounts a Local Storage-backed volume so database files can survive
+restarts of the SQL Server resource. The backend API references SQL Server
+through CloudShell service discovery and exposes `/database`, which opens a SQL
+connection and executes a small timestamp query. The frontend calls both
+`/message` and `/database` through the API so the sample exercises
+frontend-to-API and API-to-SQL dependencies.
 
 The backend API also receives Configuration Store and Secrets Vault references
 as environment variables. `/settings` returns the configured message, mode,
 and whether the secret value was injected without returning the secret itself.
-The sample provisions the backend API's built-in development resource identity
-on startup and grants that identity read access to the Configuration Store and
-Secrets Vault resources.
+The sample provisions the backend API and SQL Server built-in development
+resource identities on startup. It grants the API identity read access to the
+Configuration Store and Secrets Vault resources, and records a database
+read/write grant on the SQL Server resource. The current SQL runtime still uses
+the bootstrap SQL password; provider-side SQL login/user materialization from
+CloudShell grants is a future SQL Server provider capability.
 
 ## Run
 
@@ -197,11 +202,12 @@ backend API exercises downstream platform services.
 Already covered by the sample:
 
 - Project-backed frontend and API resources that share ServiceDefaults.
-- SQL Server as a container app with a mounted local-storage volume.
+- SQL Server as a service resource with a mounted local-storage volume and a
+  local container-backed runtime.
 - Configuration Store and Secrets Vault references injected into the API
   without leaking secret values.
-- Built-in development resource identity and access grants for settings and
-  secrets.
+- Built-in development resource identity and access grants for settings,
+  secrets, and SQL Server grant intent.
 - Local DNS/name mapping through the `local-hostnames` publisher.
 - Resource health checks, logs, traces, and the intentional failed request
   path.
@@ -214,8 +220,8 @@ Already covered by the sample:
 
 Remaining useful additions:
 
-- Identity-backed SQL Server authentication, so the API can use its CloudShell
-  resource identity to access the database in an Azure-like flow.
+- Provider-side SQL Server grant materialization, so the API can use its
+  CloudShell resource identity to access the database in an Azure-like flow.
 - Optional container-app variants for the frontend and API only when they prove
   a distinct local-development workflow instead of duplicating the
   project-backed path.

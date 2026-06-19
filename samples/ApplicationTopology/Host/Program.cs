@@ -11,7 +11,6 @@ using CloudShell.Hosting.Shell;
 using CloudShell.Providers.Applications;
 using CloudShell.Providers.Configuration;
 using CloudShell.Providers.Docker;
-using CloudShell.ApplicationTopology;
 using System.Security.Cryptography;
 
 var builder = CloudShellApplication.CreateBuilder(args);
@@ -41,7 +40,7 @@ var traceIngestEndpoint = builder.Configuration["Observability:TraceIngestEndpoi
 var frontendEndpoint = builder.Configuration["ApplicationTopology:FrontendEndpoint"]
     ?? "http://localhost:5218";
 var sqlPassword = builder.Configuration["ApplicationTopology:SqlServer:Password"]
-    ?? SqlServerResourceBuilderExtensions.DefaultPassword;
+    ?? ApplicationProviderServiceCollectionExtensions.DefaultSqlServerAdministratorPassword;
 var sqlPort = builder.Configuration.GetValue("ApplicationTopology:SqlServer:Port", 14334);
 builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 {
@@ -120,11 +119,13 @@ cloudShell.Resources(resources =>
     var sqlServer = resources
         .AddSqlServer(
             "application-topology-sql-server",
-            password: sqlPassword,
+            administratorPassword: sqlPassword,
             dataVolume: sqlData,
             port: sqlPort)
+        .WithIdentity(identityProvider, name: "application-topology-sql-server")
         .WithResourceGroup(groupId)
-        .WithAutoStart(false);
+        .WithAutoStart(false)
+        .ProvisionIdentityOnStartup();
 
     var settings = resources
         .AddConfigurationStore("application-topology")
@@ -169,6 +170,7 @@ cloudShell.Resources(resources =>
 
     secrets.Allow(api.Principal, SecretsVaultResourceOperationPermissions.ReadSecrets);
     settings.Allow(api.Principal, ConfigurationStoreResourceOperationPermissions.ReadEntries);
+    sqlServer.Allow(api.Principal, DatabaseResourceOperationPermissions.ReadWrite);
 
     var frontend = resources
         .AddAspNetCoreProject(

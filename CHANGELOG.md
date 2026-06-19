@@ -17,6 +17,13 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- SQL Server can now be declared through a provider-owned `AddSqlServer(...)`
+  builder that projects `application.sql-server` as a service resource while
+  keeping the local runtime container-backed. ApplicationTopology and
+  ContainerHost samples now use that builder, ApplicationTopology records SQL
+  Server database read/write grant intent for the API identity, and SQL Server
+  resource pages no longer expose generic container-app Deployment or Scale
+  tabs by default.
 - Application Topology smoke coverage can now exercise the SQL-inclusive
   runtime path when Docker and the local SQL Server image are available,
   proving frontend-to-API, settings, secrets, and API-to-SQL connectivity
@@ -1068,7 +1075,7 @@ on `git blame --follow`, and then by the broad type of change.
   projected application resources expose aggregate materialization attributes
   that volume overviews can display for consumers.
   Decision: [ADR-20260614-003](ADR.md#adr-20260614-003).
-- ApplicationTopology smoke coverage now asserts the SQL Server container app
+- ApplicationTopology smoke coverage now asserts the SQL Server resource
   projects declared-but-not-active volume mount materialization attributes
   before the workload is started, keeping the broad MVP sample aligned with
   the storage diagnostics path.
@@ -1414,7 +1421,7 @@ on `git blame --follow`, and then by the broad type of change.
   storage, configuration, secrets, identity, structured logs, traces,
   container apps, and networking as those primitives stabilize. The first
   ApplicationTopology composition slice now declares Local Storage, a
-  storage-owned SQL data volume, and a sample-local SQL Server container app;
+  storage-owned SQL data volume, and a sample-local SQL Server resource;
   the backend API references SQL Server through CloudShell service discovery,
   exposes a `/database` check endpoint, and the frontend calls that endpoint
   through the API so the sample exercises frontend-to-API and API-to-SQL

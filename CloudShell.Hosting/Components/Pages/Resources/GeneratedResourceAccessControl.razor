@@ -39,6 +39,7 @@
     private const string DnsZoneResourceType = "cloudshell.dnsZone";
     private const string LoadBalancerResourceType = "cloudshell.loadBalancer";
     private const string IdentityProvisioningResourceType = "cloudshell.identity-provisioning";
+    private const string SqlServerResourceType = "application.sql-server";
 
     private static readonly IReadOnlyList<PermissionOption> AllPermissionOptions =
     [
@@ -52,6 +53,7 @@
         new("DNS name mapping reconcile", NetworkResourceOperationPermissions.ReconcileNameMappings, PermissionOptionTarget.DnsZone),
         new("Load balancer configuration apply", LoadBalancerResourceOperationPermissions.ApplyConfiguration, PermissionOptionTarget.LoadBalancer),
         new("Identity provisioning", ResourceIdentityProvisioningOperationPermissions.ProvisionIdentities, PermissionOptionTarget.IdentityProvisioning),
+        new("Database: read/write", DatabaseResourceOperationPermissions.ReadWrite, PermissionOptionTarget.Database),
         new("All permissions", CloudShellPermissions.All, PermissionOptionTarget.Always),
         new("Custom permission", CustomPermissionValue, PermissionOptionTarget.Always)
     ];
@@ -468,6 +470,7 @@
             PermissionOptionTarget.DnsZone => IsResourceType(resource, DnsZoneResourceType),
             PermissionOptionTarget.LoadBalancer => IsResourceType(resource, LoadBalancerResourceType),
             PermissionOptionTarget.IdentityProvisioning => IsResourceType(resource, IdentityProvisioningResourceType),
+            PermissionOptionTarget.Database => IsResourceType(resource, SqlServerResourceType),
             PermissionOptionTarget.LifecycleAction => resource.ResourceActions.Any(action =>
                 action.Kind is ResourceActionKind.Start or
                     ResourceActionKind.Stop or
@@ -493,6 +496,7 @@
         DnsZone,
         LoadBalancer,
         IdentityProvisioning,
+        Database,
         LifecycleAction,
         CustomAction
     }
