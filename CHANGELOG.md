@@ -88,6 +88,11 @@ on `git blame --follow`, and then by the broad type of change.
   links, state/type metadata, and incoming dependents so the app-centric
   Resource Manager path explains local resource relationships, not only a
   dependency count.
+- Observability now includes separate Request graph and Request map views that
+  derive OpenTelemetry-style edges from trace parent/child spans, animate
+  active request paths in the map, link mapped services back to CloudShell
+  resources and request edges back to traces, and show node status from
+  telemetry errors or resource lifecycle state.
 
 ### 2026-06-18
 

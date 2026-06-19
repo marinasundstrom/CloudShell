@@ -1,0 +1,12 @@
+@page "/observability/dependencies"
+@page "/observability/request-graph"
+@rendermode InteractiveServer
+@inject IStringLocalizer<SharedResource> L
+
+<PageTitle>@L["Request graph"]</PageTitle>
+
+<ServiceDependencyGraph HeadingTitle="@L["Request graph"].Value"
+                        HeadingDescription="@L["Inspect OpenTelemetry service request relationships as edge data."].Value"
+                        PanelTitle="@L["Request paths"].Value"
+                        GraphModeSelectId="request-graph-mode"
+                        ShowMap="false" />

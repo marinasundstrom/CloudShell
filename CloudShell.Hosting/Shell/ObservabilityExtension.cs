@@ -25,19 +25,33 @@ public sealed class ObservabilityExtension : ICloudShellExtension
                 "document",
                 21,
                 parentId: ObservabilityViews.Overview)
+            .RegisterView<Components.Pages.Observability.DependencyGraph>(ObservabilityViews.RequestGraph)
+            .AddNavigationItem<Components.Pages.Observability.DependencyGraph>(
+                ObservabilityViews.RequestGraph,
+                "Request graph",
+                "network",
+                22,
+                parentId: ObservabilityViews.Overview)
+            .RegisterView<Components.Pages.Observability.RequestMap>(ObservabilityViews.RequestMap)
+            .AddNavigationItem<Components.Pages.Observability.RequestMap>(
+                ObservabilityViews.RequestMap,
+                "Request map",
+                "network",
+                23,
+                parentId: ObservabilityViews.Overview)
             .RegisterView<Components.Pages.Observability.Traces>(ObservabilityViews.Traces)
             .AddNavigationItem<Components.Pages.Observability.Traces>(
                 ObservabilityViews.Traces,
                 "Traces",
                 "traces",
-                22,
+                24,
                 parentId: ObservabilityViews.Overview)
             .RegisterView<Components.Pages.Observability.Metrics>(ObservabilityViews.Metrics)
             .AddNavigationItem<Components.Pages.Observability.Metrics>(
                 ObservabilityViews.Metrics,
                 "Metrics",
                 "metrics",
-                23,
+                25,
                 parentId: ObservabilityViews.Overview);
     }
 }

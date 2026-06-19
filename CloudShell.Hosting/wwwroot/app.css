@@ -2068,6 +2068,417 @@ h3 {
     font-size: 1.8rem;
 }
 
+.dependency-map-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: .75rem;
+    margin-bottom: 1rem;
+}
+
+.dependency-map-summary div {
+    padding: .9rem 1rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 4px;
+    background: var(--cloudshell-surface);
+}
+
+.dependency-map-summary span,
+.dependency-map-summary strong {
+    display: block;
+}
+
+.dependency-map-summary span {
+    color: var(--cloudshell-text-muted);
+    font-size: .78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.dependency-map-summary strong {
+    margin-top: .25rem;
+    font-size: 1.55rem;
+}
+
+.dependency-map-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem);
+    gap: 1rem;
+    align-items: start;
+}
+
+.dependency-map-list-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem);
+    gap: 1rem;
+    align-items: start;
+}
+
+.dependency-map-canvas {
+    display: grid;
+    gap: .55rem;
+    min-width: 0;
+    min-height: 24rem;
+    padding: .75rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 4px;
+    background:
+        linear-gradient(90deg, rgba(148, 163, 184, .08) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(148, 163, 184, .08) 1px, transparent 1px),
+        var(--cloudshell-surface-muted);
+    background-size: 32px 32px;
+}
+
+.dependency-map-visual {
+    width: 100%;
+    min-height: 24rem;
+    max-height: 38rem;
+}
+
+.dependency-map-visual a {
+    cursor: pointer;
+}
+
+.dependency-map-visual marker path {
+    fill: var(--cloudshell-text-muted);
+}
+
+.dependency-map-svg-edge line {
+    stroke: var(--cloudshell-text-muted);
+    stroke-width: 1.2;
+    marker-end: url("#dependency-map-arrow");
+    opacity: .75;
+}
+
+.dependency-map-svg-edge.has-trace line {
+    stroke: #477b8f;
+    stroke-width: 1.45;
+    stroke-dasharray: 5 10;
+    animation: dependency-map-flow 1.6s linear infinite;
+    opacity: .95;
+}
+
+.dependency-map-svg-edge.has-errors line {
+    stroke: var(--cloudshell-danger-text);
+}
+
+.dependency-map-svg-edge circle.request {
+    fill: #8ebfd1;
+    stroke: #315f70;
+    stroke-width: .6;
+}
+
+.dependency-map-svg-edge circle.error {
+    fill: #d9468f;
+    stroke: #9d174d;
+    stroke-width: .8;
+}
+
+.dependency-map-svg-node circle {
+    fill: #9fc8d6;
+    stroke: #416b78;
+    stroke-width: 2;
+}
+
+.dependency-map-svg-node rect {
+    fill: #466d78;
+    stroke: rgba(255, 255, 255, .18);
+}
+
+.dependency-map-svg-node text {
+    fill: #fff;
+    font-size: .78rem;
+    font-weight: 700;
+    pointer-events: none;
+}
+
+.dependency-map-svg-node.success circle {
+    fill: #9fc8d6;
+    stroke: #416b78;
+}
+
+.dependency-map-svg-node.info circle {
+    fill: #a8c5ef;
+    stroke: #4f6688;
+}
+
+.dependency-map-svg-node.warning circle {
+    fill: #f7d77b;
+    stroke: #946200;
+}
+
+.dependency-map-svg-node.error circle {
+    fill: #f3a2c5;
+    stroke: var(--cloudshell-danger-text);
+}
+
+.dependency-map-svg-node.missing circle {
+    fill: transparent;
+    stroke: var(--cloudshell-text-muted);
+    stroke-dasharray: 4 3;
+}
+
+.dependency-map-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .45rem .75rem;
+    color: var(--cloudshell-text-muted);
+    font-size: .76rem;
+}
+
+.dependency-map-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+}
+
+.dependency-map-legend i {
+    width: .65rem;
+    height: .65rem;
+    border-radius: 50%;
+    background: #8ebfd1;
+}
+
+.dependency-map-legend i.error {
+    background: #d9468f;
+}
+
+.dependency-map-legend i.topology {
+    border-radius: 0;
+    background: var(--cloudshell-text-muted);
+}
+
+@keyframes dependency-map-flow {
+    to {
+        stroke-dashoffset: -15;
+    }
+}
+
+.dependency-map-edge-list {
+    display: grid;
+    gap: .45rem;
+    min-width: 0;
+}
+
+.dependency-map-edge-list>div,
+.dependency-map-node-list {
+    display: grid;
+    gap: .45rem;
+    min-width: 0;
+}
+
+.dependency-map-edge-list h3,
+.dependency-map-node-list h3 {
+    margin: 0 0 .25rem;
+    font-size: .85rem;
+}
+
+.dependency-map-edge-row {
+    display: grid;
+    gap: .15rem;
+    min-width: 0;
+    padding: .55rem .65rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 4px;
+    background: var(--cloudshell-surface-muted);
+}
+
+.dependency-map-edge-row.has-errors {
+    border-color: var(--cloudshell-danger-text);
+    background: var(--cloudshell-danger-fill);
+}
+
+.dependency-map-edge-row strong,
+.dependency-map-edge-row span,
+.dependency-map-edge-row small,
+.dependency-map-edge-row a {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dependency-map-edge-row span,
+.dependency-map-edge-row small {
+    color: var(--cloudshell-text-muted);
+}
+
+.dependency-map-edge-row a {
+    width: fit-content;
+    font-size: .78rem;
+}
+
+.dependency-map-node {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: .55rem;
+    min-width: 0;
+    padding: .6rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 4px;
+    background: var(--cloudshell-surface);
+    color: var(--cloudshell-text);
+    text-decoration: none;
+}
+
+.dependency-map-node:hover {
+    border-color: var(--cloudshell-accent);
+}
+
+.dependency-map-node.missing {
+    border-style: dashed;
+    background: transparent;
+}
+
+.dependency-map-node strong,
+.dependency-map-node small,
+.dependency-map-node em {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dependency-map-node small {
+    color: var(--cloudshell-text-muted);
+}
+
+.dependency-map-status {
+    width: fit-content;
+    margin-top: .2rem;
+    padding: .08rem .42rem;
+    border-radius: 999px;
+    background: var(--cloudshell-surface-muted);
+    color: var(--cloudshell-text-muted);
+    font-size: .68rem;
+    font-style: normal;
+    font-weight: 700;
+}
+
+.dependency-map-status.success {
+    background: var(--cloudshell-success-fill);
+    color: var(--cloudshell-success-text);
+}
+
+.dependency-map-status.info {
+    background: var(--cloudshell-info-fill);
+    color: var(--cloudshell-info-text);
+}
+
+.dependency-map-status.warning {
+    background: var(--cloudshell-warning-fill);
+    color: #946200;
+}
+
+.dependency-map-status.error {
+    background: var(--cloudshell-danger-fill);
+    color: var(--cloudshell-danger-text);
+}
+
+.dependency-map-node-placeholder {
+    width: 1.25rem;
+    height: 1.25rem;
+    border: 1px dashed var(--cloudshell-text-muted);
+    border-radius: 50%;
+}
+
+.dependency-map-link {
+    display: grid;
+    gap: .25rem;
+    min-width: 0;
+    color: var(--cloudshell-text-muted);
+    text-align: center;
+}
+
+.dependency-map-link strong {
+    color: var(--cloudshell-text);
+    font-size: .78rem;
+    text-transform: uppercase;
+}
+
+.dependency-map-link small {
+    overflow-wrap: anywhere;
+}
+
+.dependency-map-line {
+    position: relative;
+    display: block;
+    height: 1px;
+    margin: 0 .55rem;
+    background: var(--cloudshell-accent);
+}
+
+.dependency-map-line::after {
+    content: "";
+    position: absolute;
+    top: -.27rem;
+    right: -.05rem;
+    width: .55rem;
+    height: .55rem;
+    border-top: 1px solid var(--cloudshell-accent);
+    border-right: 1px solid var(--cloudshell-accent);
+    transform: rotate(45deg);
+}
+
+.dependency-map-sidebar {
+    display: grid;
+    gap: .85rem;
+    min-width: 0;
+}
+
+.dependency-map-sidebar h3 {
+    margin: 0 0 .25rem;
+    font-size: .85rem;
+}
+
+.dependency-map-node-summary {
+    display: grid;
+    gap: .12rem;
+    min-width: 0;
+    padding: .55rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 4px;
+    background: var(--cloudshell-surface-muted);
+}
+
+.dependency-map-node-summary.missing {
+    border-style: dashed;
+}
+
+.dependency-map-node-summary strong,
+.dependency-map-node-summary span,
+.dependency-map-node-summary em,
+.dependency-map-node-summary small {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dependency-map-node-summary span,
+.dependency-map-node-summary small {
+    color: var(--cloudshell-text-muted);
+}
+
+@media (max-width: 980px) {
+    .dependency-map-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .dependency-map-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .dependency-map-list-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .dependency-map-edge-row {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
 .trace-workspace {
     display: grid;
     grid-template-columns: minmax(0, 1fr);

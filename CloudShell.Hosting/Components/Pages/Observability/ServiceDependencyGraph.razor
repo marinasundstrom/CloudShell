@@ -1,0 +1,882 @@
+@using System.Globalization
+@inject IResourceManager ResourceManager
+@inject ITraceManager TraceManager
+@inject IStringLocalizer<SharedResource> L
+
+@{
+    var graph = BuildGraph(Resources, Spans, GraphMode);
+    var layout = BuildGraphLayout(graph);
+}
+
+@if (ShowHeading)
+{
+    <section class="page-heading compact">
+        <div>
+            <span class="eyebrow">@L["Observability"]</span>
+            <h1>@HeadingTitle</h1>
+            <p>@HeadingDescription</p>
+        </div>
+        <div class="heading-actions">
+            <label class="trace-source-filter" for="@GraphModeSelectId">
+                <span>@L["Graph source"]</span>
+                <select id="@GraphModeSelectId"
+                        class="trace-source-select"
+                        value="@GraphMode"
+                        @onchange="SelectGraphMode">
+                    <option value="@GraphModeTraces">@L["Trace calls"]</option>
+                    <option value="@GraphModeAll">@L["Trace calls + topology"]</option>
+                    <option value="@GraphModeDeclarations">@L["Declared dependencies"]</option>
+                </select>
+            </label>
+            <FluentButton Appearance="Appearance.Neutral"
+                          IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                          OnClick="RefreshAsync">
+                @L["Refresh"]
+            </FluentButton>
+        </div>
+    </section>
+}
+else
+{
+    <div class="resource-activity-header">
+        <div>
+            <h3>@HeadingTitle</h3>
+            <span>@L["OpenTelemetry service requests"]</span>
+        </div>
+        <div class="heading-actions">
+            <label class="trace-source-filter" for="@GraphModeSelectId">
+                <span>@L["Graph source"]</span>
+                <select id="@GraphModeSelectId"
+                        class="trace-source-select"
+                        value="@GraphMode"
+                        @onchange="SelectGraphMode">
+                    <option value="@GraphModeTraces">@L["Trace calls"]</option>
+                    <option value="@GraphModeAll">@L["Trace calls + topology"]</option>
+                    <option value="@GraphModeDeclarations">@L["Declared dependencies"]</option>
+                </select>
+            </label>
+            <FluentButton Appearance="Appearance.Neutral"
+                          IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                          OnClick="RefreshAsync">
+                @L["Refresh"]
+            </FluentButton>
+        </div>
+    </div>
+}
+
+<section class="dependency-map-summary" aria-label="@L["Service graph summary"]">
+    <div>
+        <span>@L["CloudShell resources"]</span>
+        <strong>@Resources.Count</strong>
+    </div>
+    <div>
+        <span>@L["Services"]</span>
+        <strong>@graph.Nodes.Count</strong>
+    </div>
+    <div>
+        <span>@L["Request edges"]</span>
+        <strong>@graph.Edges.Count</strong>
+    </div>
+    <div>
+        <span>@L["Trace spans"]</span>
+        <strong>@Spans.Count</strong>
+    </div>
+</section>
+
+<section class="panel panel-wide">
+    <div class="panel-header">
+        <div>
+            <h2>@PanelTitle</h2>
+            <p>@GetGraphSummary(graph)</p>
+        </div>
+    </div>
+
+    @if (graph.Edges.Count == 0)
+    {
+        <div class="empty-state">
+            <strong>@L["No service edges"]</strong>
+            <span>@L["Start traced services and send traffic between them to populate this map."]</span>
+        </div>
+    }
+    else
+    {
+        @if (ShowMap)
+        {
+            <div class="dependency-map-layout">
+                <div class="dependency-map-canvas" role="img" aria-label="@L["Service request graph"]">
+                    <svg class="dependency-map-visual"
+                         viewBox="@GetViewBox(layout)"
+                         preserveAspectRatio="xMidYMid meet">
+                        <defs>
+                            <marker id="dependency-map-arrow"
+                                    markerWidth="10"
+                                    markerHeight="8"
+                                    refX="9"
+                                    refY="4"
+                                    orient="auto"
+                                    markerUnits="strokeWidth">
+                                <path d="M0,0 L10,4 L0,8 Z"></path>
+                            </marker>
+                        </defs>
+
+                        @foreach (var edge in layout.Edges)
+                        {
+                            <g class="dependency-map-svg-edge @(edge.Edge.HasTrace ? "has-trace" : null) @(edge.Edge.ErrorSpanCount > 0 ? "has-errors" : null)">
+                                <line x1="@FormatNumber(edge.X1)"
+                                      y1="@FormatNumber(edge.Y1)"
+                                      x2="@FormatNumber(edge.X2)"
+                                      y2="@FormatNumber(edge.Y2)"></line>
+                                @foreach (var marker in edge.Markers)
+                                {
+                                    <circle class="@marker.ClassName"
+                                            cx="@FormatNumber(marker.X)"
+                                            cy="@FormatNumber(marker.Y)"
+                                            r="@FormatNumber(marker.Radius)">
+                                        <title>@FormatEdgeLabel(edge.Edge)</title>
+                                    </circle>
+                                }
+                            </g>
+                        }
+
+                        @foreach (var node in layout.Nodes)
+                        {
+                            if (node.Node.Resource is not null)
+                            {
+                                <a href="@BuildResourceRoute(node.Node.Resource.Id)">
+                                    @RenderMapNode(node)
+                                </a>
+                            }
+                            else
+                            {
+                                @RenderMapNode(node)
+                            }
+                        }
+                    </svg>
+
+                    <div class="dependency-map-legend" aria-label="@L["Graph legend"]">
+                        <span><i class="success"></i>@L["Telemetry active"]</span>
+                        <span><i class="error"></i>@L["Error spans"]</span>
+                        <span><i class="topology"></i>@L["Topology overlay"]</span>
+                    </div>
+                </div>
+
+                <aside class="dependency-map-sidebar" aria-label="@L["Service nodes"]">
+                    @RenderEdgeList(graph)
+                    @RenderNodeList(graph)
+                </aside>
+            </div>
+        }
+        else
+        {
+            <div class="dependency-map-list-layout">
+                @RenderEdgeList(graph)
+                <aside class="dependency-map-sidebar" aria-label="@L["Service nodes"]">
+                    @RenderNodeList(graph)
+                </aside>
+            </div>
+        }
+    }
+</section>
+
+@code {
+    private const string GraphModeAll = "all";
+    private const string GraphModeTraces = "traces";
+    private const string GraphModeDeclarations = "declarations";
+
+    [Parameter]
+    public bool ShowHeading { get; set; } = true;
+
+    [Parameter]
+    public string GraphModeSelectId { get; set; } = "dependency-graph-mode";
+
+    [Parameter]
+    public string HeadingTitle { get; set; } = "Service graph";
+
+    [Parameter]
+    public string HeadingDescription { get; set; } =
+        "Visualize OpenTelemetry service-to-service requests from trace spans.";
+
+    [Parameter]
+    public string PanelTitle { get; set; } = "Request map";
+
+    [Parameter]
+    public bool ShowMap { get; set; } = true;
+
+    private IReadOnlyList<Resource> Resources { get; set; } = [];
+    private IReadOnlyList<TraceSpan> Spans { get; set; } = [];
+    private string GraphMode { get; set; } = GraphModeTraces;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+    }
+
+    private async Task RefreshAsync()
+    {
+        Resources = await ResourceManager.ListResourcesAsync();
+        Spans = await TraceManager.ListTraceSpansAsync(new TraceQuery(MaxSpans: 1000));
+    }
+
+    private void SelectGraphMode(ChangeEventArgs args)
+    {
+        GraphMode = args.Value?.ToString() switch
+        {
+            GraphModeTraces => GraphModeTraces,
+            GraphModeDeclarations => GraphModeDeclarations,
+            _ => GraphModeAll
+        };
+    }
+
+    private RenderFragment RenderMapNode(DependencyGraphNodeLayout node) => @<g class="dependency-map-svg-node @node.Node.StatusKind @(node.Node.IsMissing ? "missing" : null)">
+        <circle cx="@FormatNumber(node.X)"
+                cy="@FormatNumber(node.Y)"
+                r="@FormatNumber(node.Radius)">
+            <title>@node.Node.Label / @node.Node.StatusLabel</title>
+        </circle>
+        <rect x="@FormatNumber(node.LabelX)"
+              y="@FormatNumber(node.LabelY)"
+              width="@FormatNumber(node.LabelWidth)"
+              height="24"
+              rx="2"></rect>
+        <text x="@FormatNumber(node.LabelX + 8)"
+              y="@FormatNumber(node.LabelY + 16)">
+            @node.DisplayLabel
+        </text>
+    </g>;
+
+    private RenderFragment RenderEdgeList(DependencyGraphViewModel graph) => @<section class="dependency-map-edge-list" aria-label="@L["Request edges"]">
+        <h3>@L["Request paths"]</h3>
+        <div role="list">
+            @foreach (var edge in graph.Edges)
+            {
+                <div class="dependency-map-edge-row @(edge.ErrorSpanCount > 0 ? "has-errors" : null)" role="listitem">
+                    <strong>@edge.Source.Label -> @edge.Target.Label</strong>
+                    <span>@FormatEdgeKind(edge)</span>
+                    <small>@FormatEdgeMetric(edge)</small>
+                    @if (BuildTraceRoute(edge) is { } traceRoute)
+                    {
+                        <a class="resource-link" href="@traceRoute">@GetTraceLinkLabel(edge)</a>
+                    }
+                </div>
+            }
+        </div>
+    </section>;
+
+    private RenderFragment RenderNodeList(DependencyGraphViewModel graph) => @<section class="dependency-map-node-list" aria-label="@L["Service nodes"]">
+        <h3>@L["Services"]</h3>
+        @foreach (var node in graph.Nodes)
+        {
+            <div class="dependency-map-node-summary @(node.IsMissing ? "missing" : null)">
+                <strong>@node.Label</strong>
+                <span>@node.Subtitle</span>
+                <em class="dependency-map-status @node.StatusKind">@node.StatusLabel</em>
+                <small>@GetNodeSummary(node, graph)</small>
+            </div>
+        }
+    </section>;
+
+    private string GetGraphSummary(DependencyGraphViewModel graph)
+    {
+        var traceEdges = graph.Edges.Count(edge => edge.HasTrace);
+        var declaredEdges = graph.Edges.Count(edge => edge.HasDeclaredDependency);
+
+        return L["{0} service request edge(s), {1} topology edge(s)", traceEdges, declaredEdges].Value;
+    }
+
+    private string GetNodeSummary(DependencyNode node, DependencyGraphViewModel graph)
+    {
+        var incoming = graph.Edges.Count(edge => string.Equals(edge.Target.Id, node.Id, StringComparison.OrdinalIgnoreCase));
+        var outgoing = graph.Edges.Count(edge => string.Equals(edge.Source.Id, node.Id, StringComparison.OrdinalIgnoreCase));
+
+        return L["{0} incoming / {1} outgoing", incoming, outgoing].Value;
+    }
+
+    private string FormatEdgeKind(DependencyEdge edge)
+    {
+        if (edge.HasTrace && edge.HasDeclaredDependency)
+        {
+            return L["trace + declared"].Value;
+        }
+
+        return edge.HasTrace ? L["trace"].Value : L["declared"].Value;
+    }
+
+    private string FormatEdgeMetric(DependencyEdge edge)
+    {
+        if (!edge.HasTrace)
+        {
+            return L["resource topology"].Value;
+        }
+
+        var latency = edge.AverageDuration is { } average
+            ? L["avg {0}", FormatDuration(average)].Value
+            : L["no latency"].Value;
+
+        return edge.ErrorSpanCount == 0
+            ? L["{0} span(s) / {1}", edge.TraceSpanCount, latency].Value
+            : L["{0} span(s) / {1} error(s) / {2}", edge.TraceSpanCount, edge.ErrorSpanCount, latency].Value;
+    }
+
+    private string FormatEdgeLabel(DependencyEdge edge) =>
+        L["{0} to {1}: {2}", edge.Source.Label, edge.Target.Label, FormatEdgeMetric(edge)].Value;
+
+    private string GetTraceLinkLabel(DependencyEdge edge) =>
+        edge.TraceIds.Count == 1 ? L["Open trace"].Value : L["Open traces"].Value;
+
+    private static string FormatDuration(TimeSpan duration) =>
+        duration.TotalSeconds >= 1
+            ? $"{duration.TotalSeconds.ToString("0.##", CultureInfo.InvariantCulture)}s"
+            : $"{duration.TotalMilliseconds.ToString("0.#", CultureInfo.InvariantCulture)}ms";
+
+    private static string FormatNumber(double value) =>
+        value.ToString("0.###", CultureInfo.InvariantCulture);
+
+    private static string GetViewBox(DependencyGraphLayout layout) =>
+        $"0 0 {FormatNumber(layout.Width)} {FormatNumber(layout.Height)}";
+
+    private static string BuildResourceRoute(string resourceId) =>
+        ResourceManagerRoutes.ResourceDetails(resourceId);
+
+    private static string? BuildTraceRoute(DependencyEdge edge)
+    {
+        if (!edge.HasTrace)
+        {
+            return null;
+        }
+
+        var resourceId = edge.Target.Resource?.Id ?? edge.Source.Resource?.Id;
+        if (string.IsNullOrWhiteSpace(resourceId))
+        {
+            return null;
+        }
+
+        var query = new Dictionary<string, string?>
+        {
+            ["resourceId"] = resourceId
+        };
+
+        if (edge.TraceIds.Count == 1)
+        {
+            query["traceId"] = edge.TraceIds[0];
+        }
+
+        return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
+            "/observability/traces",
+            query);
+    }
+
+    private static DependencyGraphLayout BuildGraphLayout(DependencyGraphViewModel graph)
+    {
+        const double minWidth = 900;
+        const double minHeight = 360;
+        const double leftPadding = 80;
+        const double rightPadding = 120;
+        const double topPadding = 55;
+        const double bottomPadding = 70;
+
+        if (graph.Nodes.Count == 0)
+        {
+            return new DependencyGraphLayout(minWidth, minHeight, [], []);
+        }
+
+        var levelByNodeId = ComputeNodeLevels(graph);
+        var levels = graph.Nodes
+            .GroupBy(node => levelByNodeId.GetValueOrDefault(node.Id))
+            .OrderBy(group => group.Key)
+            .ToArray();
+        var maxRows = Math.Max(1, levels.Max(group => group.Count()));
+        var width = Math.Max(minWidth, levels.Length * 230);
+        var height = Math.Max(minHeight, maxRows * 96 + topPadding + bottomPadding);
+        var columnStep = levels.Length <= 1
+            ? 0
+            : (width - leftPadding - rightPadding) / (levels.Length - 1);
+        var positionedNodes = new Dictionary<string, DependencyGraphNodeLayout>(StringComparer.OrdinalIgnoreCase);
+
+        for (var column = 0; column < levels.Length; column++)
+        {
+            var nodes = levels[column]
+                .OrderBy(node => node.Label, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            var rowStep = nodes.Length <= 1
+                ? 0
+                : (height - topPadding - bottomPadding) / (nodes.Length - 1);
+
+            for (var row = 0; row < nodes.Length; row++)
+            {
+                var node = nodes[row];
+                var x = levels.Length == 1
+                    ? width / 2
+                    : leftPadding + column * columnStep;
+                var y = nodes.Length == 1
+                    ? height / 2
+                    : topPadding + row * rowStep;
+                var radius = GetNodeRadius(node, graph);
+                var displayLabel = AbbreviateLabel(node.Label, 22);
+                var labelWidth = Math.Clamp(displayLabel.Length * 7.2 + 16, 58, 160);
+                var labelX = x + radius + 8;
+                if (labelX + labelWidth > width - 10)
+                {
+                    labelX = x - radius - labelWidth - 8;
+                }
+
+                positionedNodes[node.Id] = new DependencyGraphNodeLayout(
+                    node,
+                    x,
+                    y,
+                    radius,
+                    labelX,
+                    y - 12,
+                    labelWidth,
+                    displayLabel);
+            }
+        }
+
+        var edgeLayouts = graph.Edges
+            .Where(edge => positionedNodes.ContainsKey(edge.Source.Id) && positionedNodes.ContainsKey(edge.Target.Id))
+            .Select(edge => BuildEdgeLayout(edge, positionedNodes[edge.Source.Id], positionedNodes[edge.Target.Id]))
+            .ToArray();
+
+        return new DependencyGraphLayout(width, height, positionedNodes.Values.ToArray(), edgeLayouts);
+    }
+
+    private static IReadOnlyDictionary<string, int> ComputeNodeLevels(DependencyGraphViewModel graph)
+    {
+        var incoming = graph.Edges
+            .GroupBy(edge => edge.Target.Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.Count(), StringComparer.OrdinalIgnoreCase);
+        var outgoing = graph.Edges
+            .GroupBy(edge => edge.Source.Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.OrdinalIgnoreCase);
+        var levels = graph.Nodes.ToDictionary(node => node.Id, _ => 0, StringComparer.OrdinalIgnoreCase);
+        var queue = new Queue<DependencyNode>(
+            graph.Nodes.Where(node => !incoming.ContainsKey(node.Id)).OrderBy(node => node.Label, StringComparer.OrdinalIgnoreCase));
+
+        if (queue.Count == 0)
+        {
+            queue.Enqueue(graph.Nodes.OrderBy(node => node.Label, StringComparer.OrdinalIgnoreCase).First());
+        }
+
+        var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        while (queue.Count > 0)
+        {
+            var node = queue.Dequeue();
+            if (!visited.Add(node.Id) || !outgoing.TryGetValue(node.Id, out var edges))
+            {
+                continue;
+            }
+
+            foreach (var edge in edges)
+            {
+                levels[edge.Target.Id] = Math.Max(levels[edge.Target.Id], levels[node.Id] + 1);
+                queue.Enqueue(edge.Target);
+            }
+        }
+
+        foreach (var node in graph.Nodes.Where(node => !visited.Contains(node.Id)))
+        {
+            levels[node.Id] = Math.Max(levels.Values.DefaultIfEmpty(0).Max(), 0);
+        }
+
+        return levels;
+    }
+
+    private static DependencyGraphEdgeLayout BuildEdgeLayout(
+        DependencyEdge edge,
+        DependencyGraphNodeLayout source,
+        DependencyGraphNodeLayout target)
+    {
+        var dx = target.X - source.X;
+        var dy = target.Y - source.Y;
+        var length = Math.Max(Math.Sqrt(dx * dx + dy * dy), 1);
+        var unitX = dx / length;
+        var unitY = dy / length;
+        var x1 = source.X + unitX * (source.Radius + 3);
+        var y1 = source.Y + unitY * (source.Radius + 3);
+        var x2 = target.X - unitX * (target.Radius + 5);
+        var y2 = target.Y - unitY * (target.Radius + 5);
+        var markerCount = edge.HasTrace
+            ? Math.Clamp(edge.TraceSpanCount, 1, 28)
+            : 0;
+        var markers = Enumerable.Range(0, markerCount)
+            .Select(index =>
+            {
+                var percent = (index + 1d) / (markerCount + 1d);
+                var isError = edge.ErrorSpanCount > 0 && index < Math.Min(edge.ErrorSpanCount, markerCount);
+                return new DependencyGraphEdgeMarker(
+                    x1 + (x2 - x1) * percent,
+                    y1 + (y2 - y1) * percent,
+                    isError ? "error" : "request",
+                    isError ? 3.2 : 2.5);
+            })
+            .ToArray();
+
+        return new DependencyGraphEdgeLayout(edge, x1, y1, x2, y2, markers);
+    }
+
+    private static double GetNodeRadius(DependencyNode node, DependencyGraphViewModel graph)
+    {
+        var requestCount = graph.Edges
+            .Where(edge => string.Equals(edge.Source.Id, node.Id, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(edge.Target.Id, node.Id, StringComparison.OrdinalIgnoreCase))
+            .Sum(edge => edge.TraceSpanCount);
+
+        return Math.Clamp(11 + Math.Sqrt(Math.Max(requestCount, 1)) * 1.6, 11, 23);
+    }
+
+    private static string AbbreviateLabel(string label, int maxLength)
+    {
+        if (label.Length <= maxLength)
+        {
+            return label;
+        }
+
+        var keep = Math.Max(3, maxLength - 3);
+        return $"{label[..keep]}...";
+    }
+
+    private static DependencyGraphViewModel BuildGraph(
+        IReadOnlyList<Resource> resources,
+        IReadOnlyList<TraceSpan> spans,
+        string graphMode)
+    {
+        var resourceById = resources.ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+        var nodes = new Dictionary<string, DependencyNode>(StringComparer.OrdinalIgnoreCase);
+        var spansByNodeId = new Dictionary<string, List<TraceSpan>>(StringComparer.OrdinalIgnoreCase);
+        var edges = new Dictionary<string, DependencyEdgeBuilder>(StringComparer.OrdinalIgnoreCase);
+
+        DependencyNode GetServiceNode(TraceSpan span)
+        {
+            var serviceName = string.IsNullOrWhiteSpace(span.ServiceName)
+                ? span.ResourceId
+                : span.ServiceName.Trim();
+            var nodeId = $"service:{serviceName}";
+
+            resourceById.TryGetValue(span.ResourceId, out var resource);
+            if (nodes.TryGetValue(nodeId, out var existing))
+            {
+                if (existing.Resource is null && resource is not null)
+                {
+                    existing = existing with
+                    {
+                        Subtitle = $"{GetResourceLabel(resource)} / {GetResourceTypeLabel(resource)}",
+                        Resource = resource,
+                        StatusLabel = GetResourceStatusLabel(resource),
+                        StatusKind = GetResourceStatusKind(resource)
+                    };
+                    nodes[nodeId] = existing;
+                }
+
+                return existing;
+            }
+
+            var subtitle = resource is null
+                ? span.ResourceId
+                : $"{GetResourceLabel(resource)} / {GetResourceTypeLabel(resource)}";
+
+            var node = new DependencyNode(
+                nodeId,
+                serviceName,
+                subtitle,
+                resource,
+                GetResourceStatusLabel(resource),
+                GetResourceStatusKind(resource));
+            nodes[nodeId] = node;
+            return node;
+        }
+
+        DependencyNode GetMappedTopologyNode(Resource resource)
+        {
+            var serviceName = resource.EffectiveObservability.ServiceName;
+            var hasServiceName = !string.IsNullOrWhiteSpace(serviceName);
+            var nodeId = hasServiceName ? $"service:{serviceName!.Trim()}" : $"resource:{resource.Id}";
+            if (nodes.TryGetValue(nodeId, out var existing))
+            {
+                if (existing.Resource is null)
+                {
+                    existing = existing with
+                    {
+                        Subtitle = $"{GetResourceLabel(resource)} / {GetResourceTypeLabel(resource)}",
+                        Resource = resource,
+                        StatusLabel = GetResourceStatusLabel(resource),
+                        StatusKind = GetResourceStatusKind(resource)
+                    };
+                    nodes[nodeId] = existing;
+                }
+
+                return existing;
+            }
+
+            var node = new DependencyNode(
+                nodeId,
+                hasServiceName ? serviceName!.Trim() : GetResourceLabel(resource),
+                GetResourceTypeLabel(resource),
+                resource,
+                GetResourceStatusLabel(resource),
+                GetResourceStatusKind(resource));
+            nodes[nodeId] = node;
+            return node;
+        }
+
+        DependencyNode GetMissingTopologyNode(string resourceId)
+        {
+            var nodeId = $"resource:{resourceId}";
+            if (nodes.TryGetValue(nodeId, out var existing))
+            {
+                return existing;
+            }
+
+            var node = new DependencyNode(nodeId, resourceId, resourceId, null, "No resource", "unknown");
+            nodes[nodeId] = node;
+            return node;
+        }
+
+        void TrackNodeSpan(DependencyNode node, TraceSpan span)
+        {
+            if (!spansByNodeId.TryGetValue(node.Id, out var nodeSpans))
+            {
+                nodeSpans = [];
+                spansByNodeId[node.Id] = nodeSpans;
+            }
+
+            nodeSpans.Add(span);
+        }
+
+        if (graphMode is GraphModeAll or GraphModeTraces)
+        {
+            foreach (var traceGroup in spans.GroupBy(span => span.TraceId, StringComparer.OrdinalIgnoreCase))
+            {
+                foreach (var span in traceGroup)
+                {
+                    TrackNodeSpan(GetServiceNode(span), span);
+                }
+
+                var spansById = traceGroup
+                    .GroupBy(span => span.SpanId, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(group => group.Key, group => group.OrderBy(span => span.StartTime).First(),
+                        StringComparer.OrdinalIgnoreCase);
+
+                foreach (var child in traceGroup)
+                {
+                    if (string.IsNullOrWhiteSpace(child.ParentSpanId) ||
+                        !spansById.TryGetValue(child.ParentSpanId, out var parent))
+                    {
+                        GetServiceNode(child);
+                        continue;
+                    }
+
+                    if (string.Equals(parent.ServiceName, child.ServiceName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        GetServiceNode(child);
+                        continue;
+                    }
+
+                    var source = GetServiceNode(parent);
+                    var target = GetServiceNode(child);
+                    GetEdge(edges, source, target).AddTraceSpan(child);
+                }
+            }
+        }
+
+        if (graphMode is GraphModeAll or GraphModeDeclarations)
+        {
+            foreach (var resource in resources)
+            {
+                var source = GetMappedTopologyNode(resource);
+                foreach (var dependencyId in resource.DependsOn
+                    .Where(dependency => !string.IsNullOrWhiteSpace(dependency))
+                    .Distinct(StringComparer.OrdinalIgnoreCase))
+                {
+                    var target = resourceById.TryGetValue(dependencyId, out var dependency)
+                        ? GetMappedTopologyNode(dependency)
+                        : GetMissingTopologyNode(dependencyId);
+                    GetEdge(edges, source, target).HasDeclaredDependency = true;
+                }
+            }
+        }
+
+        foreach (var node in nodes.Values.ToArray())
+        {
+            if (!spansByNodeId.TryGetValue(node.Id, out var nodeSpans) || nodeSpans.Count == 0)
+            {
+                continue;
+            }
+
+            var status = GetTelemetryStatus(nodeSpans, node.Resource);
+            nodes[node.Id] = node with
+            {
+                StatusLabel = status.Label,
+                StatusKind = status.Kind
+            };
+        }
+
+        var graphEdges = edges.Values
+            .Select(edge => edge.Build(nodes))
+            .OrderByDescending(edge => edge.HasTrace)
+            .ThenByDescending(edge => edge.TraceSpanCount)
+            .ThenBy(edge => edge.Source.Label, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(edge => edge.Target.Label, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        var connectedNodeIds = graphEdges
+            .SelectMany(edge => new[] { edge.Source.Id, edge.Target.Id })
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var graphNodes = nodes.Values
+            .Where(node => connectedNodeIds.Contains(node.Id))
+            .OrderBy(node => node.IsMissing)
+            .ThenBy(node => node.Label, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return new DependencyGraphViewModel(graphNodes, graphEdges);
+    }
+
+    private static DependencyEdgeBuilder GetEdge(
+        IDictionary<string, DependencyEdgeBuilder> edges,
+        DependencyNode source,
+        DependencyNode target)
+    {
+        var key = $"{source.Id}\u001f{target.Id}";
+        if (!edges.TryGetValue(key, out var edge))
+        {
+            edge = new DependencyEdgeBuilder(source, target);
+            edges[key] = edge;
+        }
+
+        return edge;
+    }
+
+    private static string GetResourceLabel(Resource resource) =>
+        string.IsNullOrWhiteSpace(resource.DisplayName) ? resource.Name : resource.DisplayName;
+
+    private static string GetResourceTypeLabel(Resource resource) =>
+        string.IsNullOrWhiteSpace(resource.EffectiveTypeId) ? resource.Kind : resource.EffectiveTypeId;
+
+    private static string GetResourceStatusLabel(Resource? resource) =>
+        resource?.State?.ToString() ?? "No lifecycle status";
+
+    private static string GetResourceStatusKind(Resource? resource) =>
+        resource?.State switch
+        {
+            ResourceState.Running => "success",
+            ResourceState.Starting or ResourceState.Stopping => "info",
+            ResourceState.Degraded or ResourceState.Unknown => "warning",
+            null => "unknown",
+            _ => "neutral"
+        };
+
+    private static NodeStatus GetTelemetryStatus(
+        IReadOnlyList<TraceSpan> spans,
+        Resource? resource)
+    {
+        var errorCount = spans.Count(IsErrorSpan);
+        if (errorCount > 0)
+        {
+            return new NodeStatus($"{errorCount} error span(s)", "error");
+        }
+
+        if (spans.Count > 0)
+        {
+            return new NodeStatus("Telemetry active", "success");
+        }
+
+        return new NodeStatus(GetResourceStatusLabel(resource), GetResourceStatusKind(resource));
+    }
+
+    private static bool IsErrorSpan(TraceSpan span) =>
+        !string.IsNullOrWhiteSpace(span.Status) &&
+        !string.Equals(span.Status, "Unset", StringComparison.OrdinalIgnoreCase) &&
+        !string.Equals(span.Status, "Ok", StringComparison.OrdinalIgnoreCase);
+
+    private sealed record DependencyGraphViewModel(
+        IReadOnlyList<DependencyNode> Nodes,
+        IReadOnlyList<DependencyEdge> Edges);
+
+    private sealed record DependencyGraphLayout(
+        double Width,
+        double Height,
+        IReadOnlyList<DependencyGraphNodeLayout> Nodes,
+        IReadOnlyList<DependencyGraphEdgeLayout> Edges);
+
+    private sealed record DependencyGraphNodeLayout(
+        DependencyNode Node,
+        double X,
+        double Y,
+        double Radius,
+        double LabelX,
+        double LabelY,
+        double LabelWidth,
+        string DisplayLabel);
+
+    private sealed record DependencyGraphEdgeLayout(
+        DependencyEdge Edge,
+        double X1,
+        double Y1,
+        double X2,
+        double Y2,
+        IReadOnlyList<DependencyGraphEdgeMarker> Markers);
+
+    private sealed record DependencyGraphEdgeMarker(
+        double X,
+        double Y,
+        string ClassName,
+        double Radius);
+
+    private sealed record DependencyNode(
+        string Id,
+        string Label,
+        string Subtitle,
+        Resource? Resource,
+        string StatusLabel,
+        string StatusKind)
+    {
+        public bool IsMissing => Resource is null;
+    }
+
+    private sealed record DependencyEdge(
+        DependencyNode Source,
+        DependencyNode Target,
+        bool HasTrace,
+        bool HasDeclaredDependency,
+        int TraceSpanCount,
+        int ErrorSpanCount,
+        TimeSpan? AverageDuration,
+        IReadOnlyList<string> TraceIds);
+
+    private sealed record NodeStatus(string Label, string Kind);
+
+    private sealed class DependencyEdgeBuilder(DependencyNode source, DependencyNode target)
+    {
+        private readonly List<TraceSpan> traceSpans = [];
+
+        public bool HasDeclaredDependency { get; set; }
+
+        public void AddTraceSpan(TraceSpan span)
+        {
+            traceSpans.Add(span);
+        }
+
+        public DependencyEdge Build(IReadOnlyDictionary<string, DependencyNode> nodes)
+        {
+            var averageDuration = traceSpans.Count == 0
+                ? (TimeSpan?)null
+                : TimeSpan.FromMilliseconds(traceSpans.Average(span => span.Duration.TotalMilliseconds));
+            var resolvedSource = nodes.GetValueOrDefault(source.Id) ?? source;
+            var resolvedTarget = nodes.GetValueOrDefault(target.Id) ?? target;
+
+            return new DependencyEdge(
+                resolvedSource,
+                resolvedTarget,
+                traceSpans.Count > 0,
+                HasDeclaredDependency,
+                traceSpans.Count,
+                traceSpans.Count(IsErrorSpan),
+                averageDuration,
+                traceSpans
+                    .Select(span => span.TraceId)
+                    .Where(traceId => !string.IsNullOrWhiteSpace(traceId))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Order(StringComparer.OrdinalIgnoreCase)
+                    .ToArray());
+        }
+    }
+}

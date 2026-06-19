@@ -1,0 +1,11 @@
+@page "/observability/request-map"
+@rendermode InteractiveServer
+@inject IStringLocalizer<SharedResource> L
+
+<PageTitle>@L["Request map"]</PageTitle>
+
+<ServiceDependencyGraph HeadingTitle="@L["Request map"].Value"
+                        HeadingDescription="@L["Visualize service-to-service request flow from OpenTelemetry traces."].Value"
+                        PanelTitle="@L["Live request flow"].Value"
+                        GraphModeSelectId="request-map-mode"
+                        ShowMap="true" />
