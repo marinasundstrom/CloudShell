@@ -193,6 +193,10 @@ h3 {
     gap: .9rem;
 }
 
+.dashboard-grid + .dashboard-grid {
+    margin-top: .9rem;
+}
+
 .account-store-alert {
     margin-bottom: .9rem;
 }
