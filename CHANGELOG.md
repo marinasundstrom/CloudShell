@@ -28,6 +28,8 @@ on `git blame --follow`, and then by the broad type of change.
 - SQL Server **Databases** now merges declared database intent with a read-only
   live query against the running instance so Resource Manager can show whether
   declared databases exist and list additional databases on the server.
+- SQL Server resource overview now leads with SQL service details instead of
+  generic container image, revision, and host placement fields.
 
 ### 2026-06-19
 

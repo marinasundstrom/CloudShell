@@ -105,9 +105,14 @@ from access grants, or project database connection strings for workloads.
 
 ## Overview
 
-The SQL Server overview shows the projected TDS endpoint, a convenience
-connection string, and the configured SA password. The connection string uses
-the current local endpoint and the configured `MSSQL_SA_PASSWORD` value:
+The SQL Server overview leads with SQL service details: projected TDS endpoint,
+declared database count, administrator name, storage, identity, access grants,
+and diagnostics. Provider runtime container details remain behind
+configuration and diagnostics surfaces instead of being the primary overview.
+
+For local development, the overview also shows a convenience connection string
+and the configured SA password. The connection string uses the current local
+endpoint and the configured `MSSQL_SA_PASSWORD` value:
 
 ```text
 Server=localhost,<port>;User Id=sa;Password=<password>;TrustServerCertificate=True;

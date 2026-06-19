@@ -23,7 +23,20 @@ else
     <section class="blade-section">
         <h3>Essentials</h3>
         <dl class="detail-list">
-            @if (IsAspNetCoreProject(Application))
+            @if (IsSqlServer(Application))
+            {
+                <dt>Service</dt>
+                <dd>SQL Server</dd>
+                <dt>Databases</dt>
+                <dd>
+                    <a class="resource-link" href="@BuildResourceTabRoute(Application.Id, new ResourceViewId(ResourceTabGroupIds.Application, "databases"))">
+                        @FormatSqlDatabaseSummary(Application)
+                    </a>
+                </dd>
+                <dt>Administrator</dt>
+                <dd>sa</dd>
+            }
+            else if (IsAspNetCoreProject(Application))
             {
                 <dt>Project path</dt>
                 <dd>@(Application.ProjectPath ?? "none")</dd>
@@ -220,7 +233,7 @@ else
         </section>
     }
 
-    @if (IsContainerBacked(Application))
+    @if (IsContainerBacked(Application) && !IsSqlServer(Application))
     {
         <section class="blade-section">
             <h3>Container host</h3>
@@ -466,7 +479,7 @@ else
         Logs = Application is null
             ? []
             : await GetLogsAsync(Application.Id);
-        ContainerHostPlacement = Application is null || !IsContainerBacked(Application)
+        ContainerHostPlacement = Application is null || !IsContainerBacked(Application) || IsSqlServer(Application)
             ? null
             : GetContainerHostPlacement(Application);
         var permissionGrants = await ResourceManagerClient.ListResourcePermissionGrantsAsync();
@@ -524,6 +537,11 @@ else
 
     private static string NormalizeRegistry(string? value) =>
         string.IsNullOrWhiteSpace(value) ? ContainerRegistryDefaults.Default : value.Trim();
+
+    private static string FormatSqlDatabaseSummary(ApplicationResourceDefinition application) =>
+        application.SqlDatabases.Count == 0
+            ? "No declared databases"
+            : FormatCount(application.SqlDatabases.Count, "declared database", "declared databases");
 
     private static string FormatIdentityName(ResourceIdentityBinding identity) =>
         string.IsNullOrWhiteSpace(identity.Name)

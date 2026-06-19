@@ -750,10 +750,15 @@ public sealed class SampleSmokeTests
             $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details");
         Assert.Contains(">Identity<", sqlDetailsHtml);
         Assert.Contains("Access control", sqlDetailsHtml);
+        Assert.Contains("SQL Server", sqlDetailsHtml);
+        Assert.Contains("1 declared database", sqlDetailsHtml);
+        Assert.Contains("Administrator", sqlDetailsHtml);
         Assert.Contains("Storage mounts", sqlDetailsHtml);
         Assert.Contains("SQL Data (FileSystem)", sqlDetailsHtml);
         Assert.Contains("/var/opt/mssql", sqlDetailsHtml);
         Assert.Contains("Read/write", sqlDetailsHtml);
+        Assert.DoesNotContain("<dt>Image</dt>", sqlDetailsHtml);
+        Assert.DoesNotContain("<h3>Container host</h3>", sqlDetailsHtml);
         AssertResourceTabsInOrder(
             sqlDetailsHtml,
             ">Overview<",
