@@ -2184,6 +2184,128 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task ApplicationProvider_ReportsMissingRegistryCredentialEnvironmentAsActionUnavailable()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var passwordVariable = $"CLOUDSHELL_TEST_REGISTRY_PASSWORD_{Guid.NewGuid():N}";
+        var services = new ServiceCollection();
+
+        try
+        {
+            Environment.SetEnvironmentVariable(passwordVariable, null);
+            services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+            services
+                .AddControlPlane()
+                .UseContainerHost(new ContainerHostDescriptor(
+                    "docker:dev",
+                    "Docker",
+                    ContainerHostKind.Docker,
+                    "unix:///var/run/docker.sock",
+                    IsDefault: true,
+                    Capabilities: [ContainerHostCapabilityIds.ContainerImage]))
+                .AddApplicationProvider();
+
+            using var serviceProvider = services.BuildServiceProvider();
+            var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+            var resourceProvider = serviceProvider.GetRequiredService<ContainerApplicationResourceProvider>();
+            var registrations = new MutableResourceRegistrationStore();
+            await provider.SetupApplicationAsync(
+                new ApplicationResourceDefinition(
+                    "application:api",
+                    "API",
+                    string.Empty,
+                    containerImage: "registry.example.com/team/api:dev",
+                    containerRegistry: "https://registry.example.com",
+                    containerRegistryCredentials: new ContainerRegistryCredentials(
+                        "registry-user",
+                        passwordVariable),
+                    resourceType: ApplicationResourceTypes.ContainerApp),
+                resourceGroupId: null,
+                registrations);
+
+            var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
+            var resourceManager = new StaticResourceManagerStore([resource], [resourceProvider]);
+
+            var reason = await resourceProvider.GetActionUnavailableReasonAsync(
+                new ResourceProcedureContext(
+                    resource,
+                    registrations.GetRegistration(resource.Id),
+                    null,
+                    registrations,
+                    resourceManager),
+                ResourceAction.Start);
+
+            Assert.Equal(
+                $"Container app resource 'application:api' cannot access registry 'registry.example.com' because credential environment variable '{passwordVariable}' is not configured.",
+                reason);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(passwordVariable, null);
+        }
+    }
+
+    [Fact]
+    public async Task ApplicationProvider_AllowsRegistryCredentialWhenEnvironmentIsConfigured()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var passwordVariable = $"CLOUDSHELL_TEST_REGISTRY_PASSWORD_{Guid.NewGuid():N}";
+        var services = new ServiceCollection();
+
+        try
+        {
+            Environment.SetEnvironmentVariable(passwordVariable, "secret-value");
+            services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+            services
+                .AddControlPlane()
+                .UseContainerHost(new ContainerHostDescriptor(
+                    "docker:dev",
+                    "Docker",
+                    ContainerHostKind.Docker,
+                    "unix:///var/run/docker.sock",
+                    IsDefault: true,
+                    Capabilities: [ContainerHostCapabilityIds.ContainerImage]))
+                .AddApplicationProvider();
+
+            using var serviceProvider = services.BuildServiceProvider();
+            var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+            var resourceProvider = serviceProvider.GetRequiredService<ContainerApplicationResourceProvider>();
+            var registrations = new MutableResourceRegistrationStore();
+            await provider.SetupApplicationAsync(
+                new ApplicationResourceDefinition(
+                    "application:api",
+                    "API",
+                    string.Empty,
+                    containerImage: "registry.example.com/team/api:dev",
+                    containerRegistry: "https://registry.example.com",
+                    containerRegistryCredentials: new ContainerRegistryCredentials(
+                        "registry-user",
+                        passwordVariable),
+                    resourceType: ApplicationResourceTypes.ContainerApp),
+                resourceGroupId: null,
+                registrations);
+
+            var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
+            var resourceManager = new StaticResourceManagerStore([resource], [resourceProvider]);
+
+            var reason = await resourceProvider.GetActionUnavailableReasonAsync(
+                new ResourceProcedureContext(
+                    resource,
+                    registrations.GetRegistration(resource.Id),
+                    null,
+                    registrations,
+                    resourceManager),
+                ResourceAction.Start);
+
+            Assert.Null(reason);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(passwordVariable, null);
+        }
+    }
+
+    [Fact]
     public async Task LocalProcessRunner_DisposeStopsControlPlaneScopedProcesses()
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));

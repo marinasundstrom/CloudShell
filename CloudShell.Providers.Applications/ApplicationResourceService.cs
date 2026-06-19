@@ -569,6 +569,15 @@ public sealed partial class ApplicationResourceService(
             context.ResourceManager,
             context.PreferredContainerHostId,
             cancellationToken);
+        if (containerHost is not null)
+        {
+            var registryCredentialReason = GetRegistryCredentialUnavailableReason(application);
+            if (!string.IsNullOrWhiteSpace(registryCredentialReason))
+            {
+                return registryCredentialReason;
+            }
+        }
+
         var volumeReason = GetVolumeMountUnavailableReason(
             application.VolumeMounts,
             context.ResourceManager,
@@ -634,6 +643,24 @@ public sealed partial class ApplicationResourceService(
         return File.Exists(resolvedPath)
             ? null
             : $"Executable application resource '{application.Id}' cannot start because executable path '{executablePath}' was not found at '{resolvedPath}'.";
+    }
+
+    private static string? GetRegistryCredentialUnavailableReason(ApplicationResourceDefinition application)
+    {
+        if (!IsContainerBacked(application))
+        {
+            return null;
+        }
+
+        var credentials = ContainerRegistryCredentials.Normalize(application.ContainerRegistryCredentials);
+        if (credentials is null)
+        {
+            return null;
+        }
+
+        return string.IsNullOrEmpty(Environment.GetEnvironmentVariable(credentials.NormalizedPasswordEnvironmentVariable))
+            ? $"Container app resource '{application.Id}' cannot access registry '{GetImageRegistryAddress(GetEffectiveContainerRegistry(application))}' because credential environment variable '{credentials.NormalizedPasswordEnvironmentVariable}' is not configured."
+            : null;
     }
 
     public bool CanExecuteOrchestratorService(

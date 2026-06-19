@@ -100,7 +100,10 @@ declarations can specify credentials with
 `WithRegistryCredentialsFromEnvironment(username, passwordEnvironmentVariable)`.
 The provider reads the password from the named environment variable at
 execution time and uses Docker `login --password-stdin` before launching the
-container image.
+container image. Before Start or Restart dispatches, Resource Manager verifies
+that the configured password environment variable is present when registry
+credentials are configured, and reports an action-unavailable reason without
+exposing the password value.
 
 The Container app registration and configuration tabs expose the registry next
 to the image setting. Docker host registration/configuration exposes a registry
