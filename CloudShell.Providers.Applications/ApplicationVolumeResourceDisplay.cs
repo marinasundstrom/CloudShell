@@ -26,7 +26,10 @@ internal static class ApplicationVolumeResourceDisplay
         $"{GetMountSourceLabel(mount, volume)} -> {mount.NormalizedTargetPath}";
 
     public static string GetMountAccessLabel(ResourceVolumeMount mount) =>
-        mount.ReadOnly ? "Read-only" : "Read/write";
+        GetMountAccessLabel(mount, static value => value);
+
+    public static string GetMountAccessLabel(ResourceVolumeMount mount, Func<string, string> localize) =>
+        mount.ReadOnly ? localize("Read-only") : localize("Read/write");
 
     private static string GetVolumeStorageMedium(Resource resource) =>
         resource.ResourceAttributes.TryGetValue(ResourceAttributeNames.VolumeStorageMedium, out var medium)

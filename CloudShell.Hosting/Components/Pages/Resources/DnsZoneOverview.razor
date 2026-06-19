@@ -1,4 +1,5 @@
 @inject IResourceManager ResourceManager
+@inject IStringLocalizer<SharedResource> L
 
 @if (DnsZone is null)
 {
@@ -114,7 +115,7 @@ else
         {
             $"Exposure: {GetAttribute(mapping, ResourceAttributeNames.NameMappingExposure, ResourceExposureScope.Public.ToString())}",
             GetProviderLabel(mapping),
-            $"Materialization: {ResourceNameMappingDisplay.GetMaterializationLabel(mapping)}"
+            $"Materialization: {ResourceNameMappingDisplay.GetMaterializationLabel(mapping, Localize)}"
         };
 
         if (!string.Equals(
@@ -155,4 +156,6 @@ else
 
     private static string BuildResourceRoute(string resourceId, ResourceViewId tabId) =>
         ResourceManagerRoutes.ResourceDetails(resourceId, tabId);
+
+    private string Localize(string value) => L[value].Value;
 }

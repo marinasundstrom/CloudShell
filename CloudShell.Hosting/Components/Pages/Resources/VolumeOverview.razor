@@ -1,5 +1,6 @@
 @inject IResourceManager ResourceManager
 @inject IResourceOrchestrationCatalog OrchestrationCatalog
+@inject IStringLocalizer<SharedResource> L
 
 @if (Volume is null)
 {
@@ -29,7 +30,7 @@ else
             <dt>Volume path</dt>
             <dd>@GetAttribute(ResourceAttributeNames.VolumeLocation, "provider managed")</dd>
             <dt>Access mode</dt>
-            <dd>@ResourceVolumeDisplay.GetAccessModeLabel(GetAttribute(ResourceAttributeNames.VolumeAccessMode, VolumeAccessMode.ReadWriteOnce.ToString()))</dd>
+            <dd>@ResourceVolumeDisplay.GetAccessModeLabel(GetAttribute(ResourceAttributeNames.VolumeAccessMode, VolumeAccessMode.ReadWriteOnce.ToString()), Localize)</dd>
             <dt>Persistent</dt>
             <dd>@GetAttribute(ResourceAttributeNames.VolumePersistent, "true")</dd>
             <dt>Delete status</dt>
@@ -67,7 +68,7 @@ else
                             {
                                 @foreach (var mount in consumer.Mounts)
                                 {
-                                    <span>@ResourceVolumeMountDisplay.GetMountSummary(mount)</span>
+                                    <span>@ResourceVolumeMountDisplay.GetMountSummary(mount, Localize)</span>
                                     <small>@GetConsumerMountMetadata(consumer.Resource)</small>
                                 }
                             }
@@ -130,7 +131,7 @@ else
                 .ToArray()
             : [];
 
-    private static string GetConsumerMountMetadata(Resource consumer)
+    private string GetConsumerMountMetadata(Resource consumer)
     {
         var parts = new List<string>
         {
@@ -138,7 +139,7 @@ else
             consumer.EffectiveTypeId
         };
 
-        if (ResourceVolumeMountDisplay.GetMaterializationSummary(consumer) is { } materialization)
+        if (ResourceVolumeMountDisplay.GetMaterializationSummary(consumer, Localize) is { } materialization)
         {
             parts.Add($"Storage: {materialization}");
         }
@@ -167,6 +168,8 @@ else
 
     private static string BuildResourceRoute(string resourceId) =>
         ResourceManagerRoutes.ResourceOverview(resourceId);
+
+    private string Localize(string value) => L[value].Value;
 
     private sealed record VolumeConsumerView(
         Resource Resource,

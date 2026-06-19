@@ -1,5 +1,6 @@
 @using System.Text.Json
 @inject IResourceManager ResourceManager
+@inject IStringLocalizer<SharedResource> L
 
 @if (Volume is null)
 {
@@ -52,7 +53,7 @@ else
             <EnumValueSelect TEnum="VolumeAccessMode"
                              Id="volume-update-access-mode"
                              Label="Access mode"
-                             LabelSelector="@ResourceVolumeDisplay.GetAccessModeLabel"
+                             LabelSelector="GetAccessModeLabel"
                              Disabled="@IsStorageShapeLocked"
                              @bind-Value="SelectedAccessMode" />
 
@@ -210,5 +211,10 @@ else
 
     private string GetLocationPlaceholder() =>
         HasSelectedStorage ? "postgres-data" : "./data/postgres or /mnt/share/postgres";
+
+    private string GetAccessModeLabel(VolumeAccessMode mode) =>
+        ResourceVolumeDisplay.GetAccessModeLabel(mode, Localize);
+
+    private string Localize(string value) => L[value].Value;
 
 }

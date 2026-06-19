@@ -1,6 +1,7 @@
 @inject IResourceManager ResourceManager
 @inject IResourceOrchestrationCatalog OrchestrationCatalog
 @inject NavigationManager Navigation
+@inject IStringLocalizer<SharedResource> L
 
 @if (Storage is null)
 {
@@ -155,7 +156,7 @@ else
             : $"{subPath} - {volume.Consumers.Count} consumer{Pluralize(volume.Consumers.Count)}";
     }
 
-    private static string GetVolumeMetadata(StorageVolumeView volume)
+    private string GetVolumeMetadata(StorageVolumeView volume)
     {
         var parts = new List<string>
         {
@@ -175,9 +176,9 @@ else
         return string.Join(" - ", parts);
     }
 
-    private static string? GetConsumerMountMaterialization(StorageVolumeConsumerView consumer)
+    private string? GetConsumerMountMaterialization(StorageVolumeConsumerView consumer)
     {
-        var label = ResourceVolumeMountDisplay.GetMaterializationSummary(consumer.Resource);
+        var label = ResourceVolumeMountDisplay.GetMaterializationSummary(consumer.Resource, Localize);
         return label is null
             ? null
             : $"{ResourceDisplayLabels.GetLabel(consumer.Resource)}: {label}";
@@ -215,6 +216,8 @@ else
 
     private void ManageVolume(string resourceId) =>
         Navigation.NavigateTo(BuildManageResourceRoute(resourceId));
+
+    private string Localize(string value) => L[value].Value;
 
     private sealed record StorageVolumeView(
         Resource Volume,

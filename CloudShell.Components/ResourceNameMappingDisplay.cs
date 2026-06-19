@@ -30,12 +30,15 @@ public static class ResourceNameMappingDisplay
         GetAttribute(resource, ResourceAttributeNames.NameMappingProviderResourceId, string.Empty);
 
     public static string GetMaterializationLabel(Resource resource) =>
+        GetMaterializationLabel(resource, static value => value);
+
+    public static string GetMaterializationLabel(Resource resource, Func<string, string> localize) =>
         GetAttribute(resource, ResourceAttributeNames.NameMappingMaterializationStatus, "unknown") switch
         {
-            "LogicalOnly" => "logical only",
-            "ProviderSelected" => "provider selected",
-            "Published" => "published",
-            "PublishFailed" => "publish failed",
+            "LogicalOnly" => localize("logical only"),
+            "ProviderSelected" => localize("provider selected"),
+            "Published" => localize("published"),
+            "PublishFailed" => localize("publish failed"),
             var value => value
         };
 

@@ -768,7 +768,7 @@
         {
             L["Exposure: {0}", ResourceNameMappingDisplay.GetExposureLabel(view.Mapping)].Value,
             FormatNameMappingProvider(view.Mapping),
-            L["Materialization: {0}", ResourceNameMappingDisplay.GetMaterializationLabel(view.Mapping)].Value
+            L["Materialization: {0}", ResourceNameMappingDisplay.GetMaterializationLabel(view.Mapping, Localize)].Value
         };
 
         var zone = string.IsNullOrWhiteSpace(view.Mapping.ParentResourceId)
@@ -871,6 +871,8 @@
             ? L["{0} on {1}", healthCheck.Type, endpoint].Value
             : L["{0} on {1}, timeout {2}s", healthCheck.Type, endpoint, healthCheck.Timeout.Value.TotalSeconds].Value;
     }
+
+    private string Localize(string value) => L[value].Value;
 
     private sealed record NetworkEndpointMappingView(
         Resource Network,

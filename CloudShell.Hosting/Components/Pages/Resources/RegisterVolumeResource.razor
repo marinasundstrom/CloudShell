@@ -2,6 +2,7 @@
 @inject IResourceManager ResourceManager
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
+@inject IStringLocalizer<SharedResource> L
 
 <div class="type-registration">
     <div class="form-panel">
@@ -40,7 +41,7 @@
         <EnumValueSelect TEnum="VolumeAccessMode"
                          Id="volume-access-mode"
                          Label="Access mode"
-                         LabelSelector="@ResourceVolumeDisplay.GetAccessModeLabel"
+                         LabelSelector="GetAccessModeLabel"
                          @bind-Value="SelectedAccessMode" />
 
         <FluentCheckbox @bind-Value="Persistent">
@@ -214,5 +215,10 @@
 
     private string GetLocationPlaceholder() =>
         HasSelectedStorage ? "postgres-data" : "./data/postgres or /mnt/share/postgres";
+
+    private string GetAccessModeLabel(VolumeAccessMode mode) =>
+        ResourceVolumeDisplay.GetAccessModeLabel(mode, Localize);
+
+    private string Localize(string value) => L[value].Value;
 
 }

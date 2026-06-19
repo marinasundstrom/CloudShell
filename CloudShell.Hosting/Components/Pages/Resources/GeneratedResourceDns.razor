@@ -207,7 +207,7 @@
         {
             L["Exposure: {0}", ResourceNameMappingDisplay.GetExposureLabel(view.Mapping)].Value,
             FormatNameMappingProvider(view.Mapping),
-            L["Materialization: {0}", ResourceNameMappingDisplay.GetMaterializationLabel(view.Mapping)].Value
+            L["Materialization: {0}", ResourceNameMappingDisplay.GetMaterializationLabel(view.Mapping, Localize)].Value
         };
 
         var zone = string.IsNullOrWhiteSpace(view.Mapping.ParentResourceId)
@@ -275,6 +275,8 @@
 
     private static string BuildResourceTabRoute(string resourceId, ResourceViewId tabId) =>
         ResourceManagerRoutes.ResourceDetails(resourceId, tabId);
+
+    private string Localize(string value) => L[value].Value;
 
     private sealed record NameMappingView(Resource Mapping);
 }

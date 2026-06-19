@@ -85,6 +85,11 @@ on `git blame --follow`, and then by the broad type of change.
   provider, materialization, and target-resource matching, replacing duplicate
   formatting across generated resource views, DNS zone overview, resource-list
   blades, and application overview.
+- Shared display helpers for volume access modes, volume mount
+  materialization, name-mapping materialization, application lifetime,
+  container hosts, and application volume mount access now expose localized
+  overloads, and Resource Manager views use those overloads for human-facing
+  labels.
 - Access Control principal search results now render as a vertical list with
   full-width principal rows and disambiguate resource identity display names as
   `<DisplayName> (<resource name>)` when those values differ.

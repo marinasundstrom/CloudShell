@@ -1784,7 +1784,7 @@ resourceGroups) =>
         {
             L["Exposure: {0}", ResourceNameMappingDisplay.GetExposureLabel(mapping)].Value,
             FormatNameMappingProvider(mapping),
-            L["Materialization: {0}", ResourceNameMappingDisplay.GetMaterializationLabel(mapping)].Value
+            L["Materialization: {0}", ResourceNameMappingDisplay.GetMaterializationLabel(mapping, Localize)].Value
         };
 
         var zone = string.IsNullOrWhiteSpace(mapping.ParentResourceId)
@@ -2161,6 +2161,8 @@ resourceGroups) =>
         ResourceClass.SecretsVault => L["Secrets Vault"].Value,
         _ => L["Generic"].Value
     };
+
+    private string Localize(string value) => L[value].Value;
 
     private sealed record ResourceRow(Resource Resource, int Depth, int ChildCount);
 
