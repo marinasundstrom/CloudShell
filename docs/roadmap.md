@@ -165,6 +165,23 @@ Application Topology sample end to end and make the app-centric Resource
 Manager path explain the runtime model without requiring sample-specific
 knowledge.
 
+Plan and verify MVP work through use cases. The priority use cases are:
+
+1. Declare a realistic distributed app in code, run it locally, and see every
+   relevant resource projected without leaking secrets.
+2. Open an application resource and understand what it runs, what it depends
+   on, what depends on it, how it is exposed, and which names route to it.
+3. Start, restart, or update an app and get actionable Control Plane feedback
+   before or during failure, surfaced in Resource Manager where the user is
+   already working.
+4. Verify runtime-impacting settings, secret references, identities, and
+   access grants from the app context without turning secondary editor tabs
+   into the main experience.
+5. Diagnose runtime behavior through logs, traces, metrics, monitoring,
+   activity, health, and recent failures from the resource page.
+6. Persist the resource graph deliberately and understand what changes from
+   transient code-first declarations to durable Control Plane state.
+
 Use this decision filter:
 
 1. Does the work make Application Topology or another supported sample more

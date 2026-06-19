@@ -17,6 +17,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Clarified that local-development MVP work should be planned and verified
+  through concrete use cases that combine scenario proof, Control Plane
+  feedback, Resource Manager surfacing, and app-centric diagnostics.
 - Re-evaluated the local-development MVP target after the recent readiness
   hardening slices: Control Plane feedback and Resource Manager surfacing
   remain core quality, while the urgent work now returns to Application
