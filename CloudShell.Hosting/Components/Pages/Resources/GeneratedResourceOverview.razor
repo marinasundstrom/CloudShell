@@ -86,7 +86,7 @@
             sections.Add(new("runtime", L["Runtime"], 100, RenderRuntime()));
         }
 
-        if (ResourceDiagnosticDisplay.GetDiagnostics(Resource, RelatedResources) is { Count: > 0 } diagnostics)
+        if (GetOverviewDiagnostics() is { Count: > 0 } diagnostics)
         {
             sections.Add(new("diagnostics", L["Diagnostics"], 200, RenderDiagnostics(diagnostics)));
         }
@@ -112,6 +112,11 @@
         InboundNameMappings.Count > 0 ||
         IsNetworkResource ||
         IsLoadBalancerResource;
+
+    private IReadOnlyList<ResourceDiagnosticView> GetOverviewDiagnostics() =>
+        ResourceActionReadinessDiagnostics.GetDiagnostics(Resource, Capabilities)
+            .Concat(ResourceDiagnosticDisplay.GetDiagnostics(Resource, RelatedResources))
+            .ToArray();
 
     private RenderFragment RenderEssentials() => @<dl class="detail-list">
         <dt>@L["Resource ID"]</dt>

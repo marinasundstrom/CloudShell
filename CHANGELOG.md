@@ -65,6 +65,9 @@ on `git blame --follow`, and then by the broad type of change.
   signals. Dependency auto-start warn-and-continue results keep the action
   success message separate from warning signals, and Resource Manager action
   surfaces render those warnings explicitly.
+- Generated resource overview diagnostics now include lifecycle readiness
+  warnings from Start/Restart capability reasons, so resources without custom
+  overview pages still explain blocked local-development preflight checks.
 
 ### 2026-06-18
 

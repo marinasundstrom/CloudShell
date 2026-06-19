@@ -1,4 +1,5 @@
 using System.Globalization;
+using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.Hosting.ResourceManager;
@@ -7,6 +8,75 @@ namespace CloudShell.Abstractions.Tests;
 
 public sealed class ResourceDiagnosticDisplayTests
 {
+    [Fact]
+    public void GetDiagnostics_WarnsWhenStartPreflightHasUnavailableReason()
+    {
+        var resource = CreateLifecycleResource(ResourceState.Stopped);
+        var capabilities = new ResourceOperationCapabilities(
+            resource.Id,
+            true,
+            true,
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            [
+                new ResourceActionCapability(
+                    ResourceActionIds.Start,
+                    false,
+                    "Container host 'docker:missing' is not registered.")
+            ]);
+
+        var diagnostics = ResourceActionReadinessDiagnostics.GetDiagnostics(resource, capabilities);
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal(ResourceSignalSeverity.Warning, diagnostic.Severity);
+        Assert.Equal("Start readiness", diagnostic.Title);
+        Assert.Equal("Container host 'docker:missing' is not registered.", diagnostic.Message);
+    }
+
+    [Fact]
+    public void GetDiagnostics_UsesRestartReadinessForRunningResources()
+    {
+        var resource = CreateLifecycleResource(ResourceState.Running);
+        var capabilities = new ResourceOperationCapabilities(
+            resource.Id,
+            true,
+            true,
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            [
+                new ResourceActionCapability(
+                    ResourceActionIds.Start,
+                    false,
+                    "Resource is already running."),
+                new ResourceActionCapability(
+                    ResourceActionIds.Restart,
+                    false,
+                    "Container host 'docker:missing' is not registered.")
+            ]);
+
+        var diagnostics = ResourceActionReadinessDiagnostics.GetDiagnostics(resource, capabilities);
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("Restart readiness", diagnostic.Title);
+        Assert.Equal("Container host 'docker:missing' is not registered.", diagnostic.Message);
+    }
+
+    [Fact]
+    public void GetDiagnostics_DoesNotWarnWhenReadinessActionCanExecute()
+    {
+        var resource = CreateLifecycleResource(ResourceState.Stopped);
+        var capabilities = new ResourceOperationCapabilities(
+            resource.Id,
+            true,
+            true,
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ResourceActionIds.Start
+            });
+
+        var diagnostics = ResourceActionReadinessDiagnostics.GetDiagnostics(resource, capabilities);
+
+        Assert.Empty(diagnostics);
+    }
+
     [Fact]
     public void GetDiagnostics_WarnsWhenNameMappingPublisherResourceIsMissing()
     {
@@ -581,6 +651,24 @@ public sealed class ResourceDiagnosticDisplayTests
             Attributes: resourceAttributes,
             Capabilities: [new(ResourceCapabilityIds.NetworkingNameMapping)]);
     }
+
+    private static Resource CreateLifecycleResource(ResourceState state) =>
+        new(
+            "application:api",
+            "API",
+            "Application",
+            "Applications",
+            "local",
+            state,
+            [],
+            "1.0",
+            DateTimeOffset.UtcNow,
+            [],
+            Actions:
+            [
+                ResourceAction.Start,
+                ResourceAction.Restart
+            ]);
 
     private static Dictionary<string, Resource> CreateNameMappingRelatedResources(params Resource[] resources)
     {
