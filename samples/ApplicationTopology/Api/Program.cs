@@ -80,21 +80,30 @@ app.MapGet("/database", async (
     await using var connection = new SqlConnection(CreateSqlConnectionString(configuration, endpoint));
     await connection.OpenAsync(cancellationToken);
     await using var command = connection.CreateCommand();
-    command.CommandText = "SELECT SYSDATETIMEOFFSET()";
-    var databaseTimestamp = (DateTimeOffset)(await command.ExecuteScalarAsync(cancellationToken)
-        ?? throw new InvalidOperationException("SQL Server did not return a timestamp."));
+    command.CommandText = "SELECT DB_NAME(), SYSDATETIMEOFFSET()";
+    await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+    if (!await reader.ReadAsync(cancellationToken))
+    {
+        throw new InvalidOperationException("SQL Server did not return a database check row.");
+    }
+
+    var databaseName = reader.GetString(0);
+    var databaseTimestamp = reader.GetDateTimeOffset(1);
 
     activity?.SetTag("db.system", "mssql");
+    activity?.SetTag("db.name", databaseName);
     activity?.SetTag("db.operation.name", "SELECT");
     logger.LogInformation(
         ApplicationTopologyLogEvents.DatabaseChecked,
-        "Checked SQL Server dependency at {SqlEndpoint}",
-        endpoint);
+        "Checked SQL Server dependency at {SqlEndpoint} using database {DatabaseName}",
+        endpoint,
+        databaseName);
 
     return Results.Ok(new DatabaseCheck(
         "ok",
         endpoint.ToString(),
         "mssql",
+        databaseName,
         databaseTimestamp));
 });
 
@@ -131,7 +140,7 @@ static string CreateSqlConnectionString(IConfiguration configuration, Uri endpoi
         Password = configuration["ApplicationTopology:SqlServer:Password"]
             ?? throw new InvalidOperationException(
                 "ApplicationTopology:SqlServer:Password is required."),
-        InitialCatalog = "master",
+        InitialCatalog = configuration["ApplicationTopology:SqlServer:Database"] ?? "application_topology",
         Encrypt = false,
         TrustServerCertificate = true,
         ConnectTimeout = 5
@@ -164,4 +173,5 @@ internal sealed record DatabaseCheck(
     string Status,
     string Endpoint,
     string Provider,
+    string Database,
     DateTimeOffset DatabaseTimestamp);

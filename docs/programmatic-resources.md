@@ -324,12 +324,14 @@ The current local provider still uses a SQL Server container image internally,
 but callers receive an `application.sql-server` service resource rather than a
 container-app builder. Declared databases project as provider-managed
 `application.sql-database` children and appear on the SQL Server resource's
-Databases tab. When SQL Server is running, that tab connects to the instance
-and marks whether each declared database exists, while also showing databases
-that exist on the server but were not declared. Future SQL Server builder
-slices should add validated SQL Server concepts such as version and edition
-instead of arbitrary image selection. Top-level container applications are the
-place where image selection is part of the logical declaration:
+Databases tab. When SQL Server starts, the local provider creates missing
+declared databases, then the tab connects to the instance and marks whether
+each declared database exists while also showing databases that exist on the
+server but were not declared. Future SQL Server builder slices should add
+validated SQL Server concepts such as version and edition instead of arbitrary
+image selection, and should materialize access grants into SQL users, roles, or
+provider-specific credentials. Top-level container applications are the place
+where image selection is part of the logical declaration:
 
 ```csharp
 cloudShell.Resources(resources =>

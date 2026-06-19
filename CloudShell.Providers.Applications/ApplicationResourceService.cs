@@ -44,6 +44,8 @@ public sealed partial class ApplicationResourceService(
 {
     private static readonly JsonSerializerOptions TemplateSerializerOptions = new(JsonSerializerDefaults.Web);
     private static readonly TimeSpan StartingStateTimeout = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan SqlServerDatabaseReconciliationTimeout = TimeSpan.FromSeconds(90);
+    private static readonly TimeSpan SqlServerDatabaseReconciliationRetryDelay = TimeSpan.FromSeconds(1);
     private static readonly SemaphoreSlim AspNetCoreProjectBuildLock = new(1, 1);
     private const string DefaultContainerNetworkName = "cloudshell";
     private const string ContainerHostExecutableMetadataKey = "cloudshell.executable";
@@ -2168,6 +2170,108 @@ public sealed partial class ApplicationResourceService(
                 cancellationToken,
                 procedureContext);
         }
+
+        await ReconcileSqlServerDatabasesAsync(runtimeDefinition, cancellationToken, procedureContext);
+    }
+
+    private async Task ReconcileSqlServerDatabasesAsync(
+        ApplicationResourceDefinition definition,
+        CancellationToken cancellationToken,
+        ResourceProcedureContext? procedureContext)
+    {
+        if (!string.Equals(definition.ResourceType, ApplicationResourceTypes.SqlServer, StringComparison.OrdinalIgnoreCase) ||
+            definition.SqlDatabases.Count == 0)
+        {
+            return;
+        }
+
+        var serverResource = GetResources().FirstOrDefault(resource =>
+            string.Equals(resource.Id, definition.Id, StringComparison.OrdinalIgnoreCase));
+        if (serverResource is null ||
+            !TryCreateSqlServerConnectionString(definition, serverResource, "master", out var connectionString))
+        {
+            throw new InvalidOperationException(
+                $"SQL Server resource '{definition.Name}' cannot reconcile declared databases because its TDS endpoint or administrator password is not available.");
+        }
+
+        foreach (var database in definition.SqlDatabases)
+        {
+            if (database.Name.Length > 128)
+            {
+                throw new InvalidOperationException(
+                    $"SQL Server resource '{definition.Name}' declares database '{database.Name}' with a name longer than 128 characters.");
+            }
+        }
+
+        procedureContext?.AppendProviderEvent(
+            Id,
+            "application.sql.databases.reconciling",
+            $"Application provider is reconciling {definition.SqlDatabases.Count.ToString(CultureInfo.InvariantCulture)} declared SQL database{Pluralize(definition.SqlDatabases.Count)} for '{definition.Name}'.");
+
+        await using var connection = await OpenSqlServerConnectionWithRetryAsync(
+            definition,
+            connectionString,
+            cancellationToken);
+
+        foreach (var database in definition.SqlDatabases)
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+                IF DB_ID(@databaseName) IS NULL
+                BEGIN
+                    DECLARE @sql nvarchar(max) = N'CREATE DATABASE ' + QUOTENAME(@databaseName);
+                    EXEC sp_executesql @sql;
+                END
+                """;
+            command.Parameters.AddWithValue("@databaseName", database.Name);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        procedureContext?.AppendProviderEvent(
+            Id,
+            "application.sql.databases.reconciled",
+            $"Application provider reconciled declared SQL databases for '{definition.Name}'.");
+    }
+
+    private static async Task<SqlConnection> OpenSqlServerConnectionWithRetryAsync(
+        ApplicationResourceDefinition definition,
+        string connectionString,
+        CancellationToken cancellationToken)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        Exception? lastError = null;
+
+        while (stopwatch.Elapsed < SqlServerDatabaseReconciliationTimeout)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var connection = new SqlConnection(connectionString);
+            try
+            {
+                await connection.OpenAsync(cancellationToken);
+                return connection;
+            }
+            catch (SqlException exception)
+            {
+                lastError = exception;
+                await connection.DisposeAsync();
+            }
+
+            var remaining = SqlServerDatabaseReconciliationTimeout - stopwatch.Elapsed;
+            if (remaining <= TimeSpan.Zero)
+            {
+                break;
+            }
+
+            await Task.Delay(
+                remaining < SqlServerDatabaseReconciliationRetryDelay
+                    ? remaining
+                    : SqlServerDatabaseReconciliationRetryDelay,
+                cancellationToken);
+        }
+
+        throw new InvalidOperationException(
+            $"SQL Server resource '{definition.Name}' started, but declared database reconciliation could not connect to the instance within {SqlServerDatabaseReconciliationTimeout.TotalSeconds.ToString(CultureInfo.InvariantCulture)} seconds.",
+            lastError);
     }
 
     private async Task<ApplicationResourceDefinition> MaterializeProjectContainerImageAsync(

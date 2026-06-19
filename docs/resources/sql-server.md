@@ -95,13 +95,22 @@ resource, database name, and projection source.
 
 Resource Manager displays declared databases in the SQL Server **Databases**
 tab even when the SQL Server instance is stopped. When the instance is running,
-the provider connects to SQL Server using the configured instance password and
-lists `sys.databases`; the tab merges those live rows with the declared
-databases and indicates whether each declaration was found on the server.
+the provider uses the configured instance password to connect to SQL Server,
+create any missing declared databases, and list `sys.databases`; the tab
+merges those live rows with the declared databases and indicates whether each
+declaration exists on the server.
 
-This slice is read-only. CloudShell does not yet create or drop databases,
-reconcile declared databases into SQL Server, materialize SQL users and roles
-from access grants, or project database connection strings for workloads.
+The **Databases** tab is read-only. CloudShell creates missing declared
+databases during local SQL Server startup, but does not yet drop databases,
+materialize SQL users and roles from access grants, or project database
+connection strings for workloads.
+
+Access grants on SQL Server resources are modeled in CloudShell today so the
+Resource Manager can show intended access. They are not yet enforced inside
+SQL Server. The next access-control slice should translate grants into
+provider-owned SQL logins, database users, roles, or another provider-specific
+credential model without exposing bootstrap administrator credentials to
+workloads.
 
 ## Overview
 

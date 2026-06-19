@@ -158,6 +158,7 @@ cloudShell.Resources(resources =>
         .WithEnvironment("CLOUDSHELL_TRACE_INGEST_ENDPOINT", traceIngestEndpoint ?? string.Empty)
         .WithEnvironment("ApplicationTopology__SqlServer__User", "sa")
         .WithEnvironment("ApplicationTopology__SqlServer__Password", sqlPassword)
+        .WithEnvironment("ApplicationTopology__SqlServer__Database", "application_topology")
         .WithEnvironment("ApplicationTopology__Message", settings.Entry("ApplicationTopology:Message"))
         .WithEnvironment("ApplicationTopology__Mode", settings.Entry("ApplicationTopology:Mode"))
         .WithEnvironment("ApplicationTopology__ExternalApiKey", secrets.Secret("external-api-key"))

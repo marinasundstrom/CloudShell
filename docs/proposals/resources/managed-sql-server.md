@@ -167,14 +167,14 @@ available through contextual diagnostics or runtime-managed resource views, not
 as the SQL Server resource's primary management model.
 
 The page includes a first database-oriented **Databases** tab for declared
-database children. The current local provider also performs a read-only live
-query against `sys.databases` when the SQL Server instance is running, then
-merges declared databases and live databases into one list so users can see
-which declarations really exist. Future provider inspection can enrich those
-rows with size, compatibility level, owner or identity metadata when available,
-connection metadata, and available database actions. It should remain an
-instance-scoped view of child resources, not a separate global database
-inventory by default.
+database children. The current local provider creates missing declared
+databases during SQL Server startup, performs a read-only live query against
+`sys.databases` when the SQL Server instance is running, then merges declared
+databases and live databases into one list so users can see which declarations
+really exist. Future provider inspection can enrich those rows with size,
+compatibility level, owner or identity metadata when available, connection
+metadata, and available database actions. It should remain an instance-scoped
+view of child resources, not a separate global database inventory by default.
 
 ## Database Resources
 
@@ -352,9 +352,10 @@ MVP container app, storage, networking, and identity primitives are stable.
   whether a dedicated provider type such as `sqlserver.database` replaces it.
 * Decide when declarative SQL database resources should be supported, after
   projected database children and provider inspection are in place.
-* Add provider inspection for databases, version, edition, storage, and health.
-* Add create/drop/reconcile semantics for declared databases once provider
-  inspection exists.
+* Add provider inspection for version, edition, storage, health, and richer
+  database metadata.
+* Decide the lifecycle policy for declared databases beyond local-startup
+  create-if-missing reconciliation, including drop behavior and drift handling.
 * Add identity-backed SQL login/database user provisioning.
 * Define stable database permission names and map them to SQL Server logins,
   database users, roles, and provider-specific identity integration.

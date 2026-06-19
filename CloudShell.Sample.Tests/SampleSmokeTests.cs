@@ -642,6 +642,8 @@ public sealed class SampleSmokeTests
             $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Environment.Value)}");
         Assert.Contains("Startup declaration", apiEnvironmentHtml);
         Assert.Contains("Declared by code for this host process.", apiEnvironmentHtml);
+        Assert.Contains("ApplicationTopology__SqlServer__Database", apiEnvironmentHtml);
+        Assert.Contains("application_topology", apiEnvironmentHtml);
         Assert.Contains("ApplicationTopology__SqlServer__Password", apiEnvironmentHtml);
         Assert.Contains("Stored value hidden", apiEnvironmentHtml);
         Assert.DoesNotContain("CloudShell-Passw0rd!", apiEnvironmentHtml);
@@ -911,12 +913,13 @@ public sealed class SampleSmokeTests
             Assert.True(upstream.GetProperty("settings").GetProperty("externalApiKeyConfigured").GetBoolean());
             Assert.Equal("ok", upstream.GetProperty("database").GetProperty("status").GetString());
             Assert.Equal("mssql", upstream.GetProperty("database").GetProperty("provider").GetString());
+            Assert.Equal("application_topology", upstream.GetProperty("database").GetProperty("database").GetString());
 
             var databasesTabId = new ResourceViewId(ResourceTabGroupIds.Application, "databases");
             var sqlDatabasesHtml = await host.GetStringAsync(
                 $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(databasesTabId.Value)}");
             Assert.Contains("Application Topology", sqlDatabasesHtml);
-            Assert.Contains("Declared database, not found on server", sqlDatabasesHtml);
+            Assert.Contains("Declared database, exists on server", sqlDatabasesHtml);
             Assert.Contains("Existing system database", sqlDatabasesHtml);
             Assert.Contains("master", sqlDatabasesHtml);
             Assert.Contains("Verified from live SQL Server", sqlDatabasesHtml);

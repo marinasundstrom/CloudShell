@@ -136,4 +136,5 @@ internal sealed record DatabaseCheck(
     string Status,
     string Endpoint,
     string Provider,
+    string Database,
     DateTimeOffset DatabaseTimestamp);

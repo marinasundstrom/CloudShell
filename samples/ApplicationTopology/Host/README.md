@@ -44,10 +44,12 @@ and mounts a Local Storage-backed volume so database files can survive
 restarts of the SQL Server resource. The sample also declares an
 `application_topology` database, which projects as a provider-managed
 `application.sql-database` child and appears in the SQL Server **Databases**
-tab. The backend API references SQL Server through CloudShell service discovery
-and exposes `/database`, which opens a SQL connection and executes a small
-timestamp query. The frontend calls both `/message` and `/database` through
-the API so the sample exercises frontend-to-API and API-to-SQL dependencies.
+tab. When SQL Server starts, the local provider creates the declared database
+if it is missing. The backend API references SQL Server through CloudShell
+service discovery and exposes `/database`, which opens a SQL connection to the
+declared database and executes a small timestamp query. The frontend calls both
+`/message` and `/database` through the API so the sample exercises
+frontend-to-API and API-to-SQL dependencies.
 
 The backend API also receives Configuration Store and Secrets Vault references
 as environment variables. `/settings` returns the configured message, mode,
