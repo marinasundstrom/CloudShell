@@ -2748,6 +2748,10 @@ h3 {
     background: var(--cloudshell-warning-fill);
 }
 
+.startup-declaration-alert {
+    margin-bottom: 1rem;
+}
+
 .extension-card strong,
 .extension-card span {
     display: block;

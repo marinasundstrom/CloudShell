@@ -88,6 +88,11 @@
         </div>
     </section>
 
+    @if (resource is not null)
+    {
+        <ResourceStartupDeclarationAlert Resource="resource" />
+    }
+
     @if (ProcedureMessage is not null)
     {
         <div class="procedure-message">@ProcedureMessage</div>
@@ -96,13 +101,6 @@
     @if (isReadOnly)
     {
         <div class="procedure-message">@L["Resource Manager is in read-only mode. Resource lifecycle actions and updates are disabled in this UI."]</div>
-    }
-
-    @if (resource is not null && selectedTab?.ShowsApplyButton == true && IsStartupDeclaration(resource))
-    {
-        <div class="procedure-message">
-            @L["This resource is a startup declaration. Applying changes updates provider state for this Control Plane, but host startup code remains the source of truth until the declaration is persisted."]
-        </div>
     }
 
     @if (ConfirmDelete && resource is not null)
@@ -1095,12 +1093,6 @@
             _ => null
         };
     }
-
-    private static bool IsStartupDeclaration(Resource resource) =>
-        string.Equals(
-            resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeclarationPersistence),
-            ResourceDeclarationPersistence.Transient.ToString(),
-            StringComparison.OrdinalIgnoreCase);
 
     private async Task ExecuteAction(ResourceAction action)
     {

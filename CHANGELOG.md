@@ -162,8 +162,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Programmatic resource projections now include declaration persistence
   metadata, and resource details show whether a resource is a startup
   declaration or a persisted declaration.
-- Editable Resource Manager tabs now warn when a resource is still owned by a
-  startup declaration before applying provider-state changes.
+- Resource Manager detail pages and resource-list blades now warn when a
+  resource is a transient startup declaration whose UI changes are not durable.
 - Resource Manager inline action buttons now include read-only and
   control-plane action-unavailable reasons in their titles.
 - Application overview pages now show configured storage mounts with volume,

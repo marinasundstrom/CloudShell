@@ -1,0 +1,20 @@
+@inject IStringLocalizer<SharedResource> L
+
+@if (IsStartupDeclaration)
+{
+    <div class="resource-alert warning startup-declaration-alert" role="note">
+        <strong>@L["Startup declaration"]</strong>
+        <span>@L["Declared by code for this host process. UI changes are temporary until the resource is persisted."]</span>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public Resource Resource { get; set; } = null!;
+
+    private bool IsStartupDeclaration =>
+        string.Equals(
+            Resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeclarationPersistence),
+            ResourceDeclarationPersistence.Transient.ToString(),
+            StringComparison.OrdinalIgnoreCase);
+}

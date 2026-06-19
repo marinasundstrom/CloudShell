@@ -490,6 +490,8 @@ public sealed class SampleSmokeTests
         Assert.Contains("Start readiness", apiDetailsHtml);
         Assert.Contains("Start preflight checks passed.", apiDetailsHtml);
         Assert.Contains("Startup declaration", apiDetailsHtml);
+        Assert.Contains("Declared by code for this host process.", apiDetailsHtml);
+        Assert.Contains("UI changes are temporary until the resource is persisted.", apiDetailsHtml);
         Assert.Contains("Environment references", apiDetailsHtml);
         Assert.Contains("ApplicationTopology__Message", apiDetailsHtml);
         Assert.Contains("Configuration entry", apiDetailsHtml);
@@ -542,8 +544,8 @@ public sealed class SampleSmokeTests
 
         var apiEnvironmentHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Environment.Value)}");
-        Assert.Contains("This resource is a startup declaration.", apiEnvironmentHtml);
-        Assert.Contains("host startup code remains the source of truth", apiEnvironmentHtml);
+        Assert.Contains("Startup declaration", apiEnvironmentHtml);
+        Assert.Contains("Declared by code for this host process.", apiEnvironmentHtml);
 
         var frontendAccessControlHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-frontend")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.AccessControl.Value)}");
