@@ -650,6 +650,19 @@ h3 {
     font-size: .72rem;
 }
 
+.resource-failure-indicator {
+    display: inline-grid;
+    place-items: center;
+    width: 1.2rem;
+    height: 1.2rem;
+    flex: 0 0 1.2rem;
+    color: #b45309;
+}
+
+.resource-name-cell .resource-failure-indicator {
+    margin-left: -.2rem;
+}
+
 .tree-toggle,
 .tree-spacer {
     width: 1.35rem;
@@ -1726,6 +1739,8 @@ h3 {
 
 .resource-failure-summary {
     display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
     gap: .35rem;
     margin: -.35rem 0 1rem;
     padding: .7rem .75rem;
@@ -1735,6 +1750,19 @@ h3 {
     background: #fff5f5;
     color: var(--cloudshell-text);
     font-size: .84rem;
+}
+
+.resource-failure-summary>div {
+    display: grid;
+    gap: .35rem;
+    min-width: 0;
+}
+
+.resource-failure-summary-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    margin-top: .05rem;
+    color: #b45309;
 }
 
 .resource-failure-summary strong {

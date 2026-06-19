@@ -34,6 +34,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource detail pages and resource-list blades now show the latest
   unsuperseded resource lifecycle/action failure below status and health
   indicators, with a short message and a link to the resource Activity tab.
+- Resource list rows now show a warning triangle for resources with the latest
+  unsuperseded lifecycle/action failure so operators can scan the list, click
+  the row, and inspect the matching blade failure summary.
 
 ### 2026-06-18
 

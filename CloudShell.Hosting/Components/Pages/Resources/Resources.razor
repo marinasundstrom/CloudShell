@@ -2,7 +2,9 @@
 @rendermode InteractiveServer
 @implements IAsyncDisposable
 @using System.Globalization
+@using Microsoft.Extensions.Logging
 @inject IResourceManager ResourceManager
+@inject IResourceEventManager ResourceEvents
 @inject ILogManager LogManager
 @inject ShellCatalog ShellCatalog
 @inject ResourceHealthCheckService HealthChecks
@@ -12,6 +14,7 @@
 @inject ICloudShellAuthorizationService Authorization
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject IStringLocalizer<SharedResource> L
+@inject ILogger<Resources> Logger
 
 <PageTitle>@L["Resources"]</PageTitle>
 <FluentMenuProvider />
@@ -197,6 +200,7 @@
                         }
 
                         <ResourceKindIcon Resource="resource" />
+                        <ResourceFailureIndicator Signal="GetFailureSignal(resource)" />
                         <div>
                             @if (resource.DetailRoute is not null)
                             {
@@ -642,6 +646,8 @@
         new Dictionary<string, ResourceOperationCapabilities>(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyDictionary<string, IReadOnlyList<LogDescriptor>> LogsByResourceId { get; set; } =
         new Dictionary<string, IReadOnlyList<LogDescriptor>>(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyDictionary<string, ResourceFailureSignal> ResourceFailureSignals { get; set; } =
+        new Dictionary<string, ResourceFailureSignal>(StringComparer.OrdinalIgnoreCase);
     private ResourceManagerDisplaySelection DisplaySelection { get; set; } =
         ResourceManagerDisplaySelection.Default;
 
@@ -861,6 +867,7 @@ StringComparer.OrdinalIgnoreCase);
         ResourceGroups = await ResourceManager.ListResourceGroupsAsync();
         ResourceCapabilities = await ResourceManager.GetResourceOperationCapabilitiesAsync(
             ResourceInventory.Select(resource => resource.Id).ToArray());
+        ResourceFailureSignals = await LoadResourceFailureSignalsAsync(ResourceInventory);
 
         var logs = await LogManager.ListLogsAsync();
         LogsByResourceId = logs
@@ -880,6 +887,48 @@ StringComparer.OrdinalIgnoreCase);
                 string.Equals(resource.Id, SelectedResource.Id, StringComparison.OrdinalIgnoreCase));
         }
     }
+
+    private async Task<IReadOnlyDictionary<string, ResourceFailureSignal>> LoadResourceFailureSignalsAsync(
+        IReadOnlyList<Resource> resources)
+    {
+        if (resources.Count == 0)
+        {
+            return new Dictionary<string, ResourceFailureSignal>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var resourceIds = resources
+            .Select(resource => resource.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var maxEvents = Math.Clamp(resources.Count * 20, 100, 1000);
+
+        try
+        {
+            var events = await ResourceEvents.ListResourceEventsAsync(new ResourceEventQuery(MaxEvents: maxEvents));
+            return events
+                .Where(resourceEvent => resourceIds.Contains(resourceEvent.ResourceId))
+                .GroupBy(resourceEvent => resourceEvent.ResourceId, StringComparer.OrdinalIgnoreCase)
+                .Select(group => new
+                {
+                    ResourceId = group.Key,
+                    Failure = ResourceFailureSignalResolver.GetActiveFailure(group)
+                })
+                .Where(item => item.Failure is not null)
+                .ToDictionary(
+                    item => item.ResourceId,
+                    item => item.Failure!,
+                    StringComparer.OrdinalIgnoreCase);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Failed to load resource activity failure signals.");
+            return new Dictionary<string, ResourceFailureSignal>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    private ResourceFailureSignal? GetFailureSignal(Resource resource) =>
+        ResourceFailureSignals.TryGetValue(resource.Id, out var failure)
+            ? failure
+            : null;
 
     private IReadOnlyList<ResourceTypeFilterOption> GetResourceTypeOptions(IReadOnlyList<Resource> resources) =>
     [

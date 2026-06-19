@@ -1,0 +1,25 @@
+@if (Signal is not null)
+{
+    <span class="@CssClass" title="@Tooltip" aria-label="@Tooltip">
+        <FluentIcon Value="@(new Icons.Regular.Size20.Important())" />
+    </span>
+}
+
+@code {
+    [Parameter]
+    public ResourceFailureSignal? Signal { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    [Inject]
+    private IStringLocalizer<SharedResource> L { get; set; } = default!;
+
+    private string CssClass => string.IsNullOrWhiteSpace(Class)
+        ? "resource-failure-indicator"
+        : $"resource-failure-indicator {Class}";
+
+    private string Tooltip => Signal is null
+        ? string.Empty
+        : ResourceFailureSignalDisplay.GetTooltip(Signal, L);
+}

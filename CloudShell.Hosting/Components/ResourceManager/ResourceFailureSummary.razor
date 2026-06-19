@@ -6,18 +6,19 @@
 @if (Resource is not null && Failure is not null)
 {
     <div class="@CssClass" role="alert" aria-live="polite">
-        <strong>@Failure.Title</strong>
-        <span>@Failure.Message</span>
-        <FluentAnchor Href="@BuildActivityRoute(Resource.Id)">
-            @L["View activity"]
-        </FluentAnchor>
+        <ResourceFailureIndicator Signal="Failure" Class="resource-failure-summary-icon" />
+        <div>
+            <strong>@ResourceFailureSignalDisplay.GetTitle(Failure, L)</strong>
+            <span>@ResourceFailureSignalDisplay.GetMessage(Failure, L)</span>
+            <FluentAnchor Href="@BuildActivityRoute(Resource.Id)">
+                @L["View activity"]
+            </FluentAnchor>
+        </div>
     </div>
 }
 
 @code {
     private const int MaxEvents = 50;
-    private const int MaxMessageLength = 220;
-    private const string FailedEventSuffix = ".failed";
 
     [Parameter]
     public Resource? Resource { get; set; }
@@ -25,7 +26,7 @@
     [Parameter]
     public string? Class { get; set; }
 
-    private ResourceFailure? Failure { get; set; }
+    private ResourceFailureSignal? Failure { get; set; }
 
     private string CssClass => string.IsNullOrWhiteSpace(Class)
         ? "resource-failure-summary"
@@ -46,7 +47,7 @@
                     ResourceId: Resource.Id,
                     MaxEvents: MaxEvents));
 
-            Failure = GetActiveFailure(events);
+            Failure = ResourceFailureSignalResolver.GetActiveFailure(events);
         }
         catch (Exception exception)
         {
@@ -58,108 +59,6 @@
         }
     }
 
-    private ResourceFailure? GetActiveFailure(IReadOnlyList<ResourceEvent> events)
-    {
-        var orderedEvents = events
-            .OrderByDescending(resourceEvent => resourceEvent.Timestamp)
-            .ToArray();
-
-        var latestFailure = orderedEvents.FirstOrDefault(IsFailureEvent);
-        if (latestFailure is null)
-        {
-            return null;
-        }
-
-        var latestLifecycleSuccess = orderedEvents.FirstOrDefault(IsLifecycleSuccessEvent);
-        if (latestLifecycleSuccess is not null && latestLifecycleSuccess.Timestamp > latestFailure.Timestamp)
-        {
-            return null;
-        }
-
-        return new ResourceFailure(
-            GetFailureTitle(latestFailure.EventType),
-            GetFailureMessage(latestFailure));
-    }
-
-    private string GetFailureTitle(string eventType)
-    {
-        if (MatchesStartFailure(eventType))
-        {
-            return L["Failed to start"].Value;
-        }
-
-        if (MatchesStopFailure(eventType))
-        {
-            return L["Failed to stop"].Value;
-        }
-
-        if (MatchesPauseFailure(eventType))
-        {
-            return L["Failed to pause"].Value;
-        }
-
-        if (MatchesRestartFailure(eventType))
-        {
-            return L["Failed to restart"].Value;
-        }
-
-        return L["Resource operation failed"].Value;
-    }
-
-    private string GetFailureMessage(ResourceEvent resourceEvent)
-    {
-        if (string.IsNullOrWhiteSpace(resourceEvent.Message))
-        {
-            return L["Review resource activity for failure details."].Value;
-        }
-
-        var message = resourceEvent.Message.Trim();
-        return message.Length <= MaxMessageLength
-            ? message
-            : string.Concat(message.AsSpan(0, MaxMessageLength - 3), "...");
-    }
-
-    private static bool IsFailureEvent(ResourceEvent resourceEvent) =>
-        resourceEvent.EventType.EndsWith(FailedEventSuffix, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(resourceEvent.Level, "Error", StringComparison.OrdinalIgnoreCase);
-
-    private static bool IsLifecycleSuccessEvent(ResourceEvent resourceEvent) =>
-        MatchesAny(
-            resourceEvent.EventType,
-            ResourceEventTypes.Events.Lifecycle.Started,
-            ResourceEventTypes.Events.Lifecycle.Stopped,
-            ResourceEventTypes.Events.Lifecycle.Paused,
-            ResourceEventTypes.Events.Lifecycle.Restarted);
-
-    private static bool MatchesStartFailure(string eventType) =>
-        MatchesAny(
-            eventType,
-            ResourceEventTypes.Actions.ForFailedAction(ResourceActionIds.Start),
-            ResourceEventTypes.Events.Lifecycle.StartFailed);
-
-    private static bool MatchesStopFailure(string eventType) =>
-        MatchesAny(
-            eventType,
-            ResourceEventTypes.Actions.ForFailedAction(ResourceActionIds.Stop),
-            ResourceEventTypes.Events.Lifecycle.StopFailed);
-
-    private static bool MatchesPauseFailure(string eventType) =>
-        MatchesAny(
-            eventType,
-            ResourceEventTypes.Actions.ForFailedAction(ResourceActionIds.Pause),
-            ResourceEventTypes.Events.Lifecycle.PauseFailed);
-
-    private static bool MatchesRestartFailure(string eventType) =>
-        MatchesAny(
-            eventType,
-            ResourceEventTypes.Actions.ForFailedAction(ResourceActionIds.Restart),
-            ResourceEventTypes.Events.Lifecycle.RestartFailed);
-
-    private static bool MatchesAny(string eventType, params string[] candidates) =>
-        candidates.Any(candidate => string.Equals(eventType, candidate, StringComparison.OrdinalIgnoreCase));
-
     private static string BuildActivityRoute(string resourceId) =>
         ResourceManagerRoutes.ResourceDetails(resourceId, ResourcePredefinedViewIds.Activity);
-
-    private sealed record ResourceFailure(string Title, string Message);
 }
