@@ -153,6 +153,76 @@ public sealed partial class LocalProcessRunner(
             logPath);
     }
 
+    public async Task<int> RunCommandAsync(
+        string resourceId,
+        string executablePath,
+        IReadOnlyList<string> arguments,
+        string? workingDirectory = null,
+        CancellationToken cancellationToken = default)
+    {
+        var logPath = GetLogPath(resourceId);
+        Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
+        var processLog = new ApplicationProcessLog(logPath);
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = ResolveExecutablePath(executablePath),
+            WorkingDirectory = ResolveWorkingDirectory(workingDirectory),
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+
+        foreach (var argument in arguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+
+        processLog.Append(
+            $"Running '{executablePath} {string.Join(' ', arguments)}' before starting the resource.",
+            "process",
+            "Information");
+
+        try
+        {
+            using var process = Process.Start(startInfo);
+            if (process is null)
+            {
+                processLog.Append(
+                    "Pre-start command could not be started.",
+                    "process",
+                    "Error");
+                return -1;
+            }
+
+            var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+            var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
+            await process.WaitForExitAsync(cancellationToken);
+            var output = await outputTask;
+            var error = await errorTask;
+
+            if (!string.IsNullOrWhiteSpace(output))
+            {
+                processLog.Append(output.Trim(), "stdout", "Information");
+            }
+
+            if (!string.IsNullOrWhiteSpace(error))
+            {
+                processLog.Append(error.Trim(), "stderr", process.ExitCode == 0 ? "Information" : "Error");
+            }
+
+            processLog.Append(
+                $"Pre-start command exited with code {process.ExitCode}.",
+                "process",
+                process.ExitCode == 0 ? "Information" : "Error");
+            return process.ExitCode;
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            processLog.Append(exception.Message, "process", "Error");
+            return -1;
+        }
+    }
+
     public Task StopAsync(
         LocalProcessDefinition definition,
         bool force = true,
@@ -364,22 +434,22 @@ public sealed partial class LocalProcessRunner(
         return Path.Combine(logDirectory, $"{logFileName}.log");
     }
 
-    private static ProcessStartInfo CreateScopedStartInfo(LocalProcessDefinition definition) =>
+    private ProcessStartInfo CreateScopedStartInfo(LocalProcessDefinition definition) =>
         new()
         {
             FileName = ResolveExecutablePath(definition.ExecutablePath),
             Arguments = definition.Arguments ?? string.Empty,
-            WorkingDirectory = ResolveWorkingDirectory(definition),
+            WorkingDirectory = ResolveWorkingDirectory(definition.WorkingDirectory),
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true
         };
 
-    private static ProcessStartInfo CreateDetachedStartInfo(
+    private ProcessStartInfo CreateDetachedStartInfo(
         LocalProcessDefinition definition,
         string logPath)
     {
-        var workingDirectory = ResolveWorkingDirectory(definition);
+        var workingDirectory = ResolveWorkingDirectory(definition.WorkingDirectory);
         var executablePath = ResolveExecutablePath(definition.ExecutablePath);
         var arguments = definition.Arguments ?? string.Empty;
 
@@ -413,10 +483,12 @@ public sealed partial class LocalProcessRunner(
         return unixStartInfo;
     }
 
-    private static string ResolveWorkingDirectory(LocalProcessDefinition definition) =>
-        string.IsNullOrWhiteSpace(definition.WorkingDirectory)
-            ? Environment.CurrentDirectory
-            : definition.WorkingDirectory;
+    private string ResolveWorkingDirectory(string? workingDirectory) =>
+        string.IsNullOrWhiteSpace(workingDirectory)
+            ? environment.ContentRootPath
+            : Path.IsPathRooted(workingDirectory)
+                ? workingDirectory
+                : Path.GetFullPath(workingDirectory, environment.ContentRootPath);
 
     private static string ResolveExecutablePath(string executablePath)
     {

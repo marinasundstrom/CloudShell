@@ -97,9 +97,14 @@ public sealed class SampleSmokeTests
     [Fact]
     public async Task ProjectReferenceHost_RendersResourcesAndServesControlPlaneApi()
     {
+        var frontendPort = await GetFreePortAsync();
+        var frontendEndpoint = $"http://127.0.0.1:{frontendPort}";
         using var host = await SampleProcess.StartAsync(
             "samples/ProjectReference/Host/CloudShell.ProjectReferenceHost.csproj",
-            await GetFreePortAsync());
+            await GetFreePortAsync(),
+            [
+                ("ProjectReference__FrontendEndpoint", frontendEndpoint)
+            ]);
 
         await host.WaitForHttpOkAsync("/", StartupTimeout);
 
@@ -114,6 +119,14 @@ public sealed class SampleSmokeTests
             resource.GetProperty("id").GetString() == "application:project-reference-api");
         Assert.Contains(resources, resource =>
             resource.GetProperty("id").GetString() == "application:project-reference-frontend");
+
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"{frontendEndpoint}/upstream",
+            bearerToken: null,
+            StartupTimeout);
+        var upstreamJson = await host.GetAbsoluteStringAsync($"{frontendEndpoint}/upstream");
+        Assert.Contains("Project Reference Frontend", upstreamJson);
+        Assert.Contains("Hello from the referenced API project.", upstreamJson);
 
         const string traceId = "4bf92f3577b34da6a3ce929d0e0e4736";
         await host.SendJsonAsync(

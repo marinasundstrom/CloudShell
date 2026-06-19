@@ -80,13 +80,14 @@ for its referenced API resource. `WithReference(...)` also enables service
 discovery for project resources today, but the sample keeps the requirement
 visible in the declaration.
 
-CloudShell starts both projects with plain `dotnet run` by default. The API
-omits a port, so CloudShell assigns a stable local HTTP endpoint. The frontend
-receives that resolved endpoint through Aspire-compatible service discovery
-environment variables and uses a named `HttpClient` registered from the resource
-reference. The logical client URI is resolved by the service discovery handler
-at request time. Set `hotReload: true` on a project declaration to opt into
-non-interactive `dotnet watch`.
+CloudShell builds each project before launch and then starts it with
+`dotnet run --no-build` by default. The API omits a port, so CloudShell assigns
+a stable local HTTP endpoint. The frontend receives that resolved endpoint
+through Aspire-compatible service discovery environment variables and uses a
+named `HttpClient` registered from the resource reference. The logical client
+URI is resolved by the service discovery handler at request time. Set
+`hotReload: true` on a project declaration to opt into non-interactive
+`dotnet watch`.
 
 ## Run
 

@@ -93,6 +93,11 @@ on `git blame --follow`, and then by the broad type of change.
   active request paths in the map, link mapped services back to CloudShell
   resources and request edges back to traces, and show node status from
   telemetry errors or resource lifecycle state.
+- ASP.NET Core project resources now use a serialized build step before normal
+  startup and run with `dotnet run --no-build`, using the CloudShell host
+  content root for relative project paths and working directories. This
+  preserves the existing project-path authoring model while avoiding competing
+  implicit builds when local project resources share dependencies.
 
 ### 2026-06-18
 

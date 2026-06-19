@@ -43,6 +43,7 @@ public sealed partial class ApplicationResourceService(
 {
     private static readonly JsonSerializerOptions TemplateSerializerOptions = new(JsonSerializerDefaults.Web);
     private static readonly TimeSpan StartingStateTimeout = TimeSpan.FromMinutes(5);
+    private static readonly SemaphoreSlim AspNetCoreProjectBuildLock = new(1, 1);
     private const string DefaultContainerNetworkName = "cloudshell";
     private const string ContainerHostExecutableMetadataKey = "cloudshell.executable";
     private const string AspNetCoreUrlsEnvironmentVariable = "ASPNETCORE_URLS";
@@ -1292,6 +1293,14 @@ public sealed partial class ApplicationResourceService(
         MarkStarting(definition.Id);
         try
         {
+            if (IsAspNetCoreProject(definition) && !definition.AspNetCoreHotReload)
+            {
+                await BuildAspNetCoreProjectAsync(
+                    definition,
+                    procedureContext,
+                    cancellationToken);
+            }
+
             procedureContext?.AppendProviderEvent(
                 Id,
                 "application.process.starting",
@@ -4157,11 +4166,61 @@ public sealed partial class ApplicationResourceService(
     {
         var runnerArguments = hotReload
             ? $"watch --non-interactive --project {QuoteCommandArgument(projectPath)} run --no-launch-profile"
-            : $"run --project {QuoteCommandArgument(projectPath)} --no-launch-profile";
+            : $"run --project {QuoteCommandArgument(projectPath)} --no-build --no-launch-profile";
 
         return string.IsNullOrWhiteSpace(applicationArguments)
             ? runnerArguments
             : $"{runnerArguments} -- {applicationArguments.Trim()}";
+    }
+
+    private async Task BuildAspNetCoreProjectAsync(
+        ApplicationResourceDefinition definition,
+        ResourceProcedureContext? procedureContext,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(definition.ProjectPath))
+        {
+            return;
+        }
+
+        var projectPath = definition.ProjectPath.Trim();
+        var workingDirectory = string.IsNullOrWhiteSpace(definition.WorkingDirectory)
+            ? environment.ContentRootPath
+            : Path.IsPathRooted(definition.WorkingDirectory)
+                ? definition.WorkingDirectory
+                : Path.GetFullPath(definition.WorkingDirectory, environment.ContentRootPath);
+        procedureContext?.AppendProviderEvent(
+            Id,
+            "application.project.build.waiting",
+            $"Application provider is waiting to build project '{projectPath}' for '{definition.Name}'.");
+        await AspNetCoreProjectBuildLock.WaitAsync(cancellationToken);
+        try
+        {
+            procedureContext?.AppendProviderEvent(
+                Id,
+                "application.project.build.started",
+                $"Application provider is building project '{projectPath}' for '{definition.Name}'.");
+            var exitCode = await localProcesses.RunCommandAsync(
+                definition.Id,
+                "dotnet",
+                ["build", projectPath, "--nologo"],
+                workingDirectory,
+                cancellationToken);
+            if (exitCode != 0)
+            {
+                throw new InvalidOperationException(
+                    $"Project '{projectPath}' failed to build before starting '{definition.Name}'. See the application log for compiler output.");
+            }
+
+            procedureContext?.AppendProviderEvent(
+                Id,
+                "application.project.build.completed",
+                $"Application provider built project '{projectPath}' for '{definition.Name}'.");
+        }
+        finally
+        {
+            AspNetCoreProjectBuildLock.Release();
+        }
     }
 
     private static LocalProcessLifetime ToLocalProcessLifetime(ApplicationLifetime lifetime) =>

@@ -68,16 +68,17 @@ http://localhost:5104/resources
 
 Start the `application-topology-sql-server` resource, then start the
 `Application Topology API` resource, then start the `Application Topology
-Frontend` resource. Open:
+Frontend` resource. CloudShell builds project-backed resources before launch
+and then runs them with `dotnet run --no-build`, so the API and frontend do not
+start competing implicit builds against their shared `ServiceDefaults` project.
+Open:
 
 ```text
 http://localhost:5218/upstream
 ```
 
 The sample disables startup autostart for these three application resources so
-the project-backed API and frontend do not build concurrently against their
-shared `ServiceDefaults` project. Start them from Resource Manager in the
-order above when you want to exercise the live end-to-end path.
+you can exercise the live dependency path deliberately from Resource Manager.
 
 You can override the SQL Server development password with:
 

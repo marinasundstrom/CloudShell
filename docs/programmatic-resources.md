@@ -360,10 +360,12 @@ resources
         exposure: ResourceExposureScope.Public);
 ```
 
-ASP.NET Core project declarations run with plain `dotnet run` by default:
+ASP.NET Core project declarations serialize their build step before launch and
+then run without triggering another build:
 
 ```bash
-dotnet run --project samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj --no-launch-profile
+dotnet build samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj --nologo
+dotnet run --project samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj --no-build --no-launch-profile
 ```
 
 Set `hotReload: true` when you want `dotnet watch` for a project resource.

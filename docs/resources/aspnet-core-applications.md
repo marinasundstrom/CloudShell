@@ -7,7 +7,8 @@ attributes such as project path, application arguments, and hot reload mode.
 ASP.NET Core project resources are not plain executable application resources.
 They are project resources with a provider-owned process runner. Resource
 Manager shows the project shape, while the provider hides the generated
-`dotnet run` or `dotnet watch` command used to host the project.
+`dotnet build`, `dotnet run`, or `dotnet watch` command used to host the
+project.
 
 For shared application-provider behavior, see
 [Application resources](application-resources.md). For related resource types,
@@ -30,11 +31,12 @@ resources
     .WithReference(configuration);
 ```
 
-By default, CloudShell starts ASP.NET Core project resources with plain
-`dotnet run`:
+By default, CloudShell serializes ASP.NET Core project builds before launch and
+then starts each project with `dotnet run --no-build`:
 
 ```bash
-dotnet run --project samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj --no-launch-profile
+dotnet build samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj --nologo
+dotnet run --project samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj --no-build --no-launch-profile
 ```
 
 Pass `hotReload: true` to opt into `dotnet watch`. When hot reload is enabled,

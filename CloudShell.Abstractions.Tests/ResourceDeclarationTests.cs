@@ -1933,6 +1933,48 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task LocalProcessRunner_RunCommandUsesContentRootByDefault()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(contentRoot);
+        var outputPath = Path.Combine(contentRoot, "working-directory.txt");
+        var options = new LocalProcessOptions
+        {
+            RuntimeStatePath = "application-runtime-state.json",
+            LogDirectory = "application-logs"
+        };
+        var environment = new TestHostEnvironment(contentRoot);
+        var runtimeStates = new ApplicationRuntimeStateStore(options, environment);
+
+        try
+        {
+            using var runner = new LocalProcessRunner(runtimeStates, options, environment);
+
+            var exitCode = await runner.RunCommandAsync(
+                "application:test",
+                "/bin/sh",
+                ["-c", $"pwd > {QuoteShellArgument(outputPath)}"]);
+
+            Assert.Equal(0, exitCode);
+            Assert.Equal(
+                Path.GetFileName(contentRoot),
+                Path.GetFileName(File.ReadAllText(outputPath).Trim()));
+        }
+        finally
+        {
+            if (Directory.Exists(contentRoot))
+            {
+                Directory.Delete(contentRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task LocalProcessRunner_DisposeStopsControlPlaneScopedProcessTree()
     {
         if (OperatingSystem.IsWindows())
@@ -4082,7 +4124,7 @@ public sealed class ResourceDeclarationTests
             hotReload: false,
             applicationArguments: "--seed");
 
-        Assert.Equal("run --project src/API/API.csproj --no-launch-profile -- --seed", arguments);
+        Assert.Equal("run --project src/API/API.csproj --no-build --no-launch-profile -- --seed", arguments);
     }
 
     [Fact]
