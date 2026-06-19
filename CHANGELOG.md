@@ -17,6 +17,8 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- ResourceHost sample smoke coverage now verifies that an in-memory user
+  principal grant is visible in the Resource Manager Access control tab.
 - SQL Server Add Resource and Configuration views now use SQL service language
   and hide provider runtime image/host settings behind advanced controls instead
   of presenting the resource as a container app.

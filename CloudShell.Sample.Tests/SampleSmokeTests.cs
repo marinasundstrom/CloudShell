@@ -1450,6 +1450,16 @@ public sealed class SampleSmokeTests
                 grant.GetProperty("principal").GetProperty("id").GetString() == "alice" &&
                 grant.GetProperty("permission").GetString() == CloudShellPermissions.Resources.Manage);
 
+        var databaseAccessControlHtml = await client.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("sample:database")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.AccessControl.Value)}");
+        Assert.Contains("Search principals", databaseAccessControlHtml);
+        Assert.Contains("Assigned principals", databaseAccessControlHtml);
+        Assert.Contains("Alice Local Developer", databaseAccessControlHtml);
+        Assert.Contains("User", databaseAccessControlHtml);
+        Assert.Contains(CloudShellPermissions.Resources.Manage, databaseAccessControlHtml);
+        Assert.Contains("Revoke", databaseAccessControlHtml);
+        Assert.DoesNotContain("sample:api", databaseAccessControlHtml);
+
         var logoutHtml = await client.GetStringAsync("/account/logout");
         var logoutToken = ExtractRequestVerificationToken(logoutHtml);
         using var logoutResponse = await client.PostAsync(
