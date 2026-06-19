@@ -1724,6 +1724,36 @@ h3 {
     margin: 0 0 1rem;
 }
 
+.resource-failure-summary {
+    display: grid;
+    gap: .35rem;
+    margin: -.35rem 0 1rem;
+    padding: .7rem .75rem;
+    border: 1px solid #f1aeb5;
+    border-left: 4px solid #d13438;
+    border-radius: 6px;
+    background: #fff5f5;
+    color: var(--cloudshell-text);
+    font-size: .84rem;
+}
+
+.resource-failure-summary strong {
+    color: #b42318;
+}
+
+.resource-failure-summary span {
+    overflow-wrap: anywhere;
+}
+
+.resource-failure-summary fluent-anchor,
+.resource-failure-summary a {
+    justify-self: start;
+}
+
+.resource-blade-failure-summary {
+    margin: -.35rem 0 1rem;
+}
+
 .detail-list {
     display: grid;
     grid-template-columns: 7rem minmax(0, 1fr);

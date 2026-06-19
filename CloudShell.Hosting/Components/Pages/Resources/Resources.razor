@@ -312,6 +312,7 @@
                                    IsCheckingHealth="IsCheckingHealth"
                                    LifecycleProgressLabel="@GetLifecycleProgressLabel(selected)"
                                    Class="resource-blade-status-summary" />
+            <ResourceFailureSummary Resource="selected" Class="resource-blade-failure-summary" />
 
             @if (selected.DetailRoute is not null)
             {

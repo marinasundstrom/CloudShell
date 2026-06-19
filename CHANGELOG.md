@@ -31,6 +31,9 @@ on `git blame --follow`, and then by the broad type of change.
   and Resource Manager persistence rejects sharing the same database with the
   built-in identity store. This follows
   [ADR-20260619-001](ADR.md#adr-20260619-001-keep-built-in-identity-persistence-separate-from-resource-manager-persistence).
+- Resource detail pages and resource-list blades now show the latest
+  unsuperseded resource lifecycle/action failure below status and health
+  indicators, with a short message and a link to the resource Activity tab.
 
 ### 2026-06-18
 
