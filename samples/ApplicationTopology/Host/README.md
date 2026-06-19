@@ -205,14 +205,17 @@ Already covered by the sample:
 - Local DNS/name mapping through the `local-hostnames` publisher.
 - Resource health checks, logs, traces, and the intentional failed request
   path.
+- Smoke-tested runtime correlation for the API `/failure` response and the
+  frontend `/upstream/failure` response, including trace IDs and ProblemDetails
+  fields that point back to the failing resources.
 
 Remaining useful additions:
 
 - Identity-backed SQL Server authentication, so the API can use its CloudShell
   resource identity to access the database in an Azure-like flow.
-- A smoke-testable full runtime walkthrough after the API, frontend, and SQL
-  resources are started, including correlated failed request logs and traces
-  from `/upstream/failure`.
+- A full SQL-inclusive runtime walkthrough after the API, frontend, and SQL
+  resources are started, including the successful `/upstream` database path
+  and the correlated failed request path from `/upstream/failure`.
 - Optional container-app variants for the frontend and API only when they prove
   a distinct local-development workflow instead of duplicating the
   project-backed path.

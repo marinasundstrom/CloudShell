@@ -747,6 +747,59 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
+    public async Task ApplicationTopologyHost_RuntimeFailurePathReturnsCorrelatedProblemDetails()
+    {
+        var frontendPort = await GetFreePortAsync();
+        var sqlPort = await GetFreePortAsync();
+        var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:application-topology");
+        var secretsServiceBasePort = await GetServiceBasePortAsync("secrets-vault:application-topology");
+        using var host = await SampleProcess.StartAsync(
+            "samples/ApplicationTopology/Host/CloudShell.ApplicationTopologyHost.csproj",
+            await GetFreePortAsync(),
+            [
+                ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
+                ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
+                ("ApplicationTopology__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
+                ("ApplicationTopology__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture))
+            ]);
+
+        await host.WaitForHttpOkAsync("/", StartupTimeout);
+        await host.SendAsync(
+            HttpMethod.Post,
+            "/api/control-plane/v1/resources/application%3Aapplication-topology-api/actions/start?startDependencies=false&ignoreDependentWarning=true");
+
+        var startedApiJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var startedApiDocument = JsonDocument.Parse(startedApiJson);
+        var api = Assert.Single(startedApiDocument.RootElement.EnumerateArray(), resource =>
+            resource.GetProperty("id").GetString() == "application:application-topology-api");
+        var apiEndpoint = GetPrimaryEndpointAddress(api);
+        var apiFailureJson = await host.WaitForAbsoluteHttpStatusAsync(
+            $"{apiEndpoint.TrimEnd('/')}/failure",
+            HttpStatusCode.InternalServerError,
+            StartupTimeout);
+        using var apiFailureDocument = JsonDocument.Parse(apiFailureJson);
+        Assert.Equal("Intentional sample failure", apiFailureDocument.RootElement.GetProperty("title").GetString());
+        Assert.Equal("application-topology-api", apiFailureDocument.RootElement.GetProperty("resourceName").GetString());
+        Assert.Equal("intentional", apiFailureDocument.RootElement.GetProperty("sampleFailureKind").GetString());
+        Assert.Matches("^[0-9a-f]{32}$", apiFailureDocument.RootElement.GetProperty("traceId").GetString() ?? string.Empty);
+
+        await host.SendAsync(
+            HttpMethod.Post,
+            "/api/control-plane/v1/resources/application%3Aapplication-topology-frontend/actions/start?startDependencies=false&ignoreDependentWarning=true");
+
+        var frontendFailureJson = await host.WaitForAbsoluteHttpStatusAsync(
+            $"http://localhost:{frontendPort}/upstream/failure",
+            HttpStatusCode.BadGateway,
+            StartupTimeout);
+        using var frontendFailureDocument = JsonDocument.Parse(frontendFailureJson);
+        Assert.Equal("Intentional upstream failure", frontendFailureDocument.RootElement.GetProperty("title").GetString());
+        Assert.Equal("application-topology-frontend", frontendFailureDocument.RootElement.GetProperty("resourceName").GetString());
+        Assert.Equal("intentional", frontendFailureDocument.RootElement.GetProperty("sampleFailureKind").GetString());
+        Assert.Equal(500, frontendFailureDocument.RootElement.GetProperty("upstreamStatusCode").GetInt32());
+        Assert.Matches("^[0-9a-f]{32}$", frontendFailureDocument.RootElement.GetProperty("traceId").GetString() ?? string.Empty);
+    }
+
+    [Fact]
     public async Task SettingsAndSecretsSample_ProjectsReferenceBackedEnvironmentResources()
     {
         var apiPort = await GetFreePortAsync();
@@ -2103,6 +2156,51 @@ public sealed class SampleSmokeTests
 
             throw new TimeoutException(
                 $"Sample process did not return a successful response for '{url}' within {timeout}." +
+                $"{Environment.NewLine}{lastStatus ?? lastException?.Message}{Environment.NewLine}{GetOutput()}");
+        }
+
+        public async Task<string> WaitForAbsoluteHttpStatusAsync(
+            string url,
+            HttpStatusCode expectedStatusCode,
+            TimeSpan timeout)
+        {
+            using var client = new HttpClient
+            {
+                Timeout = TimeSpan.FromSeconds(3)
+            };
+            var deadline = DateTimeOffset.UtcNow.Add(timeout);
+            Exception? lastException = null;
+            string? lastStatus = null;
+
+            while (DateTimeOffset.UtcNow < deadline)
+            {
+                if (process.HasExited)
+                {
+                    throw new InvalidOperationException(
+                        $"Sample process exited with code {process.ExitCode} before '{url}' returned {(int)expectedStatusCode}.{Environment.NewLine}{GetOutput()}");
+                }
+
+                try
+                {
+                    using var response = await client.GetAsync(url);
+                    var body = await response.Content.ReadAsStringAsync();
+                    if (response.StatusCode == expectedStatusCode)
+                    {
+                        return body;
+                    }
+
+                    lastStatus = $"{(int)response.StatusCode} {response.ReasonPhrase}: {body}";
+                }
+                catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
+                {
+                    lastException = exception;
+                }
+
+                await Task.Delay(250);
+            }
+
+            throw new TimeoutException(
+                $"Sample process did not return {(int)expectedStatusCode} for '{url}' within {timeout}." +
                 $"{Environment.NewLine}{lastStatus ?? lastException?.Message}{Environment.NewLine}{GetOutput()}");
         }
 

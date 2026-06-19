@@ -17,6 +17,10 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Application Topology smoke coverage now starts the project-backed API and
+  frontend resources and verifies that the deliberate frontend-to-API failure
+  path returns correlated ProblemDetails without requiring Docker or SQL
+  Server.
 - Application Topology intentional failure responses now include trace,
   resource, sample-failure, and upstream-status ProblemDetails extensions so
   failed runtime requests can be correlated with Resource Manager traces and
