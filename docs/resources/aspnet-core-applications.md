@@ -39,6 +39,12 @@ dotnet build samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj --
 dotnet run --project samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj --no-build --no-launch-profile
 ```
 
+Before Start or Restart dispatches, Resource Manager verifies that the
+project path exists. Relative project paths are resolved against the resource
+working directory when one is configured, otherwise against the CloudShell host
+content root. Missing project paths are reported as action-unavailable reasons
+instead of failing later during `dotnet build`.
+
 Pass `hotReload: true` to opt into `dotnet watch`. When hot reload is enabled,
 CloudShell starts watch mode with `--non-interactive` and sets
 `DOTNET_WATCH_RESTART_ON_RUDE_EDIT=true`, so rude edits restart the app instead

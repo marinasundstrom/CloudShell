@@ -90,6 +90,10 @@ on `git blame --follow`, and then by the broad type of change.
   container hosts, and application volume mount access now expose localized
   overloads, and Resource Manager views use those overloads for human-facing
   labels.
+- ASP.NET Core project-backed applications now report missing project paths as
+  Start/Restart unavailable reasons before dispatching `dotnet build`; relative
+  paths are resolved from the resource working directory or CloudShell content
+  root.
 - Access Control principal search results now render as a vertical list with
   full-width principal rows and disambiguate resource identity display names as
   `<DisplayName> (<resource name>)` when those values differ.

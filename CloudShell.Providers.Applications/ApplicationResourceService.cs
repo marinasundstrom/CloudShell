@@ -552,6 +552,12 @@ public sealed partial class ApplicationResourceService(
             return referenceReason;
         }
 
+        var projectReason = GetProjectUnavailableReason(application);
+        if (!string.IsNullOrWhiteSpace(projectReason))
+        {
+            return projectReason;
+        }
+
         var containerHost = await TryResolveContainerHostForAvailabilityAsync(
             application,
             context.ResourceManager,
@@ -568,6 +574,25 @@ public sealed partial class ApplicationResourceService(
         }
 
         return GetEndpointUnavailableReason(application, action.Kind);
+    }
+
+    private string? GetProjectUnavailableReason(ApplicationResourceDefinition application)
+    {
+        if (!IsProjectBacked(application))
+        {
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(application.ProjectPath))
+        {
+            return $"Project-backed application resource '{application.Id}' does not declare a project path.";
+        }
+
+        var projectPath = application.ProjectPath.Trim();
+        var resolvedPath = ResolveProjectPath(application);
+        return File.Exists(resolvedPath) || Directory.Exists(resolvedPath)
+            ? null
+            : $"Project-backed application resource '{application.Id}' cannot start because project path '{projectPath}' was not found at '{resolvedPath}'.";
     }
 
     public bool CanExecuteOrchestratorService(
@@ -4221,6 +4246,23 @@ public sealed partial class ApplicationResourceService(
         {
             AspNetCoreProjectBuildLock.Release();
         }
+    }
+
+    private string ResolveProjectPath(ApplicationResourceDefinition definition)
+    {
+        var projectPath = definition.ProjectPath?.Trim() ?? string.Empty;
+        if (Path.IsPathRooted(projectPath))
+        {
+            return Path.GetFullPath(projectPath);
+        }
+
+        var workingDirectory = string.IsNullOrWhiteSpace(definition.WorkingDirectory)
+            ? environment.ContentRootPath
+            : Path.IsPathRooted(definition.WorkingDirectory)
+                ? definition.WorkingDirectory
+                : Path.GetFullPath(definition.WorkingDirectory, environment.ContentRootPath);
+
+        return Path.GetFullPath(projectPath, workingDirectory);
     }
 
     private static LocalProcessLifetime ToLocalProcessLifetime(ApplicationLifetime lifetime) =>

@@ -6,6 +6,7 @@ using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Client.Authentication;
+using CloudShell.Components;
 using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.Hosting.Components.Pages.Resources;
 using CloudShell.Hosting.ResourceManager;
@@ -1665,6 +1666,107 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("SAMPLE_API_KEY", exception.SettingName);
         Assert.Equal("secret", exception.ReferenceKind);
         Assert.Contains("is not allowed to read secrets", exception.Message);
+    }
+
+    [Fact]
+    public async Task ApplicationProvider_ReportsMissingAspNetCoreProjectPathAsActionUnavailable()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var missingProjectPath = Path.Combine("src", "API", "API.csproj");
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider(options =>
+            {
+                options.DefinitionsPath = "application-resources.json";
+                options.RuntimeStatePath = "application-runtime-state.json";
+                options.LogDirectory = "application-logs";
+            })
+            .Resources(resources =>
+            {
+                resources.AddAspNetCoreProject("api", missingProjectPath);
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var resourceProvider = serviceProvider.GetRequiredService<AspNetCoreProjectResourceProvider>();
+        var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
+        var registrations = new TestResourceRegistrationStore(
+            [
+                new ResourceRegistration(
+                    resource.Id,
+                    resourceProvider.Id,
+                    null,
+                    DateTimeOffset.UtcNow,
+                    [])
+            ]);
+        var resourceManager = new StaticResourceManagerStore([resource], [resourceProvider]);
+
+        var reason = await resourceProvider.GetActionUnavailableReasonAsync(
+            new ResourceProcedureContext(
+                resource,
+                registrations.GetRegistration(resource.Id),
+                null,
+                registrations,
+                resourceManager),
+            ResourceAction.Start);
+
+        Assert.Equal(
+            $"Project-backed application resource 'application:api' cannot start because project path '{missingProjectPath}' was not found at '{Path.GetFullPath(missingProjectPath, contentRoot)}'.",
+            reason);
+    }
+
+    [Fact]
+    public async Task ApplicationProvider_AllowsAspNetCoreProjectStartWhenProjectPathExists()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var projectPath = Path.Combine("src", "API", "API.csproj");
+        var projectFullPath = Path.GetFullPath(projectPath, contentRoot);
+        var services = new ServiceCollection();
+        Directory.CreateDirectory(Path.GetDirectoryName(projectFullPath)!);
+        await File.WriteAllTextAsync(projectFullPath, "<Project Sdk=\"Microsoft.NET.Sdk.Web\" />");
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider(options =>
+            {
+                options.DefinitionsPath = "application-resources.json";
+                options.RuntimeStatePath = "application-runtime-state.json";
+                options.LogDirectory = "application-logs";
+            })
+            .Resources(resources =>
+            {
+                resources.AddAspNetCoreProject("api", projectPath);
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var resourceProvider = serviceProvider.GetRequiredService<AspNetCoreProjectResourceProvider>();
+        var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
+        var registrations = new TestResourceRegistrationStore(
+            [
+                new ResourceRegistration(
+                    resource.Id,
+                    resourceProvider.Id,
+                    null,
+                    DateTimeOffset.UtcNow,
+                    [])
+            ]);
+        var resourceManager = new StaticResourceManagerStore([resource], [resourceProvider]);
+
+        var reason = await resourceProvider.GetActionUnavailableReasonAsync(
+            new ResourceProcedureContext(
+                resource,
+                registrations.GetRegistration(resource.Id),
+                null,
+                registrations,
+                resourceManager),
+            ResourceAction.Start);
+
+        Assert.Null(reason);
     }
 
     [Fact]
@@ -5894,7 +5996,7 @@ public sealed class ResourceDeclarationTests
             Capabilities: [new(ResourceCapabilityIds.StorageVolume)]);
 
     [Fact]
-    public void ApplicationNameMappingDisplay_TreatsNameMappingsAsInboundApplicationExposure()
+    public void ResourceNameMappingDisplay_TreatsNameMappingsAsInboundApplicationExposure()
     {
         var mapping = new Resource(
             "dns:local:name:api-local",
@@ -5921,15 +6023,15 @@ public sealed class ResourceDeclarationTests
             },
             Capabilities: [new(ResourceCapabilityIds.NetworkingNameMapping)]);
 
-        Assert.True(ApplicationNameMappingDisplay.IsNameMappingResource(mapping));
-        Assert.True(ApplicationNameMappingDisplay.TargetsResource(mapping, "application:api"));
-        Assert.False(ApplicationNameMappingDisplay.TargetsResource(mapping, "application:worker"));
-        Assert.Equal("api.local", ApplicationNameMappingDisplay.GetHostName(mapping));
-        Assert.Equal("http", ApplicationNameMappingDisplay.GetTargetEndpointName(mapping));
-        Assert.Equal(ResourceExposureScope.Public.ToString(), ApplicationNameMappingDisplay.GetExposureLabel(mapping));
-        Assert.Equal("logical", ApplicationNameMappingDisplay.GetProviderLabel(mapping));
-        Assert.Equal("provider selected", ApplicationNameMappingDisplay.GetMaterializationLabel(mapping));
-        Assert.Equal("api.local -> API/http", ApplicationNameMappingDisplay.GetSummary(mapping, "API"));
+        Assert.True(ResourceNameMappingDisplay.IsNameMappingResource(mapping));
+        Assert.True(ResourceNameMappingDisplay.TargetsResource(mapping, "application:api"));
+        Assert.False(ResourceNameMappingDisplay.TargetsResource(mapping, "application:worker"));
+        Assert.Equal("api.local", ResourceNameMappingDisplay.GetHostName(mapping));
+        Assert.Equal("http", ResourceNameMappingDisplay.GetTargetEndpointName(mapping));
+        Assert.Equal(ResourceExposureScope.Public.ToString(), ResourceNameMappingDisplay.GetExposureLabel(mapping));
+        Assert.Equal("logical", ResourceNameMappingDisplay.GetProviderLabel(mapping));
+        Assert.Equal("provider selected", ResourceNameMappingDisplay.GetMaterializationLabel(mapping));
+        Assert.Equal("api.local -> API/http", ResourceNameMappingDisplay.GetSummary(mapping, "API"));
     }
 
     [Fact]

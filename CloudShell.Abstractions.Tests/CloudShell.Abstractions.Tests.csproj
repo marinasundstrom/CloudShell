@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CloudShell.Abstractions\CloudShell.Abstractions.csproj" />
+    <ProjectReference Include="..\CloudShell.Components\CloudShell.Components.csproj" />
     <ProjectReference Include="..\CloudShell.Configuration\CloudShell.Configuration.csproj" />
     <ProjectReference Include="..\CloudShell.ControlPlane\CloudShell.ControlPlane.csproj" />
     <ProjectReference Include="..\CloudShell.Host\CloudShell.Host.csproj" />
