@@ -13,13 +13,21 @@ public sealed class CloudShellAccountService(
     IServiceProvider services,
     IHttpContextAccessor httpContextAccessor,
     CloudShellSecretSignInService secretSignIn,
-    IOptions<CloudShellAuthenticationOptions> options) : IAccountService
+    IOptions<CloudShellAuthenticationOptions> options,
+    InMemoryIdentitySetupOptions inMemoryIdentity) : IAccountService
 {
     public string Mode => options.Value.Mode;
 
     public bool AllowLocalSetup => options.Value.AllowLocalSetup;
 
     public bool SupportsLocalUserAdministration => UsesLocalIdentity;
+
+    public CloudShellLocalUserStoreKind LocalUserStoreKind =>
+        !SupportsLocalUserAdministration
+            ? CloudShellLocalUserStoreKind.Unavailable
+            : inMemoryIdentity.IsConfigured && inMemoryIdentity.UseAspNetCoreIdentityStore
+                ? CloudShellLocalUserStoreKind.InMemory
+                : CloudShellLocalUserStoreKind.Persistent;
 
     public async Task<bool> HasLocalUsersAsync(CancellationToken cancellationToken = default)
     {

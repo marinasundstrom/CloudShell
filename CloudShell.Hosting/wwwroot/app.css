@@ -188,6 +188,10 @@ h3 {
     gap: .9rem;
 }
 
+.account-store-alert {
+    margin-bottom: .9rem;
+}
+
 .panel {
     min-width: 0;
     padding: .9rem;

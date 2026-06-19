@@ -37,6 +37,14 @@ else
         </div>
     </section>
 
+    @if (Accounts.LocalUserStoreKind == CloudShellLocalUserStoreKind.InMemory)
+    {
+        <section class="resource-alert info account-store-alert">
+            <strong>@L["In-memory user store"]</strong>
+            <span>@L["Users, roles, and claims are stored in memory for this host process and are cleared when the process stops."]</span>
+        </section>
+    }
+
     <section class="dashboard-grid">
         <article class="panel">
             <div class="panel-header">

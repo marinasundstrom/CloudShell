@@ -8,6 +8,8 @@ public interface IAccountService
 
     bool SupportsLocalUserAdministration { get; }
 
+    CloudShellLocalUserStoreKind LocalUserStoreKind { get; }
+
     Task<bool> HasLocalUsersAsync(CancellationToken cancellationToken = default);
 
     Task<AccountOperationResult> SignInAsync(string userName, string credential);
@@ -44,3 +46,10 @@ public sealed record CreateCloudShellAccountUserRequest(
     string Password,
     string? Role,
     IReadOnlyList<CloudShellAccountClaim>? Claims = null);
+
+public enum CloudShellLocalUserStoreKind
+{
+    Unavailable,
+    Persistent,
+    InMemory
+}

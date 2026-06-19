@@ -185,6 +185,8 @@ public sealed class RemoteControlPlaneAuthenticationTests
         await using var scope = app.Services.CreateAsyncScope();
         var accounts = scope.ServiceProvider.GetRequiredService<CloudShellAccountService>();
 
+        Assert.Equal(CloudShellLocalUserStoreKind.Persistent, accounts.LocalUserStoreKind);
+
         var result = await accounts.CreateUserAsync(new CreateCloudShellAccountUserRequest(
             "reader@example.test",
             "CloudShell123!",
@@ -214,6 +216,16 @@ public sealed class RemoteControlPlaneAuthenticationTests
                      claim.Value == ResourcePermissionClaimAuthorization.CreateResourcePermissionClaimValue(
                          ContractLifecycleResourceProvider.ResourceId,
                          CloudShellPermissions.Resources.Manage));
+    }
+
+    [Fact]
+    public async Task BuiltInAccountService_ReportsInMemoryLocalUserStore()
+    {
+        await using var app = await CreateIdentityProtectedAppAsync(useInMemoryIdentity: true);
+        await using var scope = app.Services.CreateAsyncScope();
+        var accounts = scope.ServiceProvider.GetRequiredService<CloudShellAccountService>();
+
+        Assert.Equal(CloudShellLocalUserStoreKind.InMemory, accounts.LocalUserStoreKind);
     }
 
     [Fact]
@@ -329,7 +341,9 @@ public sealed class RemoteControlPlaneAuthenticationTests
         return app;
     }
 
-    private static async Task<WebApplication> CreateIdentityProtectedAppAsync(bool includeLifecycleResource = false)
+    private static async Task<WebApplication> CreateIdentityProtectedAppAsync(
+        bool includeLifecycleResource = false,
+        bool useInMemoryIdentity = false)
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(contentRoot);
@@ -357,6 +371,11 @@ public sealed class RemoteControlPlaneAuthenticationTests
         });
 
         var controlPlane = builder.AddCloudShellControlPlane();
+        if (useInMemoryIdentity)
+        {
+            controlPlane.ConfigureInMemoryIdentity(_ => { });
+        }
+
         if (includeLifecycleResource)
         {
             builder.Services.AddSingleton<ContractLifecycleResourceProvider>();

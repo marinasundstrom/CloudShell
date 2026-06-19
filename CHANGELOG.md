@@ -183,6 +183,8 @@ on `git blame --follow`, and then by the broad type of change.
 - The built-in Identity authentication mode now exposes a rudimentary
   shell Users page for creating local test users with roles and CloudShell
   resource-group, resource, or resource-permission claims.
+- The shell Users page now indicates when local users are backed by the
+  in-memory identity store so operators know those users are process-scoped.
 - The generated Resource Manager Access control tab now filters its permission
   picker to operations relevant to the current target resource while keeping
   custom and all-permission options available.

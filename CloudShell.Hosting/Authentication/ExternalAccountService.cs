@@ -12,6 +12,8 @@ internal sealed class ExternalAccountService(IHttpContextAccessor httpContextAcc
 
     public bool SupportsLocalUserAdministration => false;
 
+    public CloudShellLocalUserStoreKind LocalUserStoreKind => CloudShellLocalUserStoreKind.Unavailable;
+
     public Task<bool> HasLocalUsersAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(false);
 
