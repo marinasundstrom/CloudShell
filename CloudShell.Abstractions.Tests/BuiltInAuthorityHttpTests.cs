@@ -252,7 +252,8 @@ public sealed class BuiltInAuthorityHttpTests
                 "https://login.microsoftonline.com/common/v2.0",
             ["Persistence:Provider"] = "Sqlite",
             ["Persistence:ConnectionString"] = "Data Source=Data/cloudshell-test.db",
-            ["Persistence:IdentityConnectionString"] = "Data Source=Data/identity-test.db"
+            ["Identity:BuiltIn:Persistence:Provider"] = "Sqlite",
+            ["Identity:BuiltIn:Persistence:ConnectionString"] = "Data Source=Data/identity-test.db"
         });
 
         var controlPlane = builder.AddCloudShellControlPlane();

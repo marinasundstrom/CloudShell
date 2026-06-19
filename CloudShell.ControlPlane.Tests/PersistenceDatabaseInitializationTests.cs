@@ -12,6 +12,26 @@ namespace CloudShell.ControlPlane.Tests;
 public sealed class PersistenceDatabaseInitializationTests
 {
     [Fact]
+    public void AddCloudShellPersistence_RejectsSharedResourceManagerAndIdentityDatabase()
+    {
+        var services = new ServiceCollection();
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            services.AddCloudShellPersistence(new CloudShellPersistenceOptions
+            {
+                Provider = "Sqlite",
+                ConnectionString = "Data Source=Data/cloudshell.db"
+            },
+            new BuiltInIdentityPersistenceOptions
+            {
+                Provider = "Sqlite",
+                ConnectionString = "Data Source=Data/cloudshell.db"
+            }));
+
+        Assert.Contains("separate databases", exception.Message);
+    }
+
+    [Fact]
     public void ApplyPersistedProgrammaticResourceDeclarations_SkipsTransientDeclarations()
     {
         var directory = Path.Combine(
@@ -30,8 +50,12 @@ public sealed class PersistenceDatabaseInitializationTests
             services.AddCloudShellPersistence(new CloudShellPersistenceOptions
             {
                 Provider = "Sqlite",
-                ConnectionString = $"Data Source={Path.Combine(directory, "cloudshell.db")}",
-                IdentityConnectionString = $"Data Source={Path.Combine(directory, "identity.db")}"
+                ConnectionString = $"Data Source={Path.Combine(directory, "cloudshell.db")}"
+            },
+            new BuiltInIdentityPersistenceOptions
+            {
+                Provider = "Sqlite",
+                ConnectionString = $"Data Source={Path.Combine(directory, "identity.db")}"
             });
             services.AddSingleton(declarations);
             services.AddSingleton<IResourceProvider>(new RecordingProgrammaticDeclarationProvider());
@@ -67,8 +91,12 @@ public sealed class PersistenceDatabaseInitializationTests
             services.AddCloudShellPersistence(new CloudShellPersistenceOptions
             {
                 Provider = "Sqlite",
-                ConnectionString = $"Data Source={Path.Combine(directory, "cloudshell.db")}",
-                IdentityConnectionString = $"Data Source={Path.Combine(directory, "identity.db")}"
+                ConnectionString = $"Data Source={Path.Combine(directory, "cloudshell.db")}"
+            },
+            new BuiltInIdentityPersistenceOptions
+            {
+                Provider = "Sqlite",
+                ConnectionString = $"Data Source={Path.Combine(directory, "identity.db")}"
             });
 
             using var provider = services.BuildServiceProvider();
@@ -120,8 +148,12 @@ public sealed class PersistenceDatabaseInitializationTests
             services.AddCloudShellPersistence(new CloudShellPersistenceOptions
             {
                 Provider = "Sqlite",
-                ConnectionString = $"Data Source={databasePath}",
-                IdentityConnectionString = $"Data Source={Path.Combine(directory, "identity.db")}"
+                ConnectionString = $"Data Source={databasePath}"
+            },
+            new BuiltInIdentityPersistenceOptions
+            {
+                Provider = "Sqlite",
+                ConnectionString = $"Data Source={Path.Combine(directory, "identity.db")}"
             });
 
             using var provider = services.BuildServiceProvider();

@@ -13,6 +13,16 @@ link to ADR entries when a change depends on a recorded decision.
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
+### 2026-06-19
+
+#### Changed
+
+- Built-in identity persistence is now configured under
+  `Identity:BuiltIn:Persistence` with its own provider and connection string,
+  and Resource Manager persistence rejects sharing the same database with the
+  built-in identity store. This follows
+  [ADR-20260619-001](ADR.md#adr-20260619-001-keep-built-in-identity-persistence-separate-from-resource-manager-persistence).
+
 ### 2026-06-18
 
 #### Changed

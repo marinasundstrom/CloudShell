@@ -19,8 +19,22 @@ public static class PersistenceServiceCollectionExtensions
 
     public static IServiceCollection AddCloudShellPersistence(
         this IServiceCollection services,
-        CloudShellPersistenceOptions persistenceOptions)
+        CloudShellPersistenceOptions persistenceOptions) =>
+        services.AddCloudShellPersistence(
+            persistenceOptions,
+            new BuiltInIdentityPersistenceOptions
+            {
+                Provider = persistenceOptions.Provider,
+                ConnectionString = persistenceOptions.IdentityConnectionString
+            });
+
+    public static IServiceCollection AddCloudShellPersistence(
+        this IServiceCollection services,
+        CloudShellPersistenceOptions persistenceOptions,
+        BuiltInIdentityPersistenceOptions identityPersistenceOptions)
     {
+        ValidateSeparatePersistenceStores(persistenceOptions, identityPersistenceOptions);
+
         services.AddPooledDbContextFactory<CloudShellDbContext>(
             options => ConfigureProvider(
                 options,
@@ -29,8 +43,8 @@ public static class PersistenceServiceCollectionExtensions
         services.AddDbContext<CloudShellIdentityDbContext>(
             options => ConfigureProvider(
                 options,
-                persistenceOptions.Provider,
-                persistenceOptions.IdentityConnectionString));
+                identityPersistenceOptions.Provider,
+                identityPersistenceOptions.ConnectionString));
         services.AddSingleton<EfCoreResourceStore>();
         services.AddSingleton<EfCoreExtensionActivationStore>();
         services.TryAddSingleton<IResourceEventStore, EfCoreResourceEventStore>();
@@ -431,4 +445,25 @@ public static class PersistenceServiceCollectionExtensions
         throw new InvalidOperationException(
             $"Unsupported persistence provider '{provider}'. Use 'Sqlite' or 'SqlServer'.");
     }
+
+    private static void ValidateSeparatePersistenceStores(
+        CloudShellPersistenceOptions persistenceOptions,
+        BuiltInIdentityPersistenceOptions identityPersistenceOptions)
+    {
+        if (string.Equals(
+                persistenceOptions.Provider,
+                identityPersistenceOptions.Provider,
+                StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(
+                NormalizeConnectionString(persistenceOptions.ConnectionString),
+                NormalizeConnectionString(identityPersistenceOptions.ConnectionString),
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "Resource Manager persistence and built-in identity persistence must use separate databases.");
+        }
+    }
+
+    private static string NormalizeConnectionString(string connectionString) =>
+        connectionString.Trim().TrimEnd(';');
 }

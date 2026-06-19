@@ -9,6 +9,33 @@ Decision IDs are stable enough to reference from changelog entries and related
 docs. When an implementation change follows a decision, the changelog should
 link to the decision so the dependency is visible.
 
+## 2026-06-19
+
+### ADR-20260619-001: Keep built-in identity persistence separate from Resource Manager persistence
+
+CloudShell uses two persistent stores when the built-in identity provider is
+database-backed: the Resource Manager database and the built-in identity
+database. The Resource Manager database owns platform and Control Plane state
+such as resource registrations, groups, dependencies, declaration persistence,
+grant intent, activity, events, and provider-owned platform records. The
+built-in identity database owns provider state such as users, password hashes,
+roles, claims, tokens, and ASP.NET Core Identity records.
+
+This mirrors the boundary that external identity providers already impose.
+Keycloak, Entra ID, Active Directory, and other providers own principals and
+credentials outside the Resource Manager database. The built-in provider may
+run in-process for local development and simple on-premise hosting, but it is
+still an identity provider and should keep its persistence isolated.
+
+Resource Manager stores identity provider registrations and desired
+access-control grant intent. Identity providers apply or reconcile that intent
+through provider hooks. Resource Manager must not silently reuse its database
+for built-in identity persistence. Local development can default to two SQLite
+files; on-premise hosting can use two SQL Server databases, preferably with
+separate credentials.
+
+Related changes: [Changelog](CHANGELOG.md).
+
 ## 2026-06-18
 
 ### ADR-20260618-002: Model access control as principal-to-resource grants

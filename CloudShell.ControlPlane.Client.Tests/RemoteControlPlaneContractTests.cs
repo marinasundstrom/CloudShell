@@ -1224,7 +1224,8 @@ public sealed class RemoteControlPlaneContractTests
             ["Authentication:Enabled"] = "false",
             ["Persistence:Provider"] = "Sqlite",
             ["Persistence:ConnectionString"] = "Data Source=Data/cloudshell-client-contract.db",
-            ["Persistence:IdentityConnectionString"] = "Data Source=Data/identity-client-contract.db"
+            ["Identity:BuiltIn:Persistence:Provider"] = "Sqlite",
+            ["Identity:BuiltIn:Persistence:ConnectionString"] = "Data Source=Data/identity-client-contract.db"
         });
 
         var controlPlane = builder.AddCloudShellControlPlane();

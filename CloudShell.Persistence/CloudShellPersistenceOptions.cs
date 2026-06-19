@@ -10,3 +10,12 @@ public sealed class CloudShellPersistenceOptions
 
     public string IdentityConnectionString { get; set; } = "Data Source=Data/identity.db";
 }
+
+public sealed class BuiltInIdentityPersistenceOptions
+{
+    public const string SectionName = "Identity:BuiltIn:Persistence";
+
+    public string Provider { get; set; } = "Sqlite";
+
+    public string ConnectionString { get; set; } = "Data Source=Data/identity.db";
+}

@@ -146,27 +146,80 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
             .GetSection(CloudShellPersistenceOptions.SectionName)
             .Get<CloudShellPersistenceOptions>()
             ?? new CloudShellPersistenceOptions();
+        var identityPersistenceOptions = ResolveBuiltInIdentityPersistenceOptions(
+            builder.Configuration,
+            persistenceOptions);
 
-        ResolveSqlitePaths(persistenceOptions, builder.Environment.ContentRootPath);
-        builder.Services.AddCloudShellPersistence(persistenceOptions);
+        ResolveSqlitePaths(persistenceOptions, identityPersistenceOptions, builder.Environment.ContentRootPath);
+        ValidateSeparatePersistenceStores(persistenceOptions, identityPersistenceOptions);
+        builder.Services.AddCloudShellPersistence(persistenceOptions, identityPersistenceOptions);
+    }
+
+    private static BuiltInIdentityPersistenceOptions ResolveBuiltInIdentityPersistenceOptions(
+        IConfiguration configuration,
+        CloudShellPersistenceOptions persistenceOptions)
+    {
+        var identitySection = configuration.GetSection(BuiltInIdentityPersistenceOptions.SectionName);
+        if (identitySection.Exists())
+        {
+            return identitySection.Get<BuiltInIdentityPersistenceOptions>() ??
+                new BuiltInIdentityPersistenceOptions();
+        }
+
+        var legacyIdentityConnectionString =
+            configuration.GetSection(CloudShellPersistenceOptions.SectionName)["IdentityConnectionString"];
+        if (!string.IsNullOrWhiteSpace(legacyIdentityConnectionString))
+        {
+            return new BuiltInIdentityPersistenceOptions
+            {
+                Provider = persistenceOptions.Provider,
+                ConnectionString = legacyIdentityConnectionString
+            };
+        }
+
+        return new BuiltInIdentityPersistenceOptions();
     }
 
     private static void ResolveSqlitePaths(
         CloudShellPersistenceOptions options,
+        BuiltInIdentityPersistenceOptions identityOptions,
         string contentRootPath)
     {
-        if (!options.Provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
+        if (options.Provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
         {
-            return;
+            options.ConnectionString = ResolveSqlitePath(
+                options.ConnectionString,
+                contentRootPath);
         }
 
-        options.ConnectionString = ResolveSqlitePath(
-            options.ConnectionString,
-            contentRootPath);
-        options.IdentityConnectionString = ResolveSqlitePath(
-            options.IdentityConnectionString,
-            contentRootPath);
+        if (identityOptions.Provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
+        {
+            identityOptions.ConnectionString = ResolveSqlitePath(
+                identityOptions.ConnectionString,
+                contentRootPath);
+        }
     }
+
+    private static void ValidateSeparatePersistenceStores(
+        CloudShellPersistenceOptions persistenceOptions,
+        BuiltInIdentityPersistenceOptions identityPersistenceOptions)
+    {
+        if (string.Equals(
+                persistenceOptions.Provider,
+                identityPersistenceOptions.Provider,
+                StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(
+                NormalizeConnectionString(persistenceOptions.ConnectionString),
+                NormalizeConnectionString(identityPersistenceOptions.ConnectionString),
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "Resource Manager persistence and built-in identity persistence must use separate databases. Configure Persistence:ConnectionString and Identity:BuiltIn:Persistence:ConnectionString with distinct stores.");
+        }
+    }
+
+    private static string NormalizeConnectionString(string connectionString) =>
+        connectionString.Trim().TrimEnd(';');
 
     private static string ResolveSqlitePath(string connectionString, string contentRootPath)
     {

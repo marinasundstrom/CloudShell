@@ -317,7 +317,8 @@ public sealed class RemoteControlPlaneAuthenticationTests
                 CloudShellPermissions.Resources.Manage,
             ["Persistence:Provider"] = "Sqlite",
             ["Persistence:ConnectionString"] = "Data Source=Data/cloudshell-client-auth.db",
-            ["Persistence:IdentityConnectionString"] = "Data Source=Data/identity-client-auth.db"
+            ["Identity:BuiltIn:Persistence:Provider"] = "Sqlite",
+            ["Identity:BuiltIn:Persistence:ConnectionString"] = "Data Source=Data/identity-client-auth.db"
         });
 
         var controlPlane = builder.AddCloudShellControlPlane();
@@ -367,7 +368,8 @@ public sealed class RemoteControlPlaneAuthenticationTests
                 "ControlPlane.Access",
             ["Persistence:Provider"] = "Sqlite",
             ["Persistence:ConnectionString"] = "Data Source=Data/cloudshell-client-identity-auth.db",
-            ["Persistence:IdentityConnectionString"] = "Data Source=Data/identity-client-identity-auth.db"
+            ["Identity:BuiltIn:Persistence:Provider"] = "Sqlite",
+            ["Identity:BuiltIn:Persistence:ConnectionString"] = "Data Source=Data/identity-client-identity-auth.db"
         });
 
         var controlPlane = builder.AddCloudShellControlPlane();

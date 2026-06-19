@@ -1,14 +1,21 @@
 # Persistence configuration
 
-CloudShell persistence is configured under `Persistence` in the consuming host's
-configuration. The development sample uses `CloudShell.Host/appsettings.json`.
-Resource data and local ASP.NET Core Identity data use separate connection
-strings.
+Resource Manager persistence is configured under `Persistence` in the consuming
+host's configuration. The development sample uses
+`CloudShell.Host/appsettings.json`. Built-in identity provider persistence is
+configured separately under `Identity:BuiltIn:Persistence`.
 
 Resource persistence stores platform metadata only: resource registrations,
 resource groups, and resource-to-group assignments. Provider-specific resource
 configuration is not stored in a common database column. Providers remain the
 authority for their own configuration stores.
+
+Built-in identity provider persistence is not Resource Manager state. It stores
+local users, password hashes, roles, claims, tokens, and other
+ASP.NET Core Identity records in a separate database. External identity
+providers already enforce that boundary by owning their own stores; the
+built-in provider keeps the same boundary even when it runs in the CloudShell
+process.
 
 For example, configuration service resources are registered and grouped in the
 core database, but their key-value entries and access tokens are stored by the
@@ -58,8 +65,15 @@ host's content root.
 {
   "Persistence": {
     "Provider": "Sqlite",
-    "ConnectionString": "Data Source=Data/cloudshell.db",
-    "IdentityConnectionString": "Data Source=Data/identity.db"
+    "ConnectionString": "Data Source=Data/cloudshell.db"
+  },
+  "Identity": {
+    "BuiltIn": {
+      "Persistence": {
+        "Provider": "Sqlite",
+        "ConnectionString": "Data Source=Data/identity.db"
+      }
+    }
   }
 }
 ```
@@ -78,8 +92,15 @@ strings:
 {
   "Persistence": {
     "Provider": "SqlServer",
-    "ConnectionString": "Server=localhost;Database=CloudShell;User Id=cloudshell;Password=...;TrustServerCertificate=True",
-    "IdentityConnectionString": "Server=localhost;Database=CloudShellIdentity;User Id=cloudshell;Password=...;TrustServerCertificate=True"
+    "ConnectionString": "Server=localhost;Database=CloudShell;User Id=cloudshell;Password=...;TrustServerCertificate=True"
+  },
+  "Identity": {
+    "BuiltIn": {
+      "Persistence": {
+        "Provider": "SqlServer",
+        "ConnectionString": "Server=localhost;Database=CloudShellIdentity;User Id=cloudshell_identity;Password=...;TrustServerCertificate=True"
+      }
+    }
   }
 }
 ```
@@ -89,11 +110,17 @@ Keep secrets out of committed settings. Environment-variable overrides are:
 ```bash
 Persistence__Provider=SqlServer
 Persistence__ConnectionString="..."
-Persistence__IdentityConnectionString="..."
+Identity__BuiltIn__Persistence__Provider=SqlServer
+Identity__BuiltIn__Persistence__ConnectionString="..."
 ```
 
-Use separate empty databases/catalogs for resources and Identity. To add a
-future migration, use the local EF Core tool from the repository root:
+Use separate empty databases/catalogs for Resource Manager and built-in
+Identity. Separate credentials are recommended for on-premise/shared hosting.
+`Persistence:IdentityConnectionString` is still read as a legacy compatibility
+setting when the built-in identity persistence section is absent, but new
+configuration should use `Identity:BuiltIn:Persistence`.
+
+To add a future migration, use the local EF Core tool from the repository root:
 
 ```bash
 dotnet tool restore
