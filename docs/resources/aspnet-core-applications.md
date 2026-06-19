@@ -44,6 +44,8 @@ project path exists. Relative project paths are resolved against the resource
 working directory when one is configured, otherwise against the CloudShell host
 content root. Missing project paths are reported as action-unavailable reasons
 instead of failing later during `dotnet build`.
+The configured working directory must also exist before Start or Restart can
+dispatch.
 
 Pass `hotReload: true` to opt into `dotnet watch`. When hot reload is enabled,
 CloudShell starts watch mode with `--non-interactive` and sets

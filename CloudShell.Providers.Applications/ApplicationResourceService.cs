@@ -552,6 +552,12 @@ public sealed partial class ApplicationResourceService(
             return referenceReason;
         }
 
+        var localProcessReason = GetLocalProcessUnavailableReason(application);
+        if (!string.IsNullOrWhiteSpace(localProcessReason))
+        {
+            return localProcessReason;
+        }
+
         var projectReason = GetProjectUnavailableReason(application);
         if (!string.IsNullOrWhiteSpace(projectReason))
         {
@@ -593,6 +599,41 @@ public sealed partial class ApplicationResourceService(
         return File.Exists(resolvedPath) || Directory.Exists(resolvedPath)
             ? null
             : $"Project-backed application resource '{application.Id}' cannot start because project path '{projectPath}' was not found at '{resolvedPath}'.";
+    }
+
+    private string? GetLocalProcessUnavailableReason(ApplicationResourceDefinition application)
+    {
+        if (IsContainerBacked(application))
+        {
+            return null;
+        }
+
+        var workingDirectory = ResolveConfiguredWorkingDirectory(application);
+        if (!Directory.Exists(workingDirectory))
+        {
+            return $"Application resource '{application.Id}' cannot start because working directory '{workingDirectory}' was not found.";
+        }
+
+        if (IsProjectBacked(application))
+        {
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(application.ExecutablePath))
+        {
+            return $"Executable application resource '{application.Id}' does not declare an executable path.";
+        }
+
+        var executablePath = application.ExecutablePath.Trim();
+        if (!IsExplicitExecutablePath(executablePath))
+        {
+            return null;
+        }
+
+        var resolvedPath = ResolveConfiguredExecutablePath(application, workingDirectory);
+        return File.Exists(resolvedPath)
+            ? null
+            : $"Executable application resource '{application.Id}' cannot start because executable path '{executablePath}' was not found at '{resolvedPath}'.";
     }
 
     public bool CanExecuteOrchestratorService(
@@ -4209,11 +4250,7 @@ public sealed partial class ApplicationResourceService(
         }
 
         var projectPath = definition.ProjectPath.Trim();
-        var workingDirectory = string.IsNullOrWhiteSpace(definition.WorkingDirectory)
-            ? environment.ContentRootPath
-            : Path.IsPathRooted(definition.WorkingDirectory)
-                ? definition.WorkingDirectory
-                : Path.GetFullPath(definition.WorkingDirectory, environment.ContentRootPath);
+        var workingDirectory = ResolveConfiguredWorkingDirectory(definition);
         procedureContext?.AppendProviderEvent(
             Id,
             "application.project.build.waiting",
@@ -4256,14 +4293,29 @@ public sealed partial class ApplicationResourceService(
             return Path.GetFullPath(projectPath);
         }
 
-        var workingDirectory = string.IsNullOrWhiteSpace(definition.WorkingDirectory)
+        return Path.GetFullPath(projectPath, ResolveConfiguredWorkingDirectory(definition));
+    }
+
+    private string ResolveConfiguredWorkingDirectory(ApplicationResourceDefinition definition) =>
+        string.IsNullOrWhiteSpace(definition.WorkingDirectory)
             ? environment.ContentRootPath
             : Path.IsPathRooted(definition.WorkingDirectory)
-                ? definition.WorkingDirectory
+                ? Path.GetFullPath(definition.WorkingDirectory)
                 : Path.GetFullPath(definition.WorkingDirectory, environment.ContentRootPath);
 
-        return Path.GetFullPath(projectPath, workingDirectory);
+    private string ResolveConfiguredExecutablePath(
+        ApplicationResourceDefinition definition,
+        string workingDirectory)
+    {
+        var executablePath = definition.ExecutablePath.Trim();
+        return Path.IsPathRooted(executablePath)
+            ? Path.GetFullPath(executablePath)
+            : Path.GetFullPath(executablePath, workingDirectory);
     }
+
+    private static bool IsExplicitExecutablePath(string executablePath) =>
+        executablePath.Contains(Path.DirectorySeparatorChar) ||
+        executablePath.Contains(Path.AltDirectorySeparatorChar);
 
     private static LocalProcessLifetime ToLocalProcessLifetime(ApplicationLifetime lifetime) =>
         lifetime switch

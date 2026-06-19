@@ -51,6 +51,15 @@ Control-plane-scoped applications keep stdout and stderr redirected through the
 provider process while CloudShell is running, and provider lifecycle entries are
 also written to the per-resource log file.
 
+## Start Readiness
+
+Before Start or Restart dispatches, Resource Manager verifies deterministic
+local process prerequisites. A configured working directory must exist. When
+the executable is an explicit file path such as `./bin/api` or `/opt/app/api`,
+that file must exist as well. Plain command names such as `dotnet`, `node`, or
+`python` remain PATH-resolved by the host process environment and are not
+treated as missing files during preflight.
+
 ## Sample
 
 Add the sample web API through `/resources/add` as an executable application

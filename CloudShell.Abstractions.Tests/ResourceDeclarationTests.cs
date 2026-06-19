@@ -1674,6 +1674,7 @@ public sealed class ResourceDeclarationTests
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         var missingProjectPath = Path.Combine("src", "API", "API.csproj");
         var services = new ServiceCollection();
+        Directory.CreateDirectory(contentRoot);
 
         services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
         services
@@ -1745,6 +1746,165 @@ public sealed class ResourceDeclarationTests
         using var serviceProvider = services.BuildServiceProvider();
         var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
         var resourceProvider = serviceProvider.GetRequiredService<AspNetCoreProjectResourceProvider>();
+        var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
+        var registrations = new TestResourceRegistrationStore(
+            [
+                new ResourceRegistration(
+                    resource.Id,
+                    resourceProvider.Id,
+                    null,
+                    DateTimeOffset.UtcNow,
+                    [])
+            ]);
+        var resourceManager = new StaticResourceManagerStore([resource], [resourceProvider]);
+
+        var reason = await resourceProvider.GetActionUnavailableReasonAsync(
+            new ResourceProcedureContext(
+                resource,
+                registrations.GetRegistration(resource.Id),
+                null,
+                registrations,
+                resourceManager),
+            ResourceAction.Start);
+
+        Assert.Null(reason);
+    }
+
+    [Fact]
+    public async Task ApplicationProvider_ReportsMissingWorkingDirectoryAsActionUnavailable()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var workingDirectory = Path.Combine("missing", "api");
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider(options =>
+            {
+                options.DefinitionsPath = "application-resources.json";
+                options.RuntimeStatePath = "application-runtime-state.json";
+                options.LogDirectory = "application-logs";
+            })
+            .Resources(resources =>
+            {
+                resources.AddExecutableApplication(
+                    "application:api",
+                    executablePath: "dotnet",
+                    workingDirectory: workingDirectory);
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var resourceProvider = serviceProvider.GetRequiredService<ExecutableApplicationResourceProvider>();
+        var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
+        var registrations = new TestResourceRegistrationStore(
+            [
+                new ResourceRegistration(
+                    resource.Id,
+                    resourceProvider.Id,
+                    null,
+                    DateTimeOffset.UtcNow,
+                    [])
+            ]);
+        var resourceManager = new StaticResourceManagerStore([resource], [resourceProvider]);
+
+        var reason = await resourceProvider.GetActionUnavailableReasonAsync(
+            new ResourceProcedureContext(
+                resource,
+                registrations.GetRegistration(resource.Id),
+                null,
+                registrations,
+                resourceManager),
+            ResourceAction.Start);
+
+        Assert.Equal(
+            $"Application resource 'application:api' cannot start because working directory '{Path.GetFullPath(workingDirectory, contentRoot)}' was not found.",
+            reason);
+    }
+
+    [Fact]
+    public async Task ApplicationProvider_ReportsMissingExplicitExecutablePathAsActionUnavailable()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var executablePath = Path.Combine("bin", "api");
+        var services = new ServiceCollection();
+        Directory.CreateDirectory(contentRoot);
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider(options =>
+            {
+                options.DefinitionsPath = "application-resources.json";
+                options.RuntimeStatePath = "application-runtime-state.json";
+                options.LogDirectory = "application-logs";
+            })
+            .Resources(resources =>
+            {
+                resources.AddExecutableApplication(
+                    "application:api",
+                    executablePath: executablePath);
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var resourceProvider = serviceProvider.GetRequiredService<ExecutableApplicationResourceProvider>();
+        var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
+        var registrations = new TestResourceRegistrationStore(
+            [
+                new ResourceRegistration(
+                    resource.Id,
+                    resourceProvider.Id,
+                    null,
+                    DateTimeOffset.UtcNow,
+                    [])
+            ]);
+        var resourceManager = new StaticResourceManagerStore([resource], [resourceProvider]);
+
+        var reason = await resourceProvider.GetActionUnavailableReasonAsync(
+            new ResourceProcedureContext(
+                resource,
+                registrations.GetRegistration(resource.Id),
+                null,
+                registrations,
+                resourceManager),
+            ResourceAction.Start);
+
+        Assert.Equal(
+            $"Executable application resource 'application:api' cannot start because executable path '{executablePath}' was not found at '{Path.GetFullPath(executablePath, contentRoot)}'.",
+            reason);
+    }
+
+    [Fact]
+    public async Task ApplicationProvider_AllowsExplicitExecutablePathWhenFileExists()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var executablePath = Path.Combine("bin", "api");
+        var executableFullPath = Path.GetFullPath(executablePath, contentRoot);
+        var services = new ServiceCollection();
+        Directory.CreateDirectory(Path.GetDirectoryName(executableFullPath)!);
+        await File.WriteAllTextAsync(executableFullPath, "#!/bin/sh");
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider(options =>
+            {
+                options.DefinitionsPath = "application-resources.json";
+                options.RuntimeStatePath = "application-runtime-state.json";
+                options.LogDirectory = "application-logs";
+            })
+            .Resources(resources =>
+            {
+                resources.AddExecutableApplication(
+                    "application:api",
+                    executablePath: executablePath);
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var resourceProvider = serviceProvider.GetRequiredService<ExecutableApplicationResourceProvider>();
         var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
         var registrations = new TestResourceRegistrationStore(
             [
@@ -1901,6 +2061,7 @@ public sealed class ResourceDeclarationTests
 
         try
         {
+            Directory.CreateDirectory(contentRoot);
             services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
             services
                 .AddControlPlane()
