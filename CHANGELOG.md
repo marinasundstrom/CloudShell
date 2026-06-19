@@ -73,6 +73,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added a shared volume-mount display helper for mount summaries and
   materialization labels, replacing duplicate formatting in application,
   storage, and volume views.
+- Added a shared volume display helper for access-mode labels, replacing
+  duplicate formatting in volume editors and using the same readable labels in
+  volume overview.
 - Added a shared application resource display helper for lifetime and
   container-host labels, replacing duplicate formatting across application
   overview and application resource editors.

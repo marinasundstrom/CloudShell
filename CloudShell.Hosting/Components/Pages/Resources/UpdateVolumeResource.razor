@@ -52,7 +52,7 @@ else
             <EnumValueSelect TEnum="VolumeAccessMode"
                              Id="volume-update-access-mode"
                              Label="Access mode"
-                             LabelSelector="GetAccessModeLabel"
+                             LabelSelector="@ResourceVolumeDisplay.GetAccessModeLabel"
                              Disabled="@IsStorageShapeLocked"
                              @bind-Value="SelectedAccessMode" />
 
@@ -211,11 +211,4 @@ else
     private string GetLocationPlaceholder() =>
         HasSelectedStorage ? "postgres-data" : "./data/postgres or /mnt/share/postgres";
 
-    private static string GetAccessModeLabel(VolumeAccessMode mode) =>
-        mode switch
-        {
-            VolumeAccessMode.ReadOnlyMany => "Read-only many",
-            VolumeAccessMode.ReadWriteMany => "Read/write many",
-            _ => "Read/write once"
-        };
 }

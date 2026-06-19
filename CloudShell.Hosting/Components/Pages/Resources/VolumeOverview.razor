@@ -29,7 +29,7 @@ else
             <dt>Volume path</dt>
             <dd>@GetAttribute(ResourceAttributeNames.VolumeLocation, "provider managed")</dd>
             <dt>Access mode</dt>
-            <dd>@GetAttribute(ResourceAttributeNames.VolumeAccessMode, VolumeAccessMode.ReadWriteOnce.ToString())</dd>
+            <dd>@ResourceVolumeDisplay.GetAccessModeLabel(GetAttribute(ResourceAttributeNames.VolumeAccessMode, VolumeAccessMode.ReadWriteOnce.ToString()))</dd>
             <dt>Persistent</dt>
             <dd>@GetAttribute(ResourceAttributeNames.VolumePersistent, "true")</dd>
             <dt>Delete status</dt>

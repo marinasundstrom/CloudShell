@@ -40,7 +40,7 @@
         <EnumValueSelect TEnum="VolumeAccessMode"
                          Id="volume-access-mode"
                          Label="Access mode"
-                         LabelSelector="GetAccessModeLabel"
+                         LabelSelector="@ResourceVolumeDisplay.GetAccessModeLabel"
                          @bind-Value="SelectedAccessMode" />
 
         <FluentCheckbox @bind-Value="Persistent">
@@ -215,11 +215,4 @@
     private string GetLocationPlaceholder() =>
         HasSelectedStorage ? "postgres-data" : "./data/postgres or /mnt/share/postgres";
 
-    private static string GetAccessModeLabel(VolumeAccessMode mode) =>
-        mode switch
-        {
-            VolumeAccessMode.ReadOnlyMany => "Read-only many",
-            VolumeAccessMode.ReadWriteMany => "Read/write many",
-            _ => "Read/write once"
-        };
 }
