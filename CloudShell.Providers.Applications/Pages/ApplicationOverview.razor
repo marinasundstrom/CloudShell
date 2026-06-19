@@ -18,7 +18,7 @@
 }
 else
 {
-    var startReadiness = GetStartReadiness();
+    var actionReadiness = GetActionReadiness();
 
     <section class="blade-section">
         <h3>Essentials</h3>
@@ -251,14 +251,14 @@ else
         </section>
     }
 
-    @if (startReadiness is not null)
+    @if (actionReadiness is not null)
     {
         <section class="blade-section">
-            <h3>Start readiness</h3>
+            <h3>Action readiness</h3>
             <div class="generated-list">
-                <GeneratedListItem Title="@startReadiness.Status"
-                                   Summary="@startReadiness.Message"
-                                   Metadata="@($"{startReadiness.ActionLabel} preflight")" />
+                <GeneratedListItem Title="@actionReadiness.Status"
+                                   Summary="@actionReadiness.Message"
+                                   Metadata="@($"{actionReadiness.ActionLabel} preflight")" />
             </div>
         </section>
     }
@@ -665,12 +665,9 @@ else
             : "Credentials unavailable";
     }
 
-    private StartReadinessView? GetStartReadiness()
+    private ActionReadinessView? GetActionReadiness()
     {
-        var action = ProjectedResource?.ResourceActions.FirstOrDefault(action =>
-                action.Kind == ResourceActionKind.Start) ??
-            ProjectedResource?.ResourceActions.FirstOrDefault(action =>
-                action.Kind == ResourceActionKind.Restart);
+        var action = GetReadinessAction();
         if (action is null)
         {
             return null;
@@ -680,18 +677,37 @@ else
         if (OperationCapabilities.CanExecuteAction(action.Id) &&
             string.IsNullOrWhiteSpace(reason))
         {
-            return new StartReadinessView(
+            return new ActionReadinessView(
                 action.DisplayName,
                 "Ready",
                 $"{action.DisplayName} preflight checks passed.");
         }
 
-        return new StartReadinessView(
+        return new ActionReadinessView(
             action.DisplayName,
             "Blocked",
             string.IsNullOrWhiteSpace(reason)
                 ? $"{action.DisplayName} is unavailable for this resource."
                 : reason);
+    }
+
+    private ResourceAction? GetReadinessAction()
+    {
+        if (ProjectedResource is null)
+        {
+            return null;
+        }
+
+        var preferredKind = ProjectedResource.State is
+            ResourceState.Running or
+            ResourceState.Starting or
+            ResourceState.Degraded
+                ? ResourceActionKind.Restart
+                : ResourceActionKind.Start;
+
+        return ProjectedResource.ResourceActions.FirstOrDefault(action => action.Kind == preferredKind) ??
+            ProjectedResource.ResourceActions.FirstOrDefault(action =>
+                action.Kind is ResourceActionKind.Start or ResourceActionKind.Restart);
     }
 
     private static string GetContainerHostCapabilitiesLabel(ContainerHostDescriptor host) =>
@@ -1530,7 +1546,7 @@ else
         ContainerHostDescriptor? Host,
         Resource? HostResource);
 
-    private sealed record StartReadinessView(
+    private sealed record ActionReadinessView(
         string ActionLabel,
         string Status,
         string Message);
