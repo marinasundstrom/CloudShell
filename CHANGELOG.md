@@ -104,6 +104,9 @@ on `git blame --follow`, and then by the broad type of change.
   container host capabilities before provider dispatch: image-backed apps
   require `container.image`, and project-container builds require
   `container.build`.
+- Container app Start/Restart availability now also reports unavailable
+  selected container host resources and unavailable host credentials before
+  provider dispatch.
 - Access Control principal search results now render as a vertical list with
   full-width principal rows and disambiguate resource identity display names as
   `<DisplayName> (<resource name>)` when those values differ.

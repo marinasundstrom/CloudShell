@@ -4691,7 +4691,7 @@ public sealed partial class ApplicationResourceService(
             var selectedHost = await ResolveContainerHostByIdAsync(selectedEngineId, resourceManager, cancellationToken)
                 ?? throw new InvalidOperationException(
                     $"Container host '{selectedEngineId}' is not registered.");
-            ValidateContainerHostCapability(selectedHost, requiredCapability);
+            ValidateContainerHost(selectedHost, requiredCapability);
             return selectedHost;
         }
 
@@ -4702,16 +4702,22 @@ public sealed partial class ApplicationResourceService(
             ?? await ResolveDefaultContainerHostResourceAsync(resourceManager, cancellationToken);
         if (defaultHost is not null)
         {
-            ValidateContainerHostCapability(defaultHost, requiredCapability);
+            ValidateContainerHost(defaultHost, requiredCapability);
         }
 
         return defaultHost;
     }
 
-    private static void ValidateContainerHostCapability(
+    private static void ValidateContainerHost(
         ContainerHostDescriptor containerHost,
         string? requiredCapability)
     {
+        if (!containerHost.CredentialsAvailable)
+        {
+            throw new InvalidOperationException(
+                $"Container host '{containerHost.Id}' credentials are unavailable.");
+        }
+
         if (!string.IsNullOrWhiteSpace(requiredCapability) &&
             !containerHost.HostCapabilities.Contains(requiredCapability, StringComparer.OrdinalIgnoreCase))
         {
@@ -4753,6 +4759,12 @@ public sealed partial class ApplicationResourceService(
             return null;
         }
 
+        if (resource.State is not ResourceState.Running)
+        {
+            throw new InvalidOperationException(
+                $"Container host '{engineId}' is unavailable.");
+        }
+
         var descriptor = await TryDescribeContainerHostAsync(resource, resourceManager, cancellationToken);
         return descriptor is null ? null : TryReadContainerHost(descriptor);
     }
@@ -4772,6 +4784,12 @@ public sealed partial class ApplicationResourceService(
             var engine = TryReadContainerHost(descriptor);
             if (engine?.IsDefault == true)
             {
+                if (resource.State is not ResourceState.Running)
+                {
+                    throw new InvalidOperationException(
+                        $"Container host '{engine.Id}' is unavailable.");
+                }
+
                 return engine;
             }
         }

@@ -6690,6 +6690,119 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task ApplicationActionAvailability_ReturnsContainerHostCredentialReason()
+    {
+        var services = new ServiceCollection();
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .UseContainerHost(new ContainerHostDescriptor(
+                "docker:remote",
+                "Remote Docker",
+                ContainerHostKind.Docker,
+                "tcp://docker.example.test:2376",
+                CredentialsAvailable: false,
+                Capabilities: [ContainerHostCapabilityIds.ContainerImage]))
+            .AddApplicationProvider();
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var resourceProvider = serviceProvider.GetRequiredService<ContainerApplicationResourceProvider>();
+        var registrations = new MutableResourceRegistrationStore();
+        await provider.SetupApplicationAsync(
+            new ApplicationResourceDefinition(
+                "application:api",
+                "API",
+                string.Empty,
+                containerImage: "redis:7.2",
+                containerHostId: "docker:remote",
+                resourceType: ApplicationResourceTypes.ContainerApp),
+            resourceGroupId: null,
+            registrations);
+        var resource = Assert.Single(provider.GetResources(), resource => resource.IsNormalResource);
+        var resourceManager = new StaticResourceManagerStore([resource]);
+
+        var reason = await resourceProvider.GetActionUnavailableReasonAsync(
+            new ResourceProcedureContext(
+                resource,
+                registrations.GetRegistration(resource.Id),
+                null,
+                registrations,
+                resourceManager),
+            resource.ResourceActions.Single(action => action.Kind == ResourceActionKind.Start));
+
+        Assert.Equal(
+            "Container host 'docker:remote' credentials are unavailable.",
+            reason);
+    }
+
+    [Fact]
+    public async Task ApplicationActionAvailability_ReturnsUnavailableContainerHostResourceReason()
+    {
+        var services = new ServiceCollection();
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var host = new Resource(
+            "docker:remote",
+            "Remote Docker",
+            "Container host",
+            "Test",
+            "local",
+            ResourceState.Stopped,
+            [],
+            "1.0",
+            DateTimeOffset.UtcNow,
+            [],
+            Capabilities: [new(ResourceCapabilityIds.ContainerHost)]);
+        var descriptor = CreateDescriptor(
+            host.Id,
+            ContainerHostResourceTypes.ContainerHost,
+            new ContainerHostDescriptor(
+                host.Id,
+                "Remote Docker",
+                ContainerHostKind.Docker,
+                "tcp://docker.example.test:2376",
+                Capabilities: [ContainerHostCapabilityIds.ContainerImage]));
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services.AddSingleton<IResourceOrchestrationDescriptorProvider>(new TestDescriptorProvider(descriptor));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider();
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var resourceProvider = serviceProvider.GetRequiredService<ContainerApplicationResourceProvider>();
+        var registrations = new MutableResourceRegistrationStore();
+        await provider.SetupApplicationAsync(
+            new ApplicationResourceDefinition(
+                "application:api",
+                "API",
+                string.Empty,
+                containerImage: "redis:7.2",
+                containerHostId: host.Id,
+                resourceType: ApplicationResourceTypes.ContainerApp),
+            resourceGroupId: null,
+            registrations);
+        var resource = Assert.Single(provider.GetResources(), resource => resource.IsNormalResource);
+        var resourceManager = new StaticResourceManagerStore([resource, host], [resourceProvider]);
+
+        var reason = await resourceProvider.GetActionUnavailableReasonAsync(
+            new ResourceProcedureContext(
+                resource,
+                registrations.GetRegistration(resource.Id),
+                null,
+                registrations,
+                resourceManager),
+            resource.ResourceActions.Single(action => action.Kind == ResourceActionKind.Start));
+
+        Assert.Equal(
+            "Container host 'docker:remote' is unavailable.",
+            reason);
+    }
+
+    [Fact]
     public async Task ApplicationProvider_ProjectsVolumeMountMaterializationStatus()
     {
         var services = new ServiceCollection();
