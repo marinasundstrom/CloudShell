@@ -1,0 +1,21 @@
+<div class="generated-list">
+    @foreach (var diagnostic in Diagnostics)
+    {
+        <div class="@GetDiagnosticClass(diagnostic)">
+            <ResourceSeverityIcon Severity="diagnostic.Severity" />
+            <div class="generated-diagnostic-content">
+                <strong>@diagnostic.Title</strong>
+                <span>@diagnostic.Message</span>
+                <small>@diagnostic.Severity</small>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<ResourceDiagnosticView> Diagnostics { get; set; } = [];
+
+    private static string GetDiagnosticClass(ResourceDiagnosticView diagnostic) =>
+        $"generated-diagnostic {diagnostic.Severity.ToString().ToLowerInvariant()}";
+}

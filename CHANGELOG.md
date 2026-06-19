@@ -56,6 +56,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added a reusable `EndpointLink` component for endpoint address rendering and
   adopted it in application overview, generated endpoint/overview views, and
   the resource list.
+- Added a reusable Resource Manager diagnostic list component so generated
+  resource views, storage overview, and resource-list blades render diagnostic
+  rows consistently.
 - Resource Manager now includes a top-level Health workspace that polls
   configured resource health checks at the Resource Manager health-check
   interval, summarizes resource status, and links back to resource details.

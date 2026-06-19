@@ -330,19 +330,8 @@
         }
     </div>;
 
-    private RenderFragment RenderDiagnostics(IReadOnlyList<ResourceDiagnosticView> diagnostics) => @<div class="generated-list">
-        @foreach (var diagnostic in diagnostics)
-        {
-            <div class="@GetDiagnosticClass(diagnostic)">
-                    <ResourceSeverityIcon Severity="diagnostic.Severity" />
-                <div class="generated-diagnostic-content">
-                    <strong>@diagnostic.Title</strong>
-                    <span>@diagnostic.Message</span>
-                    <small>@diagnostic.Severity</small>
-                </div>
-            </div>
-        }
-    </div>;
+    private RenderFragment RenderDiagnostics(IReadOnlyList<ResourceDiagnosticView> diagnostics) =>
+        @<ResourceDiagnosticList Diagnostics="@diagnostics" />;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -732,9 +721,6 @@
 
     private static string? FirstNonEmpty(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
-
-    private static string GetDiagnosticClass(ResourceDiagnosticView diagnostic) =>
-        $"generated-diagnostic {diagnostic.Severity.ToString().ToLowerInvariant()}";
 
     private static string BuildResourceRoute(string resourceId) =>
         ResourceManagerRoutes.ResourceOverview(resourceId);

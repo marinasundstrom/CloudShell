@@ -29,17 +29,7 @@ else
     {
         <section class="blade-section">
             <h3>Diagnostics</h3>
-            <div class="generated-list">
-                @foreach (var diagnostic in Diagnostics)
-                {
-                    <div class="resource-list-item">
-                        <span class="resource-list-item-content">
-                            <strong>@diagnostic.Title</strong>
-                            <span>@diagnostic.Message</span>
-                        </span>
-                    </div>
-                }
-            </div>
+            <ResourceDiagnosticList Diagnostics="@Diagnostics" />
         </section>
     }
 }
