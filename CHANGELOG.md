@@ -50,6 +50,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Access Control principal search results now render as a vertical list with
   full-width principal rows and disambiguate resource identity display names as
   `<DisplayName> (<resource name>)` when those values differ.
+- Added a reusable `ResourcePillLink` component for display-name-aware resource
+  relationship pills and adopted it in application overview access summaries.
 - Resource Manager now includes a top-level Health workspace that polls
   configured resource health checks at the Resource Manager health-check
   interval, summarizes resource status, and links back to resource details.

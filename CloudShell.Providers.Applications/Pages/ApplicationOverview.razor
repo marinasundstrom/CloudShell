@@ -243,9 +243,14 @@ else
                 }
                 @foreach (var grant in OutboundPermissionGrants)
                 {
+                    var target = ResolveMappingResource(grant.TargetResourceId);
                     <div>
                         <strong>Can access</strong>
-                        <span>@ResourceLink(grant.TargetResourceId)</span>
+                        <span>
+                            <ResourcePillLink Label="@(target is null ? grant.TargetResourceId : GetResourceLabel(target))"
+                                              Href="@BuildResourceRoute(grant.TargetResourceId)"
+                                              Metadata="@target?.EffectiveTypeId" />
+                        </span>
                         <small>@grant.Permission</small>
                     </div>
                 }
@@ -1490,23 +1495,6 @@ else
             ? path
             : $"{path}?{queryString}";
     }
-
-    private RenderFragment ResourceLink(string resourceId) => builder =>
-    {
-        var resource = ResolveMappingResource(resourceId);
-        builder.OpenElement(0, "a");
-        builder.AddAttribute(1, "class", "resource-link generated-pill-link");
-        builder.AddAttribute(2, "href", BuildResourceRoute(resourceId));
-        builder.AddContent(3, resource is null ? resourceId : GetResourceLabel(resource));
-        if (resource is not null)
-        {
-            builder.OpenElement(4, "small");
-            builder.AddContent(5, resource.EffectiveTypeId);
-            builder.CloseElement();
-        }
-
-        builder.CloseElement();
-    };
 
     private static string? GetSqlServerConnectionString(ApplicationResourceDefinition application)
     {

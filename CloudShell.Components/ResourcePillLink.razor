@@ -1,0 +1,47 @@
+@if (!string.IsNullOrWhiteSpace(Href))
+{
+    <a class="@CssClass" href="@Href">
+        @Label
+        @if (!string.IsNullOrWhiteSpace(Metadata))
+        {
+            <small>@Metadata</small>
+        }
+    </a>
+}
+else
+{
+    <span class="@CssClass">
+        @Label
+        @if (!string.IsNullOrWhiteSpace(Metadata))
+        {
+            <small>@Metadata</small>
+        }
+    </span>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? Href { get; set; }
+
+    [Parameter]
+    public string? Metadata { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    private string CssClass
+    {
+        get
+        {
+            var baseClass = string.IsNullOrWhiteSpace(Href)
+                ? "generated-pill-link"
+                : "resource-link generated-pill-link";
+            return string.IsNullOrWhiteSpace(Class)
+                ? baseClass
+                : $"{baseClass} {Class}";
+        }
+    }
+}
