@@ -69,6 +69,8 @@ on `git blame --follow`, and then by the broad type of change.
   rows and adopted it in DNS, storage volume, and volume consumer views.
 - Added a reusable `ProcedureMessage` component and adopted it across Resource
   Manager procedure, read-only, and compact warning messages.
+- Adopted `ProcedureMessage` across application provider warnings and log read
+  errors so `procedure-message` markup is owned by one shared component.
 - Resource Manager now includes a top-level Health workspace that polls
   configured resource health checks at the Resource Manager health-check
   interval, summarizes resource status, and links back to resource details.

@@ -63,9 +63,9 @@
 
             @if (ExposeEndpoint)
             {
-                <div class="procedure-message compact">
+                <ProcedureMessage Compact="true">
                     Replicated container apps with inbound endpoints may need ingress or a load balancer. The app keeps its stable endpoint while the provider connects that endpoint to the selected routing implementation.
-                </div>
+                </ProcedureMessage>
             }
         }
 

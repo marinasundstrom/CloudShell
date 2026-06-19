@@ -42,14 +42,14 @@ else
             @if (Application is not null &&
                 ApplicationVolumeMountReplicaWarning.ShouldShow(EnableReplicas, Application.VolumeMounts, GetVolumeResources()))
             {
-                <div class="procedure-message compact">
+                <ProcedureMessage Compact="true">
                     @ApplicationVolumeMountReplicaWarning.Message
-                </div>
+                </ProcedureMessage>
             }
 
             @if (HasInboundEndpoint)
             {
-                <div class="procedure-message compact">
+                <ProcedureMessage Compact="true">
                     Replicated container apps with inbound endpoints need ingress or a load balancer for one stable address. Apply scaling, then create a route for this app endpoint.
                     @if (!IsReadOnly)
                     {
@@ -61,14 +61,14 @@ else
                             </FluentAnchor>
                         </div>
                     }
-                </div>
+                </ProcedureMessage>
             }
         }
         else
         {
-            <div class="procedure-message compact">
+            <ProcedureMessage Compact="true">
                 Single-instance container apps bind their own endpoint directly. Enable replicas when this app should scale out.
-            </div>
+            </ProcedureMessage>
         }
     </section>
 

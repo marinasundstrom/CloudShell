@@ -30,7 +30,8 @@ else
 
         @if (GetDeploymentStatusDescription(Resource) is { Length: > 0 } statusDescription)
         {
-            <div class="procedure-message compact">@statusDescription</div>
+            <ProcedureMessage Message="@statusDescription"
+                              Compact="true" />
         }
     </section>
 
@@ -60,7 +61,8 @@ else
 
             @if (!string.IsNullOrWhiteSpace(ImageDeploymentMessage))
             {
-                <div class="procedure-message compact">@ImageDeploymentMessage</div>
+                <ProcedureMessage Message="@ImageDeploymentMessage"
+                                  Compact="true" />
             }
 
             <FormPrimaryAction Text="@(IsDeploying ? "Deploying" : "Deploy")"

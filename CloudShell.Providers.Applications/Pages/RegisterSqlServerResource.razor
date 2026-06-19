@@ -58,9 +58,9 @@
         <ResourceEditorSection Title="Storage">
             @if (GetVolumeCandidates().Count == 0)
             {
-                <div class="procedure-message compact">
+                <ProcedureMessage Compact="true">
                     No volume resources are available in this group. SQL Server data will not be persisted if the container is recreated.
-                </div>
+                </ProcedureMessage>
             }
             else
             {
@@ -80,9 +80,9 @@
 
             @if (string.IsNullOrWhiteSpace(SelectedDataVolumeId))
             {
-                <div class="procedure-message compact">
+                <ProcedureMessage Compact="true">
                     Data will not be persisted unless a volume is mounted at /var/opt/mssql.
-                </div>
+                </ProcedureMessage>
             }
         </ResourceEditorSection>
 

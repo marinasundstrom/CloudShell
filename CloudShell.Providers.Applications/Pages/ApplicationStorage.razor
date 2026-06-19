@@ -16,23 +16,23 @@ else
 {
     @if (IsReadOnly)
     {
-        <div class="procedure-message compact">
+        <ProcedureMessage Compact="true">
             Resource Manager is in read-only mode. Storage mappings cannot be changed in this UI.
-        </div>
+        </ProcedureMessage>
     }
     else if (IsStorageLocked)
     {
-        <div class="procedure-message compact">
+        <ProcedureMessage Compact="true">
             Storage mappings cannot be changed while this resource is running. Stop the resource before changing mounted storage.
-        </div>
+        </ProcedureMessage>
     }
 
     @if (GetRecommendedMount(Application) is { } recommendation &&
         !HasMountAt(recommendation.TargetPath))
     {
-        <div class="procedure-message compact">
+        <ProcedureMessage Compact="true">
             @recommendation.Warning
-        </div>
+        </ProcedureMessage>
     }
 
     <ApplicationVolumeMountsEditor Mounts="VolumeMounts"

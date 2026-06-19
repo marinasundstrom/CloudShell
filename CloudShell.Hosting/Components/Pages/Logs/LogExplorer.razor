@@ -152,7 +152,7 @@ else if (ShowHeading)
             }
             else if (ReadError is not null)
             {
-                <div class="procedure-message">@ReadError</div>
+                <ProcedureMessage Message="@ReadError" />
             }
             else if (Entries.Count == 0)
             {

@@ -9,9 +9,9 @@
     <ChildContent>
         @if (ApplicationVolumeMountReplicaWarning.ShouldShow(ReplicasEnabled, Mounts, VolumeCandidates))
         {
-            <div class="procedure-message compact">
+            <ProcedureMessage Compact="true">
                 @ApplicationVolumeMountReplicaWarning.Message
-            </div>
+            </ProcedureMessage>
         }
 
         @if (VolumeCandidates.Count == 0)
