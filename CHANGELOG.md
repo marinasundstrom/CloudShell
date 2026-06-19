@@ -65,6 +65,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Adopted `GeneratedListItem` in application overview identity, service
   discovery, networking, readiness, and diagnostics summaries while leaving
   custom environment rows unchanged.
+- Added a Resource Manager `ResourceListItem` component for resource-icon list
+  rows and adopted it in DNS, storage volume, and volume consumer views.
 - Resource Manager now includes a top-level Health workspace that polls
   configured resource health checks at the Resource Manager health-check
   interval, summarizes resource status, and links back to resource details.

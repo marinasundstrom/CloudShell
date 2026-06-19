@@ -40,16 +40,15 @@ else
             <div class="generated-list">
                 @foreach (var volume in Volumes)
                 {
-                    <div class="resource-list-item">
-                        <ResourceKindIcon Resource="volume.Volume" />
-                        <span class="resource-list-item-content">
-                            <strong>
-                                <a class="resource-link" href="@BuildResourceRoute(volume.Volume.Id)">
-                                    @volume.Volume.Name
-                                </a>
-                            </strong>
-                            <span>@GetVolumeSummary(volume)</span>
-                            <small>@GetVolumeMetadata(volume)</small>
+                    <ResourceListItem Resource="volume.Volume"
+                                      Summary="@GetVolumeSummary(volume)"
+                                      Metadata="@GetVolumeMetadata(volume)">
+                        <TitleContent>
+                            <a class="resource-link" href="@BuildResourceRoute(volume.Volume.Id)">
+                                @volume.Volume.Name
+                            </a>
+                        </TitleContent>
+                        <ChildContent>
                             <ResourcePermissionBoundary Resource="volume.Volume"
                                                         ResourceGroupsByResourceId="ResourceGroupsByResourceId"
                                                         Permission="@CloudShellPermissions.Resources.Manage"
@@ -61,8 +60,8 @@ else
                                     </FluentButton>
                                 </span>
                             </ResourcePermissionBoundary>
-                        </span>
-                    </div>
+                        </ChildContent>
+                    </ResourceListItem>
                 }
             </div>
         }
