@@ -119,7 +119,7 @@
                 @foreach (var state in ResourceStateSummaries)
                 {
                     <a class="activity-row" href="/resources">
-                        <span class="state-dot @GetStateClass(state.State)"></span>
+                        <span class="state-dot @ResourceStateDisplay.GetStateClass(state.State)"></span>
                         <div>
                             <strong>@GetStateLabel(state.State)</strong>
                             <span>@L["{0} resource(s)", state.Count]</span>
@@ -534,19 +534,6 @@
             ResourceState.Paused => 5,
             ResourceState.Stopped => 6,
             _ => 7
-        };
-
-    private static string GetStateClass(ResourceState state) =>
-        state switch
-        {
-            ResourceState.Running => "state-running",
-            ResourceState.Starting => "state-starting",
-            ResourceState.Stopping => "state-stopping",
-            ResourceState.Paused => "state-paused",
-            ResourceState.Degraded => "state-degraded",
-            ResourceState.Stopped => "state-stopped",
-            ResourceState.Unknown => "state-unknown",
-            _ => "state-unknown"
         };
 
     private string FormatRequestFailureTime(DateTimeOffset timestamp) =>

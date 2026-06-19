@@ -64,6 +64,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Added a shared resource display-label helper and adopted it in identity,
   access control, storage, and volume views to reduce duplicated label
   formatting logic.
+- Added a shared resource state display helper so dashboard, Resource Manager
+  pages, and the state indicator use one lifecycle-state CSS mapping.
 - Adopted the shared resource display-label helper in application overview,
   app setting references, and volume display helpers to keep app-centric
   resource labels consistent.

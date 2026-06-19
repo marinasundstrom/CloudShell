@@ -12,7 +12,7 @@
 }
 else if (IsPill)
 {
-    <span class="state-pill @GetStateClass(State)" title="@EffectiveTitle" aria-label="@EffectiveTitle">
+    <span class="state-pill @ResourceStateDisplay.GetStateClass(State)" title="@EffectiveTitle" aria-label="@EffectiveTitle">
         @DisplayText
     </span>
 }
@@ -22,7 +22,7 @@ else if (IsInline)
 }
 else
 {
-    <span class="state-dot @GetStateClass(State)" title="@EffectiveTitle" aria-label="@EffectiveTitle"></span>
+    <span class="state-dot @ResourceStateDisplay.GetStateClass(State)" title="@EffectiveTitle" aria-label="@EffectiveTitle"></span>
 }
 
 @code {
@@ -82,14 +82,4 @@ else
         return string.Join(" ", classes);
     }
 
-    private static string GetStateClass(ResourceState? state) => state switch
-    {
-        ResourceState.Running => "state-running",
-        ResourceState.Starting => "state-starting",
-        ResourceState.Stopping => "state-stopping",
-        ResourceState.Paused => "state-paused",
-        ResourceState.Degraded => "state-degraded",
-        ResourceState.Stopped => "state-stopped",
-        _ => "state-unknown"
-    };
 }
