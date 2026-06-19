@@ -541,7 +541,7 @@
             string.Equals(endpoint.Name, reference.EndpointName, StringComparison.OrdinalIgnoreCase));
         builder.OpenElement(0, "span");
         builder.OpenElement(1, "span");
-        builder.AddContent(2, resource?.Name ?? reference.ResourceId);
+        builder.AddContent(2, resource is null ? reference.ResourceId : GetResourceLabel(resource));
         builder.CloseElement();
         builder.AddContent(3, " / ");
         builder.OpenElement(4, "strong");
@@ -579,7 +579,7 @@
         var provider = FindRelatedResource(providerId);
         return provider is null
             ? L["Provider: {0}", providerId].Value
-            : L["Provider: {0}", provider.Name].Value;
+            : L["Provider: {0}", GetResourceLabel(provider)].Value;
     }
 
     private string? GetMappingProviderId(ResourceEndpointMappingDefinition mapping) =>
@@ -753,7 +753,7 @@
             : FindRelatedResource(view.Mapping.ParentResourceId);
         if (zone is not null)
         {
-            parts.Insert(0, L["Zone: {0}", zone.Name].Value);
+            parts.Insert(0, L["Zone: {0}", GetResourceLabel(zone)].Value);
         }
 
         return string.Join(" | ", parts);
@@ -767,7 +767,7 @@
             var provider = FindRelatedResource(providerResourceId);
             return provider is null
                 ? L["Provider: {0}", providerResourceId].Value
-                : L["Provider: {0}", provider.Name].Value;
+                : L["Provider: {0}", GetResourceLabel(provider)].Value;
         }
 
         return L["Provider: {0}", GetAttributeValue(mapping, ResourceAttributeNames.DnsProvider, "logical")].Value;

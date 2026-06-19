@@ -139,7 +139,7 @@ public static class ResourceDiagnosticDisplay
             diagnostics.Add(new ResourceDiagnosticView(
                 "Warning",
                 "Name mapping target endpoint unavailable",
-                $"Target endpoint '{targetEndpointName}' could not be found on resource '{target.Name}'."));
+                $"Target endpoint '{targetEndpointName}' could not be found on resource '{GetResourceLabel(target)}'."));
             return true;
         }
 
@@ -149,7 +149,7 @@ public static class ResourceDiagnosticDisplay
             diagnostics.Add(new ResourceDiagnosticView(
                 "Warning",
                 "Name mapping target address unavailable",
-                $"Target endpoint '{targetEndpointName}' on resource '{target.Name}' does not have a mapped address for local host-name publishing."));
+                $"Target endpoint '{targetEndpointName}' on resource '{GetResourceLabel(target)}' does not have a mapped address for local host-name publishing."));
             hasDiagnostics = true;
         }
 
@@ -336,7 +336,7 @@ public static class ResourceDiagnosticDisplay
             diagnostics.Add(new ResourceDiagnosticView(
                 "Warning",
                 "DNS publisher capability missing",
-                $"Provider resource '{provider.Name}' does not advertise the DNS name publisher capability."));
+                $"Provider resource '{GetResourceLabel(provider)}' does not advertise the DNS name publisher capability."));
         }
     }
 
@@ -387,7 +387,7 @@ public static class ResourceDiagnosticDisplay
             diagnostics.Add(new ResourceDiagnosticView(
                 "Warning",
                 "Endpoint mapping provider capability missing",
-                $"Mapping '{mapping.Name}' provider resource '{provider.Name}' does not advertise the endpoint mapper capability."));
+                $"Mapping '{mapping.Name}' provider resource '{GetResourceLabel(provider)}' does not advertise the endpoint mapper capability."));
         }
     }
 
@@ -415,7 +415,7 @@ public static class ResourceDiagnosticDisplay
             diagnostics.Add(new ResourceDiagnosticView(
                 "Warning",
                 $"Endpoint mapping {role} endpoint unavailable",
-                $"Mapping '{mapping.Name}' {role} endpoint '{endpointReference.EndpointName}' could not be found on resource '{endpointResource.Name}'."));
+                $"Mapping '{mapping.Name}' {role} endpoint '{endpointReference.EndpointName}' could not be found on resource '{GetResourceLabel(endpointResource)}'."));
         }
     }
 
@@ -482,7 +482,7 @@ public static class ResourceDiagnosticDisplay
                 diagnostics.Add(new ResourceDiagnosticView(
                     "Warning",
                     "Load balancer route endpoint unavailable",
-                    $"Route '{route.Name}' targets endpoint '{route.Target.EndpointName}' on resource '{target.Name}', but that endpoint could not be found."));
+                    $"Route '{route.Name}' targets endpoint '{route.Target.EndpointName}' on resource '{GetResourceLabel(target)}', but that endpoint could not be found."));
             }
         }
     }
@@ -513,6 +513,13 @@ public static class ResourceDiagnosticDisplay
 
         return relatedResources?.GetValueOrDefault(resourceId);
     }
+
+    private static string GetResourceLabel(Resource resource) =>
+        !string.IsNullOrWhiteSpace(resource.DisplayName)
+            ? resource.DisplayName
+            : !string.IsNullOrWhiteSpace(resource.Name)
+                ? resource.Name
+                : resource.Id;
 
     private static string? FirstNonEmpty(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));

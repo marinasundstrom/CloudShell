@@ -74,7 +74,7 @@ else
                                 <option value="">@L["Select configuration store"]</option>
                                 @foreach (var store in ConfigurationStores)
                                 {
-                                    <option value="@store.Id">@store.Name</option>
+                                    <option value="@store.Id">@GetResourceLabel(store)</option>
                                 }
                                 @if (IsMissingConfigurationStore(setting.ReferenceResourceId))
                                 {
@@ -99,7 +99,7 @@ else
                                 <option value="">@L["Select Secrets Vault"]</option>
                                 @foreach (var vault in SecretsVaults)
                                 {
-                                    <option value="@vault.Id">@vault.Name</option>
+                                    <option value="@vault.Id">@GetResourceLabel(vault)</option>
                                 }
                                 @if (IsMissingSecretsVault(setting.ReferenceResourceId))
                                 {
@@ -178,7 +178,7 @@ else
                                 <option value="">@L["Select configuration store"]</option>
                                 @foreach (var store in ConfigurationStores)
                                 {
-                                    <option value="@store.Id">@store.Name</option>
+                                    <option value="@store.Id">@GetResourceLabel(store)</option>
                                 }
                                 @if (IsMissingConfigurationStore(variable.ReferenceResourceId))
                                 {
@@ -203,7 +203,7 @@ else
                                 <option value="">@L["Select Secrets Vault"]</option>
                                 @foreach (var vault in SecretsVaults)
                                 {
-                                    <option value="@vault.Id">@vault.Name</option>
+                                    <option value="@vault.Id">@GetResourceLabel(vault)</option>
                                 }
                                 @if (IsMissingSecretsVault(variable.ReferenceResourceId))
                                 {
@@ -276,11 +276,11 @@ else
         var resources = await ResourceManager.ListResourcesAsync();
         ConfigurationStores = resources
             .Where(IsConfigurationStore)
-            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(GetResourceLabel, StringComparer.OrdinalIgnoreCase)
             .ToArray();
         SecretsVaults = resources
             .Where(IsSecretsVault)
-            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(GetResourceLabel, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
         AppSettingProvider = Resource is null
@@ -402,6 +402,13 @@ else
 
     private static string FormatUnavailableReference(string? resourceId) =>
         $"{resourceId} (unavailable)";
+
+    private static string GetResourceLabel(Resource resource) =>
+        !string.IsNullOrWhiteSpace(resource.DisplayName)
+            ? resource.DisplayName
+            : !string.IsNullOrWhiteSpace(resource.Name)
+                ? resource.Name
+                : resource.Id;
 
     private static TextFieldType GetLiteralValueTextFieldType(string? name, bool hasStoredSensitiveValue) =>
         hasStoredSensitiveValue || ResourceSettingDisplay.IsSensitiveLiteralName(name)

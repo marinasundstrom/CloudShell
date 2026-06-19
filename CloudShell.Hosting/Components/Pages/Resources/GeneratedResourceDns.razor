@@ -223,7 +223,7 @@
             : FindRelatedResource(view.Mapping.ParentResourceId);
         if (zone is not null)
         {
-            parts.Insert(0, L["Zone: {0}", zone.Name].Value);
+            parts.Insert(0, L["Zone: {0}", GetResourceLabel(zone)].Value);
         }
 
         return string.Join(" | ", parts);
@@ -237,7 +237,7 @@
             var provider = FindRelatedResource(providerResourceId);
             return provider is null
                 ? L["Provider: {0}", providerResourceId].Value
-                : L["Provider: {0}", provider.Name].Value;
+                : L["Provider: {0}", GetResourceLabel(provider)].Value;
         }
 
         return L["Provider: {0}", GetAttributeValue(mapping, ResourceAttributeNames.DnsProvider, "logical")].Value;

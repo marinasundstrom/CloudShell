@@ -20,7 +20,7 @@ else
                 <dt>Storage resource</dt>
                 <dd>
                     <a class="resource-link" href="@BuildResourceRoute(storageResourceId)">
-                        @storageResourceId
+                        @GetResourceLabel(StorageResource, storageResourceId)
                     </a>
                 </dd>
                 <dt>Volume subpath</dt>
@@ -56,7 +56,7 @@ else
                         <span class="resource-list-item-content">
                             <strong>
                                 <a class="resource-link" href="@BuildResourceRoute(consumer.Resource.Id)">
-                                    @consumer.Resource.Name
+                                    @GetResourceLabel(consumer.Resource, consumer.Resource.Id)
                                 </a>
                             </strong>
                             @if (consumer.Mounts.Count == 0)
@@ -85,6 +85,7 @@ else
     public string? ResourceId { get; set; }
 
     private Resource? Volume { get; set; }
+    private Resource? StorageResource { get; set; }
     private IReadOnlyList<VolumeConsumerView> Consumers { get; set; } = [];
 
     protected override async Task OnParametersSetAsync()
@@ -94,10 +95,14 @@ else
             : await ResourceManager.GetResourceAsync(ResourceId);
         if (Volume is null)
         {
+            StorageResource = null;
             Consumers = [];
             return;
         }
 
+        StorageResource = TryGetStorageResourceId(out var storageResourceId)
+            ? await ResourceManager.GetResourceAsync(storageResourceId)
+            : null;
         var orchestrationSnapshot = await OrchestrationCatalog.GetSnapshotAsync();
         Consumers = (await ResourceManager.ListResourcesAsync())
             .Where(resource => !string.Equals(resource.Id, Volume.Id, StringComparison.OrdinalIgnoreCase))
@@ -182,6 +187,15 @@ else
         !string.IsNullOrWhiteSpace(value)
             ? value
             : fallback;
+
+    private static string GetResourceLabel(Resource? resource, string fallback) =>
+        resource is null
+            ? fallback
+            : !string.IsNullOrWhiteSpace(resource.DisplayName)
+                ? resource.DisplayName
+                : !string.IsNullOrWhiteSpace(resource.Name)
+                    ? resource.Name
+                    : fallback;
 
     private bool TryGetStorageResourceId(out string storageResourceId)
     {

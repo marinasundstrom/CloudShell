@@ -395,7 +395,7 @@
     private RenderFragment ResourceLink(string resourceId) => builder =>
     {
         var resource = FindRelatedResource(resourceId);
-        var label = resource?.Name ?? resourceId;
+        var label = resource is null ? resourceId : GetResourceLabel(resource);
         builder.OpenElement(0, "a");
         builder.AddAttribute(1, "class", "resource-link generated-pill-link");
         builder.AddAttribute(2, "href", BuildResourceRoute(resourceId));
@@ -409,6 +409,13 @@
 
         builder.CloseElement();
     };
+
+    private static string GetResourceLabel(Resource resource) =>
+        !string.IsNullOrWhiteSpace(resource.DisplayName)
+            ? resource.DisplayName
+            : !string.IsNullOrWhiteSpace(resource.Name)
+                ? resource.Name
+                : resource.Id;
 
     private string GetProvisionIdentityButtonLabel() =>
         ProvisioningIdentity

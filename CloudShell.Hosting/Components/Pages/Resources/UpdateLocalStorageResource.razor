@@ -69,7 +69,7 @@ else
             var resources = await ResourceManager.ListResourcesAsync();
             Volumes = resources
                 .Where(IsOwnedVolume)
-                .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(GetResourceLabel, StringComparer.OrdinalIgnoreCase)
                 .ToArray();
             Name = Storage.Name;
             SelectedGroupId = ResourceGroup?.Id ?? string.Empty;
@@ -143,4 +143,11 @@ else
 
     private static string? NormalizeNullable(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string GetResourceLabel(Resource resource) =>
+        !string.IsNullOrWhiteSpace(resource.DisplayName)
+            ? resource.DisplayName
+            : !string.IsNullOrWhiteSpace(resource.Name)
+                ? resource.Name
+                : resource.Id;
 }

@@ -1661,7 +1661,7 @@ resourceGroups) =>
         var summary = endpoint is null
             ? null
             : $" ({FormatEndpointSummary(endpoint)})";
-        return $"{resource?.Name ?? reference.ResourceId}/{reference.EndpointName}{summary}";
+        return $"{(resource is null ? reference.ResourceId : GetResourceLabel(resource))}/{reference.EndpointName}{summary}";
     }
 
     private string FormatEndpointSummary(ResourceEndpoint endpoint)
@@ -1700,7 +1700,7 @@ resourceGroups) =>
         var provider = ResolveMappingResource(providerId);
         return provider is null
             ? L["Provider: {0}", providerId].Value
-            : L["Provider: {0}", provider.Name].Value;
+            : L["Provider: {0}", GetResourceLabel(provider)].Value;
     }
 
     private Resource? ResolveMappingResource(string resourceId, Resource? fallbackResource = null)
@@ -1739,7 +1739,7 @@ resourceGroups) =>
     private string FormatLoadBalancerRouteTarget(LoadBalancerRouteTarget target)
     {
         var resource = ResolveMappingResource(target.ResourceId);
-        var label = resource?.Name ?? target.ResourceId;
+        var label = resource is null ? target.ResourceId : GetResourceLabel(resource);
         if (!string.IsNullOrWhiteSpace(target.EndpointName))
         {
             return $"{label}/{target.EndpointName}";
@@ -1753,7 +1753,7 @@ resourceGroups) =>
     private string FormatNameMappingSummary(Resource mapping, Resource target) =>
         L["{0} -> {1}/{2}",
             GetNameMappingHostName(mapping),
-            target.Name,
+            GetResourceLabel(target),
             GetNameMappingTargetEndpointName(mapping)].Value;
 
     private string FormatNameMappingMetadata(Resource mapping)
@@ -1770,7 +1770,7 @@ resourceGroups) =>
             : ResolveMappingResource(mapping.ParentResourceId);
         if (zone is not null)
         {
-            parts.Insert(0, L["Zone: {0}", zone.Name].Value);
+            parts.Insert(0, L["Zone: {0}", GetResourceLabel(zone)].Value);
         }
 
         return string.Join(" | ", parts);
@@ -1784,7 +1784,7 @@ resourceGroups) =>
             var provider = ResolveMappingResource(providerResourceId);
             return provider is null
                 ? L["Provider: {0}", providerResourceId].Value
-                : L["Provider: {0}", provider.Name].Value;
+                : L["Provider: {0}", GetResourceLabel(provider)].Value;
         }
 
         return L["Provider: {0}", GetAttributeValue(mapping, ResourceAttributeNames.DnsProvider, "logical")].Value;

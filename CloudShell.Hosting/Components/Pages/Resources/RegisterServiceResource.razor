@@ -105,14 +105,14 @@
             .Where(resource => !string.Equals(resource.EffectiveTypeId, ServiceResourceType, StringComparison.OrdinalIgnoreCase))
             .Where(resource => !string.Equals(resource.EffectiveTypeId, NetworkResourceType, StringComparison.OrdinalIgnoreCase))
             .Where(IsInSelectedGroup)
-            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(GetResourceLabel, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private IReadOnlyList<Resource> GetNetworkCandidates() =>
         Resources
             .Where(resource => string.Equals(resource.EffectiveTypeId, NetworkResourceType, StringComparison.OrdinalIgnoreCase))
             .Where(IsInSelectedGroup)
-            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(GetResourceLabel, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private bool IsInSelectedGroup(Resource resource)
@@ -122,6 +122,13 @@
             ? group is null
             : string.Equals(group?.Id, SelectedGroupId, StringComparison.OrdinalIgnoreCase);
     }
+
+    private static string GetResourceLabel(Resource resource) =>
+        !string.IsNullOrWhiteSpace(resource.DisplayName)
+            ? resource.DisplayName
+            : !string.IsNullOrWhiteSpace(resource.Name)
+                ? resource.Name
+                : resource.Id;
 
     private async Task Register()
     {

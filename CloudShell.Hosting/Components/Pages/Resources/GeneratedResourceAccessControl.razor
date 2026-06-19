@@ -403,7 +403,9 @@
     private string FormatPrincipalName(ResourcePrincipalReference principal) =>
         principal.Kind == ResourcePrincipalKind.ResourceIdentity &&
         !string.IsNullOrWhiteSpace(principal.SourceResourceId)
-            ? ResourcesById.GetValueOrDefault(principal.SourceResourceId)?.Name ?? principal.SourceResourceId
+            ? ResourcesById.GetValueOrDefault(principal.SourceResourceId) is { } resource
+                ? GetResourceLabel(resource)
+                : principal.SourceResourceId
             : principal.DisplayName ?? principal.Id;
 
     private RenderFragment PrincipalLink(ResourcePrincipalReference principal) => builder =>
@@ -422,7 +424,7 @@
                 ResourceManagerRoutes.ResourceDetails(resource.Id, ResourcePredefinedViewIds.Identity));
         }
 
-        builder.AddContent(sequence++, resource?.Name ?? principal.DisplayName ?? principal.Id);
+        builder.AddContent(sequence++, resource is null ? principal.DisplayName ?? principal.Id : GetResourceLabel(resource));
         builder.OpenElement(sequence++, "small");
         builder.AddContent(sequence++, FormatPrincipalLabel(principal));
         builder.CloseElement();
@@ -435,6 +437,13 @@
 
         builder.CloseElement();
     };
+
+    private static string GetResourceLabel(Resource resource) =>
+        !string.IsNullOrWhiteSpace(resource.DisplayName)
+            ? resource.DisplayName
+            : !string.IsNullOrWhiteSpace(resource.Name)
+                ? resource.Name
+                : resource.Id;
 
     private static string FormatPrincipalLabel(ResourcePrincipalReference principal) =>
         principal.Kind == ResourcePrincipalKind.ResourceIdentity

@@ -110,10 +110,10 @@ internal sealed record ResourceManagerDisplaySelection(
     }
 
     public string GetResourceLabel(Resource resource) =>
-        EnableDisplayNames ? resource.EffectiveDisplayName : resource.Id;
+        EnableDisplayNames ? resource.EffectiveDisplayName : GetResourceName(resource);
 
     public string GetResourceSortLabel(Resource resource) =>
-        EnableDisplayNames ? resource.EffectiveDisplayName : resource.Id;
+        GetResourceLabel(resource);
 
     public string GetResourceName(Resource resource) =>
         string.IsNullOrWhiteSpace(resource.Name)

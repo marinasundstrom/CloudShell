@@ -106,7 +106,7 @@ else
     {
         var targetResourceId = GetAttribute(mapping, ResourceAttributeNames.NameMappingTargetResourceId, string.Empty);
         var targetLabel = ResourcesById.TryGetValue(targetResourceId, out var target)
-            ? target.Name
+            ? GetResourceLabel(target)
             : targetResourceId;
         var endpoint = GetAttribute(mapping, ResourceAttributeNames.NameMappingTargetEndpointName, "default");
 
@@ -139,12 +139,19 @@ else
         if (!string.IsNullOrWhiteSpace(providerResourceId))
         {
             return ResourcesById.TryGetValue(providerResourceId, out var provider)
-                ? $"Provider: {provider.Name}"
+                ? $"Provider: {GetResourceLabel(provider)}"
                 : $"Provider: {providerResourceId}";
         }
 
         return $"Provider: {GetAttribute(mapping, ResourceAttributeNames.DnsProvider, "logical")}";
     }
+
+    private static string GetResourceLabel(Resource resource) =>
+        !string.IsNullOrWhiteSpace(resource.DisplayName)
+            ? resource.DisplayName
+            : !string.IsNullOrWhiteSpace(resource.Name)
+                ? resource.Name
+                : resource.Id;
 
     private static string GetMaterializationLabel(Resource mapping) =>
         GetAttribute(mapping, ResourceAttributeNames.NameMappingMaterializationStatus, "unknown") switch
