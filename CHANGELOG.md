@@ -408,6 +408,10 @@ on `git blame --follow`, and then by the broad type of change.
   reported before provider dispatch without exposing resolved values.
 - Container app Deployment tabs now surface image-update and restart readiness
   diagnostics before enabling the Deploy command.
+- Container image updates with automatic restart now run restart readiness
+  checks before saving the new image when the app is already running, so a
+  known restart blocker does not leave the resource on a partially applied
+  revision.
 - Application overview pages now summarize configured app setting and
   environment-variable references, including safe target details and identity
   grant status for configuration and secret references.

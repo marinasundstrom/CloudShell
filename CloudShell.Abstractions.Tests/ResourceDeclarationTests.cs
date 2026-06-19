@@ -8787,6 +8787,70 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task ContainerApplicationProvider_PreflightsRestartBeforeImageUpdate()
+    {
+        var services = new ServiceCollection();
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddExtension<ApplicationProviderExtension>()
+            .AddConfigurationProvider()
+            .Resources(resources =>
+            {
+                var settings = resources
+                    .AddConfigurationStore("configuration:app").WithDisplayName("App Settings")
+                    .WithEntry("Message", "hello");
+
+                resources
+                    .AddContainer("api", "example/api:latest")
+                    .WithContainerHost("docker")
+                    .WithEnvironment(
+                        "WELCOME_MESSAGE",
+                        settings.Entry("Missing"));
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var declarationStore = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+        var registrations = new DeclarationRegistrationStore(declarationStore);
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var providers = serviceProvider.GetServices<IResourceProvider>().ToArray();
+        var resources = providers
+            .SelectMany(provider => provider.GetResources())
+            .ToArray();
+        var runtimeStates = serviceProvider.GetRequiredService<ApplicationRuntimeStateStore>();
+        var resource = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == "application:api");
+        var resourceManager = new StaticResourceManagerStore(resources, providers);
+        var currentProcess = Process.GetCurrentProcess();
+        runtimeStates.Save(new ApplicationRuntimeState(
+            resource.Id,
+            currentProcess.Id,
+            currentProcess.StartTime,
+            DateTimeOffset.UtcNow));
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            provider.UpdateImageAsync(
+                new ResourceProcedureContext(
+                    resource,
+                    registrations.GetRegistration(resource.Id),
+                    null,
+                    registrations,
+                    resourceManager),
+                "example/api:20260608",
+                restartIfRunning: true));
+        var updated = provider.GetApplication("application:api");
+
+        Assert.Contains(
+            "Container app resource 'application:api' cannot update image and restart because Could not resolve configuration-entry reference for setting 'WELCOME_MESSAGE'.",
+            exception.Message);
+        Assert.NotNull(updated);
+        Assert.Equal("example/api:latest", updated.ContainerImage);
+        Assert.Equal(resource.ResourceAttributes[ResourceAttributeNames.ContainerRevision], updated.ContainerRevision);
+    }
+
+    [Fact]
     public async Task ContainerApplicationProvider_UpdatesTopLevelContainerAppReplicas()
     {
         var services = new ServiceCollection();

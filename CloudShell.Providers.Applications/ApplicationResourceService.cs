@@ -908,6 +908,19 @@ public sealed partial class ApplicationResourceService(
         }
 
         var wasRunning = IsRunning(application.Id);
+        if (restartIfRunning && wasRunning)
+        {
+            var restartReason = await GetActionUnavailableReasonAsync(
+                context,
+                ResourceAction.Restart,
+                cancellationToken);
+            if (!string.IsNullOrWhiteSpace(restartReason))
+            {
+                throw new InvalidOperationException(
+                    $"Container app resource '{context.Resource.Id}' cannot update image and restart because {restartReason}");
+            }
+        }
+
         var nextRevision = CreateContainerRevision();
         var updated = NormalizeDefinition(application with
         {

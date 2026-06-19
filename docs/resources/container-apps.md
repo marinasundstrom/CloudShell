@@ -121,6 +121,9 @@ projected container image and revision.
 The Deployment tab also shows update readiness before enabling the deploy
 command. It reports missing manage permission, missing image input, no-op image
 updates, and restart blockers such as a missing or unavailable restart action.
+The provider runs the same restart readiness checks before saving the new image
+when automatic restart is requested for a running app, so a known restart
+blocker does not leave the app on a new revision that failed to start.
 
 The same tab shows the app's current internal deployment projection: deployment
 status, orchestrator service id, scaling mode, desired replicas, and projected
