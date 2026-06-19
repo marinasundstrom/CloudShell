@@ -12,6 +12,8 @@ public static class ShellNavigationIcons
             "server" or "resources" or "resource" => new Icons.Regular.Size20.AppFolder(),
             "pulse" or "observability" => new Icons.Regular.Size20.DataUsage(),
             "document" or "logs" or "log" => new Icons.Regular.Size20.SlideTextSparkle(),
+            "request-graph" => new Icons.Regular.Size20.BranchFork(),
+            "request-map" => new Icons.Regular.Size20.FlowchartCircle(),
             "traces" or "trace" => new Icons.Regular.Size20.GanttChart(),
             "metrics" or "metric" => new Icons.Regular.Size20.ChartMultiple(),
             "users" or "people" or "identity" => new Icons.Regular.Size20.People(),

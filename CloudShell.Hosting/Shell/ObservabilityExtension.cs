@@ -29,14 +29,14 @@ public sealed class ObservabilityExtension : ICloudShellExtension
             .AddNavigationItem<Components.Pages.Observability.DependencyGraph>(
                 ObservabilityViews.RequestGraph,
                 "Request graph",
-                "network",
+                "request-graph",
                 22,
                 parentId: ObservabilityViews.Overview)
             .RegisterView<Components.Pages.Observability.RequestMap>(ObservabilityViews.RequestMap)
             .AddNavigationItem<Components.Pages.Observability.RequestMap>(
                 ObservabilityViews.RequestMap,
                 "Request map",
-                "network",
+                "request-map",
                 23,
                 parentId: ObservabilityViews.Overview)
             .RegisterView<Components.Pages.Observability.Traces>(ObservabilityViews.Traces)
