@@ -1,6 +1,8 @@
 ﻿@inject ShellCatalog ShellCatalog
+@inject ICloudShellUserSettingsProvider Settings
 @inject Microsoft.Extensions.Options.IOptionsMonitor<CloudShellDisplayOptions> DisplayOptions
 @inject IStringLocalizer<SharedResource> L
+@using System.Text.Json
 
 <div class="brand">
     <div class="brand-mark">CS</div>
@@ -35,20 +37,37 @@
 
             @foreach (var item in group)
             {
-                <FluentNavLink Class="cloudshell-nav-link"
-                               Href="@item.Href"
-                               Match="@GetMatch(item.Href)"
-                               Icon="@ShellNavigationIcons.FromName(item.Icon)"
-                               IconColor="Color.Neutral"
-                               Tooltip="@L[item.Text]"
-                               ActiveClass="active">
-                    <span class="nav-label">@L[item.Text]</span>
-                </FluentNavLink>
+                var hasChildren = childItemsByParent.TryGetValue(item.Id, out var childItems);
+                var childrenCollapsed = IsGroupCollapsed(item.Id);
 
-                @if (childItemsByParent.TryGetValue(item.Id, out var childItems))
+                <div class="nav-parent-row @(hasChildren ? "has-children" : null)">
+                    <FluentNavLink Class="cloudshell-nav-link"
+                                   Href="@item.Href"
+                                   Match="@GetMatch(item.Href)"
+                                   Icon="@ShellNavigationIcons.FromName(item.Icon)"
+                                   IconColor="Color.Neutral"
+                                   Tooltip="@L[item.Text]"
+                                   ActiveClass="active">
+                        <span class="nav-label">@L[item.Text]</span>
+                    </FluentNavLink>
+
+                    @if (hasChildren)
+                    {
+                        <button type="button"
+                                class="nav-group-toggle @(childrenCollapsed ? "collapsed" : null)"
+                                title="@GetGroupToggleTitle(item, childrenCollapsed)"
+                                aria-label="@GetGroupToggleTitle(item, childrenCollapsed)"
+                                aria-expanded="@(!childrenCollapsed)"
+                                @onclick="() => ToggleGroupAsync(item.Id)">
+                            <span class="nav-chevron" aria-hidden="true"></span>
+                        </button>
+                    }
+                </div>
+
+                @if (hasChildren && !childrenCollapsed)
                 {
                     <div class="nav-subitems">
-                        @foreach (var child in childItems)
+                        @foreach (var child in childItems!)
                         {
                             <FluentNavLink Class="cloudshell-nav-link cloudshell-nav-sub-link"
                                            Href="@child.Href"
@@ -82,6 +101,16 @@
 
     private string AriaExpanded => IsCollapsed ? "false" : "true";
     private string? CollapsedClass => IsCollapsed ? "collapsed" : null;
+    private HashSet<string> CollapsedGroups { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var setting = await Settings.GetSettingAsync(CloudShellUserSettingKeys.NavigationCollapsedGroups);
+        foreach (var groupId in ParseCollapsedGroups(setting?.Value))
+        {
+            CollapsedGroups.Add(groupId);
+        }
+    }
 
     private static NavLinkMatch GetMatch(string href) =>
         href == "/" ? NavLinkMatch.All : NavLinkMatch.Prefix;
@@ -93,4 +122,43 @@
 
     private Task ToggleNavigation() =>
         IsCollapsedChanged.InvokeAsync(!IsCollapsed);
+
+    private bool IsGroupCollapsed(string itemId) =>
+        CollapsedGroups.Contains(itemId);
+
+    private async Task ToggleGroupAsync(string itemId)
+    {
+        if (!CollapsedGroups.Add(itemId))
+        {
+            CollapsedGroups.Remove(itemId);
+        }
+
+        await Settings.SetSettingAsync(
+            CloudShellUserSettingKeys.NavigationCollapsedGroups,
+            JsonSerializer.Serialize(CollapsedGroups.Order(StringComparer.OrdinalIgnoreCase)));
+    }
+
+    private string GetGroupToggleTitle(NavItemContribution item, bool collapsed) =>
+        collapsed
+            ? L["Expand {0}", L[item.Text]].Value
+            : L["Collapse {0}", L[item.Text]].Value;
+
+    private static IReadOnlyList<string> ParseCollapsedGroups(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return [];
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<string[]>(value) ?? [];
+        }
+        catch (JsonException)
+        {
+            return value
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToArray();
+        }
+    }
 }

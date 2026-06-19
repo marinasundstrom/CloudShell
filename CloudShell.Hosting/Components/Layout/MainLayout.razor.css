@@ -45,6 +45,7 @@
 .shell.nav-collapsed ::deep .sidebar-footer-text,
 .shell.nav-collapsed ::deep .nav-group-title,
 .shell.nav-collapsed ::deep .nav-label,
+.shell.nav-collapsed ::deep .nav-group-toggle,
 .shell.nav-collapsed ::deep .fluent-nav-text {
     position: absolute;
     width: 1px;

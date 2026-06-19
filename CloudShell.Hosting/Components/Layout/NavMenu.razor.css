@@ -101,6 +101,52 @@
     text-transform: uppercase;
 }
 
+.nav-parent-row {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+}
+
+.nav-parent-row.has-children ::deep .fluent-nav-link .positioning-region {
+    padding-inline-end: 2.2rem;
+}
+
+.nav-group-toggle {
+    position: absolute;
+    inset-block: .25rem;
+    inset-inline-end: .25rem;
+    width: 1.75rem;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--cloudshell-text-muted);
+    cursor: pointer;
+}
+
+.nav-group-toggle:hover {
+    background: var(--cloudshell-hover);
+    color: var(--cloudshell-text);
+}
+
+.nav-chevron {
+    width: .45rem;
+    height: .45rem;
+    border-inline-end: 2px solid currentColor;
+    border-block-end: 2px solid currentColor;
+    transform: rotate(45deg) translateY(-.08rem);
+    transition: transform .12s ease;
+}
+
+.nav-group-toggle.collapsed .nav-chevron {
+    transform: rotate(-45deg) translateX(-.06rem);
+}
+
+:dir(rtl) .nav-group-toggle.collapsed .nav-chevron {
+    transform: rotate(135deg) translateX(.06rem);
+}
+
 ::deep .fluent-nav-menu {
     width: 100% !important;
     min-width: 0 !important;

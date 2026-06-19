@@ -46,6 +46,7 @@ public static class CloudShellUserSettingKeys
 {
     public const string ThemeMode = "shell.theme";
     public const string NavigationCollapsed = "shell.navigation.collapsed";
+    public const string NavigationCollapsedGroups = "shell.navigation.collapsed-groups";
     public const string ResourceManagerShowRuntimeManagedResources =
         "resource-manager.show-runtime-managed-resources";
     public const string ResourceManagerShowHiddenResources =
