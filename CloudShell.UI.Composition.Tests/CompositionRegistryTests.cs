@@ -101,6 +101,20 @@ public sealed class CompositionRegistryTests
     }
 
     [Fact]
+    public void ResolveHref_OmitsOptionalPageRouteTemplateSegmentsWithoutRouteParameters()
+    {
+        var settingsPage = new PageId("page.settings");
+        var registry = CompositionRegistry.Create(composition =>
+        {
+            composition.AddPage(settingsPage, "Settings", "/settings/{section?}");
+        });
+
+        var href = registry.ResolveHref(settingsPage);
+
+        Assert.Equal("/settings", href);
+    }
+
+    [Fact]
     public void ResolveHref_MaterializesConstrainedPageRouteTemplateParameters()
     {
         var constrainedPage = new PageId("page.resources.by-number");

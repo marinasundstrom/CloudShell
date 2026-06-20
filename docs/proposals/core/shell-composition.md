@@ -140,6 +140,31 @@ layout/content engine registers optional route metadata against a page content
 ID so it can resolve links and deep links; it does not replace Razor routing or
 make every content node routable.
 
+Programmatic link resolution should start from typed composition targets such
+as `PageId`, `SectionId`, `MenuItemId`, or an explicit href target. The
+resolver materializes registered page route templates with supplied route
+values, so a page registered as `/settings/{section?}` can resolve to
+`/settings` or `/settings/platform` without callers concatenating strings. A
+generic `SectionId` target should remain a content address that resolves to
+the nearest routable page plus a fragment unless the host or renderer projects
+that section as a route value under its owning page. `CompositionLink`,
+menus, shell presenters, and custom renderers should all use the same resolver
+contract.
+
+The initial route projection should be convention-based: page and sub-page
+hierarchy maps to path segments, sections inside a page map to fragments, and
+query strings carry view-local state. Future descriptors can add configurable
+route projection metadata for cases where a section, slot, or other content
+artifact should be exposed as a path segment. That metadata still has to
+correspond to the routes the consuming Blazor page declares and to the
+presentation layer's ability to map the URL back to selected content.
+
+A later CloudShell host could introduce a composition-aware Blazor router
+adapter that registers route entries from this model instead of requiring each
+routed Razor component to duplicate the same route shape. That should be
+treated as a host routing adapter over the composition graph, not as a
+requirement for the generic composition model or the first Blazor integration.
+
 Relationships describe cross-tree links and non-hierarchical targets such as a
 menu item targeting a page, a page content node binding to a route, component
 hosting, and renderer-specific selection; they do not require a specific

@@ -7,6 +7,7 @@ using CloudShell.Hosting.Shell;
 using CloudShell.UI.Composition;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace CloudShell.Abstractions.Tests;
 
@@ -134,6 +135,41 @@ public sealed class ShellNavigationTests
         Assert.Equal(ShellCompositionIds.SettingsPage.Value, items["Settings"].Target.Value);
         Assert.Equal(ShellCompositionIds.UsersPage.Value, items["Users"].Target.Value);
         Assert.Equal(ShellCompositionIds.ExtensionsPage.Value, items["Extensions"].Target.Value);
+    }
+
+    [Fact]
+    public void CoreShellExtension_ResolvesSettingsPageAndNestedSectionRoutes()
+    {
+        var services = new ServiceCollection();
+        services.TryAddSingleton<ShellCompositionHostContext>();
+        services
+            .AddCloudShell()
+            .AddExtension<CoreShellExtension>()
+            .AddExtension(new ResourceManagerExtension());
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var registry = CompositionRegistry.FromModules(serviceProvider.GetServices<CompositionModule>());
+
+        Assert.Equal("/settings", registry.ResolveHref(ShellCompositionIds.SettingsPage));
+        Assert.Equal(
+            "/settings/platform",
+            registry.ResolveHref(
+                ShellCompositionIds.SettingsPage,
+                new Dictionary<string, object?>
+                {
+                    ["section"] = "platform"
+                }));
+        Assert.Equal(
+            "/settings/resource-manager",
+            registry.ResolveHref(
+                ShellCompositionIds.SettingsPage,
+                new Dictionary<string, object?>
+                {
+                    ["section"] = "resource-manager"
+                }));
+        Assert.Equal(
+            "/settings#section.cloudshell.settings.main.resource-manager",
+            registry.ResolveHref(ResourceManagerCompositionIds.SettingsSection));
     }
 
     [Fact]

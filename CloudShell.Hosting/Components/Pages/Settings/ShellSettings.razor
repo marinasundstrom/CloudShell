@@ -1,4 +1,5 @@
 @page "/settings"
+@page "/settings/{Section}"
 @rendermode InteractiveServer
 @inject IStringLocalizer<SharedResource> L
 @using CloudShell.UI.Composition
@@ -17,6 +18,7 @@
                                           Outlet="@ShellCompositionIds.SettingsMainOutlet"
                                           AriaLabel="@L["Settings sections"].Value"
                                           Group="Settings"
+                                          RouteSegment="@Section"
                                           IconSelector="GetIcon">
     <SummaryContent Context="sections">
         <div class="selected-type-card">
@@ -53,6 +55,9 @@
 </CloudShellCompositionSectionTabbedLayout>
 
 @code {
+    [Parameter]
+    public string? Section { get; set; }
+
     private static string GetIcon(CompositionSectionProjection section) =>
         section.Section.Id == ShellCompositionIds.SettingsPlatformSection
             ? "extensions"

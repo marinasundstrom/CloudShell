@@ -80,6 +80,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The shell-owned Overview, Users, Extensions, and Settings pages are now
   registered as composition page targets so core navigation can resolve
   through stable page IDs during the menu migration.
+- The common Settings page now resolves nested section navigation through
+  `/settings/{section}` while keeping direct `SectionId` targets as page
+  fragments.
 - The Platform section on the common Settings page now resolves Users and
   Extensions links through composition page targets instead of querying the
   legacy shell catalog directly.

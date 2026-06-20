@@ -486,6 +486,41 @@ route: if composition resolves a target to `/resources/{resourceId}/{view}`,
 the Resource Details component must declare and interpret that same route
 shape.
 
+Nested navigation follows the same rule. The root page owns the stable page
+route, such as `/settings`; nested page navigation owns the next path segment,
+such as `/settings/platform` or `/settings/resource-manager`. The current
+Settings renderer projects registered settings sections as logical sub-pages
+in that nested navigation surface. Their full section IDs remain the internal
+composition addresses, while the public route segment is derived from the
+local identifier by convention.
+
+Programmatic URL resolution follows the registered page route template. For
+example, the Settings page is registered as `/settings/{section?}`. Resolving
+`ShellCompositionIds.SettingsPage` with no route values yields `/settings`;
+resolving the same page ID with `{ section = "platform" }` yields
+`/settings/platform`. A renderer that projects sections as nested sub-pages
+should resolve the owning page with route values rather than hand-building the
+URL. A direct `SectionId` target remains a generic content address and
+resolves to the owning page plus a fragment, such as
+`/settings#section.cloudshell.settings.main.resource-manager`, unless a
+host-provided projection maps that section into a route value.
+
+This route mapping is convention-based for now. The default convention is that
+page and sub-page hierarchy maps to path segments, sections inside a page map
+to fragments, and query strings carry view-local state. A future route
+projection model can make this configurable so a section or other content
+artifact can explicitly declare that it belongs to a path segment. Even then,
+the presentation layer must still be able to map the selected URL back to the
+rendered content, and the Blazor page must declare routes that match the
+composition route metadata.
+
+A later host could go further and provide a composition-aware Blazor router
+adapter that registers routable entries directly from the composition model.
+That would reduce the amount of duplicated route declaration in Razor pages,
+but it is a separate routing integration layer. The current implementation
+stays aligned with Blazor's built-in router and uses the composition registry
+for link generation.
+
 `PageTitleOutlet` relies on Blazor's normal `PageTitle` and `HeadOutlet`
 behavior. Hosts still need to include a Blazor `HeadOutlet` in their app shell
 if they want document titles to render during static SSR or interactive
@@ -498,6 +533,10 @@ rendering.
 ```razor
 <CompositionLink Target="@CompositionIds.ReportsPage" />
 ```
+
+`CompositionLink` uses the same registry resolver as menus and host-specific
+presenters. It should be the default component when markup needs to link to a
+composition artifact by ID instead of hard-coding the current route shape.
 
 It can also target a section:
 
@@ -547,7 +586,10 @@ How sub-pages are rendered is up to the consumer. A page with child sub-pages
 can be projected as tabs, side navigation, cards, or another local-navigation
 component. Resource Details currently projects resource views as grouped tabs,
 but the route convention treats those views as subordinate page locations under
-the Resource Details page.
+the Resource Details page. The common Settings page follows the same pattern:
+it projects settings entries as nested sub-pages under `/settings`, even though
+the first implementation stores those entries as registered composition
+sections.
 
 ## Sample
 

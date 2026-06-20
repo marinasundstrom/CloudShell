@@ -370,10 +370,13 @@ public sealed class CompositionRegistry
         string route,
         IReadOnlyDictionary<string, object?>? routeParams)
     {
-        if (routeParams is null || routeParams.Count == 0)
+        if ((routeParams is null || routeParams.Count == 0) &&
+            !route.Contains('{', StringComparison.Ordinal))
         {
             return route;
         }
+
+        routeParams ??= EmptyRouteParams;
 
         var usedParameters = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var materializedRoute = TryMaterializeRouteTemplate(route, routeParams, usedParameters);
@@ -520,4 +523,7 @@ public sealed class CompositionRegistry
         value.StartsWith('#', StringComparison.Ordinal) ||
         value.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
         value.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
+
+    private static readonly IReadOnlyDictionary<string, object?> EmptyRouteParams =
+        new Dictionary<string, object?>();
 }

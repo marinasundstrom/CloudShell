@@ -76,6 +76,12 @@
     public string QueryParameter { get; set; } = "section";
 
     [Parameter]
+    public string? RouteSegment { get; set; }
+
+    [Parameter]
+    public string RouteParameter { get; set; } = "section";
+
+    [Parameter]
     public string AriaLabel { get; set; } = "Sections";
 
     [Parameter]
@@ -115,8 +121,13 @@
 
     protected override void OnInitialized()
     {
-        SelectedSectionId = ReadSelectedSectionId();
+        SelectedSectionId = ReadSelectedSectionId(GetSections());
         Navigation.LocationChanged += HandleLocationChanged;
+    }
+
+    protected override void OnParametersSet()
+    {
+        SelectedSectionId = ReadSelectedSectionId(GetSections());
     }
 
     private IReadOnlyList<CompositionSectionProjection> GetSections() =>
@@ -159,18 +170,13 @@
         SelectedSectionId = item.Id;
 
         Navigation.NavigateTo(
-            Composition.ResolveHref(
-                CompositionTarget.ForPage(Page),
-                new Dictionary<string, object?>
-                {
-                    [QueryParameter] = item.Id
-                }),
+            BuildSectionHref(item.Id),
             replace: true);
     }
 
     private void HandleLocationChanged(object? sender, LocationChangedEventArgs args)
     {
-        var selectedSectionId = ReadSelectedSectionId(args.Location);
+        var selectedSectionId = ReadSelectedSectionId(GetSections(), args.Location);
         if (string.Equals(SelectedSectionId, selectedSectionId, StringComparison.Ordinal))
         {
             return;
@@ -180,12 +186,33 @@
         _ = InvokeAsync(StateHasChanged);
     }
 
-    private string? ReadSelectedSectionId(string? location = null)
+    private string? ReadSelectedSectionId(
+        IReadOnlyList<CompositionSectionProjection> sections,
+        string? location = null)
     {
         var uri = Navigation.ToAbsoluteUri(location ?? Navigation.Uri);
+        if (TryReadRouteSectionSegment(uri, location is null, out var routeSegment) &&
+            TryResolveSectionRouteSegment(sections, routeSegment, out var routeSection))
+        {
+            return routeSection.Section.Id.Value;
+        }
+
         var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
-        return query.TryGetValue(QueryParameter, out var value)
-            ? value.ToString()
+        if (!query.TryGetValue(QueryParameter, out var value))
+        {
+            return null;
+        }
+
+        var requested = Uri.UnescapeDataString(value.ToString().Trim());
+        var requestedSection = sections.FirstOrDefault(section =>
+            string.Equals(section.Section.Id.Value, requested, StringComparison.OrdinalIgnoreCase));
+        if (requestedSection is not null)
+        {
+            return requestedSection.Section.Id.Value;
+        }
+
+        return TryResolveSectionRouteSegment(sections, requested, out requestedSection)
+            ? requestedSection.Section.Id.Value
             : null;
     }
 
@@ -194,6 +221,82 @@
         string sectionId) =>
         sections.FirstOrDefault(section =>
             string.Equals(section.Section.Id.Value, sectionId, StringComparison.OrdinalIgnoreCase));
+
+    private string BuildSectionHref(string sectionId)
+    {
+        var sections = GetSections();
+        var section = FindSection(sections, sectionId);
+        var pageHref = Composition.ResolveHref(CompositionTarget.ForPage(Page));
+        if (section is null || section.Section.Id == sections.FirstOrDefault()?.Section.Id)
+        {
+            return pageHref;
+        }
+
+        return Composition.ResolveHref(
+            CompositionTarget.ForPage(Page),
+            new Dictionary<string, object?>
+            {
+                [RouteParameter] = GetSectionRouteSegment(section.Section.Id)
+            });
+    }
+
+    private bool TryReadRouteSectionSegment(
+        Uri uri,
+        bool allowRouteParameter,
+        out string segment)
+    {
+        segment = string.Empty;
+        if (allowRouteParameter && !string.IsNullOrWhiteSpace(RouteSegment))
+        {
+            segment = Uri.UnescapeDataString(RouteSegment.Trim());
+            return true;
+        }
+
+        var pageHref = Composition.ResolveHref(CompositionTarget.ForPage(Page));
+        var pagePath = Navigation.ToAbsoluteUri(pageHref).AbsolutePath.TrimEnd('/');
+        var currentPath = uri.AbsolutePath.TrimEnd('/');
+        if (!currentPath.StartsWith(pagePath + "/", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var remaining = currentPath[(pagePath.Length + 1)..];
+        if (remaining.Length == 0 || remaining.Contains('/', StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        segment = Uri.UnescapeDataString(remaining);
+        return true;
+    }
+
+    private static bool TryResolveSectionRouteSegment(
+        IReadOnlyList<CompositionSectionProjection> sections,
+        string segment,
+        out CompositionSectionProjection section)
+    {
+        section = null!;
+        var matchingSections = sections
+            .Where(item => string.Equals(
+                GetSectionRouteSegment(item.Section.Id),
+                segment,
+                StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if (matchingSections.Length != 1)
+        {
+            return false;
+        }
+
+        section = matchingSections[0];
+        return true;
+    }
+
+    private static string GetSectionRouteSegment(SectionId id)
+    {
+        var value = id.Value;
+        var separatorIndex = value.LastIndexOf('.', StringComparison.Ordinal);
+        return separatorIndex < 0 ? value : value[(separatorIndex + 1)..];
+    }
 
     public void Dispose()
     {
