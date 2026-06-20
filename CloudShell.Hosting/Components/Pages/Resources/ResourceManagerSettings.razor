@@ -10,20 +10,26 @@
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject IStringLocalizer<SharedResource> L
 
-<PageTitle>@L["Resource Manager settings"]</PageTitle>
+@if (!IsEmbedded)
+{
+    <PageTitle>@L["Resource Manager settings"]</PageTitle>
+}
 
-<section class="page-heading compact">
-    <div>
-        <span class="eyebrow">@L["Resource Manager"]</span>
-        <h1>@L["Settings"]</h1>
-        <p>@(IsReadOnly
-            ? L["Resource Manager is in read-only mode. Settings changes are disabled in this UI."]
-            : L["Choose which orchestrator handles lifecycle actions for the resource graph."])</p>
-    </div>
-    <FluentButton Appearance="Appearance.Neutral" OnClick="Cancel">
-        @L["Close"]
-    </FluentButton>
-</section>
+@if (!IsEmbedded)
+{
+    <section class="page-heading compact">
+        <div>
+            <span class="eyebrow">@L["Resource Manager"]</span>
+            <h1>@L["Settings"]</h1>
+            <p>@(IsReadOnly
+                ? L["Resource Manager is in read-only mode. Settings changes are disabled in this UI."]
+                : L["Choose which orchestrator handles lifecycle actions for the resource graph."])</p>
+        </div>
+        <FluentButton Appearance="Appearance.Neutral" OnClick="Cancel">
+            @L["Close"]
+        </FluentButton>
+    </section>
+}
 
 <section class="registration-layout">
     <aside class="panel registration-options">
@@ -246,6 +252,9 @@
 </section>
 
 @code {
+    [Parameter]
+    public bool IsEmbedded { get; set; }
+
     private string SelectedOrchestratorId { get; set; } = "default";
     private string? SelectedContainerHostId { get; set; }
     private int SelectedHealthCheckIntervalSeconds { get; set; } =

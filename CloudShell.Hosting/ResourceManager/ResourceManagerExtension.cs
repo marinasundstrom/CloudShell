@@ -1,6 +1,8 @@
 using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Hosting.Components.Pages.Resources;
+using CloudShell.Hosting.Shell;
+using CloudShell.UI.Composition.Blazor;
 
 namespace CloudShell.Hosting.ResourceManager;
 
@@ -121,6 +123,18 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
 
         if (includeSettings)
         {
+            builder.Services.AddCloudShellUiCompositionModule<ShellCompositionHostContext>(
+                ResourceManagerCompositionIds.SettingsModule,
+                (context, composition) =>
+                {
+                    composition
+                        .Extend(context.Settings.MainSections)
+                        .AddSection<ResourceManagerSettingsSection>(
+                            ResourceManagerCompositionIds.SettingsSection,
+                            "Resource Manager",
+                            30);
+                });
+
             builder.RegisterView<ResourceManagerSettings>(ResourceManagerViews.ResourceSettings);
         }
     }

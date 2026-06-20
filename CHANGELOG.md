@@ -57,6 +57,9 @@ on `git blame --follow`, and then by the broad type of change.
   presenter, while the standalone Composition Sandbox demonstrates a
   Bootstrap menu presenter that interprets namespaced icon attributes with
   Bootstrap Icons.
+- Resource Manager now contributes its settings surface into the common
+  composition-backed CloudShell Settings page while keeping the direct
+  `/resources/settings` route available.
 - CloudShell UI Extension Host now includes an isolated shell-composition
   sandbox with sample-local typed IDs, a registry, composition context host,
   menu renderer, section container, and section outlet so the layout/content

@@ -304,6 +304,12 @@ menu presenter. It reads the same namespaced icon attribute, interprets values
 as Bootstrap Icons classes, and keeps that interpretation outside the generic
 composition libraries.
 
+Resource Manager now contributes its settings surface into the common
+CloudShell `/settings` page through the settings section outlet. The original
+`/resources/settings` route remains available for direct links and
+compatibility, but the unified settings page is the composition-backed entry
+point.
+
 `CompositionEngineHost` is an in-memory host for mounted modules. It owns the
 currently mounted module list and rebuilds the active registry projection when
 modules are mounted or unmounted:

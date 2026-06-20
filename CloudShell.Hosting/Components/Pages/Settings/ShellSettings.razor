@@ -115,5 +115,7 @@
     private static string GetIcon(SectionId sectionId) =>
         sectionId == ShellCompositionIds.SettingsPlatformSection
             ? "extensions"
-            : "settings";
+            : sectionId == ResourceManagerCompositionIds.SettingsSection
+                ? "resources"
+                : "settings";
 }
