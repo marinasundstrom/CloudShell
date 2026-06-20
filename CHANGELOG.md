@@ -100,6 +100,12 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager severity indicators now use a shared Fluent icon mapping:
   warning triangle, information circle, success check circle, and error circle,
   with filled variants available for higher-emphasis contexts.
+- Application Topology now sends frontend and API HTTP request count and
+  duration metrics to CloudShell metric ingestion so they appear in
+  Observability and each application resource's Metrics tab.
+- Observability log, trace, and metric source selectors now use Resource
+  Manager display labels when available while keeping canonical resource IDs in
+  detail fields.
 
 ### 2026-06-19
 

@@ -37,6 +37,8 @@ var otlpEndpoint = builder.Configuration["Observability:OtlpEndpoint"]
 var otlpProtocol = builder.Configuration["Observability:OtlpProtocol"];
 var traceIngestEndpoint = builder.Configuration["Observability:TraceIngestEndpoint"]
     ?? $"{cloudShellEndpoint}/api/control-plane/v1/traces/ingest";
+var metricIngestEndpoint = builder.Configuration["Observability:MetricIngestEndpoint"]
+    ?? $"{cloudShellEndpoint}/api/control-plane/v1/metrics/ingest";
 var frontendEndpoint = builder.Configuration["ApplicationTopology:FrontendEndpoint"]
     ?? "http://localhost:5218";
 var sqlPassword = builder.Configuration["ApplicationTopology:SqlServer:Password"]
@@ -156,6 +158,7 @@ cloudShell.Resources(resources =>
         .WithHttpProbe(ResourceProbeType.Liveness, "/alive")
         .WithOtlpExporter(otlpEndpoint, otlpProtocol)
         .WithEnvironment("CLOUDSHELL_TRACE_INGEST_ENDPOINT", traceIngestEndpoint ?? string.Empty)
+        .WithEnvironment("CLOUDSHELL_METRIC_INGEST_ENDPOINT", metricIngestEndpoint ?? string.Empty)
         .WithEnvironment("ApplicationTopology__SqlServer__User", "sa")
         .WithEnvironment("ApplicationTopology__SqlServer__Password", sqlPassword)
         .WithEnvironment("ApplicationTopology__SqlServer__Database", "application_topology")
@@ -183,6 +186,7 @@ cloudShell.Resources(resources =>
         .WithHttpProbe(ResourceProbeType.Liveness, "/alive")
         .WithOtlpExporter(otlpEndpoint, otlpProtocol)
         .WithEnvironment("CLOUDSHELL_TRACE_INGEST_ENDPOINT", traceIngestEndpoint ?? string.Empty)
+        .WithEnvironment("CLOUDSHELL_METRIC_INGEST_ENDPOINT", metricIngestEndpoint ?? string.Empty)
         .WithServiceDiscovery()
         .WithReference(api)
         .DependsOn(api)

@@ -964,6 +964,27 @@ public sealed class SampleSmokeTests
         Assert.Contains("GET /upstream/fallback", fallbackTraceListHtml);
         Assert.Contains("recent-trace-item attention", fallbackTraceListHtml);
         Assert.Contains("Needs attention: 1 error span(s)", fallbackTraceListHtml);
+
+        var frontendMetrics = await WaitForMetricPointsAsync(
+            host,
+            "application:application-topology-frontend",
+            StartupTimeout,
+            points =>
+                points.Any(point => IsHttpMetricForPath(point, "http.server.requests", "/upstream/fallback")) &&
+                points.Any(point => IsHttpMetricForPath(point, "http.server.duration", "/upstream/fallback")));
+        Assert.Contains(
+            frontendMetrics,
+            point => IsHttpMetricForPath(point, "http.server.requests", "/upstream/fallback"));
+        Assert.Contains(
+            frontendMetrics,
+            point => IsHttpMetricForPath(point, "http.server.duration", "/upstream/fallback"));
+
+        var frontendMetricsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application:application-topology-frontend")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Metrics.Value)}");
+        Assert.Contains("Telemetry", frontendMetricsHtml);
+        Assert.Contains("http.server.requests", frontendMetricsHtml);
+        Assert.Contains("http.server.duration", frontendMetricsHtml);
+        Assert.Contains("application-topology-frontend", frontendMetricsHtml);
     }
 
     [Fact]
@@ -2059,6 +2080,59 @@ public sealed class SampleSmokeTests
         }
 
         return url.GetString()?.EndsWith(path, StringComparison.OrdinalIgnoreCase) == true;
+    }
+
+    private static async Task<IReadOnlyList<JsonElement>> WaitForMetricPointsAsync(
+        SampleProcess host,
+        string resourceId,
+        TimeSpan timeout,
+        Func<IReadOnlyList<JsonElement>, bool> isComplete)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        Exception? lastException = null;
+        string? lastBody = null;
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            try
+            {
+                lastBody = await host.GetStringAsync(
+                    $"/api/control-plane/v1/metrics?resourceId={Uri.EscapeDataString(resourceId)}&maxPoints=50");
+                using var document = JsonDocument.Parse(lastBody);
+                var points = document.RootElement.EnumerateArray()
+                    .Select(point => point.Clone())
+                    .ToArray();
+                if (points.Length > 0 && isComplete(points))
+                {
+                    return points;
+                }
+            }
+            catch (Exception exception) when (exception is HttpRequestException or JsonException)
+            {
+                lastException = exception;
+            }
+
+            await Task.Delay(250);
+        }
+
+        throw new TimeoutException(
+            $"Metrics for resource '{resourceId}' were not ingested within {timeout}." +
+            $"{Environment.NewLine}{lastBody ?? lastException?.Message}");
+    }
+
+    private static bool IsHttpMetricForPath(
+        JsonElement point,
+        string name,
+        string path)
+    {
+        if (!string.Equals(point.GetProperty("name").GetString(), name, StringComparison.OrdinalIgnoreCase) ||
+            !point.TryGetProperty("attributes", out var attributes) ||
+            !attributes.TryGetProperty("http.route", out var route))
+        {
+            return false;
+        }
+
+        return route.GetString()?.Contains(path, StringComparison.OrdinalIgnoreCase) == true;
     }
 
     private static async Task StopResourceIfRunningAsync(

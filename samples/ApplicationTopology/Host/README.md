@@ -31,9 +31,11 @@ The frontend uses CloudShell service discovery to call the API:
 ```
 
 Both projects use the shared `ServiceDefaults` project for health endpoints,
-HTTP client service discovery, JSON console logs, and OpenTelemetry tracing.
-The host injects CloudShell trace ingestion settings so `/observability/traces`
-can show spans across both services.
+HTTP client service discovery, JSON console logs, OpenTelemetry tracing, and
+basic HTTP request metrics. The host injects CloudShell trace and metric
+ingestion settings so `/observability/traces`, `/observability/metrics`, and
+each application resource's **Metrics** tab can show spans and request metrics
+from both services.
 
 The SQL Server resource uses the provider-owned `AddSqlServer(...)` builder.
 It is still materialized locally with the SQL Server Linux container image
@@ -105,6 +107,13 @@ Use this path to verify the failure loop:
 2. Open Resource Manager and inspect the frontend and API **Traces** tabs.
 3. Use the related-log links from the trace view to inspect the frontend
    warning and API error log entries for the same failed request.
+
+The frontend and API also emit `http.server.requests` and
+`http.server.duration` metric points to CloudShell for each request when
+`CLOUDSHELL_METRIC_INGEST_ENDPOINT` is configured by the host. Open
+`/observability/metrics` or the frontend/API **Metrics** tabs after exercising
+`/upstream`, `/upstream/failure`, or `/upstream/fallback` to inspect the
+resource-scoped metric points.
 
 The sample disables startup autostart for these three application resources so
 you can exercise the live dependency path deliberately from Resource Manager.
@@ -215,6 +224,8 @@ Already covered by the sample:
 - Local DNS/name mapping through the `local-hostnames` publisher.
 - Resource health checks, logs, traces, and the intentional failed request
   path.
+- CloudShell-ingested telemetry metrics for frontend and API HTTP request
+  counts and durations.
 - Smoke-tested runtime correlation for the API `/failure` response and the
   frontend `/upstream/failure` response, including trace IDs and ProblemDetails
   fields that point back to the failing resources.
