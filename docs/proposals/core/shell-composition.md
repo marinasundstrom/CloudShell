@@ -444,6 +444,29 @@ sections should also accept explicit page IDs or resolve the current route so
 hosts can place them in render-mode islands without depending on cascade
 propagation across every boundary.
 
+Future permission-aware Blazor renderers should align with normal Blazor
+authorization instead of inventing a parallel rendering model. Composition
+artifacts can carry permission metadata such as policy names, roles, or future
+custom requirement IDs, and renderer projections can expose that metadata. A
+Blazor renderer can then wrap menus, pages, section outlets, or individual
+sections in `AuthorizeView`, using its normal `Roles`, `Policy`,
+`Authorized`, and `NotAuthorized` behavior. Hosts should decide whether
+unauthorized content is hidden, disabled, replaced by a not-authorized
+template, or surfaced as a diagnostic in development. This keeps
+`IsExtendable` as a structural contribution rule, while authorization remains
+a dynamic visibility/access concern owned by the host's configured
+authentication and authorization system.
+
+Additional helper APIs may make common claim-based requirements easier to
+declare without hiding ASP.NET Core authorization. For example, builders could
+offer `RequirePolicy(...)`, `RequireRole(...)`, and `RequireClaim(...)`
+shortcuts that store permission metadata on the artifact descriptor.
+Renderer-side projection helpers could then translate that metadata into
+`AuthorizeView` parameters, authorization service checks, or development-time
+diagnostics that explain why a page, menu item, section outlet, or section is
+hidden or blocked. CloudShell-specific permission concepts should map into
+these policy, role, and claim requirements at the host adapter layer.
+
 ## Resource Manager extraction path
 
 The practical path should be incremental:
@@ -732,7 +755,9 @@ before broad new shell surfaces become release blockers.
 - Which shell composition settings are environment-global, tenant-scoped,
   role-scoped, or user-scoped?
 - How should an extension declare permission requirements for shell groups,
-  pages, settings sections, and notification actions?
+  pages, settings sections, and notification actions, and how should Blazor
+  renderers project those requirements through `AuthorizeView`? Which helper
+  APIs should exist for common role, policy, and claim requirements?
 - Should the generic page-selection query parameter be standardized, or should
   adapters keep domain-specific query names such as Resource Manager's `tab`?
 - Which notification records belong in the Control Plane event stream, and
