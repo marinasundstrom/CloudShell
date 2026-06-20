@@ -1,5 +1,6 @@
 @page "/resources/not-found"
 @rendermode InteractiveServer
+@inject CloudShell.UI.Composition.CompositionRegistry Composition
 @inject IStringLocalizer<SharedResource> L
 
 <PageTitle>@L["Resource not found"]</PageTitle>
@@ -11,7 +12,7 @@
         <p>@L["The requested resource could not be found in this CloudShell environment."]</p>
     </div>
     <div class="heading-actions">
-        <FluentAnchor Appearance="Appearance.Neutral" Href="@ResourceManagerRoutes.Resources">
+        <FluentAnchor Appearance="Appearance.Neutral" Href="@GetResourcesRoute()">
             @L["Open Resources"]
         </FluentAnchor>
     </div>
@@ -35,4 +36,10 @@
         string.IsNullOrWhiteSpace(ResourceId)
             ? L["No resource ID was provided."].Value
             : L["Resource '{0}' may have been removed, renamed, or is no longer visible.", ResourceId].Value;
+
+    private string GetResourcesRoute() =>
+        ResourceManagerCompositionLinks.ResourceManagerPage(
+            Composition,
+            ResourceManagerCompositionIds.ResourcesPage,
+            ResourceManagerRoutes.Resources);
 }

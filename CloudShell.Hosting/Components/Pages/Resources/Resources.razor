@@ -14,6 +14,7 @@
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
+@inject CloudShell.UI.Composition.CompositionRegistry Composition
 @inject IStringLocalizer<SharedResource> L
 @inject ILogger<Resources> Logger
 
@@ -42,7 +43,7 @@
     <div class="heading-actions">
         <FluentAnchor Appearance="Appearance.Neutral"
                       IconStart="@(new Icons.Regular.Size20.ShareAndroid())"
-                      Href="@ResourceManagerRoutes.ResourceGraph">
+                      Href="@GetResourceGraphRoute()">
             @L["Graph"]
         </FluentAnchor>
         <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSync())"
@@ -760,8 +761,7 @@
         SelectedResourceGroupFilter != AllResourceGroupsFilter;
 
     private bool CanOpenSettings =>
-        Authorization.HasPermission(CloudShellPermissions.Resources.Manage) &&
-        ShellCatalog.GetViewRoute(ResourceManagerViews.ResourceSettings) is not null;
+        Authorization.HasPermission(CloudShellPermissions.Resources.Manage);
 
     protected override async Task OnInitializedAsync()
     {
@@ -1197,20 +1197,43 @@ resourceGroups) =>
         DeleteConfirmationResourceId = null;
     }
 
-    private void CreateGroup() => Navigation.NavigateTo(ResourceManagerRoutes.CreateResourceGroup);
+    private void CreateGroup() => Navigation.NavigateTo(GetCreateResourceGroupRoute());
 
-    private void AddResource() => Navigation.NavigateTo(ResourceManagerRoutes.AddResource);
+    private void AddResource() => Navigation.NavigateTo(GetAddResourceRoute());
 
-    private void OpenTemplates() => Navigation.NavigateTo(ResourceManagerRoutes.ResourceTemplates);
+    private void OpenTemplates() => Navigation.NavigateTo(GetResourceTemplatesRoute());
 
-    private void OpenSettings()
-    {
-        var route = ShellCatalog.GetViewRoute(ResourceManagerViews.ResourceSettings);
-        if (route is not null)
-        {
-            Navigation.NavigateTo(route);
-        }
-    }
+    private void OpenSettings() => Navigation.NavigateTo(GetResourceSettingsRoute());
+
+    private string GetResourceGraphRoute() =>
+        ResourceManagerCompositionLinks.ResourceManagerPage(
+            Composition,
+            ResourceManagerCompositionIds.ResourceGraphPage,
+            ResourceManagerRoutes.ResourceGraph);
+
+    private string GetCreateResourceGroupRoute() =>
+        ResourceManagerCompositionLinks.ResourceManagerPage(
+            Composition,
+            ResourceManagerCompositionIds.CreateResourceGroupPage,
+            ResourceManagerRoutes.CreateResourceGroup);
+
+    private string GetAddResourceRoute() =>
+        ResourceManagerCompositionLinks.ResourceManagerPage(
+            Composition,
+            ResourceManagerCompositionIds.AddResourcePage,
+            ResourceManagerRoutes.AddResource);
+
+    private string GetResourceTemplatesRoute() =>
+        ResourceManagerCompositionLinks.ResourceManagerPage(
+            Composition,
+            ResourceManagerCompositionIds.ResourceTemplatesPage,
+            ResourceManagerRoutes.ResourceTemplates);
+
+    private string GetResourceSettingsRoute() =>
+        ResourceManagerCompositionLinks.ResourceManagerPage(
+            Composition,
+            ResourceManagerCompositionIds.ResourceSettingsPage,
+            ResourceManagerRoutes.ResourceSettings);
 
     private async Task RefreshResourcesAsync()
     {

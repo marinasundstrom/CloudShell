@@ -539,6 +539,13 @@ route: if composition resolves a target to `/resources/{resourceId}/{view}`,
 the Resource Details component must declare and interpret that same route
 shape.
 
+Composition declares the logical structure and the desired URL projection for
+that structure. The resolver creates links from those declarations. The
+integrating UI framework still owns route handling: in Blazor, ordinary Razor
+pages must declare and honor those routes unless the host supplies a
+composition-aware router component that can map composition route metadata to
+Blazor route entries.
+
 Nested navigation follows the same rule. The root page owns the stable page
 route, such as `/settings`; nested page navigation owns the next path segment,
 such as `/settings/platform` or `/settings/resource-manager`. The current
@@ -561,18 +568,24 @@ host-provided projection maps that section into a route value.
 This route mapping is convention-based for now. The default convention is that
 page and sub-page hierarchy maps to path segments, sections inside a page map
 to fragments, and query strings carry view-local state. A future route
-projection model can make this configurable so a section or other content
-artifact can explicitly declare that it belongs to a path segment. Even then,
-the presentation layer must still be able to map the selected URL back to the
-rendered content, and the Blazor page must declare routes that match the
-composition route metadata.
+projection model should let a page or section outlet declare how its child
+section selection is projected, including a segment mode where all registered
+sections in that outlet are rendered as path segments just like page
+hierarchies. The common case should be one declaration on the logical group of
+sections, not route metadata repeated on each individual section. Per-section
+metadata can remain an override for unusual cases later. This applies to
+nested navigation elements regardless of the visual treatment: a tabbed UI,
+side navigation, or similar local navigation component can all render the same
+segment-backed child sections. Even then, the presentation layer must still be
+able to map the selected URL back to the rendered content, and the Blazor page
+must declare routes that match the composition route metadata.
 
-A later host could go further and provide a composition-aware Blazor router
-adapter that registers routable entries directly from the composition model.
-That would reduce the amount of duplicated route declaration in Razor pages,
-but it is a separate routing integration layer. The current implementation
-stays aligned with Blazor's built-in router and uses the composition registry
-for link generation.
+A later host could go further and provide its own composition-aware Blazor
+router component that registers routable entries directly from the composition
+model. That would reduce the amount of duplicated route declaration in Razor
+pages, but it is a separate routing integration layer over the graph. The
+current implementation stays aligned with Blazor's built-in router and uses the
+composition registry for link generation.
 
 `PageTitleOutlet` relies on Blazor's normal `PageTitle` and `HeadOutlet`
 behavior. Hosts still need to include a Blazor `HeadOutlet` in their app shell
@@ -660,7 +673,11 @@ Until a custom mapping facility exists, public path segments are derived by
 convention from the addressable artifact's local identifier in its parent
 scope. For example, Resource Manager keeps the typed view ID
 `management:access-control` as the internal address, while its route segment is
-`access-control` under `/resources/{resourceId}`.
+`access-control` under `/resources/{resourceId}`. The missing formal model is
+not whether sections can be path-backed; it is how a page or outlet declares
+that its child sections should be projected as route segments, how those
+segments are made unique in the parent scope, and how the renderer maps a
+segment back to the selected `SectionId`.
 
 How sub-pages are rendered is up to the consumer. A page with child sub-pages
 can be projected as tabs, side navigation, cards, or another local-navigation

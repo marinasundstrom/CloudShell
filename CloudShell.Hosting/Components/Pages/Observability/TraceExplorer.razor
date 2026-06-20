@@ -556,7 +556,7 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
                 L["Trace resource not found"].Value,
                 L["Resource '{0}' does not expose traces or is not available.", GetResourceLabel(resourceId)].Value,
                 Inline ? L["Open Resources"].Value : L["All trace resources"].Value,
-                Inline ? ResourceManagerRoutes.Resources : "/observability/traces");
+                Inline ? GetResourcesRoute() : "/observability/traces");
         }
 
         if (IsAllSourcesSelected())
@@ -1042,7 +1042,7 @@ StringComparison.OrdinalIgnoreCase))?.Span
             resourceId ??= ResourceId;
             if (string.IsNullOrWhiteSpace(resourceId))
             {
-                return ResourceManagerRoutes.Resources;
+                return GetResourcesRoute();
             }
 
             var query = new Dictionary<string, string?>();
@@ -1097,6 +1097,12 @@ StringComparison.OrdinalIgnoreCase))?.Span
 
     private string BuildResourceRoute(string resourceId) =>
         ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId);
+
+    private string GetResourcesRoute() =>
+        ResourceManagerCompositionLinks.ResourceManagerPage(
+            Composition,
+            ResourceManagerCompositionIds.ResourcesPage,
+            ResourceManagerRoutes.Resources);
 
     private static readonly string[] ServicePalette =
     [

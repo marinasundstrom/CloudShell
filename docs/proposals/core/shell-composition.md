@@ -147,6 +147,13 @@ layout/content engine registers optional route metadata against a page content
 ID so it can resolve links and deep links; it does not replace Razor routing or
 make every content node routable.
 
+The composition graph declares logical structure and URL projection. The
+resolver turns that structure into links. The integrating UI framework remains
+responsible for route handling and must honor the declared URLs when it defines
+pages with its router. In Blazor, this can start with ordinary Razor pages and
+later move to a CloudShell-owned composition-aware router component that maps
+composition route metadata to Blazor route entries.
+
 Programmatic link resolution should start from typed composition targets such
 as `PageId`, `SectionId`, `MenuItemId`, or an explicit href target. The
 resolver materializes registered page route templates with supplied route
@@ -160,15 +167,22 @@ contract.
 
 The initial route projection should be convention-based: page and sub-page
 hierarchy maps to path segments, sections inside a page map to fragments, and
-query strings carry view-local state. Future descriptors can add configurable
-route projection metadata for cases where a section, slot, or other content
-artifact should be exposed as a path segment. That metadata still has to
-correspond to the routes the consuming Blazor page declares and to the
-presentation layer's ability to map the URL back to selected content.
+query strings carry view-local state. Future descriptors should add
+configurable route projection metadata for cases where a page, section outlet,
+or similar parent content scope declares that its child sections are exposed as
+route path segments. That gives a formal way to render a logical group of
+sections as segments just like page hierarchies without declaring routing
+metadata on every section or exposing full section IDs in URLs. The metadata
+still has to correspond to the routes the consuming Blazor page declares and
+to the presentation layer's ability to map the URL back to selected content.
+Tabbed UI is one nested-navigation renderer for this model, not a separate
+composition concept. The same segment-backed child-section projection should
+also work for side navigation, segmented controls, accordions, or another
+renderer when the selected content is a stable nested navigation location.
 
-A later CloudShell host could introduce a composition-aware Blazor router
-adapter that registers route entries from this model instead of requiring each
-routed Razor component to duplicate the same route shape. That should be
+A later CloudShell host could introduce its own composition-aware Blazor router
+component that registers route entries from this model instead of requiring
+each routed Razor component to duplicate the same route shape. That should be
 treated as a host routing adapter over the composition graph, not as a
 requirement for the generic composition model or the first Blazor integration.
 
@@ -402,6 +416,15 @@ scope. For example, a typed Resource Manager view ID such as
 `management:access-control` keeps its full internal address, but resolves to
 the `access-control` path segment under `/resources/{resourceId}`. Hosts must
 validate that route segments are unique within their parent scope.
+
+The future custom mapping facility should include an explicit section
+projection mode on the parent scope. The default remains fragment-backed
+sections. A page, section outlet, or similar section container can opt into
+segment-backed child-section selection when those sections are stable
+navigational locations, such as settings categories or Resource Details views.
+The route segment should be short and product-shaped, while the `SectionId`
+remains the durable internal address used for extension targeting,
+authorization, ownership, and diagnostics.
 
 The content selected inside a page or view may be dictated by route values and
 query parameters. The route can establish the page context, while query
@@ -932,7 +955,8 @@ before broad new shell surfaces become release blockers.
   renderers project those requirements through `AuthorizeView`? Which helper
   APIs should exist for common role, policy, and claim requirements?
 - What shape should a future custom URL mapping facility take when convention
-  based path segments are not enough?
+  based path segments are not enough, and how should pages or section outlets
+  declare fragment-backed versus segment-backed child-section projection?
 - Which notification records belong in the Control Plane event stream, and
   which are UI-local shell state?
 - Should shell layout configuration be stored in the UI host, the Control

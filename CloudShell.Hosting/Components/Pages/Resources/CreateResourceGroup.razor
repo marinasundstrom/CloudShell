@@ -4,6 +4,7 @@
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
+@inject CloudShell.UI.Composition.CompositionRegistry Composition
 @inject IStringLocalizer<SharedResource> L
 
 <PageTitle>@L["Create resource group"]</PageTitle>
@@ -67,7 +68,7 @@ else
         }
     }
 
-    private void Cancel() => Navigation.NavigateTo(ResourceManagerRoutes.Resources);
+    private void Cancel() => Navigation.NavigateTo(GetResourcesRoute());
 
     private async Task CreateGroup()
     {
@@ -78,6 +79,18 @@ else
 
         await ResourceManager.CreateResourceGroupAsync(
             new CreateResourceGroupCommand(Name, Description));
-        Navigation.NavigateTo(ResourceManagerRoutes.AddResource);
+        Navigation.NavigateTo(GetAddResourceRoute());
     }
+
+    private string GetResourcesRoute() =>
+        ResourceManagerCompositionLinks.ResourceManagerPage(
+            Composition,
+            ResourceManagerCompositionIds.ResourcesPage,
+            ResourceManagerRoutes.Resources);
+
+    private string GetAddResourceRoute() =>
+        ResourceManagerCompositionLinks.ResourceManagerPage(
+            Composition,
+            ResourceManagerCompositionIds.AddResourcePage,
+            ResourceManagerRoutes.AddResource);
 }

@@ -198,7 +198,9 @@ else
         ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId, tabId);
 
     private string BuildCreateVolumeRoute(string storageResourceId) =>
-        Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
+        ResourceManagerCompositionLinks.ResourceManagerPage(
+            Composition,
+            ResourceManagerCompositionIds.AddResourcePage,
             ResourceManagerRoutes.AddResource,
             new Dictionary<string, string?>
             {

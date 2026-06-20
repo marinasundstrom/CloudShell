@@ -5,6 +5,7 @@
 @inject ICloudShellAuthorizationService Authorization
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject ResourceManagerDisplaySettings DisplaySettings
+@inject CloudShell.UI.Composition.CompositionRegistry Composition
 @inject IStringLocalizer<SharedResource> L
 
 <PageTitle>@L["Add resource"]</PageTitle>
@@ -98,7 +99,7 @@ else
             </div>
 
             <div class="add-resource-type-actions">
-                <a href="@ResourceManagerRoutes.CreateResourceGroup">@L["Create a resource group"]</a>
+                <a href="@GetCreateResourceGroupRoute()">@L["Create a resource group"]</a>
             </div>
         </aside>
 
@@ -242,10 +243,18 @@ else
             query["returnUrl"] = ReturnUrl;
         }
 
-        return query.Count == 0
-            ? ResourceManagerRoutes.AddResource
-            : Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(ResourceManagerRoutes.AddResource, query);
+        return ResourceManagerCompositionLinks.ResourceManagerPage(
+            Composition,
+            ResourceManagerCompositionIds.AddResourcePage,
+            ResourceManagerRoutes.AddResource,
+            query);
     }
+
+    private string GetCreateResourceGroupRoute() =>
+        ResourceManagerCompositionLinks.ResourceManagerPage(
+            Composition,
+            ResourceManagerCompositionIds.CreateResourceGroupPage,
+            ResourceManagerRoutes.CreateResourceGroup);
 
     private ResourceRegistrationProbeContext GetProbeContext(ResourceTypeContribution type)
     {

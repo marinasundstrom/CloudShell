@@ -4,7 +4,6 @@
 @inject IResourceManager ResourceManager
 @inject IResourceHealthManager HealthChecks
 @inject IResourceOrchestrationSettings OrchestrationSettings
-@inject ShellCatalog ShellCatalog
 @inject IStringLocalizer<SharedResource> L
 @inject CloudShell.UI.Composition.CompositionRegistry Composition
 
@@ -300,7 +299,10 @@
     }
 
     private string? GetSettingsRoute() =>
-        ShellCatalog.GetViewRoute(ResourceManagerViews.ResourceSettings);
+        ResourceManagerCompositionLinks.ResourceManagerPage(
+            Composition,
+            ResourceManagerCompositionIds.ResourceSettingsPage,
+            ResourceManagerRoutes.ResourceSettings);
 
     private ResourceHealthSummary? GetHealthSummary(Resource resource) =>
         HealthResults.GetValueOrDefault(resource.Id);

@@ -466,8 +466,11 @@
             message,
             L["Open overview"].Value,
             string.IsNullOrWhiteSpace(ResourceId)
-                ? ResourceManagerRoutes.Resources
-                : ResourceManagerRoutes.ResourceOverview(ResourceId));
+                ? ResourceManagerCompositionLinks.ResourceManagerPage(
+                    Composition,
+                    ResourceManagerCompositionIds.ResourcesPage,
+                    ResourceManagerRoutes.Resources)
+                : ResourceManagerCompositionLinks.ResourceDetails(Composition, ResourceId));
 
     private async Task ApplyChanges()
     {

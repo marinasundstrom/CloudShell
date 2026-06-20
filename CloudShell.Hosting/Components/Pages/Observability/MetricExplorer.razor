@@ -271,7 +271,7 @@ else if (ShowHeading)
                 L["Metric resource not found"].Value,
                 L["Resource '{0}' does not expose metrics or is not available.", GetResourceLabel(resourceId)].Value,
                 Inline ? L["Open Resources"].Value : L["All metric resources"].Value,
-                Inline ? ResourceManagerRoutes.Resources : "/observability/metrics");
+                Inline ? GetResourcesRoute() : "/observability/metrics");
         }
 
         var selected = GetSelectedResource(resources);
@@ -343,6 +343,12 @@ else if (ShowHeading)
     }
 
     private void ShowAllResources() => Navigation.NavigateTo("/observability/metrics");
+
+    private string GetResourcesRoute() =>
+        ResourceManagerCompositionLinks.ResourceManagerPage(
+            Composition,
+            ResourceManagerCompositionIds.ResourcesPage,
+            ResourceManagerRoutes.Resources);
 
     private string BuildMetricRoute(string resourceId, string? scopeResourceId = null)
     {

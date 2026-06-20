@@ -19,7 +19,7 @@
     <div class="heading-actions">
         <FluentAnchor Appearance="Appearance.Neutral"
                       IconStart="@(new Icons.Regular.Size20.Table())"
-                      Href="@ResourceManagerRoutes.Resources">
+                      Href="@GetResourcesRoute()">
             @L["Table"]
         </FluentAnchor>
         <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSync())"
@@ -204,6 +204,12 @@
 
     private static string GetStateLabel(Resource resource) =>
         resource.State?.ToString() ?? "No lifecycle status";
+
+    private string GetResourcesRoute() =>
+        ResourceManagerCompositionLinks.ResourceManagerPage(
+            Composition,
+            ResourceManagerCompositionIds.ResourcesPage,
+            ResourceManagerRoutes.Resources);
 
     public async ValueTask DisposeAsync()
     {

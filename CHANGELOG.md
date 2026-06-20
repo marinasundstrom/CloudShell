@@ -123,6 +123,13 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager, dashboard, logs, and observability links to Resource
   Details now resolve through the shared composition-backed helper, leaving
   legacy route construction as the fallback path inside that helper.
+- Resource Manager static page links for graph, add resource, create group,
+  templates, settings, and Resources recovery states now resolve through the
+  shared composition-backed helper with legacy routes kept as fallbacks.
+- Documented parent-scoped route projection for nested section navigation,
+  where a page or section outlet can later declare that its child sections are
+  rendered as path segments for tabs, side navigation, or similar local
+  navigation renderers.
 - Composition links are now exposed as `CompositeAnchor`, support unmatched
   anchor attributes, and render a customizable unresolved placeholder instead
   of a broken `href="#"` when an artifact target cannot resolve.
