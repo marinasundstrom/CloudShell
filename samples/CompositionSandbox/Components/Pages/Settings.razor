@@ -1,35 +1,33 @@
 @page "/settings"
 
-<PageTitleOutlet Page="@CompositionIds.SettingsPage" />
-
-<main class="container-fluid py-4 px-3 px-md-4">
-    <header class="mb-4">
-        <span class="eyebrow text-secondary">Layout patterns</span>
-        <h1 class="display-6 fw-semibold mb-2"><TitleOutlet Page="@CompositionIds.SettingsPage" /></h1>
-        <p class="text-secondary mb-3">
-            This page uses the reusable composition tab outlet styled with
-            plain Bootstrap classes. It selects a named section through a
-            normal query string instead of a framework-specific tab component.
-        </p>
-        <div class="d-flex flex-wrap gap-2">
-            <CompositionLink Page="@CompositionIds.WorkspacePage" />
-            <span>/</span>
-            <CompositionLink Page="@CompositionIds.ReportsPage" />
-            <span>/</span>
-            <CompositionLink Page="@CompositionIds.DashboardPage" />
-            <span>/</span>
-            <CompositionLink Page="@CompositionIds.SettingsPage" />
-        </div>
-    </header>
-
-    <CompositionSectionContainer Id="@CompositionIds.SettingsMainOutlet">
-        <CompositionSectionTabs AriaLabel="Settings sections"
-                                Page="@CompositionIds.SettingsPage"
-                                ContainerClass="card shadow-sm"
-                                TabListContainerClass="card-header bg-body p-0"
-                                TabListClass="nav nav-tabs card-header-tabs px-3 pt-3"
-                                TabClass="nav-link"
-                                SelectedTabClass="active"
-                                ContentClass="card-body" />
-    </CompositionSectionContainer>
-</main>
+<CompositionTabbedPageLayout Page="@CompositionIds.SettingsPage"
+                             Outlet="@CompositionIds.SettingsMainOutlet"
+                             ContainerClass="container-fluid py-4 px-3 px-md-4"
+                             HeaderClass="mb-4"
+                             EyebrowClass="eyebrow text-secondary"
+                             TitleClass="display-6 fw-semibold mb-2"
+                             SummaryClass="text-secondary mb-3"
+                             NavigationClass="d-flex flex-wrap gap-2"
+                             TabsAriaLabel="Settings sections"
+                             TabsContainerClass="card shadow-sm"
+                             TabListContainerClass="card-header bg-body p-0"
+                             TabListClass="nav nav-tabs card-header-tabs px-3 pt-3"
+                             TabClass="nav-link"
+                             SelectedTabClass="active"
+                             TabContentClass="card-body">
+    <EyebrowContent>Layout patterns</EyebrowContent>
+    <SummaryContent>
+        This page uses the reusable composition tabbed page layout styled with
+        plain Bootstrap classes. It selects a named section through a normal
+        query string instead of a framework-specific tab component.
+    </SummaryContent>
+    <NavigationContent>
+        <CompositionLink Page="@CompositionIds.WorkspacePage" />
+        <span>/</span>
+        <CompositionLink Page="@CompositionIds.ReportsPage" />
+        <span>/</span>
+        <CompositionLink Page="@CompositionIds.DashboardPage" />
+        <span>/</span>
+        <CompositionLink Page="@CompositionIds.SettingsPage" />
+    </NavigationContent>
+</CompositionTabbedPageLayout>

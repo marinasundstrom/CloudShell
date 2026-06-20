@@ -1,0 +1,130 @@
+<CompositionPageLayout Page="@Page"
+                       HeaderContent="@HeaderContent"
+                       EyebrowContent="@EyebrowContent"
+                       SummaryContent="@SummaryContent"
+                       Actions="@Actions"
+                       NavigationContent="@NavigationContent"
+                       NavigationAriaLabel="@NavigationAriaLabel"
+                       ContainerClass="@ContainerClass"
+                       HeaderClass="@HeaderClass"
+                       EyebrowClass="@EyebrowClass"
+                       TitleRowClass="@TitleRowClass"
+                       TitleBlockClass="@TitleBlockClass"
+                       TitleClass="@TitleClass"
+                       SummaryClass="@SummaryClass"
+                       ActionsClass="@ActionsClass"
+                       NavigationClass="@NavigationClass"
+                       @attributes="AdditionalAttributes">
+    @if (BeforeTabsContent is not null)
+    {
+        @BeforeTabsContent
+    }
+
+    <CompositionSectionContainer Id="@Outlet">
+        <CompositionSectionTabs Page="@Page"
+                                Id="@Outlet"
+                                AriaLabel="@TabsAriaLabel"
+                                QueryParameter="@QueryParameter"
+                                ContainerClass="@TabsContainerClass"
+                                TabListContainerClass="@TabListContainerClass"
+                                TabListClass="@TabListClass"
+                                TabClass="@TabClass"
+                                SelectedTabClass="@SelectedTabClass"
+                                ContentClass="@TabContentClass"
+                                EmptyStateClass="@EmptyStateClass" />
+    </CompositionSectionContainer>
+
+    @if (AfterTabsContent is not null)
+    {
+        @AfterTabsContent
+    }
+</CompositionPageLayout>
+
+@code {
+    [Parameter]
+    public PageId? Page { get; set; }
+
+    [Parameter, EditorRequired]
+    public SectionOutletId Outlet { get; set; }
+
+    [Parameter]
+    public RenderFragment? HeaderContent { get; set; }
+
+    [Parameter]
+    public RenderFragment? EyebrowContent { get; set; }
+
+    [Parameter]
+    public RenderFragment? SummaryContent { get; set; }
+
+    [Parameter]
+    public RenderFragment? Actions { get; set; }
+
+    [Parameter]
+    public RenderFragment? NavigationContent { get; set; }
+
+    [Parameter]
+    public RenderFragment? BeforeTabsContent { get; set; }
+
+    [Parameter]
+    public RenderFragment? AfterTabsContent { get; set; }
+
+    [Parameter]
+    public string NavigationAriaLabel { get; set; } = "Page navigation";
+
+    [Parameter]
+    public string ContainerClass { get; set; } = "composition-page-layout";
+
+    [Parameter]
+    public string HeaderClass { get; set; } = "composition-page-header";
+
+    [Parameter]
+    public string EyebrowClass { get; set; } = "composition-page-eyebrow";
+
+    [Parameter]
+    public string TitleRowClass { get; set; } = "composition-page-title-row";
+
+    [Parameter]
+    public string TitleBlockClass { get; set; } = "composition-page-title-block";
+
+    [Parameter]
+    public string TitleClass { get; set; } = "composition-page-title";
+
+    [Parameter]
+    public string SummaryClass { get; set; } = "composition-page-summary";
+
+    [Parameter]
+    public string ActionsClass { get; set; } = "composition-page-actions";
+
+    [Parameter]
+    public string NavigationClass { get; set; } = "composition-page-navigation";
+
+    [Parameter]
+    public string TabsAriaLabel { get; set; } = "Sections";
+
+    [Parameter]
+    public string QueryParameter { get; set; } = "section";
+
+    [Parameter]
+    public string TabsContainerClass { get; set; } = "composition-tabs";
+
+    [Parameter]
+    public string TabListContainerClass { get; set; } = "composition-tab-list-container";
+
+    [Parameter]
+    public string TabListClass { get; set; } = "composition-tab-list";
+
+    [Parameter]
+    public string TabClass { get; set; } = "composition-tab";
+
+    [Parameter]
+    public string SelectedTabClass { get; set; } = "is-selected";
+
+    [Parameter]
+    public string TabContentClass { get; set; } = "composition-tab-panel";
+
+    [Parameter]
+    public string EmptyStateClass { get; set; } = "composition-empty-state";
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+}

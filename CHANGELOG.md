@@ -135,6 +135,9 @@ on `git blame --follow`, and then by the broad type of change.
   `AddCloudShellUi()`, and the UI Extension Host sample registers a passive
   composition module for its sample workspace page as the first shell
   integration seam.
+- The Blazor composition library now includes reusable page and tabbed-page
+  layout components, and the standalone Composition Sandbox settings page uses
+  the tabbed-page layout to prove the pattern before CloudShell adopts it.
 - Moved the composition proof direction away from the UI Extension Host sample:
   CloudShell extension integration should adapt to the core composition graph
   only after the standalone app structure is credible.

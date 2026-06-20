@@ -1,0 +1,106 @@
+<PageTitleOutlet Page="@Page" />
+
+<main class="@ContainerClass" @attributes="AdditionalAttributes">
+    <header class="@HeaderClass">
+        @if (HeaderContent is not null)
+        {
+            @HeaderContent
+        }
+        else
+        {
+            @if (EyebrowContent is not null)
+            {
+                <div class="@EyebrowClass">
+                    @EyebrowContent
+                </div>
+            }
+
+            <div class="@TitleRowClass">
+                <div class="@TitleBlockClass">
+                    <h1 class="@TitleClass">
+                        <TitleOutlet Page="@Page" />
+                    </h1>
+
+                    @if (SummaryContent is not null)
+                    {
+                        <div class="@SummaryClass">
+                            @SummaryContent
+                        </div>
+                    }
+                </div>
+
+                @if (Actions is not null)
+                {
+                    <div class="@ActionsClass">
+                        @Actions
+                    </div>
+                }
+            </div>
+
+            @if (NavigationContent is not null)
+            {
+                <nav class="@NavigationClass" aria-label="@NavigationAriaLabel">
+                    @NavigationContent
+                </nav>
+            }
+        }
+    </header>
+
+    @ChildContent
+</main>
+
+@code {
+    [Parameter]
+    public PageId? Page { get; set; }
+
+    [Parameter]
+    public RenderFragment? HeaderContent { get; set; }
+
+    [Parameter]
+    public RenderFragment? EyebrowContent { get; set; }
+
+    [Parameter]
+    public RenderFragment? SummaryContent { get; set; }
+
+    [Parameter]
+    public RenderFragment? Actions { get; set; }
+
+    [Parameter]
+    public RenderFragment? NavigationContent { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public string ContainerClass { get; set; } = "composition-page-layout";
+
+    [Parameter]
+    public string HeaderClass { get; set; } = "composition-page-header";
+
+    [Parameter]
+    public string EyebrowClass { get; set; } = "composition-page-eyebrow";
+
+    [Parameter]
+    public string TitleRowClass { get; set; } = "composition-page-title-row";
+
+    [Parameter]
+    public string TitleBlockClass { get; set; } = "composition-page-title-block";
+
+    [Parameter]
+    public string TitleClass { get; set; } = "composition-page-title";
+
+    [Parameter]
+    public string SummaryClass { get; set; } = "composition-page-summary";
+
+    [Parameter]
+    public string ActionsClass { get; set; } = "composition-page-actions";
+
+    [Parameter]
+    public string NavigationClass { get; set; } = "composition-page-navigation";
+
+    [Parameter]
+    public string NavigationAriaLabel { get; set; } = "Page navigation";
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+}

@@ -254,9 +254,11 @@ The Blazor library currently provides these components:
 | `CompositionLink` | Resolves a page or section target into an anchor `href`. Page targets resolve to the registered route. Section targets resolve to the nearest page route plus a fragment. |
 | `TitleOutlet` | Renders visible text for the current composition page title from the cascaded context, an explicit `Page`, or the current route. |
 | `PageTitleOutlet` | Wraps Blazor `PageTitle` for the current composition page title from the cascaded context, an explicit `Page`, or the current route. Use this for the document title instead of mixing document-head behavior into visible page headers. |
+| `CompositionPageLayout` | Renders a plain page frame with document title, visible title, optional eyebrow, summary, actions, navigation, and child content. Text-heavy regions are render fragments so hosts can localize or customize them. |
 | `CompositionSectionContainer` | Cascades the current section outlet ID to nested content. |
 | `CompositionSectionOutlet` | Renders all registered sections for the current page and section outlet using Blazor `DynamicComponent`. It can resolve the page from cascade, an explicit `Page`, or the current route. |
 | `CompositionSectionTabs` | Renders registered named sections as tab items, stores the selected section in a query-string value, and renders the selected section with `DynamicComponent`. It can resolve the page from cascade, an explicit `Page`, or the current route. |
+| `CompositionTabbedPageLayout` | Composes `CompositionPageLayout`, `CompositionSectionContainer`, and `CompositionSectionTabs` into a reusable tabbed page layout. It is useful for settings-like pages while keeping tabs as a renderer choice over named sections. |
 
 A typical layout hosts the composition root around the routed body:
 
@@ -286,6 +288,21 @@ A routed page can then use the cascaded context:
 <CompositionSectionContainer Id="@CompositionIds.ReportsMainOutlet">
     <CompositionSectionOutlet />
 </CompositionSectionContainer>
+```
+
+For settings-like pages, a host can compose the same primitives through the
+tabbed page layout:
+
+```razor
+<CompositionTabbedPageLayout Page="@CompositionIds.SettingsPage"
+                             Outlet="@CompositionIds.SettingsMainOutlet"
+                             TabsAriaLabel="Settings sections"
+                             QueryParameter="section">
+    <EyebrowContent>Settings</EyebrowContent>
+    <SummaryContent>
+        Configure this host through sections contributed to the settings page.
+    </SummaryContent>
+</CompositionTabbedPageLayout>
 ```
 
 When a renderer is placed in a different render-mode island from the layout
@@ -372,8 +389,8 @@ The sample includes two registered pages:
   explore layout patterns without adding a visual framework dependency to the
   base composition libraries.
 - `/settings` renders registered named sections through the reusable
-  `CompositionSectionTabs` component. The selected section is represented with
-  a normal `section` query parameter.
+  `CompositionTabbedPageLayout` component. The selected section is represented
+  with a normal `section` query parameter.
 
 Registration titles are plain strings for this prototype. Localization is
 intentionally deferred. Likely options include localized title providers,
