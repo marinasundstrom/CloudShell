@@ -229,6 +229,12 @@ hosting, and deployments.
   resource name exists. Keep Resource ID visible in canonical details, links,
   and raw diagnostic fields, but avoid leading normal user-facing messages with
   internal IDs.
+* Investigate reusable Resource Manager selector components. The first pass
+  should identify common behavior across resource selectors, principal
+  selectors, storage/volume selectors, host selectors, and future hierarchical
+  selectors: query shape, search, label formatting, empty states, permission
+  handling, read-only behavior, validation messages, and typed filtering by
+  resource class, resource type, provider, capability, group, or access level.
 * Tighten readiness diagnostics before Start, Restart, image update,
   configuration update, or provider reconcile can fail for expected local
   blockers such as missing hosts, unavailable credentials, port or route

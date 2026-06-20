@@ -617,6 +617,11 @@ listed here before pulling in broader proposal work.
   Overview first, resource-specific tabs next, Management tabs for resource
   concerns such as Environment, Identity, Monitoring, and Activity near the
   bottom.
+- Investigate standardized selector components before adding more one-off
+  picker UI. Resource selectors, principal selectors, volume/storage selectors,
+  host selectors, and future hierarchical selectors should share search, label
+  formatting, empty states, permission/read-only handling, validation, and
+  typed filtering where the behavior is common.
 - Keep resource-scoped operations in context. Events should remain under the
   resource Management menu as resource-management history. Logs and Traces now
   render inline from a resource-detail Telemetry menu group when matching
@@ -1014,6 +1019,12 @@ forces a smaller slice:
   experiences.
 - External deployment projection, resource graph import/code generation, and
   container application environments.
+- Weak references to provider-projected resources that may not yet exist in the
+  graph, such as SQL databases under a SQL Server resource or runtime
+  containers under a container host. The immediate dependency/dependent graph
+  should visualize current projected resources and strong relationships; weak
+  projected references need a later resource-model, serialized-graph, and
+  specialized selector design.
 - The initial on-premise hosting scenario beyond the design and sample
   preparation needed to avoid dead-end MVP choices.
 

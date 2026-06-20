@@ -193,6 +193,28 @@ Rules:
   authorization. Caller authorization is represented by effective resource
   access levels.
 
+Future relationship work should distinguish strong resource relationships from
+weak projected-resource references. `DependsOn` should remain a strong
+relationship to a resource that exists in the current graph and can participate
+in dependency warnings, startup ordering, authorization checks, and graph
+inspection. A weak projected-resource reference would describe intent to point
+at a provider-projected target that may not exist yet, such as a database under
+a SQL Server resource or a runtime container under a container host. That
+reference should carry enough owner/provider context, target type, and target
+name or key for persistence and validation, but it should not imply that the
+target resource has already been materialized. The provider that owns the
+projection decides whether the reference is allowed before materialization,
+whether it can be resolved later, and which diagnostics should be shown when
+resolution fails.
+
+Resource Manager selector components should follow the same distinction. A
+standard selector can query existing projected resources by class, type,
+provider, capability, group, or access level. Specialized hierarchical
+selectors, such as SQL Server then database or Docker host then runtime
+container, may need to return either a strong reference to an existing
+projected resource or a weak projected-resource reference that the owning
+provider validates and resolves later.
+
 Resource Manager includes a resource dependency graph page that visualizes the
 currently visible resource projections and their `DependsOn` relationships.
 The graph is a UI projection over existing resource data: it filters by the

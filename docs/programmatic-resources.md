@@ -91,6 +91,18 @@ relationships:
 - String IDs remain available as a lower-level escape hatch, but typed builders
   should be preferred when both resources are declared in the same callback.
 
+Later graph serialization work should add an explicit weak reference shape for
+provider-projected resources that may not exist in the current graph yet. For
+example, a declaration might need to refer to a database name under a SQL
+Server resource before the provider has created or inspected that database, or
+to a runtime container identity under a container host before the host has
+projected it. Those references should not be encoded as `DependsOn(...)` unless
+the target resource already exists and should participate in dependency
+behavior. A future weak reference should persist owner/provider context, target
+type, and target key/name, then let the owning provider validate whether the
+unmaterialized target can be referenced and emit diagnostics if it cannot be
+resolved.
+
 Programmatic resource APIs take scoped resource names such as `api`,
 `orders--api`, or `sample-app`. Providers derive the canonical resource ID
 from the name when they need a typed internal path, such as `application:api`.

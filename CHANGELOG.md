@@ -17,6 +17,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Documented weak projected-resource references and reusable Resource Manager
+  selector components as deferred model/UI design work beyond the immediate
+  local-development MVP slice.
 - Refreshed the local-development MVP target around Application Topology
   confidence, immediate resource relationship comprehension, readable
   Resource Manager labels, app-centric diagnostics, and focused readiness
