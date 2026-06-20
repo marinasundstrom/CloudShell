@@ -11,6 +11,7 @@ public sealed class CompositionRegistryTests
     private static readonly MenuItemId ChildMenuItem = new("menu-item.main.workspace.child");
     private static readonly PageId WorkspacePage = new("page.workspace");
     private static readonly PageId ReportsPage = new("page.reports");
+    private static readonly PageId ResourceDetailsPage = new("page.resources.details");
     private static readonly SectionOutletId MainOutlet = new("section-outlet.workspace.main");
     private static readonly SectionOutletId ExtensionOutlet = new("section-outlet.workspace.extension");
     private static readonly SectionOutletId ReportsOutlet = new("section-outlet.reports.main");
@@ -32,6 +33,20 @@ public sealed class CompositionRegistryTests
     }
 
     [Fact]
+    public void GetPageByRoute_PreservesOptionalRouteTemplateParameters()
+    {
+        var registry = CompositionRegistry.Create(composition =>
+        {
+            composition.AddPage(ResourceDetailsPage, "Resource details", "/resources/{resourceId}/{view?}");
+        });
+
+        var page = registry.GetPageByRoute("/resources/{resourceId}/{view?}?traceId=123");
+
+        Assert.NotNull(page);
+        Assert.Equal(ResourceDetailsPage, page.Id);
+    }
+
+    [Fact]
     public void ResolveHref_ResolvesPageTargetsWithRouteParameters()
     {
         var registry = CreateRegistry();
@@ -45,6 +60,81 @@ public sealed class CompositionRegistryTests
             });
 
         Assert.Equal("/workspace?view=summary", href);
+    }
+
+    [Fact]
+    public void ResolveHref_MaterializesPageRouteTemplateParameters()
+    {
+        var registry = CompositionRegistry.Create(composition =>
+        {
+            composition.AddPage(ResourceDetailsPage, "Resource details", "/resources/{resourceId}/{view?}");
+        });
+
+        var href = registry.ResolveHref(
+            ResourceDetailsPage,
+            new Dictionary<string, object?>
+            {
+                ["resourceId"] = "application:orders api",
+                ["view"] = "overview",
+                ["traceId"] = "4bf92f"
+            });
+
+        Assert.Equal("/resources/application%3Aorders%20api/overview?traceId=4bf92f", href);
+    }
+
+    [Fact]
+    public void ResolveHref_OmitsMissingOptionalPageRouteTemplateSegments()
+    {
+        var registry = CompositionRegistry.Create(composition =>
+        {
+            composition.AddPage(ResourceDetailsPage, "Resource details", "/resources/{resourceId}/{view?}");
+        });
+
+        var href = registry.ResolveHref(
+            ResourceDetailsPage,
+            new Dictionary<string, object?>
+            {
+                ["resourceId"] = "application:orders-api"
+            });
+
+        Assert.Equal("/resources/application%3Aorders-api", href);
+    }
+
+    [Fact]
+    public void ResolveHref_MaterializesConstrainedPageRouteTemplateParameters()
+    {
+        var constrainedPage = new PageId("page.resources.by-number");
+        var registry = CompositionRegistry.Create(composition =>
+        {
+            composition.AddPage(constrainedPage, "Resource details", "/resources/{resourceId:int}/details");
+        });
+
+        var href = registry.ResolveHref(
+            constrainedPage,
+            new Dictionary<string, object?>
+            {
+                ["resourceId"] = 42
+            });
+
+        Assert.Equal("/resources/42/details", href);
+    }
+
+    [Fact]
+    public void ResolveHref_ReturnsHashForMissingPageRouteTemplateParameters()
+    {
+        var registry = CompositionRegistry.Create(composition =>
+        {
+            composition.AddPage(ResourceDetailsPage, "Resource details", "/resources/{resourceId}/details");
+        });
+
+        var href = registry.ResolveHref(
+            ResourceDetailsPage,
+            new Dictionary<string, object?>
+            {
+                ["tab"] = "general:overview"
+            });
+
+        Assert.Equal("#", href);
     }
 
     [Fact]
@@ -83,6 +173,21 @@ public sealed class CompositionRegistryTests
 
         Assert.Equal(CompositionTargetKind.Href, target.Kind);
         Assert.Equal("/workspace/child", href);
+    }
+
+    [Fact]
+    public void ResolveHref_AppendsRouteParametersBeforeFragments()
+    {
+        var registry = CreateRegistry();
+
+        var href = registry.ResolveHref(
+            CompositionTarget.ForHref("/workspace#summary"),
+            new Dictionary<string, object?>
+            {
+                ["view"] = "summary"
+            });
+
+        Assert.Equal("/workspace?view=summary#summary", href);
     }
 
     [Fact]

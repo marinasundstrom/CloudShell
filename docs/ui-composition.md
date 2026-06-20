@@ -327,9 +327,13 @@ preserves section module ownership on rendered tab buttons and panels through
 `data-composition-module` attributes.
 
 Resource Manager also registers its static shell pages as composition pages.
-Parameterized resource detail routes remain outside the composition graph for
-now because the link resolver does not yet model route templates or required
-route values.
+The composition link resolver can materialize route-template values, which
+allows future composition targets to resolve stable navigational locations such
+as `/resources/{resourceId}` for the Resource Details container page and
+`/resources/{resourceId}/{view}` for a selected Details tab/view, while leaving
+non-navigational context in the query string. Resource Manager's existing
+details routes remain on the current route helpers until that URL migration is
+taken as a separate slice.
 
 Resource Details now consumes the same shell-owned tabbed layout component as
 Settings while preserving the Resource Manager-owned tab contribution model,
@@ -508,7 +512,13 @@ The core registry resolves:
 - section target: `/#section.workspace.main.extension`
 
 Route parameters can be passed as query-string values through
-`RouteParams`.
+`RouteParams`. When the registered route contains matching route-template
+tokens, those values are used as escaped path segments and only the remaining
+values become query parameters. For example, a registered route like
+`/resources/{resourceId}/{view?}` can resolve route values into
+`/resources/application%3Aapi` for the default Details view, or
+`/resources/application%3Aapi/overview?traceId=...` for an explicit Details
+tab/view plus query-scoped context.
 
 The current tab renderer uses a query parameter for selected sections because
 it is renderer state inside an already-routed page. That should not be treated

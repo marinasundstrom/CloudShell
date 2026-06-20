@@ -342,7 +342,12 @@ can point to a content ID, and the renderer or content engine chooses the
 registered route, query parameters, fragment, selected state, and
 disabled/not-found behavior. Adapters can keep domain-specific URL
 compatibility, such as Resource Manager's existing `tab=<group>:<view>` links,
-while still projecting from the generic graph.
+while still projecting from the generic graph. New navigational surfaces
+should prefer product-shaped path routes where the selected content is a stable
+location; for example, a future Resource Manager details URL should prefer
+`/resources/{resourceId}` for the Resource Details container page and
+`/resources/{resourceId}/{view}` for a selected Details tab/view over exposing
+the full view ID in a query parameter.
 
 URL shape should remain a host and adapter decision rather than a direct dump
 of the full hierarchical ID. The ID is the durable internal address used for
@@ -350,12 +355,12 @@ lookup, ownership, diagnostics, and extension targeting; it is not always the
 best human-facing navigation path. Use route path segments when the selected
 content is a stable navigational location that users should bookmark, share,
 or understand as part of the information architecture, such as `/settings`,
-`/settings/identity`, or `/resources/{id}/details`. Use query parameters for
-renderer-selected state inside an already-established page context, such as a
-tab, filter, sort, or temporary view mode. Use fragments for focus targets or
-in-page section anchors. A resolver can still map all of those URL forms back
-to composition IDs so menus and links stay ID-driven while URLs remain
-intentional.
+`/settings/identity`, `/resources/{resourceId}`, or
+`/resources/{resourceId}/{view}`. Use query parameters for renderer-selected
+state inside an already-established page context, such as a filter, sort, or
+temporary view mode. Use fragments for focus targets or in-page section
+anchors. A resolver can still map all of those URL forms back to composition
+IDs so menus and links stay ID-driven while URLs remain intentional.
 
 The content selected inside a page or view may be dictated by route values and
 query parameters. The route can establish the page context, while query

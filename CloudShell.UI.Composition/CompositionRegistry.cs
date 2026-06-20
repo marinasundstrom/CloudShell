@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 
 namespace CloudShell.UI.Composition;
 
@@ -222,8 +223,35 @@ public sealed class CompositionRegistry
         }
 
         var normalized = route.StartsWith('/') ? route : "/" + route;
-        var queryStart = normalized.IndexOfAny(['?', '#']);
+        var queryStart = IndexOfRouteSuffix(normalized);
         return queryStart >= 0 ? normalized[..queryStart] : normalized;
+    }
+
+    private static int IndexOfRouteSuffix(string route)
+    {
+        var templateDepth = 0;
+        for (var index = 0; index < route.Length; index++)
+        {
+            var value = route[index];
+            if (value == '{')
+            {
+                templateDepth++;
+                continue;
+            }
+
+            if (value == '}' && templateDepth > 0)
+            {
+                templateDepth--;
+                continue;
+            }
+
+            if (templateDepth == 0 && (value == '?' || value == '#'))
+            {
+                return index;
+            }
+        }
+
+        return -1;
     }
 
     private static void ValidateUnique(IEnumerable<string> values, string kind)
@@ -347,21 +375,144 @@ public sealed class CompositionRegistry
             return route;
         }
 
+        var usedParameters = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var materializedRoute = TryMaterializeRouteTemplate(route, routeParams, usedParameters);
+        if (materializedRoute is null)
+        {
+            return "#";
+        }
+
         var query = string.Join(
             '&',
             routeParams
-                .Where(parameter => parameter.Value is not null)
+                .Where(parameter =>
+                    parameter.Value is not null &&
+                    !usedParameters.Contains(parameter.Key))
                 .Select(parameter =>
                     $"{Uri.EscapeDataString(parameter.Key)}={Uri.EscapeDataString(Convert.ToString(parameter.Value, CultureInfo.InvariantCulture) ?? string.Empty)}"));
 
         if (string.IsNullOrEmpty(query))
         {
-            return route;
+            return materializedRoute;
         }
 
-        return route.Contains('?')
-            ? $"{route}&{query}"
-            : $"{route}?{query}";
+        return AppendQuery(materializedRoute, query);
+    }
+
+    private static string? TryMaterializeRouteTemplate(
+        string route,
+        IReadOnlyDictionary<string, object?> routeParams,
+        ISet<string> usedParameters)
+    {
+        var result = new StringBuilder(route.Length);
+        var cursor = 0;
+
+        while (cursor < route.Length)
+        {
+            var openBrace = route.IndexOf('{', cursor);
+            if (openBrace < 0)
+            {
+                result.Append(route, cursor, route.Length - cursor);
+                return result.ToString();
+            }
+
+            var closeBrace = route.IndexOf('}', openBrace + 1);
+            if (closeBrace < 0)
+            {
+                result.Append(route, cursor, route.Length - cursor);
+                return result.ToString();
+            }
+
+            var token = route[(openBrace + 1)..closeBrace];
+            var parameter = ParseRouteTemplateParameter(token);
+            var parameterName = parameter.Name;
+            if (string.IsNullOrWhiteSpace(parameterName))
+            {
+                result.Append(route, cursor, openBrace - cursor);
+                result.Append(route, openBrace, closeBrace - openBrace + 1);
+                cursor = closeBrace + 1;
+                continue;
+            }
+
+            var routeParameter = routeParams.FirstOrDefault(candidate =>
+                string.Equals(candidate.Key, parameterName, StringComparison.OrdinalIgnoreCase));
+            if (routeParameter.Key is null || routeParameter.Value is null)
+            {
+                if (parameter.IsOptional && TryAppendWithoutOptionalSegment(route, result, cursor, openBrace, closeBrace))
+                {
+                    cursor = closeBrace + 1;
+                    continue;
+                }
+
+                return null;
+            }
+
+            result.Append(route, cursor, openBrace - cursor);
+            usedParameters.Add(routeParameter.Key);
+            result.Append(Uri.EscapeDataString(
+                Convert.ToString(routeParameter.Value, CultureInfo.InvariantCulture) ?? string.Empty));
+            cursor = closeBrace + 1;
+        }
+
+        return result.ToString();
+    }
+
+    private static bool TryAppendWithoutOptionalSegment(
+        string route,
+        StringBuilder result,
+        int cursor,
+        int openBrace,
+        int closeBrace)
+    {
+        var prefixLength = openBrace - cursor;
+        if (prefixLength <= 0)
+        {
+            return false;
+        }
+
+        var prefixEnd = openBrace - 1;
+        var next = closeBrace + 1 < route.Length
+            ? route[closeBrace + 1]
+            : '\0';
+        var isSegmentParameter =
+            route[prefixEnd] == '/' &&
+            (next == '\0' || next == '?' || next == '#');
+
+        if (!isSegmentParameter)
+        {
+            return false;
+        }
+
+        result.Append(route, cursor, prefixLength - 1);
+        return true;
+    }
+
+    private static RouteTemplateParameter ParseRouteTemplateParameter(string token)
+    {
+        var trimmed = token.Trim().TrimStart('*');
+        var end = trimmed.IndexOfAny([':', '?']);
+        var name = end < 0
+            ? trimmed
+            : trimmed[..end];
+        return new(name, trimmed.Contains('?', StringComparison.Ordinal));
+    }
+
+    private readonly record struct RouteTemplateParameter(string Name, bool IsOptional);
+
+    private static string AppendQuery(string route, string query)
+    {
+        var fragmentStart = route.IndexOf('#');
+        var routeWithoutFragment = fragmentStart < 0
+            ? route
+            : route[..fragmentStart];
+        var fragment = fragmentStart < 0
+            ? string.Empty
+            : route[fragmentStart..];
+        var separator = routeWithoutFragment.Contains('?')
+            ? "&"
+            : "?";
+
+        return $"{routeWithoutFragment}{separator}{query}{fragment}";
     }
 
     private static bool IsDirectHref(string value) =>

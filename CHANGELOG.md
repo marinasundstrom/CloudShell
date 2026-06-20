@@ -91,7 +91,10 @@ on `git blame --follow`, and then by the broad type of change.
   blocking legacy routes that are not registered yet.
 - Resource Manager now registers its static shell pages as composition pages,
   leaving parameterized resource detail routes on the existing route helpers
-  until route-template targets are modeled.
+  until the Resource Manager details URL shape is migrated separately.
+- Composition link resolution now materializes matching route-template values
+  into path segments, omits missing optional route segments, and leaves
+  remaining route values as query parameters.
 - Resource Manager static navigation routes now use shared
   `ResourceManagerRoutes` constants for add-resource, resource-group,
   templates, and settings links.
