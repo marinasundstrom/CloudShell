@@ -69,6 +69,10 @@ on `git blame --follow`, and then by the broad type of change.
   `ProcedureMessage` styling instead of the default Fluent message bar.
 - Account setup, sign-in, and local user feedback now use the same custom
   `ProcedureMessage` styling as Resource Manager feedback.
+- Resource health polling now waits until the Control Plane host has started,
+  suppresses repeated polling failure logs until polling succeeds, and routes
+  Resource Manager lifecycle, process, and health-probe logs through dedicated
+  CloudShell logging categories that hosts can tune through appsettings.
 
 ### 2026-06-19
 

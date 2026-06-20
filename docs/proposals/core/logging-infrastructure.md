@@ -94,6 +94,70 @@ and OpenTelemetry terminology:
 These fields are additive. Providers can continue to emit plain text entries,
 and structured fields must not contain secrets or credentials.
 
+### Runtime Logging Categories
+
+CloudShell still uses `ILogger` for host and framework runtime diagnostics.
+These logs are separate from provider-owned operational logs and platform
+resource events. Runtime logger categories should use stable CloudShell-owned
+category names from `CloudShell.Abstractions.Logging.CloudShellLogCategories`
+when the category is part of an operational area that operators may reasonably
+filter, such as Resource Manager startup, shutdown, and health polling.
+
+Prefer categories rooted at `CloudShell`, for example:
+
+- `CloudShell.ControlPlane.ResourceManager.ResourceHealth.Polling`
+- `CloudShell.ControlPlane.ResourceManager.ResourceHealth.Probes`
+- `CloudShell.ControlPlane.ResourceManager.ProgrammaticResourceStartup`
+- `CloudShell.ControlPlane.ResourceManager.HostScopedResourceShutdown`
+- `CloudShell.ControlPlane.ResourceManager.Lifecycle`
+- `CloudShell.ControlPlane.ResourceManager.LocalProcess`
+
+Keep the initial category set strict. Resource Manager lifecycle and local
+process diagnostics that are useful in the console belong in stable CloudShell
+categories. These logs must be controlled by standard log-level configuration
+rather than hard-coded environment checks, so a host can force them on outside
+Development or keep them quiet in Development. Narrow component warnings, UI
+recovery logs, and sample application logs can keep their existing type or
+sample categories until there is an operator-facing filtering reason to promote
+them.
+
+Resource lifecycle logs should be emitted at the Resource Manager orchestration
+boundary, where resource actions are requested, completed, and failed. Providers
+should use provider events for detailed procedure milestones and only emit
+runtime logs for provider-owned process diagnostics.
+
+When CloudShell creates framework clients for a specific operational area, use
+named clients so framework diagnostics land under a dedicated category. Resource
+health probes use the named client
+`CloudShell.ControlPlane.ResourceManager.ResourceHealth.Probes`, which maps the
+default `HttpClient` diagnostics under
+`System.Net.Http.HttpClient.CloudShell.ControlPlane.ResourceManager.ResourceHealth.Probes`.
+Hosts can filter that category without muting unrelated HTTP clients.
+
+Do not log routine health-check status changes as application log noise. The
+Control Plane stores health results as resource health snapshots, and Resource
+Manager reads those snapshots for health status. Runtime logs should be
+reserved for unexpected polling infrastructure failures, and repeated failures
+should be suppressed until polling succeeds again.
+
+Local development hosts can tune these categories through standard appsettings
+logging configuration:
+
+```json
+{
+  "Logging": {
+    "LogLevel": {
+      "CloudShell.ControlPlane.ResourceManager.ProgrammaticResourceStartup": "Information",
+      "CloudShell.ControlPlane.ResourceManager.HostScopedResourceShutdown": "Information",
+      "CloudShell.ControlPlane.ResourceManager.ResourceHealth.Polling": "Warning",
+      "System.Net.Http.HttpClient.CloudShell.ControlPlane.ResourceManager.ResourceHealth.Probes": "Warning",
+      "CloudShell.ControlPlane.ResourceManager.Lifecycle": "Information",
+      "CloudShell.ControlPlane.ResourceManager.LocalProcess": "Information"
+    }
+  }
+}
+```
+
 ### Resource Events
 
 Resource events are platform-owned activity records. They describe operations

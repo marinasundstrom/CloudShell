@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Logging;
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,10 +10,16 @@ namespace CloudShell.ControlPlane.ResourceManager;
 public sealed class ResourceHealthPollingService(
     IServiceScopeFactory scopes,
     IResourceOrchestrationSettings orchestrationSettings,
-    ILogger<ResourceHealthPollingService> logger) : BackgroundService
+    IHostApplicationLifetime applicationLifetime,
+    ILoggerFactory loggerFactory) : BackgroundService
 {
+    private bool pollingFailureLogged;
+    private readonly ILogger logger = loggerFactory.CreateLogger(CloudShellLogCategories.ResourceHealthPolling);
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        await WaitForApplicationStartedAsync(stoppingToken);
+
         while (!stoppingToken.IsCancellationRequested)
         {
             await RefreshAsync(stoppingToken);
@@ -34,15 +41,41 @@ public sealed class ResourceHealthPollingService(
             using var scope = scopes.CreateScope();
             var health = scope.ServiceProvider.GetRequiredService<IResourceHealthManager>();
             await health.ListResourceHealthAsync(cancellationToken);
+            pollingFailureLogged = false;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
         }
         catch (Exception exception)
         {
-            logger.LogWarning(
-                exception,
-                "Resource health polling failed.");
+            if (!pollingFailureLogged)
+            {
+                logger.LogWarning(
+                    "Resource health polling failed; further failures are suppressed until polling succeeds: {Message}",
+                    exception.Message);
+                pollingFailureLogged = true;
+            }
+        }
+    }
+
+    private async Task WaitForApplicationStartedAsync(CancellationToken stoppingToken)
+    {
+        if (applicationLifetime.ApplicationStarted.IsCancellationRequested)
+        {
+            return;
+        }
+
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(
+            applicationLifetime.ApplicationStarted,
+            stoppingToken);
+        try
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, linked.Token);
+        }
+        catch (OperationCanceledException) when (
+            applicationLifetime.ApplicationStarted.IsCancellationRequested ||
+            stoppingToken.IsCancellationRequested)
+        {
         }
     }
 

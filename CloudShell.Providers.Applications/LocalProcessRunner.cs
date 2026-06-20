@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Logging;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.Hosting;
@@ -14,12 +15,13 @@ public sealed partial class LocalProcessRunner(
     ApplicationRuntimeStateStore runtimeStates,
     LocalProcessOptions options,
     IHostEnvironment environment,
-    ILogger<LocalProcessRunner>? logger = null) : IDisposable
+    ILoggerFactory? loggerFactory = null) : IDisposable
 {
     private readonly ConcurrentDictionary<string, LocalProcessState> _processes =
         new(StringComparer.OrdinalIgnoreCase);
-    private readonly ILogger<LocalProcessRunner> _logger =
-        logger ?? NullLogger<LocalProcessRunner>.Instance;
+    private readonly ILogger _logger =
+        loggerFactory?.CreateLogger(CloudShellLogCategories.LocalProcessLifecycle) ??
+        NullLogger.Instance;
 
     public bool IsRunning(LocalProcessDefinition? definition) =>
         TryGetRunningProcess(definition, out _);
@@ -304,7 +306,7 @@ public sealed partial class LocalProcessRunner(
                 if (state.Lifetime == LocalProcessLifetime.ControlPlaneScoped &&
                     !state.Process.HasExited)
                 {
-                    LogDevelopmentLifecycle(
+                    LogLifecycle(
                         "Stopping host-scoped process resource {ResourceId} during Control Plane shutdown.",
                         processId);
                     ProcessShutdown.KillProcessTreeAndWait(state.Process);
@@ -315,7 +317,7 @@ public sealed partial class LocalProcessRunner(
                         DateTimeOffset.UtcNow,
                         TryGetExitCode(state.Process),
                         state.LogPath));
-                    LogDevelopmentLifecycle(
+                    LogLifecycle(
                         "Stopped host-scoped process resource {ResourceId} during Control Plane shutdown.",
                         processId);
                 }
@@ -328,13 +330,8 @@ public sealed partial class LocalProcessRunner(
         }
     }
 
-    private void LogDevelopmentLifecycle(string message, params object?[] args)
-    {
-        if (environment.IsDevelopment())
-        {
-            _logger.LogInformation(message, args);
-        }
-    }
+    private void LogLifecycle(string message, params object?[] args) =>
+        _logger.LogInformation(message, args);
 
     private bool TryGetRunningProcess(
         LocalProcessDefinition? definition,

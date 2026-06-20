@@ -1,7 +1,10 @@
+using CloudShell.Abstractions.Logging;
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using System.Text.Json;
 
 namespace CloudShell.ControlPlane.ResourceManager;
@@ -16,7 +19,8 @@ public sealed class ResourceOrchestrationService(
     IEnumerable<IContainerHostProvider>? containerHostProviders = null,
     IContainerHostResolver? containerHostResolver = null,
     IEnumerable<IResourceActionAvailabilityProvider>? actionAvailabilityProviders = null,
-    IResourceEventSink? resourceEvents = null)
+    IResourceEventSink? resourceEvents = null,
+    ILoggerFactory? loggerFactory = null)
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
     private readonly IReadOnlyList<IResourceOrchestrator> orchestrators = orchestrators.ToArray();
@@ -31,6 +35,9 @@ public sealed class ResourceOrchestrationService(
             registrations,
             descriptorProviders,
             containerHostProviders ?? []);
+    private readonly ILogger lifecycleLogger =
+        loggerFactory?.CreateLogger(CloudShellLogCategories.ResourceLifecycle) ??
+        NullLogger.Instance;
 
     public string? PreferredContainerHostId => selectionStore.Get().PreferredContainerHostId;
 
@@ -138,6 +145,11 @@ public sealed class ResourceOrchestrationService(
             GetLifecycleStartingMessage(action),
             cause,
             triggeredBy);
+        LogLifecycle(
+            action,
+            "Requested lifecycle {ActionKind} for resource {ResourceId}.",
+            action.Kind,
+            resource.Id);
         NotifyResourceChange(
             notifyResourceChange,
             ResourceChangeKind.ResourceActionStarted,
@@ -153,6 +165,12 @@ public sealed class ResourceOrchestrationService(
                 $"{GetLifecycleCompletedMessage(action)} Result: {result.Message}",
                 cause,
                 triggeredBy);
+            LogLifecycle(
+                action,
+                "Completed lifecycle {ActionKind} for resource {ResourceId}: {Message}",
+                action.Kind,
+                resource.Id,
+                result.Message);
             NotifyResourceChange(
                 notifyResourceChange,
                 ResourceChangeKind.ResourceActionExecuted,
@@ -176,6 +194,12 @@ public sealed class ResourceOrchestrationService(
                 cause,
                 triggeredBy,
                 ResourceSignalSeverity.Error);
+            LogLifecycle(
+                action,
+                "Failed lifecycle {ActionKind} for resource {ResourceId}: {Message}",
+                action.Kind,
+                resource.Id,
+                exception.Message);
             NotifyResourceChange(
                 notifyResourceChange,
                 ResourceChangeKind.ResourceActionFailed,
@@ -184,6 +208,16 @@ public sealed class ResourceOrchestrationService(
 
             throw;
         }
+    }
+
+    private void LogLifecycle(ResourceAction action, string message, params object?[] args)
+    {
+        if (GetLifecycleEventTypes(action) is null)
+        {
+            return;
+        }
+
+        lifecycleLogger.LogInformation(message, args);
     }
 
     public async Task<string?> GetActionUnavailableReasonAsync(

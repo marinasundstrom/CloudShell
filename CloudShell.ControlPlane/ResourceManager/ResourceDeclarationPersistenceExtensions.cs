@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Logging;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Persistence;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,7 +39,8 @@ public static class ResourceDeclarationPersistenceExtensions
     {
         await using var scope = services.CreateAsyncScope();
         var logger = scope.ServiceProvider
-            .GetRequiredService<ILogger<ResourceDeclarationStartupService>>();
+            .GetRequiredService<ILoggerFactory>()
+            .CreateLogger(CloudShellLogCategories.ProgrammaticResourceStartup);
         var startup = scope.ServiceProvider.GetRequiredService<ResourceDeclarationStartupService>();
         var result = await startup.StartAutoStartDeclarationsAsync(cancellationToken);
 

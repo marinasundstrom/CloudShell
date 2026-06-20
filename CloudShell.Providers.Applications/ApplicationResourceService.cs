@@ -16,8 +16,6 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CloudShell.Providers.Applications;
 
@@ -33,7 +31,6 @@ public sealed partial class ApplicationResourceService(
     IEnumerable<IConfigurationEntryReferenceResolver> configurationEntryResolvers,
     IEnumerable<ISecretReferenceResolver> secretResolvers,
     ResourceDeclarationStore declarations,
-    ILogger<ApplicationResourceService>? logger = null,
     IResourceEventSink? resourceEvents = null) :
     ILogProvider,
     IResourceMonitoringProvider,
@@ -58,8 +55,6 @@ public sealed partial class ApplicationResourceService(
         new(StringComparer.OrdinalIgnoreCase);
     private readonly IReadOnlyList<IResourceIdentityCredentialEnvironmentProvider> identityCredentialEnvironmentProviders =
         identityCredentialEnvironmentProviders.ToArray();
-    private readonly ILogger<ApplicationResourceService> _logger =
-        logger ?? NullLogger<ApplicationResourceService>.Instance;
 
     public string Id => ApplicationResourceProviderIds.Applications;
 
@@ -1344,10 +1339,6 @@ public sealed partial class ApplicationResourceService(
             await localProcesses.CleanupHostScopedProcessAsync(
                 CreateLocalProcessDefinition(application),
                 cancellationToken);
-            LogDevelopmentLifecycle(
-                "Reconciled host-scoped application resource {ResourceId} ({ResourceType}) during Control Plane startup.",
-                application.Id,
-                application.ResourceType);
         }
     }
 
@@ -1373,14 +1364,6 @@ public sealed partial class ApplicationResourceService(
             JsonSerializer.SerializeToElement(workload, TemplateSerializerOptions)));
     }
 
-    private void LogDevelopmentLifecycle(string message, params object?[] args)
-    {
-        if (environment.IsDevelopment())
-        {
-            _logger.LogInformation(message, args);
-        }
-    }
-
     public void Dispose()
     {
         foreach (var (applicationId, state) in _processes)
@@ -1390,9 +1373,6 @@ public sealed partial class ApplicationResourceService(
                 if (state.Lifetime == ApplicationLifetime.ControlPlaneScoped &&
                     !state.Process.HasExited)
                 {
-                    LogDevelopmentLifecycle(
-                        "Stopping host-scoped application resource {ResourceId} during Control Plane shutdown.",
-                        applicationId);
                     ProcessShutdown.KillProcessTreeAndWait(state.Process);
                     runtimeStates.Save(new ApplicationRuntimeState(
                         applicationId,
@@ -1404,9 +1384,6 @@ public sealed partial class ApplicationResourceService(
                         VolumeMounts: MarkVolumeMountsNotActive(
                             runtimeStates.Get(applicationId)?.RuntimeVolumeMounts ?? [],
                             DateTimeOffset.UtcNow)));
-                    LogDevelopmentLifecycle(
-                        "Stopped host-scoped application resource {ResourceId} during Control Plane shutdown.",
-                        applicationId);
                 }
             }
             catch (InvalidOperationException)
@@ -1435,12 +1412,6 @@ public sealed partial class ApplicationResourceService(
             "application.start.preparing",
             $"Application provider is preparing to start '{definition.Name}' ({definition.ResourceType}) with {definition.Lifetime} lifetime.");
 
-        LogDevelopmentLifecycle(
-            "Starting application resource {ResourceId} ({ResourceType}) with {Lifetime} lifetime.",
-            definition.Id,
-            definition.ResourceType,
-            definition.Lifetime);
-
         if (IsContainerBacked(definition))
         {
             if (TryGetRunningProcess(definition, out _))
@@ -1449,10 +1420,6 @@ public sealed partial class ApplicationResourceService(
                     Id,
                     "application.start.skipped",
                     $"Application provider skipped start for '{definition.Name}' because it is already running.");
-                LogDevelopmentLifecycle(
-                    "Application resource {ResourceId} ({ResourceType}) is already running.",
-                    definition.Id,
-                    definition.ResourceType);
                 return;
             }
 
@@ -1474,10 +1441,6 @@ public sealed partial class ApplicationResourceService(
                     preferredContainerHostId,
                     cancellationToken,
                     procedureContext);
-                LogDevelopmentLifecycle(
-                    "Started application resource {ResourceId} ({ResourceType}).",
-                    definition.Id,
-                    definition.ResourceType);
             }
             catch
             {
@@ -1511,10 +1474,6 @@ public sealed partial class ApplicationResourceService(
                 Id,
                 "application.start.skipped",
                 $"Application provider skipped start for '{definition.Name}' because it is already running.");
-            LogDevelopmentLifecycle(
-                "Application resource {ResourceId} ({ResourceType}) is already running.",
-                definition.Id,
-                definition.ResourceType);
             return;
         }
 
@@ -1540,10 +1499,6 @@ public sealed partial class ApplicationResourceService(
                 Id,
                 "application.process.started",
                 $"Application provider started local process for '{definition.Name}'.");
-            LogDevelopmentLifecycle(
-                "Started application resource {ResourceId} ({ResourceType}).",
-                definition.Id,
-                definition.ResourceType);
         }
         catch
         {
@@ -2606,11 +2561,6 @@ public sealed partial class ApplicationResourceService(
                 Id,
                 "application.stop.preparing",
                 $"Application provider is preparing to stop '{application.Name}' ({application.ResourceType}) with {application.Lifetime} lifetime.");
-            LogDevelopmentLifecycle(
-                "Stopping application resource {ResourceId} ({ResourceType}) with {Lifetime} lifetime.",
-                application.Id,
-                application.ResourceType,
-                application.Lifetime);
         }
 
         if (application is not null &&
@@ -2628,10 +2578,6 @@ public sealed partial class ApplicationResourceService(
                 Id,
                 "application.process.stopped",
                 $"Application provider stopped local process for '{application.Name}'.");
-            LogDevelopmentLifecycle(
-                "Stopped application resource {ResourceId} ({ResourceType}).",
-                application.Id,
-                application.ResourceType);
             ClearStopping(applicationId);
             return;
         }
@@ -2654,10 +2600,6 @@ public sealed partial class ApplicationResourceService(
             if (engine is not null)
             {
                 await StopContainerAsync(application, engine, log, cancellationToken, procedureContext);
-                LogDevelopmentLifecycle(
-                    "Stopped application resource {ResourceId} ({ResourceType}).",
-                    application.Id,
-                    application.ResourceType);
                 ClearStopping(applicationId);
             }
         }

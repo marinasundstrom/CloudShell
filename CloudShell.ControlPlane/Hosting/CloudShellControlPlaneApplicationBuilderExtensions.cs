@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Hosting;
+using CloudShell.Abstractions.Logging;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ControlPlane;
@@ -31,7 +32,9 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
         ArgumentNullException.ThrowIfNull(builder);
 
         builder.Services.AddHttpClient();
+        builder.Services.AddHttpClient(ResourceHealthProbeService.HttpClientName);
         builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.Warning);
+        builder.Logging.AddFilter(CloudShellLogCategories.ResourceHealthProbeHttpClient, LogLevel.Warning);
         builder.Services.AddCloudShellControlPlaneOpenApi();
         builder.Services.Configure<ResourceManagerOptions>(
             builder.Configuration.GetSection(ResourceManagerOptions.SectionName));

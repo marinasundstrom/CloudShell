@@ -1,9 +1,13 @@
+using CloudShell.Abstractions.Logging;
 using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.ControlPlane.ResourceManager;
 
 public sealed class ResourceHealthProbeService(IHttpClientFactory httpClientFactory)
 {
+    public const string HttpClientName = CloudShellLogCategories.ResourceHealthProbes;
+    public const string HttpClientLogCategory = CloudShellLogCategories.ResourceHealthProbeHttpClient;
+
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(5);
 
     public async Task<IReadOnlyDictionary<string, ResourceHealthSummary>> CheckAsync(
@@ -68,7 +72,7 @@ public sealed class ResourceHealthProbeService(IHttpClientFactory httpClientFact
 
         try
         {
-            var client = httpClientFactory.CreateClient();
+            var client = httpClientFactory.CreateClient(HttpClientName);
             using var request = new HttpRequestMessage(HttpMethod.Get, uri);
             using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
             var status = (int)response.StatusCode < 400
