@@ -192,6 +192,31 @@ requirement for the generic composition model or the first Blazor integration.
 It should still keep component activation and authorization under host control
 instead of letting arbitrary modules bypass shell validation.
 
+The router should support two page participation modes. A
+composition-rendered page is matched and rendered by the composition router
+from registered route and component metadata. An externally routed page is
+still matched by a normal Razor `@page` component, but that route is registered
+against a composition page so menus, generated links, titles, breadcrumbs,
+section outlets, and selected-child navigation remain graph-driven. This keeps
+custom product pages in the system instead of forcing everything through one
+generic renderer.
+
+Resource Details is the key example. The routed Blazor component may continue
+to own `/resources/{resourceId}` and `/resources/{resourceId}/{view?}` because
+it needs a resource ID, resource loading behavior, authorization, and local
+error states. The composition graph can still model the details page, its
+resource-view children, and section outlets under those views. A menu item,
+tab, breadcrumb, or deep link targets the composition page or child artifact;
+the resolver produces a URL that the routed component must honor. A future
+composition router can own simpler shell pages directly while externally
+routed pages continue to opt into the same graph.
+
+Before building that router, the model needs durable route primitives:
+registered route templates on pages, page routing mode, selected-child route
+values, section address mode, component host metadata, and route-conflict
+validation. With those primitives in place, a router becomes an adapter over
+the graph rather than the mechanism that defines the graph.
+
 Relationships describe cross-tree links and non-hierarchical targets such as a
 menu item targeting a page, a page content node binding to a route, component
 hosting, and renderer-specific selection; they do not require a specific

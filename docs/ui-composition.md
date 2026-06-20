@@ -609,13 +609,38 @@ and the Blazor page must declare routes that match the composition route
 metadata.
 
 A later host could go further and provide its own composition-aware Blazor
-router component that registers routable entries directly from the composition
-model. That would reduce the amount of duplicated route declaration in Razor
-pages and could eventually let composed pages rely on composition route
-registrations instead of `@page` directives. That router remains a separate
-routing integration layer over the graph. The current implementation stays
-aligned with Blazor's built-in router and uses the composition registry for
-link generation.
+router component. That router would read page registrations, route templates,
+and address-mode metadata from the composition registry, match incoming paths
+to composition pages and selected child content, and render the registered
+page component through Blazor component activation. That would reduce the
+amount of duplicated route declaration in Razor pages and could eventually let
+composition-rendered pages rely on composition route registrations instead of
+`@page` directives.
+
+That router is a routing integration layer over the graph, not the graph
+itself. The graph should first be able to describe two page routing modes:
+
+- **Composition-rendered pages**: the composition graph owns the route
+  template and component metadata, and a composition-aware router can match
+  and render the page.
+- **Externally routed pages**: a normal Razor component still owns route
+  matching through `@page`, but the route is registered against a composition
+  page so menus, links, titles, section outlets, and nested navigation
+  participate in the same graph.
+
+Externally routed pages are important for product pages that need custom route
+parameters or embedded local navigation. Resource Details is the practical
+case: the Blazor page may own `/resources/{resourceId}` and
+`/resources/{resourceId}/{view?}`, while the selected resource view is still
+represented as composition child content under the Resource Details page. The
+same pattern applies to settings pages, dashboards, or any page that renders
+tabs or side navigation from registered child pages or sections.
+
+Short-term model work should define the route primitives before building the
+router: page route templates, page routing mode, selected-child route values,
+section address mode, and enough component metadata for host-controlled
+activation. The current implementation stays aligned with Blazor's built-in
+router and uses the composition registry for link generation.
 
 `PageTitleOutlet` relies on Blazor's normal `PageTitle` and `HeadOutlet`
 behavior. Hosts still need to include a Blazor `HeadOutlet` in their app shell
@@ -797,6 +822,9 @@ The current composition engine does not yet include:
 - permissions or visibility rules
 - shell-specific metadata outlets beyond the plain `TitleOutlet` and
   `PageTitleOutlet`
+- composition-aware Blazor router support; current pages still use normal
+  Blazor routing and register route metadata for link generation and context
+  resolution
 - explicit localization metadata or title templates
 - UI configuration or layout editing in the core package; CloudShell or
   another host can build its own CMS/editor experience on top of the
