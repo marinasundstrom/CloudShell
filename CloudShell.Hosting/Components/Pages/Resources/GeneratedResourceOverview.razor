@@ -14,6 +14,7 @@
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject ResourceManagerDisplaySettings DisplaySettings
 @inject ShellCatalog ShellCatalog
+@inject CloudShell.UI.Composition.CompositionRegistry Composition
 @inject IStringLocalizer<SharedResource> L
 
     <div class="generated-resource-view">
@@ -985,11 +986,11 @@
         return L["{0} total ({1} HTTP, {2} TCP)", routeCount, httpCount, tcpCount].Value;
     }
 
-    private static string BuildResourceRoute(string resourceId) =>
-        ResourceManagerRoutes.ResourceOverview(resourceId);
+    private string BuildResourceRoute(string resourceId) =>
+        ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId);
 
-    private static string BuildResourceTabRoute(string resourceId, ResourceViewId tabId) =>
-        ResourceManagerRoutes.ResourceDetails(resourceId, tabId);
+    private string BuildResourceTabRoute(string resourceId, ResourceViewId tabId) =>
+        ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId, tabId);
 
     private ResourceTypeContribution? FindResourceType(Resource resource) =>
         this.ShellCatalog.ResourceTypes.FirstOrDefault(type =>
@@ -1003,7 +1004,7 @@
         };
 
         return QueryHelpers.AddQueryString(
-            ResourceManagerRoutes.ResourceDetails(Resource.Id, ResourcePredefinedViewIds.Logs),
+            BuildResourceTabRoute(Resource.Id, ResourcePredefinedViewIds.Logs),
             query);
     }
 
@@ -1017,21 +1018,21 @@
         }
 
         return QueryHelpers.AddQueryString(
-            ResourceManagerRoutes.ResourceDetails(resourceId, ResourcePredefinedViewIds.Logs),
+            BuildResourceTabRoute(resourceId, ResourcePredefinedViewIds.Logs),
             query);
     }
 
     private string BuildTraceRoute() =>
         BuildTraceRoute(Resource.Id);
 
-    private static string BuildTraceRoute(string resourceId) =>
-        ResourceManagerRoutes.ResourceDetails(resourceId, ResourcePredefinedViewIds.Traces);
+    private string BuildTraceRoute(string resourceId) =>
+        BuildResourceTabRoute(resourceId, ResourcePredefinedViewIds.Traces);
 
-    private static string BuildActivityRoute(string resourceId) =>
-        ResourceManagerRoutes.ResourceDetails(resourceId, ResourcePredefinedViewIds.Activity);
+    private string BuildActivityRoute(string resourceId) =>
+        BuildResourceTabRoute(resourceId, ResourcePredefinedViewIds.Activity);
 
     private string BuildMetricRoute() =>
-        ResourceManagerRoutes.ResourceDetails(Resource.Id, ResourcePredefinedViewIds.Metrics);
+        BuildResourceTabRoute(Resource.Id, ResourcePredefinedViewIds.Metrics);
 
     private async Task CopyEndpoint(string address)
     {

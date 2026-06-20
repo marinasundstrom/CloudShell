@@ -2,6 +2,7 @@
 @inject IResourceManager ResourceManager
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
+@inject CloudShell.UI.Composition.CompositionRegistry Composition
 @inject IStringLocalizer<SharedResource> L
 
 <div class="type-registration">
@@ -210,8 +211,8 @@
             SelectedStorageResourceId) ?? string.Empty;
     }
 
-    private static string BuildStorageVolumesRoute(string resourceId) =>
-        ResourceManagerRoutes.ResourceDetails(resourceId, ResourcePredefinedViewIds.Volumes);
+    private string BuildStorageVolumesRoute(string resourceId) =>
+        ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId, ResourcePredefinedViewIds.Volumes);
 
     private string GetLocationPlaceholder() =>
         HasSelectedStorage ? "postgres-data" : "./data/postgres or /mnt/share/postgres";

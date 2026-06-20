@@ -2,6 +2,7 @@
 @inject IResourceEventManager ResourceEvents
 @inject IStringLocalizer<SharedResource> L
 @inject ILogger<ResourceFailureSummary> Logger
+@inject CloudShell.UI.Composition.CompositionRegistry Composition
 
 @if (Resource is not null && Failure is not null)
 {
@@ -58,6 +59,6 @@
         }
     }
 
-    private static string BuildActivityRoute(string resourceId) =>
-        ResourceManagerRoutes.ResourceDetails(resourceId, ResourcePredefinedViewIds.Activity);
+    private string BuildActivityRoute(string resourceId) =>
+        ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId, ResourcePredefinedViewIds.Activity);
 }

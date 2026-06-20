@@ -6,6 +6,7 @@
 @inject NavigationManager Navigation
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject ResourceManagerDisplaySettings DisplaySettings
+@inject CloudShell.UI.Composition.CompositionRegistry Composition
 @inject IStringLocalizer<SharedResource> L
 
 <div class="generated-resource-view">
@@ -720,11 +721,11 @@
     private static string? FirstNonEmpty(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
 
-    private static string BuildResourceRoute(string resourceId) =>
-        ResourceManagerRoutes.ResourceOverview(resourceId);
+    private string BuildResourceRoute(string resourceId) =>
+        ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId);
 
-    private static string BuildResourceTabRoute(string resourceId, ResourceViewId tabId) =>
-        ResourceManagerRoutes.ResourceDetails(resourceId, tabId);
+    private string BuildResourceTabRoute(string resourceId, ResourceViewId tabId) =>
+        ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId, tabId);
 
     private async Task CopyEndpoint(string address)
     {

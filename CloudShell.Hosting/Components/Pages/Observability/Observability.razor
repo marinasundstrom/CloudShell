@@ -4,6 +4,7 @@
 @inject ITraceManager TraceManager
 @inject IMetricManager MetricManager
 @inject ICloudShellAuthorizationService Authorization
+@inject CloudShell.UI.Composition.CompositionRegistry Composition
 @inject IStringLocalizer<SharedResource> L
 @using CloudShell.Abstractions.Authorization
 
@@ -322,7 +323,7 @@ else
     {
         if (ResourcesById.ContainsKey(service.ResourceId))
         {
-            return ResourceManagerRoutes.ResourceDetails(service.ResourceId);
+            return ResourceManagerCompositionLinks.ResourceDetails(Composition, service.ResourceId);
         }
 
         var route = service.TraceSpanCount > 0

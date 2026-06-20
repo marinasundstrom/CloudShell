@@ -4,6 +4,7 @@
 @inject IResourceManager ResourceManager
 @inject ResourceManagerDisplaySettings DisplaySettings
 @inject NavigationManager Navigation
+@inject CloudShell.UI.Composition.CompositionRegistry Composition
 @inject IStringLocalizer<SharedResource> L
 
 @{
@@ -668,7 +669,7 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
         if (selected is null)
         {
             Navigation.NavigateTo(Inline && !string.IsNullOrWhiteSpace(ResourceId)
-                ? ResourceManagerRoutes.ResourceDetails(ResourceId, ResourcePredefinedViewIds.Traces)
+                ? ResourceManagerCompositionLinks.ResourceDetails(Composition, ResourceId, ResourcePredefinedViewIds.Traces)
                 : "/observability/traces");
             return;
         }
@@ -1057,7 +1058,7 @@ StringComparison.OrdinalIgnoreCase))?.Span
             }
 
             return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
-                ResourceManagerRoutes.ResourceDetails(resourceId, ResourcePredefinedViewIds.Traces),
+                ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId, ResourcePredefinedViewIds.Traces),
                 query);
         }
 
@@ -1077,25 +1078,25 @@ StringComparison.OrdinalIgnoreCase))?.Span
             string.Equals(scope.ScopeResourceId, ScopeResourceId, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static string BuildLogsRoute(string resourceId, string traceId) =>
+    private string BuildLogsRoute(string resourceId, string traceId) =>
         Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
-            ResourceManagerRoutes.ResourceDetails(resourceId, ResourcePredefinedViewIds.Logs),
+            ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId, ResourcePredefinedViewIds.Logs),
             new Dictionary<string, string?>
             {
                 ["traceId"] = traceId
             });
 
-    private static string BuildActivityRoute(string resourceId, string traceId, string spanId) =>
+    private string BuildActivityRoute(string resourceId, string traceId, string spanId) =>
         Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
-            ResourceManagerRoutes.ResourceDetails(resourceId, ResourcePredefinedViewIds.Activity),
+            ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId, ResourcePredefinedViewIds.Activity),
             new Dictionary<string, string?>
             {
                 ["traceId"] = traceId,
                 ["spanId"] = spanId
             });
 
-    private static string BuildResourceRoute(string resourceId) =>
-        ResourceManagerRoutes.ResourceDetails(resourceId);
+    private string BuildResourceRoute(string resourceId) =>
+        ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId);
 
     private static readonly string[] ServicePalette =
     [

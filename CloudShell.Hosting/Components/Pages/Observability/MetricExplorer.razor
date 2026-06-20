@@ -4,6 +4,7 @@
 @inject IResourceManager ResourceManager
 @inject ResourceManagerDisplaySettings DisplaySettings
 @inject NavigationManager Navigation
+@inject CloudShell.UI.Composition.CompositionRegistry Composition
 @inject IStringLocalizer<SharedResource> L
 
 @{
@@ -354,7 +355,7 @@ else if (ShowHeading)
         if (Inline)
         {
             return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
-                ResourceManagerRoutes.ResourceDetails(resourceId, ResourcePredefinedViewIds.Metrics),
+                ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId, ResourcePredefinedViewIds.Metrics),
                 query);
         }
 
@@ -375,8 +376,8 @@ else if (ShowHeading)
             string.Equals(scope.ScopeResourceId, ScopeResourceId, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static string BuildResourceRoute(string resourceId) =>
-        ResourceManagerRoutes.ResourceDetails(resourceId);
+    private string BuildResourceRoute(string resourceId) =>
+        ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId);
 
     private static string GetStateSuffix(Resource resource) =>
         resource.State is { } state ? $" / {state}" : string.Empty;

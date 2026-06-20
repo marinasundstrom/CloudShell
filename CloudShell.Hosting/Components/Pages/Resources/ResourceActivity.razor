@@ -1,6 +1,7 @@
 @using System.Globalization
 @inject IResourceEventManager ResourceEvents
 @inject NavigationManager Navigation
+@inject CloudShell.UI.Composition.CompositionRegistry Composition
 @inject IStringLocalizer<SharedResource> L
 
 <div class="generated-resource-view">
@@ -261,8 +262,8 @@
             query);
     }
 
-    private static string BuildActivityRoute(string resourceId) =>
-        ResourceManagerRoutes.ResourceDetails(resourceId, ResourcePredefinedViewIds.Activity);
+    private string BuildActivityRoute(string resourceId) =>
+        ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId, ResourcePredefinedViewIds.Activity);
 
     private static string FormatTraceId(string traceId) =>
         traceId.Length <= 12

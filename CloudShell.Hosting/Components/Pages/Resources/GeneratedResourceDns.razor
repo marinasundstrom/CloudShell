@@ -4,6 +4,7 @@
 @inject NavigationManager Navigation
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject ResourceManagerDisplaySettings DisplaySettings
+@inject CloudShell.UI.Composition.CompositionRegistry Composition
 @inject IStringLocalizer<SharedResource> L
 
 <div class="generated-resource-view">
@@ -241,10 +242,10 @@
             ? value
             : fallback;
 
-    private static string BuildResourceRoute(string resourceId) =>
-        ResourceManagerRoutes.ResourceOverview(resourceId);
+    private string BuildResourceRoute(string resourceId) =>
+        ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId);
 
-    private static string BuildAddNameMappingRoute(Resource resource)
+    private string BuildAddNameMappingRoute(Resource resource)
     {
         var query = new Dictionary<string, string?>
         {
@@ -273,8 +274,8 @@
         }
     }
 
-    private static string BuildResourceTabRoute(string resourceId, ResourceViewId tabId) =>
-        ResourceManagerRoutes.ResourceDetails(resourceId, tabId);
+    private string BuildResourceTabRoute(string resourceId, ResourceViewId tabId) =>
+        ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId, tabId);
 
     private string Localize(string value) => L[value].Value;
 

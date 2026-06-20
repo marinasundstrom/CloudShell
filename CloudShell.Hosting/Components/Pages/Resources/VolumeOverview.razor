@@ -1,5 +1,6 @@
 @inject IResourceManager ResourceManager
 @inject IResourceOrchestrationCatalog OrchestrationCatalog
+@inject CloudShell.UI.Composition.CompositionRegistry Composition
 @inject IStringLocalizer<SharedResource> L
 
 @if (Volume is null)
@@ -166,8 +167,8 @@ else
         return true;
     }
 
-    private static string BuildResourceRoute(string resourceId) =>
-        ResourceManagerRoutes.ResourceOverview(resourceId);
+    private string BuildResourceRoute(string resourceId) =>
+        ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId);
 
     private string Localize(string value) => L[value].Value;
 

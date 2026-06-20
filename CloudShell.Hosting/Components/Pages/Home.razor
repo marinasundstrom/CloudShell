@@ -8,6 +8,7 @@
 @inject IResourceHealthManager HealthChecks
 @inject ICloudShellAuthorizationService Authorization
 @inject IResourceOrchestrationSettings OrchestrationSettings
+@inject CloudShell.UI.Composition.CompositionRegistry Composition
 @inject IStringLocalizer<SharedResource> L
 @using CloudShell.Abstractions.Authorization
 
@@ -545,11 +546,11 @@
     private string FormatRequestFailureTime(DateTimeOffset timestamp) =>
         timestamp.ToLocalTime().ToString("HH:mm:ss");
 
-    private static string BuildIssueRoute(ResourceIssue issue) =>
+    private string BuildIssueRoute(ResourceIssue issue) =>
         BuildResourceRoute(issue.Resource.Id);
 
-    private static string BuildResourceRoute(string resourceId) =>
-        ResourceManagerRoutes.ResourceDetails(resourceId);
+    private string BuildResourceRoute(string resourceId) =>
+        ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId);
 
     private static string BuildTraceRoute(string resourceId, string traceId) =>
         Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(

@@ -2,6 +2,7 @@
 @inject IResourceManager ResourceManager
 @inject ITraceManager TraceManager
 @inject ResourceManagerDisplaySettings DisplaySettings
+@inject CloudShell.UI.Composition.CompositionRegistry Composition
 @inject IStringLocalizer<SharedResource> L
 
 @{
@@ -382,8 +383,8 @@ else
     private static string GetViewBox(DependencyGraphLayout layout) =>
         $"0 0 {FormatNumber(layout.Width)} {FormatNumber(layout.Height)}";
 
-    private static string BuildResourceRoute(string resourceId) =>
-        ResourceManagerRoutes.ResourceDetails(resourceId);
+    private string BuildResourceRoute(string resourceId) =>
+        ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId);
 
     private static string? BuildTraceRoute(DependencyEdge edge)
     {
