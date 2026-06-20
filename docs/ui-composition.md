@@ -292,7 +292,12 @@ live inside or outside a group, one level of menu sub-items through parent
 item IDs, attributes, authorization metadata, artifact-ID targets, and direct
 href targets. Icon data is stored as the namespaced
 `CompositionAttributeNames.Icon` attribute instead of a first-class
-`menuItem.Icon` property. The current
+`menuItem.Icon` property. Titles are also plain descriptor strings. A host can
+render the title literally or interpret it as a localization key; the
+composition engine does not localize titles itself. If a separate title
+localization key becomes necessary later, prefer a namespaced
+`TitleLocalizationKey` attribute. Avoid `TitleId`, because `Id` is already the
+composition vocabulary for artifact identity and hierarchy. The current
 CloudShell navigation renderer still owns active-route matching,
 permission-driven visibility, localized labels, collapsed group state, and
 Fluent-specific presentation. The migration should adapt those behaviors onto
@@ -655,10 +660,15 @@ The sample includes two registered pages:
   `CompositionTabbedPageLayout` component. The selected section is represented
   with a normal `section` query parameter.
 
-Registration titles are plain strings for this prototype. Localization is
-intentionally deferred. Likely options include localized title providers,
-metadata localization keys, or title content templates on renderers that need
-to opt into custom display behavior.
+Registration titles are plain strings for this prototype and serve as the
+stable fallback display value. Hosts may choose to treat the same value as a
+localization key when rendering composition artifacts. The engine should not
+own localization lookup. If we later need a separate key, use namespaced
+attribute metadata such as a future `TitleLocalizationKey` instead of adding
+localization-specific properties to every artifact. Avoid `TitleId`, because
+composition IDs identify artifacts and hierarchy, not display resources.
+Renderers that need richer display behavior can still expose templates or
+localized title providers above the core graph.
 
 ## Current Validation
 
@@ -695,7 +705,7 @@ The current composition engine does not yet include:
 - shell-specific metadata outlets beyond the plain `TitleOutlet` and
   `PageTitleOutlet`
 - active menu item selection
-- localization metadata or title templates
+- explicit localization metadata or title templates
 - UI configuration or layout editing in the core package; CloudShell or
   another host can build its own CMS/editor experience on top of the
   composition infrastructure later, while the reusable layer stays focused on
