@@ -1,36 +1,35 @@
 @page "/sample-workspace"
+@layout CompositionSandboxLayout
 
-<CompositionHost Id="@CompositionIds.SampleWorkspacePage">
-    <section class="page-heading">
-        <div>
-            <span class="eyebrow">UI extension</span>
-            <h1>Sample workspace</h1>
-            <p>This page is contributed by the sample host application and runs without mapping the CloudShell control-plane API.</p>
-        </div>
-    </section>
+<section class="page-heading">
+    <div>
+        <span class="eyebrow">UI extension</span>
+        <h1>Sample workspace</h1>
+        <p>This page is contributed by the sample host application and runs without mapping the CloudShell control-plane API.</p>
+    </div>
+</section>
 
-    <section class="registration-layout">
-        <aside class="panel registration-options">
-            <div class="selected-type-card">
-                <span class="resource-kind-icon">C</span>
-                <div>
-                    <strong>Composition sandbox</strong>
-                    <p>Menu links and section content are resolved through typed composition IDs.</p>
-                    <p>
-                        <CompositionLink Page="@CompositionIds.SampleWorkspacePage" />
-                        <span> / </span>
-                        <CompositionLink Target="@CompositionIds.ExtensionContributionSection">Open contributed section</CompositionLink>
-                    </p>
-                </div>
+<section class="registration-layout">
+    <aside class="panel registration-options">
+        <div class="selected-type-card">
+            <span class="resource-kind-icon">C</span>
+            <div>
+                <strong>Composition sandbox</strong>
+                <p>Menu links and section content are resolved through typed composition IDs.</p>
+                <p>
+                    <CompositionLink Page="@CompositionIds.SampleWorkspacePage" />
+                    <span> / </span>
+                    <CompositionLink Target="@CompositionIds.ExtensionContributionSection">Open contributed section</CompositionLink>
+                </p>
             </div>
-
-            <CompositionMenu Id="@CompositionIds.MainMenu" />
-        </aside>
-
-        <div class="registration-host">
-            <CompositionSectionContainer Id="@CompositionIds.WorkspaceMainOutlet">
-                <CompositionSectionOutlet />
-            </CompositionSectionContainer>
         </div>
-    </section>
-</CompositionHost>
+
+        <CompositionMenu Id="@CompositionIds.MainMenu" />
+    </aside>
+
+    <div class="registration-host">
+        <CompositionSectionContainer Id="@CompositionIds.WorkspaceMainOutlet">
+            <CompositionSectionOutlet />
+        </CompositionSectionContainer>
+    </div>
+</section>

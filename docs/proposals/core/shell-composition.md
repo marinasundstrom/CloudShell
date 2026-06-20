@@ -6,6 +6,20 @@ first consumer, but the shell composition model should be general enough for
 provider workspaces, settings, notifications, dashboards, and future product
 areas.
 
+The composition engine itself does not have to run only inside CloudShell UI.
+It should be usable by a host application's own Blazor pages and layouts.
+CloudShell uses it as the built-in shell composition layer and should dogfood
+it for shell navigation, settings, Resource Manager pages, and extension
+areas.
+
+Eventually CloudShell should build the composition root into the core shell
+layout. The main layout is where common shell chrome such as navigation,
+topbar services, notifications, and page body rendering already meet, so it is
+the natural place to load the composition engine, resolve the current route to
+registered content, and cascade composition context to pages and nested
+outlets. That is how integrating services will target shell-provided IDs
+without each page wiring the engine independently.
+
 The shell composition surface should be a layout/content engine with
 CMS-like composition, not a tab engine or a navigation-menu API. It is built
 for composition and extensibility: the host, built-in capabilities, and
@@ -31,6 +45,9 @@ short-term UI decisions that would prevent this model.
   workspaces through stable layout contracts.
 - Keep the CloudShell UI deployable without the Control Plane. Resource
   Manager is an extension over the shell, not the definition of the shell.
+- Keep the composition engine usable by Blazor host applications outside the
+  built-in CloudShell UI, while making CloudShell UI the primary built-in
+  consumer.
 - Let Resource Manager fully exploit the same shell primitives for resource
   pages, grouped resource menus, tabbed resource details, common settings,
   notifications, and extension areas.
@@ -276,24 +293,32 @@ The practical path should be incremental:
    sub-menu items, pages, sub-pages, slots, section containers, and sections,
    without replacing existing Resource Manager tabs or shell view menu items
    yet.
-2. Dogfood the graph with a standard Settings page made from shell pages,
+2. Prove the model in the UI Extension Host sample as an isolated sandbox.
+   The sandbox can use a Blazor layout-hosted composition root, typed IDs,
+   dynamic menus, section outlets, and content-ID link resolution without
+   changing the core shell API.
+3. Move the composition root into the core CloudShell main layout once the
+   sandbox proves the model. The core layout should resolve current route/page
+   context and cascade composition context to shell chrome, routed pages, and
+   nested outlets so integrating services can target shell-provided IDs.
+4. Dogfood the graph with a standard Settings page made from shell pages,
    sub-pages, slots, section containers, and sections. The initial settings
    experience can render as tabs, but the contract should remain layout-node
    based rather than tab based.
-3. Extract a generic ordered-section renderer from
+5. Extract a generic ordered-section renderer from
    `GeneratedResourceViewLayout` and `ResourcePredefinedViewSections`, keeping
    the current Resource Manager section contracts as adapters.
-4. Extract a generic grouped local-navigation renderer from the Resource
+6. Extract a generic grouped local-navigation renderer from the Resource
    Manager tab grouping and the shell-hosted view menu item model. Treat tab
    rendering as one renderer over child layout nodes.
-5. Let `CustomShellViewContribution`, the new Settings page, and Resource
+7. Let `CustomShellViewContribution`, the new Settings page, and Resource
    Manager detail pages render through the same hosted-page/layout graph
    infrastructure where their needs overlap.
-6. Add generic slot and section-container contributions and map
+8. Add generic slot and section-container contributions and map
    `ResourcePredefinedViewSectionContribution` into section contributions for
    predefined resource views.
-7. Add notification-center and dashboard adapters over the same primitives.
-8. Only after the generic renderer is proven, consider renaming or replacing
+9. Add notification-center and dashboard adapters over the same primitives.
+10. Only after the generic renderer is proven, consider renaming or replacing
    `CustomShellView` APIs with clearer shell composition names.
 
 During the extraction, Resource Manager behavior should not regress:

@@ -57,6 +57,16 @@ on `git blame --follow`, and then by the broad type of change.
 - The UI composition sandbox now includes a link component and target
   abstraction that resolve page and section IDs into routes, query strings, and
   fragments.
+- The UI composition sandbox now uses a Blazor layout-hosted composition root
+  that resolves the current routed page to a content ID and cascades context to
+  nested menus and section outlets.
+- Clarified that the composition engine is a reusable Blazor composition model
+  that CloudShell uses for its shell surfaces, not something limited to
+  CloudShell UI.
+- Documented the eventual shell-composition integration path: after the
+  isolated UI Extension Host sandbox proves the model, the composition root
+  should move into the core CloudShell main layout so integrating services can
+  target shell-provided IDs.
 - Refreshed the local-development MVP target around Application Topology
   confidence, immediate resource relationship comprehension, readable
   Resource Manager labels, app-centric diagnostics, and focused readiness

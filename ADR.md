@@ -125,6 +125,18 @@ important built-in shell extension and the primary MVP proof, but the shell
 should own generic composition primitives that Resource Manager and other
 extensions can share.
 
+The composition engine is a reusable Blazor composition model, not a mechanism
+that can only run inside CloudShell UI. CloudShell UI uses it as the built-in
+shell composition layer, and host applications should be able to use the same
+model for their own pages and layouts when they need CMS-like dynamic
+composition.
+
+CloudShell should eventually host the composition root from the core shell
+main layout so navigation, topbar services, notifications, routed pages, and
+nested outlets share the same resolved composition context. That lets
+integrating services target shell-provided IDs without each page wiring the
+composition engine independently.
+
 The target shell model is a validated layout/content graph with CMS-like
 dynamic composition, not a menu or tab API. Navigation hierarchy and content
 hierarchy are separate. Menu nodes describe menus, menu item groups, menu

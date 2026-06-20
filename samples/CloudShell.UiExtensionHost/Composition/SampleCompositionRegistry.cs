@@ -28,6 +28,13 @@ public sealed class SampleCompositionRegistry
     public PageRegistration? GetPage(PageId pageId) =>
         _pages.FirstOrDefault(page => page.Id == pageId);
 
+    public PageRegistration? GetPageByRoute(string route)
+    {
+        var normalizedRoute = NormalizeRoute(route);
+        return _pages.FirstOrDefault(page =>
+            string.Equals(page.Route, normalizedRoute, StringComparison.OrdinalIgnoreCase));
+    }
+
     public MenuRegistration? GetMenu(MenuId menuId) =>
         _menus.FirstOrDefault(menu => menu.Id == menuId);
 
@@ -81,6 +88,16 @@ public sealed class SampleCompositionRegistry
             builder.Pages.ToArray(),
             builder.Menus.ToArray(),
             builder.Sections.ToArray());
+
+    internal static string NormalizeRoute(string route)
+    {
+        if (string.IsNullOrWhiteSpace(route))
+        {
+            return "/";
+        }
+
+        return route.StartsWith('/') ? route : "/" + route;
+    }
 
     private static string AppendRouteParams(
         string route,

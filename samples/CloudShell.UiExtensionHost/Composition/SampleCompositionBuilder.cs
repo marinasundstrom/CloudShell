@@ -56,7 +56,7 @@ public sealed class SampleCompositionBuilder
     private static string NormalizeRoute(string route)
     {
         SampleCompositionRegistry.ValidateId(route, nameof(route));
-        return route.StartsWith('/') ? route : "/" + route;
+        return SampleCompositionRegistry.NormalizeRoute(route);
     }
 }
 
