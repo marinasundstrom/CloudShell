@@ -81,6 +81,10 @@ Implemented today:
   Scale and replicas tabs by default.
 * Database read/write grant intent can be assigned to SQL Server resources
   through the existing Access control model.
+* Resource Manager can show requested-versus-effective grant status from the
+  SQL Server provider. The current provider reports database read/write grants
+  as not yet applied and includes a provider diagnostic explaining that SQL
+  users and roles have not been created.
 * Programmatic declarations can add declared databases with `WithDatabase(...)`;
   those project as provider-managed `application.sql-database` child resources
   and display in a SQL Server **Databases** tab.
@@ -330,12 +334,13 @@ when database child resources are introduced, but the grant target should be a
 resource ID, not a connection string or secret.
 
 The next implementation step should not start by generating workload passwords
-or exposing connection-string credentials. It should first give Resource
-Manager an effective-access observation from the SQL Server provider so the UI
-can show a requested grant, whether it has been applied, and any provider
-diagnostic explaining why it is still pending or failed. Once that status
-contract is in place, the local provider can materialize SQL logins, contained
-users, or role membership behind the provider boundary.
+or exposing connection-string credentials. Resource Manager now has an
+effective-access observation from the SQL Server provider, so the UI can show a
+requested grant, whether it has been applied, and any provider diagnostic
+explaining why it is still pending or failed. The next SQL-specific access
+slice is for the local provider to materialize SQL logins, contained users, or
+role membership behind the provider boundary, then report applied, pending,
+failed, or drifted status from the actual SQL-side state.
 
 ## Programmatic API Direction
 
@@ -410,8 +415,8 @@ MVP container app, storage, networking, and identity primitives are stable.
 * Add identity-backed SQL login/database user provisioning.
 * Define stable database permission names and map them to SQL Server logins,
   database users, roles, and provider-specific identity integration.
-* Add requested-versus-effective database grant status before exposing SQL
-  grant materialization as working access.
+* Replace the current static "not applied" SQL grant status with provider
+  inspection of actual SQL-side login, user, role, or external mapping state.
 * Define provider-owned backup/restore and maintenance operations.
 * Split runtime container diagnostics from the SQL Server managed resource
   surface.

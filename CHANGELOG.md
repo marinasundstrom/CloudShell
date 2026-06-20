@@ -52,6 +52,9 @@ on `git blame --follow`, and then by the broad type of change.
   grants explain why requested access has not been applied.
 - SQL Server resource overview now leads with SQL service details instead of
   generic container image, revision, and host placement fields.
+- Managed SQL Server and identity/access proposals now mark
+  requested-versus-effective grant status as implemented and keep SQL-side
+  login, user, role, and drift inspection as the remaining provider work.
 
 ### 2026-06-19
 

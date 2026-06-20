@@ -425,8 +425,10 @@ binding just to be protected by grants. A resource identity binding is needed
 only when that resource itself should act as a principal.
 
 Future versions may add inheritance, wildcard matching, roles, effective
-permission projection, policy evaluation, and requested-versus-effective grant
-states.
+permission projection, and policy evaluation. Providers that reconcile access
+outside CloudShell can already report requested-versus-effective grant status
+so Resource Manager can distinguish saved grant intent from provider-applied
+access.
 
 ### Operation Permissions
 
@@ -632,8 +634,9 @@ service-principal automation flows.
 - Decide whether to expand beyond one identity per resource.
 - Define provider-derived identity parameters such as subject, audience,
   scopes, claims, issuer, and authority references.
-- Define requested-versus-effective grants for providers that reconcile access
-  asynchronously.
+- Expand requested-versus-effective grant status with provider-specific
+  reconciliation, drift detection, and user-safe diagnostics for providers
+  that apply access asynchronously.
 
 ## Open Questions
 
