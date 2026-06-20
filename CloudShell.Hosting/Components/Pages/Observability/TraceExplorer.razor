@@ -253,7 +253,7 @@ else if (ShowHeading)
                                                         {
                                                             <mark class="trace-error-pill">
                                                                 <FluentIcon Value="@(new Icons.Regular.Size16.ErrorCircle())" />
-                                                                @L["Likely error"]
+                                                                @L["Error"]
                                                             </mark>
                                                         }
                                                     </span>
@@ -289,11 +289,11 @@ else if (ShowHeading)
                                         <div>
                                             <h3>@selectedSpan.Name</h3>
                                             <p>@selectedSpan.ServiceName</p>
-                                            @if (IsLikelyErrorSpan(selectedSpan))
+                                            @if (IsErrorSpan(selectedSpan))
                                             {
                                                 <mark class="trace-error-pill">
                                                     <FluentIcon Value="@(new Icons.Regular.Size16.ErrorCircle())" />
-                                                    @L["Likely error"]
+                                                    @L["Error"]
                                                 </mark>
                                             }
                                         </div>
@@ -374,7 +374,7 @@ else if (ShowHeading)
                                         {
                                             <mark class="trace-error-pill">
                                                 <FluentIcon Value="@(new Icons.Regular.Size16.ErrorCircle())" />
-                                                @L["{0} likely error span(s)", trace.ErrorSpanCount]
+                                                @L["{0} error span(s)", trace.ErrorSpanCount]
                                             </mark>
                                         }
                                     </span>
@@ -747,7 +747,7 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
                     Math.Min(offset, 99.4),
                     Math.Min(width, 100 - Math.Min(offset, 99.4)),
                     serviceColors.TryGetValue(span.ServiceName, out var color) ? color : ServicePalette[0],
-                    IsLikelyErrorSpan(span));
+                    IsErrorSpan(span));
             })
             .ToArray();
 
@@ -767,7 +767,7 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
             .ToArray();
 
         var entry = ordered.FirstOrDefault(span => string.IsNullOrWhiteSpace(span.ParentSpanId)) ?? ordered.FirstOrDefault();
-        var errorSpanCount = ordered.Count(IsLikelyErrorSpan);
+        var errorSpanCount = ordered.Count(IsErrorSpan);
 
         return new TraceViewModel(
             traceId,
@@ -798,7 +798,7 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
                     first.TraceId,
                     first.Name,
                     ordered.Length,
-                    ordered.Count(IsLikelyErrorSpan),
+                    ordered.Count(IsErrorSpan),
                     end - first.StartTime,
                     string.Join(", ", services));
             })
@@ -813,9 +813,8 @@ StringComparison.OrdinalIgnoreCase))?.Span
         ?? trace.Rows.FirstOrDefault()?.Span;
 
     // OpenTelemetry span status uses Unset, Ok, and Error. Treat any status
-    // outside Unset/Ok as a likely error so provider-specific sources such as
-    // message brokers can surface attention signals without HTTP assumptions.
-    private static bool IsLikelyErrorSpan(TraceSpan span) =>
+    // outside Unset/Ok as an error signal without HTTP-specific assumptions.
+    private static bool IsErrorSpan(TraceSpan span) =>
         !string.IsNullOrWhiteSpace(span.Status) &&
         !string.Equals(span.Status, "Unset", StringComparison.OrdinalIgnoreCase) &&
         !string.Equals(span.Status, "Ok", StringComparison.OrdinalIgnoreCase);

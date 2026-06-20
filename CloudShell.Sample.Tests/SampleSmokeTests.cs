@@ -217,9 +217,9 @@ public sealed class SampleSmokeTests
         Assert.Contains("Related activity", traceHtml);
         Assert.Contains("Open resource", traceHtml);
         Assert.Contains("<fluent-anchor", traceHtml);
+        Assert.Contains("Error spans", traceHtml);
         Assert.Contains("trace-span-row error", traceHtml);
         Assert.Contains("trace-error-pill", traceHtml);
-        Assert.Contains("Likely error", traceHtml);
         Assert.Contains(
             $"href=\"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Logs.Value)}&amp;traceId=4bf92f3577b34da6a3ce929d0e0e4736\"",
             traceHtml);
@@ -231,7 +231,7 @@ public sealed class SampleSmokeTests
         var traceListHtml = await host.GetStringAsync(
             "/observability/traces?resourceId=application%3Aproject-reference-api");
         Assert.Contains("recent-trace-item error", traceListHtml);
-        Assert.Contains("1 likely error span(s)", traceListHtml);
+        Assert.Contains("1 error span(s)", traceListHtml);
 
         var missingTraceResourceHtml = await host.GetStringAsync(
             "/observability/traces?resourceId=application%3Aproject-reference-missing");
@@ -907,6 +907,33 @@ public sealed class SampleSmokeTests
         Assert.Equal("intentional", frontendFailureDocument.RootElement.GetProperty("sampleFailureKind").GetString());
         Assert.Equal(500, frontendFailureDocument.RootElement.GetProperty("upstreamStatusCode").GetInt32());
         Assert.Matches("^[0-9a-f]{32}$", frontendFailureDocument.RootElement.GetProperty("traceId").GetString() ?? string.Empty);
+
+        var fallbackJson = await host.WaitForAbsoluteHttpOkAndGetStringAsync(
+            $"http://localhost:{frontendPort}/upstream/fallback",
+            StartupTimeout);
+        using var fallbackDocument = JsonDocument.Parse(fallbackJson);
+        var fallback = fallbackDocument.RootElement;
+        var fallbackTraceId = fallback.GetProperty("traceId").GetString();
+        Assert.Equal("Application Topology Frontend", fallback.GetProperty("frontend").GetString());
+        Assert.Equal(500, fallback.GetProperty("fallback").GetProperty("failedAttemptStatusCode").GetInt32());
+        Assert.True(fallback.GetProperty("fallback").GetProperty("recovered").GetBoolean());
+        Assert.Equal("Hello from the referenced API project.", fallback.GetProperty("upstream").GetProperty("message").GetString());
+        Assert.Matches("^[0-9a-f]{32}$", fallbackTraceId ?? string.Empty);
+
+        var fallbackSpans = await WaitForTraceSpansAsync(
+            host,
+            fallbackTraceId!,
+            StartupTimeout,
+            spans =>
+                spans.Any(span => IsHttpClientSpanForPath(span, "/failure", "Error")) &&
+                spans.Any(span => IsHttpClientSpanForPath(span, "/message", "Unset")));
+        Assert.Contains(
+            fallbackSpans,
+            span =>
+                IsHttpClientSpanForPath(span, "/failure", "Error"));
+        Assert.Contains(
+            fallbackSpans,
+            span => IsHttpClientSpanForPath(span, "/message", "Unset"));
     }
 
     [Fact]
@@ -1948,6 +1975,60 @@ public sealed class SampleSmokeTests
         {
             Assert.Equal((int)ResourceIdentityProvisioningState.Provisioned, state.GetInt32());
         }
+    }
+
+    private static async Task<IReadOnlyList<JsonElement>> WaitForTraceSpansAsync(
+        SampleProcess host,
+        string traceId,
+        TimeSpan timeout,
+        Func<IReadOnlyList<JsonElement>, bool> isComplete)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        Exception? lastException = null;
+        string? lastBody = null;
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            try
+            {
+                lastBody = await host.GetStringAsync(
+                    $"/api/control-plane/v1/traces?traceId={Uri.EscapeDataString(traceId)}&maxSpans=50");
+                using var document = JsonDocument.Parse(lastBody);
+                var spans = document.RootElement.EnumerateArray()
+                    .Select(span => span.Clone())
+                    .ToArray();
+                if (spans.Length > 0 && isComplete(spans))
+                {
+                    return spans;
+                }
+            }
+            catch (Exception exception) when (exception is HttpRequestException or JsonException)
+            {
+                lastException = exception;
+            }
+
+            await Task.Delay(250);
+        }
+
+        throw new TimeoutException(
+            $"Trace '{traceId}' was not ingested within {timeout}." +
+            $"{Environment.NewLine}{lastBody ?? lastException?.Message}");
+    }
+
+    private static bool IsHttpClientSpanForPath(
+        JsonElement span,
+        string path,
+        string status)
+    {
+        if (!string.Equals(span.GetProperty("kind").GetString(), "Client", StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(span.GetProperty("status").GetString(), status, StringComparison.OrdinalIgnoreCase) ||
+            !span.TryGetProperty("spanAttributes", out var attributes) ||
+            !attributes.TryGetProperty("url.full", out var url))
+        {
+            return false;
+        }
+
+        return url.GetString()?.EndsWith(path, StringComparison.OrdinalIgnoreCase) == true;
     }
 
     private static async Task StopResourceIfRunningAsync(

@@ -107,6 +107,10 @@ public static class ApplicationTopologyLogEvents
 
     public static readonly EventId FailingApiResponseReceived = new(1003, nameof(FailingApiResponseReceived));
 
+    public static readonly EventId FallbackAttemptFailed = new(1004, nameof(FallbackAttemptFailed));
+
+    public static readonly EventId FallbackRecovered = new(1005, nameof(FallbackRecovered));
+
     public static readonly EventId PreparingMessage = new(2000, nameof(PreparingMessage));
 
     public static readonly EventId MessagePrepared = new(2001, nameof(MessagePrepared));

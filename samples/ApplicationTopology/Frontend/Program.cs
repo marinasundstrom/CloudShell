@@ -123,7 +123,65 @@ app.MapGet("/upstream/failure", async (
             (int)response.StatusCode));
 });
 
+app.MapGet("/upstream/fallback", async (
+    IConfiguration configuration,
+    IHttpClientFactory httpClientFactory,
+    ILoggerFactory loggerFactory,
+    CancellationToken cancellationToken) =>
+{
+    var logger = loggerFactory.CreateLogger("CloudShell.ApplicationTopology.Frontend");
+    using var activity = ApplicationTopologyTraceSources.ActivitySource.StartActivity(
+        "frontend.call-application-topology-api-with-fallback",
+        ActivityKind.Internal);
+    activity?.SetTag("cloudshell.sample.resource", "application-topology-frontend");
+    activity?.SetTag("cloudshell.sample.fallback", "true");
+
+    var endpoint = configuration.GetRequiredResourceUri("application-topology-api", "http");
+    activity?.SetTag("cloudshell.sample.logical_api_endpoint", "https+http://application-topology-api");
+    activity?.SetTag("cloudshell.sample.resolved_api_endpoint", endpoint.ToString());
+
+    var client = httpClientFactory.CreateClient("application-topology-api");
+    using var failedAttempt = await client.GetAsync("/failure", cancellationToken);
+    activity?.SetTag("cloudshell.sample.failed_attempt_status_code", ((int)failedAttempt.StatusCode).ToString());
+    logger.LogWarning(
+        ApplicationTopologyLogEvents.FallbackAttemptFailed,
+        "Primary fallback attempt failed with {StatusCode}; calling alternate upstream path.",
+        (int)failedAttempt.StatusCode);
+
+    var message = await client.GetFromJsonAsync<ApiMessage>(
+        "/message",
+        cancellationToken);
+    activity?.SetTag("cloudshell.sample.fallback_recovered", "true");
+    activity?.SetTag("cloudshell.sample.upstream_machine", message?.Machine ?? "unknown");
+    logger.LogInformation(
+        ApplicationTopologyLogEvents.FallbackRecovered,
+        "Fallback recovered by receiving message from {UpstreamMachine}",
+        message?.Machine ?? "unknown");
+
+    return Results.Ok(new
+    {
+        frontend = "Application Topology Frontend",
+        logicalApiEndpoint = "https+http://application-topology-api",
+        resolvedApiEndpoint = endpoint.ToString(),
+        traceId = GetCurrentTraceId(activity),
+        fallback = new
+        {
+            failedAttemptStatusCode = (int)failedAttempt.StatusCode,
+            recovered = true
+        },
+        upstream = message
+    });
+});
+
 app.Run();
+
+static string? GetCurrentTraceId(Activity? activity)
+{
+    var traceId = activity?.TraceId ?? Activity.Current?.TraceId;
+    return traceId is null || traceId.Value == default
+        ? null
+        : traceId.Value.ToHexString();
+}
 
 internal sealed record ApiMessage(string Message, string Machine);
 
