@@ -83,6 +83,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The common Settings page now resolves nested section navigation through
   `/settings/{section}` while keeping direct `SectionId` targets as page
   fragments.
+- Composition-backed section layouts now show a not-found empty state for
+  unknown section route/query selections instead of silently opening the first
+  section.
 - The Platform section on the common Settings page now resolves Users and
   Extensions links through composition page targets instead of querying the
   legacy shell catalog directly.

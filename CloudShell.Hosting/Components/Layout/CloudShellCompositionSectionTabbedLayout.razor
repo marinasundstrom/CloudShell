@@ -8,11 +8,13 @@
 @{
     var sections = GetSections();
     var selectedSection = GetSelectedSection(sections);
+    var selectedSectionIssue = GetSelectedSectionIssue(sections);
 }
 
 <CloudShellTabbedLayout Items="@BuildItems(sections)"
                         SelectedItemId="@selectedSection?.Section.Id.Value"
                         SelectedItemChanged="SelectSection"
+                        SelectFirstItemWhenSelectedMissing="@(selectedSectionIssue is null)"
                         AriaLabel="@AriaLabel"
                         PanelDescription="@PanelDescription"
                         Class="@Class"
@@ -24,7 +26,16 @@
         }
     </SummaryContent>
     <EmptyContent>
-        @if (EmptyContent is not null)
+        @if (selectedSectionIssue is not null)
+        {
+            <EmptyState Title="@selectedSectionIssue.Title"
+                        Message="@selectedSectionIssue.Message">
+                <FluentAnchor Appearance="Appearance.Neutral" Href="@selectedSectionIssue.RecoveryHref">
+                    @selectedSectionIssue.RecoveryLabel
+                </FluentAnchor>
+            </EmptyState>
+        }
+        else if (EmptyContent is not null)
         {
             @EmptyContent
         }
@@ -137,6 +148,11 @@
 
     private CompositionSectionProjection? GetSelectedSection(IReadOnlyList<CompositionSectionProjection> sections)
     {
+        if (GetSelectedSectionIssue(sections) is not null)
+        {
+            return null;
+        }
+
         if (!string.IsNullOrWhiteSpace(SelectedSectionId))
         {
             var requested = SelectedSectionId.Trim();
@@ -149,6 +165,28 @@
         }
 
         return sections.FirstOrDefault();
+    }
+
+    private CompositionSectionSelectionIssue? GetSelectedSectionIssue(IReadOnlyList<CompositionSectionProjection> sections)
+    {
+        if (!TryReadRequestedSection(out var requested, out var isRouteSegment))
+        {
+            return null;
+        }
+
+        if (TryResolveSectionRequest(sections, requested, out _))
+        {
+            return null;
+        }
+
+        var message = isRouteSegment
+            ? L["Section '{0}' is not available.", requested].Value
+            : L["Section '{0}' is not a valid section ID or route segment.", requested].Value;
+        return new(
+            L["Section not found"].Value,
+            message,
+            L["Open overview"].Value,
+            Composition.ResolveHref(CompositionTarget.ForPage(Page)));
     }
 
     private IReadOnlyList<CloudShellTabbedLayoutItem> BuildItems(
@@ -190,30 +228,56 @@
         IReadOnlyList<CompositionSectionProjection> sections,
         string? location = null)
     {
+        return TryReadRequestedSection(location, out var requested, out _) &&
+            TryResolveSectionRequest(sections, requested, out var section)
+                ? section.Section.Id.Value
+                : null;
+    }
+
+    private bool TryReadRequestedSection(out string requested, out bool isRouteSegment) =>
+        TryReadRequestedSection(location: null, out requested, out isRouteSegment);
+
+    private bool TryReadRequestedSection(
+        string? location,
+        out string requested,
+        out bool isRouteSegment)
+    {
+        requested = string.Empty;
+        isRouteSegment = false;
+
         var uri = Navigation.ToAbsoluteUri(location ?? Navigation.Uri);
-        if (TryReadRouteSectionSegment(uri, location is null, out var routeSegment) &&
-            TryResolveSectionRouteSegment(sections, routeSegment, out var routeSection))
+        if (TryReadRouteSectionSegment(uri, location is null, out var routeSegment))
         {
-            return routeSection.Section.Id.Value;
+            requested = routeSegment;
+            isRouteSegment = true;
+            return true;
         }
 
         var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
         if (!query.TryGetValue(QueryParameter, out var value))
         {
-            return null;
+            return false;
         }
 
-        var requested = Uri.UnescapeDataString(value.ToString().Trim());
+        requested = Uri.UnescapeDataString(value.ToString().Trim());
+        return !string.IsNullOrWhiteSpace(requested);
+    }
+
+    private static bool TryResolveSectionRequest(
+        IReadOnlyList<CompositionSectionProjection> sections,
+        string requested,
+        out CompositionSectionProjection section)
+    {
+        section = null!;
         var requestedSection = sections.FirstOrDefault(section =>
             string.Equals(section.Section.Id.Value, requested, StringComparison.OrdinalIgnoreCase));
         if (requestedSection is not null)
         {
-            return requestedSection.Section.Id.Value;
+            section = requestedSection;
+            return true;
         }
 
-        return TryResolveSectionRouteSegment(sections, requested, out requestedSection)
-            ? requestedSection.Section.Id.Value
-            : null;
+        return TryResolveSectionRouteSegment(sections, requested, out section);
     }
 
     private static CompositionSectionProjection? FindSection(
@@ -302,4 +366,10 @@
     {
         Navigation.LocationChanged -= HandleLocationChanged;
     }
+
+    private sealed record CompositionSectionSelectionIssue(
+        string Title,
+        string Message,
+        string RecoveryLabel,
+        string RecoveryHref);
 }
