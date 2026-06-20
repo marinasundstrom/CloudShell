@@ -193,7 +193,8 @@ The Blazor library currently provides these components:
 | `CompositionHost` | Resolves the current route to a registered page and cascades `CompositionContext` to child content. It can also receive an explicit `PageId`. |
 | `CompositionMenu` | Renders a registered menu and menu sections. Menu items use composition targets rather than hard-coded routes. |
 | `CompositionLink` | Resolves a page or section target into an anchor `href`. Page targets resolve to the registered route. Section targets resolve to the nearest page route plus a fragment. |
-| `TitleOutlet` | Renders the title of the current composition page from the cascaded context, an explicit `Page`, or the current route. |
+| `TitleOutlet` | Renders visible text for the current composition page title from the cascaded context, an explicit `Page`, or the current route. |
+| `PageTitleOutlet` | Wraps Blazor `PageTitle` for the current composition page title from the cascaded context, an explicit `Page`, or the current route. Use this for the document title instead of mixing document-head behavior into visible page headers. |
 | `CompositionSectionContainer` | Cascades the current section outlet ID to nested content. |
 | `CompositionSectionOutlet` | Renders all registered sections for the current page and section outlet using Blazor `DynamicComponent`. It can resolve the page from cascade, an explicit `Page`, or the current route. |
 | `CompositionSectionTabs` | Renders registered named sections as tab items, stores the selected section in a query-string value, and renders the selected section with `DynamicComponent`. It can resolve the page from cascade, an explicit `Page`, or the current route. |
@@ -219,6 +220,8 @@ A routed page can then use the cascaded context:
 ```razor
 @page "/reports"
 
+<PageTitleOutlet />
+
 <h1><TitleOutlet /></h1>
 
 <CompositionSectionContainer Id="@CompositionIds.ReportsMainOutlet">
@@ -231,6 +234,7 @@ that hosts `CompositionHost`, pass the page explicitly instead of relying only
 on cascaded context:
 
 ```razor
+<PageTitleOutlet Page="@CompositionIds.ReportsPage" />
 <TitleOutlet Page="@CompositionIds.ReportsPage" />
 
 <CompositionSectionContainer Id="@CompositionIds.ReportsMainOutlet">
@@ -255,6 +259,11 @@ Routing remains normal Blazor routing. Razor components still declare routes
 with `@page`; the composition registry records which composition page ID maps
 to that route so menus, links, title outlets, and section outlets can resolve
 the active page.
+
+`PageTitleOutlet` relies on Blazor's normal `PageTitle` and `HeadOutlet`
+behavior. Hosts still need to include a Blazor `HeadOutlet` in their app shell
+if they want document titles to render during static SSR or interactive
+rendering.
 
 ## Link Resolution
 
@@ -344,7 +353,8 @@ The current composition engine does not yet include:
 - richer runtime artifact instances and renderer-specific projections
 - slots and sub-pages as first-class APIs
 - permissions or visibility rules
-- shell-specific metadata outlets beyond the plain `TitleOutlet`
+- shell-specific metadata outlets beyond the plain `TitleOutlet` and
+  `PageTitleOutlet`
 - active menu item selection
 - localization metadata or title templates
 - UI configuration or layout editing in the core package; CloudShell or

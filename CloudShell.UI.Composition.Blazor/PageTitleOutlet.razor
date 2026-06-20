@@ -1,0 +1,42 @@
+@inject CompositionRegistry Composition
+@inject NavigationManager Navigation
+@using Microsoft.AspNetCore.Components.Web
+
+@if (!string.IsNullOrWhiteSpace(ResolvedTitle))
+{
+    <PageTitle>@ResolvedPageTitle</PageTitle>
+}
+
+@code {
+    [CascadingParameter]
+    public CompositionContext? Context { get; set; }
+
+    [Parameter]
+    public PageId? Page { get; set; }
+
+    [Parameter]
+    public string? FallbackTitle { get; set; }
+
+    [Parameter]
+    public string? Format { get; set; }
+
+    private CompositionContext? ResolvedContext =>
+        CompositionPageContextResolver.Resolve(
+            Composition,
+            Navigation,
+            Context,
+            Page);
+
+    private string? ResolvedTitle =>
+        ResolvedContext is null
+            ? FallbackTitle
+            : Composition.GetPage(ResolvedContext.PageId)?.Title ?? FallbackTitle;
+
+    private string ResolvedPageTitle =>
+        string.IsNullOrWhiteSpace(Format)
+            ? ResolvedTitle ?? string.Empty
+            : string.Format(
+                System.Globalization.CultureInfo.InvariantCulture,
+                Format,
+                ResolvedTitle);
+}

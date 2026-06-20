@@ -245,7 +245,7 @@ renderer-specific content registrations.
 | Layout pattern | A reusable way to present composed content. | Examples: section stack, dashboard grid, tabbed page, master-detail, settings page, wizard, split pane. |
 | Layout renderer | Component that implements a layout pattern over the composition graph. | Should be host-owned or package-owned; the core engine should not assume one visual metaphor. |
 | Section renderer | Component that decides how section metadata and section component content are framed. | A section stack might use article cards; a dashboard grid might use responsive tiles. |
-| Metadata outlet | Component that renders metadata for the current context. | `TitleOutlet` is the first small example. Future outlets may render breadcrumbs, descriptions, icons, actions, or document head metadata. |
+| Metadata outlet | Component that renders metadata for the current context. | `TitleOutlet` renders visible title text and `PageTitleOutlet` wraps Blazor `PageTitle` for the document title. Future outlets may render breadcrumbs, descriptions, icons, actions, or other document head metadata. |
 | Link resolver | Service that turns a composition target into a navigable address. | It should support page routes, sections/fragments, selected sub-pages, missing targets, disabled targets, and future deep links. |
 
 ### Adapter Primitives
@@ -428,10 +428,11 @@ without leaking resource-specific vocabulary into general shell APIs.
 The Blazor integration should work with normal Blazor components and the
 standard Blazor app model. For example, the standalone sandbox uses Blazor's
 built-in `HeadOutlet`. CloudShell may later add shell-aware metadata outlets,
-starting with at least a plain `TitleOutlet`, so layouts can render the title
-for the resolved composition page or selected content node. Those outlets
-should be additive shell integration components rather than requirements for
-the base composition engine.
+starting with at least a plain `TitleOutlet` for visible titles and a
+`PageTitleOutlet` that respects Blazor's normal `PageTitle`/`HeadOutlet`
+pipeline for document titles. Those outlets should be additive shell
+integration components rather than requirements for the base composition
+engine.
 
 The Blazor component package should be render-mode neutral. Base renderers
 should work under static SSR, interactive server, WebAssembly, and mixed

@@ -126,6 +126,8 @@ on `git blame --follow`, and then by the broad type of change.
   from cascade, an explicit page ID, or the current route, keeping the base
   components viable for static SSR, interactive server, WebAssembly, and mixed
   render-mode hosts.
+- Added a separate `PageTitleOutlet` that wraps Blazor `PageTitle`, keeping
+  visible page-header rendering separate from document-title rendering.
 - Moved the composition proof direction away from the UI Extension Host sample:
   CloudShell extension integration should adapt to the core composition graph
   only after the standalone app structure is credible.

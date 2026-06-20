@@ -20,6 +20,9 @@ The sample proves the first boundary:
   they render normal anchors and markup, keep tab selection in the query
   string, and can resolve page context from cascade, an explicit page ID, or
   the current route.
+- Page headers use `TitleOutlet` for visible title text, while
+  `PageTitleOutlet` wraps Blazor `PageTitle` so document titles flow
+  through the standard `HeadOutlet` pipeline.
 - Layout patterns are explored in the sample app itself. The `/dashboard`
   route uses a sample-owned Bootstrap grid outlet over the same composition
   registry, while the other pages use the plain stacked section outlet from
