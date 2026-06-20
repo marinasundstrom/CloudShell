@@ -165,6 +165,13 @@ public sealed record ResourcePermissionGrantResponse(
     string TargetResourceId,
     string Permission);
 
+public sealed record ResourcePermissionGrantStatusResponse(
+    ResourcePermissionGrantResponse Grant,
+    ResourcePermissionGrantEffectivenessState State,
+    string? Detail,
+    string? ProviderId,
+    DateTimeOffset? ObservedAt);
+
 public sealed record GrantResourcePermissionRequest(
     ResourcePrincipalReferenceResponse Principal,
     string TargetResourceId,
@@ -547,6 +554,15 @@ internal static class CloudShellControlPlaneDtoMapper
             evaluation.Permission,
             evaluation.IsAllowed,
             evaluation.Grant?.ToResponse());
+
+    public static ResourcePermissionGrantStatusResponse ToResponse(
+        this ResourcePermissionGrantStatus status) =>
+        new(
+            status.Grant.ToResponse(),
+            status.State,
+            status.Detail,
+            status.ProviderId,
+            status.ObservedAt);
 
     public static ResourceIdentityProvisioningResponse ToResponse(
         this ResourceIdentityProvisioningResult result) =>

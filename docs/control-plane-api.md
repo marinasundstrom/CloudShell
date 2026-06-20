@@ -266,6 +266,7 @@ Plane API:
 ```text
 GET /api/control-plane/v1/resource-principals
 GET /api/control-plane/v1/resource-permission-grants
+GET /api/control-plane/v1/resource-permission-grants/status
 POST /api/control-plane/v1/resource-permission-grants
 POST /api/control-plane/v1/resource-permission-grants/revoke
 POST /api/control-plane/v1/resource-permission-grants/evaluate
@@ -274,8 +275,9 @@ POST /api/control-plane/v1/resources/{resourceId}/identity/provision
 GET /api/control-plane/v1/resources/{resourceId}/identity/provisioning-status
 ```
 
-These endpoints list principals, list declared grants, assign or revoke grant
-intent, and evaluate whether the declared model contains a matching grant.
+These endpoints list principals, list declared grants, list provider-reported
+grant effectiveness status, assign or revoke grant intent, and evaluate
+whether the declared model contains a matching grant.
 Principal lookup combines resource identities from the CloudShell resource
 model with provider-backed directory data from identity provider integrations.
 The built-in provider can also expose in-memory test users for local
@@ -296,6 +298,7 @@ Grant list filters use principal terminology:
 GET /api/control-plane/v1/resource-permission-grants?principalKind=1&principalId=alice
 GET /api/control-plane/v1/resource-permission-grants?principalKind=0&principalId=application%3Aapi%2Fidentities%2Fapi-service
 GET /api/control-plane/v1/resource-permission-grants?targetResourceId=configuration%3Aapp
+GET /api/control-plane/v1/resource-permission-grants/status?targetResourceId=application%3Asql
 ```
 
 Grant and revoke request bodies carry a `principal` object:

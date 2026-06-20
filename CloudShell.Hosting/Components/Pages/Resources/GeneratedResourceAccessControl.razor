@@ -67,6 +67,8 @@
     private Resource? Resource { get; set; }
     private IReadOnlyList<PrincipalOption> PrincipalOptions { get; set; } = [];
     private IReadOnlyList<ResourcePermissionGrant> InboundGrants { get; set; } = [];
+    private IReadOnlyDictionary<string, ResourcePermissionGrantStatus> GrantStatuses { get; set; } =
+        new Dictionary<string, ResourcePermissionGrantStatus>(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyList<GrantGroup> GrantGroups { get; set; } = [];
     private IReadOnlyDictionary<string, Resource> ResourcesById { get; set; } =
         new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
@@ -167,7 +169,7 @@
                             <span class="access-control-grant-row">
                                 <span>
                                     @permission
-                                    @if (GetGrantEffectivenessStatus(permission) is { } effectiveness)
+                                    @if (GetGrantEffectivenessStatus(group.Principal, permission) is { } effectiveness)
                                     {
                                         <small>@effectiveness</small>
                                     }
@@ -208,6 +210,7 @@
         {
             PrincipalOptions = [];
             InboundGrants = [];
+            GrantStatuses = new Dictionary<string, ResourcePermissionGrantStatus>(StringComparer.OrdinalIgnoreCase);
             GrantGroups = [];
             ResourcesById = new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
             SelectedPrincipal = null;
@@ -248,6 +251,11 @@
 
         InboundGrants = await ResourceManager.ListResourcePermissionGrantsAsync(
             new ResourcePermissionGrantQuery(TargetResourceId: Resource.Id));
+        GrantStatuses = (await ResourceManager.ListResourcePermissionGrantStatusesAsync(
+                new ResourcePermissionGrantQuery(TargetResourceId: Resource.Id)))
+            .ToDictionary(
+                status => GetPermissionKey(status.Grant.Principal, status.Grant.Permission),
+                StringComparer.OrdinalIgnoreCase);
         GrantGroups = InboundGrants
             .GroupBy(grant => GetPrincipalKey(grant.Principal), StringComparer.OrdinalIgnoreCase)
             .Select(group => new GrantGroup(
@@ -471,12 +479,29 @@
              DatabaseResourceOperationPermissions.ReadWrite,
              StringComparison.OrdinalIgnoreCase)));
 
-    private string? GetGrantEffectivenessStatus(string permission) =>
-        Resource is not null &&
-        string.Equals(Resource.EffectiveTypeId, SqlServerResourceType, StringComparison.OrdinalIgnoreCase) &&
-        string.Equals(permission, DatabaseResourceOperationPermissions.ReadWrite, StringComparison.OrdinalIgnoreCase)
-            ? L["Effective access: not applied by SQL Server provider yet"].Value
-            : null;
+    private string? GetGrantEffectivenessStatus(ResourcePrincipalReference principal, string permission)
+    {
+        if (!GrantStatuses.TryGetValue(GetPermissionKey(principal, permission), out var status))
+        {
+            return null;
+        }
+
+        if (status.State == ResourcePermissionGrantEffectivenessState.Unknown &&
+            string.IsNullOrWhiteSpace(status.ProviderId))
+        {
+            return null;
+        }
+
+        return status.State switch
+        {
+            ResourcePermissionGrantEffectivenessState.Applied => L["Effective access: applied"].Value,
+            ResourcePermissionGrantEffectivenessState.Pending => L["Effective access: pending"].Value,
+            ResourcePermissionGrantEffectivenessState.Failed => L["Effective access: failed"].Value,
+            ResourcePermissionGrantEffectivenessState.Drifted => L["Effective access: drifted"].Value,
+            ResourcePermissionGrantEffectivenessState.NotApplied => L["Effective access: not applied by provider yet"].Value,
+            _ => L["Effective access: unknown"].Value
+        };
+    }
 
     private sealed record PermissionOption(
         string Label,

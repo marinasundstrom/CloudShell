@@ -67,6 +67,10 @@ public static class CloudShellControlPlaneApiExtensions
             .WithName("CloudShellControlPlane_ListResourcePermissionGrants")
             .Produces<ResourcePermissionGrantResponse[]>(StatusCodes.Status200OK);
 
+        api.MapGet("/resource-permission-grants/status", ListResourcePermissionGrantStatuses)
+            .WithName("CloudShellControlPlane_ListResourcePermissionGrantStatuses")
+            .Produces<ResourcePermissionGrantStatusResponse[]>(StatusCodes.Status200OK);
+
         api.MapPost("/resource-permission-grants", GrantResourcePermission)
             .WithName("CloudShellControlPlane_GrantResourcePermission")
             .Accepts<GrantResourcePermissionRequest>("application/json")
@@ -377,6 +381,25 @@ public static class CloudShellControlPlaneApiExtensions
             cancellationToken);
 
         return Results.Ok(grants.Select(grant => grant.ToResponse()).ToArray());
+    }
+
+    private static async Task<IResult> ListResourcePermissionGrantStatuses(
+        ResourcePrincipalKind? principalKind,
+        string? principalId,
+        string? principalProviderId,
+        string? targetResourceId,
+        string? permission,
+        IResourceManager resourceManager,
+        CancellationToken cancellationToken)
+    {
+        var statuses = await resourceManager.ListResourcePermissionGrantStatusesAsync(
+            new ResourcePermissionGrantQuery(
+                CreatePrincipalFilter(principalKind, principalId, principalProviderId),
+                targetResourceId,
+                permission),
+            cancellationToken);
+
+        return Results.Ok(statuses.Select(status => status.ToResponse()).ToArray());
     }
 
     private static ResourcePrincipalReference? CreatePrincipalFilter(

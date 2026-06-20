@@ -139,6 +139,38 @@ public sealed record ResourcePermissionEvaluation(
     public ResourcePrincipalReference Principal => Identity.ToPrincipal();
 }
 
+public sealed record ResourcePermissionGrantStatus(
+    ResourcePermissionGrant Grant,
+    ResourcePermissionGrantEffectivenessState State,
+    string? Detail = null,
+    string? ProviderId = null,
+    DateTimeOffset? ObservedAt = null);
+
+public enum ResourcePermissionGrantEffectivenessState
+{
+    Unknown,
+    Pending,
+    Applied,
+    Failed,
+    Drifted,
+    NotApplied
+}
+
+public sealed record ResourcePermissionGrantStatusRequest(
+    Resource TargetResource,
+    ResourcePermissionGrant Grant);
+
+public interface IResourcePermissionGrantStatusProvider
+{
+    string ProviderId { get; }
+
+    bool CanGetStatus(ResourcePermissionGrantStatusRequest request);
+
+    Task<ResourcePermissionGrantStatus> GetStatusAsync(
+        ResourcePermissionGrantStatusRequest request,
+        CancellationToken cancellationToken = default);
+}
+
 public sealed class ResourcePermissionGrantEvaluator(
     IEnumerable<ResourcePermissionGrant> grants)
 {

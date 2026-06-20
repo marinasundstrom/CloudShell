@@ -519,6 +519,37 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task ListResourcePermissionGrantStatusesAsync_UsesProviderStatus()
+    {
+        var grant = new ResourcePermissionGrant(
+            ResourcePrincipalReference.ForResourceIdentity("caller", "caller-service"),
+            "target",
+            CloudShellPermissions.Resources.Actions.Lifecycle);
+        var controlPlane = CreateControlPlane(
+            [
+                CreateIdentityResource("caller", "caller-service"),
+                CreateResource("target", ResourceState.Running)
+            ],
+            permissionGrants: [grant],
+            permissionGrantStatusProviders:
+            [
+                new TestPermissionGrantStatusProvider(
+                    "test.status",
+                    ResourcePermissionGrantEffectivenessState.Applied,
+                    "Provider applied the grant.")
+            ]);
+
+        var statuses = await controlPlane.ListResourcePermissionGrantStatusesAsync(
+            new ResourcePermissionGrantQuery(TargetResourceId: "target"));
+
+        var status = Assert.Single(statuses);
+        Assert.Equal(grant, status.Grant);
+        Assert.Equal(ResourcePermissionGrantEffectivenessState.Applied, status.State);
+        Assert.Equal("Provider applied the grant.", status.Detail);
+        Assert.Equal("test.status", status.ProviderId);
+    }
+
+    [Fact]
     public async Task GrantResourcePermissionAsync_AddsUserPrincipalGrant()
     {
         var principal = new ResourcePrincipalReference(
@@ -2156,6 +2187,7 @@ public sealed class InProcessControlPlaneResourceStateTests
         IReadOnlyList<IResourceIdentityProvisioner>? identityProvisioners = null,
         IReadOnlyList<IResourceIdentityProviderSetupHandler>? identityProviderSetupHandlers = null,
         IReadOnlyList<IResourceIdentityDirectoryProvider>? identityDirectoryProviders = null,
+        IReadOnlyList<IResourcePermissionGrantStatusProvider>? permissionGrantStatusProviders = null,
         IReadOnlyList<IResourceOrchestrationDescriptorProvider>? descriptorProviders = null,
         IReadOnlyList<IContainerHostProvider>? containerHostProviders = null,
         IReadOnlyList<IResourceActionAvailabilityProvider>? actionAvailabilityProviders = null,
@@ -2230,7 +2262,8 @@ public sealed class InProcessControlPlaneResourceStateTests
             resourceEvents,
             httpContextAccessor,
             new ResourceIdentityProviderCatalog(identityProviders ?? []),
-            identityDirectoryProviders ?? []);
+            identityDirectoryProviders ?? [],
+            permissionGrantStatusProviders ?? []);
     }
 
     private static IHttpContextAccessor CreateHttpContextAccessor(params Claim[] claims)
@@ -2998,6 +3031,26 @@ public sealed class InProcessControlPlaneResourceStateTests
     private sealed class TestHttpClientFactory : IHttpClientFactory
     {
         public HttpClient CreateClient(string name) => new();
+    }
+
+    private sealed class TestPermissionGrantStatusProvider(
+        string providerId,
+        ResourcePermissionGrantEffectivenessState state,
+        string detail) : IResourcePermissionGrantStatusProvider
+    {
+        public string ProviderId => providerId;
+
+        public bool CanGetStatus(ResourcePermissionGrantStatusRequest request) => true;
+
+        public Task<ResourcePermissionGrantStatus> GetStatusAsync(
+            ResourcePermissionGrantStatusRequest request,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new ResourcePermissionGrantStatus(
+                request.Grant,
+                state,
+                detail,
+                providerId,
+                DateTimeOffset.UtcNow));
     }
 
     private sealed class AllowAllAuthorizationService : ICloudShellAuthorizationService

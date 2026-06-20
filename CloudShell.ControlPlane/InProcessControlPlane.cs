@@ -31,7 +31,8 @@ public sealed class InProcessControlPlane(
     IResourceEventStore? resourceEvents = null,
     IHttpContextAccessor? httpContextAccessor = null,
     ResourceIdentityProviderCatalog? identityProviders = null,
-    IEnumerable<IResourceIdentityDirectoryProvider>? identityDirectoryProviders = null) : IControlPlane
+    IEnumerable<IResourceIdentityDirectoryProvider>? identityDirectoryProviders = null,
+    IEnumerable<IResourcePermissionGrantStatusProvider>? permissionGrantStatusProviders = null) : IControlPlane
 {
     private const string PreferredUsernameClaimType = "preferred_username";
     private const string UnauthenticatedRequestActor = "user";
@@ -43,6 +44,9 @@ public sealed class InProcessControlPlane(
 
     private readonly IReadOnlyList<IResourceIdentityDirectoryProvider> identityDirectoryProviders =
         (identityDirectoryProviders ?? []).ToArray();
+
+    private readonly IReadOnlyList<IResourcePermissionGrantStatusProvider> permissionGrantStatusProviders =
+        (permissionGrantStatusProviders ?? []).ToArray();
 
     public Task<IReadOnlyList<ResourceGroup>> ListResourceGroupsAsync(
         CancellationToken cancellationToken = default)
@@ -243,6 +247,21 @@ public sealed class InProcessControlPlane(
     {
         cancellationToken.ThrowIfCancellationRequested();
         return Task.FromResult(ApplyQuery(declarations.GetPermissionGrants(), query));
+    }
+
+    public async Task<IReadOnlyList<ResourcePermissionGrantStatus>> ListResourcePermissionGrantStatusesAsync(
+        ResourcePermissionGrantQuery? query = null,
+        CancellationToken cancellationToken = default)
+    {
+        var grants = ApplyQuery(declarations.GetPermissionGrants(), query);
+        var statuses = new List<ResourcePermissionGrantStatus>();
+        foreach (var grant in grants)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            statuses.Add(await GetPermissionGrantStatusAsync(grant, cancellationToken));
+        }
+
+        return statuses;
     }
 
     public Task<ResourcePermissionEvaluation> EvaluateResourcePermissionGrantAsync(
@@ -1807,6 +1826,34 @@ public sealed class InProcessControlPlane(
         string.Equals(grantPrincipal.Id, principalFilter.Id, StringComparison.OrdinalIgnoreCase) &&
         (string.IsNullOrWhiteSpace(principalFilter.ProviderId) ||
          string.Equals(grantPrincipal.ProviderId, principalFilter.ProviderId, StringComparison.OrdinalIgnoreCase));
+
+    private async Task<ResourcePermissionGrantStatus> GetPermissionGrantStatusAsync(
+        ResourcePermissionGrant grant,
+        CancellationToken cancellationToken)
+    {
+        var targetResource = resourceManager.GetResource(grant.TargetResourceId);
+        if (targetResource is null)
+        {
+            return new ResourcePermissionGrantStatus(
+                grant,
+                ResourcePermissionGrantEffectivenessState.Unknown,
+                $"Target resource '{grant.TargetResourceId}' is not available.");
+        }
+
+        var request = new ResourcePermissionGrantStatusRequest(targetResource, grant);
+        foreach (var provider in permissionGrantStatusProviders)
+        {
+            if (provider.CanGetStatus(request))
+            {
+                return await provider.GetStatusAsync(request, cancellationToken);
+            }
+        }
+
+        return new ResourcePermissionGrantStatus(
+            grant,
+            ResourcePermissionGrantEffectivenessState.Unknown,
+            "No provider reports effective access status for this grant.");
+    }
 
     private ResourcePermissionGrant CreatePermissionGrant(
         ResourcePrincipalReference principal,

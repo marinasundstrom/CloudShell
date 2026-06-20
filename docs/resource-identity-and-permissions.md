@@ -268,6 +268,7 @@ operations through `IResourceManager` and the HTTP API:
 ```text
 GET /api/control-plane/v1/resource-principals
 GET /api/control-plane/v1/resource-permission-grants
+GET /api/control-plane/v1/resource-permission-grants/status
 POST /api/control-plane/v1/resource-permission-grants/evaluate
 POST /api/control-plane/v1/identity-providers/{providerId}/setup
 POST /api/control-plane/v1/resources/{resourceId}/identity/provision
@@ -275,6 +276,8 @@ GET /api/control-plane/v1/resources/{resourceId}/identity/provisioning-status
 ```
 
 Grant evaluation answers whether the declared model contains a matching grant.
+Grant status answers whether a provider reports the requested grant as
+effectively applied, pending, failed, drifted, not applied, or unknown.
 Resource action execution can also carry an explicit acting resource identity;
 when it does, Resource Manager evaluates declared grants for that identity
 instead of falling back to the current user's resource permissions. This is a

@@ -304,6 +304,8 @@ public sealed class RemoteControlPlaneContractTests
                 }));
         var grants = await controlPlane.ListResourcePermissionGrantsAsync(
             new ResourcePermissionGrantQuery(TargetResourceId: "network:contract"));
+        var grantStatuses = await controlPlane.ListResourcePermissionGrantStatusesAsync(
+            new ResourcePermissionGrantQuery(TargetResourceId: "network:contract"));
         var allowed = await controlPlane.EvaluateResourcePermissionGrantAsync(
             ResourceIdentityReference.ForResource("network:contract", "network-service"),
             "network:contract",
@@ -338,6 +340,9 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(NetworkResourceOperationPermissions.ReconcileEndpointMappings, grant.Permission);
         Assert.Equal(ResourcePrincipalKind.ResourceIdentity, grant.Principal.Kind);
         Assert.Equal("network:contract/identities/network-service", grant.Principal.Id);
+        var grantStatus = Assert.Single(grantStatuses);
+        Assert.Equal(grant, grantStatus.Grant);
+        Assert.Equal(ResourcePermissionGrantEffectivenessState.Unknown, grantStatus.State);
 
         var resourcePrincipal = Assert.Single(principals, principal =>
             principal.Reference.SourceResourceId == "network:contract");
@@ -368,6 +373,18 @@ public sealed class RemoteControlPlaneContractTests
         var principal = responseGrant.GetProperty("principal");
         Assert.Equal((int)ResourcePrincipalKind.ResourceIdentity, principal.GetProperty("kind").GetInt32());
         Assert.Equal("network:contract/identities/network-service", principal.GetProperty("id").GetString());
+
+        var statusResponse = await httpClient.GetAsync(
+            "/api/control-plane/v1/resource-permission-grants/status?targetResourceId=network%3Acontract");
+        statusResponse.EnsureSuccessStatusCode();
+        using var statusDocument = JsonDocument.Parse(await statusResponse.Content.ReadAsStringAsync());
+        var responseGrantStatus = Assert.Single(statusDocument.RootElement.EnumerateArray());
+        Assert.Equal(
+            (int)ResourcePermissionGrantEffectivenessState.Unknown,
+            responseGrantStatus.GetProperty("state").GetInt32());
+        Assert.Equal(
+            NetworkResourceOperationPermissions.ReconcileEndpointMappings,
+            responseGrantStatus.GetProperty("grant").GetProperty("permission").GetString());
         Assert.Equal("network:contract", principal.GetProperty("sourceResourceId").GetString());
         Assert.Equal("network-service", principal.GetProperty("sourceIdentityName").GetString());
 
@@ -811,9 +828,11 @@ public sealed class RemoteControlPlaneContractTests
         Assert.True(paths.TryGetProperty("/api/container-apps/v1/{containerAppId}/replicas", out _));
         Assert.True(paths.TryGetProperty("/api/control-plane/v1/resource-principals", out _));
         Assert.True(paths.TryGetProperty("/api/control-plane/v1/resource-permission-grants", out _));
+        Assert.True(paths.TryGetProperty("/api/control-plane/v1/resource-permission-grants/status", out _));
         Assert.True(paths.TryGetProperty("/api/control-plane/v1/resource-permission-grants/revoke", out _));
         Assert.True(paths.TryGetProperty("/api/control-plane/v1/resource-permission-grants/evaluate", out _));
         Assert.True(schemas.TryGetProperty(nameof(ResourcePermissionGrantResponse), out _));
+        Assert.True(schemas.TryGetProperty(nameof(ResourcePermissionGrantStatusResponse), out _));
         Assert.True(schemas.TryGetProperty(nameof(ResourcePrincipalResponse), out _));
         Assert.True(schemas.TryGetProperty(nameof(ResourcePrincipalReferenceResponse), out _));
         Assert.True(schemas.TryGetProperty(nameof(GrantResourcePermissionRequest), out _));

@@ -253,6 +253,11 @@ public sealed class ResourceManagerClientExtensionsTests
             CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<ResourcePermissionGrant>>([]);
 
+        public Task<IReadOnlyList<ResourcePermissionGrantStatus>> ListResourcePermissionGrantStatusesAsync(
+            ResourcePermissionGrantQuery? query = null,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ResourcePermissionGrantStatus>>([]);
+
         public Task<IReadOnlyList<ResourcePrincipal>> QueryResourcePrincipalsAsync(
             ResourcePrincipalQuery? query = null,
             CancellationToken cancellationToken = default) =>

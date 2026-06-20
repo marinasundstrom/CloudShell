@@ -194,6 +194,22 @@ public sealed class RemoteControlPlane : IControlPlane
         .Select(response => response.ToResourcePermissionGrant())
         .ToArray();
 
+    public async Task<IReadOnlyList<ResourcePermissionGrantStatus>> ListResourcePermissionGrantStatusesAsync(
+        ResourcePermissionGrantQuery? query = null,
+        CancellationToken cancellationToken = default) =>
+        (await GetRequiredAsync<IReadOnlyList<ResourcePermissionGrantStatusResponse>>(
+            "resource-permission-grants/status",
+            cancellationToken,
+            ("principalKind", query?.Principal is { } principal
+                ? ((int)principal.Kind).ToString(CultureInfo.InvariantCulture)
+                : null),
+            ("principalId", query?.Principal?.Id),
+            ("principalProviderId", query?.Principal?.ProviderId),
+            ("targetResourceId", query?.TargetResourceId),
+            ("permission", query?.Permission)))
+        .Select(response => response.ToResourcePermissionGrantStatus())
+        .ToArray();
+
     public async Task<IReadOnlyList<ResourcePrincipal>> QueryResourcePrincipalsAsync(
         ResourcePrincipalQuery? query = null,
         CancellationToken cancellationToken = default) =>
@@ -1012,6 +1028,13 @@ file sealed record ResourcePermissionGrantResponse(
     string TargetResourceId,
     string Permission);
 
+file sealed record ResourcePermissionGrantStatusResponse(
+    ResourcePermissionGrantResponse Grant,
+    ResourcePermissionGrantEffectivenessState State,
+    string? Detail,
+    string? ProviderId,
+    DateTimeOffset? ObservedAt);
+
 file sealed record GrantResourcePermissionRequest(
     ResourcePrincipalReferenceResponse Principal,
     string TargetResourceId,
@@ -1401,6 +1424,15 @@ file static class RemoteControlPlaneMapper
             response.Permission,
             response.IsAllowed,
             response.Grant?.ToResourcePermissionGrant());
+
+    public static ResourcePermissionGrantStatus ToResourcePermissionGrantStatus(
+        this ResourcePermissionGrantStatusResponse response) =>
+        new(
+            response.Grant.ToResourcePermissionGrant(),
+            response.State,
+            response.Detail,
+            response.ProviderId,
+            response.ObservedAt);
 
     public static ResourceIdentityProvisioningResult ToResourceIdentityProvisioningResult(
         this ResourceIdentityProvisioningResponse response) =>

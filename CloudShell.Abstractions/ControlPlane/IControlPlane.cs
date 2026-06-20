@@ -68,6 +68,10 @@ public interface IResourceManager
         ResourcePermissionGrantQuery? query = null,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<ResourcePermissionGrantStatus>> ListResourcePermissionGrantStatusesAsync(
+        ResourcePermissionGrantQuery? query = null,
+        CancellationToken cancellationToken = default);
+
     Task<ResourcePermissionEvaluation> EvaluateResourcePermissionGrantAsync(
         ResourceIdentityReference identity,
         string targetResourceId,
