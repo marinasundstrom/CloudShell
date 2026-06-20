@@ -287,10 +287,10 @@ without leaking resource-specific vocabulary into general shell APIs.
 The Blazor integration should work with normal Blazor components and the
 standard Blazor app model. For example, the standalone sandbox uses Blazor's
 built-in `HeadOutlet`. CloudShell may later add shell-aware metadata outlets,
-starting with at least a `TitleOutlet`, so layouts can render the title for
-the resolved composition page or selected content node. Those outlets should
-be additive shell integration components rather than requirements for the base
-composition engine.
+starting with at least a plain `TitleOutlet`, so layouts can render the title
+for the resolved composition page or selected content node. Those outlets
+should be additive shell integration components rather than requirements for
+the base composition engine.
 
 ## Resource Manager extraction path
 

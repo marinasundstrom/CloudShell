@@ -1,0 +1,16 @@
+@inject CompositionRegistry Composition
+
+@ResolvedTitle
+
+@code {
+    [CascadingParameter]
+    public CompositionContext? Context { get; set; }
+
+    [Parameter]
+    public string? FallbackTitle { get; set; }
+
+    private string? ResolvedTitle =>
+        Context is null
+            ? FallbackTitle
+            : Composition.GetPage(Context.PageId)?.Title ?? FallbackTitle;
+}

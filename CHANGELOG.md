@@ -71,6 +71,9 @@ on `git blame --follow`, and then by the broad type of change.
   `CloudShell.UI.Composition.Blazor` libraries plus a clean Blazor
   Composition Sandbox sample that demonstrates the engine outside CloudShell
   Hosting with plain Bootstrap styling and no CloudShell extension adapter.
+- The Blazor composition library now includes a plain `TitleOutlet` component
+  that renders the title for the current composition page from the cascaded
+  composition context.
 - Moved the composition proof direction away from the UI Extension Host sample:
   CloudShell extension integration should adapt to the core composition graph
   only after the standalone app structure is credible.

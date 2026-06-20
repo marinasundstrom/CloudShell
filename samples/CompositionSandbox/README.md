@@ -9,7 +9,8 @@ The sample proves the first boundary:
 - `CloudShell.UI.Composition` owns core facilities: typed IDs, registration,
   graph lookup, section ordering, and target-to-link resolution.
 - `CloudShell.UI.Composition.Blazor` owns plain Blazor components that render
-  registered menus, links, section containers, and section outlets.
+  registered menus, links, page titles, section containers, and section
+  outlets.
 - The app owns visual styling. This sample uses plain Bootstrap CSS plus a
   small app stylesheet; it does not use a Blazor Bootstrap component package.
 
