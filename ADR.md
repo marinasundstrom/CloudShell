@@ -125,16 +125,21 @@ important built-in shell extension and the primary MVP proof, but the shell
 should own generic composition primitives that Resource Manager and other
 extensions can share.
 
-The target shell model includes validated menu groups, menu items, child
-items, pages, shell-hosted workspaces, standardized settings pages,
-notifications, and named content areas. It should generalize the reusable
-layout ideas already present in shell-hosted views and Resource Manager tabs:
-grouped local navigation, selected page state in the URL, dynamic component
-hosting, ordered sections, and context injection. Extensions contribute
-components, metadata, labels, icons, capability declarations, and calls to
-public domain managers. The host owns layout rules, route mapping, ordering,
-accessibility, startup validation, permission-aware visibility, and conflict
-handling.
+The target shell model is a validated layout graph, not a menu or tab API.
+Navigation hierarchy and content hierarchy are separate. Menu nodes describe
+menus, menu item groups, menu items, and sub-menu items. Content nodes describe
+addressable pages, sub-pages, slots, section containers, and sections. A menu
+item can target content by ID without owning the content hierarchy. It should
+generalize the reusable layout ideas already present in shell-hosted views and
+Resource Manager tabs: grouped local navigation, selected page state in the
+URL, dynamic component hosting, ordered sections, context injection, and
+renderer-owned presentation. Extensions contribute components, metadata,
+labels, icons, capability declarations, layout IDs, and calls to public domain
+managers. The host owns layout graph validation, ID-based link and deep-link
+resolution from registered content route metadata, ordering, accessibility,
+startup validation, permission-aware visibility, and conflict handling. Razor
+and Blazor still own route matching through normal routing mechanisms such as
+the `@page` directive.
 
 This keeps Resource Manager UI extensions resource-specific while avoiding a
 Resource Manager-only shell. Resource Manager should adapt its tab, predefined

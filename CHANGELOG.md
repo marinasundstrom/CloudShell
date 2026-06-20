@@ -45,6 +45,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Documented status-page-style common Health aggregation as deferred work that
   needs explicit health scopes beyond ordinary resource groups, while
   resource-scoped Health stays focused on the selected resource.
+- Refined the shell composition direction around a layout/content engine with
+  separate navigation and addressable content hierarchies, content-ID link
+  resolution, Razor-owned routing, slots, section containers, and Resource
+  Manager tabs as one renderer-specific adapter.
 - Refreshed the local-development MVP target around Application Topology
   confidence, immediate resource relationship comprehension, readable
   Resource Manager labels, app-centric diagnostics, and focused readiness

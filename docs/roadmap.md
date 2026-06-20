@@ -86,11 +86,11 @@ Required outcome:
 
 | Area | Required outcome |
 | --- | --- |
-| Layout contributions | Extensions can add validated menu groups, menu items, child items, pages, and hosted workspaces with stable IDs, ordering, route targets, and permission-aware visibility. |
-| Standard settings | Extensions can add settings pages or sections to a common settings surface while keeping UI-local, Control Plane-backed, provider-backed, and external-service-backed state boundaries explicit. |
+| Layout contributions | Extensions can add validated navigation nodes and addressable content nodes. Navigation hierarchy uses menus, menu item groups, menu items, and sub-menu items; content hierarchy uses pages, sub-pages, slots, section containers, and sections. |
+| Standard settings | Extensions can add settings pages, sub-pages, slots, section containers, and sections to a common settings surface while keeping UI-local, Control Plane-backed, provider-backed, and external-service-backed state boundaries explicit. |
 | Notifications | Extensions and Control Plane event sources can produce notifications that render as transient toasts and durable off-canvas notification history. |
-| Extension areas | Shell and Resource Manager pages expose named content areas so extensions can add scoped content without replacing whole pages or relying on brittle page internals. |
-| Resource Manager alignment | Resource Manager uses the generic shell composition primitives for its own navigation, pages, settings, notifications, and extension areas while keeping resource-specific provider UI on Resource Manager contracts. |
+| Extension areas | Shell and Resource Manager pages expose slots and section containers so extensions can add scoped content without replacing whole pages or relying on brittle page internals. |
+| Resource Manager alignment | Resource Manager uses the generic shell composition primitives for navigation presenters, addressable content nodes, settings, notifications, slots, and section containers while keeping resource-specific provider UI on Resource Manager contracts. |
 
 ## MVP Execution Plan
 
