@@ -124,6 +124,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The Logs resource filter now uses the same Resource Manager source selector
   path as trace and metric sources, including preformatted resource labels for
   sources whose resource projection is unavailable.
+- Trace and metric unavailable-resource messages now use the Resource Manager
+  display label when the requested resource exists but does not expose that
+  telemetry signal.
 
 ### 2026-06-19
 

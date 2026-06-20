@@ -203,6 +203,8 @@ else if (ShowHeading)
 
     private System.Threading.Timer? refreshTimer;
     private IReadOnlyList<Resource> MetricResources { get; set; } = [];
+    private IReadOnlyDictionary<string, Resource> ResourcesById { get; set; } =
+        new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyList<MetricPoint> RecentPoints { get; set; } = [];
     private ResourceManagerDisplaySelection DisplaySelection { get; set; } =
         ResourceManagerDisplaySelection.Default;
@@ -227,7 +229,9 @@ else if (ShowHeading)
     protected override async Task OnParametersSetAsync()
     {
         DisplaySelection = await DisplaySettings.GetAsync();
-        MetricResources = (await ResourceManager.ListResourcesAsync())
+        var resources = await ResourceManager.ListResourcesAsync();
+        ResourcesById = resources.ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+        MetricResources = resources
             .Where(resource => resource.EffectiveObservability.Metrics)
             .OrderBy(DisplaySelection.GetResourceSortLabel, StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -264,7 +268,7 @@ else if (ShowHeading)
             var resourceId = ResourceId.Trim();
             return new TelemetrySelectionIssue(
                 L["Metric resource not found"].Value,
-                L["Resource '{0}' does not expose metrics or is not available.", resourceId].Value,
+                L["Resource '{0}' does not expose metrics or is not available.", GetResourceLabel(resourceId)].Value,
                 Inline ? L["Open Resources"].Value : L["All metric resources"].Value,
                 Inline ? ResourceManagerRoutes.Resources : "/observability/metrics");
         }
@@ -380,6 +384,11 @@ else if (ShowHeading)
 
     private string GetResourceLabel(Resource resource) =>
         DisplaySelection.GetResourceLabel(resource);
+
+    private string GetResourceLabel(string resourceId) =>
+        ResourcesById.TryGetValue(resourceId, out var resource)
+            ? GetResourceLabel(resource)
+            : resourceId;
 
     private string GetPointSummary(int pointCount) =>
         L["{0} points retained in memory", pointCount].Value;

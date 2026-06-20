@@ -481,6 +481,8 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
 
     private System.Threading.Timer? refreshTimer;
     private IReadOnlyList<Resource> TraceResources { get; set; } = [];
+    private IReadOnlyDictionary<string, Resource> ResourcesById { get; set; } =
+        new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyList<TraceSpan> RecentSpans { get; set; } = [];
     private ResourceManagerDisplaySelection DisplaySelection { get; set; } =
         ResourceManagerDisplaySelection.Default;
@@ -507,7 +509,9 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
     protected override async Task OnParametersSetAsync()
     {
         DisplaySelection = await DisplaySettings.GetAsync();
-        TraceResources = (await ResourceManager.ListResourcesAsync())
+        var resources = await ResourceManager.ListResourcesAsync();
+        ResourcesById = resources.ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+        TraceResources = resources
             .Where(resource => resource.EffectiveObservability.Traces)
             .OrderBy(DisplaySelection.GetResourceSortLabel, StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -549,7 +553,7 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
             var resourceId = ResourceId.Trim();
             return new TelemetrySelectionIssue(
                 L["Trace resource not found"].Value,
-                L["Resource '{0}' does not expose traces or is not available.", resourceId].Value,
+                L["Resource '{0}' does not expose traces or is not available.", GetResourceLabel(resourceId)].Value,
                 Inline ? L["Open Resources"].Value : L["All trace resources"].Value,
                 Inline ? ResourceManagerRoutes.Resources : "/observability/traces");
         }
@@ -685,6 +689,11 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
 
     private string GetResourceLabel(Resource resource) =>
         DisplaySelection.GetResourceLabel(resource);
+
+    private string GetResourceLabel(string resourceId) =>
+        ResourcesById.TryGetValue(resourceId, out var resource)
+            ? GetResourceLabel(resource)
+            : resourceId;
 
     private string GetSpanSummary(int spanCount) =>
         string.IsNullOrWhiteSpace(TraceId)
