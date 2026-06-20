@@ -16,6 +16,7 @@
 @inject ResourceManagerDisplaySettings DisplaySettings
 @inject IStringLocalizer<SharedResource> L
 @inject IServiceProvider Services
+@inject CloudShell.UI.Composition.CompositionRegistry Composition
 @implements IDisposable
 @using CloudShell.Abstractions.Authorization
 
@@ -343,7 +344,7 @@
         if (!string.IsNullOrWhiteSpace(ResourceId))
         {
             Navigation.NavigateTo(
-                ResourceManagerRoutes.ResourceDetails(ResourceId, tabId),
+                BuildResourceDetailsHref(ResourceId, tabId),
                 replace: true);
         }
 
@@ -361,6 +362,27 @@
         {
             SelectTab(tabId);
         }
+    }
+
+    private string BuildResourceDetailsHref(string resourceId, ResourceViewId tabId)
+    {
+        var routeParams = new Dictionary<string, object?>
+        {
+            ["resourceId"] = resourceId
+        };
+
+        if (tabId != ResourcePredefinedViewIds.Overview)
+        {
+            routeParams["view"] = ResourceManagerRoutes.GetResourceViewSegment(tabId);
+        }
+
+        var href = Composition.ResolveHref(
+            ResourceManagerCompositionIds.ResourceDetailsPage,
+            routeParams);
+
+        return href == "#"
+            ? ResourceManagerRoutes.ResourceDetails(resourceId, tabId)
+            : href;
     }
 
     private ResourceTabContribution? GetSelectedTab(IReadOnlyList<ResourceTabContribution> tabs)

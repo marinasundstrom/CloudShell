@@ -115,6 +115,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Details now projects Resource Manager tabs into the shared tabbed
   layout through a focused Resource Manager adapter instead of keeping tab
   grouping rules inline in the page.
+- Resource Details now has a canonical parameterized composition page target
+  and uses composition link resolution when switching resource tabs.
 - The common Settings page now renders composition sections through a
   CloudShell-specific tabbed-layout adapter, keeping section projection,
   selection, link resolution, and dynamic section rendering reusable.

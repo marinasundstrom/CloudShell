@@ -339,10 +339,16 @@ to composition-native menu contributions. Core shell contributes Overview,
 Settings, Users, and Extensions directly under the shell-owned Workspace and
 Platform menu groups. Resource Manager contributes Resources and Health
 directly under the shared Workspace menu group and targets registered Resource
-Manager page IDs. Observability contributes its Workspace parent item and child
-entries for Logs, Dependencies, Service map, Traces, and Metrics with per-item
-permission requirements in the graph. The UI Extension Host sample contributes
-its sample workspace page and sidebar item through a composition module. The
+Manager page IDs. Resource Manager also registers Resource Details as a
+canonical parameterized composition page with the route
+`/resources/{resourceId}/{view?}`. Resource tab availability and rendering
+remain Resource Manager concepts for now; the details page uses the
+composition page target for canonical tab navigation while the existing route
+helpers remain available as fallback and non-composition API. Observability
+contributes its Workspace parent item and child entries for Logs,
+Dependencies, Service map, Traces, and Metrics with per-item permission
+requirements in the graph. The UI Extension Host sample contributes its
+sample workspace page and sidebar item through a composition module. The
 legacy navigation bridge remains for unmigrated extension navigation items;
 migrated items should be removed from legacy `AddNavigationItem(...)`
 registration to avoid duplicate sidebar entries.

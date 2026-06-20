@@ -17,6 +17,9 @@ public static class ResourceManagerCompositionIds
     public static readonly PageId ResourceGraphPage =
         PageId.Create("cloudshell.resource-manager.resources.graph");
 
+    public static readonly PageId ResourceDetailsPage =
+        PageId.Create("cloudshell.resource-manager.resources.details");
+
     public static readonly PageId HealthPage =
         PageId.Create("cloudshell.resource-manager.health");
 

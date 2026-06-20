@@ -36,6 +36,10 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                     "Resource graph",
                     ResourceManagerRoutes.ResourceGraph);
                 composition.AddPage(
+                    ResourceManagerCompositionIds.ResourceDetailsPage,
+                    "Resource details",
+                    "/resources/{resourceId}/{view?}");
+                composition.AddPage(
                     ResourceManagerCompositionIds.HealthPage,
                     "Health",
                     "/health");
