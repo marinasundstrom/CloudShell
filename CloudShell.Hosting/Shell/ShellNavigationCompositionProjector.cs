@@ -37,7 +37,14 @@ public sealed class ShellNavigationCompositionProjector(ShellCatalog shellCatalo
                             itemBuilder.WithParent(parentId);
                         }
 
-                        itemBuilder.TargetHref(item.Href);
+                        if (TryGetCompositionTarget(item, out var target))
+                        {
+                            itemBuilder.Target(target);
+                        }
+                        else
+                        {
+                            itemBuilder.TargetHref(item.Href);
+                        }
                     }
                 }
             });
@@ -56,6 +63,21 @@ public sealed class ShellNavigationCompositionProjector(ShellCatalog shellCatalo
 
     private static string NormalizeGroupTitle(string? group) =>
         string.IsNullOrWhiteSpace(group) ? "Workspace" : group.Trim();
+
+    private static bool TryGetCompositionTarget(
+        NavItemContribution item,
+        out CompositionTarget target)
+    {
+        if (string.Equals(item.Target.ViewId, CoreShellViews.Settings, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(item.Href, "/settings", StringComparison.OrdinalIgnoreCase))
+        {
+            target = ShellCompositionIds.SettingsPage;
+            return true;
+        }
+
+        target = default;
+        return false;
+    }
 
     private static string CreateIdentifier(string value)
     {

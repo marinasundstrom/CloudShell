@@ -69,6 +69,8 @@ on `git blame --follow`, and then by the broad type of change.
 - The CloudShell Fluent navigation presenter now consumes composition menu item
   projections and renders module ownership metadata for root and child menu
   items.
+- The legacy shell navigation bridge now targets the composition Settings page
+  by page ID while leaving other legacy shell items on direct href targets.
 - CloudShell UI Extension Host now includes an isolated shell-composition
   sandbox with sample-local typed IDs, a registry, composition context host,
   menu renderer, section container, and section outlet so the layout/content
