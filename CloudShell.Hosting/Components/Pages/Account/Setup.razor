@@ -16,9 +16,9 @@
 
 @if (!CanSetUp)
 {
-    <FluentMessageBar Intent="MessageIntent.Warning">
+    <ProcedureMessage Severity="ResourceSignalSeverity.Warning" Role="status">
         @L["Local account setup is unavailable or has already been completed."]
-    </FluentMessageBar>
+    </ProcedureMessage>
     <FluentAnchor Appearance="Appearance.Accent" Href="/account/login">
         @L["Return to sign in"]
     </FluentAnchor>
@@ -57,12 +57,12 @@ else
 
         @if (Errors.Count > 0)
         {
-            <FluentMessageBar Intent="MessageIntent.Error">
+            <ProcedureMessage Severity="ResourceSignalSeverity.Error" Role="alert">
                 @foreach (var error in Errors)
                 {
                     <div>@error</div>
                 }
-            </FluentMessageBar>
+            </ProcedureMessage>
         }
 
         <FluentButton Appearance="Appearance.Accent" Type="ButtonType.Submit">

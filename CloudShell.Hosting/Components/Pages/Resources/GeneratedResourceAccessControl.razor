@@ -145,9 +145,9 @@
         }
         @if (ShouldShowSqlGrantMaterializationNotice())
         {
-            <FluentMessageBar Intent="MessageIntent.Warning">
+            <ProcedureMessage Severity="ResourceSignalSeverity.Warning" Role="status">
                 @L["Database grants are saved in CloudShell. The SQL Server provider does not create users or roles yet, so workloads must use configured SQL credentials."]
-            </FluentMessageBar>
+            </ProcedureMessage>
         }
         <p class="muted">@L["CloudShell records that the selected principal can access this resource. Identity and access providers apply or reconcile the grant when provisioning runs."]</p>
     </text>;

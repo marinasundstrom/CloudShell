@@ -120,19 +120,19 @@ else
 
                 @if (Errors.Count > 0)
                 {
-                    <FluentMessageBar Intent="MessageIntent.Error">
+                    <ProcedureMessage Severity="ResourceSignalSeverity.Error" Role="alert">
                         @foreach (var error in Errors)
                         {
                             <div>@error</div>
                         }
-                    </FluentMessageBar>
+                    </ProcedureMessage>
                 }
 
                 @if (!string.IsNullOrWhiteSpace(Message))
                 {
-                    <FluentMessageBar Intent="MessageIntent.Success">
+                    <ProcedureMessage Severity="ResourceSignalSeverity.Success" Role="status">
                         @Message
-                    </FluentMessageBar>
+                    </ProcedureMessage>
                 }
 
                 <FluentButton Appearance="Appearance.Accent"

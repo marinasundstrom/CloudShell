@@ -65,6 +65,10 @@ on `git blame --follow`, and then by the broad type of change.
   store or vault name instead of repeating the resource ID.
 - Setting and secret resolution context can carry a readable identity display
   name so provider denial messages do not need to expose principal resource IDs.
+- SQL Server grant warnings now render through the custom CloudShell
+  `ProcedureMessage` styling instead of the default Fluent message bar.
+- Account setup, sign-in, and local user feedback now use the same custom
+  `ProcedureMessage` styling as Resource Manager feedback.
 
 ### 2026-06-19
 

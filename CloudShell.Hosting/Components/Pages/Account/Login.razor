@@ -15,10 +15,10 @@
 
 @if (RequiresSetup)
 {
-    <FluentMessageBar Intent="MessageIntent.Info">
+    <ProcedureMessage Severity="ResourceSignalSeverity.Info" Role="status">
         @L["No local administrator exists yet."]
         <a href="/account/setup">@L["Set up CloudShell"]</a>
-    </FluentMessageBar>
+    </ProcedureMessage>
 }
 else if (UsesExternalProvider)
 {
@@ -60,12 +60,12 @@ else
 
         @if (Errors.Count > 0)
         {
-            <FluentMessageBar Intent="MessageIntent.Error">
+            <ProcedureMessage Severity="ResourceSignalSeverity.Error" Role="alert">
                 @foreach (var error in Errors)
                 {
                     <div>@error</div>
                 }
-            </FluentMessageBar>
+            </ProcedureMessage>
         }
 
         <FluentButton Appearance="Appearance.Accent" Type="ButtonType.Submit">

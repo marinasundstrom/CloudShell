@@ -767,6 +767,7 @@ public sealed class SampleSmokeTests
         Assert.Contains("Read/write", sqlDetailsHtml);
         Assert.Contains("Database grants are recorded in CloudShell.", sqlDetailsHtml);
         Assert.Contains("SQL Server users and roles are not created yet", sqlDetailsHtml);
+        Assert.Contains("procedure-message warning", sqlDetailsHtml);
         Assert.DoesNotContain("<dt>Image</dt>", sqlDetailsHtml);
         Assert.DoesNotContain("<h3>Container host</h3>", sqlDetailsHtml);
         AssertResourceTabsInOrder(
@@ -807,6 +808,7 @@ public sealed class SampleSmokeTests
         Assert.Contains("Assigned principals", sqlAccessControlHtml);
         Assert.Contains("Database grants are saved in CloudShell.", sqlAccessControlHtml);
         Assert.Contains("The SQL Server provider does not create users or roles yet", sqlAccessControlHtml);
+        Assert.Contains("procedure-message warning", sqlAccessControlHtml);
         Assert.Contains("Database: read/write", sqlAccessControlHtml);
         Assert.Contains("Effective access: not applied by provider yet", sqlAccessControlHtml);
         Assert.Contains("SQL Server provider has not created SQL users or roles for this grant yet", sqlAccessControlHtml);
