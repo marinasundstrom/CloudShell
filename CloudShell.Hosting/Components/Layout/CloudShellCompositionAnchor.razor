@@ -1,0 +1,81 @@
+@inject CompositionRegistry Composition
+@using CloudShell.UI.Composition
+
+<FluentAnchor Appearance="@Appearance"
+              Href="@Href"
+              IconStart="@IconStart"
+              IconEnd="@IconEnd"
+              Class="@Class"
+              @attributes="AdditionalAttributes">
+    @if (ChildContent is null)
+    {
+        @ResolvedTitle
+    }
+    else
+    {
+        @ChildContent
+    }
+</FluentAnchor>
+
+@code {
+    [Parameter]
+    public PageId? Page { get; set; }
+
+    [Parameter]
+    public CompositionTarget? Target { get; set; }
+
+    [Parameter]
+    public IReadOnlyDictionary<string, object?>? RouteParams { get; set; }
+
+    [Parameter]
+    public Appearance Appearance { get; set; } = Microsoft.FluentUI.AspNetCore.Components.Appearance.Neutral;
+
+    [Parameter]
+    public Icon? IconStart { get; set; }
+
+    [Parameter]
+    public Icon? IconEnd { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private CompositionTarget ResolvedTarget =>
+        Target ?? (Page.HasValue
+            ? CompositionTarget.ForPage(Page.Value)
+            : throw new InvalidOperationException("CloudShellCompositionAnchor requires Page or Target."));
+
+    private string Href => Composition.ResolveHref(ResolvedTarget, RouteParams);
+
+    private string ResolvedTitle => ResolveTitle(ResolvedTarget);
+
+    private string ResolveTitle(CompositionTarget target)
+    {
+        if (target.Kind == CompositionTargetKind.Href)
+        {
+            return target.Value;
+        }
+
+        if (Composition.GetMenuItemProjection(new MenuItemId(target.Value)) is { } menuItem)
+        {
+            return menuItem.Item.Title;
+        }
+
+        if (Composition.GetPageProjection(new PageId(target.Value)) is { } page)
+        {
+            return page.Page.Title;
+        }
+
+        if (Composition.GetSectionProjection(new SectionId(target.Value)) is { } section)
+        {
+            return section.Section.Title;
+        }
+
+        return target.Value;
+    }
+}

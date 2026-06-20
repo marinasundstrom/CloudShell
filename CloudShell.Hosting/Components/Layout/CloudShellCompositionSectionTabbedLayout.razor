@@ -30,9 +30,10 @@
         {
             <EmptyState Title="@selectedSectionIssue.Title"
                         Message="@selectedSectionIssue.Message">
-                <FluentAnchor Appearance="Appearance.Neutral" Href="@selectedSectionIssue.RecoveryHref">
+                <CloudShellCompositionAnchor Appearance="Appearance.Neutral"
+                                             Page="@Page">
                     @selectedSectionIssue.RecoveryLabel
-                </FluentAnchor>
+                </CloudShellCompositionAnchor>
             </EmptyState>
         }
         else if (EmptyContent is not null)
@@ -185,8 +186,7 @@
         return new(
             L["Section not found"].Value,
             message,
-            L["Open overview"].Value,
-            Composition.ResolveHref(CompositionTarget.ForPage(Page)));
+            L["Open overview"].Value);
     }
 
     private IReadOnlyList<CloudShellTabbedLayoutItem> BuildItems(
@@ -370,6 +370,5 @@
     private sealed record CompositionSectionSelectionIssue(
         string Title,
         string Message,
-        string RecoveryLabel,
-        string RecoveryHref);
+        string RecoveryLabel);
 }
