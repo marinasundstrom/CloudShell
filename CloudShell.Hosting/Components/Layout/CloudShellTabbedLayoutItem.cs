@@ -7,4 +7,5 @@ public sealed record CloudShellTabbedLayoutItem(
     string Group = "General",
     string? GroupTitle = null,
     string? Icon = null,
-    string? Description = null);
+    string? Description = null,
+    string? ModuleId = null);

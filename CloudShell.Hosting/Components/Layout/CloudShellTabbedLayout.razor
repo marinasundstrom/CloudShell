@@ -21,6 +21,7 @@
                                     type="button"
                                     role="tab"
                                     aria-selected="@(item.Id == SelectedItem?.Id)"
+                                    data-composition-module="@item.ModuleId"
                                     @onclick="() => SelectItemAsync(item)">
                                 @if (!string.IsNullOrWhiteSpace(item.Icon))
                                 {
@@ -41,7 +42,8 @@
         }
     </aside>
 
-    <div class="panel cloudshell-tabbed-host registration-host">
+    <div class="panel cloudshell-tabbed-host registration-host"
+         data-composition-module="@SelectedItem?.ModuleId">
         @if (SelectedItem is null)
         {
             @EmptyContent

@@ -322,7 +322,9 @@ linking to registered shell pages so route lookup stays behind the composition
 registry during the migration. The Settings page renders its section outlet
 through a CloudShell-specific composition tabbed-layout adapter so the shell
 can keep its Fluent/resource-details visual language without forcing that
-presentation into the generic Blazor composition package.
+presentation into the generic Blazor composition package. The adapter
+preserves section module ownership on rendered tab buttons and panels through
+`data-composition-module` attributes.
 
 Resource Manager also registers its static shell pages as composition pages.
 Parameterized resource detail routes remain outside the composition graph for

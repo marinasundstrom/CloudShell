@@ -89,6 +89,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager static navigation routes now use shared
   `ResourceManagerRoutes` constants for add-resource, resource-group,
   templates, and settings links.
+- The shared shell tabbed layout can now carry composition module ownership
+  metadata from composition-backed section tabs to rendered tab buttons and
+  panels.
 - CloudShell UI Extension Host now includes an isolated shell-composition
   sandbox with sample-local typed IDs, a registry, composition context host,
   menu renderer, section container, and section outlet so the layout/content

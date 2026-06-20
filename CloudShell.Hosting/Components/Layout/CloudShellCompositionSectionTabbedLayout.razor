@@ -141,7 +141,8 @@
                 Group: L[Group].Value,
                 GroupTitle: GroupTitle is null ? null : L[GroupTitle].Value,
                 Icon: IconSelector?.Invoke(section),
-                Description: DescriptionSelector?.Invoke(section)))
+                Description: DescriptionSelector?.Invoke(section),
+                ModuleId: section.ModuleId.Value))
             .ToArray();
 
     private void SelectSection(CloudShellTabbedLayoutItem item)
