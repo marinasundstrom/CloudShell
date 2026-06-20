@@ -127,6 +127,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Trace and metric unavailable-resource messages now use the Resource Manager
   display label when the requested resource exists but does not expose that
   telemetry signal.
+- Logs unavailable-resource messages now use the Resource Manager display label
+  when the requested resource exists but has no registered log sources.
 
 ### 2026-06-19
 

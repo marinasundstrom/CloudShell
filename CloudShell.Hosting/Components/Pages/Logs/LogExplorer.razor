@@ -417,7 +417,8 @@ else if (ShowHeading)
             .Where(resourceId => !string.IsNullOrWhiteSpace(resourceId))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
-        IReadOnlyList<Resource> resources = resourceIds.Length == 0
+        IReadOnlyList<Resource> resources = resourceIds.Length == 0 &&
+            string.IsNullOrWhiteSpace(ResourceId)
             ? []
             : await ResourceManager.ListResourcesAsync();
         var resourcesById = resources.ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
@@ -471,7 +472,7 @@ else if (ShowHeading)
             var resourceId = ResourceId?.Trim() ?? string.Empty;
             return new LogSelectionIssue(
                 L["Resource log filter not found"].Value,
-                L["No log sources are registered for resource '{0}'.", resourceId].Value,
+                L["No log sources are registered for resource '{0}'.", GetResourceLabel(resourceId)].Value,
                 L["Show all logs"].Value,
                 "/logs");
         }
@@ -553,6 +554,11 @@ else if (ShowHeading)
 
     private string GetResourceLabel(Resource resource) =>
         DisplaySelection.GetResourceLabel(resource);
+
+    private string GetResourceLabel(string resourceId) =>
+        LogResourcesById.TryGetValue(resourceId, out var resource)
+            ? GetResourceLabel(resource)
+            : resourceId;
 
     private void ClearTraceFilter()
     {
