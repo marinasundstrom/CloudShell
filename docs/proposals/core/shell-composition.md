@@ -485,29 +485,40 @@ The practical path should be incremental:
    credible. The adapter should map CloudShell extension contributions into
    the core composition graph rather than making the composition engine depend
    on the CloudShell extension model.
-4. Move the composition root into the core CloudShell main layout once the
+4. Register composition services in CloudShell UI and allow extensions to add
+   passive composition modules before any shell renderer depends on them. This
+   gives CloudShell an integration seam while the current shell catalog,
+   navigation, and Resource Manager views continue to render normally.
+5. Add shell-owned layout components that consume the composition graph beside
+   the existing shell catalog. These components should prove menu, page,
+   section, and outlet projections inside CloudShell without forcing an
+   immediate menu-system migration.
+6. Gradually move shell navigation to composition-backed menus, identify
+   missing metadata, selection, localization, icon, and projection APIs, and
+   fill those gaps in the reusable composition layer where they are generic.
+7. Move the composition root into the core CloudShell main layout once the
    composition app and adapter prove the model. The core layout should resolve
    current route/page context and cascade composition context to shell chrome,
    routed pages, and nested outlets so integrating services can target
    shell-provided IDs.
-5. Dogfood the graph with a standard Settings page made from shell pages,
+8. Dogfood the graph with a standard Settings page made from shell pages,
    sub-pages, slots, section containers, and sections. The initial settings
    experience can render as tabs, but the contract should remain layout-node
    based rather than tab based.
-6. Extract a generic ordered-section renderer from
+9. Extract a generic ordered-section renderer from
    `GeneratedResourceViewLayout` and `ResourcePredefinedViewSections`, keeping
    the current Resource Manager section contracts as adapters.
-7. Extract a generic grouped local-navigation renderer from the Resource
+10. Extract a generic grouped local-navigation renderer from the Resource
    Manager tab grouping and the shell-hosted view menu item model. Treat tab
    rendering as one renderer over child layout nodes.
-8. Let `CustomShellViewContribution`, the new Settings page, and Resource
+11. Let `CustomShellViewContribution`, the new Settings page, and Resource
    Manager detail pages render through the same hosted-page/layout graph
    infrastructure where their needs overlap.
-9. Add generic slot and section-container contributions and map
+12. Add generic slot and section-container contributions and map
    `ResourcePredefinedViewSectionContribution` into section contributions for
    predefined resource views.
-10. Add notification-center and dashboard adapters over the same primitives.
-11. Only after the generic renderer is proven, consider renaming or replacing
+13. Add notification-center and dashboard adapters over the same primitives.
+14. Only after the generic renderer is proven, consider renaming or replacing
    `CustomShellView` APIs with clearer shell composition names.
 
 During the extraction, Resource Manager behavior should not regress:

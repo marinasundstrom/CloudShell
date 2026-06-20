@@ -195,6 +195,22 @@ This is still startup composition, not CloudShell extension discovery. It gives
 hosts and packages a small integration point for contributing modules without
 introducing a CMS/editor layer.
 
+CloudShell Hosting now registers the composition services during
+`AddCloudShellUi()`. Existing CloudShell navigation and pages still render
+through the current shell catalog. Extensions that reference the composition
+package can register modules through `builder.Services.AddCloudShellUiCompositionModule(...)`;
+the UI-extension-host sample does this for its sample workspace page. This is
+the first integration seam, not a replacement renderer.
+
+The next CloudShell integration step is to add shell-owned layout components
+that consume the composition graph while keeping the current shell catalog in
+place. Once those layout components are proven, CloudShell can gradually move
+navigation over to composition-backed menus, identify missing metadata or
+projection APIs, and then introduce a common settings page built from the same
+page, menu, section, and outlet primitives. The standalone CompositionSandbox
+sample remains the place to explore layout patterns before the shell adopts
+them.
+
 `CompositionEngineHost` is an in-memory host for mounted modules. It owns the
 currently mounted module list and rebuilds the active registry projection when
 modules are mounted or unmounted:

@@ -31,6 +31,9 @@ http://localhost:5101/sample-workspace
 - `Program.cs` uses `builder.AddCloudShellUi()`.
 - `SampleWorkspaceExtension` contributes a shell navigation item and start
   route.
+- `SampleWorkspaceExtension` also registers a composition module for the same
+  page. The current CloudShell shell still renders through the existing shell
+  catalog, but composition services are available for future integration.
 - Shell environment preferences are persisted by the UI host's local
   `ICloudShellUserSettingsProvider` because the default
   `Shell:EnvironmentSettings:Storage` value is `Local`.

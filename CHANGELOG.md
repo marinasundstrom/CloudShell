@@ -131,6 +131,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Added Blazor DI helpers for registering multiple `CompositionModule`
   instances before assembling the composition registry, and updated the
   sandbox to use separate host and sample-extension modules.
+- CloudShell UI now registers the composition engine services during
+  `AddCloudShellUi()`, and the UI Extension Host sample registers a passive
+  composition module for its sample workspace page as the first shell
+  integration seam.
 - Moved the composition proof direction away from the UI Extension Host sample:
   CloudShell extension integration should adapt to the core composition graph
   only after the standalone app structure is credible.

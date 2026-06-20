@@ -7,6 +7,7 @@ using CloudShell.Hosting.Authentication;
 using CloudShell.Hosting.Localization;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
+using CloudShell.UI.Composition.Blazor;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting.StaticWebAssets;
@@ -68,6 +69,7 @@ public static class CloudShellHostApplicationBuilderExtensions
             builder.Configuration.GetSection(ResourceManagerUiOptions.SectionName));
         builder.Services.AddRazorComponents()
             .AddInteractiveServerComponents();
+        builder.Services.AddCloudShellUiComposition();
 
         ConfigureLocalization(builder);
 
