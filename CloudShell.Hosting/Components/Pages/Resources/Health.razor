@@ -6,6 +6,7 @@
 @inject IResourceOrchestrationSettings OrchestrationSettings
 @inject ShellCatalog ShellCatalog
 @inject IStringLocalizer<SharedResource> L
+@inject CloudShell.UI.Composition.CompositionRegistry Composition
 
 <PageTitle>@L["Health"]</PageTitle>
 
@@ -400,8 +401,8 @@
             : $"{path} / {check.Timeout.Value.TotalSeconds:0.#}s";
     }
 
-    private static string BuildResourceRoute(string resourceId) =>
-        ResourceManagerRoutes.ResourceDetails(resourceId);
+    private string BuildResourceRoute(string resourceId) =>
+        ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId);
 
     public void Dispose()
     {

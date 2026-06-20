@@ -344,7 +344,10 @@ canonical parameterized composition page with the route
 `/resources/{resourceId}/{view?}`. Resource tab availability and rendering
 remain Resource Manager concepts for now; the details page uses the
 composition page target for canonical tab navigation while the existing route
-helpers remain available as fallback and non-composition API. Observability
+helpers remain available as fallback and non-composition API. Resource Manager
+UI code that has access to the composition registry should use the shared
+Resource Manager composition-link helper when it needs a Resource Details URL.
+Observability
 contributes its Workspace parent item and child entries for Logs,
 Dependencies, Service map, Traces, and Metrics with per-item permission
 requirements in the graph. The UI Extension Host sample contributes its

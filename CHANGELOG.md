@@ -117,6 +117,9 @@ on `git blame --follow`, and then by the broad type of change.
   grouping rules inline in the page.
 - Resource Details now has a canonical parameterized composition page target
   and uses composition link resolution when switching resource tabs.
+- Resource Manager resource links now have a shared composition-backed helper
+  for resolving Resource Details URLs, with Health and Resource Graph using
+  the canonical page target.
 - The common Settings page now renders composition sections through a
   CloudShell-specific tabbed-layout adapter, keeping section projection,
   selection, link resolution, and dynamic section rendering reusable.

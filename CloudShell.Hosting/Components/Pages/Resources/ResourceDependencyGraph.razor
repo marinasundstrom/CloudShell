@@ -6,6 +6,7 @@
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
 @inject IStringLocalizer<SharedResource> L
+@inject CloudShell.UI.Composition.CompositionRegistry Composition
 
 <PageTitle>@L["Resource graph"]</PageTitle>
 
@@ -117,7 +118,7 @@
             return;
         }
 
-        Navigation.NavigateTo(ResourceManagerRoutes.ResourceDetails(resourceId));
+        Navigation.NavigateTo(ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId));
     }
 
     private async Task RefreshAsync()
@@ -147,7 +148,7 @@
                 GetEndpointText(resource),
                 GetStateLabel(resource),
                 ResourceStateDisplay.GetStateClass(resource.State),
-                ResourceManagerRoutes.ResourceDetails(resource.Id),
+                ResourceManagerCompositionLinks.ResourceDetails(Composition, resource.Id),
                 resource.DependsOn
                     .Where(visibleIds.Contains)
                     .Distinct(StringComparer.OrdinalIgnoreCase)

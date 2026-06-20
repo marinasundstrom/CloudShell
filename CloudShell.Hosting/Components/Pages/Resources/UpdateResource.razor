@@ -344,7 +344,7 @@
         if (!string.IsNullOrWhiteSpace(ResourceId))
         {
             Navigation.NavigateTo(
-                BuildResourceDetailsHref(ResourceId, tabId),
+                ResourceManagerCompositionLinks.ResourceDetails(Composition, ResourceId, tabId),
                 replace: true);
         }
 
@@ -362,27 +362,6 @@
         {
             SelectTab(tabId);
         }
-    }
-
-    private string BuildResourceDetailsHref(string resourceId, ResourceViewId tabId)
-    {
-        var routeParams = new Dictionary<string, object?>
-        {
-            ["resourceId"] = resourceId
-        };
-
-        if (tabId != ResourcePredefinedViewIds.Overview)
-        {
-            routeParams["view"] = ResourceManagerRoutes.GetResourceViewSegment(tabId);
-        }
-
-        var href = Composition.ResolveHref(
-            ResourceManagerCompositionIds.ResourceDetailsPage,
-            routeParams);
-
-        return href == "#"
-            ? ResourceManagerRoutes.ResourceDetails(resourceId, tabId)
-            : href;
     }
 
     private ResourceTabContribution? GetSelectedTab(IReadOnlyList<ResourceTabContribution> tabs)
@@ -1218,7 +1197,7 @@
         }
 
         Navigation.NavigateTo(Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
-            ResourceManagerRoutes.ResourceDetails(Resource.Id, ResourcePredefinedViewIds.Logs),
+            ResourceManagerCompositionLinks.ResourceDetails(Composition, Resource.Id, ResourcePredefinedViewIds.Logs),
             query));
     }
 
