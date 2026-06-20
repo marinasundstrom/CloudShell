@@ -674,6 +674,31 @@ public sealed class SampleSmokeTests
         Assert.Contains("Health summary", frontendHealthHtml);
         Assert.Contains("/healthz", frontendHealthHtml);
 
+        var settingsHtml = await host.GetStringAsync("/settings");
+        Assert.Contains(">Settings<", settingsHtml);
+        Assert.Contains(">Overview<", settingsHtml);
+        Assert.Contains(">Platform<", settingsHtml);
+        Assert.Contains(">Resource Manager<", settingsHtml);
+        Assert.Contains("Settings composition", settingsHtml);
+
+        var platformSettingsHtml = await host.GetStringAsync("/settings/platform");
+        Assert.Contains("Platform surfaces", platformSettingsHtml);
+        Assert.Contains("Open users", platformSettingsHtml);
+        Assert.Contains("href=\"/account/users\"", platformSettingsHtml);
+        Assert.Contains("Open extensions", platformSettingsHtml);
+        Assert.Contains("href=\"/extensions\"", platformSettingsHtml);
+
+        var resourceManagerSettingsHtml = await host.GetStringAsync("/settings/resource-manager");
+        Assert.Contains("Resource orchestrator", resourceManagerSettingsHtml);
+        Assert.Contains("CloudShell modes", resourceManagerSettingsHtml);
+        Assert.Contains("Inventory visibility", resourceManagerSettingsHtml);
+
+        var missingSettingsSectionHtml = await host.GetStringAsync("/settings/does-not-exist");
+        Assert.Contains("Section not found", missingSettingsSectionHtml);
+        Assert.Contains("Section &#x27;does-not-exist&#x27; is not available.", missingSettingsSectionHtml);
+        Assert.Contains("Open overview", missingSettingsSectionHtml);
+        Assert.Contains("href=\"/settings\"", missingSettingsSectionHtml);
+
         var settingsDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("configuration:application-topology")}/details");
         Assert.Contains(">Relationships<", settingsDetailsHtml);
