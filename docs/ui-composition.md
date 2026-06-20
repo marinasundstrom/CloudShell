@@ -328,12 +328,13 @@ preserves section module ownership on rendered tab buttons and panels through
 
 Resource Manager also registers its static shell pages as composition pages.
 The composition link resolver can materialize route-template values, which
-allows future composition targets to resolve stable navigational locations such
-as `/resources/{resourceId}` for the Resource Details container page and
+allows composition targets to resolve stable navigational locations such as
+`/resources/{resourceId}` for the Resource Details container page and
 `/resources/{resourceId}/{view}` for a selected Details tab/view, while leaving
-non-navigational context in the query string. Resource Manager's existing
-details routes remain on the current route helpers until that URL migration is
-taken as a separate slice.
+non-navigational context in the query string. Resource Details accepts the
+legacy `/resources/{resourceId}/details?tab=<group>:<view>` shape for
+compatibility, but generated Resource Manager links use the path-shaped
+convention.
 
 Resource Details now consumes the same shell-owned tabbed layout component as
 Settings while preserving the Resource Manager-owned tab contribution model,
@@ -476,7 +477,14 @@ plain CSS without changing the composition model.
 Routing remains normal Blazor routing. Razor components still declare routes
 with `@page`; the composition registry records which composition page ID maps
 to that route so menus, links, title outlets, and section outlets can resolve
-the active page.
+the active page. The composition framework is convention-driven and
+opinionated: pages and sub-pages map to path segments, sections map to
+fragments, and query strings carry local view state. Custom URL mapping is a
+future extension point rather than part of the initial model.
+The convention is a contract between the resolver and the UI that consumes the
+route: if composition resolves a target to `/resources/{resourceId}/{view}`,
+the Resource Details component must declare and interpret that same route
+shape.
 
 `PageTitleOutlet` relies on Blazor's normal `PageTitle` and `HeadOutlet`
 behavior. Hosts still need to include a Blazor `HeadOutlet` in their app shell
@@ -528,6 +536,18 @@ filters, tabs, sort order, and other page-local state, and fragments for
 in-page focus or section anchors. Full composition IDs remain stable internal
 addresses; a host or adapter may map them to shorter, product-shaped URLs
 instead of exposing the entire hierarchical ID in the path.
+
+Until a custom mapping facility exists, public path segments are derived by
+convention from the addressable artifact's local identifier in its parent
+scope. For example, Resource Manager keeps the typed view ID
+`management:access-control` as the internal address, while its route segment is
+`access-control` under `/resources/{resourceId}`.
+
+How sub-pages are rendered is up to the consumer. A page with child sub-pages
+can be projected as tabs, side navigation, cards, or another local-navigation
+component. Resource Details currently projects resource views as grouped tabs,
+but the route convention treats those views as subordinate page locations under
+the Resource Details page.
 
 ## Sample
 

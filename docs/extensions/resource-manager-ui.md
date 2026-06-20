@@ -141,9 +141,13 @@ The shell generates a default resource detail view from the projected
 `Resource` when a provider does not contribute a specialized view. The
 generated view shows stable identity, class, endpoints, attributes,
 dependencies, health checks, actions, and observability details. The built-in
-route is `/resources/{resourceId}/details?tab=general:overview`;
-provider-contributed tabs use the same route with their tab ID in the `tab`
-query parameter.
+route is `/resources/{resourceId}` for the default Overview view, while
+provider-contributed tabs and predefined views use
+`/resources/{resourceId}/{view}`. Resource Manager derives `{view}` from the
+local `ResourceViewId.Identifier` by convention, so
+`management:access-control` resolves to `access-control`. The legacy
+`/resources/{resourceId}/details?tab=<group>:<view>` route remains supported
+for compatibility.
 
 Resources can set `DetailRoute` to link to an extension-owned view. This
 supports the familiar cloud-portal pattern where a resource opens its own
@@ -170,8 +174,10 @@ Predefined view IDs are logical hierarchical IDs represented by
 - `GroupId` identifies the concern group, such as `general` or `networking`.
 - `Identifier` identifies the view inside that group, such as `overview` or
   `endpoints`.
-- `Value` is the canonical serialized form used in routes and query strings,
-  for example `general:overview` or `networking:endpoints`.
+- `Value` is the canonical serialized form used in compatibility query
+  strings and internal references, for example `general:overview` or
+  `networking:endpoints`. The public path segment is conventionally the
+  `Identifier` within the current resource page.
 
 Use `ResourceTabGroupIds`, `ResourceTabGroupTitles`, and
 `ResourcePredefinedViewIds` instead of creating raw string literals in

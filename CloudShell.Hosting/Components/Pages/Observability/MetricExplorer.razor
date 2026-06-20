@@ -353,9 +353,8 @@ else if (ShowHeading)
 
         if (Inline)
         {
-            query["tab"] = ResourcePredefinedViewIds.Metrics.Value;
             return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
-                ResourceManagerRoutes.ResourceDetails(resourceId),
+                ResourceManagerRoutes.ResourceDetails(resourceId, ResourcePredefinedViewIds.Metrics),
                 query);
         }
 

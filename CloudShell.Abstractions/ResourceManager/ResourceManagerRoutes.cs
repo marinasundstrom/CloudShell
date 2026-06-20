@@ -18,18 +18,26 @@ public static class ResourceManagerRoutes
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
 
-        return $"/resources/{Uri.EscapeDataString(resourceId)}/details";
+        return $"/resources/{Uri.EscapeDataString(resourceId)}";
     }
 
     public static string ResourceDetails(string resourceId, ResourceViewId viewId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
 
-        return $"{ResourceDetails(resourceId)}?tab={Uri.EscapeDataString(viewId.Value)}";
+        if (viewId == ResourcePredefinedViewIds.Overview)
+        {
+            return ResourceDetails(resourceId);
+        }
+
+        return $"{ResourceDetails(resourceId)}/{Uri.EscapeDataString(GetResourceViewSegment(viewId))}";
     }
 
     public static string ResourceOverview(string resourceId) =>
-        ResourceDetails(resourceId, ResourcePredefinedViewIds.Overview);
+        ResourceDetails(resourceId);
+
+    public static string GetResourceViewSegment(ResourceViewId viewId) =>
+        viewId.Identifier;
 
     public static string ResourceNotFound(string resourceId)
     {

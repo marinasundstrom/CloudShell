@@ -1,5 +1,7 @@
 @page "/resources/{ResourceId}/edit"
 @page "/resources/{ResourceId}/details"
+@page "/resources/{ResourceId}"
+@page "/resources/{ResourceId}/{RequestedRouteView}"
 @rendermode InteractiveServer
 @inject IResourceManager ResourceManager
 @inject ILogManager LogManager
@@ -227,6 +229,9 @@
     [Parameter]
     public string? ResourceId { get; set; }
 
+    [Parameter]
+    public string? RequestedRouteView { get; set; }
+
     [SupplyParameterFromQuery(Name = "tab")]
     private string? RequestedQueryTabId { get; set; }
 
@@ -292,11 +297,15 @@
 
         await LoadResourceAffordancesAsync(resource);
 
-        SelectedTabId = null;
-        if (ResourceViewId.TryParse(RequestedQueryTabId, out var requestedTabId))
-        {
-            SelectedTabId = requestedTabId;
-        }
+        var resourceType = ShellCatalog.ResourceTypes.FirstOrDefault(type =>
+            string.Equals(type.Id, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase));
+        var tabs = BuildTabs(
+            resource,
+            resourceType,
+            ResourceLogs.Count > 0,
+            HasResourceMonitoring,
+            HasDefaultIdentityProvider());
+        SelectedTabId = ResolveRequestedTabId(tabs);
 
         if (ConfigurationContext?.ResourceId != resource.Id)
         {
@@ -371,14 +380,20 @@
 
     private ResourceViewSelectionIssue? GetSelectedTabIssue(IReadOnlyList<ResourceTabContribution> tabs)
     {
-        if (string.IsNullOrWhiteSpace(RequestedQueryTabId))
+        var requested = GetRequestedTabDisplayValue();
+        if (string.IsNullOrWhiteSpace(requested))
         {
             return null;
         }
 
-        var requested = RequestedQueryTabId.Trim();
-        if (!ResourceViewId.TryParse(requested, out var requestedTabId))
+        if (!TryResolveRequestedTabId(tabs, out var requestedTabId))
         {
+            if (HasRequestedRouteViewSegment())
+            {
+                return CreateResourceViewSelectionIssue(
+                    L["Resource view '{0}' is not available for this resource.", requested].Value);
+            }
+
             return CreateResourceViewSelectionIssue(
                 L["Resource view '{0}' is not a valid view ID.", requested].Value);
         }
@@ -388,6 +403,61 @@
             : CreateResourceViewSelectionIssue(
                 L["Resource view '{0}' is not available for this resource.", requested].Value);
     }
+
+    private ResourceViewId? ResolveRequestedTabId(IReadOnlyList<ResourceTabContribution> tabs) =>
+        TryResolveRequestedTabId(tabs, out var requestedTabId)
+            ? requestedTabId
+            : null;
+
+    private bool TryResolveRequestedTabId(
+        IReadOnlyList<ResourceTabContribution> tabs,
+        out ResourceViewId requestedTabId)
+    {
+        requestedTabId = default;
+        var requested = GetRequestedTabDisplayValue();
+        if (string.IsNullOrWhiteSpace(requested))
+        {
+            return false;
+        }
+
+        var normalized = Uri.UnescapeDataString(requested.Trim());
+        if (ResourceViewId.TryParse(normalized, out requestedTabId))
+        {
+            return true;
+        }
+
+        var matchingTabs = tabs
+            .Where(tab => string.Equals(
+                ResourceManagerRoutes.GetResourceViewSegment(tab.Id),
+                normalized,
+                StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if (matchingTabs.Length == 1)
+        {
+            requestedTabId = matchingTabs[0].Id;
+            return true;
+        }
+
+        return false;
+    }
+
+    private string? GetRequestedTabDisplayValue()
+    {
+        if (HasRequestedRouteViewSegment())
+        {
+            return RequestedRouteView;
+        }
+
+        return RequestedQueryTabId;
+    }
+
+    private bool HasRequestedRouteViewSegment() =>
+        !string.IsNullOrWhiteSpace(RequestedRouteView) &&
+        !IsLegacyResourceDetailsSegment(RequestedRouteView);
+
+    private static bool IsLegacyResourceDetailsSegment(string value) =>
+        string.Equals(value.Trim(), "details", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(value.Trim(), "edit", StringComparison.OrdinalIgnoreCase);
 
     private ResourceViewSelectionIssue CreateResourceViewSelectionIssue(string message) =>
         new(
@@ -1184,10 +1254,7 @@
             return;
         }
 
-        var query = new Dictionary<string, string?>
-        {
-            ["tab"] = ResourcePredefinedViewIds.Logs.Value
-        };
+        var query = new Dictionary<string, string?>();
 
         if (ResourceLogs.Count == 1)
         {
@@ -1195,7 +1262,7 @@
         }
 
         Navigation.NavigateTo(Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
-            ResourceManagerRoutes.ResourceDetails(Resource.Id),
+            ResourceManagerRoutes.ResourceDetails(Resource.Id, ResourcePredefinedViewIds.Logs),
             query));
     }
 

@@ -1665,17 +1665,16 @@ else
 
     private static string BuildResourceLogsRoute(string resourceId, IReadOnlyList<LogDescriptor> logs)
     {
-        var query = new Dictionary<string, string?>
-        {
-            ["tab"] = ResourcePredefinedViewIds.Logs.Value
-        };
+        var query = new Dictionary<string, string?>();
 
         if (logs.Count == 1)
         {
             query["logId"] = logs[0].Id;
         }
 
-        return BuildRoute(ResourceManagerRoutes.ResourceDetails(resourceId), query);
+        return BuildRoute(
+            ResourceManagerRoutes.ResourceDetails(resourceId, ResourcePredefinedViewIds.Logs),
+            query);
     }
 
     private static string BuildTraceRoute(string resourceId) =>
@@ -1684,9 +1683,7 @@ else
             new Dictionary<string, string?> { ["resourceId"] = resourceId });
 
     private static string BuildActivityRoute(string resourceId) =>
-        BuildRoute(
-            ResourceManagerRoutes.ResourceDetails(resourceId),
-            new Dictionary<string, string?> { ["tab"] = ResourcePredefinedViewIds.Activity.Value });
+        ResourceManagerRoutes.ResourceDetails(resourceId, ResourcePredefinedViewIds.Activity);
 
     private static string BuildRoute(string path, Dictionary<string, string?> query)
     {

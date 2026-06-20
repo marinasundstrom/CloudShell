@@ -219,10 +219,10 @@ public sealed class SampleSmokeTests
         Assert.Contains("Dependency graph", frontendOverviewHtml);
         Assert.Contains("Project Reference API", frontendOverviewHtml);
         Assert.Contains(
-            $"href=\"/resources/application%3Aproject-reference-api/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Activity.Value)}\"",
+            "href=\"/resources/application%3Aproject-reference-api/activity\"",
             frontendOverviewHtml);
         Assert.Contains(
-            $"href=\"/resources/application%3Aproject-reference-api/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Traces.Value)}\"",
+            "href=\"/resources/application%3Aproject-reference-api/traces\"",
             frontendOverviewHtml);
 
         var traceHtml = await host.GetStringAsync(
@@ -242,12 +242,12 @@ public sealed class SampleSmokeTests
         Assert.Contains("trace-span-row error", traceHtml);
         Assert.Contains("trace-error-pill", traceHtml);
         Assert.Contains(
-            $"href=\"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Logs.Value)}&amp;traceId=4bf92f3577b34da6a3ce929d0e0e4736\"",
+            "href=\"/resources/application%3Aproject-reference-frontend/logs?traceId=4bf92f3577b34da6a3ce929d0e0e4736\"",
             traceHtml);
         Assert.Contains(
-            $"href=\"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Activity.Value)}&amp;traceId=4bf92f3577b34da6a3ce929d0e0e4736&amp;spanId=00f067aa0ba902b7\"",
+            "href=\"/resources/application%3Aproject-reference-frontend/activity?traceId=4bf92f3577b34da6a3ce929d0e0e4736&amp;spanId=00f067aa0ba902b7\"",
             traceHtml);
-        Assert.Contains("href=\"/resources/application%3Aproject-reference-frontend/details\"", traceHtml);
+        Assert.Contains("href=\"/resources/application%3Aproject-reference-frontend\"", traceHtml);
 
         var traceListHtml = await host.GetStringAsync(
             "/observability/traces?resourceId=application%3Aproject-reference-api");
@@ -305,7 +305,7 @@ public sealed class SampleSmokeTests
         Assert.Contains("Related activity", relatedTracesHtml);
         Assert.Contains("Clear trace filter", relatedTracesHtml);
         Assert.Contains(
-            $"href=\"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Logs.Value)}&amp;traceId=4bf92f3577b34da6a3ce929d0e0e4736\"",
+            "href=\"/resources/application%3Aproject-reference-frontend/logs?traceId=4bf92f3577b34da6a3ce929d0e0e4736\"",
             relatedTracesHtml);
 
         var missingInlineTraceScopeHtml = await host.GetStringAsync(
@@ -607,7 +607,7 @@ public sealed class SampleSmokeTests
         Assert.Contains("type=cloudshell.loadBalancer", apiEndpointsHtml);
         Assert.Contains("targetResourceId=application%3Aapplication-topology-api", apiEndpointsHtml);
         Assert.Contains("targetEndpointName=http", apiEndpointsHtml);
-        Assert.Contains("returnUrl=%2Fresources%2Fapplication%253Aapplication-topology-api%2Fdetails%3Ftab%3Dnetworking%253Aendpoints", apiEndpointsHtml);
+        Assert.Contains("returnUrl=%2Fresources%2Fapplication%253Aapplication-topology-api%2Fendpoints", apiEndpointsHtml);
 
         var apiDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details");
@@ -767,6 +767,16 @@ public sealed class SampleSmokeTests
         Assert.Contains("Provider: local-hostnames", frontendDetailsHtml);
         Assert.Contains("Materialization: provider selected", frontendDetailsHtml);
 
+        var frontendDetailsRouteHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application:application-topology-frontend")}");
+        Assert.Contains(">Identity<", frontendDetailsRouteHtml);
+        Assert.Contains("application-topology-api", frontendDetailsRouteHtml);
+
+        var frontendOverviewRouteHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application:application-topology-frontend")}/overview");
+        Assert.Contains(">Identity<", frontendOverviewRouteHtml);
+        Assert.Contains("application-topology-api", frontendOverviewRouteHtml);
+
         var dnsDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("dns:application-topology-local")}/details");
         Assert.Contains("app.application-topology.cloudshell.local", dnsDetailsHtml);
@@ -779,7 +789,7 @@ public sealed class SampleSmokeTests
         Assert.Contains("targetResourceId=application%3Aapplication-topology-sql-server", sqlEndpointsHtml);
         Assert.Contains("targetEndpointName=tds", sqlEndpointsHtml);
         Assert.Contains("routeKind=tcp", sqlEndpointsHtml);
-        Assert.Contains("returnUrl=%2Fresources%2Fapplication%253Aapplication-topology-sql-server%2Fdetails%3Ftab%3Dnetworking%253Aendpoints", sqlEndpointsHtml);
+        Assert.Contains("returnUrl=%2Fresources%2Fapplication%253Aapplication-topology-sql-server%2Fendpoints", sqlEndpointsHtml);
 
         var globalLogsHtml = await host.GetStringAsync("/logs");
         Assert.Contains("All resources", globalLogsHtml);
@@ -1858,8 +1868,8 @@ public sealed class SampleSmokeTests
         var apiEndpointsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Endpoints.Value)}");
         Assert.Contains("Add route to load balancer", apiEndpointsHtml);
-        Assert.Contains("/resources/load-balancer%3Apublic/details", apiEndpointsHtml);
-        Assert.Contains("tab=general%3Aconfiguration", apiEndpointsHtml);
+        Assert.Contains("/resources/load-balancer%3Apublic", apiEndpointsHtml);
+        Assert.Contains("/configuration", apiEndpointsHtml);
         Assert.Contains("targetResourceId=application%3Aapi", apiEndpointsHtml);
         Assert.Contains("targetEndpointName=http", apiEndpointsHtml);
         Assert.DoesNotContain("type=cloudshell.loadBalancer", apiEndpointsHtml);
@@ -2240,7 +2250,7 @@ public sealed class SampleSmokeTests
         var tabListStart = html.IndexOf(tabListMarker, StringComparison.Ordinal);
         Assert.True(tabListStart >= 0, "Expected to find the resource tab list.");
 
-        var tabListEnd = html.IndexOf("class=\"panel registration-host\"", tabListStart, StringComparison.Ordinal);
+        var tabListEnd = html.IndexOf("cloudshell-tabbed-host registration-host", tabListStart, StringComparison.Ordinal);
         Assert.True(tabListEnd > tabListStart, "Expected the resource tab list to appear before the detail host.");
 
         AssertInOrder(html[tabListStart..tabListEnd], expected);

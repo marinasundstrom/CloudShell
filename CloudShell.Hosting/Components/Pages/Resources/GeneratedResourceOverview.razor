@@ -999,45 +999,39 @@
     {
         var query = new Dictionary<string, string?>
         {
-            ["tab"] = ResourcePredefinedViewIds.Logs.Value,
             ["logId"] = log.Id
         };
 
-        return QueryHelpers.AddQueryString(ResourceManagerRoutes.ResourceDetails(Resource.Id), query);
+        return QueryHelpers.AddQueryString(
+            ResourceManagerRoutes.ResourceDetails(Resource.Id, ResourcePredefinedViewIds.Logs),
+            query);
     }
 
     private string BuildLogRoute(string resourceId, IReadOnlyList<LogDescriptor> logs)
     {
-        var query = new Dictionary<string, string?>
-        {
-            ["tab"] = ResourcePredefinedViewIds.Logs.Value
-        };
+        var query = new Dictionary<string, string?>();
 
         if (logs.Count == 1)
         {
             query["logId"] = logs[0].Id;
         }
 
-        return QueryHelpers.AddQueryString(ResourceManagerRoutes.ResourceDetails(resourceId), query);
+        return QueryHelpers.AddQueryString(
+            ResourceManagerRoutes.ResourceDetails(resourceId, ResourcePredefinedViewIds.Logs),
+            query);
     }
 
     private string BuildTraceRoute() =>
         BuildTraceRoute(Resource.Id);
 
     private static string BuildTraceRoute(string resourceId) =>
-        QueryHelpers.AddQueryString(
-            ResourceManagerRoutes.ResourceDetails(resourceId),
-            new Dictionary<string, string?> { ["tab"] = ResourcePredefinedViewIds.Traces.Value });
+        ResourceManagerRoutes.ResourceDetails(resourceId, ResourcePredefinedViewIds.Traces);
 
     private static string BuildActivityRoute(string resourceId) =>
-        QueryHelpers.AddQueryString(
-            ResourceManagerRoutes.ResourceDetails(resourceId),
-            new Dictionary<string, string?> { ["tab"] = ResourcePredefinedViewIds.Activity.Value });
+        ResourceManagerRoutes.ResourceDetails(resourceId, ResourcePredefinedViewIds.Activity);
 
     private string BuildMetricRoute() =>
-        QueryHelpers.AddQueryString(
-            ResourceManagerRoutes.ResourceDetails(Resource.Id),
-            new Dictionary<string, string?> { ["tab"] = ResourcePredefinedViewIds.Metrics.Value });
+        ResourceManagerRoutes.ResourceDetails(Resource.Id, ResourcePredefinedViewIds.Metrics);
 
     private async Task CopyEndpoint(string address)
     {

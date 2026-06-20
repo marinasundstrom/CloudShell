@@ -6,6 +6,7 @@ public sealed class ResourceRegistrationNavigationContextTests
 {
     [Theory]
     [InlineData("/resources")]
+    [InlineData("/resources/application%3Aapi/endpoints")]
     [InlineData("/resources/application%3Aapi/details?tab=networking%3Aendpoints")]
     public void GetReturnUrlOrDefault_AllowsLocalReturnUrls(string returnUrl)
     {

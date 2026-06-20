@@ -9,17 +9,17 @@ public sealed class ResourceManagerRoutesTests
     {
         var route = ResourceManagerRoutes.ResourceDetails("application:orders api");
 
-        Assert.Equal("/resources/application%3Aorders%20api/details", route);
+        Assert.Equal("/resources/application%3Aorders%20api", route);
     }
 
     [Fact]
-    public void ResourceDetails_WithViewId_AddsEscapedTabQuery()
+    public void ResourceDetails_WithViewId_AddsViewSegment()
     {
         var route = ResourceManagerRoutes.ResourceDetails(
             "application:api",
             ResourcePredefinedViewIds.Endpoints);
 
-        Assert.Equal("/resources/application%3Aapi/details?tab=networking%3Aendpoints", route);
+        Assert.Equal("/resources/application%3Aapi/endpoints", route);
     }
 
     [Fact]
@@ -27,7 +27,26 @@ public sealed class ResourceManagerRoutesTests
     {
         var route = ResourceManagerRoutes.ResourceOverview("application:api");
 
-        Assert.Equal("/resources/application%3Aapi/details?tab=general%3Aoverview", route);
+        Assert.Equal("/resources/application%3Aapi", route);
+    }
+
+    [Fact]
+    public void ResourceDetails_WithOverviewView_TargetsResourceDetailsContainer()
+    {
+        var route = ResourceManagerRoutes.ResourceDetails(
+            "application:api",
+            ResourcePredefinedViewIds.Overview);
+
+        Assert.Equal("/resources/application%3Aapi", route);
+    }
+
+    [Fact]
+    public void GetResourceViewSegment_UsesViewIdentifierByConvention()
+    {
+        var segment = ResourceManagerRoutes.GetResourceViewSegment(
+            ResourcePredefinedViewIds.AccessControl);
+
+        Assert.Equal("access-control", segment);
     }
 
     [Fact]

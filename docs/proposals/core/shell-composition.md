@@ -344,23 +344,32 @@ disabled/not-found behavior. Adapters can keep domain-specific URL
 compatibility, such as Resource Manager's existing `tab=<group>:<view>` links,
 while still projecting from the generic graph. New navigational surfaces
 should prefer product-shaped path routes where the selected content is a stable
-location; for example, a future Resource Manager details URL should prefer
+location. Resource Manager follows that convention with
 `/resources/{resourceId}` for the Resource Details container page and
-`/resources/{resourceId}/{view}` for a selected Details tab/view over exposing
-the full view ID in a query parameter.
+`/resources/{resourceId}/{view}` for a selected Details tab/view instead of
+exposing the full view ID in a query parameter.
 
 URL shape should remain a host and adapter decision rather than a direct dump
 of the full hierarchical ID. The ID is the durable internal address used for
 lookup, ownership, diagnostics, and extension targeting; it is not always the
-best human-facing navigation path. Use route path segments when the selected
+best human-facing navigation path. The current convention is deliberately
+opinionated: pages and sub-pages use route path segments when the selected
 content is a stable navigational location that users should bookmark, share,
 or understand as part of the information architecture, such as `/settings`,
 `/settings/identity`, `/resources/{resourceId}`, or
-`/resources/{resourceId}/{view}`. Use query parameters for renderer-selected
-state inside an already-established page context, such as a filter, sort, or
-temporary view mode. Use fragments for focus targets or in-page section
-anchors. A resolver can still map all of those URL forms back to composition
-IDs so menus and links stay ID-driven while URLs remain intentional.
+`/resources/{resourceId}/{view}`. Sections use fragments for focus targets or
+in-page section anchors. Query parameters carry state inside an
+already-established page context, such as a selected trace, filter, sort, or
+temporary view mode. A resolver can still map all of those URL forms back to
+composition IDs so menus and links stay ID-driven while URLs remain
+intentional.
+
+Until a custom mapping facility exists, public path segments are derived by
+convention from the addressable artifact's local identifier in its parent
+scope. For example, a typed Resource Manager view ID such as
+`management:access-control` keeps its full internal address, but resolves to
+the `access-control` path segment under `/resources/{resourceId}`. Hosts must
+validate that route segments are unique within their parent scope.
 
 The content selected inside a page or view may be dictated by route values and
 query parameters. The route can establish the page context, while query
@@ -368,6 +377,14 @@ parameters, fragments, or renderer-local state can select sub-pages, sections,
 or view variants. The composition engine should normalize that state back to
 content IDs where possible so links, menus, tabs, section outlets, and custom
 renderers all resolve the same target consistently.
+
+Projection remains the consumer's responsibility. The composition model can
+describe a page with subordinate sub-pages, but a host component decides
+whether those sub-pages render as tabs, side navigation, cards, accordions, or
+another local navigation pattern. Resource Manager resource views are a good
+example: each view can logically be treated as a sub-page under the Resource
+Details page, while the current Resource Manager renderer presents those
+sub-pages as grouped tabs.
 
 ## Near-term implementation constraints
 
@@ -882,8 +899,8 @@ before broad new shell surfaces become release blockers.
   pages, settings sections, and notification actions, and how should Blazor
   renderers project those requirements through `AuthorizeView`? Which helper
   APIs should exist for common role, policy, and claim requirements?
-- Should the generic page-selection query parameter be standardized, or should
-  adapters keep domain-specific query names such as Resource Manager's `tab`?
+- What shape should a future custom URL mapping facility take when convention
+  based path segments are not enough?
 - Which notification records belong in the Control Plane event stream, and
   which are UI-local shell state?
 - Should shell layout configuration be stored in the UI host, the Control

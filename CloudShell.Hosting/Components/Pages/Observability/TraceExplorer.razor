@@ -1044,10 +1044,7 @@ StringComparison.OrdinalIgnoreCase))?.Span
                 return ResourceManagerRoutes.Resources;
             }
 
-            var query = new Dictionary<string, string?>
-            {
-                ["tab"] = ResourcePredefinedViewIds.Traces.Value
-            };
+            var query = new Dictionary<string, string?>();
 
             if (!string.IsNullOrWhiteSpace(traceId))
             {
@@ -1060,7 +1057,7 @@ StringComparison.OrdinalIgnoreCase))?.Span
             }
 
             return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
-                ResourceManagerRoutes.ResourceDetails(resourceId),
+                ResourceManagerRoutes.ResourceDetails(resourceId, ResourcePredefinedViewIds.Traces),
                 query);
         }
 
@@ -1082,19 +1079,17 @@ StringComparison.OrdinalIgnoreCase))?.Span
 
     private static string BuildLogsRoute(string resourceId, string traceId) =>
         Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
-            ResourceManagerRoutes.ResourceDetails(resourceId),
+            ResourceManagerRoutes.ResourceDetails(resourceId, ResourcePredefinedViewIds.Logs),
             new Dictionary<string, string?>
             {
-                ["tab"] = ResourcePredefinedViewIds.Logs.Value,
                 ["traceId"] = traceId
             });
 
     private static string BuildActivityRoute(string resourceId, string traceId, string spanId) =>
         Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
-            ResourceManagerRoutes.ResourceDetails(resourceId),
+            ResourceManagerRoutes.ResourceDetails(resourceId, ResourcePredefinedViewIds.Activity),
             new Dictionary<string, string?>
             {
-                ["tab"] = ResourcePredefinedViewIds.Activity.Value,
                 ["traceId"] = traceId,
                 ["spanId"] = spanId
             });

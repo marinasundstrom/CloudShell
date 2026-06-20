@@ -98,6 +98,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager static navigation routes now use shared
   `ResourceManagerRoutes` constants for add-resource, resource-group,
   templates, and settings links.
+- Resource Details now generates `/resources/{resourceId}` and
+  `/resources/{resourceId}/{view}` links by convention while preserving the
+  legacy `/resources/{resourceId}/details?tab=<group>:<view>` route shape.
 - The shared shell tabbed layout can now carry composition module ownership
   metadata from composition-backed section tabs to rendered tab buttons and
   panels.
