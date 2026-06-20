@@ -1,5 +1,7 @@
 @inject CompositionRegistry Composition
 @inject NavigationManager Navigation
+@using Microsoft.AspNetCore.Components.Routing
+@implements IDisposable
 
 @if (ResolvedContext is null)
 {
@@ -92,6 +94,14 @@ else
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
+    private string? SelectedSectionId { get; set; }
+
+    protected override void OnInitialized()
+    {
+        SelectedSectionId = ReadSelectedSectionId();
+        Navigation.LocationChanged += HandleLocationChanged;
+    }
+
     private CompositionContext? ResolvedContext =>
         CompositionPageContextResolver.Resolve(
             Composition,
@@ -109,16 +119,25 @@ else
     private CompositionSectionProjection SelectedSection =>
         Sections.FirstOrDefault(section => section.Section.Id.Value == SelectedSectionId) ?? Sections[0];
 
-    private string? SelectedSectionId
+    private void HandleLocationChanged(object? sender, LocationChangedEventArgs args)
     {
-        get
+        var selectedSectionId = ReadSelectedSectionId(args.Location);
+        if (string.Equals(SelectedSectionId, selectedSectionId, StringComparison.Ordinal))
         {
-            var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
-            var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
-            return query.TryGetValue(QueryParameter, out var value)
-                ? value.ToString()
-                : null;
+            return;
         }
+
+        SelectedSectionId = selectedSectionId;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private string? ReadSelectedSectionId(string? location = null)
+    {
+        var uri = Navigation.ToAbsoluteUri(location ?? Navigation.Uri);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        return query.TryGetValue(QueryParameter, out var value)
+            ? value.ToString()
+            : null;
     }
 
     private string GetTabClass(CompositionSectionProjection section) =>
@@ -138,4 +157,9 @@ else
 
     private static string JoinClasses(params string[] values) =>
         string.Join(' ', values.Where(value => !string.IsNullOrWhiteSpace(value)));
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= HandleLocationChanged;
+    }
 }

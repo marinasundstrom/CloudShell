@@ -2,6 +2,8 @@
 @inject NavigationManager Navigation
 @inject IStringLocalizer<SharedResource> L
 @using CloudShell.UI.Composition
+@using Microsoft.AspNetCore.Components.Routing
+@implements IDisposable
 
 @{
     var sections = GetSections();
@@ -109,6 +111,14 @@
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
+    private string? SelectedSectionId { get; set; }
+
+    protected override void OnInitialized()
+    {
+        SelectedSectionId = ReadSelectedSectionId();
+        Navigation.LocationChanged += HandleLocationChanged;
+    }
+
     private IReadOnlyList<CompositionSectionProjection> GetSections() =>
         Composition
             .GetSectionProjections(Page, Outlet)
@@ -116,10 +126,9 @@
 
     private CompositionSectionProjection? GetSelectedSection(IReadOnlyList<CompositionSectionProjection> sections)
     {
-        var selectedSectionId = GetSelectedSectionId();
-        if (!string.IsNullOrWhiteSpace(selectedSectionId))
+        if (!string.IsNullOrWhiteSpace(SelectedSectionId))
         {
-            var requested = selectedSectionId.Trim();
+            var requested = SelectedSectionId.Trim();
             var requestedSection = sections.FirstOrDefault(section =>
                 string.Equals(section.Section.Id.Value, requested, StringComparison.OrdinalIgnoreCase));
             if (requestedSection is not null)
@@ -147,6 +156,8 @@
 
     private void SelectSection(CloudShellTabbedLayoutItem item)
     {
+        SelectedSectionId = item.Id;
+
         Navigation.NavigateTo(
             Composition.ResolveHref(
                 CompositionTarget.ForPage(Page),
@@ -157,9 +168,21 @@
             replace: true);
     }
 
-    private string? GetSelectedSectionId()
+    private void HandleLocationChanged(object? sender, LocationChangedEventArgs args)
     {
-        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var selectedSectionId = ReadSelectedSectionId(args.Location);
+        if (string.Equals(SelectedSectionId, selectedSectionId, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        SelectedSectionId = selectedSectionId;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private string? ReadSelectedSectionId(string? location = null)
+    {
+        var uri = Navigation.ToAbsoluteUri(location ?? Navigation.Uri);
         var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
         return query.TryGetValue(QueryParameter, out var value)
             ? value.ToString()
@@ -171,4 +194,9 @@
         string sectionId) =>
         sections.FirstOrDefault(section =>
             string.Equals(section.Section.Id.Value, sectionId, StringComparison.OrdinalIgnoreCase));
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= HandleLocationChanged;
+    }
 }
