@@ -8,7 +8,8 @@
 @{
     var resources = TraceResources;
     var selectionIssue = GetSelectionIssue(resources);
-    var selected = selectionIssue is null ? GetSelectedResource(resources) : null;
+    var allSourcesSelected = IsAllSourcesSelected();
+    var selected = selectionIssue is null && !allSourcesSelected ? GetSelectedResource(resources) : null;
     var scopes = selected?.EffectiveObservability.TelemetryScopes ?? [];
     var selectedScope = GetSelectedScope(selected);
 }
@@ -72,7 +73,7 @@ else if (ShowHeading)
                 </FluentAnchor>
             </div>
         }
-        else if (selected is null)
+        else if (selected is null && !allSourcesSelected)
         {
             <div class="empty-state">
                 <strong>@L["No resource selected"]</strong>
@@ -81,7 +82,7 @@ else if (ShowHeading)
         }
         else
         {
-            var observability = selected.EffectiveObservability;
+            var observability = selected?.EffectiveObservability;
             var spans = RecentSpans;
 
             @if (ShouldShowSourceHeader(scopes))
@@ -90,8 +91,16 @@ else if (ShowHeading)
                     @if (ShowSourceSummary)
                     {
                         <div>
-                            <h2>@selected.Name</h2>
-                            <p>@selected.Kind / @selected.Provider@GetStateSuffix(selected)</p>
+                            @if (selected is null)
+                            {
+                                <h2>@L["All sources"]</h2>
+                                <p>@L["{0} trace resources", resources.Count]</p>
+                            }
+                            else
+                            {
+                                <h2>@selected.Name</h2>
+                                <p>@selected.Kind / @selected.Provider@GetStateSuffix(selected)</p>
+                            }
                         </div>
                     }
                     <div class="log-viewer-actions">
@@ -105,8 +114,12 @@ else if (ShowHeading)
                         {
                             <label class="trace-source-filter" for="trace-source-filter">
                                 <span>@L["Trace source"]</span>
-                                <select id="trace-source-filter" class="trace-source-select" value="@selected.Id"
+                                <select id="trace-source-filter" class="trace-source-select" value="@(selected?.Id ?? string.Empty)"
                                         @onchange="SelectResource">
+                                    @if (!Inline)
+                                    {
+                                        <option value="">@L["All sources"]</option>
+                                    }
                                     @foreach (var resource in resources)
                                     {
                                         <option value="@resource.Id">@resource.Name</option>
@@ -114,7 +127,7 @@ else if (ShowHeading)
                                 </select>
                             </label>
                         }
-                        @if (scopes.Count > 1)
+                        @if (selected is not null && scopes.Count > 1)
                         {
                             <label class="trace-source-filter" for="trace-scope-filter">
                                 <span>@L["Scope"]</span>
@@ -129,7 +142,7 @@ else if (ShowHeading)
                                 </select>
                             </label>
                         }
-                        @if (ShowResourceLink)
+                        @if (ShowResourceLink && selected is not null)
                         {
                             <FluentAnchor Appearance="Appearance.Neutral" Href="@BuildResourceRoute(selected.Id)">
                                 @L["Open resource"]
@@ -139,17 +152,17 @@ else if (ShowHeading)
                 </div>
             }
 
-            @if (ShowResourceDetails && string.IsNullOrWhiteSpace(TraceId))
+            @if (ShowResourceDetails && selected is not null && string.IsNullOrWhiteSpace(TraceId))
             {
                 <dl class="detail-list">
                     <dt>@L["Resource ID"]</dt>
                     <dd>@selected.Id</dd>
                     <dt>@L["Service name"]</dt>
-                    <dd>@(observability.ServiceName ?? NormalizeServiceName(selected.Name, selected.Id))</dd>
+                    <dd>@(observability?.ServiceName ?? NormalizeServiceName(selected.Name, selected.Id))</dd>
                     <dt>@L["OTLP endpoint"]</dt>
-                    <dd>@(observability.OtlpEndpoint ?? L["Provider/default environment"].Value)</dd>
+                    <dd>@(observability?.OtlpEndpoint ?? L["Provider/default environment"].Value)</dd>
                     <dt>@L["Protocol"]</dt>
-                    <dd>@(observability.OtlpProtocol ?? L["grpc or http/protobuf"].Value)</dd>
+                    <dd>@(observability?.OtlpProtocol ?? L["grpc or http/protobuf"].Value)</dd>
                     <dt>@L["Primary endpoint"]</dt>
                     <dd>@selected.PrimaryEndpoint</dd>
                     <dt>@L["Resource attributes"]</dt>
@@ -394,7 +407,7 @@ else if (ShowHeading)
                         <div class="recent-trace-list" aria-label="@L["Recent traces"]">
                             @foreach (var trace in traceSummaries)
                             {
-                                <a class="@GetRecentTraceItemClass(trace)" href="@BuildTraceRoute(selected.Id, trace.TraceId)">
+                                <a class="@GetRecentTraceItemClass(trace)" href="@BuildTraceRoute(trace.RouteResourceId, trace.TraceId)">
                                     <span>
                                         <strong>@trace.EntryOperation</strong>
                                         <small>@FormatTraceId(trace.TraceId) / @trace.Services</small>
@@ -428,7 +441,7 @@ else if (ShowHeading)
                                 <span class="log-entry-level">@span.Duration.TotalMilliseconds.ToString("0.#")ms</span>
                                 <div class="log-entry-body">
                                     <pre>@span.Name
-trace <a class="resource-link" href="@BuildTraceRoute(selected.Id, span.TraceId)">@FormatTraceId(span.TraceId)</a>
+trace <a class="resource-link" href="@BuildTraceRoute(span.ResourceId, span.TraceId)">@FormatTraceId(span.TraceId)</a>
 span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.ParentSpanId}")
 @GetSpanAttributes(span)</pre>
                                 </div>
@@ -513,6 +526,11 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
 
     private Resource? GetSelectedResource(IReadOnlyList<Resource> resources)
     {
+        if (IsAllSourcesSelected())
+        {
+            return null;
+        }
+
         if (!string.IsNullOrWhiteSpace(ResourceId))
         {
             var requested = resources.FirstOrDefault(resource =>
@@ -537,6 +555,11 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
                 L["Resource '{0}' does not expose traces or is not available.", resourceId].Value,
                 Inline ? L["Open Resources"].Value : L["All trace resources"].Value,
                 Inline ? ResourceManagerRoutes.Resources : "/observability/traces");
+        }
+
+        if (IsAllSourcesSelected())
+        {
+            return null;
         }
 
         var selected = GetSelectedResource(resources);
@@ -564,16 +587,17 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
 
         IsRefreshingSpans = true;
         var selectionIssue = GetSelectionIssue(TraceResources);
-        var selected = selectionIssue is null ? GetSelectedResource(TraceResources) : null;
+        var allSourcesSelected = selectionIssue is null && IsAllSourcesSelected();
+        var selected = selectionIssue is null && !allSourcesSelected ? GetSelectedResource(TraceResources) : null;
         try
         {
-            RecentSpans = selected is null
+            RecentSpans = selectionIssue is not null || (selected is null && !allSourcesSelected)
                 ? []
                 : await TraceManager.ListTraceSpansAsync(new TraceQuery(
-                    ResourceId: string.IsNullOrWhiteSpace(TraceId) ? selected.Id : null,
+                    ResourceId: selected is not null && string.IsNullOrWhiteSpace(TraceId) ? selected.Id : null,
                     TraceId: NormalizeFilter(TraceId),
                     MaxSpans: 200,
-                    Scope: GetSelectedScope(selected)?.ToQueryScope()));
+                    Scope: selected is null ? null : GetSelectedScope(selected)?.ToQueryScope()));
 
             if (!RecentSpans.Any(span => string.Equals(span.SpanId, SelectedSpanId, StringComparison.OrdinalIgnoreCase)))
             {
@@ -597,6 +621,16 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
 
     private void SelectResource(string? resourceId)
     {
+        if (!Inline && string.IsNullOrWhiteSpace(resourceId))
+        {
+            if (!IsAllSourcesSelected())
+            {
+                Navigation.NavigateTo(BuildTraceRoute(null, TraceId));
+            }
+
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(resourceId) ||
             string.Equals(resourceId, ResourceId, StringComparison.OrdinalIgnoreCase))
         {
@@ -641,6 +675,9 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
         Navigation.NavigateTo(BuildTraceRoute(selected.Id, scopeResourceId: ScopeResourceId));
     }
 
+    private bool IsAllSourcesSelected() =>
+        !Inline && string.IsNullOrWhiteSpace(ResourceId);
+
     private void SelectSpan(TraceSpan span)
     {
         SelectedSpanId = span.SpanId;
@@ -662,14 +699,16 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
         (!ShowHeading && !string.IsNullOrWhiteSpace(TraceId));
 
     private static Dictionary<string, string?> BuildTraceQuery(
-        string resourceId,
+        string? resourceId,
         string? traceId,
         string? scopeResourceId = null)
     {
-        var query = new Dictionary<string, string?>
+        var query = new Dictionary<string, string?>();
+
+        if (!string.IsNullOrWhiteSpace(resourceId))
         {
-            ["resourceId"] = resourceId
-        };
+            query["resourceId"] = resourceId.Trim();
+        }
 
         if (!string.IsNullOrWhiteSpace(traceId))
         {
@@ -707,7 +746,7 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
 
     private static string GetResourceAttributes(
         Resource resource,
-        ResourceObservability observability)
+        ResourceObservability? observability)
     {
         var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -716,9 +755,12 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
             ["cloudshell.resource.type"] = resource.EffectiveTypeId
         };
 
-        foreach (var attribute in observability.Attributes)
+        if (observability is not null)
         {
-            attributes[attribute.Key] = attribute.Value;
+            foreach (var attribute in observability.Attributes)
+            {
+                attributes[attribute.Key] = attribute.Value;
+            }
         }
 
         return string.Join(", ", attributes.Select(attribute => $"{attribute.Key}={attribute.Value}"));
@@ -862,6 +904,7 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
 
                     return new RecentTraceSummary(
                         first.TraceId,
+                        entry.ResourceId,
                         entry.Name,
                         ordered.Length,
                         ordered.Count(IsErrorSpan),
@@ -980,12 +1023,18 @@ StringComparison.OrdinalIgnoreCase))?.Span
     }
 
     private string BuildTraceRoute(
-        string resourceId,
+        string? resourceId,
         string? traceId = null,
         string? scopeResourceId = null)
     {
         if (Inline)
         {
+            resourceId ??= ResourceId;
+            if (string.IsNullOrWhiteSpace(resourceId))
+            {
+                return ResourceManagerRoutes.Resources;
+            }
+
             var query = new Dictionary<string, string?>
             {
                 ["tab"] = ResourcePredefinedViewIds.Traces.Value
@@ -1087,6 +1136,7 @@ StringComparison.OrdinalIgnoreCase))?.Span
 
     private sealed record RecentTraceSummary(
         string TraceId,
+        string RouteResourceId,
         string EntryOperation,
         int SpanCount,
         int ErrorSpanCount,

@@ -75,6 +75,8 @@ on `git blame --follow`, and then by the broad type of change.
   fallback flows.
 - Recent trace summaries now default to newest-first ordering and expose sort
   options for newest, longest duration, and errors first.
+- The global Traces view can now show an aggregate **All sources** list while
+  keeping trace detail links scoped to the trace entry resource.
 - Application Topology sample now includes an `/upstream/fallback` endpoint
   that preserves one trace across a failed upstream attempt and successful
   recovery path.

@@ -241,6 +241,17 @@ public sealed class SampleSmokeTests
         Assert.Contains("recent-trace-item error", traceListHtml);
         Assert.Contains("1 error span(s)", traceListHtml);
 
+        var allTraceListHtml = await host.GetStringAsync("/observability/traces");
+        Assert.Contains("All sources", allTraceListHtml);
+        Assert.Contains("2 trace resources", allTraceListHtml);
+        Assert.Contains("GET /upstream", allTraceListHtml);
+        Assert.Contains("project-reference-frontend, project-reference-api", allTraceListHtml);
+        Assert.Contains("recent-trace-item attention", allTraceListHtml);
+        Assert.Contains("Needs attention: 1 error span(s)", allTraceListHtml);
+        Assert.Contains(
+            $"href=\"/observability/traces?resourceId=application%3Aproject-reference-frontend&amp;traceId={traceId}\"",
+            allTraceListHtml);
+
         var missingTraceResourceHtml = await host.GetStringAsync(
             "/observability/traces?resourceId=application%3Aproject-reference-missing");
         Assert.Contains("Trace resource not found", missingTraceResourceHtml);
