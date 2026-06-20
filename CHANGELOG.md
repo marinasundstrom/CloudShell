@@ -79,6 +79,10 @@ on `git blame --follow`, and then by the broad type of change.
   validation, and extendable section outlet validation.
 - The standalone Composition Sandbox now includes a second registered Blazor
   page to prove page-to-page navigation through composition page IDs.
+- Added current-state UI composition documentation covering the two
+  composition libraries, typed IDs, registry registration, plain Blazor
+  components, link resolution, the standalone Bootstrap sample, validation,
+  and explicitly deferred extension/CMS behavior.
 - Moved the composition proof direction away from the UI Extension Host sample:
   CloudShell extension integration should adapt to the core composition graph
   only after the standalone app structure is credible.

@@ -43,6 +43,14 @@ The current implementation supports programmatic customization:
 - User-scoped CloudShell environment preferences through
   `ICloudShellUserSettingsProvider`.
 
+CloudShell also has an experimental UI composition engine documented in
+[UI composition](ui-composition.md). It is currently proven through a
+standalone Blazor sample rather than the CloudShell extension model. That
+engine provides typed IDs, a registry, page/menu/section registrations, link
+resolution, and plain Blazor rendering components. CloudShell extension
+integration will be layered on later after the standalone composition shape is
+stable.
+
 The built-in Overview item has the special navigation ID `overview`. A
 replacement changes the sidebar contribution and points to either a registered
 view or a direct href. Registered views still own routing through their

@@ -37,6 +37,9 @@ Proposed. This is post-MVP platform direction. MVP work should keep Resource
 Manager and supported local-development samples stable while avoiding
 short-term UI decisions that would prevent this model.
 
+For the current experimental library and sample behavior, see
+[UI composition](../../ui-composition.md).
+
 ## Goals
 
 - Let extensions contribute pages, sub-pages, slots, section containers,
@@ -226,6 +229,22 @@ validation, accessibility, localization boundaries, and permission-aware
 visibility. Razor and Blazor still own route matching. Extensions own their
 components, labels, icons, capability metadata, content IDs, optional route
 metadata, and calls to public domain managers.
+
+An extension-ready composition model will also need to record which module
+registered each artifact. A future `CompositionModule`, or equivalent value
+object, can identify whether a menu item, page, section container, section,
+slot, or metadata contribution belongs to the main shell module, Resource
+Manager, a built-in capability, or a third-party extension module. Module
+ownership is separate from visual hierarchy and content hierarchy. It gives
+the host a durable way to explain where content came from, validate conflicts,
+apply permissions and trust boundaries, support extension unload/disable
+behavior, and later persist selected graph metadata without losing ownership.
+
+For example, a page may live under the shell content hierarchy while being
+owned by the Resource Manager module, and a section inside that page may be
+owned by a SQL Server provider module. The composition registry should be able
+to preserve that ownership chain even when all artifacts render through the
+same menu, page, and section outlet primitives.
 
 ## Reusable composition engine investigation
 
@@ -563,3 +582,5 @@ before broad new shell surfaces become release blockers.
   Plane, or a separate shell configuration service for split hosting?
 - What is the minimum slot and section-container API that supports useful
   extension points without creating brittle page internals?
+- What is the right `CompositionModule` shape for built-in shell areas,
+  Resource Manager adapters, capability packages, and third-party extensions?
