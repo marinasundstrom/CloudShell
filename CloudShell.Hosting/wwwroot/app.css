@@ -372,8 +372,7 @@ h3 {
 }
 
 .health-history-header span,
-.health-history-empty,
-.health-history-check-row>span {
+.health-history-empty {
     color: var(--cloudshell-text-muted);
     font-size: .78rem;
 }
@@ -393,74 +392,110 @@ h3 {
     gap: .2rem;
 }
 
-.health-history-legend i,
-.health-history-check-row i {
+.health-history-legend i {
     width: .5rem;
     height: .5rem;
     border-radius: 999px;
     display: inline-block;
 }
 
-.health-history-bars {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(.45rem, 1fr);
-    align-items: end;
-    gap: .22rem;
-    min-height: 4rem;
-    padding-top: .25rem;
-}
-
-.health-history-bar {
-    display: flex;
-    align-items: end;
-    justify-content: stretch;
-    min-width: .45rem;
-    height: 4rem;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--cloudshell-divider), transparent 30%);
-    overflow: hidden;
-}
-
-.health-history-bar>span {
+.health-history-timeline {
     display: block;
     width: 100%;
-    min-height: .45rem;
-    border-radius: inherit;
-    background: currentColor;
+    min-height: 4.5rem;
 }
 
-.health-history-bar.health-healthy {
-    color: #16a34a;
+.health-history-chart.compact .health-history-timeline {
+    min-height: 4rem;
 }
 
-.health-history-bar.health-unhealthy {
-    color: #dc2626;
+.health-history-timelines {
+    display: grid;
+    gap: .55rem;
 }
 
-.health-history-bar.health-unknown,
-.health-history-bar.health-pending {
-    color: #64748b;
-}
-
-.health-history-checks {
+.health-history-timeline-card {
     display: grid;
     gap: .3rem;
+    min-width: 0;
+    padding: .45rem .5rem .35rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 4px;
+    background: var(--cloudshell-surface);
 }
 
-.health-history-check-row {
-    display: grid;
-    grid-template-columns: minmax(5rem, .35fr) minmax(0, 1fr);
-    align-items: center;
-    gap: .45rem;
+.health-history-timeline-card.has-degradation {
+    border-color: color-mix(in srgb, #dc2626 45%, var(--cloudshell-divider));
 }
 
-.health-history-check-row>div {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(.35rem, 1fr);
-    gap: .2rem;
-    align-items: center;
+.health-history-timeline-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: .75rem;
+}
+
+.health-history-timeline-heading strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.health-history-timeline-heading span {
+    flex: 0 0 auto;
+    color: var(--cloudshell-text-muted);
+    font-size: .75rem;
+}
+
+.health-history-gridline,
+.health-history-axis {
+    stroke: var(--cloudshell-divider);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+}
+
+.health-history-row-label,
+.health-history-axis-label {
+    fill: var(--cloudshell-text-muted);
+    font-size: .78rem;
+}
+
+.health-history-cell {
+    fill: #64748b;
+}
+
+.health-history-cell.health-healthy {
+    fill: #16a34a;
+}
+
+.health-history-cell.health-unhealthy {
+    fill: #dc2626;
+}
+
+.health-history-cell.health-unknown,
+.health-history-cell.health-pending {
+    fill: #64748b;
+}
+
+.health-history-degradation-line {
+    stroke: #dc2626;
+    stroke-width: 1.5;
+    stroke-dasharray: 4 4;
+    vector-effect: non-scaling-stroke;
+}
+
+.health-history-degradation-point {
+    fill: #dc2626;
+    stroke: var(--cloudshell-surface-muted);
+    stroke-width: 2;
+    vector-effect: non-scaling-stroke;
+}
+
+.health-history-degradation-label {
+    fill: #dc2626;
+    font-size: .76rem;
+    font-weight: 650;
 }
 
 .health-history-grid {

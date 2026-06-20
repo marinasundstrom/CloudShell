@@ -28,41 +28,95 @@
     }
     else
     {
-        <div class="health-history-bars" aria-label="@L["Recent health polling history"]">
-            @foreach (var snapshot in OrderedSnapshots)
+        <div class="health-history-timelines">
+            @foreach (var row in TimelineRows)
             {
-                <span class="health-history-bar @GetHealthClass(snapshot.Status)"
-                      title="@BuildSnapshotTitle(snapshot)"
-                      aria-label="@BuildSnapshotTitle(snapshot)">
-                    <span style="@BuildBarStyle(snapshot)"></span>
-                </span>
+                var degradationEvents = GetDegradationEvents(row);
+                var latestDegradation = degradationEvents.LastOrDefault();
+                <div class="@GetTimelineCardClass(degradationEvents)">
+                    <div class="health-history-timeline-heading">
+                        <strong>@row.Label</strong>
+                        <span>@GetTimelineSummary(row, latestDegradation)</span>
+                    </div>
+                    <svg class="health-history-timeline"
+                         role="img"
+                         viewBox="@ViewBox"
+                         preserveAspectRatio="none"
+                         aria-label="@L["{0} health polling history", row.Label]">
+                        <title>@L["{0} health polling history", row.Label]</title>
+                        @foreach (var snapshot in OrderedSnapshots.Select((value, index) => new { value, index }))
+                        {
+                            var status = GetRowStatus(row, snapshot.value);
+                            var title = BuildCellTitle(row, snapshot.value, status);
+                            <g>
+                                <title>@title</title>
+                                <rect class="health-history-cell @GetHealthClass(status)"
+                                      x="@Svg(GetCellX(snapshot.index))"
+                                      y="@Svg(LaneTop)"
+                                      width="@Svg(CellWidth)"
+                                      height="@Svg(LaneHeight)"
+                                      rx="3"
+                                      ry="3" />
+                            </g>
+                        }
+                        @foreach (var degradation in degradationEvents)
+                        {
+                            var x = GetCellCenterX(degradation.Index);
+                            <g>
+                                <title>@L["{0} degraded at {1}", row.Label, degradation.CheckedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.CurrentCulture)]</title>
+                                <line class="health-history-degradation-line"
+                                      x1="@Svg(x)"
+                                      y1="@Svg(LaneTop - 5)"
+                                      x2="@Svg(x)"
+                                      y2="@Svg(LaneTop + LaneHeight + 5)" />
+                                <circle class="health-history-degradation-point"
+                                        cx="@Svg(x)"
+                                        cy="@Svg(LaneTop + LaneHeight / 2)"
+                                        r="4" />
+                                @if (degradation == latestDegradation)
+                                {
+                                    <g>
+                                        <text class="health-history-degradation-label"
+                                              text-anchor="@GetDegradationLabelAnchor(degradation.Index)"
+                                              x="@Svg(GetDegradationLabelX(degradation.Index))"
+                                              y="@Svg(LaneTop - 8)">
+                                            @FormatTime(degradation.CheckedAt)
+                                        </text>
+                                    </g>
+                                }
+                            </g>
+                        }
+                        <line class="health-history-axis"
+                              x1="0"
+                              y1="@Svg(AxisY)"
+                              x2="@Svg(ChartWidth)"
+                              y2="@Svg(AxisY)" />
+                        <text class="health-history-axis-label"
+                              x="0"
+                              y="@Svg(AxisLabelY)">
+                            @FormatTime(OrderedSnapshots[0].CheckedAt)
+                        </text>
+                        <text class="health-history-axis-label"
+                              text-anchor="end"
+                              x="@Svg(ChartWidth)"
+                              y="@Svg(AxisLabelY)">
+                            @FormatTime(OrderedSnapshots[^1].CheckedAt)
+                        </text>
+                    </svg>
+                </div>
             }
         </div>
-
-        @if (ConfiguredChecks.Count > 1)
-        {
-            <div class="health-history-checks">
-                @foreach (var check in ConfiguredChecks)
-                {
-                    <div class="health-history-check-row">
-                        <span>@check.Name</span>
-                        <div>
-                            @foreach (var snapshot in OrderedSnapshots)
-                            {
-                                var result = FindCheckResult(snapshot, check);
-                                <i class="@GetHealthClass(result?.Status)"
-                                   title="@BuildCheckTitle(snapshot, check, result)"
-                                   aria-label="@BuildCheckTitle(snapshot, check, result)"></i>
-                            }
-                        </div>
-                    </div>
-                }
-            </div>
-        }
     }
 </div>
 
 @code {
+    private const double ChartWidth = 900;
+    private const double LaneTop = 18;
+    private const double LaneHeight = 14;
+    private const double AxisY = 42;
+    private const double AxisLabelY = 58;
+    private const double ChartHeight = 64;
+
     [Parameter]
     public IReadOnlyList<ResourceHealthSummary> Snapshots { get; set; } = [];
 
@@ -93,46 +147,114 @@
                 .Distinct()
                 .ToArray();
 
+    private IReadOnlyList<HealthHistoryRow> TimelineRows =>
+        ConfiguredChecks.Count > 0
+            ? ConfiguredChecks.Select(check => new HealthHistoryRow(check.Name, check)).ToArray()
+            : [new HealthHistoryRow(L["Resource"].Value, null)];
+
     private string CssClass => Compact
         ? "health-history-chart compact"
         : "health-history-chart";
+
+    private double PlotWidth => ChartWidth;
+
+    private double CellStep => PlotWidth / Math.Max(1, OrderedSnapshots.Count);
+
+    private double CellWidth => Math.Max(5, CellStep - 2);
+
+    private string ViewBox =>
+        FormattableString.Invariant($"0 0 {ChartWidth} {ChartHeight}");
 
     private string GetSnapshotCountLabel() =>
         OrderedSnapshots.Count == 0
             ? L["No history"].Value
             : L["{0} recent polling result(s)", OrderedSnapshots.Count].Value;
 
-    private static string BuildBarStyle(ResourceHealthSummary snapshot)
+    private double GetCellX(int snapshotIndex) =>
+        snapshotIndex * CellStep;
+
+    private double GetCellCenterX(int snapshotIndex) =>
+        GetCellX(snapshotIndex) + (CellWidth / 2);
+
+    private double GetDegradationLabelX(int snapshotIndex)
     {
-        var failedChecks = snapshot.Checks.Count(check => check.Status == ResourceHealthStatus.Unhealthy);
-        var totalChecks = Math.Max(1, snapshot.Checks.Count);
-        var height = snapshot.Status == ResourceHealthStatus.Unhealthy
-            ? Math.Max(35, 35 + (failedChecks * 65 / totalChecks))
-            : snapshot.Status == ResourceHealthStatus.Unknown
-                ? 55
-                : 35;
-        return $"height: {height}%";
+        var x = GetCellCenterX(snapshotIndex);
+        if (snapshotIndex == 0)
+        {
+            return x + 4;
+        }
+
+        return snapshotIndex == OrderedSnapshots.Count - 1
+            ? x - 4
+            : x;
     }
 
-    private string BuildSnapshotTitle(ResourceHealthSummary snapshot)
+    private string GetDegradationLabelAnchor(int snapshotIndex) =>
+        snapshotIndex == 0
+            ? "start"
+            : snapshotIndex == OrderedSnapshots.Count - 1
+                ? "end"
+                : "middle";
+
+    private IReadOnlyList<HealthDegradationMarker> GetDegradationEvents(HealthHistoryRow row) =>
+        OrderedSnapshots
+            .Select((snapshot, snapshotIndex) => new
+            {
+                Snapshot = snapshot,
+                SnapshotIndex = snapshotIndex,
+                Status = GetRowStatus(row, snapshot)
+            })
+            .Where(item =>
+                item.Status == ResourceHealthStatus.Unhealthy &&
+                (item.SnapshotIndex == 0 ||
+                 GetRowStatus(row, OrderedSnapshots[item.SnapshotIndex - 1]) != ResourceHealthStatus.Unhealthy))
+            .Select(item => new HealthDegradationMarker(item.SnapshotIndex, item.Snapshot.CheckedAt))
+            .ToArray();
+
+    private string GetTimelineCardClass(IReadOnlyCollection<HealthDegradationMarker> degradationEvents) =>
+        degradationEvents.Count > 0
+            ? "health-history-timeline-card has-degradation"
+            : "health-history-timeline-card";
+
+    private string GetTimelineSummary(
+        HealthHistoryRow row,
+        HealthDegradationMarker? latestDegradation)
+    {
+        var latest = OrderedSnapshots.Count == 0
+            ? null
+            : GetRowStatus(row, OrderedSnapshots[^1]);
+        var latestLabel = latest is null
+            ? L["No result"].Value
+            : GetHealthLabel(latest.Value);
+
+        return latestDegradation is null
+            ? L["Latest: {0}", latestLabel].Value
+            : L["Latest: {0}; last degraded {1}", latestLabel, FormatTime(latestDegradation.CheckedAt)].Value;
+    }
+
+    private string BuildCellTitle(
+        HealthHistoryRow row,
+        ResourceHealthSummary snapshot,
+        ResourceHealthStatus? status)
     {
         var checkedAt = snapshot.CheckedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.CurrentCulture);
-        var failed = snapshot.Checks.Count(check => check.Status == ResourceHealthStatus.Unhealthy);
-        return failed == 0
-            ? L["{0}: {1}", checkedAt, GetHealthLabel(snapshot.Status)].Value
-            : L["{0}: {1}, {2} failed check(s)", checkedAt, GetHealthLabel(snapshot.Status), failed].Value;
+        return status is null
+            ? L["{0} at {1}: no result", row.Label, checkedAt].Value
+            : L["{0} at {1}: {2}", row.Label, checkedAt, GetHealthLabel(status.Value)].Value;
     }
 
-    private string BuildCheckTitle(
-        ResourceHealthSummary snapshot,
-        ResourceHealthCheck check,
-        ResourceHealthCheckResult? result)
-    {
-        var checkedAt = snapshot.CheckedAt.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentCulture);
-        return result is null
-            ? L["{0} at {1}: no result", check.Name, checkedAt].Value
-            : L["{0} at {1}: {2}", check.Name, checkedAt, GetHealthLabel(result.Status)].Value;
-    }
+    private static ResourceHealthStatus? GetRowStatus(
+        HealthHistoryRow row,
+        ResourceHealthSummary snapshot) =>
+        row.Check is null
+            ? snapshot.Status
+            : FindCheckResult(snapshot, row.Check)?.Status;
+
+    private static string FormatTime(DateTimeOffset value) =>
+        value.ToLocalTime().ToString("HH:mm", CultureInfo.CurrentCulture);
+
+    private static string Svg(double value) =>
+        value.ToString("0.###", CultureInfo.InvariantCulture);
 
     private static ResourceHealthCheckResult? FindCheckResult(
         ResourceHealthSummary snapshot,
@@ -158,4 +280,12 @@
             ResourceHealthStatus.Unknown => "health-unknown",
             _ => "health-pending"
         };
+
+    private sealed record HealthHistoryRow(
+        string Label,
+        ResourceHealthCheck? Check);
+
+    private sealed record HealthDegradationMarker(
+        int Index,
+        DateTimeOffset CheckedAt);
 }

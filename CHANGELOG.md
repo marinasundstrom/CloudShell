@@ -34,6 +34,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Health views now share a resource health history chart backed by retained
   resource health snapshots, and the resource-scoped Health tab auto-refreshes
   while open.
+- Resource health history now renders separate timeline charts per configured
+  health check so degradation times are visible without mixing checks into one
+  combined chart.
 - Resource Health tabs now appear for resource types that support health
   checks even before a resource has registered health check endpoints.
 - Documented weak projected-resource references and reusable Resource Manager
