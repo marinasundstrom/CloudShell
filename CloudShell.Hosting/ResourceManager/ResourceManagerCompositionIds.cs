@@ -32,14 +32,11 @@ public static class ResourceManagerCompositionIds
     public static readonly PageId ResourceSettingsPage =
         PageId.Create("cloudshell.resource-manager.resources.settings");
 
-    public static readonly MenuGroupId WorkspaceMenuGroup =
-        MenuGroupId.Create(ShellCompositionIds.MainMenu, "workspace");
-
     public static readonly MenuItemId ResourcesMenuItem =
-        MenuItemId.Create(WorkspaceMenuGroup, "resources");
+        MenuItemId.Create(ShellCompositionIds.WorkspaceMenuGroup, "resources");
 
     public static readonly MenuItemId HealthMenuItem =
-        MenuItemId.Create(WorkspaceMenuGroup, "health");
+        MenuItemId.Create(ShellCompositionIds.WorkspaceMenuGroup, "health");
 
     public static readonly SectionId SettingsSection =
         SectionId.Create(ShellCompositionIds.SettingsMainOutlet, "resource-manager");

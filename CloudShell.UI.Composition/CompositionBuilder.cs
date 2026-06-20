@@ -15,7 +15,7 @@ public sealed class CompositionBuilder
         CompositionRegistry.ValidateId(id.Value, nameof(id));
 
         var menu = new CompositionMenuBuilder(this, id, title);
-        Menus.Add(menu.Build());
+        menu.Register();
         return menu;
     }
 
@@ -24,7 +24,7 @@ public sealed class CompositionBuilder
         CompositionRegistry.ValidateId(id.Value, nameof(id));
 
         var menu = new CompositionMenuBuilder(this, id, title: string.Empty);
-        Menus.Add(menu.Build());
+        menu.Register();
         return menu;
     }
 
@@ -204,6 +204,7 @@ public sealed class CompositionMenuBuilder
     private readonly List<CompositionMenuGroupBuilder> _groups = [];
     private readonly MenuId _id;
     private readonly string _title;
+    private int? _menuIndex;
 
     internal CompositionMenuBuilder(
         CompositionBuilder builder,
@@ -241,12 +242,27 @@ public sealed class CompositionMenuBuilder
 
     internal void ReplaceMenu()
     {
-        var index = _builder.Menus.FindIndex(menu => menu.Id == _id);
+        if (_menuIndex is null)
+        {
+            Register();
+            return;
+        }
+
+        var index = _menuIndex.Value;
         var registration = Build();
-        if (index >= 0)
+        if (index < _builder.Menus.Count)
         {
             _builder.Menus[index] = registration;
+            return;
         }
+
+        Register();
+    }
+
+    internal void Register()
+    {
+        _builder.Menus.Add(Build());
+        _menuIndex = _builder.Menus.Count - 1;
     }
 
     internal CompositionMenuRegistration Build() =>

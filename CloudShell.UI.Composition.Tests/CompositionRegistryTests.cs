@@ -442,6 +442,30 @@ public sealed class CompositionRegistryTests
     }
 
     [Fact]
+    public void Create_MergesMenuContributionsFromSameBuilder()
+    {
+        var registry = CompositionRegistry.Create(composition =>
+        {
+            composition
+                .AddMenu(MainMenu, "Main")
+                .AddItem(WorkspaceMenuItem, "Workspace", 10)
+                .Target(WorkspacePage);
+
+            composition
+                .GetMenu(MainMenu)
+                .AddGroup(WorkspaceMenuGroup, "Workspace sections", 20)
+                .AddItem(ReportsMenuItem, "Reports", 30)
+                .Target(ReportsPage);
+        });
+
+        var menu = registry.GetMenu(MainMenu);
+
+        Assert.NotNull(menu);
+        Assert.Equal(WorkspaceMenuItem, Assert.Single(menu.Items).Id);
+        Assert.Equal(ReportsMenuItem, Assert.Single(Assert.Single(menu.Groups).Items).Id);
+    }
+
+    [Fact]
     public void Create_AssignsDefaultHostModule()
     {
         var registry = CreateRegistry();

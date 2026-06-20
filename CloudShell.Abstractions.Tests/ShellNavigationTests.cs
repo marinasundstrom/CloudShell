@@ -119,22 +119,51 @@ public sealed class ShellNavigationTests
     }
 
     [Fact]
-    public void ShellNavigationCompositionProjector_TargetsCoreShellViewsByPageId()
+    public void CoreShellExtension_RegistersMainMenuItemsAsCompositionMenu()
     {
-        var shellCatalog = CreateShellCatalog<CoreShellExtension>();
-        var module = new ShellNavigationCompositionProjector(shellCatalog).CreateModule();
+        var services = new ServiceCollection();
+        services
+            .AddCloudShell()
+            .AddExtension<CoreShellExtension>();
+        var module = services
+            .Where(descriptor => descriptor.ServiceType == typeof(CompositionModule))
+            .Select(descriptor => descriptor.ImplementationInstance)
+            .OfType<CompositionModule>()
+            .Single(module => module.Id == ShellCompositionIds.CoreModule);
         var registry = CompositionRegistry.FromModules(module);
 
         var menu = registry.GetMenu(ShellCompositionIds.MainMenu);
         Assert.NotNull(menu);
-        var items = menu.Groups
-            .SelectMany(group => group.Items)
-            .ToDictionary(item => item.Title, StringComparer.OrdinalIgnoreCase);
-
-        Assert.Equal(ShellCompositionIds.OverviewPage.Value, items["Overview"].Target.Value);
-        Assert.Equal(ShellCompositionIds.SettingsPage.Value, items["Settings"].Target.Value);
-        Assert.Equal(ShellCompositionIds.UsersPage.Value, items["Users"].Target.Value);
-        Assert.Equal(ShellCompositionIds.ExtensionsPage.Value, items["Extensions"].Target.Value);
+        Assert.Collection(
+            menu.Groups,
+            workspace =>
+            {
+                Assert.Equal(ShellCompositionIds.WorkspaceMenuGroup, workspace.Id);
+                var overview = Assert.Single(workspace.Items);
+                Assert.Equal(ShellCompositionIds.OverviewMenuItem, overview.Id);
+                Assert.Equal(ShellCompositionIds.OverviewPage.Value, overview.Target.Value);
+            },
+            platform =>
+            {
+                Assert.Equal(ShellCompositionIds.PlatformMenuGroup, platform.Id);
+                Assert.Collection(
+                    platform.Items,
+                    settings =>
+                    {
+                        Assert.Equal(ShellCompositionIds.SettingsMenuItem, settings.Id);
+                        Assert.Equal(ShellCompositionIds.SettingsPage.Value, settings.Target.Value);
+                    },
+                    users =>
+                    {
+                        Assert.Equal(ShellCompositionIds.UsersMenuItem, users.Id);
+                        Assert.Equal(ShellCompositionIds.UsersPage.Value, users.Target.Value);
+                    },
+                    extensions =>
+                    {
+                        Assert.Equal(ShellCompositionIds.ExtensionsMenuItem, extensions.Id);
+                        Assert.Equal(ShellCompositionIds.ExtensionsPage.Value, extensions.Target.Value);
+                    });
+            });
     }
 
     [Fact]
@@ -196,7 +225,8 @@ public sealed class ShellNavigationTests
 
         var menu = composition.GetMenu(ShellCompositionIds.MainMenu);
         Assert.NotNull(menu);
-        var workspaceGroup = Assert.Single(menu.Groups, group => group.Id == ResourceManagerCompositionIds.WorkspaceMenuGroup);
+        var workspaceGroup = Assert.Single(menu.Groups, group => group.Id == ShellCompositionIds.WorkspaceMenuGroup);
+        Assert.Equal(3, workspaceGroup.Items.Count);
         Assert.Contains(workspaceGroup.Items, item => item.Target.Value == ShellCompositionIds.OverviewPage.Value);
         Assert.Contains(workspaceGroup.Items, item => item.Target.Value == ResourceManagerCompositionIds.ResourcesPage.Value);
         Assert.Contains(workspaceGroup.Items, item => item.Target.Value == ResourceManagerCompositionIds.HealthPage.Value);
@@ -242,7 +272,7 @@ public sealed class ShellNavigationTests
         var menu = registry.GetMenu(ShellCompositionIds.MainMenu);
         Assert.NotNull(menu);
         var workspaceGroup = Assert.Single(menu.Groups);
-        Assert.Equal(ResourceManagerCompositionIds.WorkspaceMenuGroup, workspaceGroup.Id);
+        Assert.Equal(ShellCompositionIds.WorkspaceMenuGroup, workspaceGroup.Id);
         Assert.Collection(
             workspaceGroup.Items,
             item =>

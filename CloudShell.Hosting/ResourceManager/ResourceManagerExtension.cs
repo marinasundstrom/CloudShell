@@ -59,7 +59,7 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
 
                 var workspaceMenu = composition
                     .GetMenu(ShellCompositionIds.MainMenu)
-                    .AddGroup(ResourceManagerCompositionIds.WorkspaceMenuGroup, "Workspace", 10);
+                    .AddGroup(ShellCompositionIds.WorkspaceMenuGroup, "Workspace", 10);
 
                 workspaceMenu
                     .AddItem(ResourceManagerCompositionIds.ResourcesMenuItem, "Resources", 10)

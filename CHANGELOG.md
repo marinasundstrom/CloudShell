@@ -98,6 +98,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Composition menu registrations can now be contributed by multiple modules
   and merged by menu/group ID, and Resource Manager contributes its Resources
   and Health sidebar items directly into the composition main menu.
+- Core shell navigation now contributes Overview, Settings, Users, and
+  Extensions directly into the composition main menu, leaving the legacy shell
+  navigation bridge for unmigrated extension navigation items.
 - The common Settings page now renders composition sections through a
   CloudShell-specific tabbed-layout adapter, keeping section projection,
   selection, link resolution, and dynamic section rendering reusable.

@@ -7,6 +7,12 @@ public static class ShellCompositionIds
     public static readonly CompositionModuleId CoreModule = CompositionModuleId.Create("cloudshell.core");
     public static readonly CompositionModuleId NavigationModule = CompositionModuleId.Create("cloudshell.navigation");
     public static readonly MenuId MainMenu = MenuId.Create("cloudshell.main");
+    public static readonly MenuGroupId WorkspaceMenuGroup = MenuGroupId.Create(MainMenu, "workspace");
+    public static readonly MenuGroupId PlatformMenuGroup = MenuGroupId.Create(MainMenu, "platform");
+    public static readonly MenuItemId OverviewMenuItem = MenuItemId.Create(WorkspaceMenuGroup, "overview");
+    public static readonly MenuItemId SettingsMenuItem = MenuItemId.Create(PlatformMenuGroup, "settings");
+    public static readonly MenuItemId UsersMenuItem = MenuItemId.Create(PlatformMenuGroup, "users");
+    public static readonly MenuItemId ExtensionsMenuItem = MenuItemId.Create(PlatformMenuGroup, "extensions");
     public static readonly PageId OverviewPage = PageId.Create("cloudshell.overview");
     public static readonly PageId UsersPage = PageId.Create("cloudshell.users");
     public static readonly PageId ExtensionsPage = PageId.Create("cloudshell.extensions");

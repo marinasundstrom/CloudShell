@@ -314,13 +314,15 @@ composition-native menus should prefer artifact-ID targets when they point at
 registered pages or sections, and href targets when they point outside the
 composition graph.
 
-Resource Manager has started moving static sidebar items from legacy shell
-navigation to composition-native menu contributions. Its Resources and Health
-items now contribute directly to `ShellCompositionIds.MainMenu` under the shared
-Workspace menu group and target registered Resource Manager page IDs. The
-legacy navigation bridge remains for shell-owned pages and unmigrated extension
-navigation items; migrated items should be removed from legacy
-`AddNavigationItem(...)` registration to avoid duplicate sidebar entries.
+Core shell navigation and Resource Manager have started moving static sidebar
+items from legacy shell navigation to composition-native menu contributions.
+Core shell contributes Overview, Settings, Users, and Extensions directly under
+the shell-owned Workspace and Platform menu groups. Resource Manager contributes
+Resources and Health directly under the shared Workspace menu group and targets
+registered Resource Manager page IDs. The legacy navigation bridge remains for
+unmigrated extension navigation items; migrated items should be removed from
+legacy `AddNavigationItem(...)` registration to avoid duplicate sidebar
+entries.
 
 The CloudShell main layout hosts `CompositionHost` in pass-through mode. Pages
 that are registered in the composition graph receive a cascaded
