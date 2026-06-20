@@ -77,6 +77,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The Platform section on the common Settings page now resolves Users and
   Extensions links through composition page targets instead of querying the
   legacy shell catalog directly.
+- The common Settings page now renders composition sections through a
+  CloudShell-specific tabbed-layout adapter, keeping section projection,
+  selection, link resolution, and dynamic section rendering reusable.
 - CloudShell UI Extension Host now includes an isolated shell-composition
   sandbox with sample-local typed IDs, a registry, composition context host,
   menu renderer, section container, and section outlet so the layout/content

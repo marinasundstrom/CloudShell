@@ -1,16 +1,9 @@
 @page "/settings"
 @rendermode InteractiveServer
-@inject CompositionRegistry Composition
-@inject NavigationManager Navigation
 @inject IStringLocalizer<SharedResource> L
 @using CloudShell.UI.Composition
 
 <PageTitle>@L["Settings"]</PageTitle>
-
-@{
-    var sections = GetSections();
-    var selectedSection = GetSelectedSection(sections);
-}
 
 <section class="page-heading compact">
     <div>
@@ -20,11 +13,12 @@
     </div>
 </section>
 
-<CloudShellTabbedLayout Items="@BuildItems(sections)"
-                        SelectedItemId="@selectedSection?.Section.Id.Value"
-                        SelectedItemChanged="SelectSection"
-                        AriaLabel="@L["Settings sections"].Value">
-    <SummaryContent>
+<CloudShellCompositionSectionTabbedLayout Page="@ShellCompositionIds.SettingsPage"
+                                          Outlet="@ShellCompositionIds.SettingsMainOutlet"
+                                          AriaLabel="@L["Settings sections"].Value"
+                                          Group="Settings"
+                                          IconSelector="GetIcon">
+    <SummaryContent Context="sections">
         <div class="selected-type-card">
             <span class="resource-kind-icon" aria-hidden="true">
                 <FluentIcon Value="@(new Icons.Regular.Size20.SettingsCogMultiple())" />
@@ -48,74 +42,21 @@
         <EmptyState Title="@L["No settings sections"].Value"
                     Message="@L["No settings sections are registered for this CloudShell host."].Value" />
     </EmptyContent>
-    <HeaderContent Context="item">
+    <HeaderContent Context="section">
         <div class="panel-header">
             <div>
-                <h2>@item.Title</h2>
+                <h2>@L[section.Section.Title]</h2>
                 <p>@L["Settings section"]</p>
             </div>
         </div>
     </HeaderContent>
-    <ChildContent Context="item">
-        @if (selectedSection is not null)
-        {
-            <DynamicComponent Type="selectedSection.Section.ComponentType" />
-        }
-    </ChildContent>
-</CloudShellTabbedLayout>
+</CloudShellCompositionSectionTabbedLayout>
 
 @code {
-    [SupplyParameterFromQuery(Name = "section")]
-    private string? RequestedSectionId { get; set; }
-
-    private IReadOnlyList<CompositionSectionProjection> GetSections() =>
-        Composition
-            .GetSectionProjections(ShellCompositionIds.SettingsPage, ShellCompositionIds.SettingsMainOutlet)
-            .ToArray();
-
-    private CompositionSectionProjection? GetSelectedSection(IReadOnlyList<CompositionSectionProjection> sections)
-    {
-        if (!string.IsNullOrWhiteSpace(RequestedSectionId))
-        {
-            var requested = RequestedSectionId.Trim();
-            var requestedSection = sections.FirstOrDefault(section =>
-                string.Equals(section.Section.Id.Value, requested, StringComparison.OrdinalIgnoreCase));
-            if (requestedSection is not null)
-            {
-                return requestedSection;
-            }
-        }
-
-        return sections.FirstOrDefault();
-    }
-
-    private IReadOnlyList<CloudShellTabbedLayoutItem> BuildItems(
-        IReadOnlyList<CompositionSectionProjection> sections) =>
-        sections
-            .Select(section => new CloudShellTabbedLayoutItem(
-                section.Section.Id.Value,
-                L[section.Section.Title].Value,
-                section.Section.Order,
-                Group: L["Settings"].Value,
-                Icon: GetIcon(section.Section.Id)))
-            .ToArray();
-
-    private void SelectSection(CloudShellTabbedLayoutItem item)
-    {
-        Navigation.NavigateTo(
-            Composition.ResolveHref(
-                CompositionTarget.ForPage(ShellCompositionIds.SettingsPage),
-                new Dictionary<string, object?>
-                {
-                    ["section"] = item.Id
-                }),
-            replace: true);
-    }
-
-    private static string GetIcon(SectionId sectionId) =>
-        sectionId == ShellCompositionIds.SettingsPlatformSection
+    private static string GetIcon(CompositionSectionProjection section) =>
+        section.Section.Id == ShellCompositionIds.SettingsPlatformSection
             ? "extensions"
-            : sectionId == ResourceManagerCompositionIds.SettingsSection
+            : section.Section.Id == ResourceManagerCompositionIds.SettingsSection
                 ? "resources"
                 : "settings";
 }
