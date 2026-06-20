@@ -1,5 +1,6 @@
-@inject ShellCatalog ShellCatalog
+@inject CompositionRegistry Composition
 @inject IStringLocalizer<SharedResource> L
+@using CloudShell.UI.Composition
 
 <div class="generated-resource-view">
     <section class="generated-section">
@@ -49,9 +50,9 @@
 </div>
 
 @code {
-    private string? GetUsersRoute() =>
-        ShellCatalog.GetViewRoute(CoreShellViews.Users);
+    private string GetUsersRoute() =>
+        Composition.ResolveHref(ShellCompositionIds.UsersPage);
 
-    private string? GetExtensionsRoute() =>
-        ShellCatalog.GetViewRoute(CoreShellViews.Extensions);
+    private string GetExtensionsRoute() =>
+        Composition.ResolveHref(ShellCompositionIds.ExtensionsPage);
 }

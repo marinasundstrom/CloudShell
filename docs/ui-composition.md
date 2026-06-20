@@ -312,7 +312,9 @@ Resource Manager now contributes its settings surface into the common
 CloudShell `/settings` page through the settings section outlet. The original
 `/resources/settings` route remains available for direct links and
 compatibility, but the unified settings page is the composition-backed entry
-point.
+point. Shell-owned settings sections should use composition targets when
+linking to registered shell pages so route lookup stays behind the composition
+registry during the migration.
 
 Resource Details now consumes the same shell-owned tabbed layout component as
 Settings while preserving the Resource Manager-owned tab contribution model,
