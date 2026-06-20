@@ -583,28 +583,28 @@ sections should also accept explicit page IDs or resolve the current route so
 hosts can place them in render-mode islands without depending on cascade
 propagation across every boundary.
 
-Future permission-aware Blazor renderers should align with normal Blazor
+Permission-aware Blazor renderers should align with normal Blazor
 authorization instead of inventing a parallel rendering model. Composition
-artifacts can carry permission metadata such as policy names, roles, or future
-custom requirement IDs, and renderer projections can expose that metadata. A
-Blazor renderer can then wrap menus, pages, section outlets, or individual
-sections in `AuthorizeView`, using its normal `Roles`, `Policy`,
-`Authorized`, and `NotAuthorized` behavior. Hosts should decide whether
+artifacts carry authorization metadata, including CloudShell permission names
+and neutral policy, role, and claim requirements. Renderer projections expose
+that metadata. A Blazor renderer can then wrap menus, pages, section outlets,
+or individual sections in `AuthorizeView`, using its normal `Roles`, `Policy`,
+`Authorized`, and `NotAuthorized` behavior, or can map the same requirements to
+a host-specific authorization service. Hosts should decide whether
 unauthorized content is hidden, disabled, replaced by a not-authorized
 template, or surfaced as a diagnostic in development. This keeps
 `IsExtendable` as a structural contribution rule, while authorization remains
 a dynamic visibility/access concern owned by the host's configured
 authentication and authorization system.
 
-Additional helper APIs may make common claim-based requirements easier to
-declare without hiding ASP.NET Core authorization. For example, builders could
-offer `RequirePolicy(...)`, `RequireRole(...)`, and `RequireClaim(...)`
-shortcuts that store permission metadata on the artifact descriptor.
-Renderer-side projection helpers could then translate that metadata into
-`AuthorizeView` parameters, authorization service checks, or development-time
-diagnostics that explain why a page, menu item, section outlet, or section is
-hidden or blocked. CloudShell-specific permission concepts should map into
-these policy, role, and claim requirements at the host adapter layer.
+Builder APIs should keep adding convenience methods for common requirements,
+such as `RequirePolicy(...)`, `RequireRole(...)`, and `RequireClaim(...)`,
+without hiding ASP.NET Core authorization. Renderer-side projection helpers can
+then translate that metadata into `AuthorizeView` parameters, authorization
+service checks, or development-time diagnostics that explain why a page, menu
+item, section outlet, or section is hidden or blocked. CloudShell-specific
+permission concepts should map into these policy, role, and claim requirements
+at the host adapter layer.
 
 ## Resource Manager extraction path
 

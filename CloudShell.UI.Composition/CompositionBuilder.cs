@@ -10,11 +10,14 @@ public sealed class CompositionBuilder
 
     internal List<CompositionSectionRegistration> Sections { get; } = [];
 
-    public CompositionMenuBuilder AddMenu(MenuId id, string title)
+    public CompositionMenuBuilder AddMenu(
+        MenuId id,
+        string title,
+        CompositionAuthorizationRequirements? authorization = null)
     {
         CompositionRegistry.ValidateId(id.Value, nameof(id));
 
-        var menu = new CompositionMenuBuilder(this, id, title);
+        var menu = new CompositionMenuBuilder(this, id, title, authorization);
         menu.Register();
         return menu;
     }
@@ -32,10 +35,11 @@ public sealed class CompositionBuilder
         PageId id,
         string title,
         string route,
-        bool isExtendable = false)
+        bool isExtendable = false,
+        CompositionAuthorizationRequirements? authorization = null)
     {
         CompositionRegistry.ValidateId(id.Value, nameof(id));
-        Pages.Add(new CompositionPageRegistration(id, title, NormalizeRoute(route), isExtendable));
+        Pages.Add(new CompositionPageRegistration(id, title, NormalizeRoute(route), isExtendable, authorization));
         return new CompositionPageBuilder(this, id);
     }
 
@@ -87,7 +91,8 @@ public sealed class CompositionBuilder
         SectionId sectionId,
         string title,
         Type component,
-        int order)
+        int order,
+        CompositionAuthorizationRequirements? authorization = null)
     {
         CompositionRegistry.ValidateId(sectionId.Value, nameof(sectionId));
 
@@ -97,7 +102,19 @@ public sealed class CompositionBuilder
             outletId,
             title,
             component,
-            order));
+            order,
+            authorization));
+    }
+
+    internal void ReplacePageAuthorization(
+        PageId pageId,
+        CompositionAuthorizationRequirements authorization)
+    {
+        var index = Pages.FindIndex(page => page.Id == pageId);
+        if (index >= 0)
+        {
+            Pages[index] = Pages[index] with { Authorization = authorization };
+        }
     }
 
     private static string NormalizeRoute(string route)
@@ -111,16 +128,29 @@ public sealed class CompositionPageBuilder(
     CompositionBuilder builder,
     PageId pageId)
 {
+    public CompositionPageBuilder RequiresPermissions(params string[] permissions) =>
+        RequiresAuthorization(CompositionAuthorizationRequirements.FromAnyPermissions(permissions));
+
+    public CompositionPageBuilder RequiresAuthorization(CompositionAuthorizationRequirements authorization)
+    {
+        ArgumentNullException.ThrowIfNull(authorization);
+
+        builder.ReplacePageAuthorization(pageId, authorization);
+        return this;
+    }
+
     public CompositionSectionOutletBuilder AddSections(
         SectionOutletId outletId,
-        bool isExtendable = false)
+        bool isExtendable = false,
+        CompositionAuthorizationRequirements? authorization = null)
     {
         CompositionRegistry.ValidateId(outletId.Value, nameof(outletId));
 
         builder.SectionOutlets.Add(new CompositionSectionOutletRegistration(
             outletId,
             pageId,
-            isExtendable));
+            isExtendable,
+            authorization));
 
         return new CompositionSectionOutletBuilder(builder, pageId, outletId);
     }
@@ -132,14 +162,16 @@ public sealed class CompositionPageExtensionBuilder(
 {
     public CompositionSectionOutletBuilder AddSections(
         SectionOutletId outletId,
-        bool isExtendable = false)
+        bool isExtendable = false,
+        CompositionAuthorizationRequirements? authorization = null)
     {
         CompositionRegistry.ValidateId(outletId.Value, nameof(outletId));
 
         builder.SectionOutlets.Add(new CompositionSectionOutletRegistration(
             outletId,
             pageId,
-            isExtendable));
+            isExtendable,
+            authorization));
 
         return new CompositionSectionOutletBuilder(builder, pageId, outletId);
     }
@@ -163,9 +195,10 @@ public sealed class CompositionSectionOutletBuilder(
         SectionId id,
         string title,
         Type component,
-        int order)
+        int order,
+        CompositionAuthorizationRequirements? authorization = null)
     {
-        builder.AddSection(pageId, outletId, id, title, component, order);
+        builder.AddSection(pageId, outletId, id, title, component, order, authorization);
 
         return this;
     }
@@ -189,9 +222,10 @@ public sealed class CompositionSectionOutletExtensionBuilder(
         SectionId id,
         string title,
         Type component,
-        int order)
+        int order,
+        CompositionAuthorizationRequirements? authorization = null)
     {
-        builder.AddSection(pageId, outletId, id, title, component, order);
+        builder.AddSection(pageId, outletId, id, title, component, order, authorization);
 
         return this;
     }
@@ -204,16 +238,31 @@ public sealed class CompositionMenuBuilder
     private readonly List<CompositionMenuGroupBuilder> _groups = [];
     private readonly MenuId _id;
     private readonly string _title;
+    private CompositionAuthorizationRequirements _authorization;
     private int? _menuIndex;
 
     internal CompositionMenuBuilder(
         CompositionBuilder builder,
         MenuId id,
-        string title)
+        string title,
+        CompositionAuthorizationRequirements? authorization = null)
     {
         _builder = builder;
         _id = id;
         _title = title;
+        _authorization = authorization ?? CompositionAuthorizationRequirements.None;
+    }
+
+    public CompositionMenuBuilder RequiresPermissions(params string[] permissions) =>
+        RequiresAuthorization(CompositionAuthorizationRequirements.FromAnyPermissions(permissions));
+
+    public CompositionMenuBuilder RequiresAuthorization(CompositionAuthorizationRequirements authorization)
+    {
+        ArgumentNullException.ThrowIfNull(authorization);
+
+        _authorization = authorization;
+        ReplaceMenu();
+        return this;
     }
 
     public CompositionMenuItemBuilder AddItem(
@@ -232,9 +281,10 @@ public sealed class CompositionMenuBuilder
     public CompositionMenuGroupBuilder AddGroup(
         MenuGroupId id,
         string title,
-        int order)
+        int order,
+        CompositionAuthorizationRequirements? authorization = null)
     {
-        var group = new CompositionMenuGroupBuilder(this, id, title, order);
+        var group = new CompositionMenuGroupBuilder(this, id, title, order, authorization);
         _groups.Add(group);
         ReplaceMenu();
         return group;
@@ -270,16 +320,32 @@ public sealed class CompositionMenuBuilder
             _id,
             _title,
             _items.OrderBy(item => item.Order).ToArray(),
-            _groups.Select(group => group.Build()).OrderBy(group => group.Order).ToArray());
+            _groups.Select(group => group.Build()).OrderBy(group => group.Order).ToArray(),
+            _authorization);
 }
 
 public sealed class CompositionMenuGroupBuilder(
     CompositionMenuBuilder menu,
     MenuGroupId id,
     string title,
-    int order)
+    int order,
+    CompositionAuthorizationRequirements? authorization = null)
 {
     private readonly List<CompositionMenuItemRegistration> _items = [];
+    private CompositionAuthorizationRequirements _authorization =
+        authorization ?? CompositionAuthorizationRequirements.None;
+
+    public CompositionMenuGroupBuilder RequiresPermissions(params string[] permissions) =>
+        RequiresAuthorization(CompositionAuthorizationRequirements.FromAnyPermissions(permissions));
+
+    public CompositionMenuGroupBuilder RequiresAuthorization(CompositionAuthorizationRequirements authorization)
+    {
+        ArgumentNullException.ThrowIfNull(authorization);
+
+        _authorization = authorization;
+        menu.ReplaceMenu();
+        return this;
+    }
 
     public CompositionMenuItemBuilder AddItem(
         MenuItemId itemId,
@@ -299,7 +365,8 @@ public sealed class CompositionMenuGroupBuilder(
             id,
             title,
             _items.OrderBy(item => item.Order).ToArray(),
-            order);
+            order,
+            _authorization);
 }
 
 public sealed class CompositionMenuItemBuilder(
@@ -310,7 +377,7 @@ public sealed class CompositionMenuItemBuilder(
 {
     private readonly Dictionary<string, string> _attributes = new(StringComparer.OrdinalIgnoreCase);
     private MenuItemId? _parentId;
-    private IReadOnlyList<string>? _requiredPermissions;
+    private CompositionAuthorizationRequirements _authorization = CompositionAuthorizationRequirements.None;
 
     public CompositionMenuItemBuilder WithAttribute(string name, string? value)
     {
@@ -351,16 +418,19 @@ public sealed class CompositionMenuItemBuilder(
     }
 
     public CompositionMenuItemBuilder RequiresPermissions(params string[] permissions) =>
-        RequiresPermissions((IReadOnlyList<string>)permissions);
+        RequiresPermissions((IReadOnlyList<string>?)permissions);
 
     public CompositionMenuItemBuilder RequiresPermissions(IReadOnlyList<string>? permissions)
     {
-        _requiredPermissions = permissions?
-            .Where(permission => !string.IsNullOrWhiteSpace(permission))
-            .Select(permission => permission.Trim())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+        _authorization = CompositionAuthorizationRequirements.FromAnyPermissions(permissions);
+        return this;
+    }
 
+    public CompositionMenuItemBuilder RequiresAuthorization(CompositionAuthorizationRequirements authorization)
+    {
+        ArgumentNullException.ThrowIfNull(authorization);
+
+        _authorization = authorization;
         return this;
     }
 
@@ -383,5 +453,5 @@ public sealed class CompositionMenuItemBuilder(
                 ? null
                 : new Dictionary<string, string>(_attributes, StringComparer.OrdinalIgnoreCase),
             _parentId,
-            _requiredPermissions));
+            _authorization));
 }

@@ -11,19 +11,22 @@ public sealed record CompositionPageDescriptor(
     PageId Id,
     string Title,
     string Route,
-    bool IsExtendable = false);
+    bool IsExtendable = false,
+    CompositionAuthorizationRequirements? Authorization = null);
 
 public sealed record CompositionMenuDescriptor(
     MenuId Id,
     string Title,
     IReadOnlyList<CompositionMenuItemDescriptor> Items,
-    IReadOnlyList<CompositionMenuGroupDescriptor> Groups);
+    IReadOnlyList<CompositionMenuGroupDescriptor> Groups,
+    CompositionAuthorizationRequirements? Authorization = null);
 
 public sealed record CompositionMenuGroupDescriptor(
     MenuGroupId Id,
     string Title,
     IReadOnlyList<CompositionMenuItemDescriptor> Items,
-    int Order);
+    int Order,
+    CompositionAuthorizationRequirements? Authorization = null);
 
 public sealed record CompositionMenuItemDescriptor(
     MenuItemId Id,
@@ -32,7 +35,7 @@ public sealed record CompositionMenuItemDescriptor(
     int Order,
     IReadOnlyDictionary<string, string>? Attributes = null,
     MenuItemId? ParentId = null,
-    IReadOnlyList<string>? RequiredPermissions = null)
+    CompositionAuthorizationRequirements? Authorization = null)
 {
     public IReadOnlyDictionary<string, string> Attributes { get; init; } =
         Attributes ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -41,7 +44,8 @@ public sealed record CompositionMenuItemDescriptor(
 public sealed record CompositionSectionOutletDescriptor(
     SectionOutletId Id,
     PageId PageId,
-    bool IsExtendable);
+    bool IsExtendable,
+    CompositionAuthorizationRequirements? Authorization = null);
 
 public sealed record CompositionSectionDescriptor(
     SectionId Id,
@@ -49,7 +53,8 @@ public sealed record CompositionSectionDescriptor(
     SectionOutletId OutletId,
     string Title,
     string ComponentTypeName,
-    int Order);
+    int Order,
+    CompositionAuthorizationRequirements? Authorization = null);
 
 public static class CompositionDescriptorExtensions
 {
@@ -62,21 +67,23 @@ public static class CompositionDescriptorExtensions
             module.Sections.Select(section => section.ToDescriptor()).ToArray());
 
     public static CompositionPageDescriptor ToDescriptor(this CompositionPageRegistration page) =>
-        new(page.Id, page.Title, page.Route, page.IsExtendable);
+        new(page.Id, page.Title, page.Route, page.IsExtendable, page.Authorization);
 
     public static CompositionMenuDescriptor ToDescriptor(this CompositionMenuRegistration menu) =>
         new(
             menu.Id,
             menu.Title,
             menu.Items.Select(item => item.ToDescriptor()).ToArray(),
-            menu.Groups.Select(group => group.ToDescriptor()).ToArray());
+            menu.Groups.Select(group => group.ToDescriptor()).ToArray(),
+            menu.Authorization);
 
     public static CompositionMenuGroupDescriptor ToDescriptor(this CompositionMenuGroupRegistration group) =>
         new(
             group.Id,
             group.Title,
             group.Items.Select(item => item.ToDescriptor()).ToArray(),
-            group.Order);
+            group.Order,
+            group.Authorization);
 
     public static CompositionMenuItemDescriptor ToDescriptor(this CompositionMenuItemRegistration item) =>
         new(
@@ -86,10 +93,10 @@ public static class CompositionDescriptorExtensions
             item.Order,
             item.Attributes,
             item.ParentId,
-            item.RequiredPermissions);
+            item.Authorization);
 
     public static CompositionSectionOutletDescriptor ToDescriptor(this CompositionSectionOutletRegistration outlet) =>
-        new(outlet.Id, outlet.PageId, outlet.IsExtendable);
+        new(outlet.Id, outlet.PageId, outlet.IsExtendable, outlet.Authorization);
 
     public static CompositionSectionDescriptor ToDescriptor(this CompositionSectionRegistration section) =>
         new(
@@ -98,5 +105,6 @@ public static class CompositionDescriptorExtensions
             section.OutletId,
             section.Title,
             section.ComponentType.AssemblyQualifiedName ?? section.ComponentType.FullName ?? section.ComponentType.Name,
-            section.Order);
+            section.Order,
+            section.Authorization);
 }

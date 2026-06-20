@@ -427,8 +427,10 @@ public sealed class CompositionRegistryTests
 
         var menu = registry.GetMenu(MainMenu);
         Assert.NotNull(menu);
+        Assert.Equal(["menu.read"], menu.Authorization.AnyPermissions);
         var group = Assert.Single(menu.Groups);
         Assert.Equal(WorkspaceMenuGroup, group.Id);
+        Assert.Equal(["workspace.read"], group.Authorization.AnyPermissions);
         Assert.Collection(
             group.Items,
             item => Assert.Equal(SectionMenuItem, item.Id),
@@ -705,12 +707,15 @@ public sealed class CompositionRegistryTests
     private static void ConfigureHostModule(CompositionModuleBuilder composition)
     {
         var menu = composition.AddMenu(MainMenu, "Main");
+        menu.RequiresPermissions("menu.read");
         menu
             .AddItem(WorkspaceMenuItem, "Workspace", 10)
             .WithAttribute(CompositionAttributeNames.Icon, "resources")
             .RequiresPermissions("resource.read")
             .Target(WorkspacePage);
-        var group = menu.AddGroup(WorkspaceMenuGroup, "Workspace sections", 20);
+        var group = menu
+            .AddGroup(WorkspaceMenuGroup, "Workspace sections", 20)
+            .RequiresPermissions("workspace.read");
         group
             .AddItem(SectionMenuItem, "Details", 10)
             .Target(DetailsSection);

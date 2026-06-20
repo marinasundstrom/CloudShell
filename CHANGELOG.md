@@ -101,6 +101,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Core shell navigation now contributes Overview, Settings, Users, and
   Extensions directly into the composition main menu, leaving the legacy shell
   navigation bridge for unmigrated extension navigation items.
+- Composition artifacts now carry neutral authorization metadata for
+  permissions, policies, roles, and claims; the CloudShell Fluent sidebar
+  evaluates menu, group, and item permission metadata from the graph.
 - The common Settings page now renders composition sections through a
   CloudShell-specific tabbed-layout adapter, keeping section projection,
   selection, link resolution, and dynamic section rendering reusable.

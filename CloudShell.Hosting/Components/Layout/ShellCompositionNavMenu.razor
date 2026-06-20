@@ -8,52 +8,60 @@
 @if (MenuProjection is not null)
 {
     var menu = MenuProjection.Menu;
-    var itemProjectionsById = Composition
-        .GetMenuItemProjections(menu.Id)
-        .ToDictionary(projection => projection.Item.Id);
-    var visibleItems = itemProjectionsById.Values
-        .Where(CanShowNavigationItem)
-        .ToArray();
-    var childItemsByParent = visibleItems
-        .Where(projection => projection.Item.ParentId is not null)
-        .GroupBy(projection => projection.Item.ParentId!.Value.Value, StringComparer.OrdinalIgnoreCase)
-        .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.OrdinalIgnoreCase);
+    if (CanShowAuthorization(menu.Authorization))
+    {
+        var itemProjectionsById = Composition
+            .GetMenuItemProjections(menu.Id)
+            .ToDictionary(projection => projection.Item.Id);
+        var visibleItems = itemProjectionsById.Values
+            .Where(CanShowNavigationItem)
+            .ToArray();
+        var childItemsByParent = visibleItems
+            .Where(projection => projection.Item.ParentId is not null)
+            .GroupBy(projection => projection.Item.ParentId!.Value.Value, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.OrdinalIgnoreCase);
 
-    <div class="composition-nav-menu">
-        <FluentNavMenu Class="cloudshell-nav-menu"
-                       Title="@L[menu.Title]"
-                       Margin="0">
-            @foreach (var item in menu.Items.Where(item => item.ParentId is null && itemProjectionsById.ContainsKey(item.Id)))
-            {
-                var projection = itemProjectionsById[item.Id];
-                if (visibleItems.Contains(projection))
+        <div class="composition-nav-menu">
+            <FluentNavMenu Class="cloudshell-nav-menu"
+                           Title="@L[menu.Title]"
+                           Margin="0">
+                @foreach (var item in menu.Items.Where(item => item.ParentId is null && itemProjectionsById.ContainsKey(item.Id)))
                 {
-                    @RenderItem(projection, childItemsByParent)
-                }
-            }
-
-            @foreach (var group in menu.Groups)
-            {
-                var rootItems = group.Items
-                    .Where(item => item.ParentId is null && itemProjectionsById.TryGetValue(item.Id, out var projection) && visibleItems.Contains(projection))
-                    .ToArray();
-
-                if (rootItems.Length == 0)
-                {
-                    continue;
-                }
-
-                <section class="nav-group" data-composition-menu-group="@group.Id.Value">
-                    <div class="nav-group-title">@L[group.Title]</div>
-
-                    @foreach (var item in rootItems)
+                    var projection = itemProjectionsById[item.Id];
+                    if (visibleItems.Contains(projection))
                     {
-                        @RenderItem(itemProjectionsById[item.Id], childItemsByParent)
+                        @RenderItem(projection, childItemsByParent)
                     }
-                </section>
-            }
-        </FluentNavMenu>
-    </div>
+                }
+
+                @foreach (var group in menu.Groups)
+                {
+                    if (!CanShowAuthorization(group.Authorization))
+                    {
+                        continue;
+                    }
+
+                    var rootItems = group.Items
+                        .Where(item => item.ParentId is null && itemProjectionsById.TryGetValue(item.Id, out var projection) && visibleItems.Contains(projection))
+                        .ToArray();
+
+                    if (rootItems.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    <section class="nav-group" data-composition-menu-group="@group.Id.Value">
+                        <div class="nav-group-title">@L[group.Title]</div>
+
+                        @foreach (var item in rootItems)
+                        {
+                            @RenderItem(itemProjectionsById[item.Id], childItemsByParent)
+                        }
+                    </section>
+                }
+            </FluentNavMenu>
+        </div>
+    }
 }
 
 @code {
@@ -137,8 +145,13 @@
         href == "/" ? NavLinkMatch.All : NavLinkMatch.Prefix;
 
     private bool CanShowNavigationItem(CompositionMenuItemProjection projection) =>
-        projection.Item.PermissionsRequiredForNavigation.Count == 0 ||
-        Authorization.HasAnyPermission(projection.Item.PermissionsRequiredForNavigation);
+        CanShowAuthorization(projection.Menu.Authorization) &&
+        (projection.Group is null || CanShowAuthorization(projection.Group.Authorization)) &&
+        CanShowAuthorization(projection.Item.Authorization);
+
+    private bool CanShowAuthorization(CompositionAuthorizationRequirements requirements) =>
+        requirements.AnyPermissions.Count == 0 ||
+        Authorization.HasAnyPermission(requirements.AnyPermissions);
 
     private bool IsGroupCollapsed(MenuItemId itemId) =>
         CollapsedGroups.Contains(itemId.Value);

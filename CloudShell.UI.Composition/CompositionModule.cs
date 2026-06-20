@@ -34,7 +34,8 @@ public sealed record CompositionModule(
                 page.Id,
                 page.Title,
                 page.Route,
-                page.IsExtendable)).ToArray(),
+                page.IsExtendable,
+                page.Authorization)).ToArray(),
             descriptor.Menus.Select(menu => new CompositionMenuRegistration(
                 menu.Id,
                 menu.Title,
@@ -43,18 +44,22 @@ public sealed record CompositionModule(
                     group.Id,
                     group.Title,
                     group.Items.Select(ToMenuItemRegistration).ToArray(),
-                    group.Order)).ToArray())).ToArray(),
+                    group.Order,
+                    group.Authorization)).ToArray(),
+                menu.Authorization)).ToArray(),
             descriptor.SectionOutlets.Select(outlet => new CompositionSectionOutletRegistration(
                 outlet.Id,
                 outlet.PageId,
-                outlet.IsExtendable)).ToArray(),
+                outlet.IsExtendable,
+                outlet.Authorization)).ToArray(),
             descriptor.Sections.Select(section => new CompositionSectionRegistration(
                 section.Id,
                 section.PageId,
                 section.OutletId,
                 section.Title,
                 componentTypes.ResolveComponentType(section.ComponentTypeName),
-                section.Order)).ToArray());
+                section.Order,
+                section.Authorization)).ToArray());
     }
 
     private static CompositionMenuItemRegistration ToMenuItemRegistration(CompositionMenuItemDescriptor item) =>
@@ -65,7 +70,7 @@ public sealed record CompositionModule(
             item.Order,
             item.Attributes,
             item.ParentId,
-            item.RequiredPermissions);
+            item.Authorization);
 }
 
 public interface ICompositionComponentTypeResolver
@@ -85,8 +90,11 @@ public sealed class CompositionModuleBuilder
 
     public CompositionModuleId Id { get; }
 
-    public CompositionMenuBuilder AddMenu(MenuId id, string title) =>
-        _builder.AddMenu(id, title);
+    public CompositionMenuBuilder AddMenu(
+        MenuId id,
+        string title,
+        CompositionAuthorizationRequirements? authorization = null) =>
+        _builder.AddMenu(id, title, authorization);
 
     public CompositionMenuBuilder GetMenu(MenuId id) =>
         _builder.GetMenu(id);
@@ -95,8 +103,9 @@ public sealed class CompositionModuleBuilder
         PageId id,
         string title,
         string route,
-        bool isExtendable = false) =>
-        _builder.AddPage(id, title, route, isExtendable);
+        bool isExtendable = false,
+        CompositionAuthorizationRequirements? authorization = null) =>
+        _builder.AddPage(id, title, route, isExtendable, authorization);
 
     public CompositionPageExtensionBuilder Extend(PageId pageId) =>
         _builder.Extend(pageId);

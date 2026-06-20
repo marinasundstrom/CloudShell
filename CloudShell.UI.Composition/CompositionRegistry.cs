@@ -308,6 +308,10 @@ public sealed class CompositionRegistry
             .Select(menu => menu.Title)
             .FirstOrDefault(title => !string.IsNullOrWhiteSpace(title))
             ?? menus.Key.Value;
+        var authorization = menuList
+            .Select(menu => menu.Authorization)
+            .FirstOrDefault(authorization => !authorization.IsEmpty)
+            ?? CompositionAuthorizationRequirements.None;
         var rootItems = menuList
             .SelectMany(menu => menu.Items)
             .OrderBy(item => item.Order)
@@ -321,7 +325,7 @@ public sealed class CompositionRegistry
             .ThenBy(group => group.Title, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-        return new(menus.Key, title, rootItems, groups);
+        return new(menus.Key, title, rootItems, groups, authorization);
     }
 
     private static CompositionMenuGroupRegistration MergeMenuGroup(
@@ -329,13 +333,17 @@ public sealed class CompositionRegistry
     {
         var groupList = groups.ToArray();
         var first = groupList[0];
+        var authorization = groupList
+            .Select(group => group.Authorization)
+            .FirstOrDefault(authorization => !authorization.IsEmpty)
+            ?? CompositionAuthorizationRequirements.None;
         var items = groupList
             .SelectMany(group => group.Items)
             .OrderBy(item => item.Order)
             .ThenBy(item => item.Title, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-        return first with { Items = items };
+        return first with { Items = items, Authorization = authorization };
     }
 
     private static CompositionModuleId GetMenuOwner(

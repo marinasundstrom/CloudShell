@@ -28,23 +28,29 @@ public sealed class CompositionDescriptorTests
         Assert.Equal("Workspace", page.Title);
         Assert.Equal("/workspace", page.Route);
         Assert.True(page.IsExtendable);
+        Assert.Equal(["workspace.read"], page.Authorization?.AnyPermissions);
 
         var menu = Assert.Single(descriptor.Menus);
         Assert.Equal(MainMenu, menu.Id);
-        Assert.Single(menu.Items);
+        Assert.Equal(["menu.read"], menu.Authorization?.AnyPermissions);
+        var item = Assert.Single(menu.Items);
+        Assert.Equal(["workspace.navigate"], item.Authorization?.AnyPermissions);
         var group = Assert.Single(menu.Groups);
         Assert.Equal(WorkspaceMenuGroup, group.Id);
+        Assert.Equal(["workspace.group.read"], group.Authorization?.AnyPermissions);
 
         var outlet = Assert.Single(descriptor.SectionOutlets);
         Assert.Equal(MainOutlet, outlet.Id);
         Assert.Equal(WorkspacePage, outlet.PageId);
         Assert.False(outlet.IsExtendable);
+        Assert.Equal(["workspace.sections.read"], outlet.Authorization?.AnyPermissions);
 
         var section = descriptor.Sections.Single(item => item.Id == DetailsSection);
         Assert.Equal(WorkspacePage, section.PageId);
         Assert.Equal(MainOutlet, section.OutletId);
         Assert.Equal("Details", section.Title);
         Assert.Contains(nameof(DetailsSectionComponent), section.ComponentTypeName);
+        Assert.Equal(["workspace.details.read"], section.Authorization?.AnyPermissions);
     }
 
     [Fact]
@@ -59,9 +65,17 @@ public sealed class CompositionDescriptorTests
         Assert.Equal(descriptor.Id, roundTrip.Id);
         Assert.Equal(descriptor.Pages[0].Id, roundTrip.Pages[0].Id);
         Assert.Equal(descriptor.Pages[0].IsExtendable, roundTrip.Pages[0].IsExtendable);
+        Assert.Equal(descriptor.Pages[0].Authorization?.AnyPermissions, roundTrip.Pages[0].Authorization?.AnyPermissions);
         Assert.Equal(descriptor.Menus[0].Groups[0].Items[0].Target, roundTrip.Menus[0].Groups[0].Items[0].Target);
+        Assert.Equal(
+            descriptor.Menus[0].Groups[0].Items[0].Authorization?.AnyPermissions,
+            roundTrip.Menus[0].Groups[0].Items[0].Authorization?.AnyPermissions);
         Assert.Equal(descriptor.SectionOutlets[0].IsExtendable, roundTrip.SectionOutlets[0].IsExtendable);
+        Assert.Equal(
+            descriptor.SectionOutlets[0].Authorization?.AnyPermissions,
+            roundTrip.SectionOutlets[0].Authorization?.AnyPermissions);
         Assert.Equal(descriptor.Sections[0].ComponentTypeName, roundTrip.Sections[0].ComponentTypeName);
+        Assert.Equal(descriptor.Sections[0].Authorization?.AnyPermissions, roundTrip.Sections[0].Authorization?.AnyPermissions);
     }
 
     [Fact]
@@ -77,9 +91,11 @@ public sealed class CompositionDescriptorTests
 
         Assert.Equal(ModuleId, module.Id);
         Assert.True(registry.GetPage(WorkspacePage)?.IsExtendable);
+        Assert.Equal(["workspace.read"], registry.GetPage(WorkspacePage)?.Authorization.AnyPermissions);
         var details = registry.GetSections(WorkspacePage, MainOutlet)
             .Single(section => section.Id == DetailsSection);
         Assert.Equal(typeof(DetailsSectionComponent), details.ComponentType);
+        Assert.Equal(["workspace.details.read"], details.Authorization.AnyPermissions);
     }
 
     [Fact]
@@ -98,17 +114,30 @@ public sealed class CompositionDescriptorTests
         CompositionModule.Create(ModuleId, module =>
         {
             var menu = module.AddMenu(MainMenu, "Main");
-            menu.AddItem(WorkspaceMenuItem, "Workspace", 10).Target(WorkspacePage);
+            menu.RequiresPermissions("menu.read");
+            menu
+                .AddItem(WorkspaceMenuItem, "Workspace", 10)
+                .RequiresPermissions("workspace.navigate")
+                .Target(WorkspacePage);
             menu
                 .AddGroup(WorkspaceMenuGroup, "Workspace", 20)
+                .RequiresPermissions("workspace.group.read")
                 .AddItem(DetailsMenuItem, "Details", 10)
                 .Target(DetailsSection);
 
             module
                 .AddPage(WorkspacePage, "Workspace", "/workspace", isExtendable: true)
-                .AddSections(MainOutlet)
+                .RequiresPermissions("workspace.read")
+                .AddSections(
+                    MainOutlet,
+                    authorization: CompositionAuthorizationRequirements.FromAnyPermissions(["workspace.sections.read"]))
                 .AddSection<OverviewSectionComponent>(OverviewSection, "Overview", 10)
-                .AddSection<DetailsSectionComponent>(DetailsSection, "Details", 20);
+                .AddSection(
+                    DetailsSection,
+                    "Details",
+                    typeof(DetailsSectionComponent),
+                    20,
+                    CompositionAuthorizationRequirements.FromAnyPermissions(["workspace.details.read"]));
         });
 
     private sealed class OverviewSectionComponent;

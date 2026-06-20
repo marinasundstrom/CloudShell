@@ -288,7 +288,7 @@ patterns before the shell adopts them.
 
 The composition menu model represents named menu groups, menu items that can
 live inside or outside a group, one level of menu sub-items through parent
-item IDs, attributes, permission metadata, artifact-ID targets, and direct
+item IDs, attributes, authorization metadata, artifact-ID targets, and direct
 href targets. Icon data is stored as the namespaced
 `CompositionAttributeNames.Icon` attribute instead of a first-class
 `menuItem.Icon` property. The current
@@ -313,6 +313,17 @@ interpretation through `CompositionAttributeNames.Icon`. New
 composition-native menus should prefer artifact-ID targets when they point at
 registered pages or sections, and href targets when they point outside the
 composition graph.
+
+Authorization is encoded in the composition graph as artifact metadata, not as
+presentation logic. Pages, menus, menu groups, menu items, section outlets, and
+sections can carry `CompositionAuthorizationRequirements` with CloudShell
+permission names plus policy, role, and claim requirements for Blazor/ASP.NET
+Core authorization adapters. The reusable composition library only stores and
+projects these requirements. Presentation remains a renderer responsibility:
+the current CloudShell Fluent sidebar evaluates the permission subset for
+menus, groups, and items and hides unauthorized navigation, while future page
+and section renderers can map the same metadata to `AuthorizeView`, access
+denied states, disabled affordances, or development diagnostics.
 
 Core shell navigation and Resource Manager have started moving static sidebar
 items from legacy shell navigation to composition-native menu contributions.
@@ -400,12 +411,12 @@ the same menu item projection path for its root and child navigation items.
 `isExtendable: true` marks a page or section outlet as an extension point.
 Other modules can add section outlets only to pages that are marked
 extendable, and can add sections only to outlets that are marked extendable.
-This is a structural composition contract; future permissions and visibility
-rules can decide dynamically who may register, mount, visit, or see modules
-and sections that use the extension point. `CanBeReplaced` is a separate
-future policy: replacement would allow another module to override an artifact
-or projection, and therefore needs explicit conflict and ownership rules
-instead of being implied by extensibility.
+This is a structural composition contract; authorization requirements decide
+dynamically who may visit or see menus, pages, outlets, and sections that use
+the graph. `CanBeReplaced` is a separate future policy: replacement would
+allow another module to override an artifact or projection, and therefore needs
+explicit conflict and ownership rules instead of being implied by
+extensibility.
 
 ## Blazor Components
 
