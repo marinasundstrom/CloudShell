@@ -115,6 +115,25 @@ public sealed class ShellNavigationTests
         Assert.Equal("/observability/traces", registry.ResolveHref(tracesItem.Target));
     }
 
+    [Fact]
+    public void ShellNavigationCompositionProjector_TargetsCoreShellViewsByPageId()
+    {
+        var shellCatalog = CreateShellCatalog<CoreShellExtension>();
+        var module = new ShellNavigationCompositionProjector(shellCatalog).CreateModule();
+        var registry = CompositionRegistry.FromModules(module);
+
+        var menu = registry.GetMenu(ShellCompositionIds.MainMenu);
+        Assert.NotNull(menu);
+        var items = menu.Groups
+            .SelectMany(group => group.Items)
+            .ToDictionary(item => item.Title, StringComparer.OrdinalIgnoreCase);
+
+        Assert.Equal(ShellCompositionIds.OverviewPage.Value, items["Overview"].Target.Value);
+        Assert.Equal(ShellCompositionIds.SettingsPage.Value, items["Settings"].Target.Value);
+        Assert.Equal(ShellCompositionIds.UsersPage.Value, items["Users"].Target.Value);
+        Assert.Equal(ShellCompositionIds.ExtensionsPage.Value, items["Extensions"].Target.Value);
+    }
+
     private static ICloudShellNavigator CreateNavigator<TExtension>(
         TestNavigationManager? navigationManager = null)
         where TExtension : class, ICloudShellExtension, new()

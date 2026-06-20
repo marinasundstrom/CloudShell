@@ -68,15 +68,54 @@ public sealed class ShellNavigationCompositionProjector(ShellCatalog shellCatalo
         NavItemContribution item,
         out CompositionTarget target)
     {
-        if (string.Equals(item.Target.ViewId, CoreShellViews.Settings, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(item.Href, "/settings", StringComparison.OrdinalIgnoreCase))
+        var pageId = GetShellPageId(item.Target.ViewId, item.Href);
+        if (pageId is not null)
         {
-            target = ShellCompositionIds.SettingsPage;
+            target = pageId.Value;
             return true;
         }
 
         target = default;
         return false;
+    }
+
+    private static PageId? GetShellPageId(string? viewId, string href)
+    {
+        if (Matches(viewId, href, CoreShellViews.Overview, "/"))
+        {
+            return ShellCompositionIds.OverviewPage;
+        }
+
+        if (Matches(viewId, href, CoreShellViews.Settings, "/settings"))
+        {
+            return ShellCompositionIds.SettingsPage;
+        }
+
+        if (Matches(viewId, href, CoreShellViews.Users, "/account/users"))
+        {
+            return ShellCompositionIds.UsersPage;
+        }
+
+        if (Matches(viewId, href, CoreShellViews.Extensions, "/extensions"))
+        {
+            return ShellCompositionIds.ExtensionsPage;
+        }
+
+        return null;
+    }
+
+    private static bool Matches(
+        string? viewId,
+        string href,
+        string expectedViewId,
+        string expectedHref) =>
+        string.Equals(viewId, expectedViewId, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(NormalizeHref(href), NormalizeHref(expectedHref), StringComparison.OrdinalIgnoreCase);
+
+    private static string NormalizeHref(string href)
+    {
+        var normalized = href.Trim();
+        return normalized.Length > 1 ? normalized.TrimEnd('/') : normalized;
     }
 
     private static string CreateIdentifier(string value)

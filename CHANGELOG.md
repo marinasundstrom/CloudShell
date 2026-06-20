@@ -71,6 +71,9 @@ on `git blame --follow`, and then by the broad type of change.
   items.
 - The legacy shell navigation bridge now targets the composition Settings page
   by page ID while leaving other legacy shell items on direct href targets.
+- The shell-owned Overview, Users, Extensions, and Settings pages are now
+  registered as composition page targets so core navigation can resolve
+  through stable page IDs during the menu migration.
 - CloudShell UI Extension Host now includes an isolated shell-composition
   sandbox with sample-local typed IDs, a registry, composition context host,
   menu renderer, section container, and section outlet so the layout/content
