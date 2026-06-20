@@ -1,0 +1,78 @@
+@inject CompositionRegistry Composition
+
+@if (MenuProjection is not null)
+{
+    var menu = MenuProjection.Menu;
+    var allItems = GetMenuItems(menu);
+    var childItemsByParent = allItems
+        .Where(item => item.ParentId is not null)
+        .GroupBy(item => item.ParentId!.Value.Value, StringComparer.OrdinalIgnoreCase)
+        .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.OrdinalIgnoreCase);
+
+    <nav class="bootstrap-composition-menu" aria-label="@menu.Title">
+        @foreach (var item in menu.Items.Where(item => item.ParentId is null))
+        {
+            @RenderMenuItem(item, childItemsByParent)
+        }
+
+        @foreach (var group in menu.Groups)
+        {
+            var rootItems = group.Items
+                .Where(item => item.ParentId is null)
+                .ToArray();
+
+            if (rootItems.Length == 0)
+            {
+                continue;
+            }
+
+            <section class="bootstrap-composition-menu-group">
+                <strong>@group.Title</strong>
+
+                @foreach (var item in rootItems)
+                {
+                    @RenderMenuItem(item, childItemsByParent)
+                }
+            </section>
+        }
+    </nav>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public MenuId Id { get; set; }
+
+    private CompositionMenuProjection? MenuProjection => Composition.GetMenuProjection(Id);
+
+    private RenderFragment RenderMenuItem(
+        CompositionMenuItemRegistration item,
+        IReadOnlyDictionary<string, CompositionMenuItemRegistration[]> childItemsByParent) => @<div class="bootstrap-composition-menu-item">
+        <CompositionLink Target="@item.Id">
+            @if (TryGetIcon(item, out var icon))
+            {
+                <i class="composition-menu-icon bi @icon" aria-hidden="true"></i>
+            }
+            <span>@item.Title</span>
+        </CompositionLink>
+
+        @if (childItemsByParent.TryGetValue(item.Id.Value, out var childItems))
+        {
+            <div class="bootstrap-composition-menu-subitems">
+                @foreach (var child in childItems)
+                {
+                    @RenderMenuItem(child, childItemsByParent)
+                }
+            </div>
+        }
+    </div>;
+
+    private static IReadOnlyList<CompositionMenuItemRegistration> GetMenuItems(CompositionMenuRegistration menu) =>
+        menu.Items.Concat(menu.Groups.SelectMany(group => group.Items)).ToArray();
+
+    private static bool TryGetIcon(
+        CompositionMenuItemRegistration item,
+        [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? icon) =>
+        item.Attributes.TryGetValue(CompositionAttributeNames.Icon, out icon) &&
+        !string.IsNullOrWhiteSpace(icon);
+
+}

@@ -17,15 +17,19 @@ builder.Services.AddCloudShellUiCompositionModule(CompositionModuleId.Host, comp
 
     mainMenu
         .AddItem(CompositionIds.WorkspaceItem, "Workspace", 10)
+        .WithAttribute(CompositionAttributeNames.Icon, "bi-house-door")
         .Target(CompositionIds.WorkspacePage);
     mainMenu
         .AddItem(CompositionIds.ReportsItem, "Reports", 20)
+        .WithAttribute(CompositionAttributeNames.Icon, "bi-file-earmark-text")
         .Target(CompositionIds.ReportsPage);
     mainMenu
         .AddItem(CompositionIds.DashboardItem, "Dashboard", 30)
+        .WithAttribute(CompositionAttributeNames.Icon, "bi-speedometer2")
         .Target(CompositionIds.DashboardPage);
     mainMenu
         .AddItem(CompositionIds.SettingsItem, "Settings", 40)
+        .WithAttribute(CompositionAttributeNames.Icon, "bi-gear")
         .Target(CompositionIds.SettingsPage);
 
     var workspaceGroup = mainMenu.AddGroup(
@@ -35,10 +39,12 @@ builder.Services.AddCloudShellUiCompositionModule(CompositionModuleId.Host, comp
 
     workspaceGroup
         .AddItem(CompositionIds.OverviewSectionItem, "Overview section", 10)
+        .WithAttribute(CompositionAttributeNames.Icon, "bi-layout-text-window")
         .Target(CompositionIds.OverviewSection);
 
     workspaceGroup
         .AddItem(CompositionIds.ExtensionSectionItem, "Extension section", 20)
+        .WithAttribute(CompositionAttributeNames.Icon, "bi-plugin")
         .WithParent(CompositionIds.OverviewSectionItem)
         .Target(CompositionIds.ExtensionContributionSection);
 

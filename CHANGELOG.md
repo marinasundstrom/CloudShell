@@ -53,6 +53,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Composition menu targets now distinguish addressable artifact IDs from
   direct href targets, and CloudShell Hosting can project legacy shell
   navigation items into the composition main menu as a migration bridge.
+- The CloudShell sidebar now renders through a composition-backed Fluent menu
+  presenter, while the standalone Composition Sandbox demonstrates a
+  Bootstrap menu presenter that interprets namespaced icon attributes with
+  Bootstrap Icons.
 - CloudShell UI Extension Host now includes an isolated shell-composition
   sandbox with sample-local typed IDs, a registry, composition context host,
   menu renderer, section container, and section outlet so the layout/content

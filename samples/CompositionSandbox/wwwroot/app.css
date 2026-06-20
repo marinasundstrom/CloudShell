@@ -32,12 +32,14 @@ body {
     text-transform: uppercase;
 }
 
-.composition-menu {
+.composition-menu,
+.bootstrap-composition-menu {
     display: grid;
     gap: .35rem;
 }
 
-.composition-menu a {
+.composition-menu a,
+.bootstrap-composition-menu a {
     display: block;
     border-radius: 5px;
     padding: .5rem .6rem;
@@ -47,12 +49,15 @@ body {
 }
 
 .composition-menu a:hover,
-.composition-menu a:focus-visible {
+.composition-menu a:focus-visible,
+.bootstrap-composition-menu a:hover,
+.bootstrap-composition-menu a:focus-visible {
     background: var(--bs-tertiary-bg);
     color: var(--bs-link-color);
 }
 
-.composition-menu-subitems {
+.composition-menu-subitems,
+.bootstrap-composition-menu-subitems {
     display: grid;
     gap: .15rem;
     margin-left: .75rem;
@@ -60,16 +65,35 @@ body {
     border-left: var(--bs-border-width) solid var(--bs-border-color);
 }
 
-.composition-menu-group {
+.composition-menu-group,
+.bootstrap-composition-menu-group {
     display: grid;
     gap: .25rem;
     padding-top: .65rem;
 }
 
-.composition-menu-group > strong {
+.composition-menu-group > strong,
+.bootstrap-composition-menu-group > strong {
     color: var(--bs-secondary-color);
     font-size: .75rem;
     text-transform: uppercase;
+}
+
+.bootstrap-composition-menu a {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+
+.composition-menu-icon {
+    display: inline-grid;
+    place-items: center;
+    width: 1.35rem;
+    height: 1.35rem;
+    border-radius: 4px;
+    background: var(--bs-secondary-bg);
+    color: var(--bs-secondary-color);
+    font-size: .9rem;
 }
 
 .composition-section {

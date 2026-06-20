@@ -1,0 +1,172 @@
+@inject CompositionRegistry Composition
+@inject ICloudShellAuthorizationService Authorization
+@inject ICloudShellUserSettingsProvider Settings
+@inject IStringLocalizer<SharedResource> L
+@using CloudShell.UI.Composition
+@using System.Text.Json
+
+@if (MenuProjection is not null)
+{
+    var menu = MenuProjection.Menu;
+    var visibleItems = GetMenuItems(menu)
+        .Where(CanShowNavigationItem)
+        .ToArray();
+    var childItemsByParent = visibleItems
+        .Where(item => item.ParentId is not null)
+        .GroupBy(item => item.ParentId!.Value.Value, StringComparer.OrdinalIgnoreCase)
+        .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.OrdinalIgnoreCase);
+
+    <FluentNavMenu Class="cloudshell-nav-menu"
+                   Title="@L[menu.Title]"
+                   Margin="0">
+        @foreach (var item in menu.Items.Where(item => item.ParentId is null && visibleItems.Contains(item)))
+        {
+            @RenderItem(item, childItemsByParent)
+        }
+
+        @foreach (var group in menu.Groups)
+        {
+            var rootItems = group.Items
+                .Where(item => item.ParentId is null && visibleItems.Contains(item))
+                .ToArray();
+
+            if (rootItems.Length == 0)
+            {
+                continue;
+            }
+
+            <section class="nav-group" data-composition-menu-group="@group.Id.Value">
+                <div class="nav-group-title">@L[group.Title]</div>
+
+                @foreach (var item in rootItems)
+                {
+                    @RenderItem(item, childItemsByParent)
+                }
+            </section>
+        }
+    </FluentNavMenu>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public MenuId Id { get; set; }
+
+    private HashSet<string> CollapsedGroups { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    private CompositionMenuProjection? MenuProjection => Composition.GetMenuProjection(Id);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var setting = await Settings.GetSettingAsync(CloudShellUserSettingKeys.NavigationCollapsedGroups);
+        foreach (var groupId in ParseCollapsedGroups(setting?.Value))
+        {
+            CollapsedGroups.Add(groupId);
+        }
+    }
+
+    private RenderFragment RenderItem(
+        CompositionMenuItemRegistration item,
+        IReadOnlyDictionary<string, CompositionMenuItemRegistration[]> childItemsByParent) => @<text>
+        @{
+            var href = Composition.ResolveHref(item.Target);
+            var hasChildren = childItemsByParent.TryGetValue(item.Id.Value, out var childItems);
+            var childrenCollapsed = IsGroupCollapsed(item.Id);
+        }
+
+        <div class="nav-parent-row @(hasChildren ? "has-children" : null)"
+             data-composition-menu-item="@item.Id.Value">
+            <FluentNavLink Class="cloudshell-nav-link"
+                           Href="@href"
+                           Match="@GetMatch(href)"
+                           Icon="@ShellNavigationIcons.FromName(GetIcon(item))"
+                           IconColor="Color.Neutral"
+                           Tooltip="@L[item.Title]"
+                           ActiveClass="active">
+                <span class="nav-label">@L[item.Title]</span>
+            </FluentNavLink>
+
+            @if (hasChildren)
+            {
+                <button type="button"
+                        class="nav-group-toggle @(childrenCollapsed ? "collapsed" : null)"
+                        title="@GetGroupToggleTitle(item, childrenCollapsed)"
+                        aria-label="@GetGroupToggleTitle(item, childrenCollapsed)"
+                        aria-expanded="@(!childrenCollapsed)"
+                        @onclick="() => ToggleGroupAsync(item.Id)">
+                    <span class="nav-chevron" aria-hidden="true"></span>
+                </button>
+            }
+        </div>
+
+        @if (hasChildren && !childrenCollapsed)
+        {
+            <div class="nav-subitems">
+                @foreach (var child in childItems!)
+                {
+                    var childHref = Composition.ResolveHref(child.Target);
+                    <FluentNavLink Class="cloudshell-nav-link cloudshell-nav-sub-link"
+                                   Href="@childHref"
+                                   Match="@GetMatch(childHref)"
+                                   Icon="@ShellNavigationIcons.FromName(GetIcon(child))"
+                                   IconColor="Color.Neutral"
+                                   Tooltip="@L[child.Title]"
+                                   ActiveClass="active">
+                        <span class="nav-label">@L[child.Title]</span>
+                    </FluentNavLink>
+                }
+            </div>
+        }
+    </text>;
+
+    private static NavLinkMatch GetMatch(string href) =>
+        href == "/" ? NavLinkMatch.All : NavLinkMatch.Prefix;
+
+    private bool CanShowNavigationItem(CompositionMenuItemRegistration item) =>
+        item.PermissionsRequiredForNavigation.Count == 0 ||
+        Authorization.HasAnyPermission(item.PermissionsRequiredForNavigation);
+
+    private bool IsGroupCollapsed(MenuItemId itemId) =>
+        CollapsedGroups.Contains(itemId.Value);
+
+    private async Task ToggleGroupAsync(MenuItemId itemId)
+    {
+        if (!CollapsedGroups.Add(itemId.Value))
+        {
+            CollapsedGroups.Remove(itemId.Value);
+        }
+
+        await Settings.SetSettingAsync(
+            CloudShellUserSettingKeys.NavigationCollapsedGroups,
+            JsonSerializer.Serialize(CollapsedGroups.Order(StringComparer.OrdinalIgnoreCase)));
+    }
+
+    private string GetGroupToggleTitle(CompositionMenuItemRegistration item, bool collapsed) =>
+        collapsed
+            ? L["Expand {0}", L[item.Title]].Value
+            : L["Collapse {0}", L[item.Title]].Value;
+
+    private static string GetIcon(CompositionMenuItemRegistration item) =>
+        item.Attributes.GetValueOrDefault(CompositionAttributeNames.Icon) ?? string.Empty;
+
+    private static IReadOnlyList<CompositionMenuItemRegistration> GetMenuItems(CompositionMenuRegistration menu) =>
+        menu.Items.Concat(menu.Groups.SelectMany(group => group.Items)).ToArray();
+
+    private static IReadOnlyList<string> ParseCollapsedGroups(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return [];
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<string[]>(value) ?? [];
+        }
+        catch (JsonException)
+        {
+            return value
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToArray();
+        }
+    }
+}

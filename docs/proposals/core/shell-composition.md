@@ -204,6 +204,9 @@ image URL, CSS class, or another framework-specific token. The composition
 framework should describe structure and layout: stable IDs, hierarchy,
 ordering, targets, extension points, and generic metadata. Integrating
 frameworks decide whether an attribute is meaningful and how to render it.
+The current CloudShell shell presenter interprets `CompositionAttributeNames.Icon`
+as a Fluent icon name; the standalone sandbox interprets the same attribute as
+a Bootstrap Icons class.
 
 Some IDs should be composed from parent IDs rather than assembled as unrelated
 strings. For example, a `SectionId` should be built from a section identifier

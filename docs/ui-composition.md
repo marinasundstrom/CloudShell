@@ -291,10 +291,18 @@ behavior.
 CloudShell Hosting now includes a bridge that projects the legacy
 `ShellCatalog.NavigationItems` into the `ShellCompositionIds.MainMenu`
 composition menu. This bridge deliberately uses direct href targets because
-legacy navigation items are already resolved to routes or external links. New
-composition-native menus should prefer artifact-ID targets when they point at
-registered pages or sections, and href targets when they point outside the
-composition graph.
+legacy navigation items are already resolved to routes or external links. The
+visible shell sidebar consumes that composition menu through a CloudShell-owned
+Fluent presenter, preserving authorization filtering, localization,
+active-route matching, collapsed submenus, and icon interpretation through
+`CompositionAttributeNames.Icon`. New composition-native menus should prefer
+artifact-ID targets when they point at registered pages or sections, and href
+targets when they point outside the composition graph.
+
+The standalone Composition Sandbox also includes a sample-owned Bootstrap
+menu presenter. It reads the same namespaced icon attribute, interprets values
+as Bootstrap Icons classes, and keeps that interpretation outside the generic
+composition libraries.
 
 `CompositionEngineHost` is an in-memory host for mounted modules. It owns the
 currently mounted module list and rebuilds the active registry projection when
