@@ -447,7 +447,7 @@ The Blazor library currently provides these components:
 | --- | --- |
 | `CompositionHost` | Resolves the current route to a registered page and cascades `CompositionContext` to child content. It can also receive an explicit `PageId`. Hosts can opt into pass-through rendering for routes that are not composition-registered yet. |
 | `CompositionMenu` | Renders a registered menu, menu groups, root items, and sub-items. Menu items use composition targets rather than hard-coded routes. |
-| `CompositionLink` | Resolves a composition target into an anchor `href`. Page targets resolve to registered routes, section targets resolve to the nearest page route plus a fragment, menu item targets resolve through the menu item's own target, and href targets are emitted directly. When child content is omitted, the link uses the target artifact title where one exists. |
+| `CompositeAnchor` | Resolves a composition target into an anchor `href`. Page targets resolve to registered routes, section targets resolve to the nearest page route plus a fragment, menu item targets resolve through the menu item's own target, and href targets are emitted directly. When child content is omitted, the link uses the target artifact title where one exists. |
 | `TitleOutlet` | Renders visible text for the current composition page title from the cascaded context, an explicit `Page`, or the current route. |
 | `PageTitleOutlet` | Wraps Blazor `PageTitle` for the current composition page title from the cascaded context, an explicit `Page`, or the current route. Use this for the document title instead of mixing document-head behavior into visible page headers. |
 | `CompositionPageLayout` | Renders a plain page frame with document title, visible title, optional eyebrow, summary, actions, navigation, and child content. Text-heavy regions are render fragments so hosts can localize or customize them. |
@@ -581,29 +581,45 @@ rendering.
 
 ## Link Resolution
 
-`CompositionLink` can target a page or any other resolvable artifact ID:
+`CompositeAnchor` can target a page or any other resolvable artifact ID:
 
 ```razor
-<CompositionLink Target="@CompositionIds.ReportsPage" />
+<CompositeAnchor Target="@CompositionIds.ReportsPage" />
 ```
 
-`CompositionLink` uses the same registry resolver as menus and host-specific
+`CompositeAnchor` uses the same registry resolver as menus and host-specific
 presenters. It should be the default component when markup needs to link to a
 composition artifact by ID instead of hard-coding the current route shape.
+In the resolved case it renders a normal `<a>` element and passes unmatched
+attributes to that anchor while keeping the resolved `href` authoritative.
 
 It can also target a section:
 
 ```razor
-<CompositionLink Target="@CompositionIds.ExtensionContributionSection">
+<CompositeAnchor Target="@CompositionIds.ExtensionContributionSection">
     Open contributed section
-</CompositionLink>
+</CompositeAnchor>
 ```
 
 It can also target a menu item and inherit the menu item's title when child
 content is omitted:
 
 ```razor
-<CompositionLink Target="@CompositionIds.SettingsItem" />
+<CompositeAnchor Target="@CompositionIds.SettingsItem" />
+```
+
+If an artifact target or route template cannot resolve, `CompositeAnchor`
+does not render a broken `href="#"` link. It renders a visible unresolved
+placeholder by default, or the caller can provide an `Unresolved` template:
+
+```razor
+<CompositeAnchor Target="@CompositionIds.SettingsItem"
+                 class="settings-link">
+    <ChildContent>Settings</ChildContent>
+    <Unresolved>
+        <i>Failed to resolve link</i>
+    </Unresolved>
+</CompositeAnchor>
 ```
 
 The core registry resolves:

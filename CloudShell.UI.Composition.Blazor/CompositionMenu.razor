@@ -7,13 +7,13 @@
         @foreach (var item in GetRootItems(menu.Items))
         {
             <div class="composition-menu-item" data-composition-menu-item="@item.Id.Value">
-                <CompositionLink Target="@item.Target">@item.Title</CompositionLink>
+                <CompositeAnchor Target="@item.Target">@item.Title</CompositeAnchor>
                 @if (GetChildren(menu.Items, item).Count > 0)
                 {
                     <div class="composition-menu-subitems">
                         @foreach (var child in GetChildren(menu.Items, item))
                         {
-                            <CompositionLink Target="@child.Target">@child.Title</CompositionLink>
+                            <CompositeAnchor Target="@child.Target">@child.Title</CompositeAnchor>
                         }
                     </div>
                 }
@@ -27,13 +27,13 @@
                 @foreach (var item in GetRootItems(group.Items))
                 {
                     <div class="composition-menu-item" data-composition-menu-item="@item.Id.Value">
-                        <CompositionLink Target="@item.Target">@item.Title</CompositionLink>
+                        <CompositeAnchor Target="@item.Target">@item.Title</CompositeAnchor>
                         @if (GetChildren(group.Items, item).Count > 0)
                         {
                             <div class="composition-menu-subitems">
                                 @foreach (var child in GetChildren(group.Items, item))
                                 {
-                                    <CompositionLink Target="@child.Target">@child.Title</CompositionLink>
+                                    <CompositeAnchor Target="@child.Target">@child.Title</CompositeAnchor>
                                 }
                             </div>
                         }

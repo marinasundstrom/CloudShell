@@ -120,6 +120,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager resource links now have a shared composition-backed helper
   for resolving Resource Details URLs, with Health and Resource Graph using
   the canonical page target.
+- Composition links are now exposed as `CompositeAnchor`, support unmatched
+  anchor attributes, and render a customizable unresolved placeholder instead
+  of a broken `href="#"` when an artifact target cannot resolve.
 - The common Settings page now renders composition sections through a
   CloudShell-specific tabbed-layout adapter, keeping section projection,
   selection, link resolution, and dynamic section rendering reusable.

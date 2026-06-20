@@ -154,7 +154,7 @@ values, so a page registered as `/settings/{section?}` can resolve to
 `/settings` or `/settings/platform` without callers concatenating strings. A
 generic `SectionId` target should remain a content address that resolves to
 the nearest routable page plus a fragment unless the host or renderer projects
-that section as a route value under its owning page. `CompositionLink`,
+that section as a route value under its owning page. `CompositeAnchor`,
 menus, shell presenters, and custom renderers should all use the same resolver
 contract.
 
@@ -556,7 +556,7 @@ The future shell composition stack should be layered like this:
 | --- | --- | --- |
 | Core composition facilities | Generic hierarchical IDs, node kinds, relationships, navigation nodes, pages, sub-pages, slots, section containers, sections, ordering, permissions, routing metadata, selection state, target resolution, and component host metadata. | `CloudShell.UI.Composition`, typed IDs, `CompositionRegistry`, graph validation |
 | Layout/content registry and validation | Registration, ID resolution, duplicate detection, missing-target detection, route metadata conflicts, permission rules, visibility rules, and renderer-ready projections. | `IShellLayoutRegistry`, `ShellLayoutGraph`, startup validation diagnostics |
-| Blazor composition integration | Plain Blazor components and context integration with no dependency on a visual component framework. | `CloudShell.UI.Composition.Blazor`, `CompositionHost`, `CompositionMenu`, `CompositionLink`, `CompositionSectionOutlet` |
+| Blazor composition integration | Plain Blazor components and context integration with no dependency on a visual component framework. | `CloudShell.UI.Composition.Blazor`, `CompositionHost`, `CompositionMenu`, `CompositeAnchor`, `CompositionSectionOutlet` |
 | Shell composition renderer | Host-specific layout, grouped local navigation, URL selection, dynamic component rendering, empty/not-found states, permission-aware visibility, and slot/section rendering. | Hosted workspace layout, settings layout, Resource Manager detail layout, dashboard layout |
 | Product adapters | Domain-specific contribution APIs that project into shell composition primitives while preserving their own vocabulary and validation. | Resource Manager tabs, settings pages, notification center pages, provider workspaces |
 | Domain services | Control Plane or provider behavior behind the UI. | `IResourceManager`, `ITraceManager`, identity provider hooks, provider settings contracts |

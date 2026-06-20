@@ -47,13 +47,13 @@
     private RenderFragment RenderMenuItem(
         CompositionMenuItemRegistration item,
         IReadOnlyDictionary<string, CompositionMenuItemRegistration[]> childItemsByParent) => @<div class="bootstrap-composition-menu-item">
-        <CompositionLink Target="@item.Id">
+        <CompositeAnchor Target="@item.Id">
             @if (TryGetIcon(item, out var icon))
             {
                 <i class="composition-menu-icon bi @icon" aria-hidden="true"></i>
             }
             <span>@item.Title</span>
-        </CompositionLink>
+        </CompositeAnchor>
 
         @if (childItemsByParent.TryGetValue(item.Id.Value, out var childItems))
         {

@@ -30,10 +30,10 @@
         {
             <EmptyState Title="@selectedSectionIssue.Title"
                         Message="@selectedSectionIssue.Message">
-                <CloudShellCompositionAnchor Appearance="Appearance.Neutral"
+                <CloudShellCompositeAnchor Appearance="Appearance.Neutral"
                                              Page="@Page">
                     @selectedSectionIssue.RecoveryLabel
-                </CloudShellCompositionAnchor>
+                </CloudShellCompositeAnchor>
             </EmptyState>
         }
         else if (EmptyContent is not null)

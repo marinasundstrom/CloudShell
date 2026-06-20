@@ -1,21 +1,15 @@
-@inject CompositionRegistry Composition
 @using CloudShell.UI.Composition
 
-<FluentAnchor Appearance="@Appearance"
-              Href="@Href"
-              IconStart="@IconStart"
-              IconEnd="@IconEnd"
-              Class="@Class"
-              @attributes="AdditionalAttributes">
-    @if (ChildContent is null)
-    {
-        @ResolvedTitle
-    }
-    else
-    {
-        @ChildContent
-    }
-</FluentAnchor>
+<CloudShellCompositeAnchor Page="@Page"
+                           Target="@Target"
+                           RouteParams="@RouteParams"
+                           Appearance="@Appearance"
+                           IconStart="@IconStart"
+                           IconEnd="@IconEnd"
+                           Class="@Class"
+                           ChildContent="@ChildContent"
+                           Unresolved="@Unresolved"
+                           AdditionalAttributes="@AdditionalAttributes" />
 
 @code {
     [Parameter]
@@ -42,40 +36,9 @@
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
+    [Parameter]
+    public RenderFragment? Unresolved { get; set; }
+
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
-
-    private CompositionTarget ResolvedTarget =>
-        Target ?? (Page.HasValue
-            ? CompositionTarget.ForPage(Page.Value)
-            : throw new InvalidOperationException("CloudShellCompositionAnchor requires Page or Target."));
-
-    private string Href => Composition.ResolveHref(ResolvedTarget, RouteParams);
-
-    private string ResolvedTitle => ResolveTitle(ResolvedTarget);
-
-    private string ResolveTitle(CompositionTarget target)
-    {
-        if (target.Kind == CompositionTargetKind.Href)
-        {
-            return target.Value;
-        }
-
-        if (Composition.GetMenuItemProjection(new MenuItemId(target.Value)) is { } menuItem)
-        {
-            return menuItem.Item.Title;
-        }
-
-        if (Composition.GetPageProjection(new PageId(target.Value)) is { } page)
-        {
-            return page.Page.Title;
-        }
-
-        if (Composition.GetSectionProjection(new SectionId(target.Value)) is { } section)
-        {
-            return section.Section.Title;
-        }
-
-        return target.Value;
-    }
 }
