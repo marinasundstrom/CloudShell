@@ -141,8 +141,13 @@
         </div>
     }
 
-    <section class="registration-layout">
-        <aside class="panel registration-options">
+    <CloudShellTabbedLayout Items="@BuildLayoutItems(tabs)"
+                            SelectedItemId="@selectedTab?.Id.Value"
+                            SelectedItemChanged="SelectLayoutTab"
+                            SelectFirstItemWhenSelectedMissing="@(selectedTabIssue is null)"
+                            AriaLabel="@L["Resource views"].Value"
+                            IconResolver="ResourceViewIcons.FromName">
+        <SummaryContent>
             @if (resource is not null)
             {
                 <ResourceStatusSummary Resource="resource"
@@ -151,35 +156,8 @@
                                        LifecycleProgressLabel="@GetLifecycleProgressLabel(resource)" />
                 <ResourceFailureSummary Resource="resource" />
             }
-
-            @if (tabs.Count > 0)
-            {
-                <div class="resource-tab-list" role="tablist" aria-label="@L["Resource views"]">
-                    @foreach (var tabGroup in BuildTabGroups(tabs))
-                    {
-                        <div class="resource-tab-group" role="group" aria-label="@tabGroup.Title">
-                            @if (!string.IsNullOrWhiteSpace(tabGroup.Title))
-                            {
-                                <span class="resource-tab-group-title">@tabGroup.Title</span>
-                            }
-                            @foreach (var tab in tabGroup.Tabs)
-                            {
-                                <button class="@GetTabButtonClass(tab, selectedTab)" type="button" role="tab"
-                                        aria-selected="@(selectedTab?.Id == tab.Id)" @onclick="() => SelectTab(tab.Id)">
-                                    @if (!string.IsNullOrWhiteSpace(tab.Icon))
-                                    {
-                                        <FluentIcon Value="@ResourceViewIcons.FromName(tab.Icon)" />
-                                    }
-                                    <span>@tab.Title</span>
-                                </button>
-                            }
-                        </div>
-                    }
-                </div>
-            }
-        </aside>
-
-        <div class="panel registration-host">
+        </SummaryContent>
+        <EmptyContent>
             @if (resource is null)
             {
                 <EmptyState Title="@L["Resource not found"].Value"
@@ -199,7 +177,9 @@
                 <EmptyState Title="@L["No resource selected"].Value"
                             Message="@L["Select a resource to inspect its projected details."].Value" />
             }
-            else
+        </EmptyContent>
+        <HeaderContent Context="item">
+            @if (selectedTab is not null && resource is not null)
             {
                 <div class="panel-header">
                     <div>
@@ -207,6 +187,11 @@
                         <p>@(resourceType?.DisplayName ?? resource.EffectiveTypeId)</p>
                     </div>
                 </div>
+            }
+        </HeaderContent>
+        <ChildContent Context="item">
+            @if (resource is not null && selectedTab is not null)
+            {
                 @if (isGeneratedOverview)
                 {
                     <GeneratedResourceOverview Resource="resource" ResourceGroup="group" ResourceType="resourceType"
@@ -222,8 +207,8 @@
                     </CascadingValue>
                 }
             }
-        </div>
-    </section>
+        </ChildContent>
+    </CloudShellTabbedLayout>
 
 @code {
     private static readonly ResourceViewId GeneratedOverviewTabId = ResourcePredefinedViewIds.Overview;
@@ -358,6 +343,14 @@
             ConfigurationContext.StateChanged -= HandleConfigurationStateChanged;
             ConfigurationContext = new ResourceConfigurationContext(ConfigurationContext.ResourceId);
             ConfigurationContext.StateChanged += HandleConfigurationStateChanged;
+        }
+    }
+
+    private void SelectLayoutTab(CloudShellTabbedLayoutItem item)
+    {
+        if (ResourceViewId.TryParse(item.Id, out var tabId))
+        {
+            SelectTab(tabId);
         }
     }
 
@@ -967,6 +960,19 @@
             .ToArray();
     }
 
+    private static IReadOnlyList<CloudShellTabbedLayoutItem> BuildLayoutItems(
+        IReadOnlyList<ResourceTabContribution> tabs) =>
+        BuildTabGroups(tabs)
+            .SelectMany((group, groupIndex) => group.Tabs.Select((tab, tabIndex) =>
+                new CloudShellTabbedLayoutItem(
+                    tab.Id.Value,
+                    tab.Title,
+                    (groupIndex * 10_000) + tabIndex,
+                    Group: group.Id,
+                    GroupTitle: group.Title,
+                    Icon: tab.Icon)))
+            .ToArray();
+
     private static int GetResourceTabGroupOrder(string groupId) =>
         groupId switch
         {
@@ -997,19 +1003,6 @@
         ResourcePredefinedViews.TryGet(id, out var definition)
             ? definition.Icon
             : null;
-
-    private string GetTabButtonClass(
-        ResourceTabContribution tab,
-        ResourceTabContribution? selectedTab)
-    {
-        var classes = new List<string> { "resource-tab-button" };
-        if (selectedTab?.Id == tab.Id)
-        {
-            classes.Add("active");
-        }
-
-        return string.Join(" ", classes);
-    }
 
     private RenderFragment ResourceActionControls(Resource resource) => builder =>
     {

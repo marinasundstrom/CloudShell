@@ -1,22 +1,11 @@
 @using Microsoft.FluentUI.AspNetCore.Components
 
-@if (SelectedItem is null)
-{
-    <section class="registration-layout @Class" @attributes="AdditionalAttributes">
-        <aside class="panel registration-options">
-            @SummaryContent
-        </aside>
-        <div class="panel registration-host">
-            @EmptyContent
-        </div>
-    </section>
-}
-else
-{
-    <section class="registration-layout @Class" @attributes="AdditionalAttributes">
-        <aside class="panel registration-options">
-            @SummaryContent
+<section class="registration-layout @Class" @attributes="AdditionalAttributes">
+    <aside class="panel registration-options">
+        @SummaryContent
 
+        @if (OrderedItems.Count > 0)
+        {
             <div class="resource-tab-list" role="tablist" aria-label="@AriaLabel">
                 @foreach (var group in OrderedItems.GroupBy(GetGroupKey))
                 {
@@ -31,7 +20,7 @@ else
                             <button class="@GetTabButtonClass(item)"
                                     type="button"
                                     role="tab"
-                                    aria-selected="@(item.Id == SelectedItem.Id)"
+                                    aria-selected="@(item.Id == SelectedItem?.Id)"
                                     @onclick="() => SelectItemAsync(item)">
                                 @if (!string.IsNullOrWhiteSpace(item.Icon))
                                 {
@@ -43,9 +32,16 @@ else
                     </div>
                 }
             </div>
-        </aside>
+        }
+    </aside>
 
-        <div class="panel registration-host">
+    <div class="panel registration-host">
+        @if (SelectedItem is null)
+        {
+            @EmptyContent
+        }
+        else
+        {
             @if (HeaderContent is not null)
             {
                 @HeaderContent(SelectedItem)
@@ -67,9 +63,9 @@ else
             {
                 @ChildContent(SelectedItem)
             }
-        </div>
-    </section>
-}
+        }
+    </div>
+</section>
 
 @code {
     [Parameter]
@@ -77,6 +73,9 @@ else
 
     [Parameter]
     public string? SelectedItemId { get; set; }
+
+    [Parameter]
+    public bool SelectFirstItemWhenSelectedMissing { get; set; } = true;
 
     [Parameter]
     public EventCallback<string> SelectedItemIdChanged { get; set; }
@@ -119,7 +118,7 @@ else
 
     private CloudShellTabbedLayoutItem? SelectedItem =>
         OrderedItems.FirstOrDefault(item => string.Equals(item.Id, SelectedItemId, StringComparison.OrdinalIgnoreCase))
-        ?? OrderedItems.FirstOrDefault();
+        ?? (SelectFirstItemWhenSelectedMissing ? OrderedItems.FirstOrDefault() : null);
 
     private async Task SelectItemAsync(CloudShellTabbedLayoutItem item)
     {

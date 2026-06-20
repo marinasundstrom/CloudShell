@@ -310,6 +310,12 @@ CloudShell `/settings` page through the settings section outlet. The original
 compatibility, but the unified settings page is the composition-backed entry
 point.
 
+Resource Details now consumes the same shell-owned tabbed layout component as
+Settings while preserving the Resource Manager-owned tab contribution model,
+generated fallback views, tab grouping, invalid-tab recovery, and
+resource-scoped summary content. This keeps Resource Manager vocabulary behind
+its adapter while moving the visual layout to the shared shell component.
+
 `CompositionEngineHost` is an in-memory host for mounted modules. It owns the
 currently mounted module list and rebuilds the active registry projection when
 modules are mounted or unmounted:
