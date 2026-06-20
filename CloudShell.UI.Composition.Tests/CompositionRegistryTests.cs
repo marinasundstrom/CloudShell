@@ -51,6 +51,22 @@ public sealed class CompositionRegistryTests
     }
 
     [Fact]
+    public void ResolveHref_ResolvesSectionTargetsWithRouteParametersBeforeFragment()
+    {
+        var registry = CreateRegistry();
+
+        var href = registry.ResolveHref(
+            DetailsSection,
+            new Dictionary<string, object?>
+            {
+                ["section"] = DetailsSection.Value,
+                ["empty"] = null
+            });
+
+        Assert.Equal("/workspace?section=section.workspace.main.details#section.workspace.main.details", href);
+    }
+
+    [Fact]
     public void GetSections_OrdersByOrderThenTitle()
     {
         var registry = CreateRegistry();
@@ -64,6 +80,21 @@ public sealed class CompositionRegistryTests
     }
 
     [Fact]
+    public void GetSections_PreservesSectionMetadata()
+    {
+        var registry = CreateRegistry();
+
+        var details = registry.GetSections(WorkspacePage, MainOutlet)
+            .Single(section => section.Id == DetailsSection);
+
+        Assert.Equal(WorkspacePage, details.PageId);
+        Assert.Equal(MainOutlet, details.OutletId);
+        Assert.Equal("Details", details.Title);
+        Assert.Equal(typeof(DetailsSectionComponent), details.ComponentType);
+        Assert.Equal(10, details.Order);
+    }
+
+    [Fact]
     public void Create_RejectsDuplicatePageIds()
     {
         var exception = Assert.Throws<InvalidOperationException>(() =>
@@ -74,6 +105,22 @@ public sealed class CompositionRegistryTests
             }));
 
         Assert.Contains("Duplicate composition page ID", exception.Message);
+    }
+
+    [Fact]
+    public void Create_RejectsDuplicateSectionIds()
+    {
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            CompositionRegistry.Create(composition =>
+            {
+                var page = composition.AddPage(WorkspacePage, "Workspace", "/workspace");
+                page
+                    .AddSections(MainOutlet)
+                    .AddSection<OverviewSectionComponent>(OverviewSection, "Overview", 10)
+                    .AddSection<DetailsSectionComponent>(OverviewSection, "Duplicate overview", 20);
+            }));
+
+        Assert.Contains("Duplicate composition section ID", exception.Message);
     }
 
     [Fact]

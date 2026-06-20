@@ -214,6 +214,12 @@ should converge toward.
 | Section | A contributed content component rendered inside a section container. | Sections are useful for extension-owned additions without replacing a whole page. |
 | Content outlet | Runtime component that renders content registered for the current context and target. | Current `CompositionSectionOutlet` is one concrete outlet. |
 
+Named sections are the first implemented content primitive in the experimental
+libraries. A named section carries a stable ID, display title, order, and
+component type. Renderers such as stacked section outlets, dashboard grids, and
+tabs should consume that same section registration instead of inventing
+renderer-specific content registrations.
+
 ### Rendering Primitives
 
 | Concept | Purpose | Notes |
@@ -255,6 +261,25 @@ parameters, fragments, or renderer-local state can select sub-pages, sections,
 or view variants. The composition engine should normalize that state back to
 content IDs where possible so links, menus, tabs, section outlets, and custom
 renderers all resolve the same target consistently.
+
+## Near-term implementation constraints
+
+The experimental libraries intentionally implement only a small subset of the
+proposal:
+
+- Page, menu, menu item, section outlet, and section IDs are typed value
+  objects.
+- Sections are the current named content primitive.
+- The Blazor package provides plain renderers for menus, links, titles,
+  stacked sections, and section tabs.
+- Registration titles are plain strings. Localization metadata, localization
+  providers, and title content templates remain future design work.
+- Registration ownership is not yet recorded. A future `CompositionModule`
+  concept should identify whether an artifact came from the shell, Resource
+  Manager, a built-in capability, a sample host, or an extension. That module
+  metadata will be needed for diagnostics, disable/unload behavior, conflict
+  handling, trust boundaries, permission review, and future persisted graph
+  metadata.
 
 For example, a menu item targeting
 `section.resource-manager.resource.overview.summary` may resolve to the

@@ -45,11 +45,16 @@ The current graph supports:
 - menu items
 - pages bound to normal Blazor routes
 - section outlets
-- sections rendered into a section outlet
+- named sections rendered into a section outlet
 - page and section targets resolved into links
 
 Navigation hierarchy and content hierarchy are already separate. A menu item
 targets a page or section by ID; it does not own that content.
+
+Named sections are the current content contribution primitive. A section has a
+stable `SectionId`, a display title, an order, and a component type. Renderers
+can show those same sections as a stack, grid, tabs, or another layout pattern
+without changing the registered content graph.
 
 ## Registration
 
@@ -212,16 +217,18 @@ The sample includes two registered pages:
   `CompositionSectionTabs` component. The selected section is represented with
   a normal `section` query parameter.
 
-Registration titles are plain strings for this prototype. Localization is a
-future concern; likely options include localized title providers or title
-content templates on renderers that need to opt into custom display behavior.
+Registration titles are plain strings for this prototype. Localization is
+intentionally deferred. Likely options include localized title providers,
+metadata localization keys, or title content templates on renderers that need
+to opt into custom display behavior.
 
 ## Current Validation
 
 The core registry currently validates duplicate page, menu, and section IDs
 when the graph is built. Tests cover route normalization, target link
-resolution, section ordering, menu registration, duplicate ID validation, and
-extendable section outlet validation.
+resolution, section target links with route parameters, section ordering,
+section metadata, menu registration, duplicate ID validation, and extendable
+section outlet validation.
 
 Validation is intentionally still small. Future work should validate unknown
 targets, missing parents, unsupported content kinds, module ownership
@@ -239,7 +246,7 @@ The current composition engine does not yet include:
 - permissions or visibility rules
 - shell-specific metadata outlets beyond the plain `TitleOutlet`
 - active menu item selection
-- localization metadata
+- localization metadata or title templates
 - UI configuration or layout editing
 
 These are proposal-tracked directions, not current behavior.
