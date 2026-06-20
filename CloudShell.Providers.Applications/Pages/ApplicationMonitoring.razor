@@ -1,5 +1,6 @@
 @using CloudShell.Abstractions.Observability
 @using System.Globalization
+@implements IDisposable
 @inject IResourceManager ResourceManager
 @inject IResourceMonitoringManager MonitoringManager
 
@@ -21,10 +22,18 @@ else
                 <h3>Monitoring</h3>
                 <span>@GetStatusText()</span>
             </div>
-            <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSync())"
-                          Disabled="@IsLoading" OnClick="RefreshAsync">
-                @(IsLoading ? "Refreshing" : "Refresh")
-            </FluentButton>
+            <div class="resource-monitoring-actions">
+                <FluentCheckbox @bind-Value="AutoRefresh">
+                    Auto-refresh
+                </FluentCheckbox>
+                @if (!AutoRefresh)
+                {
+                    <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                                  Disabled="@IsLoading" OnClick="RefreshAsync">
+                        @(IsLoading ? "Refreshing" : "Refresh")
+                    </FluentButton>
+                }
+            </div>
         </div>
 
         <dl class="detail-list">
@@ -177,6 +186,8 @@ else
 }
 
 @code {
+    private static readonly TimeSpan AutoRefreshInterval = TimeSpan.FromSeconds(5);
+
     [Parameter]
     public string? ResourceId { get; set; }
 
@@ -184,16 +195,34 @@ else
     private ResourceMonitoringSnapshot? ApplicationSnapshot { get; set; }
     private IReadOnlyList<Resource> Replicas { get; set; } = [];
     private IReadOnlyList<ReplicaMonitoringRow> Rows { get; set; } = [];
+    private System.Threading.Timer? RefreshTimer { get; set; }
     private bool IsLoading { get; set; }
+    private bool IsDisposed { get; set; }
+    private bool AutoRefresh { get; set; } = true;
 
     private int ObservedReplicaCount =>
         Rows.Count(row => IsAvailable(row.Snapshot));
+
+    protected override void OnInitialized()
+    {
+        RefreshTimer = new System.Threading.Timer(
+            _ =>
+            {
+                if (!IsDisposed && AutoRefresh)
+                {
+                    _ = InvokeAsync(RefreshAsync);
+                }
+            },
+            null,
+            AutoRefreshInterval,
+            AutoRefreshInterval);
+    }
 
     protected override Task OnParametersSetAsync() => RefreshAsync();
 
     private async Task RefreshAsync()
     {
-        if (string.IsNullOrWhiteSpace(ResourceId) || IsLoading)
+        if (string.IsNullOrWhiteSpace(ResourceId) || IsLoading || IsDisposed)
         {
             return;
         }
@@ -238,7 +267,17 @@ else
         finally
         {
             IsLoading = false;
+            if (!IsDisposed)
+            {
+                await InvokeAsync(StateHasChanged);
+            }
         }
+    }
+
+    public void Dispose()
+    {
+        IsDisposed = true;
+        RefreshTimer?.Dispose();
     }
 
     private string GetStatusText()

@@ -85,10 +85,13 @@
                 <FluentCheckbox @bind-Value="AutoRefresh">
                     @L["Auto-refresh"]
                 </FluentCheckbox>
-                <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSync())"
-                              Disabled="@IsLoading" OnClick="Refresh">
-                    @(IsLoading ? L["Refreshing"] : L["Refresh"])
-                </FluentButton>
+                @if (!AutoRefresh)
+                {
+                    <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                                  Disabled="@IsLoading" OnClick="Refresh">
+                        @(IsLoading ? L["Refreshing"] : L["Refresh"])
+                    </FluentButton>
+                }
             </div>
         </div>
 

@@ -55,6 +55,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Managed SQL Server and identity/access proposals now mark
   requested-versus-effective grant status as implemented and keep SQL-side
   login, user, role, and drift inspection as the remaining provider work.
+- Resource Monitoring tabs now auto-refresh while open by default and only
+  show the manual Refresh command when auto-refresh is disabled.
 
 ### 2026-06-19
 

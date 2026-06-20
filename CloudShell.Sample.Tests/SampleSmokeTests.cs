@@ -638,6 +638,12 @@ public sealed class SampleSmokeTests
         Assert.Contains(SecretsVaultResourceOperationPermissions.ReadSecrets, secretsAccessControlHtml);
         Assert.DoesNotContain("Configuration entries: read", secretsAccessControlHtml);
 
+        var apiMonitoringHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Monitoring.Value)}");
+        Assert.Contains("Auto-refresh", apiMonitoringHtml);
+        Assert.Contains(">Monitoring<", apiMonitoringHtml);
+        Assert.DoesNotContain(">Refresh<", apiMonitoringHtml);
+
         var apiEnvironmentHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Environment.Value)}");
         Assert.Contains("Startup declaration", apiEnvironmentHtml);
@@ -1557,6 +1563,12 @@ public sealed class SampleSmokeTests
         Assert.Contains("Persisted declaration", appDetailsHtml);
         Assert.DoesNotContain("Startup declaration", appDetailsHtml);
         Assert.DoesNotContain("UI changes are temporary until the resource is persisted.", appDetailsHtml);
+
+        var appMonitoringHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application:sample-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Monitoring.Value)}");
+        Assert.Contains("Auto-refresh", appMonitoringHtml);
+        Assert.Contains(">Monitoring<", appMonitoringHtml);
+        Assert.DoesNotContain(">Refresh<", appMonitoringHtml);
 
         var updateJson = await host.SendJsonAsync(
             HttpMethod.Post,
