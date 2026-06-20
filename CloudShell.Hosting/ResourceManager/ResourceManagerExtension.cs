@@ -24,6 +24,7 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
         builder
             .RegisterView<Resources>(ResourceManagerViews.Resources)
             .AddNavigationItem<Resources>("Resources", "server", 10)
+            .RegisterView<ResourceDependencyGraph>(ResourceManagerViews.ResourceGraph)
             .RegisterView<Health>(ResourceManagerViews.Health)
             .AddNavigationItem<Health>("Health", "health", 15)
             .RegisterView<AddResource>(ResourceManagerViews.AddResource)

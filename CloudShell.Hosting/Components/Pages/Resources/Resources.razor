@@ -40,6 +40,11 @@
         <p>@L["Explore registered resources, project groups, endpoints, dependencies, and nested sub-resources."]</p>
     </div>
     <div class="heading-actions">
+        <FluentAnchor Appearance="Appearance.Neutral"
+                      IconStart="@(new Icons.Regular.Size20.ShareAndroid())"
+                      Href="@ResourceManagerRoutes.ResourceGraph">
+            @L["Graph"]
+        </FluentAnchor>
         <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSync())"
                       OnClick="RefreshResourcesAsync">
             @(IsCheckingHealth ? L["Checking..."] : L["Refresh"])

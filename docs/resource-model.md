@@ -193,6 +193,12 @@ Rules:
   authorization. Caller authorization is represented by effective resource
   access levels.
 
+Resource Manager includes a resource dependency graph page that visualizes the
+currently visible resource projections and their `DependsOn` relationships.
+The graph is a UI projection over existing resource data: it filters by the
+same Resource Manager display settings as the inventory page and does not add
+new dependency semantics, lifecycle policy, or provider behavior.
+
 ## Resource Access
 
 Resource access is the caller-specific authorization result for a resource.

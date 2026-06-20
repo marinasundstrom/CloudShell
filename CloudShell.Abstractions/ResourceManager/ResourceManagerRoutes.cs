@@ -4,6 +4,8 @@ public static class ResourceManagerRoutes
 {
     public const string Resources = "/resources";
 
+    public const string ResourceGraph = "/resources/graph";
+
     public static string ResourceDetails(string resourceId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);

@@ -84,6 +84,9 @@ on `git blame --follow`, and then by the broad type of change.
   suppresses repeated polling failure logs until polling succeeds, and routes
   Resource Manager lifecycle, process, and health-probe logs through dedicated
   CloudShell logging categories that hosts can tune through appsettings.
+- Resource Manager now has a D3-powered resource dependency graph page linked
+  from Resources, showing visible resources, endpoint summaries, lifecycle
+  state, and `DependsOn` relationships.
 - Resource Manager severity indicators now use a shared Fluent icon mapping:
   warning triangle, information circle, success check circle, and error circle,
   with filled variants available for higher-emphasis contexts.

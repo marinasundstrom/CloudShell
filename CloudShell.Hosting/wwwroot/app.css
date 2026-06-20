@@ -1127,6 +1127,186 @@ h3 {
     text-align: center;
 }
 
+.resource-graph-page {
+    display: grid;
+    gap: .8rem;
+    min-height: calc(100vh - 11rem);
+}
+
+.resource-graph-summary {
+    display: flex;
+    gap: .65rem;
+    flex-wrap: wrap;
+}
+
+.resource-graph-summary div {
+    display: grid;
+    min-width: 8rem;
+    gap: .1rem;
+    padding: .55rem .65rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 4px;
+    background: var(--cloudshell-surface-muted);
+}
+
+.resource-graph-summary span {
+    color: var(--cloudshell-text-muted);
+    font-size: .78rem;
+}
+
+.resource-graph-summary strong {
+    font-size: 1.2rem;
+    font-weight: 650;
+}
+
+.resource-graph-shell {
+    position: relative;
+    min-height: calc(100vh - 17rem);
+    overflow: hidden;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 6px;
+    background:
+        linear-gradient(var(--cloudshell-divider) 1px, transparent 1px),
+        linear-gradient(90deg, var(--cloudshell-divider) 1px, transparent 1px),
+        var(--cloudshell-surface-muted);
+    background-size: 42px 42px;
+}
+
+.resource-graph-shell.empty {
+    min-height: 22rem;
+}
+
+.resource-dependency-graph-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: inherit;
+    cursor: grab;
+}
+
+.resource-dependency-graph-canvas:active {
+    cursor: grabbing;
+}
+
+.resource-graph-controls {
+    position: absolute;
+    right: .75rem;
+    bottom: .75rem;
+    display: flex;
+    gap: .35rem;
+    padding: .25rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--cloudshell-surface) 92%, transparent);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .12);
+}
+
+.resource-graph-link {
+    stroke: color-mix(in srgb, var(--cloudshell-text-muted) 58%, transparent);
+    stroke-width: 1.5;
+    marker-end: url("#resource-graph-arrow");
+}
+
+.resource-graph-link.related {
+    stroke: var(--cloudshell-accent);
+    stroke-width: 2.4;
+}
+
+.resource-graph-link.dimmed {
+    opacity: .18;
+}
+
+.resource-graph-arrow {
+    fill: color-mix(in srgb, var(--cloudshell-text-muted) 70%, transparent);
+}
+
+.resource-graph-node {
+    cursor: pointer;
+}
+
+.resource-graph-node-card {
+    fill: var(--cloudshell-surface);
+    stroke: var(--cloudshell-stroke);
+    stroke-width: 1;
+    filter: drop-shadow(0 5px 12px rgba(0, 0, 0, .12));
+}
+
+.resource-graph-node:hover .resource-graph-node-card,
+.resource-graph-node.selected .resource-graph-node-card {
+    stroke: var(--cloudshell-accent);
+    stroke-width: 2;
+}
+
+.resource-graph-node.dimmed {
+    opacity: .28;
+}
+
+.resource-graph-node.related,
+.resource-graph-node.selected {
+    opacity: 1;
+}
+
+.resource-graph-node-icon {
+    fill: #64748b;
+}
+
+.resource-graph-node-icon.project,
+.resource-graph-node-icon.executable {
+    fill: #7c3aed;
+}
+
+.resource-graph-node-icon.container {
+    fill: #0f766e;
+}
+
+.resource-graph-node-icon.service {
+    fill: #d97706;
+}
+
+.resource-graph-node-icon.network {
+    fill: #2563eb;
+}
+
+.resource-graph-node-icon.storage {
+    fill: #0891b2;
+}
+
+.resource-graph-node-icon.configuration {
+    fill: #9333ea;
+}
+
+.resource-graph-node-icon.secretsvault {
+    fill: #be123c;
+}
+
+.resource-graph-node-initials {
+    fill: white;
+    font-size: .72rem;
+    font-weight: 700;
+    pointer-events: none;
+    text-anchor: middle;
+}
+
+.resource-graph-status {
+    stroke: var(--cloudshell-surface);
+    stroke-width: 3;
+}
+
+.resource-graph-node-label {
+    fill: var(--cloudshell-text);
+    font-size: .84rem;
+    font-weight: 650;
+    pointer-events: none;
+    text-anchor: middle;
+}
+
+.resource-graph-node-endpoint {
+    fill: var(--cloudshell-text-muted);
+    font-size: .72rem;
+    pointer-events: none;
+    text-anchor: middle;
+}
+
 @media (max-width: 860px) {
     .resource-relationship-graph {
         grid-template-columns: minmax(0, 1fr);
@@ -1134,6 +1314,14 @@ h3 {
 
     .resource-relationship-current {
         justify-self: stretch;
+    }
+
+    .resource-graph-page {
+        min-height: auto;
+    }
+
+    .resource-graph-shell {
+        min-height: 28rem;
     }
 }
 

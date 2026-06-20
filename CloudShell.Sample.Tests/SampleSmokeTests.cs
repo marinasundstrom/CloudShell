@@ -114,6 +114,11 @@ public sealed class SampleSmokeTests
         var resourcesHtml = await host.GetStringAsync("/resources");
         Assert.Contains("Project Reference API", resourcesHtml);
         Assert.Contains("Project Reference Frontend", resourcesHtml);
+        Assert.Contains("href=\"/resources/graph\"", resourcesHtml);
+
+        var resourceGraphHtml = await host.GetStringAsync("/resources/graph");
+        Assert.Contains("Resource graph", resourceGraphHtml);
+        Assert.Contains("resource-dependency-graph-canvas", resourceGraphHtml);
 
         var apiJson = await host.GetStringAsync("/api/control-plane/v1/resources");
         using var document = JsonDocument.Parse(apiJson);
