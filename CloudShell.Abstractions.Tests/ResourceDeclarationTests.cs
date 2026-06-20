@@ -1592,7 +1592,8 @@ public sealed class ResourceDeclarationTests
             "application:api",
             "group-1",
             "run",
-            ResourceIdentityReference.ForResource("application:api", "api-service"));
+            ResourceIdentityReference.ForResource("application:api", "api-service"),
+            "api/api-service");
 
         var allowed = await provider.ResolveSecretAsync(
             new SecretReference("secrets-vault:app", "token"),
@@ -1605,6 +1606,8 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("secret-token", allowed.Value);
         Assert.False(denied.IsResolved);
         Assert.Contains("is not allowed to read secrets", denied.ErrorMessage);
+        Assert.Contains("Identity 'api/api-service'", denied.ErrorMessage);
+        Assert.Contains("Other Secrets", denied.ErrorMessage);
     }
 
     [Fact]
@@ -3628,7 +3631,8 @@ public sealed class ResourceDeclarationTests
             "application:api",
             "group-1",
             "run",
-            ResourceIdentityReference.ForResource("application:api", "api-service"));
+            ResourceIdentityReference.ForResource("application:api", "api-service"),
+            "api/api-service");
 
         var allowed = resolver.ResolveConfigurationEntry(
             new ConfigurationEntryReference("configuration:app", "Message"),
@@ -3641,6 +3645,8 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("hello", allowed.Value);
         Assert.False(denied.IsResolved);
         Assert.Contains("is not allowed to read configuration entries", denied.ErrorMessage);
+        Assert.Contains("Identity 'api/api-service'", denied.ErrorMessage);
+        Assert.Contains("Other Settings", denied.ErrorMessage);
     }
 
     [Fact]

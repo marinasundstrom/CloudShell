@@ -1868,11 +1868,13 @@ public sealed partial class ApplicationResourceService(
         string? resourceGroupId,
         CancellationToken cancellationToken)
     {
+        var identity = ResolveIdentity(definition.Id);
         var context = new ResourceSettingResolutionContext(
             definition.Id,
             resourceGroupId,
             "run",
-            ResolveIdentity(definition.Id));
+            identity,
+            identity is null ? null : FormatIdentity(identity, definition));
         var variables = new List<EnvironmentVariableAssignment>();
 
         foreach (var setting in definition.AppSettings)

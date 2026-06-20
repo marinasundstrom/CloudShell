@@ -320,7 +320,7 @@ public sealed partial class SecretsVaultProvider(
                 .IsAllowed)
         {
             return ValueTask.FromResult(ResourceSettingResolutionResult.Failed(
-                $"Identity '{FormatIdentity(identity)}' is not allowed to read secrets from Secrets Vault '{vault.Name}'."));
+                $"Identity '{FormatIdentity(identity, context)}' is not allowed to read secrets from Secrets Vault '{vault.Name}'."));
         }
 
         var candidates = vault.Secrets
@@ -341,10 +341,19 @@ public sealed partial class SecretsVaultProvider(
         return ValueTask.FromResult(ResourceSettingResolutionResult.Resolved(resolved.Value));
     }
 
-    private static string FormatIdentity(ResourceIdentityReference identity) =>
-        string.IsNullOrWhiteSpace(identity.Name)
+    private static string FormatIdentity(
+        ResourceIdentityReference identity,
+        ResourceSettingResolutionContext context)
+    {
+        if (!string.IsNullOrWhiteSpace(context.IdentityDisplayName))
+        {
+            return context.IdentityDisplayName;
+        }
+
+        return string.IsNullOrWhiteSpace(identity.Name)
             ? identity.ResourceId
             : $"{identity.ResourceId}/{identity.Name}";
+    }
 
     public bool CanExport(Resource resource) =>
         string.Equals(resource.EffectiveTypeId, ResourceType, StringComparison.OrdinalIgnoreCase) &&

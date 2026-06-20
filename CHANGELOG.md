@@ -63,6 +63,8 @@ on `git blame --follow`, and then by the broad type of change.
   labels for the referenced resource and the calling identity.
 - Configuration and Secrets reference resolution errors now use the existing
   store or vault name instead of repeating the resource ID.
+- Setting and secret resolution context can carry a readable identity display
+  name so provider denial messages do not need to expose principal resource IDs.
 
 ### 2026-06-19
 

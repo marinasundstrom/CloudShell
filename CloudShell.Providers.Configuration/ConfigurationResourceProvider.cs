@@ -351,7 +351,7 @@ public sealed partial class ConfigurationResourceProvider :
                 .IsAllowed)
         {
             return ResourceSettingResolutionResult.Failed(
-                $"Identity '{FormatIdentity(identity)}' is not allowed to read configuration entries from '{configurationStore.Name}'.");
+                $"Identity '{FormatIdentity(identity, context)}' is not allowed to read configuration entries from '{configurationStore.Name}'.");
         }
 
         var entry = configurationStore.Entries.FirstOrDefault(entry =>
@@ -365,10 +365,19 @@ public sealed partial class ConfigurationResourceProvider :
         return ResourceSettingResolutionResult.Resolved(entry.Value);
     }
 
-    private static string FormatIdentity(ResourceIdentityReference identity) =>
-        string.IsNullOrWhiteSpace(identity.Name)
+    private static string FormatIdentity(
+        ResourceIdentityReference identity,
+        ResourceSettingResolutionContext context)
+    {
+        if (!string.IsNullOrWhiteSpace(context.IdentityDisplayName))
+        {
+            return context.IdentityDisplayName;
+        }
+
+        return string.IsNullOrWhiteSpace(identity.Name)
             ? identity.ResourceId
             : $"{identity.ResourceId}/{identity.Name}";
+    }
 
     public bool CanExport(Resource resource) =>
         string.Equals(resource.EffectiveTypeId, "configuration.store", StringComparison.OrdinalIgnoreCase) &&

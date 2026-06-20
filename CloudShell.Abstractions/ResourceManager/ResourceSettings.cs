@@ -46,7 +46,8 @@ public sealed record ResourceSettingResolutionContext(
     string TargetResourceId,
     string? ResourceGroupId = null,
     string? Operation = null,
-    ResourceIdentityReference? Identity = null);
+    ResourceIdentityReference? Identity = null,
+    string? IdentityDisplayName = null);
 
 public sealed record ResourceSettingResolutionResult(
     string? Value,
