@@ -109,6 +109,9 @@ on `git blame --follow`, and then by the broad type of change.
   composition main menu with graph-encoded permission requirements.
 - The UI Extension Host sample now contributes its sample workspace sidebar
   item through the composition main menu instead of legacy shell navigation.
+- CloudShell Hosting now exposes `builder.AddCompositionModule(...)` for
+  extension-owned composition modules, keeping extension authoring off direct
+  service collection registration.
 - The common Settings page now renders composition sections through a
   CloudShell-specific tabbed-layout adapter, keeping section projection,
   selection, link resolution, and dynamic section rendering reusable.

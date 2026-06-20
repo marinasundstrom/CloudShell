@@ -253,7 +253,7 @@ context are first-class in the model; a section ID alone is not enough for a
 separate module to safely add child content.
 
 ```csharp
-builder.Services.AddCloudShellUiCompositionModule<ShellCompositionHostContext>(
+builder.AddCompositionModule<ShellCompositionHostContext>(
     CompositionModuleId.Create("identity-settings"),
     (context, module) =>
     {
@@ -267,12 +267,14 @@ builder.Services.AddCloudShellUiCompositionModule<ShellCompositionHostContext>(
 ```
 
 CloudShell Hosting now registers the composition services during
-`AddCloudShellUi()`. Extensions that reference the composition package can
-register modules through
-`builder.Services.AddCloudShellUiCompositionModule(...)`; the UI-extension-host
-sample does this for its sample workspace page and sidebar item. The legacy
-shell catalog navigation bridge remains available for compatibility while
-extensions migrate to composition-native menu contributions.
+`AddCloudShellUi()`. CloudShell extensions that reference Hosting and the
+composition package can register modules through
+`builder.AddCompositionModule(...)`; the UI-extension-host sample does this
+for its sample workspace page and sidebar item. Plain Blazor hosts can still
+use `builder.Services.AddCloudShellUiCompositionModule(...)` directly when
+they are not inside the CloudShell extension builder. The legacy shell catalog
+navigation bridge remains available for compatibility while extensions migrate
+to composition-native menu contributions.
 
 CloudShell Hosting now also has a shell-owned tabbed layout component that
 matches the resource details information architecture: local navigation in a

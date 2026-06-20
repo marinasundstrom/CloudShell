@@ -86,6 +86,16 @@ public sealed class AcmeExtension : ICloudShellExtension
 
     public void Configure(ICloudShellExtensionBuilder builder)
     {
+        builder.AddCompositionModule(
+            CompositionModuleId.Create("acme.infrastructure"),
+            composition =>
+            {
+                composition.AddPage(
+                    PageId.Create("acme-dashboard"),
+                    "Acme Dashboard",
+                    "/acme-dashboard");
+            });
+
         builder
             .AddResourceProvider<AcmeResourceProvider>()
             .AddLogProvider<AcmeLogProvider>()
@@ -104,6 +114,11 @@ public sealed class AcmeExtension : ICloudShellExtension
     }
 }
 ```
+
+Use `builder.AddCompositionModule(...)` for new shell pages, menu items,
+settings sections, or other composition-backed UI contributions. The older
+navigation APIs remain for compatibility while existing extensions migrate to
+composition-native menu and page registrations.
 
 Expose a package-level registration method:
 

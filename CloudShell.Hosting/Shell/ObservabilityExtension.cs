@@ -2,7 +2,6 @@ using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Extensions;
 using CloudShell.Hosting.Components.Pages.Logs;
 using CloudShell.UI.Composition;
-using CloudShell.UI.Composition.Blazor;
 
 namespace CloudShell.Hosting.Shell;
 
@@ -18,7 +17,7 @@ public sealed class ObservabilityExtension : ICloudShellExtension
 
     public void Configure(ICloudShellExtensionBuilder builder)
     {
-        builder.Services.AddCloudShellUiCompositionModule(
+        builder.AddCompositionModule(
             ObservabilityCompositionIds.Module,
             composition =>
             {

@@ -3,7 +3,6 @@ using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Hosting.Components.Pages.Resources;
 using CloudShell.Hosting.Shell;
 using CloudShell.UI.Composition;
-using CloudShell.UI.Composition.Blazor;
 
 namespace CloudShell.Hosting.ResourceManager;
 
@@ -24,7 +23,7 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
 
     public void Configure(ICloudShellExtensionBuilder builder)
     {
-        builder.Services.AddCloudShellUiCompositionModule(
+        builder.AddCompositionModule(
             ResourceManagerCompositionIds.Module,
             composition =>
             {
@@ -169,7 +168,7 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
 
         if (includeSettings)
         {
-            builder.Services.AddCloudShellUiCompositionModule<ShellCompositionHostContext>(
+            builder.AddCompositionModule<ShellCompositionHostContext>(
                 ResourceManagerCompositionIds.SettingsModule,
                 (context, composition) =>
                 {

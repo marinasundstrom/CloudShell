@@ -2,7 +2,6 @@ using CloudShell.Abstractions.Extensions;
 using CloudShell.Hosting.Shell;
 using CloudShell.UiExtensionHost.Pages;
 using CloudShell.UI.Composition;
-using CloudShell.UI.Composition.Blazor;
 
 namespace CloudShell.UiExtensionHost;
 
@@ -27,7 +26,7 @@ public sealed class SampleWorkspaceExtension : ICloudShellExtension
 
     public void Configure(ICloudShellExtensionBuilder builder)
     {
-        builder.Services.AddCloudShellUiCompositionModule(
+        builder.AddCompositionModule(
             ModuleId,
             module =>
             {
