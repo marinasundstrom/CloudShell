@@ -19,26 +19,24 @@
                         {
                             @if (!string.IsNullOrWhiteSpace(item.Href))
                             {
-                                <FluentAnchor Class="@GetTabButtonClass(item)"
-                                              Appearance="Appearance.Stealth"
-                                              Href="@item.Href"
-                                              role="tab"
-                                              aria-selected="@(item.Id == SelectedItem?.Id)"
-                                              data-composition-module="@item.ModuleId">
+                                <a class="@GetTabButtonClass(item)"
+                                   href="@item.Href"
+                                   role="tab"
+                                   aria-selected="@(item.Id == SelectedItem?.Id)"
+                                   data-composition-module="@item.ModuleId">
                                     @RenderTabContent(item)
-                                </FluentAnchor>
+                                </a>
                             }
                             else
                             {
-                                <FluentButton Class="@GetTabButtonClass(item)"
-                                              Appearance="Appearance.Stealth"
-                                              Type="ButtonType.Button"
-                                              role="tab"
-                                              aria-selected="@(item.Id == SelectedItem?.Id)"
-                                              data-composition-module="@item.ModuleId"
-                                              OnClick="() => SelectItemAsync(item)">
+                                <button class="@GetTabButtonClass(item)"
+                                        type="button"
+                                        role="tab"
+                                        aria-selected="@(item.Id == SelectedItem?.Id)"
+                                        data-composition-module="@item.ModuleId"
+                                        @onclick="() => SelectItemAsync(item)">
                                     @RenderTabContent(item)
-                                </FluentButton>
+                                </button>
                             }
                         }
                     </div>

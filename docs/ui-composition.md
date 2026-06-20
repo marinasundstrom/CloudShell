@@ -414,10 +414,12 @@ descriptions through the shared tab item model. The layout exposes neutral
 layout selectors remain for compatibility with Resource Manager-specific
 surfaces that have not moved to the shared component.
 When a tab item has a route or fragment target, the shared shell layout renders
-it as a `FluentAnchor` with an `href`. Non-link tab items render as
-`FluentButton` and keep callback-driven selection. This keeps route-backed
-local navigation linkable without making non-navigational tab items pretend to
-have URLs.
+it as a plain anchor with an `href`. This is a deliberate exception to the
+Fluent-first shell rule because the tabbed layout needs direct row-level CSS
+control for icons, descriptions, active state, and grouped local navigation
+that the Fluent anchor wrapper does not expose cleanly. This keeps
+route-backed local navigation linkable without making non-navigational tab
+items pretend to have URLs.
 
 `CompositionEngineHost` is an in-memory host for mounted modules. It owns the
 currently mounted module list and rebuilds the active registry projection when

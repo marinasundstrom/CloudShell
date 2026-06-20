@@ -143,8 +143,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Legacy custom shell views now use URL fragments for local menu item
   selection, matching the parent-addressed composition section convention.
 - The shared CloudShell tabbed layout now renders route-backed tab items as
-  `FluentAnchor` links with real hrefs, while non-link tab items use
-  `FluentButton` for callback-driven selection.
+  plain links with real hrefs because the layout needs full row-level CSS
+  control that the Fluent anchor wrapper does not expose cleanly.
 - The CloudShell Fluent composition tabbed layout now resolves non-default
   section navigation through section targets instead of duplicating route
   parameter construction in the UI adapter.
