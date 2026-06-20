@@ -2,11 +2,11 @@ namespace CloudShell.UI.Composition;
 
 public sealed class CompositionBuilder
 {
-    private readonly HashSet<SectionOutletId> _extendableOutlets = [];
-
     internal List<CompositionPageRegistration> Pages { get; } = [];
 
     internal List<CompositionMenuRegistration> Menus { get; } = [];
+
+    internal List<CompositionSectionOutletRegistration> SectionOutlets { get; } = [];
 
     internal List<CompositionSectionRegistration> Sections { get; } = [];
 
@@ -28,16 +28,24 @@ public sealed class CompositionBuilder
 
     public CompositionSectionOutletBuilder GetSections(SectionOutletId outletId)
     {
-        if (!_extendableOutlets.Contains(outletId))
+        var outlet = SectionOutlets.FirstOrDefault(outlet => outlet.Id == outletId);
+        if (outlet is null || !outlet.IsExtendable)
         {
             throw new InvalidOperationException($"Section outlet '{outletId}' is not registered as extendable.");
         }
 
-        return new CompositionSectionOutletBuilder(this, FindOutletPage(outletId), outletId);
+        return new CompositionSectionOutletBuilder(this, outlet.PageId, outletId);
     }
 
-    internal void RegisterExtendableOutlet(SectionOutletId outletId) =>
-        _extendableOutlets.Add(outletId);
+    internal CompositionSectionOutletBuilder GetSections(
+        PageId pageId,
+        SectionOutletId outletId)
+    {
+        CompositionRegistry.ValidateId(pageId.Value, nameof(pageId));
+        CompositionRegistry.ValidateId(outletId.Value, nameof(outletId));
+
+        return new CompositionSectionOutletBuilder(this, pageId, outletId);
+    }
 
     internal CompositionRegistry Build() =>
         CompositionRegistry.FromBuilder(this);
@@ -47,18 +55,8 @@ public sealed class CompositionBuilder
             moduleId,
             Pages.ToArray(),
             Menus.ToArray(),
+            SectionOutlets.ToArray(),
             Sections.ToArray());
-
-    private PageId FindOutletPage(SectionOutletId outletId)
-    {
-        var existing = Sections.FirstOrDefault(section => section.OutletId == outletId);
-        if (existing is not null)
-        {
-            return existing.PageId;
-        }
-
-        throw new InvalidOperationException($"Section outlet '{outletId}' has not been attached to a page.");
-    }
 
     private static string NormalizeRoute(string route)
     {
@@ -73,14 +71,14 @@ public sealed class CompositionPageBuilder(
 {
     public CompositionSectionOutletBuilder AddSections(
         SectionOutletId outletId,
-        bool allowExtending = false)
+        bool isExtendable = false)
     {
         CompositionRegistry.ValidateId(outletId.Value, nameof(outletId));
 
-        if (allowExtending)
-        {
-            builder.RegisterExtendableOutlet(outletId);
-        }
+        builder.SectionOutlets.Add(new CompositionSectionOutletRegistration(
+            outletId,
+            pageId,
+            isExtendable));
 
         return new CompositionSectionOutletBuilder(builder, pageId, outletId);
     }

@@ -118,6 +118,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Updated the plain Blazor composition menu, link, stacked section, and tabs
   renderers to consume module-owned projections and expose module ownership
   through `data-composition-module` attributes.
+- Added explicit section outlet artifacts with `IsExtendable` validation so
+  modules can only add sections to extension points that the outlet owner has
+  marked as extendable. Permissions and visibility remain future dynamic
+  policy layers.
 - Moved the composition proof direction away from the UI Extension Host sample:
   CloudShell extension integration should adapt to the core composition graph
   only after the standalone app structure is credible.

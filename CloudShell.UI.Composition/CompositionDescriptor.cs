@@ -4,6 +4,7 @@ public sealed record CompositionModuleDescriptor(
     CompositionModuleId Id,
     IReadOnlyList<CompositionPageDescriptor> Pages,
     IReadOnlyList<CompositionMenuDescriptor> Menus,
+    IReadOnlyList<CompositionSectionOutletDescriptor> SectionOutlets,
     IReadOnlyList<CompositionSectionDescriptor> Sections);
 
 public sealed record CompositionPageDescriptor(
@@ -29,6 +30,11 @@ public sealed record CompositionMenuItemDescriptor(
     CompositionTarget Target,
     int Order);
 
+public sealed record CompositionSectionOutletDescriptor(
+    SectionOutletId Id,
+    PageId PageId,
+    bool IsExtendable);
+
 public sealed record CompositionSectionDescriptor(
     SectionId Id,
     PageId PageId,
@@ -44,6 +50,7 @@ public static class CompositionDescriptorExtensions
             module.Id,
             module.Pages.Select(page => page.ToDescriptor()).ToArray(),
             module.Menus.Select(menu => menu.ToDescriptor()).ToArray(),
+            module.SectionOutlets.Select(outlet => outlet.ToDescriptor()).ToArray(),
             module.Sections.Select(section => section.ToDescriptor()).ToArray());
 
     public static CompositionPageDescriptor ToDescriptor(this CompositionPageRegistration page) =>
@@ -65,6 +72,9 @@ public static class CompositionDescriptorExtensions
 
     public static CompositionMenuItemDescriptor ToDescriptor(this CompositionMenuItemRegistration item) =>
         new(item.Id, item.Title, item.Target, item.Order);
+
+    public static CompositionSectionOutletDescriptor ToDescriptor(this CompositionSectionOutletRegistration outlet) =>
+        new(outlet.Id, outlet.PageId, outlet.IsExtendable);
 
     public static CompositionSectionDescriptor ToDescriptor(this CompositionSectionRegistration section) =>
         new(

@@ -33,6 +33,11 @@ public sealed class CompositionDescriptorTests
         Assert.Single(menu.Items);
         Assert.Single(menu.Sections);
 
+        var outlet = Assert.Single(descriptor.SectionOutlets);
+        Assert.Equal(MainOutlet, outlet.Id);
+        Assert.Equal(WorkspacePage, outlet.PageId);
+        Assert.False(outlet.IsExtendable);
+
         var section = descriptor.Sections.Single(item => item.Id == DetailsSection);
         Assert.Equal(WorkspacePage, section.PageId);
         Assert.Equal(MainOutlet, section.OutletId);
@@ -52,6 +57,7 @@ public sealed class CompositionDescriptorTests
         Assert.Equal(descriptor.Id, roundTrip.Id);
         Assert.Equal(descriptor.Pages[0].Id, roundTrip.Pages[0].Id);
         Assert.Equal(descriptor.Menus[0].Sections[0].Items[0].Target, roundTrip.Menus[0].Sections[0].Items[0].Target);
+        Assert.Equal(descriptor.SectionOutlets[0].IsExtendable, roundTrip.SectionOutlets[0].IsExtendable);
         Assert.Equal(descriptor.Sections[0].ComponentTypeName, roundTrip.Sections[0].ComponentTypeName);
     }
 

@@ -7,17 +7,20 @@ public sealed class CompositionRegistry
     private readonly IReadOnlyList<CompositionModule> _modules;
     private readonly IReadOnlyList<CompositionPageRegistration> _pages;
     private readonly IReadOnlyList<CompositionMenuRegistration> _menus;
+    private readonly IReadOnlyList<CompositionSectionOutletRegistration> _sectionOutlets;
     private readonly IReadOnlyList<CompositionSectionRegistration> _sections;
 
     private CompositionRegistry(
         IReadOnlyList<CompositionModule> modules,
         IReadOnlyList<CompositionPageRegistration> pages,
         IReadOnlyList<CompositionMenuRegistration> menus,
+        IReadOnlyList<CompositionSectionOutletRegistration> sectionOutlets,
         IReadOnlyList<CompositionSectionRegistration> sections)
     {
         _modules = modules;
         _pages = pages;
         _menus = menus;
+        _sectionOutlets = sectionOutlets;
         _sections = sections;
     }
 
@@ -42,16 +45,20 @@ public sealed class CompositionRegistry
 
         var pages = materializedModules.SelectMany(module => module.Pages).ToArray();
         var menus = materializedModules.SelectMany(module => module.Menus).ToArray();
+        var sectionOutlets = materializedModules.SelectMany(module => module.SectionOutlets).ToArray();
         var sections = materializedModules.SelectMany(module => module.Sections).ToArray();
 
         ValidateUnique(pages.Select(page => page.Id.Value), "page");
         ValidateUnique(menus.Select(menu => menu.Id.Value), "menu");
+        ValidateUnique(sectionOutlets.Select(outlet => outlet.Id.Value), "section outlet");
         ValidateUnique(sections.Select(section => section.Id.Value), "section");
+        ValidateSectionContributions(materializedModules);
 
         return new(
             materializedModules,
             pages,
             menus,
+            sectionOutlets,
             sections);
     }
 
@@ -79,6 +86,14 @@ public sealed class CompositionRegistry
         _modules
             .SelectMany(module => module.Menus.Select(menu => new CompositionMenuProjection(module.Id, menu)))
             .FirstOrDefault(projection => projection.Menu.Id == menuId);
+
+    public CompositionSectionOutletRegistration? GetSectionOutlet(SectionOutletId outletId) =>
+        _sectionOutlets.FirstOrDefault(outlet => outlet.Id == outletId);
+
+    public CompositionSectionOutletProjection? GetSectionOutletProjection(SectionOutletId outletId) =>
+        _modules
+            .SelectMany(module => module.SectionOutlets.Select(outlet => new CompositionSectionOutletProjection(module.Id, outlet)))
+            .FirstOrDefault(projection => projection.Outlet.Id == outletId);
 
     public IReadOnlyList<CompositionSectionRegistration> GetSections(
         PageId pageId,
@@ -159,6 +174,37 @@ public sealed class CompositionRegistry
         if (duplicate is not null)
         {
             throw new InvalidOperationException($"Duplicate composition {kind} ID '{duplicate.Key}'.");
+        }
+    }
+
+    private static void ValidateSectionContributions(IReadOnlyList<CompositionModule> modules)
+    {
+        var outletProjections = modules
+            .SelectMany(module => module.SectionOutlets.Select(outlet => new CompositionSectionOutletProjection(module.Id, outlet)))
+            .ToDictionary(projection => projection.Outlet.Id);
+
+        foreach (var module in modules)
+        {
+            foreach (var section in module.Sections)
+            {
+                if (!outletProjections.TryGetValue(section.OutletId, out var outletProjection))
+                {
+                    throw new InvalidOperationException(
+                        $"Composition section '{section.Id}' targets unknown section outlet '{section.OutletId}'.");
+                }
+
+                if (section.PageId != outletProjection.Outlet.PageId)
+                {
+                    throw new InvalidOperationException(
+                        $"Composition section '{section.Id}' targets page '{section.PageId}' but section outlet '{section.OutletId}' belongs to page '{outletProjection.Outlet.PageId}'.");
+                }
+
+                if (module.Id != outletProjection.ModuleId && !outletProjection.Outlet.IsExtendable)
+                {
+                    throw new InvalidOperationException(
+                        $"Composition section outlet '{section.OutletId}' is not extendable and cannot accept section '{section.Id}' from module '{module.Id}'.");
+                }
+            }
         }
     }
 

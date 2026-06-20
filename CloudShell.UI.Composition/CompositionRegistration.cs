@@ -23,6 +23,11 @@ public sealed record CompositionMenuItemRegistration(
     CompositionTarget Target,
     int Order);
 
+public sealed record CompositionSectionOutletRegistration(
+    SectionOutletId Id,
+    PageId PageId,
+    bool IsExtendable);
+
 public sealed record CompositionSectionRegistration(
     SectionId Id,
     PageId PageId,

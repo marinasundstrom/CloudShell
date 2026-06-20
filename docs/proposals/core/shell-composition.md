@@ -294,6 +294,10 @@ proposal:
   preserve the owning `CompositionModuleId`.
 - Plain Blazor menu and section renderers consume those projections and expose
   the owning module as `data-composition-module` attributes for diagnostics.
+- Section outlets are explicit artifacts with `IsExtendable`. The registry
+  rejects cross-module section contributions unless the target outlet is
+  extendable. Permissions and visibility remain a future dynamic layer over
+  registration and rendering.
 - Modules and runtime registrations can be projected into descriptor records
   that JSON round-trip. Module descriptors can be rehydrated into runtime
   modules through a host-provided component type resolver.
@@ -507,7 +511,7 @@ var settingsPage = builder.AddPage(PredefinedPages.Settings);
 
 var settingsSections = settingsPage.AddSections(
     PredefinedSectionContainers.Settings,
-    allowExtending: true);
+    isExtendable: true);
 
 settingsSections.AddSection(
     PredefinedSections.SettingsGeneral,

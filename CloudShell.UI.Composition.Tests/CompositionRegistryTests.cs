@@ -171,6 +171,9 @@ public sealed class CompositionRegistryTests
         Assert.Equal(CompositionModuleId.Host, module.Id);
         Assert.Single(module.Pages);
         Assert.Single(module.Menus);
+        var outlet = Assert.Single(module.SectionOutlets);
+        Assert.Equal(MainOutlet, outlet.Id);
+        Assert.True(outlet.IsExtendable);
         Assert.Equal(2, module.Sections.Count);
     }
 
@@ -203,6 +206,66 @@ public sealed class CompositionRegistryTests
             CompositionRegistry.FromModules(module, module));
 
         Assert.Contains("Duplicate composition module ID", exception.Message);
+    }
+
+    [Fact]
+    public void FromModules_AllowsExternalSectionsForExtendableOutlets()
+    {
+        var host = CreateHostModule();
+        var extensionSection = SectionId.Create(MainOutlet, "extension");
+        var extension = CompositionModule.Create(ReportsModule, module =>
+        {
+            module
+                .GetSections(WorkspacePage, MainOutlet)
+                .AddSection<ReportsSectionComponent>(extensionSection, "Extension", 30);
+        });
+
+        var registry = CompositionRegistry.FromModules(host, extension);
+
+        var section = registry.GetSectionProjections(WorkspacePage, MainOutlet)
+            .Single(projection => projection.Section.Id == extensionSection);
+        Assert.Equal(ReportsModule, section.ModuleId);
+    }
+
+    [Fact]
+    public void FromModules_RejectsExternalSectionsForNonExtendableOutlets()
+    {
+        var host = CompositionModule.Create(CompositionModuleId.Host, module =>
+        {
+            module
+                .AddPage(WorkspacePage, "Workspace", "/workspace")
+                .AddSections(MainOutlet)
+                .AddSection<OverviewSectionComponent>(OverviewSection, "Overview", 10);
+        });
+        var extensionSection = SectionId.Create(MainOutlet, "extension");
+        var extension = CompositionModule.Create(ReportsModule, module =>
+        {
+            module
+                .GetSections(WorkspacePage, MainOutlet)
+                .AddSection<ReportsSectionComponent>(extensionSection, "Extension", 30);
+        });
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            CompositionRegistry.FromModules(host, extension));
+
+        Assert.Contains("not extendable", exception.Message);
+        Assert.Contains(extensionSection.Value, exception.Message);
+    }
+
+    [Fact]
+    public void FromModules_RejectsSectionsForUnknownOutlets()
+    {
+        var extension = CompositionModule.Create(ReportsModule, module =>
+        {
+            module
+                .GetSections(WorkspacePage, MainOutlet)
+                .AddSection<ReportsSectionComponent>(OverviewSection, "Extension", 10);
+        });
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            CompositionRegistry.FromModules(extension));
+
+        Assert.Contains("unknown section outlet", exception.Message);
     }
 
     [Fact]
@@ -249,7 +312,7 @@ public sealed class CompositionRegistryTests
 
         var page = composition.AddPage(WorkspacePage, "Workspace", "/workspace");
         page
-            .AddSections(MainOutlet, allowExtending: true)
+            .AddSections(MainOutlet, isExtendable: true)
             .AddSection<OverviewSectionComponent>(OverviewSection, "Overview", 10)
             .AddSection<DetailsSectionComponent>(DetailsSection, "Details", 10);
     }
@@ -267,7 +330,7 @@ public sealed class CompositionRegistryTests
 
         var page = composition.AddPage(WorkspacePage, "Workspace", "/workspace");
         page
-            .AddSections(MainOutlet, allowExtending: true)
+            .AddSections(MainOutlet, isExtendable: true)
             .AddSection<OverviewSectionComponent>(OverviewSection, "Overview", 10)
             .AddSection<DetailsSectionComponent>(DetailsSection, "Details", 10);
     }

@@ -4,6 +4,7 @@ public sealed record CompositionModule(
     CompositionModuleId Id,
     IReadOnlyList<CompositionPageRegistration> Pages,
     IReadOnlyList<CompositionMenuRegistration> Menus,
+    IReadOnlyList<CompositionSectionOutletRegistration> SectionOutlets,
     IReadOnlyList<CompositionSectionRegistration> Sections)
 {
     public static CompositionModule Create(
@@ -42,6 +43,10 @@ public sealed record CompositionModule(
                     section.Title,
                     section.Items.Select(ToMenuItemRegistration).ToArray(),
                     section.Order)).ToArray())).ToArray(),
+            descriptor.SectionOutlets.Select(outlet => new CompositionSectionOutletRegistration(
+                outlet.Id,
+                outlet.PageId,
+                outlet.IsExtendable)).ToArray(),
             descriptor.Sections.Select(section => new CompositionSectionRegistration(
                 section.Id,
                 section.PageId,
@@ -80,6 +85,11 @@ public sealed class CompositionModuleBuilder
 
     public CompositionSectionOutletBuilder GetSections(SectionOutletId outletId) =>
         _builder.GetSections(outletId);
+
+    public CompositionSectionOutletBuilder GetSections(
+        PageId pageId,
+        SectionOutletId outletId) =>
+        _builder.GetSections(pageId, outletId);
 
     public CompositionModule Build() =>
         _builder.BuildModule(Id);

@@ -47,7 +47,7 @@ builder.Services.AddCloudShellUiComposition(composition =>
 
     var workspaceSections = workspacePage.AddSections(
         CompositionIds.WorkspaceMainOutlet,
-        allowExtending: true);
+        isExtendable: true);
 
     workspaceSections.AddSection<OverviewSection>(
         CompositionIds.OverviewSection,

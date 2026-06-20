@@ -65,6 +65,8 @@ The current graph supports:
 Navigation hierarchy and content hierarchy are already separate. A menu item
 targets a page or section by ID; it does not own that content.
 
+Section outlets are explicit artifacts. A page can mark an outlet
+`IsExtendable`, which means other modules may contribute named sections to it.
 Named sections are the current content contribution primitive. A section has a
 stable `SectionId`, a display title, an order, and a component type. Renderers
 can show those same sections as a stack, grid, tabs, or another layout pattern
@@ -73,8 +75,8 @@ without changing the registered content graph.
 The current registry stores runtime registrations directly, but modules and
 registrations can be projected into descriptor records. Descriptors are the
 first serializable shape for pages, menus, menu sections, menu items, and
-sections. Section descriptors store the component type name rather than a
-runtime `Type`. A module descriptor can be rehydrated through
+section outlets, and sections. Section descriptors store the component type
+name rather than a runtime `Type`. A module descriptor can be rehydrated through
 `CompositionModule.FromDescriptor(...)` only when the caller supplies an
 `ICompositionComponentTypeResolver`, keeping component activation under host
 control.
@@ -102,7 +104,7 @@ builder.Services.AddCloudShellUiComposition(composition =>
         "/");
 
     workspacePage
-        .AddSections(CompositionIds.WorkspaceMainOutlet, allowExtending: true)
+        .AddSections(CompositionIds.WorkspaceMainOutlet, isExtendable: true)
         .AddSection<OverviewSection>(
             CompositionIds.OverviewSection,
             "Composition root",
@@ -166,9 +168,11 @@ Menu, stacked section, and tabbed section renderers add
 elements so diagnostics and future tooling can trace visible content back to
 the module that registered it.
 
-`allowExtending: true` marks a section outlet as extendable. Only extendable
-outlets can be reopened through `GetSections(...)`. This keeps extension-style
-contribution explicit even before CloudShell extension adapters exist.
+`isExtendable: true` marks a section outlet as an extension point. Other
+modules can add sections only to outlets that are marked extendable. This is a
+structural composition contract; future permissions and visibility rules can
+decide dynamically who may register, mount, visit, or see modules and
+sections that use the extension point.
 
 ## Blazor Components
 
@@ -294,8 +298,8 @@ link resolution, section target links with route parameters, section ordering,
 section metadata, menu registration, module assembly, in-memory module
 mount/unmount, descriptor JSON round-trip, descriptor rehydration through a
 component type resolver, module-owned projections, composed ID factories,
-Blazor renderer projection consumption, duplicate ID validation, and
-extendable section outlet validation.
+Blazor renderer projection consumption, duplicate ID validation, section
+outlet registration, and extension-point validation.
 
 Validation is intentionally still small. Future work should validate unknown
 targets, missing parents, unsupported content kinds, module ownership
