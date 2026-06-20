@@ -244,10 +244,19 @@ else if (ShowHeading)
                                         @foreach (var row in trace.Rows)
                                         {
                                             var isSelected = selectedSpan?.SpanId == row.Span.SpanId;
-                                            <button class="trace-span-row @(isSelected ? "selected" : null)" role="treeitem"
+                                            <button class="@GetTraceSpanRowClass(row, isSelected)" role="treeitem"
                                                     @onclick="() => SelectSpan(row.Span)">
                                                 <span class="trace-span-label" style="@GetTraceRowIndentStyle(row.Depth)">
-                                                    <strong>@row.Span.Name</strong>
+                                                    <span class="trace-span-title">
+                                                        <strong>@row.Span.Name</strong>
+                                                        @if (row.HasError)
+                                                        {
+                                                            <mark class="trace-error-pill">
+                                                                <FluentIcon Value="@(new Icons.Regular.Size16.ErrorCircle())" />
+                                                                @L["Likely error"]
+                                                            </mark>
+                                                        }
+                                                    </span>
                                                     <small>@row.Span.Kind</small>
                                                 </span>
                                                 <span class="trace-span-service">
@@ -255,7 +264,7 @@ else if (ShowHeading)
                                                     <span>@row.Span.ServiceName</span>
                                                 </span>
                                                 <span class="trace-span-track">
-                                                    <span class="trace-span-bar" style="@GetTraceSpanBarStyle(row)"></span>
+                                                    <span class="trace-span-bar @(row.HasError ? "error" : null)" style="@GetTraceSpanBarStyle(row)"></span>
                                                 </span>
                                                 <span class="trace-span-duration">@FormatDuration(row.Span.Duration)</span>
                                             </button>
@@ -280,6 +289,13 @@ else if (ShowHeading)
                                         <div>
                                             <h3>@selectedSpan.Name</h3>
                                             <p>@selectedSpan.ServiceName</p>
+                                            @if (IsErrorSpan(selectedSpan))
+                                            {
+                                                <mark class="trace-error-pill">
+                                                    <FluentIcon Value="@(new Icons.Regular.Size16.ErrorCircle())" />
+                                                    @L["Likely error"]
+                                                </mark>
+                                            }
                                         </div>
                                     </div>
 
@@ -350,10 +366,17 @@ else if (ShowHeading)
                         <div class="recent-trace-list" aria-label="@L["Recent traces"]">
                             @foreach (var trace in traceSummaries)
                             {
-                                <a class="recent-trace-item" href="@BuildTraceRoute(selected.Id, trace.TraceId)">
+                                <a class="@GetRecentTraceItemClass(trace)" href="@BuildTraceRoute(selected.Id, trace.TraceId)">
                                     <span>
                                         <strong>@trace.EntryOperation</strong>
                                         <small>@FormatTraceId(trace.TraceId) / @trace.Services</small>
+                                        @if (trace.ErrorSpanCount > 0)
+                                        {
+                                            <mark class="trace-error-pill">
+                                                <FluentIcon Value="@(new Icons.Regular.Size16.ErrorCircle())" />
+                                                @L["{0} likely error span(s)", trace.ErrorSpanCount]
+                                            </mark>
+                                        }
                                     </span>
                                     <em>@L["{0} spans", trace.SpanCount]</em>
                                     <b>@FormatDuration(trace.Duration)</b>
@@ -723,7 +746,8 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
                     GetDepth(span),
                     Math.Min(offset, 99.4),
                     Math.Min(width, 100 - Math.Min(offset, 99.4)),
-                    serviceColors.TryGetValue(span.ServiceName, out var color) ? color : ServicePalette[0]);
+                    serviceColors.TryGetValue(span.ServiceName, out var color) ? color : ServicePalette[0],
+                    IsErrorSpan(span));
             })
             .ToArray();
 
@@ -774,6 +798,7 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
                     first.TraceId,
                     first.Name,
                     ordered.Length,
+                    ordered.Count(IsErrorSpan),
                     end - first.StartTime,
                     string.Join(", ", services));
             })
@@ -803,7 +828,19 @@ StringComparison.OrdinalIgnoreCase))?.Span
     private static string GetTraceSpanBarStyle(TraceSpanRow row) =>
         string.Create(
             CultureInfo.InvariantCulture,
-            $"left: {row.OffsetPercent:0.###}%; width: {row.WidthPercent:0.###}%; background: {row.Color};");
+            $"left: {row.OffsetPercent:0.###}%; width: {row.WidthPercent:0.###}%; background: {(row.HasError ? "var(--cloudshell-danger-text)" : row.Color)};");
+
+    private static string GetTraceSpanRowClass(TraceSpanRow row, bool isSelected) =>
+        (isSelected, row.HasError) switch
+        {
+            (true, true) => "trace-span-row selected error",
+            (true, false) => "trace-span-row selected",
+            (false, true) => "trace-span-row error",
+            _ => "trace-span-row"
+        };
+
+    private static string GetRecentTraceItemClass(RecentTraceSummary trace) =>
+        trace.ErrorSpanCount > 0 ? "recent-trace-item error" : "recent-trace-item";
 
     private static string GetServiceColorStyle(string color) =>
         $"background: {color};";
@@ -910,7 +947,8 @@ StringComparison.OrdinalIgnoreCase))?.Span
         int Depth,
         double OffsetPercent,
         double WidthPercent,
-        string Color);
+        string Color,
+        bool HasError);
 
     private sealed record TraceServiceSummary(
         string Name,
@@ -921,6 +959,7 @@ StringComparison.OrdinalIgnoreCase))?.Span
         string TraceId,
         string EntryOperation,
         int SpanCount,
+        int ErrorSpanCount,
         TimeSpan Duration,
         string Services);
 

@@ -152,6 +152,22 @@ public sealed class SampleSmokeTests
                   "attributes": {
                     "http.route": "/upstream"
                   }
+                },
+                {
+                  "traceId": "{{traceId}}",
+                  "spanId": "00f067aa0ba902b8",
+                  "parentSpanId": "00f067aa0ba902b7",
+                  "name": "GET /failure",
+                  "resourceId": "application:project-reference-api",
+                  "serviceName": "project-reference-api",
+                  "kind": "Server",
+                  "status": "Error",
+                  "startTime": "2026-06-16T00:00:00.025Z",
+                  "duration": "00:00:00.0500000",
+                  "attributes": {
+                    "http.route": "/failure",
+                    "error.type": "500"
+                  }
                 }
               ]
             }
@@ -201,6 +217,9 @@ public sealed class SampleSmokeTests
         Assert.Contains("Related activity", traceHtml);
         Assert.Contains("Open resource", traceHtml);
         Assert.Contains("<fluent-anchor", traceHtml);
+        Assert.Contains("trace-span-row error", traceHtml);
+        Assert.Contains("trace-error-pill", traceHtml);
+        Assert.Contains("Likely error", traceHtml);
         Assert.Contains(
             $"href=\"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Logs.Value)}&amp;traceId=4bf92f3577b34da6a3ce929d0e0e4736\"",
             traceHtml);
@@ -208,6 +227,11 @@ public sealed class SampleSmokeTests
             $"href=\"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Activity.Value)}&amp;traceId=4bf92f3577b34da6a3ce929d0e0e4736&amp;spanId=00f067aa0ba902b7\"",
             traceHtml);
         Assert.Contains("href=\"/resources/application%3Aproject-reference-frontend/details\"", traceHtml);
+
+        var traceListHtml = await host.GetStringAsync(
+            "/observability/traces?resourceId=application%3Aproject-reference-api");
+        Assert.Contains("recent-trace-item error", traceListHtml);
+        Assert.Contains("1 likely error span(s)", traceListHtml);
 
         var missingTraceResourceHtml = await host.GetStringAsync(
             "/observability/traces?resourceId=application%3Aproject-reference-missing");

@@ -2902,6 +2902,12 @@ h3 {
     background: var(--cloudshell-hover);
 }
 
+.recent-trace-item.error {
+    border-color: var(--cloudshell-danger-text);
+    background: var(--cloudshell-danger-fill);
+    box-shadow: inset 3px 0 0 var(--cloudshell-danger-text);
+}
+
 .recent-trace-item span {
     display: grid;
     gap: .12rem;
@@ -3106,6 +3112,12 @@ h3 {
     background: var(--cloudshell-hover);
 }
 
+.trace-span-row.error {
+    border-color: var(--cloudshell-danger-text);
+    background: var(--cloudshell-danger-fill);
+    box-shadow: inset 3px 0 0 var(--cloudshell-danger-text);
+}
+
 .trace-span-row.selected {
     border-color: var(--cloudshell-accent);
     background: var(--cloudshell-selected);
@@ -3118,12 +3130,44 @@ h3 {
     padding-left: calc(var(--trace-depth, 0) * .9rem);
 }
 
+.trace-span-title {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    min-width: 0;
+}
+
 .trace-span-label strong,
 .trace-span-label small,
 .trace-span-service span:last-child {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.trace-span-title strong {
+    min-width: 0;
+}
+
+.trace-error-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: .18rem;
+    width: fit-content;
+    max-width: 100%;
+    padding: .08rem .36rem;
+    border: 1px solid color-mix(in srgb, var(--cloudshell-danger-text) 42%, transparent);
+    border-radius: 999px;
+    background: var(--cloudshell-danger-fill);
+    color: var(--cloudshell-danger-text);
+    font-size: .68rem;
+    font-weight: 700;
+    line-height: 1.1;
+    white-space: nowrap;
+}
+
+.trace-error-pill fluent-icon {
+    flex: 0 0 auto;
 }
 
 .trace-span-service {
@@ -3149,6 +3193,10 @@ h3 {
     bottom: .18rem;
     min-width: .25rem;
     border-radius: 999px;
+}
+
+.trace-span-bar.error {
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--cloudshell-danger-text) 40%, transparent);
 }
 
 .trace-span-duration {
