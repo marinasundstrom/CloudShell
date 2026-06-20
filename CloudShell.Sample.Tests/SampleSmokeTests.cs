@@ -617,6 +617,7 @@ public sealed class SampleSmokeTests
         Assert.Contains("Resource status", apiDetailsHtml);
         Assert.Contains("Unhealthy", apiDetailsHtml);
         Assert.Contains("Checked", apiDetailsHtml);
+        Assert.Contains("Resource health", apiDetailsHtml);
         Assert.Contains("Startup declaration", apiDetailsHtml);
         Assert.Contains("Declared by code for this host process.", apiDetailsHtml);
         Assert.Contains("UI changes are temporary until the resource is persisted.", apiDetailsHtml);

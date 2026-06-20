@@ -29,6 +29,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource details now include a Management **Health** tab for resources with
   configured health checks, showing latest status, individual probes, and a
   manual refresh action.
+- Application and generated resource overviews now link directly to the
+  resource-scoped **Health** tab when the resource declares health checks.
 - Documented weak projected-resource references and reusable Resource Manager
   selector components as deferred model/UI design work beyond the immediate
   local-development MVP slice.

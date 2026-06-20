@@ -395,6 +395,17 @@ else
     <section class="blade-section">
         <h3>Diagnostics</h3>
         <div class="generated-list">
+            @if (HasApplicationHealthChecks)
+            {
+                <GeneratedListItem Summary="@GetApplicationHealthSummary()"
+                                   Metadata="Resource health">
+                    <TitleContent>
+                        <a class="resource-link" href="@BuildResourceTabRoute(Application.Id, ResourcePredefinedViewIds.Health)">
+                            Health
+                        </a>
+                    </TitleContent>
+                </GeneratedListItem>
+            }
             <GeneratedListItem Summary="Lifecycle and provider events for this application."
                                Metadata="Resource activity">
                 <TitleContent>
@@ -459,6 +470,10 @@ else
     private IReadOnlyDictionary<string, ResourceOperationCapabilities> RelatedCapabilitiesByResourceId { get; set; } =
         new Dictionary<string, ResourceOperationCapabilities>(StringComparer.OrdinalIgnoreCase);
     private ContainerHostPlacementView? ContainerHostPlacement { get; set; }
+
+    private bool HasApplicationHealthChecks =>
+        ProjectedResource?.ResourceHealthChecks.Count > 0 ||
+        Application?.HealthChecks.Count > 0;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -1169,6 +1184,21 @@ else
         ProjectedResource is null
             ? Application?.Name ?? fallbackResourceId ?? ResourceId ?? "resource"
             : GetResourceLabel(ProjectedResource);
+
+    private string GetApplicationHealthSummary()
+    {
+        var checkCount = ProjectedResource?.ResourceHealthChecks.Count ?? Application?.HealthChecks.Count ?? 0;
+        if (Application is not null &&
+            RelatedHealthByResourceId.GetValueOrDefault(Application.Id) is { } health)
+        {
+            var unhealthy = health.Checks.Count(check => check.Status == ResourceHealthStatus.Unhealthy);
+            return unhealthy == 0
+                ? $"{health.Status} · {FormatCount(checkCount, "configured check", "configured checks")}"
+                : $"{health.Status} · {unhealthy} unhealthy of {FormatCount(checkCount, "configured check", "configured checks")}";
+        }
+
+        return FormatCount(checkCount, "configured check", "configured checks");
+    }
 
     private string FormatDependencySummary(Resource? dependency, string dependencyId)
     {

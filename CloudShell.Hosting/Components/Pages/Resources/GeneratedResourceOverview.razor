@@ -131,6 +131,7 @@
 
     private bool HasVisibleObservability =>
         Logs.Count > 0 ||
+        ResourcePredefinedViewVisibility.HasHealthView(Resource) ||
         Authorization.CanReadLogs() && Resource.EffectiveObservability.Logs ||
         Authorization.CanReadTraces() && Resource.EffectiveObservability.Traces ||
         Authorization.CanReadMetrics() && Resource.EffectiveObservability.Metrics;
@@ -260,6 +261,15 @@
 
     private RenderFragment RenderObservability() => @<text>
         <dl class="detail-list">
+            @if (ResourcePredefinedViewVisibility.HasHealthView(Resource))
+            {
+                <dt>@L["Health"]</dt>
+                <dd>
+                    <a class="resource-link" href="@BuildResourceTabRoute(Resource.Id, ResourcePredefinedViewIds.Health)">
+                        @FormatResourceHealthSummary()
+                    </a>
+                </dd>
+            }
             @if (Logs.Count > 0)
             {
                 <dt>@L["Logs"]</dt>
@@ -373,6 +383,20 @@
         return signals.Count == 0
             ? L["No projected signals"].Value
             : string.Join(", ", signals);
+    }
+
+    private string FormatResourceHealthSummary()
+    {
+        var checkCount = Resource.ResourceHealthChecks.Count;
+        if (RelatedHealthByResourceId.GetValueOrDefault(Resource.Id) is { } health)
+        {
+            var unhealthy = health.Checks.Count(check => check.Status == ResourceHealthStatus.Unhealthy);
+            return unhealthy == 0
+                ? L["{0} / {1} configured check(s)", health.Status, checkCount].Value
+                : L["{0} / {1} unhealthy of {2} configured check(s)", health.Status, unhealthy, checkCount].Value;
+        }
+
+        return L["{0} configured check(s)", checkCount].Value;
     }
 
     private bool CanExecuteAction(ResourceAction action) =>
