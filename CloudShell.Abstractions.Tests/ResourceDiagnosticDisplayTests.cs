@@ -33,6 +33,52 @@ public sealed class ResourceDiagnosticDisplayTests
     }
 
     [Fact]
+    public void GetDiagnostics_TrimsCurrentResourcePrefixFromReadinessReason()
+    {
+        var resource = CreateLifecycleResource(ResourceState.Stopped);
+        var capabilities = new ResourceOperationCapabilities(
+            resource.Id,
+            true,
+            true,
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            [
+                new ResourceActionCapability(
+                    ResourceActionIds.Start,
+                    false,
+                    "Project-backed application resource 'API' cannot start because project path 'missing.csproj' was not found.")
+            ]);
+
+        var diagnostics = ResourceActionReadinessDiagnostics.GetDiagnostics(resource, capabilities);
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("Cannot start because project path 'missing.csproj' was not found.", diagnostic.Message);
+    }
+
+    [Fact]
+    public void GetDiagnostics_TrimsCurrentResourceDisplayNamePrefixFromReadinessReason()
+    {
+        var resource = CreateLifecycleResource(
+            ResourceState.Stopped,
+            displayName: "Application API");
+        var capabilities = new ResourceOperationCapabilities(
+            resource.Id,
+            true,
+            true,
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            [
+                new ResourceActionCapability(
+                    ResourceActionIds.Start,
+                    false,
+                    "Application resource 'Application API' does not declare an executable path.")
+            ]);
+
+        var diagnostics = ResourceActionReadinessDiagnostics.GetDiagnostics(resource, capabilities);
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("Does not declare an executable path.", diagnostic.Message);
+    }
+
+    [Fact]
     public void GetDiagnostics_UsesRestartReadinessForRunningResources()
     {
         var resource = CreateLifecycleResource(ResourceState.Running);
@@ -699,7 +745,8 @@ public sealed class ResourceDiagnosticDisplayTests
 
     private static Resource CreateLifecycleResource(
         ResourceState state,
-        IReadOnlyList<ResourceHealthCheck>? healthChecks = null) =>
+        IReadOnlyList<ResourceHealthCheck>? healthChecks = null,
+        string? displayName = null) =>
         new(
             "application:api",
             "API",
@@ -716,7 +763,8 @@ public sealed class ResourceDiagnosticDisplayTests
                 ResourceAction.Start,
                 ResourceAction.Restart
             ],
-            HealthChecks: healthChecks);
+            HealthChecks: healthChecks,
+            DisplayName: displayName);
 
     private static Dictionary<string, Resource> CreateNameMappingRelatedResources(params Resource[] resources)
     {

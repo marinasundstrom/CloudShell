@@ -17,6 +17,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Resource action-readiness diagnostics now trim redundant current-resource
+  prefixes from blocked reasons so resource pages show concise local dev
+  preflight feedback.
 - Documented weak projected-resource references and reusable Resource Manager
   selector components as deferred model/UI design work beyond the immediate
   local-development MVP slice.
