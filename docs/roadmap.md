@@ -679,6 +679,10 @@ listed here before pulling in broader proposal work.
   reconciliation. Keep provider-native requested-versus-effective grant status
   narrow when it is needed to prevent MVP flows from implying enforcement that
   does not exist yet, such as SQL Server database grants.
+- For SQL Server identity-backed access, follow the Azure-style boundary:
+  the identity broker or authority provides an authentication artifact, the
+  SQL Server provider materializes SQL-side users, roles, or external mappings,
+  and workloads opt into that path without receiving administrator credentials.
 - Keep Microsoft Entra ID compatibility as a required contract target, but do
   not block MVP on a full Entra provider if the provider-neutral contract and
   compatibility tests are clear.

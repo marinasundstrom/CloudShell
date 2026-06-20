@@ -272,6 +272,49 @@ to an Azure SQL server or database, while keeping the provider free to map the
 same intent to local SQL Server containers, Microsoft Entra ID, Keycloak-backed
 development identities, or on-premise directory integration.
 
+In the Azure SQL managed-identity flow, the database connection still targets
+the SQL Server endpoint. The connection string or client configuration selects
+an identity-aware authentication mode, the SQL client obtains an access token
+from the configured authority, and SQL Server validates that token because the
+server is configured to trust the authority. SQL Server still needs local
+authorization metadata such as external users, contained users, role
+membership, or equivalent provider-native mappings. Azure RBAC-style intent
+does not by itself create database permissions.
+
+CloudShell should mirror that boundary. The identity provider or broker is the
+credential authority, not the protected database resource. The SQL Server
+provider remains responsible for making SQL Server understand the principal by
+materializing users, roles, or external-identity mappings. For local
+development, where the stock SQL Server container cannot validate CloudShell
+tokens directly, the built-in broker may translate a CloudShell principal plus
+an effective database grant into a provider-owned SQL authentication path. That
+translation must stay behind provider contracts and must not expose the SQL
+administrator credential to workloads.
+
+The CloudShell implementation should be staged around that boundary:
+
+1. Resource Manager records requested grants as it does today.
+2. The SQL Server provider reports effective access observations for those
+   grants: pending, applied, failed, or drifted.
+3. The SQL Server provider reconciles SQL-side authorization metadata using
+   provider-owned administrator access.
+4. Workloads opt into identity-based database authentication through an
+   explicit connection option or helper, analogous to Azure SQL connection
+   strings that select managed-identity authentication.
+5. The workload credential path asks the configured CloudShell identity broker
+   for a database authentication artifact. The broker must validate the
+   workload principal and the effective grant before returning anything usable
+   by the SQL client.
+
+The provider may implement the artifact differently per environment. A local
+development provider might issue a generated contained-user credential or
+another short-lived provider-owned SQL credential. A provider integrated with
+Microsoft Entra ID, Active Directory, or another authority might instead
+configure SQL Server to validate external tokens or map external identities
+and groups. In every case, the workload-facing contract is identity-based
+access, while the provider-specific credential and SQL administration details
+remain internal.
+
 Useful permission targets include:
 
 * server management, such as start/stop/restart, inspect, backup, restore, and

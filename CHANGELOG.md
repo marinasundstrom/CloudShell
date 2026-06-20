@@ -42,6 +42,9 @@ on `git blame --follow`, and then by the broad type of change.
 - SQL Server identity/access documentation now makes requested-versus-effective
   database grant status the next step before provider-owned SQL user and role
   materialization is treated as working access.
+- Managed SQL Server proposal now documents the Azure-style identity boundary:
+  identity brokers provide authentication artifacts, while SQL Server providers
+  materialize SQL-side users, roles, or external mappings.
 - SQL Server resource overview now leads with SQL service details instead of
   generic container image, revision, and host placement fields.
 
