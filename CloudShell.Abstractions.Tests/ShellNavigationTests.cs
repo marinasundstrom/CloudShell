@@ -198,7 +198,13 @@ public sealed class ShellNavigationTests
                     ["section"] = "resource-manager"
                 }));
         Assert.Equal(
-            "/settings#section.cloudshell.settings.main.resource-manager",
+            CompositionSectionAddressMode.Child,
+            registry.GetSectionOutlet(ShellCompositionIds.SettingsMainOutlet)?.AddressMode);
+        Assert.Equal(
+            "/settings/platform",
+            registry.ResolveHref(ShellCompositionIds.SettingsPlatformSection));
+        Assert.Equal(
+            "/settings/resource-manager",
             registry.ResolveHref(ResourceManagerCompositionIds.SettingsSection));
     }
 

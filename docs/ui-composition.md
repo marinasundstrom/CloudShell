@@ -372,12 +372,14 @@ CloudShell `/settings` page through the settings section outlet. The original
 compatibility, but the unified settings page is the composition-backed entry
 point. Shell-owned settings sections should use composition targets when
 linking to registered shell pages so route lookup stays behind the composition
-registry during the migration. The Settings page renders its section outlet
-through a CloudShell-specific composition tabbed-layout adapter so the shell
-can keep its Fluent/resource-details visual language without forcing that
-presentation into the generic Blazor composition package. The adapter
-preserves section module ownership on rendered tab buttons and panels through
-`data-composition-module` attributes.
+registry during the migration. The Settings section outlet opts into child
+addresses because `/settings/{section?}` treats selected settings sections as
+stable child locations. The Settings page renderer still decides to present
+those sections as tabs through a CloudShell-specific composition tabbed-layout
+adapter so the shell can keep its Fluent/resource-details visual language
+without forcing that presentation into the generic Blazor composition package.
+The adapter preserves section module ownership on rendered tab buttons and
+panels through `data-composition-module` attributes.
 
 Resource Manager also registers its static shell pages as composition pages.
 The composition link resolver can materialize route-template values, which

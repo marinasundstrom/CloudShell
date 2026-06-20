@@ -28,6 +28,7 @@ public sealed class CoreShellExtension : ICloudShellExtension
                 module
                     .AddPage(ShellCompositionIds.SettingsPage, "Settings", "/settings/{section?}", isExtendable: true)
                     .AddSections(ShellCompositionIds.SettingsMainOutlet, isExtendable: true)
+                    .UseChildAddresses()
                     .AddSection<ShellSettingsOverviewSection>(
                         ShellCompositionIds.SettingsOverviewSection,
                         "Overview",

@@ -127,6 +127,10 @@ on `git blame --follow`, and then by the broad type of change.
   child sections can either share the parent address or own short child address
   values, with Blazor link resolution projecting those modes into the current
   route conventions.
+- The common Settings composition outlet now opts into child addresses, so
+  direct settings section targets resolve to `/settings/{section}` instead of
+  page-local fragments while the Settings renderer decides how to present the
+  sections.
 - Resource Manager static page links for graph, add resource, create group,
   templates, settings, and Resources recovery states now resolve through the
   shared composition-backed helper with legacy routes kept as fallbacks.
