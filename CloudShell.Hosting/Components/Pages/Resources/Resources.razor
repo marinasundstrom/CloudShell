@@ -1197,11 +1197,11 @@ resourceGroups) =>
         DeleteConfirmationResourceId = null;
     }
 
-    private void CreateGroup() => Navigation.NavigateTo("/resources/groups/new");
+    private void CreateGroup() => Navigation.NavigateTo(ResourceManagerRoutes.CreateResourceGroup);
 
-    private void AddResource() => Navigation.NavigateTo("/resources/add");
+    private void AddResource() => Navigation.NavigateTo(ResourceManagerRoutes.AddResource);
 
-    private void OpenTemplates() => Navigation.NavigateTo("/resources/templates");
+    private void OpenTemplates() => Navigation.NavigateTo(ResourceManagerRoutes.ResourceTemplates);
 
     private void OpenSettings()
     {

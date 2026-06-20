@@ -67,7 +67,7 @@ else
         }
     }
 
-    private void Cancel() => Navigation.NavigateTo("/resources");
+    private void Cancel() => Navigation.NavigateTo(ResourceManagerRoutes.Resources);
 
     private async Task CreateGroup()
     {
@@ -78,6 +78,6 @@ else
 
         await ResourceManager.CreateResourceGroupAsync(
             new CreateResourceGroupCommand(Name, Description));
-        Navigation.NavigateTo("/resources/add");
+        Navigation.NavigateTo(ResourceManagerRoutes.AddResource);
     }
 }

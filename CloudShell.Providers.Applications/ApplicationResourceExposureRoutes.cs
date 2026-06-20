@@ -126,7 +126,7 @@ internal static class ApplicationResourceExposureRoutes
             .FirstOrDefault();
 
     private static string BuildResourceAddRoute(Dictionary<string, string?> query) =>
-        BuildRoute("/resources/add", query);
+        BuildRoute(ResourceManagerRoutes.AddResource, query);
 
     private static string BuildResourceUpdateRoute(string resourceId, Dictionary<string, string?> query) =>
         BuildRoute(

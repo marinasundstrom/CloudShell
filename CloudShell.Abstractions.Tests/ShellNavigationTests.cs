@@ -161,16 +161,16 @@ public sealed class ShellNavigationTests
             "/health",
             registry.ResolveHref(ResourceManagerCompositionIds.HealthPage));
         Assert.Equal(
-            "/resources/add",
+            ResourceManagerRoutes.AddResource,
             registry.ResolveHref(ResourceManagerCompositionIds.AddResourcePage));
         Assert.Equal(
-            "/resources/groups/new",
+            ResourceManagerRoutes.CreateResourceGroup,
             registry.ResolveHref(ResourceManagerCompositionIds.CreateResourceGroupPage));
         Assert.Equal(
-            "/resources/templates",
+            ResourceManagerRoutes.ResourceTemplates,
             registry.ResolveHref(ResourceManagerCompositionIds.ResourceTemplatesPage));
         Assert.Equal(
-            "/resources/settings",
+            ResourceManagerRoutes.ResourceSettings,
             registry.ResolveHref(ResourceManagerCompositionIds.ResourceSettingsPage));
     }
 

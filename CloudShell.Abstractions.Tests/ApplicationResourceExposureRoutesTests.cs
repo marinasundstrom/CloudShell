@@ -24,7 +24,7 @@ public sealed class ApplicationResourceExposureRoutesTests
             returnView);
 
         var query = ParseQuery(route);
-        Assert.Equal("/resources/add", GetPath(route));
+        Assert.Equal(ResourceManagerRoutes.AddResource, GetPath(route));
         Assert.Equal("cloudshell.loadBalancer", query["type"]);
         Assert.Equal("application:orders-api", query["targetResourceId"]);
         Assert.Equal("tds", query["targetEndpointName"]);

@@ -42,19 +42,19 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                 composition.AddPage(
                     ResourceManagerCompositionIds.AddResourcePage,
                     "Add resource",
-                    "/resources/add");
+                    ResourceManagerRoutes.AddResource);
                 composition.AddPage(
                     ResourceManagerCompositionIds.CreateResourceGroupPage,
                     "Create resource group",
-                    "/resources/groups/new");
+                    ResourceManagerRoutes.CreateResourceGroup);
                 composition.AddPage(
                     ResourceManagerCompositionIds.ResourceTemplatesPage,
                     "Resource templates",
-                    "/resources/templates");
+                    ResourceManagerRoutes.ResourceTemplates);
                 composition.AddPage(
                     ResourceManagerCompositionIds.ResourceSettingsPage,
                     "Resource Manager settings",
-                    "/resources/settings");
+                    ResourceManagerRoutes.ResourceSettings);
             });
 
         builder

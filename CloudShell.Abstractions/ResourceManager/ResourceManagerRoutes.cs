@@ -6,6 +6,14 @@ public static class ResourceManagerRoutes
 
     public const string ResourceGraph = "/resources/graph";
 
+    public const string AddResource = "/resources/add";
+
+    public const string CreateResourceGroup = "/resources/groups/new";
+
+    public const string ResourceTemplates = "/resources/templates";
+
+    public const string ResourceSettings = "/resources/settings";
+
     public static string ResourceDetails(string resourceId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);

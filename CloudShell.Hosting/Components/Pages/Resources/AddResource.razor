@@ -98,7 +98,7 @@ else
             </div>
 
             <div class="add-resource-type-actions">
-                <a href="/resources/groups/new">@L["Create a resource group"]</a>
+                <a href="@ResourceManagerRoutes.CreateResourceGroup">@L["Create a resource group"]</a>
             </div>
         </aside>
 
@@ -243,8 +243,8 @@ else
         }
 
         return query.Count == 0
-            ? "/resources/add"
-            : Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("/resources/add", query);
+            ? ResourceManagerRoutes.AddResource
+            : Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(ResourceManagerRoutes.AddResource, query);
     }
 
     private ResourceRegistrationProbeContext GetProbeContext(ResourceTypeContribution type)
