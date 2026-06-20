@@ -139,6 +139,15 @@ distinguish failed spans from recovered flows that contain error spans. The
 shared Traces page can aggregate all sources while trace-detail links return
 users to the relevant resource context.
 
+Recent shell-composition slices proved the generic menu/page/section graph,
+composition-backed sidebar migration, composition-backed Settings sections,
+route-backed tab links, section address modes, active composition menu links,
+and the future router direction. That work is valuable platform direction, but
+it is no longer the most urgent MVP track. Further composition work should
+pause unless it fixes a regression in the current shell, directly supports the
+Resource Manager app-centric path, or removes duplication that is blocking a
+supported MVP workflow.
+
 The supported sample smoke suite is currently green. The remaining MVP work
 should therefore bias toward release-quality local-development behavior rather
 than opening new platform fronts or repeatedly polishing secondary editor
@@ -196,12 +205,13 @@ Plan and verify MVP work through use cases. The priority use cases are:
 6. Persist the resource graph deliberately and understand what changes from
    transient code-first declarations to durable Control Plane state.
 
-The most urgent near-term UX slice is resource relationship comprehension:
-from a resource page, a developer should quickly see the current resource's
-immediate dependencies, the resources that depend on it, and the related
-runtime or diagnostic signals. This should start as a focused dependency graph
-and relationship summary before broader resource-graph import, code
-generation, or environment-wide topology tooling.
+The most urgent near-term slice is Application Topology end-to-end confidence:
+run the sample as the standing proof, identify where the Resource Manager
+experience still requires sample-specific knowledge, and close those gaps with
+small app-centric improvements. The first relationship graph and related
+health/action surfacing are now in place, so the next work should use them as
+part of the app workflow rather than expanding into broad environment topology
+tooling.
 
 Use this decision filter:
 
@@ -242,13 +252,16 @@ Prioritize the remaining local-dev work in this order:
    secrets, identity-backed access, logs, traces, local exposure,
    load-balancer or public endpoint relationships, DNS/name mapping, and a
    deliberate failure path. The UI should explain that topology without
-   sample-specific knowledge.
-2. **Immediate resource relationships.** Add a focused view of the current
-   resource's immediate dependencies and incoming dependents, and link those
-   relationships to the resource pages, logs, traces, activity, health, and
-   readiness diagnostics that explain the relationship. Keep this scoped to
-   understanding the active resource and Application Topology before building
-   broad graph authoring, import, or code-generation features.
+   sample-specific knowledge. Treat this as the next planning anchor: each
+   candidate slice should say which Application Topology run, resource page,
+   or failure path it improves.
+2. **Resource relationship comprehension.** Keep the focused dependency and
+   dependent graph scoped to the current resource. The first graph, related
+   actions, and related health/readiness details now exist; next work should
+   refine labels, empty states, navigation, and diagnostic correlation only
+   where Application Topology or another supported sample proves confusion.
+   Do not expand this into broad graph authoring, import, or code-generation
+   features for the MVP.
 3. **App-centric Resource Manager path.** Make the application resource page
    the operator entry point for endpoints, service discovery, exposure,
    storage, runtime-impacting settings/secrets, identity, logs, traces,
@@ -287,6 +300,22 @@ resources, shell-composition implementation, provider-backed DNS propagation,
 network-level service registries, external deployment projection,
 external-format import/code generation, and initial on-premise hosting.
 
+For the next run, prefer these slices in order:
+
+1. Run Application Topology and record any sample setup, startup, auth,
+   resource projection, or smoke-test gaps that prevent repeatable local use.
+2. Walk the primary application resource pages and fix labels, overview
+   details, warnings, action availability, and relationship links that still
+   obscure what the app runs, depends on, exposes, or can diagnose.
+3. Tighten readiness and failure feedback for the supported start/restart,
+   SQL Server, storage, settings/secrets, identity, DNS/name, and exposure
+   paths that the sample actually exercises.
+4. Keep resource-scoped health, logs, traces, monitoring, activity, and
+   relationship views coherent from the app page before adding broader global
+   views or new shell-platform features.
+5. Update sample documentation where the verified local-development flow
+   depends on explicit startup, auth, or host prerequisites.
+
 ### Immediate Proposal Order
 
 Work the current proposals in this order. For MVP, implement only the slice
@@ -299,8 +328,12 @@ listed here before pulling in broader proposal work.
    transitions around flows that already work.
 2. Resource relationship comprehension: add the focused dependency/dependent
    graph and relationship summary needed to understand the current resource in
-   Application Topology. This is an app-centric Resource Manager feature, not
-   the later external resource graph import/code-generation proposal.
+   Application Topology. The first graph, related resource actions, and related
+   health/readiness summaries now exist, so remaining MVP work should polish
+   this only where the app workflow exposes unclear labels, empty states,
+   navigation, or missing diagnostic correlation. This remains an app-centric
+   Resource Manager feature, not the later external resource graph
+   import/code-generation proposal.
 3. Application environment management path: make container applications,
    app-owned exposure, application-level service discovery, virtual networks,
    public endpoints, load-balancer routes, and logical DNS/name mappings form
@@ -358,7 +391,10 @@ listed here before pulling in broader proposal work.
    split-hosted UIs are a later Control Plane API design question. Keep
    shared Telemetry pages for cross-resource investigation
    instead of forcing normal per-resource work through global views. Do not
-   start broad new shell areas before the supported samples are stable.
+   start broad new shell areas before the supported samples are stable. The
+   recent shell-composition migration provides useful infrastructure, but new
+   composition/router work should wait unless it is needed to stabilize the
+   current Resource Manager or Settings surfaces.
    Keep the current quick-create path as a compact shortcut flow, but plan for
    a Resource Manager resource gallery to become the default Add Resource entry
    point, with future wizard-based guided setup for resource types that need a

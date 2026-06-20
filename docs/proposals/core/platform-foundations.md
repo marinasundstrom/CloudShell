@@ -220,10 +220,10 @@ hosting, and deployments.
   Server with mounted storage, configuration, secrets, identity-backed access,
   logs, traces, local exposure, load-balancer or public endpoint
   relationships, and DNS/name mapping.
-* Keep the local development MVP target focused on app-centric Resource
-  Manager workflows, focused dependency/dependent visualization, readiness
-  diagnostics, settings/secrets/identity polish, and a clear persisted-state
-  handoff.
+* Keep the local development MVP target focused on Application Topology
+  confidence, app-centric Resource Manager workflows, focused
+  dependency/dependent comprehension, readiness diagnostics,
+  settings/secrets/identity polish, and a clear persisted-state handoff.
 * Use readable resource labels in routine Resource Manager UI, observability
   summaries, graph labels, alerts, and diagnostics when a display name or
   resource name exists. Keep Resource ID visible in canonical details, links,
@@ -248,6 +248,11 @@ hosting, and deployments.
 * Keep Resource Manager release-hardening work focused on generated details,
   action availability, activity records, explicit not-found states, read-only
   behavior, transient declaration warnings, and sample documentation.
+* Treat the landed shell-composition work as infrastructure for existing
+  shell, Settings, and Resource Manager surfaces during MVP convergence.
+  Defer new composition/router implementation slices unless they fix a
+  current-surface regression or directly unblock the app-centric Resource
+  Manager proof.
 * Define the future common Health aggregation model before building
   status-page-style summaries. Resource-scoped Health should stay focused on
   the selected resource, while the shared Health workspace can later summarize

@@ -47,6 +47,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Documented status-page-style common Health aggregation as deferred work that
   needs explicit health scopes beyond ordinary resource groups, while
   resource-scoped Health stays focused on the selected resource.
+- Re-aligned the MVP roadmap around Application Topology confidence,
+  app-centric Resource Manager reliability, readiness diagnostics, and pausing
+  new shell-composition work unless it stabilizes current surfaces.
 - Refined the shell composition direction around a CMS-like layout/content
   engine with dynamic composition, separate navigation and addressable content
   hierarchies, content-ID link resolution, Razor-owned routing, slots, section
