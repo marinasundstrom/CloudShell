@@ -510,6 +510,15 @@ The core registry resolves:
 Route parameters can be passed as query-string values through
 `RouteParams`.
 
+The current tab renderer uses a query parameter for selected sections because
+it is renderer state inside an already-routed page. That should not be treated
+as the default for every navigation hierarchy. Prefer path segments when the
+selected target is a stable page or sub-page location, query parameters for
+filters, tabs, sort order, and other page-local state, and fragments for
+in-page focus or section anchors. Full composition IDs remain stable internal
+addresses; a host or adapter may map them to shorter, product-shaped URLs
+instead of exposing the entire hierarchical ID in the path.
+
 ## Sample
 
 Run the standalone sample from the repository root:
