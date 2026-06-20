@@ -27,11 +27,11 @@ else
         @if (Authorization.CanReadTraces())
         {
             <div class="heading-actions">
-                <FluentAnchor Appearance="Appearance.Neutral" Href="/observability/request-graph">
-                    @L["Request graph"]
+                <FluentAnchor Appearance="Appearance.Neutral" Href="/observability/dependencies">
+                    @L["Dependencies"]
                 </FluentAnchor>
-                <FluentAnchor Appearance="Appearance.Accent" Href="/observability/request-map">
-                    @L["Request map"]
+                <FluentAnchor Appearance="Appearance.Accent" Href="/observability/service-map">
+                    @L["Service map"]
                 </FluentAnchor>
             </div>
         }
@@ -194,16 +194,16 @@ else
         if (Authorization.CanReadTraces())
         {
             views.Add(new(
-                L["Request graph"].Value,
+                L["Dependencies"].Value,
                 L["Inspect OpenTelemetry service request relationships as edge data."].Value,
-                "/observability/request-graph",
-                "request-graph",
+                "/observability/dependencies",
+                "dependencies",
                 L["{0} edge(s)", RequestEdgeCount].Value));
             views.Add(new(
-                L["Request map"].Value,
+                L["Service map"].Value,
                 L["Follow live request flow between mapped telemetry services."].Value,
-                "/observability/request-map",
-                "request-map",
+                "/observability/service-map",
+                "service-map",
                 L["{0} service(s)", ObservedServices.Count].Value));
             views.Add(new(
                 L["Traces"].Value,

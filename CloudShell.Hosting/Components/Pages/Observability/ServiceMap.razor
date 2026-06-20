@@ -1,10 +1,10 @@
-@page "/observability/request-map"
+@page "/observability/service-map"
 @rendermode InteractiveServer
 @inject ICloudShellAuthorizationService Authorization
 @inject IStringLocalizer<SharedResource> L
 @using CloudShell.Abstractions.Authorization
 
-<PageTitle>@L["Request map"]</PageTitle>
+<PageTitle>@L["Service map"]</PageTitle>
 
 @if (!Authorization.CanReadTraces())
 {
@@ -15,9 +15,9 @@
 }
 else
 {
-    <ServiceDependencyGraph HeadingTitle="@L["Request map"].Value"
+    <ServiceDependencyGraph HeadingTitle="@L["Service map"].Value"
                             HeadingDescription="@L["Visualize service-to-service request flow from OpenTelemetry traces."].Value"
                             PanelTitle="@L["Live request flow"].Value"
-                            GraphModeSelectId="request-map-mode"
+                            GraphModeSelectId="service-map-mode"
                             ShowMap="true" />
 }

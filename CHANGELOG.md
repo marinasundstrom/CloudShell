@@ -20,6 +20,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource action-readiness diagnostics now trim redundant current-resource
   prefixes from blocked reasons so resource pages show concise local dev
   preflight feedback.
+- Observability navigation, page titles, and routes now use Dependencies and
+  Service map.
 - Dependency auto-start errors now describe dependency paths with resource
   display names and resource names instead of internal resource IDs.
 - Resource relationship graphs now expose related resource actions for opening

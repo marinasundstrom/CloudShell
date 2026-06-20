@@ -1,11 +1,10 @@
 @page "/observability/dependencies"
-@page "/observability/request-graph"
 @rendermode InteractiveServer
 @inject ICloudShellAuthorizationService Authorization
 @inject IStringLocalizer<SharedResource> L
 @using CloudShell.Abstractions.Authorization
 
-<PageTitle>@L["Request graph"]</PageTitle>
+<PageTitle>@L["Dependencies"]</PageTitle>
 
 @if (!Authorization.CanReadTraces())
 {
@@ -16,9 +15,9 @@
 }
 else
 {
-    <ServiceDependencyGraph HeadingTitle="@L["Request graph"].Value"
+    <ServiceDependencyGraph HeadingTitle="@L["Dependencies"].Value"
                             HeadingDescription="@L["Inspect OpenTelemetry service request relationships as edge data."].Value"
                             PanelTitle="@L["Request paths"].Value"
-                            GraphModeSelectId="request-graph-mode"
+                            GraphModeSelectId="dependencies-mode"
                             ShowMap="false" />
 }

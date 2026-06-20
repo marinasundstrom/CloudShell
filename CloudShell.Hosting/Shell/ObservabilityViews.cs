@@ -6,11 +6,9 @@ public static class ObservabilityViews
 
     public const string Logs = "cloudshell.observability.logs";
 
-    public const string RequestGraph = "cloudshell.observability.request-graph";
+    public const string Dependencies = "cloudshell.observability.dependencies";
 
-    public const string RequestMap = "cloudshell.observability.request-map";
-
-    public const string Dependencies = RequestGraph;
+    public const string ServiceMap = "cloudshell.observability.service-map";
 
     public const string Traces = "cloudshell.observability.traces";
 

@@ -31,19 +31,19 @@ public sealed class ObservabilityExtension : ICloudShellExtension
                 21,
                 parentId: ObservabilityViews.Overview,
                 requiredPermissions: ObservabilityAuthorization.LogsReadPermissions)
-            .RegisterView<Components.Pages.Observability.DependencyGraph>(ObservabilityViews.RequestGraph)
+            .RegisterView<Components.Pages.Observability.DependencyGraph>(ObservabilityViews.Dependencies)
             .AddNavigationItem<Components.Pages.Observability.DependencyGraph>(
-                ObservabilityViews.RequestGraph,
-                "Request graph",
-                "request-graph",
+                ObservabilityViews.Dependencies,
+                "Dependencies",
+                "dependencies",
                 22,
                 parentId: ObservabilityViews.Overview,
                 requiredPermissions: ObservabilityAuthorization.TracesReadPermissions)
-            .RegisterView<Components.Pages.Observability.RequestMap>(ObservabilityViews.RequestMap)
-            .AddNavigationItem<Components.Pages.Observability.RequestMap>(
-                ObservabilityViews.RequestMap,
-                "Request map",
-                "request-map",
+            .RegisterView<Components.Pages.Observability.ServiceMap>(ObservabilityViews.ServiceMap)
+            .AddNavigationItem<Components.Pages.Observability.ServiceMap>(
+                ObservabilityViews.ServiceMap,
+                "Service map",
+                "service-map",
                 23,
                 parentId: ObservabilityViews.Overview,
                 requiredPermissions: ObservabilityAuthorization.TracesReadPermissions)

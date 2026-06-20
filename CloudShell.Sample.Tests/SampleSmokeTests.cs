@@ -269,9 +269,9 @@ public sealed class SampleSmokeTests
             $"href=\"/observability/traces?resourceId=application%3Aproject-reference-frontend&amp;traceId={traceId}\"",
             allTraceListHtml);
 
-        var requestMapHtml = await host.GetStringAsync("/observability/request-map");
-        Assert.Contains("Request map", requestMapHtml);
-        Assert.Contains("Project Reference Frontend", requestMapHtml);
+        var serviceMapHtml = await host.GetStringAsync("/observability/service-map");
+        Assert.Contains("Service map", serviceMapHtml);
+        Assert.Contains("Project Reference Frontend", serviceMapHtml);
 
         var missingTraceResourceHtml = await host.GetStringAsync(
             "/observability/traces?resourceId=application%3Aproject-reference-missing");

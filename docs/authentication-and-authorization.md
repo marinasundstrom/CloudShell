@@ -446,8 +446,8 @@ declare a specific operation permission, such as
 remains a compatibility superset for resource actions.
 
 Observability permissions gate access to telemetry signal areas. The grouped
-`observability.read` permission allows logs, traces, metrics, request graph,
-request map, and the telemetry workspace. Signal-specific permissions can be
+`observability.read` permission allows logs, traces, metrics, Dependencies,
+Service map, and the telemetry workspace. Signal-specific permissions can be
 granted independently with `observability.logs.read`,
 `observability.traces.read`, and `observability.metrics.read`. These
 permissions do not override resource access: telemetry rows are returned only
