@@ -1612,6 +1612,24 @@ h3 {
     color: #7c3aed;
 }
 
+.health-pill {
+    color: var(--cloudshell-health-pill-foreground, white);
+}
+
+.health-pill.health-healthy,
+.health-pill.health-unhealthy,
+.health-pill.health-unknown,
+.health-pill.health-pending {
+    --cloudshell-health-pill-foreground: white;
+}
+
+.resource-activity-group .health-pill,
+.resource-activity-header .health-pill,
+.activity-row .health-pill,
+.resource-table td .health-pill {
+    color: var(--cloudshell-health-pill-foreground, white);
+}
+
 .resource-activity-badges {
     display: inline-flex;
     align-items: center;
