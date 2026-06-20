@@ -61,6 +61,8 @@ on `git blame --follow`, and then by the broad type of change.
   leading with internal resource IDs.
 - Application setting and secret grant diagnostics now use displayed resource
   labels for the referenced resource and the calling identity.
+- Configuration and Secrets reference resolution errors now use the existing
+  store or vault name instead of repeating the resource ID.
 
 ### 2026-06-19
 

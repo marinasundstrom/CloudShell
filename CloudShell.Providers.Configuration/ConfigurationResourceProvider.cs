@@ -351,7 +351,7 @@ public sealed partial class ConfigurationResourceProvider :
                 .IsAllowed)
         {
             return ResourceSettingResolutionResult.Failed(
-                $"Identity '{FormatIdentity(identity)}' is not allowed to read configuration entries from '{reference.StoreResourceId}'.");
+                $"Identity '{FormatIdentity(identity)}' is not allowed to read configuration entries from '{configurationStore.Name}'.");
         }
 
         var entry = configurationStore.Entries.FirstOrDefault(entry =>
@@ -359,7 +359,7 @@ public sealed partial class ConfigurationResourceProvider :
         if (entry is null)
         {
             return ResourceSettingResolutionResult.Failed(
-                $"Configuration entry '{reference.EntryName}' was not found in '{reference.StoreResourceId}'.");
+                $"Configuration entry '{reference.EntryName}' was not found in '{configurationStore.Name}'.");
         }
 
         return ResourceSettingResolutionResult.Resolved(entry.Value);

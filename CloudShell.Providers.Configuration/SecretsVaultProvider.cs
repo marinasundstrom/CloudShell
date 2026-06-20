@@ -320,7 +320,7 @@ public sealed partial class SecretsVaultProvider(
                 .IsAllowed)
         {
             return ValueTask.FromResult(ResourceSettingResolutionResult.Failed(
-                $"Identity '{FormatIdentity(identity)}' is not allowed to read secrets from Secrets Vault '{reference.VaultResourceId}'."));
+                $"Identity '{FormatIdentity(identity)}' is not allowed to read secrets from Secrets Vault '{vault.Name}'."));
         }
 
         var candidates = vault.Secrets
@@ -335,7 +335,7 @@ public sealed partial class SecretsVaultProvider(
                 ? string.Empty
                 : $" version '{reference.Version}'";
             return ValueTask.FromResult(ResourceSettingResolutionResult.Failed(
-                $"Secret '{reference.SecretName}'{version} was not found in Secrets Vault '{reference.VaultResourceId}'."));
+                $"Secret '{reference.SecretName}'{version} was not found in Secrets Vault '{vault.Name}'."));
         }
 
         return ValueTask.FromResult(ResourceSettingResolutionResult.Resolved(resolved.Value));

@@ -2049,7 +2049,75 @@ public sealed class ResourceDeclarationTests
             "Could not resolve configuration-entry reference for setting 'WELCOME_MESSAGE'.",
             reason);
         Assert.Contains(
-            "Configuration entry 'Missing' was not found in 'configuration:app'.",
+            "Configuration entry 'Missing' was not found in 'App Settings'.",
+            reason);
+    }
+
+    [Fact]
+    public async Task ApplicationProvider_ReportsMissingSecretAsActionUnavailable()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider(options =>
+            {
+                options.DefinitionsPath = "application-resources.json";
+                options.RuntimeStatePath = "application-runtime-state.json";
+                options.LogDirectory = "application-logs";
+            })
+            .AddSecretsProvider()
+            .Resources(resources =>
+            {
+                resources
+                    .AddSecretsVault("secrets-vault:app").WithDisplayName("App Secrets")
+                    .WithSecret("sample-api-key", "secret");
+
+                resources
+                    .AddExecutableApplication(
+                        "application:api",
+                        executablePath: "dotnet")
+                    .WithEnvironment(
+                        "SAMPLE_API_KEY",
+                        new SecretReference("secrets-vault:app", "missing"));
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var resourceProvider = serviceProvider.GetRequiredService<ExecutableApplicationResourceProvider>();
+        var providers = serviceProvider.GetServices<IResourceProvider>().ToArray();
+        var resources = providers
+            .SelectMany(provider => provider.GetResources())
+            .ToArray();
+        var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
+        var registrations = new TestResourceRegistrationStore(
+            [
+                new ResourceRegistration(
+                    resource.Id,
+                    resourceProvider.Id,
+                    null,
+                    DateTimeOffset.UtcNow,
+                    [])
+            ]);
+        var resourceManager = new StaticResourceManagerStore(resources, providers);
+
+        var reason = await resourceProvider.GetActionUnavailableReasonAsync(
+            new ResourceProcedureContext(
+                resource,
+                registrations.GetRegistration(resource.Id),
+                null,
+                registrations,
+                resourceManager),
+            ResourceAction.Start);
+
+        Assert.NotNull(reason);
+        Assert.Contains(
+            "Could not resolve secret reference for setting 'SAMPLE_API_KEY'.",
+            reason);
+        Assert.Contains(
+            "Secret 'missing' was not found in Secrets Vault 'App Secrets'.",
             reason);
     }
 
