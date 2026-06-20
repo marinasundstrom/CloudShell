@@ -1,10 +1,11 @@
 @inject CompositionRegistry Composition
+@inject NavigationManager Navigation
 
-@if (Context is null)
+@if (ResolvedContext is null)
 {
     <div class="composition-empty-state">
         <strong>Composition context missing</strong>
-        <span>The section outlet must be rendered under a composition host.</span>
+        <span>The section outlet needs a composition host, an explicit page, or a registered route.</span>
     </div>
 }
 else if (ResolvedOutletId is null)
@@ -16,7 +17,7 @@ else if (ResolvedOutletId is null)
 }
 else
 {
-    var sections = Composition.GetSectionProjections(Context.PageId, ResolvedOutletId.Value);
+    var sections = Composition.GetSectionProjections(ResolvedContext.PageId, ResolvedOutletId.Value);
     @foreach (var projection in sections)
     {
         var section = projection.Section;
@@ -39,7 +40,17 @@ else
     public SectionOutletId? ContainerId { get; set; }
 
     [Parameter]
+    public PageId? Page { get; set; }
+
+    [Parameter]
     public SectionOutletId? Id { get; set; }
+
+    private CompositionContext? ResolvedContext =>
+        CompositionPageContextResolver.Resolve(
+            Composition,
+            Navigation,
+            Context,
+            Page);
 
     private SectionOutletId? ResolvedOutletId => Id ?? ContainerId;
 }

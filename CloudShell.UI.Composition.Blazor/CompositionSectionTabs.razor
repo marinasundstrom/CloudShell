@@ -1,11 +1,11 @@
 @inject CompositionRegistry Composition
 @inject NavigationManager Navigation
 
-@if (Context is null)
+@if (ResolvedContext is null)
 {
     <div class="@EmptyStateClass">
         <strong>Composition context missing</strong>
-        <span>The tab outlet must be rendered under a composition host.</span>
+        <span>The tab outlet needs a composition host, an explicit page, or a registered route.</span>
     </div>
 }
 else if (ResolvedOutletId is null)
@@ -57,6 +57,9 @@ else
     public SectionOutletId? ContainerId { get; set; }
 
     [Parameter]
+    public PageId? Page { get; set; }
+
+    [Parameter]
     public SectionOutletId? Id { get; set; }
 
     [Parameter]
@@ -89,12 +92,19 @@ else
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
+    private CompositionContext? ResolvedContext =>
+        CompositionPageContextResolver.Resolve(
+            Composition,
+            Navigation,
+            Context,
+            Page);
+
     private SectionOutletId? ResolvedOutletId => Id ?? ContainerId;
 
     private IReadOnlyList<CompositionSectionProjection> Sections =>
-        Context is null || ResolvedOutletId is null
+        ResolvedContext is null || ResolvedOutletId is null
             ? []
-            : Composition.GetSectionProjections(Context.PageId, ResolvedOutletId.Value);
+            : Composition.GetSectionProjections(ResolvedContext.PageId, ResolvedOutletId.Value);
 
     private CompositionSectionProjection SelectedSection =>
         Sections.FirstOrDefault(section => section.Section.Id.Value == SelectedSectionId) ?? Sections[0];
@@ -117,10 +127,10 @@ else
             : TabClass;
 
     private string GetTabHref(CompositionSectionProjection section) =>
-        Context is null
+        ResolvedContext is null
             ? "#"
             : Composition.ResolveHref(
-                CompositionTarget.ForPage(Context.PageId),
+                CompositionTarget.ForPage(ResolvedContext.PageId),
                 new Dictionary<string, object?>
                 {
                     [QueryParameter] = section.Section.Id.Value

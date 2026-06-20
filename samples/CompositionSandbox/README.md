@@ -16,6 +16,10 @@ The sample proves the first boundary:
 - Page navigation uses normal Blazor routes. The menu and `CompositionLink`
   resolve registered page IDs to links, and `CompositionHost` resolves the
   active composition page from the current route.
+- The reusable Blazor components are intended to be render-mode neutral:
+  they render normal anchors and markup, keep tab selection in the query
+  string, and can resolve page context from cascade, an explicit page ID, or
+  the current route.
 - Layout patterns are explored in the sample app itself. The `/dashboard`
   route uses a sample-owned Bootstrap grid outlet over the same composition
   registry, while the other pages use the plain stacked section outlet from
@@ -26,6 +30,10 @@ The sample proves the first boundary:
 
 Future CloudShell extension integration should adapt extension contributions
 into the core composition model after this standalone API shape is proven.
+There is no current plan to build a composition editor UI for this sandbox;
+CloudShell or another host can build a CMS or editor experience on top of the
+composition infrastructure later. The sample is for programmatic graph and
+renderer experiments.
 
 ## Run
 

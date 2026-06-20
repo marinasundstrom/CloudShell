@@ -26,12 +26,11 @@ else
     {
         get
         {
-            var page = Id.HasValue
-                ? Composition.GetPage(Id.Value)
-                : Composition.GetPageByRoute(Navigation.ToBaseRelativePath(Navigation.Uri));
-            return page is null
-                ? null
-                : new CompositionContext(page.Id, page.Route);
+            return CompositionPageContextResolver.Resolve(
+                Composition,
+                Navigation,
+                context: null,
+                Id);
         }
     }
 }

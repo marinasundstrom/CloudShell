@@ -1,4 +1,5 @@
 @inject CompositionRegistry Composition
+@inject NavigationManager Navigation
 
 @ResolvedTitle
 
@@ -7,10 +8,20 @@
     public CompositionContext? Context { get; set; }
 
     [Parameter]
+    public PageId? Page { get; set; }
+
+    [Parameter]
     public string? FallbackTitle { get; set; }
 
+    private CompositionContext? ResolvedContext =>
+        CompositionPageContextResolver.Resolve(
+            Composition,
+            Navigation,
+            Context,
+            Page);
+
     private string? ResolvedTitle =>
-        Context is null
+        ResolvedContext is null
             ? FallbackTitle
-            : Composition.GetPage(Context.PageId)?.Title ?? FallbackTitle;
+            : Composition.GetPage(ResolvedContext.PageId)?.Title ?? FallbackTitle;
 }

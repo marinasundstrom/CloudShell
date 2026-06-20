@@ -122,6 +122,10 @@ on `git blame --follow`, and then by the broad type of change.
   modules can only add sections to extension points that the outlet owner has
   marked as extendable. Permissions and visibility remain future dynamic
   policy layers.
+- Composition Blazor outlets and title rendering can now resolve page context
+  from cascade, an explicit page ID, or the current route, keeping the base
+  components viable for static SSR, interactive server, WebAssembly, and mixed
+  render-mode hosts.
 - Moved the composition proof direction away from the UI Extension Host sample:
   CloudShell extension integration should adapt to the core composition graph
   only after the standalone app structure is credible.

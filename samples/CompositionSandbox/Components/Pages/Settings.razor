@@ -3,7 +3,7 @@
 <main class="container-fluid py-4 px-3 px-md-4">
     <header class="mb-4">
         <span class="eyebrow text-secondary">Layout patterns</span>
-        <h1 class="display-6 fw-semibold mb-2"><TitleOutlet /></h1>
+        <h1 class="display-6 fw-semibold mb-2"><TitleOutlet Page="@CompositionIds.SettingsPage" /></h1>
         <p class="text-secondary mb-3">
             This page uses the reusable composition tab outlet styled with
             plain Bootstrap classes. It selects a named section through a
@@ -22,6 +22,7 @@
 
     <CompositionSectionContainer Id="@CompositionIds.SettingsMainOutlet">
         <CompositionSectionTabs AriaLabel="Settings sections"
+                                Page="@CompositionIds.SettingsPage"
                                 ContainerClass="card shadow-sm"
                                 TabListContainerClass="card-header bg-body p-0"
                                 TabListClass="nav nav-tabs card-header-tabs px-3 pt-3"

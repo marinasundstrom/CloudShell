@@ -22,6 +22,16 @@ The Blazor components render ordinary HTML elements and can be styled by the
 host app with normal CSS. The `samples/CompositionSandbox` app demonstrates
 this with plain Bootstrap CSS and a small app stylesheet.
 
+Render-mode neutrality is a design objective for the Blazor integration. The
+base components should work when a host uses static SSR, interactive server,
+WebAssembly, or mixed render modes. They should render normal links and
+markup, avoid JavaScript and event-handler requirements for core navigation,
+and keep selected state in routable state such as query strings or fragments
+when possible. Components can consume cascaded composition context, but routed
+outlets and metadata components should also be able to resolve the current
+page from an explicit `Page` parameter or the current route so they still work
+when an app places an interactive island across a cascade boundary.
+
 ## Core Model
 
 The core graph uses typed value objects instead of raw strings at the public
@@ -183,10 +193,10 @@ The Blazor library currently provides these components:
 | `CompositionHost` | Resolves the current route to a registered page and cascades `CompositionContext` to child content. It can also receive an explicit `PageId`. |
 | `CompositionMenu` | Renders a registered menu and menu sections. Menu items use composition targets rather than hard-coded routes. |
 | `CompositionLink` | Resolves a page or section target into an anchor `href`. Page targets resolve to the registered route. Section targets resolve to the nearest page route plus a fragment. |
-| `TitleOutlet` | Renders the title of the current composition page from the cascaded context. |
+| `TitleOutlet` | Renders the title of the current composition page from the cascaded context, an explicit `Page`, or the current route. |
 | `CompositionSectionContainer` | Cascades the current section outlet ID to nested content. |
-| `CompositionSectionOutlet` | Renders all registered sections for the current page and section outlet using Blazor `DynamicComponent`. |
-| `CompositionSectionTabs` | Renders registered named sections as tab items, stores the selected section in a query-string value, and renders the selected section with `DynamicComponent`. |
+| `CompositionSectionOutlet` | Renders all registered sections for the current page and section outlet using Blazor `DynamicComponent`. It can resolve the page from cascade, an explicit `Page`, or the current route. |
+| `CompositionSectionTabs` | Renders registered named sections as tab items, stores the selected section in a query-string value, and renders the selected section with `DynamicComponent`. It can resolve the page from cascade, an explicit `Page`, or the current route. |
 
 A typical layout hosts the composition root around the routed body:
 
@@ -213,6 +223,18 @@ A routed page can then use the cascaded context:
 
 <CompositionSectionContainer Id="@CompositionIds.ReportsMainOutlet">
     <CompositionSectionOutlet />
+</CompositionSectionContainer>
+```
+
+When a renderer is placed in a different render-mode island from the layout
+that hosts `CompositionHost`, pass the page explicitly instead of relying only
+on cascaded context:
+
+```razor
+<TitleOutlet Page="@CompositionIds.ReportsPage" />
+
+<CompositionSectionContainer Id="@CompositionIds.ReportsMainOutlet">
+    <CompositionSectionOutlet Page="@CompositionIds.ReportsPage" />
 </CompositionSectionContainer>
 ```
 
@@ -316,6 +338,8 @@ The current composition engine does not yet include:
   activation/deactivation lifecycle
 - CloudShell extension discovery and activation rules for module mount/unmount
 - artifact-level module diagnostics beyond basic module ownership projections
+- integration points for extensions, host modules, renderer outlets, metadata,
+  visibility, and future persisted graph loading
 - persisted descriptor storage
 - richer runtime artifact instances and renderer-specific projections
 - slots and sub-pages as first-class APIs
@@ -323,6 +347,9 @@ The current composition engine does not yet include:
 - shell-specific metadata outlets beyond the plain `TitleOutlet`
 - active menu item selection
 - localization metadata or title templates
-- UI configuration or layout editing
+- UI configuration or layout editing in the core package; CloudShell or
+  another host can build its own CMS/editor experience on top of the
+  composition infrastructure later, while the reusable layer stays focused on
+  graph, descriptors, modules, integration points, and renderers
 
 These are proposal-tracked directions, not current behavior.

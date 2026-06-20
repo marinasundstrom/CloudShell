@@ -78,6 +78,11 @@ For the current experimental library and sample behavior, see
   Resource Manager terminology.
 - Do not introduce a persisted layout editor before the programmatic contracts
   are stable.
+- Do not build a composition editor UI in the reusable composition layer as
+  part of the current direction. CloudShell or another host can build a CMS or
+  editor experience on top of the infrastructure later; the near-term work is
+  the programmatic graph, module boundaries, renderer primitives, extension
+  integration points, and future persistence shape.
 - Do not move resource lifecycle, provider configuration, authorization, or
   Control Plane behavior into UI contributions.
 
@@ -427,6 +432,16 @@ starting with at least a plain `TitleOutlet`, so layouts can render the title
 for the resolved composition page or selected content node. Those outlets
 should be additive shell integration components rather than requirements for
 the base composition engine.
+
+The Blazor component package should be render-mode neutral. Base renderers
+should work under static SSR, interactive server, WebAssembly, and mixed
+render modes by producing ordinary HTML links and markup, keeping core
+selection in routable state, and avoiding JavaScript or event-handler
+requirements for navigation. Cascaded composition context remains useful for
+normal layouts, but components that render page metadata or page-scoped
+sections should also accept explicit page IDs or resolve the current route so
+hosts can place them in render-mode islands without depending on cascade
+propagation across every boundary.
 
 ## Resource Manager extraction path
 
