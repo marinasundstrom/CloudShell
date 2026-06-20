@@ -130,6 +130,15 @@ The exact naming constants should live in public abstractions when extension
 authors need to target them. Display text, localization, iconography, and
 ordering remain metadata on the node rather than inferred from the ID.
 
+IDs should be typed value objects rather than interchangeable strings. The
+initial model should include value objects such as `PageId`, `MenuId`,
+`MenuSectionId`, `MenuItemId`, `SectionOutletId`, `SectionContainerId`, and
+`SectionId`, or close equivalents as the API names settle. These IDs encode
+the relevant navigation or content hierarchy in their value, while the type
+keeps a menu ID from accidentally being used as a page or section ID. The
+hierarchical value is the stable address; title, icon, ordering, permissions,
+and component metadata remain separate registration metadata.
+
 The graph should make these relationships explicit:
 
 - a page belongs to a content hierarchy and may be bound to a Razor route
@@ -362,20 +371,23 @@ mainMenu.AddItem(MyMenuItems.IdentityProviderSettings)
 The content engine resolves the target content ID to the nearest routable page
 and renderer-specific selected state, fragment, or focus target.
 
-Razor components still declare routes through normal Razor routing. A page
-component binds itself to a content ID so the layout/content engine can attach
-metadata, cascade layout context, and render navigation or deep links by ID:
+Razor components still declare routes through normal Razor routing. A
+composition host component binds the routed component to a content ID so the
+layout/content engine can load the matching context, attach metadata, cascade
+that context to nested composition areas, and render navigation or deep links
+by ID. The component may not ultimately be named `Page`; the important role is
+that something in the routed component hosts the composition context.
 
 ```razor
 @page "/test/{title}"
 
-<Page Id="@MyPages.Test">
+<CompositionHost Id="@MyPages.Test">
     <Menu Id="@PredefinedMenus.Main" />
 
     <SectionContainer Id="@MySectionContainers.TestMain">
         <SectionOutlet />
     </SectionContainer>
-</Page>
+</CompositionHost>
 
 @code {
     [Parameter]
@@ -383,14 +395,19 @@ metadata, cascade layout context, and render navigation or deep links by ID:
 }
 ```
 
-The `Page` component is the bridge between Razor routing and the content
-engine. The implementation can inject the layout engine into the page and
-cascade the resolved content context to `Menu`, `SectionContainer`,
-`SectionOutlet`, and custom renderer components. A standard menu component can
-then render the hierarchical navigation tree and ask the content engine to
-construct links from target content IDs. A section outlet can render all
-sections registered for the current section container, including sections
-declared by extensions.
+The composition host is the bridge between Razor routing and the content
+engine. The implementation can inject the layout engine into the host, resolve
+the content context from the supplied ID plus route/query state, and cascade
+that context to `Menu`, `SectionContainer`, `SectionOutlet`, and custom
+renderer components. A standard menu component can then render the
+hierarchical navigation tree and ask the content engine to construct links
+from target content IDs. A section outlet can render all sections registered
+for the current section container, including sections declared by extensions.
+It should know which page or sub-page it belongs to by relying on the cascaded
+composition context, rather than requiring every outlet invocation to repeat
+the full page hierarchy. The outlet can combine the cascaded page context with
+its own section-container ID, or the nearest container context, to resolve the
+declared sections that apply at that point in the hierarchy.
 
 Resource Manager can then keep its existing API while internally adapting to
 the shell primitives:
