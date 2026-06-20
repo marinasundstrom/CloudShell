@@ -117,6 +117,25 @@ public sealed class CompositionBuilder
         }
     }
 
+    internal void ReplaceSectionOutletAddressMode(
+        PageId pageId,
+        SectionOutletId outletId,
+        CompositionSectionAddressMode addressMode,
+        string? selectionKey)
+    {
+        var index = SectionOutlets.FindIndex(outlet =>
+            outlet.PageId == pageId &&
+            outlet.Id == outletId);
+        if (index >= 0)
+        {
+            SectionOutlets[index] = SectionOutlets[index] with
+            {
+                AddressMode = addressMode,
+                SelectionKey = selectionKey ?? CompositionSectionOutletRegistration.DefaultSelectionKey
+            };
+        }
+    }
+
     private static string NormalizeRoute(string route)
     {
         CompositionRegistry.ValidateId(route, nameof(route));
@@ -142,7 +161,9 @@ public sealed class CompositionPageBuilder(
     public CompositionSectionOutletBuilder AddSections(
         SectionOutletId outletId,
         bool isExtendable = false,
-        CompositionAuthorizationRequirements? authorization = null)
+        CompositionAuthorizationRequirements? authorization = null,
+        CompositionSectionAddressMode addressMode = CompositionSectionAddressMode.Parent,
+        string? selectionKey = null)
     {
         CompositionRegistry.ValidateId(outletId.Value, nameof(outletId));
 
@@ -150,7 +171,9 @@ public sealed class CompositionPageBuilder(
             outletId,
             pageId,
             isExtendable,
-            authorization));
+            authorization,
+            addressMode,
+            selectionKey));
 
         return new CompositionSectionOutletBuilder(builder, pageId, outletId);
     }
@@ -163,7 +186,9 @@ public sealed class CompositionPageExtensionBuilder(
     public CompositionSectionOutletBuilder AddSections(
         SectionOutletId outletId,
         bool isExtendable = false,
-        CompositionAuthorizationRequirements? authorization = null)
+        CompositionAuthorizationRequirements? authorization = null,
+        CompositionSectionAddressMode addressMode = CompositionSectionAddressMode.Parent,
+        string? selectionKey = null)
     {
         CompositionRegistry.ValidateId(outletId.Value, nameof(outletId));
 
@@ -171,7 +196,9 @@ public sealed class CompositionPageExtensionBuilder(
             outletId,
             pageId,
             isExtendable,
-            authorization));
+            authorization,
+            addressMode,
+            selectionKey));
 
         return new CompositionSectionOutletBuilder(builder, pageId, outletId);
     }
@@ -182,6 +209,27 @@ public sealed class CompositionSectionOutletBuilder(
     PageId pageId,
     SectionOutletId outletId)
 {
+    public CompositionSectionOutletBuilder UseChildAddresses(
+        string selectionKey = CompositionSectionOutletRegistration.DefaultSelectionKey)
+    {
+        builder.ReplaceSectionOutletAddressMode(
+            pageId,
+            outletId,
+            CompositionSectionAddressMode.Child,
+            selectionKey);
+        return this;
+    }
+
+    public CompositionSectionOutletBuilder UseParentAddress()
+    {
+        builder.ReplaceSectionOutletAddressMode(
+            pageId,
+            outletId,
+            CompositionSectionAddressMode.Parent,
+            CompositionSectionOutletRegistration.DefaultSelectionKey);
+        return this;
+    }
+
     public CompositionSectionOutletBuilder AddSection<TComponent>(
         SectionId id,
         string title,

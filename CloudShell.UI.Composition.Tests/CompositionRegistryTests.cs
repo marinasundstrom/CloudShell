@@ -179,6 +179,79 @@ public sealed class CompositionRegistryTests
     }
 
     [Fact]
+    public void ResolveHref_ResolvesChildAddressedSectionTargetsThroughOwningPageRoute()
+    {
+        var settingsPage = new PageId("page.settings");
+        var settingsOutlet = SectionOutletId.Create(settingsPage, "main");
+        var advancedSection = SectionId.Create(settingsOutlet, "advanced");
+        var registry = CompositionRegistry.Create(composition =>
+        {
+            composition
+                .AddPage(settingsPage, "Settings", "/settings/{section?}")
+                .AddSections(settingsOutlet)
+                .UseChildAddresses()
+                .AddSection<OverviewSectionComponent>(advancedSection, "Advanced", 10);
+        });
+
+        var href = registry.ResolveHref(
+            advancedSection,
+            new Dictionary<string, object?>
+            {
+                ["culture"] = "en"
+            });
+
+        Assert.Equal("/settings/advanced?culture=en", href);
+    }
+
+    [Fact]
+    public void FromModules_RejectsDuplicateChildAddressedSections()
+    {
+        var settingsPage = new PageId("page.settings");
+        var settingsOutlet = SectionOutletId.Create(settingsPage, "main");
+        var firstSection = new SectionId("custom.settings.first.details");
+        var secondSection = new SectionId("custom.settings.second.details");
+        var module = CompositionModule.Create(CompositionModuleId.Host, composition =>
+        {
+            composition
+                .AddPage(settingsPage, "Settings", "/settings/{section?}")
+                .AddSections(settingsOutlet, addressMode: CompositionSectionAddressMode.Child)
+                .AddSection<OverviewSectionComponent>(firstSection, "First", 10)
+                .AddSection<DetailsSectionComponent>(secondSection, "Second", 20);
+        });
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            CompositionRegistry.FromModules(module));
+
+        Assert.Contains("uses child addresses", exception.Message);
+        Assert.Contains("details", exception.Message);
+    }
+
+    [Fact]
+    public void FromModules_RejectsChildAddressedOutletUnderParentAddressedSection()
+    {
+        var childOutlet = SectionOutletId.Create(OverviewSection, "children");
+        var childSection = SectionId.Create(childOutlet, "child");
+        var module = CompositionModule.Create(CompositionModuleId.Host, composition =>
+        {
+            var page = composition.AddPage(WorkspacePage, "Workspace", "/workspace");
+            page
+                .AddSections(MainOutlet)
+                .AddSection<OverviewSectionComponent>(OverviewSection, "Overview", 10);
+
+            page
+                .AddSections(childOutlet)
+                .UseChildAddresses()
+                .AddSection<DetailsSectionComponent>(childSection, "Child", 10);
+        });
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            CompositionRegistry.FromModules(module));
+
+        Assert.Contains("cannot use child addresses", exception.Message);
+        Assert.Contains(OverviewSection.Value, exception.Message);
+    }
+
+    [Fact]
     public void ResolveHref_ReturnsDirectHrefTargets()
     {
         var registry = CreateRegistry();

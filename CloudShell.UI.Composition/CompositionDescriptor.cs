@@ -45,7 +45,9 @@ public sealed record CompositionSectionOutletDescriptor(
     SectionOutletId Id,
     PageId PageId,
     bool IsExtendable,
-    CompositionAuthorizationRequirements? Authorization = null);
+    CompositionAuthorizationRequirements? Authorization = null,
+    CompositionSectionAddressMode AddressMode = CompositionSectionAddressMode.Parent,
+    string? SelectionKey = null);
 
 public sealed record CompositionSectionDescriptor(
     SectionId Id,
@@ -96,7 +98,13 @@ public static class CompositionDescriptorExtensions
             item.Authorization);
 
     public static CompositionSectionOutletDescriptor ToDescriptor(this CompositionSectionOutletRegistration outlet) =>
-        new(outlet.Id, outlet.PageId, outlet.IsExtendable, outlet.Authorization);
+        new(
+            outlet.Id,
+            outlet.PageId,
+            outlet.IsExtendable,
+            outlet.Authorization,
+            outlet.AddressMode,
+            outlet.SelectionKey);
 
     public static CompositionSectionDescriptor ToDescriptor(this CompositionSectionRegistration section) =>
         new(

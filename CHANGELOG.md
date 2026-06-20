@@ -123,13 +123,17 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager, dashboard, logs, and observability links to Resource
   Details now resolve through the shared composition-backed helper, leaving
   legacy route construction as the fallback path inside that helper.
+- Composition section outlets now declare parent or child address mode so
+  child sections can either share the parent address or own short child address
+  values, with Blazor link resolution projecting those modes into the current
+  route conventions.
 - Resource Manager static page links for graph, add resource, create group,
   templates, settings, and Resources recovery states now resolve through the
   shared composition-backed helper with legacy routes kept as fallbacks.
-- Documented parent-scoped route projection for nested section navigation,
-  where a page or section outlet can later declare that its child sections are
-  rendered as path segments for tabs, side navigation, or similar local
-  navigation renderers.
+- Documented parent-scoped address projection for nested section navigation,
+  where a page or section outlet can declare whether child sections share the
+  parent address or own child address values independently from the renderer
+  that presents them.
 - Documented the future composition-aware Blazor router as the path toward
   route declarations sourced from the composition graph instead of duplicated
   `@page` directives.

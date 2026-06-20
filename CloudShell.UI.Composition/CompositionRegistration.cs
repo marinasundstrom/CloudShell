@@ -55,10 +55,25 @@ public sealed record CompositionSectionOutletRegistration(
     SectionOutletId Id,
     PageId PageId,
     bool IsExtendable,
-    CompositionAuthorizationRequirements? Authorization = null)
+    CompositionAuthorizationRequirements? Authorization = null,
+    CompositionSectionAddressMode AddressMode = CompositionSectionAddressMode.Parent,
+    string? SelectionKey = null)
 {
+    public const string DefaultSelectionKey = "section";
+
     public CompositionAuthorizationRequirements Authorization { get; init; } =
         Authorization ?? CompositionAuthorizationRequirements.None;
+
+    public string SelectionKey { get; init; } =
+        string.IsNullOrWhiteSpace(SelectionKey)
+            ? DefaultSelectionKey
+            : SelectionKey.Trim();
+}
+
+public enum CompositionSectionAddressMode
+{
+    Parent = 0,
+    Child = 1
 }
 
 public sealed record CompositionSectionRegistration(

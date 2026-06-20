@@ -168,20 +168,21 @@ that section as a route value under its owning page. `CompositeAnchor`,
 menus, shell presenters, and custom renderers should all use the same resolver
 contract.
 
-The initial route projection should be convention-based: page and sub-page
-hierarchy maps to path segments, sections inside a page map to fragments, and
-query strings carry view-local state. Future descriptors should add
-configurable route projection metadata for cases where a page, section outlet,
-or similar parent content scope declares that its child sections are exposed as
-route path segments. That gives a formal way to render a logical group of
-sections as segments just like page hierarchies without declaring routing
-metadata on every section or exposing full section IDs in URLs. The metadata
-still has to correspond to the routes the consuming Blazor page declares and
-to the presentation layer's ability to map the URL back to selected content.
-Tabbed UI is one nested-navigation renderer for this model, not a separate
-composition concept. The same segment-backed child-section projection should
-also work for side navigation, segmented controls, accordions, or another
-renderer when the selected content is a stable nested navigation location.
+The initial route projection should be convention-based: pages map to routable
+addresses, page sections belong to their page address by default, and query
+strings carry view-local state. Descriptors now carry address-mode metadata for
+cases where a page, section outlet, or similar parent content scope declares
+how its child sections are addressed. `Parent` means child sections share the
+parent address and can be addressed inside that parent surface. `Child` means
+each child section owns a child address value inside the parent scope. That
+gives a formal way to address a logical group of sections without declaring
+routing metadata on every section or exposing full section IDs in URLs. The
+metadata still has to correspond to the routes the consuming Blazor page
+declares and to the presentation layer's ability to map the URL back to
+selected content. Address mode does not imply a specific renderer. Whatever
+renders the parent decides whether a hierarchy of child pages or page sections
+is visible as tabs, side navigation, segmented controls, accordions, or no
+explicit nested navigation.
 
 A later CloudShell host could introduce its own composition-aware Blazor router
 component that registers route entries from this model instead of requiring
@@ -404,32 +405,36 @@ URL shape should remain a host and adapter decision rather than a direct dump
 of the full hierarchical ID. The ID is the durable internal address used for
 lookup, ownership, diagnostics, and extension targeting; it is not always the
 best human-facing navigation path. The current convention is deliberately
-opinionated: pages and sub-pages use route path segments when the selected
-content is a stable navigational location that users should bookmark, share,
-or understand as part of the information architecture, such as `/settings`,
-`/settings/identity`, `/resources/{resourceId}`, or
-`/resources/{resourceId}/{view}`. Sections use fragments for focus targets or
-in-page section anchors. Query parameters carry state inside an
-already-established page context, such as a selected trace, filter, sort, or
-temporary view mode. A resolver can still map all of those URL forms back to
-composition IDs so menus and links stay ID-driven while URLs remain
-intentional.
+opinionated: pages use routable addresses, while a parent renderer may project
+child pages or child sections as nested navigation when the selected content is
+a stable location that users should bookmark, share, or understand as part of
+the information architecture, such as `/settings`, `/settings/identity`,
+`/resources/{resourceId}`, or `/resources/{resourceId}/{view}`. Parent-addressed
+sections can still be materialized as focus targets or in-page anchors. Query
+parameters carry state inside an already-established page context, such as a
+selected trace, filter, sort, or temporary view mode. A resolver can still map
+all of those URL forms back to composition IDs so menus and links stay
+ID-driven while URLs remain intentional.
 
-Until a custom mapping facility exists, public path segments are derived by
-convention from the addressable artifact's local identifier in its parent
+Until a custom mapping facility exists, public child address values are derived
+by convention from the addressable artifact's local identifier in its parent
 scope. For example, a typed Resource Manager view ID such as
 `management:access-control` keeps its full internal address, but resolves to
-the `access-control` path segment under `/resources/{resourceId}`. Hosts must
-validate that route segments are unique within their parent scope.
+the `access-control` route value under `/resources/{resourceId}`. Hosts must
+validate that child address values are unique within their parent scope.
 
-The future custom mapping facility should include an explicit section
-projection mode on the parent scope. The default remains fragment-backed
-sections. A page, section outlet, or similar section container can opt into
-segment-backed child-section selection when those sections are stable
-navigational locations, such as settings categories or Resource Details views.
-The route segment should be short and product-shaped, while the `SectionId`
-remains the durable internal address used for extension targeting,
-authorization, ownership, and diagnostics.
+Section outlets carry an explicit section address mode on the parent scope.
+The default remains `Parent`: child sections share the current parent address.
+A page, section outlet, or similar section container can opt into `Child` when
+child sections should own child address values, such as settings categories or
+Resource Details views. The public child address value should be short and
+product-shaped, while the `SectionId` remains the durable internal address used
+for extension targeting, authorization, ownership, and diagnostics. Resource
+Details is the practical example: `/resources/{resourceId}` is the parent page,
+the Resource Details renderer chooses an inline navigation presentation, and
+the relevant section outlet opts into child addresses so selected sections
+resolve as `/resources/{resourceId}/{view}` instead of the default
+parent-addressed fragment form.
 
 The content selected inside a page or view may be dictated by route values and
 query parameters. The route can establish the page context, while query
@@ -960,8 +965,9 @@ before broad new shell surfaces become release blockers.
   renderers project those requirements through `AuthorizeView`? Which helper
   APIs should exist for common role, policy, and claim requirements?
 - What shape should a future custom URL mapping facility take when convention
-  based path segments are not enough, and how should pages or section outlets
-  declare fragment-backed versus segment-backed child-section projection?
+  based child address values are not enough, and how should pages or section
+  outlets customize the projection of parent-addressed or child-addressed
+  sections?
 - Which notification records belong in the Control Plane event stream, and
   which are UI-local shell state?
 - Should shell layout configuration be stored in the UI host, the Control

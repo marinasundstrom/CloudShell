@@ -387,7 +387,12 @@ allows composition targets to resolve stable navigational locations such as
 non-navigational context in the query string. Resource Details accepts the
 legacy `/resources/{resourceId}/details?tab=<group>:<view>` shape for
 compatibility, but generated Resource Manager links use the path-shaped
-convention.
+convention. Conceptually, Resource Details is the parent page. It decides to
+render its child sections as inline navigation, and its section outlet opts
+into child addresses so the selected section can resolve as
+`/resources/{resourceId}/{view}`. A normal page section remains
+parent-addressed by default and is projected by the current URI resolver as a
+page-local fragment.
 
 Resource Details now consumes the same shell-owned tabbed layout component as
 Settings while preserving the Resource Manager-owned tab contribution model,
@@ -531,28 +536,33 @@ Routing remains normal Blazor routing. Razor components still declare routes
 with `@page`; the composition registry records which composition page ID maps
 to that route so menus, links, title outlets, and section outlets can resolve
 the active page. The composition framework is convention-driven and
-opinionated: pages and sub-pages map to path segments, sections map to
-fragments, and query strings carry local view state. Custom URL mapping is a
-future extension point rather than part of the initial model.
+opinionated: pages map to routable addresses, page sections belong to their
+page address by default, and query strings carry local view state. Custom URL
+mapping is a future extension point rather than part of the initial model.
 The convention is a contract between the resolver and the UI that consumes the
 route: if composition resolves a target to `/resources/{resourceId}/{view}`,
 the Resource Details component must declare and interpret that same route
 shape.
 
-Composition declares the logical structure and the desired URL projection for
-that structure. The resolver creates links from those declarations. The
+Composition declares the logical structure and the desired address projection
+for that structure. The resolver creates links from those declarations. The
 integrating UI framework still owns route handling: in Blazor, ordinary Razor
 pages must declare and honor those routes unless the host supplies a
 composition-aware router component that can map composition route metadata to
 Blazor route entries.
 
-Nested navigation follows the same rule. The root page owns the stable page
-route, such as `/settings`; nested page navigation owns the next path segment,
-such as `/settings/platform` or `/settings/resource-manager`. The current
-Settings renderer projects registered settings sections as logical sub-pages
-in that nested navigation surface. Their full section IDs remain the internal
-composition addresses, while the public route segment is derived from the
-local identifier by convention.
+Nested navigation is a presentation choice made by whatever renders the parent.
+A page with two or more child pages, or a page with two or more sections, may
+present that hierarchy as tabs, side navigation, cards, or no explicit nested
+navigation. Address mode only tells the resolver whether the selected child
+shares the parent address or owns a child address value. In the current Blazor
+route projection that can become fragment-like navigation or path-like
+navigation, such as `/settings/platform` or `/settings/resource-manager`, but
+those URI shapes are resolver details. The current Settings renderer projects
+registered settings sections as logical sub-pages in a nested navigation
+surface. Their full section IDs remain the internal composition addresses,
+while the public child address value is derived from the local identifier by
+convention.
 
 Programmatic URL resolution follows the registered page route template. For
 example, the Settings page is registered as `/settings/{section?}`. Resolving
@@ -565,20 +575,20 @@ resolves to the owning page plus a fragment, such as
 `/settings#section.cloudshell.settings.main.resource-manager`, unless a
 host-provided projection maps that section into a route value.
 
-This route mapping is convention-based for now. The default convention is that
-page and sub-page hierarchy maps to path segments, sections inside a page map
-to fragments, and query strings carry view-local state. A future route
-projection model should let a page or section outlet declare how its child
-section selection is projected, including a segment mode where all registered
-sections in that outlet are rendered as path segments just like page
-hierarchies. The common case should be one declaration on the logical group of
-sections, not route metadata repeated on each individual section. Per-section
-metadata can remain an override for unusual cases later. This applies to
-nested navigation elements regardless of the visual treatment: a tabbed UI,
-side navigation, or similar local navigation component can all render the same
-segment-backed child sections. Even then, the presentation layer must still be
-able to map the selected URL back to the rendered content, and the Blazor page
-must declare routes that match the composition route metadata.
+This route mapping is convention-based for now. The composition model exposes
+address mode in logical terms rather than URI terminology. `Parent` means child
+sections share the parent address and can be addressed inside that parent
+surface. `Child` means each child section owns a child address value within the
+parent scope. The resolver may materialize those modes as fragments or path
+segments for Blazor, but that is a projection detail. The common case is one
+declaration on the logical group of sections, not route metadata repeated on
+each individual section. Per-section metadata can remain an override for
+unusual cases later. Address mode is orthogonal to renderer choice: a consumer
+may render child-addressed sections as tabs, side navigation, cards, or no
+explicit nested navigation affordance at all. Even then, the presentation layer
+must still be able to map the selected address back to the rendered content,
+and the Blazor page must declare routes that match the composition route
+metadata.
 
 A later host could go further and provide its own composition-aware Blazor
 router component that registers routable entries directly from the composition
@@ -664,22 +674,23 @@ tab/view plus query-scoped context.
 
 The current tab renderer uses a query parameter for selected sections because
 it is renderer state inside an already-routed page. That should not be treated
-as the default for every navigation hierarchy. Prefer path segments when the
-selected target is a stable page or sub-page location, query parameters for
-filters, tabs, sort order, and other page-local state, and fragments for
-in-page focus or section anchors. Full composition IDs remain stable internal
+as the default for every navigation hierarchy. Prefer child addresses when the
+selected target is a stable page, sub-page, or child-section location; keep
+query parameters for filters, sort order, and other page-local state. A URI
+resolver may still materialize parent-addressed sections as in-page focus
+targets or section anchors. Full composition IDs remain stable internal
 addresses; a host or adapter may map them to shorter, product-shaped URLs
 instead of exposing the entire hierarchical ID in the path.
 
-Until a custom mapping facility exists, public path segments are derived by
-convention from the addressable artifact's local identifier in its parent
+Until a custom mapping facility exists, public child address values are derived
+by convention from the addressable artifact's local identifier in its parent
 scope. For example, Resource Manager keeps the typed view ID
-`management:access-control` as the internal address, while its route segment is
-`access-control` under `/resources/{resourceId}`. The missing formal model is
-not whether sections can be path-backed; it is how a page or outlet declares
-that its child sections should be projected as route segments, how those
-segments are made unique in the parent scope, and how the renderer maps a
-segment back to the selected `SectionId`.
+`management:access-control` as the internal address, while its route value is
+`access-control` under `/resources/{resourceId}`. The formal model is now that
+a page or outlet declares whether its child sections use the parent address or
+own child addresses, and the registry validates that child address values are
+unique in the parent scope. The renderer still maps the selected address value
+back to the selected `SectionId`.
 
 How sub-pages are rendered is up to the consumer. A page with child sub-pages
 can be projected as tabs, side navigation, cards, or another local-navigation

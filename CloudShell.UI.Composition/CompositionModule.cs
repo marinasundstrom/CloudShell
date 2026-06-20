@@ -51,7 +51,9 @@ public sealed record CompositionModule(
                 outlet.Id,
                 outlet.PageId,
                 outlet.IsExtendable,
-                outlet.Authorization)).ToArray(),
+                outlet.Authorization,
+                outlet.AddressMode,
+                outlet.SelectionKey)).ToArray(),
             descriptor.Sections.Select(section => new CompositionSectionRegistration(
                 section.Id,
                 section.PageId,

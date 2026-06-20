@@ -110,6 +110,7 @@ public sealed class CompositionRegistry
         ValidateUnique(sections.Select(section => section.Id.Value), "section");
         ValidateSectionOutletContributions(materializedModules);
         ValidateSectionContributions(materializedModules);
+        ValidateSectionAddressModes(sectionOutlets, sections);
 
         return new(
             materializedModules,
@@ -192,9 +193,10 @@ public sealed class CompositionRegistry
         if (_sectionsByTarget.TryGetValue(target.Value, out var section))
         {
             var sectionPage = GetPage(section.PageId);
-            if (sectionPage is not null)
+            var sectionOutlet = GetSectionOutlet(section.OutletId);
+            if (sectionPage is not null && sectionOutlet is not null)
             {
-                return $"{AppendRouteParams(sectionPage.Route, routeParams)}#{Uri.EscapeDataString(section.Id.Value)}";
+                return ResolveSectionHref(sectionPage, sectionOutlet, section, routeParams);
             }
         }
 
@@ -428,6 +430,122 @@ public sealed class CompositionRegistry
                 }
             }
         }
+    }
+
+    private static void ValidateSectionAddressModes(
+        IReadOnlyList<CompositionSectionOutletRegistration> sectionOutlets,
+        IReadOnlyList<CompositionSectionRegistration> sections)
+    {
+        var outletsById = sectionOutlets.ToDictionary(outlet => outlet.Id);
+        foreach (var group in sections.GroupBy(section => section.OutletId))
+        {
+            if (!outletsById.TryGetValue(group.Key, out var outlet) ||
+                outlet.AddressMode != CompositionSectionAddressMode.Child)
+            {
+                continue;
+            }
+
+            if (FindParentSection(outlet, sections) is { } parentSection &&
+                outletsById.TryGetValue(parentSection.OutletId, out var parentOutlet) &&
+                parentOutlet.AddressMode == CompositionSectionAddressMode.Parent)
+            {
+                throw new InvalidOperationException(
+                    $"Composition section outlet '{outlet.Id}' cannot use child addresses because its parent section '{parentSection.Id}' shares its parent address.");
+            }
+
+            var duplicate = group
+                .GroupBy(section => GetSectionSelectionValue(section, outlet), StringComparer.OrdinalIgnoreCase)
+                .FirstOrDefault(candidate => candidate.Count() > 1);
+            if (duplicate is not null)
+            {
+                throw new InvalidOperationException(
+                    $"Composition section outlet '{outlet.Id}' uses child addresses, but selection value '{duplicate.Key}' is used by multiple sections.");
+            }
+        }
+    }
+
+    private static CompositionSectionRegistration? FindParentSection(
+        CompositionSectionOutletRegistration outlet,
+        IReadOnlyList<CompositionSectionRegistration> sections) =>
+        sections
+            .OrderByDescending(section => section.Id.Value.Length)
+            .FirstOrDefault(section => IsSectionOutletChildOfSection(outlet, section));
+
+    private static bool IsSectionOutletChildOfSection(
+        CompositionSectionOutletRegistration outlet,
+        CompositionSectionRegistration section)
+    {
+        var sectionScope = StripCompositionKind("section", section.Id.Value);
+        var childOutletPrefix = $"section-outlet.{sectionScope}.";
+        return outlet.Id.Value.StartsWith(childOutletPrefix, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string ResolveSectionHref(
+        CompositionPageRegistration sectionPage,
+        CompositionSectionOutletRegistration sectionOutlet,
+        CompositionSectionRegistration section,
+        IReadOnlyDictionary<string, object?>? routeParams)
+    {
+        if (sectionOutlet.AddressMode == CompositionSectionAddressMode.Child)
+        {
+            return AppendRouteParams(
+                sectionPage.Route,
+                WithRouteParameter(
+                    routeParams,
+                    sectionOutlet.SelectionKey,
+                    GetSectionSelectionValue(section, sectionOutlet)));
+        }
+
+        return $"{AppendRouteParams(sectionPage.Route, routeParams)}#{Uri.EscapeDataString(section.Id.Value)}";
+    }
+
+    private static IReadOnlyDictionary<string, object?> WithRouteParameter(
+        IReadOnlyDictionary<string, object?>? routeParams,
+        string name,
+        string value)
+    {
+        var merged = routeParams is null
+            ? new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+            : routeParams
+                .Where(parameter => !string.Equals(parameter.Key, name, StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(parameter => parameter.Key, parameter => parameter.Value, StringComparer.OrdinalIgnoreCase);
+
+        merged[name] = value;
+        return merged;
+    }
+
+    private static string GetSectionSelectionValue(
+        CompositionSectionRegistration section,
+        CompositionSectionOutletRegistration outlet)
+    {
+        var outletScope = StripCompositionKind("section-outlet", outlet.Id.Value);
+        var outletScopedPrefix = $"section.{outletScope}.";
+        if (section.Id.Value.StartsWith(outletScopedPrefix, StringComparison.OrdinalIgnoreCase) &&
+            section.Id.Value.Length > outletScopedPrefix.Length)
+        {
+            return section.Id.Value[outletScopedPrefix.Length..];
+        }
+
+        var pageScope = StripCompositionKind("page", section.PageId.Value);
+        var pageScopedPrefix = $"section.{pageScope}.";
+        if (section.Id.Value.StartsWith(pageScopedPrefix, StringComparison.OrdinalIgnoreCase) &&
+            section.Id.Value.Length > pageScopedPrefix.Length)
+        {
+            return section.Id.Value[pageScopedPrefix.Length..];
+        }
+
+        var lastSeparator = section.Id.Value.LastIndexOf('.');
+        return lastSeparator >= 0 && lastSeparator + 1 < section.Id.Value.Length
+            ? section.Id.Value[(lastSeparator + 1)..]
+            : section.Id.Value;
+    }
+
+    private static string StripCompositionKind(string kind, string value)
+    {
+        var prefix = kind + ".";
+        return value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+            ? value[prefix.Length..]
+            : value;
     }
 
     private static string AppendRouteParams(

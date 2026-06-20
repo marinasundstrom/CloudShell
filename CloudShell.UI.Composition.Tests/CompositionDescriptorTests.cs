@@ -43,6 +43,8 @@ public sealed class CompositionDescriptorTests
         Assert.Equal(MainOutlet, outlet.Id);
         Assert.Equal(WorkspacePage, outlet.PageId);
         Assert.False(outlet.IsExtendable);
+        Assert.Equal(CompositionSectionAddressMode.Child, outlet.AddressMode);
+        Assert.Equal("section", outlet.SelectionKey);
         Assert.Equal(["workspace.sections.read"], outlet.Authorization?.AnyPermissions);
 
         var section = descriptor.Sections.Single(item => item.Id == DetailsSection);
@@ -71,6 +73,8 @@ public sealed class CompositionDescriptorTests
             descriptor.Menus[0].Groups[0].Items[0].Authorization?.AnyPermissions,
             roundTrip.Menus[0].Groups[0].Items[0].Authorization?.AnyPermissions);
         Assert.Equal(descriptor.SectionOutlets[0].IsExtendable, roundTrip.SectionOutlets[0].IsExtendable);
+        Assert.Equal(descriptor.SectionOutlets[0].AddressMode, roundTrip.SectionOutlets[0].AddressMode);
+        Assert.Equal(descriptor.SectionOutlets[0].SelectionKey, roundTrip.SectionOutlets[0].SelectionKey);
         Assert.Equal(
             descriptor.SectionOutlets[0].Authorization?.AnyPermissions,
             roundTrip.SectionOutlets[0].Authorization?.AnyPermissions);
@@ -130,7 +134,8 @@ public sealed class CompositionDescriptorTests
                 .RequiresPermissions("workspace.read")
                 .AddSections(
                     MainOutlet,
-                    authorization: CompositionAuthorizationRequirements.FromAnyPermissions(["workspace.sections.read"]))
+                    authorization: CompositionAuthorizationRequirements.FromAnyPermissions(["workspace.sections.read"]),
+                    addressMode: CompositionSectionAddressMode.Child)
                 .AddSection<OverviewSectionComponent>(OverviewSection, "Overview", 10)
                 .AddSection(
                     DetailsSection,
