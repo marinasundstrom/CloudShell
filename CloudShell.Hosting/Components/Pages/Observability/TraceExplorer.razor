@@ -289,7 +289,7 @@ else if (ShowHeading)
                                         <div>
                                             <h3>@selectedSpan.Name</h3>
                                             <p>@selectedSpan.ServiceName</p>
-                                            @if (IsErrorSpan(selectedSpan))
+                                            @if (IsLikelyErrorSpan(selectedSpan))
                                             {
                                                 <mark class="trace-error-pill">
                                                     <FluentIcon Value="@(new Icons.Regular.Size16.ErrorCircle())" />
@@ -747,7 +747,7 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
                     Math.Min(offset, 99.4),
                     Math.Min(width, 100 - Math.Min(offset, 99.4)),
                     serviceColors.TryGetValue(span.ServiceName, out var color) ? color : ServicePalette[0],
-                    IsErrorSpan(span));
+                    IsLikelyErrorSpan(span));
             })
             .ToArray();
 
@@ -767,7 +767,7 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
             .ToArray();
 
         var entry = ordered.FirstOrDefault(span => string.IsNullOrWhiteSpace(span.ParentSpanId)) ?? ordered.FirstOrDefault();
-        var errorSpanCount = ordered.Count(IsErrorSpan);
+        var errorSpanCount = ordered.Count(IsLikelyErrorSpan);
 
         return new TraceViewModel(
             traceId,
@@ -798,7 +798,7 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
                     first.TraceId,
                     first.Name,
                     ordered.Length,
-                    ordered.Count(IsErrorSpan),
+                    ordered.Count(IsLikelyErrorSpan),
                     end - first.StartTime,
                     string.Join(", ", services));
             })
@@ -812,7 +812,10 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
 StringComparison.OrdinalIgnoreCase))?.Span
         ?? trace.Rows.FirstOrDefault()?.Span;
 
-    private static bool IsErrorSpan(TraceSpan span) =>
+    // OpenTelemetry span status uses Unset, Ok, and Error. Treat any status
+    // outside Unset/Ok as a likely error so provider-specific sources such as
+    // message brokers can surface attention signals without HTTP assumptions.
+    private static bool IsLikelyErrorSpan(TraceSpan span) =>
         !string.IsNullOrWhiteSpace(span.Status) &&
         !string.Equals(span.Status, "Unset", StringComparison.OrdinalIgnoreCase) &&
         !string.Equals(span.Status, "Ok", StringComparison.OrdinalIgnoreCase);

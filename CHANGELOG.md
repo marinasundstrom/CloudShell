@@ -69,8 +69,9 @@ on `git blame --follow`, and then by the broad type of change.
   `ProcedureMessage` styling instead of the default Fluent message bar.
 - Account setup, sign-in, and local user feedback now use the same custom
   `ProcedureMessage` styling as Resource Manager feedback.
-- Trace views now highlight likely error spans and recent traces with an icon
-  marker, red-tinted item background, and error-colored timeline bar.
+- Trace views now highlight likely error spans using OpenTelemetry span status
+  conventions, with an icon marker, red-tinted item background, and
+  error-colored timeline bar.
 - Resource health polling now waits until the Control Plane host has started,
   suppresses repeated polling failure logs until polling succeeds, and routes
   Resource Manager lifecycle, process, and health-probe logs through dedicated
