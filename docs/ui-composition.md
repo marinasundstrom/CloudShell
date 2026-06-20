@@ -325,15 +325,17 @@ menus, groups, and items and hides unauthorized navigation, while future page
 and section renderers can map the same metadata to `AuthorizeView`, access
 denied states, disabled affordances, or development diagnostics.
 
-Core shell navigation and Resource Manager have started moving static sidebar
-items from legacy shell navigation to composition-native menu contributions.
-Core shell contributes Overview, Settings, Users, and Extensions directly under
-the shell-owned Workspace and Platform menu groups. Resource Manager contributes
-Resources and Health directly under the shared Workspace menu group and targets
-registered Resource Manager page IDs. The legacy navigation bridge remains for
-unmigrated extension navigation items; migrated items should be removed from
-legacy `AddNavigationItem(...)` registration to avoid duplicate sidebar
-entries.
+Core shell navigation, Resource Manager, and Observability have started moving
+static sidebar items from legacy shell navigation to composition-native menu
+contributions. Core shell contributes Overview, Settings, Users, and Extensions
+directly under the shell-owned Workspace and Platform menu groups. Resource
+Manager contributes Resources and Health directly under the shared Workspace
+menu group and targets registered Resource Manager page IDs. Observability
+contributes its Workspace parent item and child entries for Logs,
+Dependencies, Service map, Traces, and Metrics with per-item permission
+requirements in the graph. The legacy navigation bridge remains for unmigrated
+extension navigation items; migrated items should be removed from legacy
+`AddNavigationItem(...)` registration to avoid duplicate sidebar entries.
 
 The CloudShell main layout hosts `CompositionHost` in pass-through mode. Pages
 that are registered in the composition graph receive a cascaded

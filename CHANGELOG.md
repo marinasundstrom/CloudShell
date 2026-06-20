@@ -104,6 +104,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Composition artifacts now carry neutral authorization metadata for
   permissions, policies, roles, and claims; the CloudShell Fluent sidebar
   evaluates menu, group, and item permission metadata from the graph.
+- Observability navigation now contributes its Overview parent item and Logs,
+  Dependencies, Service map, Traces, and Metrics child items directly into the
+  composition main menu with graph-encoded permission requirements.
 - The common Settings page now renders composition sections through a
   CloudShell-specific tabbed-layout adapter, keeping section projection,
   selection, link resolution, and dynamic section rendering reusable.

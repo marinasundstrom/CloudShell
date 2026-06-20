@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
@@ -230,6 +231,76 @@ public sealed class ShellNavigationTests
         Assert.Contains(workspaceGroup.Items, item => item.Target.Value == ShellCompositionIds.OverviewPage.Value);
         Assert.Contains(workspaceGroup.Items, item => item.Target.Value == ResourceManagerCompositionIds.ResourcesPage.Value);
         Assert.Contains(workspaceGroup.Items, item => item.Target.Value == ResourceManagerCompositionIds.HealthPage.Value);
+    }
+
+    [Fact]
+    public void ObservabilityExtension_RegistersMainMenuItemsAsCompositionMenu()
+    {
+        var services = new ServiceCollection();
+        services
+            .AddCloudShell()
+            .AddExtension<ObservabilityExtension>();
+        var module = services
+            .Where(descriptor => descriptor.ServiceType == typeof(CompositionModule))
+            .Select(descriptor => descriptor.ImplementationInstance)
+            .OfType<CompositionModule>()
+            .Single(module => module.Id == ObservabilityCompositionIds.Module);
+        var registry = CompositionRegistry.FromModules(module);
+
+        Assert.Equal("/observability", registry.ResolveHref(ObservabilityCompositionIds.OverviewPage));
+        Assert.Equal("/logs", registry.ResolveHref(ObservabilityCompositionIds.LogsPage));
+        Assert.Equal("/observability/dependencies", registry.ResolveHref(ObservabilityCompositionIds.DependenciesPage));
+        Assert.Equal("/observability/service-map", registry.ResolveHref(ObservabilityCompositionIds.ServiceMapPage));
+        Assert.Equal("/observability/traces", registry.ResolveHref(ObservabilityCompositionIds.TracesPage));
+        Assert.Equal("/observability/metrics", registry.ResolveHref(ObservabilityCompositionIds.MetricsPage));
+
+        var menu = registry.GetMenu(ShellCompositionIds.MainMenu);
+        Assert.NotNull(menu);
+        var workspaceGroup = Assert.Single(menu.Groups);
+        Assert.Equal(ShellCompositionIds.WorkspaceMenuGroup, workspaceGroup.Id);
+        Assert.Collection(
+            workspaceGroup.Items,
+            overview =>
+            {
+                Assert.Equal(ObservabilityCompositionIds.OverviewMenuItem, overview.Id);
+                Assert.Equal(ObservabilityCompositionIds.OverviewPage.Value, overview.Target.Value);
+                Assert.Equal(ObservabilityAuthorization.AnyReadPermissions, overview.Authorization.AnyPermissions);
+            },
+            logs =>
+            {
+                Assert.Equal(ObservabilityCompositionIds.LogsMenuItem, logs.Id);
+                Assert.Equal(ObservabilityCompositionIds.OverviewMenuItem, logs.ParentId);
+                Assert.Equal(ObservabilityCompositionIds.LogsPage.Value, logs.Target.Value);
+                Assert.Equal(ObservabilityAuthorization.LogsReadPermissions, logs.Authorization.AnyPermissions);
+            },
+            dependencies =>
+            {
+                Assert.Equal(ObservabilityCompositionIds.DependenciesMenuItem, dependencies.Id);
+                Assert.Equal(ObservabilityCompositionIds.OverviewMenuItem, dependencies.ParentId);
+                Assert.Equal(ObservabilityCompositionIds.DependenciesPage.Value, dependencies.Target.Value);
+                Assert.Equal(ObservabilityAuthorization.TracesReadPermissions, dependencies.Authorization.AnyPermissions);
+            },
+            serviceMap =>
+            {
+                Assert.Equal(ObservabilityCompositionIds.ServiceMapMenuItem, serviceMap.Id);
+                Assert.Equal(ObservabilityCompositionIds.OverviewMenuItem, serviceMap.ParentId);
+                Assert.Equal(ObservabilityCompositionIds.ServiceMapPage.Value, serviceMap.Target.Value);
+                Assert.Equal(ObservabilityAuthorization.TracesReadPermissions, serviceMap.Authorization.AnyPermissions);
+            },
+            traces =>
+            {
+                Assert.Equal(ObservabilityCompositionIds.TracesMenuItem, traces.Id);
+                Assert.Equal(ObservabilityCompositionIds.OverviewMenuItem, traces.ParentId);
+                Assert.Equal(ObservabilityCompositionIds.TracesPage.Value, traces.Target.Value);
+                Assert.Equal(ObservabilityAuthorization.TracesReadPermissions, traces.Authorization.AnyPermissions);
+            },
+            metrics =>
+            {
+                Assert.Equal(ObservabilityCompositionIds.MetricsMenuItem, metrics.Id);
+                Assert.Equal(ObservabilityCompositionIds.OverviewMenuItem, metrics.ParentId);
+                Assert.Equal(ObservabilityCompositionIds.MetricsPage.Value, metrics.Target.Value);
+                Assert.Equal(ObservabilityAuthorization.MetricsReadPermissions, metrics.Authorization.AnyPermissions);
+            });
     }
 
     [Fact]
