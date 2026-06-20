@@ -3,14 +3,17 @@
 @if (MenuProjection is not null)
 {
     var menu = MenuProjection.Menu;
-    <nav class="composition-menu" aria-label="@menu.Title" data-composition-module="@MenuProjection.ModuleId.Value">
+    <nav @attributes="AdditionalAttributes"
+         class="@Class"
+         aria-label="@menu.Title"
+         data-composition-module="@MenuProjection.ModuleId.Value">
         @foreach (var item in GetRootItems(menu.Items))
         {
-            <div class="composition-menu-item" data-composition-menu-item="@item.Id.Value">
+            <div class="@ItemClass" data-composition-menu-item="@item.Id.Value">
                 <CompositeAnchor Target="@item.Target">@item.Title</CompositeAnchor>
                 @if (GetChildren(menu.Items, item).Count > 0)
                 {
-                    <div class="composition-menu-subitems">
+                    <div class="@SubItemsClass">
                         @foreach (var child in GetChildren(menu.Items, item))
                         {
                             <CompositeAnchor Target="@child.Target">@child.Title</CompositeAnchor>
@@ -22,15 +25,15 @@
 
         @foreach (var group in menu.Groups)
         {
-            <div class="composition-menu-group" data-composition-menu-group="@group.Id.Value">
+            <div class="@GroupClass" data-composition-menu-group="@group.Id.Value">
                 <strong>@group.Title</strong>
                 @foreach (var item in GetRootItems(group.Items))
                 {
-                    <div class="composition-menu-item" data-composition-menu-item="@item.Id.Value">
+                    <div class="@ItemClass" data-composition-menu-item="@item.Id.Value">
                         <CompositeAnchor Target="@item.Target">@item.Title</CompositeAnchor>
                         @if (GetChildren(group.Items, item).Count > 0)
                         {
-                            <div class="composition-menu-subitems">
+                            <div class="@SubItemsClass">
                                 @foreach (var child in GetChildren(group.Items, item))
                                 {
                                     <CompositeAnchor Target="@child.Target">@child.Title</CompositeAnchor>
@@ -47,6 +50,21 @@
 @code {
     [Parameter, EditorRequired]
     public MenuId Id { get; set; }
+
+    [Parameter]
+    public string Class { get; set; } = "composition-menu";
+
+    [Parameter]
+    public string GroupClass { get; set; } = "composition-menu-group";
+
+    [Parameter]
+    public string ItemClass { get; set; } = "composition-menu-item";
+
+    [Parameter]
+    public string SubItemsClass { get; set; } = "composition-menu-subitems";
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     private CompositionMenuProjection? MenuProjection => Composition.GetMenuProjection(Id);
 

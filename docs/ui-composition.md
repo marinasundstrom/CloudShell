@@ -446,7 +446,7 @@ The Blazor library currently provides these components:
 | Component | Purpose |
 | --- | --- |
 | `CompositionHost` | Resolves the current route to a registered page and cascades `CompositionContext` to child content. It can also receive an explicit `PageId`. Hosts can opt into pass-through rendering for routes that are not composition-registered yet. |
-| `CompositionMenu` | Renders a registered menu, menu groups, root items, and sub-items. Menu items use composition targets rather than hard-coded routes. |
+| `CompositionMenu` | Renders a registered menu, menu groups, root items, and sub-items. Menu items use composition targets rather than hard-coded routes. Unmatched attributes attach to the rendered `<nav>` root, and class parameters customize the root/group/item/sub-item elements. |
 | `CompositeAnchor` | Resolves a composition target into an anchor `href`. Page targets resolve to registered routes, section targets resolve to the nearest page route plus a fragment, menu item targets resolve through the menu item's own target, and href targets are emitted directly. When child content is omitted, the link uses the target artifact title where one exists. |
 | `TitleOutlet` | Renders visible text for the current composition page title from the cascaded context, an explicit `Page`, or the current route. |
 | `PageTitleOutlet` | Wraps Blazor `PageTitle` for the current composition page title from the cascaded context, an explicit `Page`, or the current route. Use this for the document title instead of mixing document-head behavior into visible page headers. |
@@ -626,6 +626,17 @@ The core registry resolves:
 
 - page target: `/reports`
 - section target: `/#section.workspace.main.extension`
+
+Default Blazor composition components support unmatched attributes when there
+is a clear HTML root to attach them to. `CompositeAnchor` splats onto the
+resolved `<a>`, `CompositionMenu` splats onto its `<nav>`,
+`CompositionPageLayout` splats onto its `<main>`, and
+`CompositionSectionTabs` splats onto its tab container. Components that only
+cascade context or conditionally render child content, such as
+`CompositionHost` and `CompositionSectionContainer`, intentionally do not
+capture arbitrary attributes because there is no stable rendered element to
+own them. Use exposed class parameters or render-fragment templates when
+customization needs to target nested markup.
 
 Route parameters can be passed as query-string values through
 `RouteParams`. When the registered route contains matching route-template

@@ -123,6 +123,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Composition links are now exposed as `CompositeAnchor`, support unmatched
   anchor attributes, and render a customizable unresolved placeholder instead
   of a broken `href="#"` when an artifact target cannot resolve.
+- Default Blazor composition components now document their attribute-splatting
+  behavior, and `CompositionMenu` supports unmatched attributes on its `<nav>`
+  root plus class parameters for menu markup customization.
 - The common Settings page now renders composition sections through a
   CloudShell-specific tabbed-layout adapter, keeping section projection,
   selection, link resolution, and dynamic section rendering reusable.
