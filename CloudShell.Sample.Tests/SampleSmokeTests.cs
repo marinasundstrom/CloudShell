@@ -218,6 +218,7 @@ public sealed class SampleSmokeTests
             $"/observability/traces?resourceId=application%3Aproject-reference-frontend&traceId={traceId}");
         Assert.Contains("Trace chart", traceHtml);
         Assert.Contains("id=\"trace-source-filter\"", traceHtml);
+        Assert.Contains("Project Reference Frontend", traceHtml);
         Assert.Contains("Related logs", traceHtml);
         Assert.Contains("Related activity", traceHtml);
         Assert.Contains("Open resource", traceHtml);
@@ -317,6 +318,7 @@ public sealed class SampleSmokeTests
             "/observability/metrics?resourceId=application%3Aproject-reference-frontend&scopeResourceId=application%3Aproject-reference-missing-scope");
         Assert.Contains("Metric scope not found", missingMetricScopeHtml);
         Assert.Contains("application:project-reference-missing-scope", missingMetricScopeHtml);
+        Assert.Contains("Project Reference Frontend", missingMetricScopeHtml);
         Assert.Contains("Show all scopes", missingMetricScopeHtml);
 
         var missingInlineMetricScopeHtml = await host.GetStringAsync(

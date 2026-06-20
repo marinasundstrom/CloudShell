@@ -2,6 +2,7 @@
 @using System.Globalization
 @inject ITraceManager TraceManager
 @inject IResourceManager ResourceManager
+@inject ResourceManagerDisplaySettings DisplaySettings
 @inject NavigationManager Navigation
 @inject IStringLocalizer<SharedResource> L
 
@@ -98,7 +99,7 @@ else if (ShowHeading)
                             }
                             else
                             {
-                                <h2>@selected.Name</h2>
+                                <h2>@GetResourceLabel(selected)</h2>
                                 <p>@selected.Kind / @selected.Provider@GetStateSuffix(selected)</p>
                             }
                         </div>
@@ -122,7 +123,7 @@ else if (ShowHeading)
                                     }
                                     @foreach (var resource in resources)
                                     {
-                                        <option value="@resource.Id">@resource.Name</option>
+                                        <option value="@resource.Id">@GetResourceLabel(resource)</option>
                                     }
                                 </select>
                             </label>
@@ -488,6 +489,8 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
     private System.Threading.Timer? refreshTimer;
     private IReadOnlyList<Resource> TraceResources { get; set; } = [];
     private IReadOnlyList<TraceSpan> RecentSpans { get; set; } = [];
+    private ResourceManagerDisplaySelection DisplaySelection { get; set; } =
+        ResourceManagerDisplaySelection.Default;
     private string? SelectedSpanId { get; set; }
     private string TraceSortMode { get; set; } = TraceSortModes.Newest;
     private bool IsDisposed { get; set; }
@@ -510,9 +513,10 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
 
     protected override async Task OnParametersSetAsync()
     {
+        DisplaySelection = await DisplaySettings.GetAsync();
         TraceResources = (await ResourceManager.ListResourcesAsync())
             .Where(resource => resource.EffectiveObservability.Traces)
-            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(DisplaySelection.GetResourceSortLabel, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
         await RefreshSpansAsync();
@@ -570,7 +574,7 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
             var scopeResourceId = ScopeResourceId.Trim();
             return new TelemetrySelectionIssue(
                 L["Trace scope not found"].Value,
-                L["Telemetry scope '{0}' is not available for {1}.", scopeResourceId, selected.Name].Value,
+                L["Telemetry scope '{0}' is not available for {1}.", scopeResourceId, GetResourceLabel(selected)].Value,
                 L["Show all scopes"].Value,
                 BuildTraceRoute(selected.Id, TraceId));
         }
@@ -685,6 +689,9 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
 
     private static string GetStateSuffix(Resource resource) =>
         resource.State is { } state ? $" / {state}" : string.Empty;
+
+    private string GetResourceLabel(Resource resource) =>
+        DisplaySelection.GetResourceLabel(resource);
 
     private string GetSpanSummary(int spanCount) =>
         string.IsNullOrWhiteSpace(TraceId)

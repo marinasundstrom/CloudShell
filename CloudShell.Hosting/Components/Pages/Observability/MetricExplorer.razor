@@ -2,6 +2,7 @@
 @using System.Globalization
 @inject IMetricManager MetricManager
 @inject IResourceManager ResourceManager
+@inject ResourceManagerDisplaySettings DisplaySettings
 @inject NavigationManager Navigation
 @inject IStringLocalizer<SharedResource> L
 
@@ -78,7 +79,7 @@ else if (ShowHeading)
                     @if (ShowSourceSummary)
                     {
                         <div>
-                            <h2>@selected.Name</h2>
+                            <h2>@GetResourceLabel(selected)</h2>
                             <p>@selected.Kind / @selected.Provider@GetStateSuffix(selected)</p>
                         </div>
                     }
@@ -91,7 +92,7 @@ else if (ShowHeading)
                                         @onchange="SelectResource">
                                     @foreach (var resource in resources)
                                     {
-                                        <option value="@resource.Id">@resource.Name</option>
+                                        <option value="@resource.Id">@GetResourceLabel(resource)</option>
                                     }
                                 </select>
                             </label>
@@ -207,6 +208,8 @@ else if (ShowHeading)
     private System.Threading.Timer? refreshTimer;
     private IReadOnlyList<Resource> MetricResources { get; set; } = [];
     private IReadOnlyList<MetricPoint> RecentPoints { get; set; } = [];
+    private ResourceManagerDisplaySelection DisplaySelection { get; set; } =
+        ResourceManagerDisplaySelection.Default;
     private bool IsDisposed { get; set; }
     private bool IsRefreshingPoints { get; set; }
 
@@ -227,9 +230,10 @@ else if (ShowHeading)
 
     protected override async Task OnParametersSetAsync()
     {
+        DisplaySelection = await DisplaySettings.GetAsync();
         MetricResources = (await ResourceManager.ListResourcesAsync())
             .Where(resource => resource.EffectiveObservability.Metrics)
-            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(DisplaySelection.GetResourceSortLabel, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
         await RefreshPointsAsync();
@@ -277,7 +281,7 @@ else if (ShowHeading)
             var scopeResourceId = ScopeResourceId.Trim();
             return new TelemetrySelectionIssue(
                 L["Metric scope not found"].Value,
-                L["Telemetry scope '{0}' is not available for {1}.", scopeResourceId, selected.Name].Value,
+                L["Telemetry scope '{0}' is not available for {1}.", scopeResourceId, GetResourceLabel(selected)].Value,
                 L["Show all scopes"].Value,
                 BuildMetricRoute(selected.Id));
         }
@@ -377,6 +381,9 @@ else if (ShowHeading)
 
     private static string GetStateSuffix(Resource resource) =>
         resource.State is { } state ? $" / {state}" : string.Empty;
+
+    private string GetResourceLabel(Resource resource) =>
+        DisplaySelection.GetResourceLabel(resource);
 
     private string GetPointSummary(int pointCount) =>
         L["{0} points retained in memory", pointCount].Value;
