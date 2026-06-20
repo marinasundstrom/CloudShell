@@ -40,7 +40,7 @@ public sealed class ResourceHealthOptions
 
     public string SnapshotStore { get; set; } = ResourceHealthSnapshotStores.InMemory;
 
-    public int RetainedSnapshotsPerResource { get; set; }
+    public int RetainedSnapshotsPerResource { get; set; } = 50;
 }
 
 public static class ResourceHealthSnapshotStores

@@ -657,11 +657,14 @@ public sealed class SampleSmokeTests
         Assert.Contains("/health", healthHtml);
         Assert.Contains("/healthz", healthHtml);
         Assert.Contains("Unhealthy", healthHtml);
+        Assert.Contains("Recent polling", healthHtml);
 
         var apiHealthHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Health.Value)}");
         Assert.Contains(">Health<", apiHealthHtml);
         Assert.Contains("Health summary", apiHealthHtml);
+        Assert.Contains("Auto-refresh", apiHealthHtml);
+        Assert.Contains("Recent polling", apiHealthHtml);
         Assert.Contains("Unhealthy", apiHealthHtml);
         Assert.Contains("/health", apiHealthHtml);
 

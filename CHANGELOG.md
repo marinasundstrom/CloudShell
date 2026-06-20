@@ -31,6 +31,11 @@ on `git blame --follow`, and then by the broad type of change.
   manual refresh action.
 - Application and generated resource overviews now link directly to the
   resource-scoped **Health** tab when the resource declares health checks.
+- Health views now share a resource health history chart backed by retained
+  resource health snapshots, and the resource-scoped Health tab auto-refreshes
+  while open.
+- Resource Health tabs now appear for resource types that support health
+  checks even before a resource has registered health check endpoints.
 - Documented weak projected-resource references and reusable Resource Manager
   selector components as deferred model/UI design work beyond the immediate
   local-development MVP slice.

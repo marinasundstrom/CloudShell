@@ -1,6 +1,8 @@
 @using System.Globalization
+@implements IDisposable
 @inject IResourceManager ResourceManager
 @inject IResourceHealthManager HealthChecks
+@inject IResourceOrchestrationSettings OrchestrationSettings
 @inject IStringLocalizer<SharedResource> L
 
 <div class="generated-resource-view">
@@ -20,26 +22,67 @@
 
     private Resource? Resource { get; set; }
     private ResourceHealthSummary? Summary { get; set; }
+    private IReadOnlyList<ResourceHealthSummary> Snapshots { get; set; } = [];
     private bool IsCheckingHealth { get; set; }
+    private bool IsLoading { get; set; }
+    private bool IsDisposed { get; set; }
+    private bool AutoRefresh { get; set; } = true;
+    private System.Threading.Timer? RefreshTimer { get; set; }
+    private bool SupportsHealthChecks =>
+        Resource?.ResourceHealthChecks.Count > 0 ||
+        ResourceType?.ResourceProbeOptions.SupportsHealthChecks == true;
+
+    protected override void OnInitialized()
+    {
+        RefreshTimer = new System.Threading.Timer(
+            _ =>
+            {
+                if (!IsDisposed && AutoRefresh)
+                {
+                    _ = InvokeAsync(LoadHealthAsync);
+                }
+            },
+            null,
+            GetHealthCheckInterval(),
+            GetHealthCheckInterval());
+    }
 
     protected override Task OnParametersSetAsync() => LoadHealthAsync();
 
     private async Task LoadHealthAsync()
     {
-        if (string.IsNullOrWhiteSpace(ResourceId))
+        if (string.IsNullOrWhiteSpace(ResourceId) || IsLoading || IsDisposed)
         {
-            Resource = null;
-            Summary = null;
+            if (string.IsNullOrWhiteSpace(ResourceId))
+            {
+                Resource = null;
+                Summary = null;
+                Snapshots = [];
+            }
+
             return;
         }
 
-        Resource = await ResourceManager.GetResourceAsync(ResourceId);
-        Summary = await HealthChecks.GetResourceHealthAsync(ResourceId);
+        IsLoading = true;
+        try
+        {
+            Resource = await ResourceManager.GetResourceAsync(ResourceId);
+            Summary = await HealthChecks.GetResourceHealthAsync(ResourceId);
+            Snapshots = await HealthChecks.ListResourceHealthSnapshotsAsync(ResourceId, 20);
+        }
+        finally
+        {
+            IsLoading = false;
+            if (!IsDisposed)
+            {
+                await InvokeAsync(StateHasChanged);
+            }
+        }
     }
 
     private async Task RefreshHealthAsync()
     {
-        if (string.IsNullOrWhiteSpace(ResourceId))
+        if (string.IsNullOrWhiteSpace(ResourceId) || IsDisposed)
         {
             return;
         }
@@ -48,11 +91,18 @@
         try
         {
             Summary = await HealthChecks.RefreshResourceHealthAsync(ResourceId);
+            Snapshots = await HealthChecks.ListResourceHealthSnapshotsAsync(ResourceId, 20);
         }
         finally
         {
             IsCheckingHealth = false;
         }
+    }
+
+    public void Dispose()
+    {
+        IsDisposed = true;
+        RefreshTimer?.Dispose();
     }
 
     private IReadOnlyList<GeneratedResourceViewSection> BuildSections() =>
@@ -66,12 +116,20 @@
                 <h3>@L["Health"]</h3>
                 <span>@GetStatusText()</span>
             </div>
-            <FluentButton Appearance="Appearance.Neutral"
-                          Disabled="@IsCheckingHealth"
-                          IconStart="@(new Icons.Regular.Size20.ArrowSync())"
-                          OnClick="RefreshHealthAsync">
-                @(IsCheckingHealth ? L["Checking"] : L["Refresh"])
-            </FluentButton>
+            <div class="resource-monitoring-actions">
+                <FluentCheckbox @bind-Value="AutoRefresh">
+                    @L["Auto-refresh"]
+                </FluentCheckbox>
+                @if (!AutoRefresh)
+                {
+                    <FluentButton Appearance="Appearance.Neutral"
+                                  Disabled="@(IsCheckingHealth || IsLoading)"
+                                  IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                                  OnClick="RefreshHealthAsync">
+                        @(IsCheckingHealth ? L["Checking"] : L["Refresh"])
+                    </FluentButton>
+                }
+            </div>
         </div>
 
         @if (Resource is null)
@@ -82,9 +140,14 @@
         }
         else if (Resource.ResourceHealthChecks.Count == 0)
         {
-            <EmptyState Title="@L["No health checks configured"].Value"
-                        Message="@L["This resource does not declare health checks."].Value"
-                        Compact="true" />
+            <ResourceCallout Severity="@(SupportsHealthChecks ? ResourceSignalSeverity.Info : ResourceSignalSeverity.Warning)"
+                             Title="@GetNoHealthChecksTitle()">
+                <p>@GetNoHealthChecksMessage()</p>
+                @if (SupportsHealthChecks)
+                {
+                    <p>@L["Health checks are registered on resources so the Control Plane can poll them, retain snapshots, and surface current and historical health in Resource Manager."]</p>
+                }
+            </ResourceCallout>
         }
         else
         {
@@ -104,6 +167,10 @@
                     <span>@GetCheckedAtLabel()</span>
                 </span>
             </div>
+
+            <ResourceHealthHistoryChart Title="@L["Recent polling"].Value"
+                                        Checks="Resource.ResourceHealthChecks"
+                                        Snapshots="Snapshots" />
 
             <div class="resource-activity-list">
                 @foreach (var row in GetHealthCheckRows())
@@ -145,7 +212,9 @@
 
         if (Resource.ResourceHealthChecks.Count == 0)
         {
-            return L["No configured health checks"].Value;
+            return SupportsHealthChecks
+                ? L["Health checks available"].Value
+                : L["No configured health checks"].Value;
         }
 
         return Summary is null
@@ -167,6 +236,19 @@
             ? L["{0} configured", Resource?.ResourceHealthChecks.Count ?? Summary.Checks.Count].Value
             : L["{0} unhealthy / {1} configured", unhealthy, Resource?.ResourceHealthChecks.Count ?? Summary.Checks.Count].Value;
     }
+
+    private string GetNoHealthChecksTitle() =>
+        SupportsHealthChecks
+            ? L["No health checks enabled"].Value
+            : L["No health checks configured"].Value;
+
+    private string GetNoHealthChecksMessage() =>
+        SupportsHealthChecks
+            ? L["This resource type supports health checks, but this resource has not registered any health check endpoints yet."].Value
+            : L["This resource does not declare health checks."].Value;
+
+    private TimeSpan GetHealthCheckInterval() =>
+        TimeSpan.FromSeconds(OrchestrationSettings.GetHealthCheckIntervalSettings().Seconds);
 
     private string GetCheckedAtLabel() =>
         Summary is null

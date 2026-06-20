@@ -13,6 +13,7 @@
 @inject IResourceOrchestrationSettings OrchestrationSettings
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject ResourceManagerDisplaySettings DisplaySettings
+@inject ShellCatalog ShellCatalog
 @inject IStringLocalizer<SharedResource> L
 
     <div class="generated-resource-view">
@@ -131,7 +132,7 @@
 
     private bool HasVisibleObservability =>
         Logs.Count > 0 ||
-        ResourcePredefinedViewVisibility.HasHealthView(Resource) ||
+        ResourcePredefinedViewVisibility.HasHealthView(Resource, ResourceType) ||
         Authorization.CanReadLogs() && Resource.EffectiveObservability.Logs ||
         Authorization.CanReadTraces() && Resource.EffectiveObservability.Traces ||
         Authorization.CanReadMetrics() && Resource.EffectiveObservability.Metrics;
@@ -261,7 +262,7 @@
 
     private RenderFragment RenderObservability() => @<text>
         <dl class="detail-list">
-            @if (ResourcePredefinedViewVisibility.HasHealthView(Resource))
+            @if (ResourcePredefinedViewVisibility.HasHealthView(Resource, ResourceType))
             {
                 <dt>@L["Health"]</dt>
                 <dd>
@@ -388,6 +389,11 @@
     private string FormatResourceHealthSummary()
     {
         var checkCount = Resource.ResourceHealthChecks.Count;
+        if (checkCount == 0 && ResourceType?.ResourceProbeOptions.SupportsHealthChecks == true)
+        {
+            return L["Health checks available"].Value;
+        }
+
         if (RelatedHealthByResourceId.GetValueOrDefault(Resource.Id) is { } health)
         {
             var unhealthy = health.Checks.Count(check => check.Status == ResourceHealthStatus.Unhealthy);
@@ -851,7 +857,7 @@
             new(L["Activity"].Value, BuildActivityRoute(resource.Id))
         };
 
-        if (ResourcePredefinedViewVisibility.HasHealthView(resource))
+        if (ResourcePredefinedViewVisibility.HasHealthView(resource, FindResourceType(resource)))
         {
             actions.Add(new ResourceRelationshipNodeAction(L["Health"].Value, BuildResourceTabRoute(resource.Id, ResourcePredefinedViewIds.Health)));
         }
@@ -984,6 +990,10 @@
 
     private static string BuildResourceTabRoute(string resourceId, ResourceViewId tabId) =>
         ResourceManagerRoutes.ResourceDetails(resourceId, tabId);
+
+    private ResourceTypeContribution? FindResourceType(Resource resource) =>
+        this.ShellCatalog.ResourceTypes.FirstOrDefault(type =>
+            string.Equals(type.Id, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase));
 
     private string BuildLogRoute(LogDescriptor log)
     {

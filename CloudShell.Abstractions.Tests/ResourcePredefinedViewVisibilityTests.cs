@@ -85,6 +85,21 @@ public sealed class ResourcePredefinedViewVisibilityTests
     }
 
     [Fact]
+    public void HasHealthView_LightsUpFromResourceTypeSupport()
+    {
+        var resourceType = new ResourceTypeContribution(
+            "test.web",
+            "Test Web",
+            "Test web resource.",
+            "web",
+            0,
+            typeof(object),
+            ProbeOptions: new ResourceTypeProbeOptions([new ResourceHealthCheck("/health")]));
+
+        Assert.True(ResourcePredefinedViewVisibility.HasHealthView(CreateResource(), resourceType));
+    }
+
+    [Fact]
     public void HasEnvironmentView_LightsUpFromEnvironmentCapability()
     {
         var resource = CreateResource() with

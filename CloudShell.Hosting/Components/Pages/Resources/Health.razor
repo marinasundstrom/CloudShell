@@ -127,6 +127,21 @@
                     </tbody>
                 </table>
             </div>
+
+            <div class="health-history-grid" aria-label="@L["Recent health polling history"]">
+                @foreach (var resource in ResourcesWithHealthChecks)
+                {
+                    <div class="health-history-resource">
+                        <a class="resource-link" href="@BuildResourceRoute(resource.Id)">
+                            <strong>@resource.EffectiveDisplayName</strong>
+                        </a>
+                        <ResourceHealthHistoryChart Compact="true"
+                                                    Checks="resource.ResourceHealthChecks"
+                                                    Snapshots="GetHealthSnapshots(resource)"
+                                                    Title="@L["Recent polling"].Value" />
+                    </div>
+                }
+            </div>
         }
     </article>
 
@@ -173,6 +188,9 @@
     private IReadOnlyDictionary<string, ResourceHealthSummary> HealthResults { get; set; } =
         new Dictionary<string, ResourceHealthSummary>(StringComparer.OrdinalIgnoreCase);
 
+    private IReadOnlyDictionary<string, IReadOnlyList<ResourceHealthSummary>> HealthSnapshotsByResourceId { get; set; } =
+        new Dictionary<string, IReadOnlyList<ResourceHealthSummary>>(StringComparer.OrdinalIgnoreCase);
+
     private bool IsCheckingHealth { get; set; }
 
     private CancellationTokenSource? PollingCancellation { get; set; }
@@ -214,6 +232,7 @@
         try
         {
             HealthResults = await HealthChecks.RefreshResourceHealthAsync(cancellationToken);
+            HealthSnapshotsByResourceId = await LoadHealthSnapshotsAsync(cancellationToken);
         }
         finally
         {
@@ -227,6 +246,7 @@
         try
         {
             HealthResults = await HealthChecks.ListResourceHealthAsync(cancellationToken);
+            HealthSnapshotsByResourceId = await LoadHealthSnapshotsAsync(cancellationToken);
         }
         finally
         {
@@ -283,6 +303,28 @@
 
     private ResourceHealthSummary? GetHealthSummary(Resource resource) =>
         HealthResults.GetValueOrDefault(resource.Id);
+
+    private IReadOnlyList<ResourceHealthSummary> GetHealthSnapshots(Resource resource) =>
+        HealthSnapshotsByResourceId.GetValueOrDefault(resource.Id) ?? [];
+
+    private async Task<IReadOnlyDictionary<string, IReadOnlyList<ResourceHealthSummary>>> LoadHealthSnapshotsAsync(
+        CancellationToken cancellationToken)
+    {
+        var resources = Resources
+            .Where(resource => resource.ResourceHealthChecks.Count > 0)
+            .ToArray();
+        var snapshots = await Task.WhenAll(resources.Select(async resource =>
+            new
+            {
+                resource.Id,
+                Snapshots = await HealthChecks.ListResourceHealthSnapshotsAsync(resource.Id, 20, cancellationToken)
+            }));
+
+        return snapshots.ToDictionary(
+            item => item.Id,
+            item => item.Snapshots,
+            StringComparer.OrdinalIgnoreCase);
+    }
 
     private IReadOnlyList<HealthCheckRow> GetHealthCheckRows(Resource resource)
     {

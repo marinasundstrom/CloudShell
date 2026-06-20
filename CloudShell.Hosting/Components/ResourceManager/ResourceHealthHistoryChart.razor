@@ -1,0 +1,161 @@
+@using System.Globalization
+@inject IStringLocalizer<SharedResource> L
+
+<div class="@CssClass">
+    <div class="health-history-header">
+        <div>
+            @if (!string.IsNullOrWhiteSpace(Title))
+            {
+                <strong>@Title</strong>
+            }
+            <span>@GetSnapshotCountLabel()</span>
+        </div>
+        @if (OrderedSnapshots.Count > 0)
+        {
+            <div class="health-history-legend" aria-hidden="true">
+                <span><i class="health-healthy"></i>@L["Healthy"]</span>
+                <span><i class="health-unhealthy"></i>@L["Unhealthy"]</span>
+                <span><i class="health-unknown"></i>@L["Unknown"]</span>
+            </div>
+        }
+    </div>
+
+    @if (OrderedSnapshots.Count == 0)
+    {
+        <div class="health-history-empty">
+            @L["No retained health polling history yet."]
+        </div>
+    }
+    else
+    {
+        <div class="health-history-bars" aria-label="@L["Recent health polling history"]">
+            @foreach (var snapshot in OrderedSnapshots)
+            {
+                <span class="health-history-bar @GetHealthClass(snapshot.Status)"
+                      title="@BuildSnapshotTitle(snapshot)"
+                      aria-label="@BuildSnapshotTitle(snapshot)">
+                    <span style="@BuildBarStyle(snapshot)"></span>
+                </span>
+            }
+        </div>
+
+        @if (ConfiguredChecks.Count > 1)
+        {
+            <div class="health-history-checks">
+                @foreach (var check in ConfiguredChecks)
+                {
+                    <div class="health-history-check-row">
+                        <span>@check.Name</span>
+                        <div>
+                            @foreach (var snapshot in OrderedSnapshots)
+                            {
+                                var result = FindCheckResult(snapshot, check);
+                                <i class="@GetHealthClass(result?.Status)"
+                                   title="@BuildCheckTitle(snapshot, check, result)"
+                                   aria-label="@BuildCheckTitle(snapshot, check, result)"></i>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter]
+    public IReadOnlyList<ResourceHealthSummary> Snapshots { get; set; } = [];
+
+    [Parameter]
+    public IReadOnlyList<ResourceHealthCheck> Checks { get; set; } = [];
+
+    [Parameter]
+    public string? Title { get; set; }
+
+    [Parameter]
+    public int MaxSnapshots { get; set; } = 20;
+
+    [Parameter]
+    public bool Compact { get; set; }
+
+    private IReadOnlyList<ResourceHealthSummary> OrderedSnapshots =>
+        Snapshots
+            .OrderByDescending(snapshot => snapshot.CheckedAt)
+            .Take(Math.Clamp(MaxSnapshots, 1, 100))
+            .OrderBy(snapshot => snapshot.CheckedAt)
+            .ToArray();
+
+    private IReadOnlyList<ResourceHealthCheck> ConfiguredChecks =>
+        Checks.Count > 0
+            ? Checks
+            : OrderedSnapshots
+                .SelectMany(snapshot => snapshot.Checks.Select(result => result.Check))
+                .Distinct()
+                .ToArray();
+
+    private string CssClass => Compact
+        ? "health-history-chart compact"
+        : "health-history-chart";
+
+    private string GetSnapshotCountLabel() =>
+        OrderedSnapshots.Count == 0
+            ? L["No history"].Value
+            : L["{0} recent polling result(s)", OrderedSnapshots.Count].Value;
+
+    private static string BuildBarStyle(ResourceHealthSummary snapshot)
+    {
+        var failedChecks = snapshot.Checks.Count(check => check.Status == ResourceHealthStatus.Unhealthy);
+        var totalChecks = Math.Max(1, snapshot.Checks.Count);
+        var height = snapshot.Status == ResourceHealthStatus.Unhealthy
+            ? Math.Max(35, 35 + (failedChecks * 65 / totalChecks))
+            : snapshot.Status == ResourceHealthStatus.Unknown
+                ? 55
+                : 35;
+        return $"height: {height}%";
+    }
+
+    private string BuildSnapshotTitle(ResourceHealthSummary snapshot)
+    {
+        var checkedAt = snapshot.CheckedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.CurrentCulture);
+        var failed = snapshot.Checks.Count(check => check.Status == ResourceHealthStatus.Unhealthy);
+        return failed == 0
+            ? L["{0}: {1}", checkedAt, GetHealthLabel(snapshot.Status)].Value
+            : L["{0}: {1}, {2} failed check(s)", checkedAt, GetHealthLabel(snapshot.Status), failed].Value;
+    }
+
+    private string BuildCheckTitle(
+        ResourceHealthSummary snapshot,
+        ResourceHealthCheck check,
+        ResourceHealthCheckResult? result)
+    {
+        var checkedAt = snapshot.CheckedAt.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentCulture);
+        return result is null
+            ? L["{0} at {1}: no result", check.Name, checkedAt].Value
+            : L["{0} at {1}: {2}", check.Name, checkedAt, GetHealthLabel(result.Status)].Value;
+    }
+
+    private static ResourceHealthCheckResult? FindCheckResult(
+        ResourceHealthSummary snapshot,
+        ResourceHealthCheck check) =>
+        snapshot.Checks.FirstOrDefault(result =>
+            ReferenceEquals(result.Check, check) ||
+            result.Check == check ||
+            string.Equals(result.Check.Name, check.Name, StringComparison.OrdinalIgnoreCase));
+
+    private string GetHealthLabel(ResourceHealthStatus status) =>
+        status switch
+        {
+            ResourceHealthStatus.Healthy => L["Healthy"].Value,
+            ResourceHealthStatus.Unhealthy => L["Unhealthy"].Value,
+            _ => L["Unknown"].Value
+        };
+
+    private static string GetHealthClass(ResourceHealthStatus? status) =>
+        status switch
+        {
+            ResourceHealthStatus.Healthy => "health-healthy",
+            ResourceHealthStatus.Unhealthy => "health-unhealthy",
+            ResourceHealthStatus.Unknown => "health-unknown",
+            _ => "health-pending"
+        };
+}

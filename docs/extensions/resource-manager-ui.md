@@ -121,6 +121,12 @@ provide `/healthz` or `/alive` defaults, but the app must map those endpoints.
 If it does not, the Resources UI will correctly show an unhealthy or unknown
 result unless the user disables the checks for that resource.
 
+Resource-scoped Health views are available when the resource type supports
+health checks or when the resource already declares checks. Current and
+historical views use retained `ResourceHealthSummary` snapshots keyed by
+resource ID, so the resource page and common Health page can correlate the same
+polling history.
+
 ## Resource Manager Projection
 
 The shell generates a default resource detail view from the projected

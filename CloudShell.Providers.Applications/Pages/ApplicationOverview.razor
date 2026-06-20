@@ -473,7 +473,7 @@ else
 
     private bool HasApplicationHealthChecks =>
         ProjectedResource?.ResourceHealthChecks.Count > 0 ||
-        Application?.HealthChecks.Count > 0;
+        SupportsDefaultHealthChecks(Application);
 
     protected override async Task OnParametersSetAsync()
     {
@@ -1188,6 +1188,11 @@ else
     private string GetApplicationHealthSummary()
     {
         var checkCount = ProjectedResource?.ResourceHealthChecks.Count ?? Application?.HealthChecks.Count ?? 0;
+        if (checkCount == 0 && SupportsDefaultHealthChecks(Application))
+        {
+            return "Health checks available";
+        }
+
         if (Application is not null &&
             RelatedHealthByResourceId.GetValueOrDefault(Application.Id) is { } health)
         {
@@ -1199,6 +1204,10 @@ else
 
         return FormatCount(checkCount, "configured check", "configured checks");
     }
+
+    private static bool SupportsDefaultHealthChecks(ApplicationResourceDefinition? application) =>
+        application is not null &&
+        string.Equals(application.ResourceType, ApplicationResourceTypes.AspNetCoreProject, StringComparison.OrdinalIgnoreCase);
 
     private string FormatDependencySummary(Resource? dependency, string dependencyId)
     {

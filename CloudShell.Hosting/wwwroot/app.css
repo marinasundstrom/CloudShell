@@ -345,6 +345,137 @@ h3 {
     background: #64748b;
 }
 
+.health-history-chart {
+    display: grid;
+    gap: .55rem;
+    min-width: 0;
+    padding: .65rem .75rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 4px;
+    background: var(--cloudshell-surface-muted);
+}
+
+.health-history-chart.compact {
+    padding: .5rem .6rem;
+}
+
+.health-history-header {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: .75rem;
+}
+
+.health-history-header>div:first-child {
+    display: grid;
+    gap: .12rem;
+}
+
+.health-history-header span,
+.health-history-empty,
+.health-history-check-row>span {
+    color: var(--cloudshell-text-muted);
+    font-size: .78rem;
+}
+
+.health-history-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .45rem;
+    justify-content: flex-end;
+    color: var(--cloudshell-text-muted);
+    font-size: .72rem;
+}
+
+.health-history-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: .2rem;
+}
+
+.health-history-legend i,
+.health-history-check-row i {
+    width: .5rem;
+    height: .5rem;
+    border-radius: 999px;
+    display: inline-block;
+}
+
+.health-history-bars {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(.45rem, 1fr);
+    align-items: end;
+    gap: .22rem;
+    min-height: 4rem;
+    padding-top: .25rem;
+}
+
+.health-history-bar {
+    display: flex;
+    align-items: end;
+    justify-content: stretch;
+    min-width: .45rem;
+    height: 4rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--cloudshell-divider), transparent 30%);
+    overflow: hidden;
+}
+
+.health-history-bar>span {
+    display: block;
+    width: 100%;
+    min-height: .45rem;
+    border-radius: inherit;
+    background: currentColor;
+}
+
+.health-history-bar.health-healthy {
+    color: #16a34a;
+}
+
+.health-history-bar.health-unhealthy {
+    color: #dc2626;
+}
+
+.health-history-bar.health-unknown,
+.health-history-bar.health-pending {
+    color: #64748b;
+}
+
+.health-history-checks {
+    display: grid;
+    gap: .3rem;
+}
+
+.health-history-check-row {
+    display: grid;
+    grid-template-columns: minmax(5rem, .35fr) minmax(0, 1fr);
+    align-items: center;
+    gap: .45rem;
+}
+
+.health-history-check-row>div {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(.35rem, 1fr);
+    gap: .2rem;
+    align-items: center;
+}
+
+.health-history-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: .6rem;
+    margin-top: .75rem;
+}
+
+.health-history-resource {
+    display: grid;
+    gap: .35rem;
+    min-width: 0;
+}
+
 .state-pill {
     display: inline-flex;
     align-items: center;

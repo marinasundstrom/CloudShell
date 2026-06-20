@@ -506,6 +506,12 @@ public IReadOnlyDictionary<string, string> ResourceAttributes =>
 `HealthChecks` contains provider-projected health signals. Health is distinct
 from lifecycle state.
 
+Health checks are registered on resources so the Control Plane can poll them
+for the Resource Manager experience. The latest result is used for resource
+status, while retained `ResourceHealthSummary` snapshots provide resource-keyed
+history that resource-scoped and environment-wide Health views can chart and
+correlate by resource and check.
+
 `Observability` contains resource observability metadata. If missing, it
 defaults to `ResourceObservability.None` through `EffectiveObservability`.
 `ResourceObservability` can also advertise telemetry sources and scopes. A

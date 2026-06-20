@@ -807,7 +807,7 @@
                 Icon: GetPredefinedViewIcon(GeneratedActivityTabId)));
         }
 
-        if (ResourcePredefinedViewVisibility.HasHealthView(resource) &&
+        if (ResourcePredefinedViewVisibility.HasHealthView(resource, resourceType) &&
             !contributedTabs.Any(tab => tab.Id == GeneratedHealthTabId))
         {
             tabs.Add(new ResourceTabContribution(
