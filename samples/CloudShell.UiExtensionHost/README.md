@@ -34,7 +34,8 @@ http://localhost:5101/sample-workspace
 - The sample also contains a local shell-composition sandbox under
   `Composition/` and `Components/`. It uses typed IDs, a small in-memory
   registry, a composition context host, a menu renderer, a section container,
-  and a section outlet.
+  a section outlet, and a link component that resolves addresses from
+  registered page and section targets.
 - `Pages/SampleWorkspace.razor` declares a normal Razor route, then binds the
   routed page to a composition content ID. The section outlet renders content
   registered by the host and by the sample extension without the page

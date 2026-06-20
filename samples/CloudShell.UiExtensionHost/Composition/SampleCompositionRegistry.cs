@@ -40,23 +40,28 @@ public sealed class SampleCompositionRegistry
             .ThenBy(section => section.Title, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-    public string ResolveHref(string targetId)
+    public string ResolveHref(CompositionTarget target) =>
+        ResolveHref(target, routeParams: null);
+
+    public string ResolveHref(
+        CompositionTarget target,
+        IReadOnlyDictionary<string, object?>? routeParams)
     {
         var page = _pages.FirstOrDefault(page =>
-            string.Equals(page.Id.Value, targetId, StringComparison.OrdinalIgnoreCase));
+            string.Equals(page.Id.Value, target.Value, StringComparison.OrdinalIgnoreCase));
         if (page is not null)
         {
-            return page.Route;
+            return AppendRouteParams(page.Route, routeParams);
         }
 
         var section = _sections.FirstOrDefault(section =>
-            string.Equals(section.Id.Value, targetId, StringComparison.OrdinalIgnoreCase));
+            string.Equals(section.Id.Value, target.Value, StringComparison.OrdinalIgnoreCase));
         if (section is not null)
         {
             var sectionPage = GetPage(section.PageId);
             if (sectionPage is not null)
             {
-                return $"{sectionPage.Route}#{Uri.EscapeDataString(section.Id.Value)}";
+                return $"{AppendRouteParams(sectionPage.Route, routeParams)}#{Uri.EscapeDataString(section.Id.Value)}";
             }
         }
 
@@ -76,6 +81,32 @@ public sealed class SampleCompositionRegistry
             builder.Pages.ToArray(),
             builder.Menus.ToArray(),
             builder.Sections.ToArray());
+
+    private static string AppendRouteParams(
+        string route,
+        IReadOnlyDictionary<string, object?>? routeParams)
+    {
+        if (routeParams is null || routeParams.Count == 0)
+        {
+            return route;
+        }
+
+        var query = string.Join(
+            '&',
+            routeParams
+                .Where(parameter => parameter.Value is not null)
+                .Select(parameter =>
+                    $"{Uri.EscapeDataString(parameter.Key)}={Uri.EscapeDataString(Convert.ToString(parameter.Value, System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}"));
+
+        if (string.IsNullOrEmpty(query))
+        {
+            return route;
+        }
+
+        return route.Contains('?')
+            ? $"{route}&{query}"
+            : $"{route}?{query}";
+    }
 }
 
 public sealed record PageRegistration(
@@ -98,7 +129,7 @@ public sealed record MenuSectionRegistration(
 public sealed record MenuItemRegistration(
     MenuItemId Id,
     string Title,
-    string TargetId,
+    CompositionTarget Target,
     int Order);
 
 public sealed record SectionRegistration(
@@ -112,4 +143,3 @@ public sealed record SectionRegistration(
 public sealed record CompositionContext(
     PageId PageId,
     string Route);
-

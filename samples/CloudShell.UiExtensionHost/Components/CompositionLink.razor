@@ -1,0 +1,40 @@
+@using CloudShell.UiExtensionHost.Composition
+@inject SampleCompositionRegistry Composition
+
+<a href="@Href">
+    @if (ChildContent is null)
+    {
+        @ResolvedTitle
+    }
+    else
+    {
+        @ChildContent
+    }
+</a>
+
+@code {
+    [Parameter]
+    public PageId? Page { get; set; }
+
+    [Parameter]
+    public CompositionTarget? Target { get; set; }
+
+    [Parameter]
+    public IReadOnlyDictionary<string, object?>? RouteParams { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    private CompositionTarget ResolvedTarget =>
+        Target ?? (Page.HasValue
+            ? CompositionTarget.ForPage(Page.Value)
+            : throw new InvalidOperationException("CompositionLink requires Page or Target."));
+
+    private string Href => Composition.ResolveHref(ResolvedTarget, RouteParams);
+
+    private string ResolvedTitle =>
+        Page.HasValue
+            ? Composition.GetPage(Page.Value)?.Title ?? Page.Value.Value
+            : Target?.Value ?? string.Empty;
+}
+

@@ -54,6 +54,9 @@ on `git blame --follow`, and then by the broad type of change.
   sandbox with sample-local typed IDs, a registry, composition context host,
   menu renderer, section container, and section outlet so the layout/content
   model can be explored without changing the core shell APIs.
+- The UI composition sandbox now includes a link component and target
+  abstraction that resolve page and section IDs into routes, query strings, and
+  fragments.
 - Refreshed the local-development MVP target around Application Topology
   confidence, immediate resource relationship comprehension, readable
   Resource Manager labels, app-centric diagnostics, and focused readiness

@@ -209,9 +209,8 @@ public sealed class SampleMenuItemBuilder(
     int order)
 {
     public void Target(PageId target) =>
-        add(new MenuItemRegistration(id, title, target.Value, order));
+        add(new MenuItemRegistration(id, title, target, order));
 
     public void Target(SectionId target) =>
-        add(new MenuItemRegistration(id, title, target.Value, order));
+        add(new MenuItemRegistration(id, title, target, order));
 }
-
