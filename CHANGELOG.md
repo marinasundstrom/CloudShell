@@ -106,6 +106,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added first-pass composed ID factories for composition modules, menus, menu
   sections, menu items, pages, section outlets, and sections so child IDs can
   be derived from parent IDs without string concatenation.
+- Added first-pass composition descriptor records and mapping helpers for
+  modules, pages, menus, menu sections, menu items, and sections, including
+  JSON round-trip coverage for the serializable descriptor shape.
 - Moved the composition proof direction away from the UI Extension Host sample:
   CloudShell extension integration should adapt to the core composition graph
   only after the standalone app structure is credible.

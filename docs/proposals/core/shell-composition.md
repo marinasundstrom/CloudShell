@@ -290,6 +290,8 @@ proposal:
 - `CompositionEngineHost` provides an in-memory mounted-module list and
   rebuilds the active registry projection when a module is mounted or
   unmounted.
+- Modules and runtime registrations can be projected into descriptor records
+  that JSON round-trip. Descriptor-to-runtime rehydration remains future work.
 - Registration titles are plain strings. Localization metadata, localization
   providers, and title content templates remain future design work.
 - Registration ownership is recorded at the module boundary through
@@ -300,10 +302,10 @@ proposal:
   for diagnostics, disable/unload behavior, conflict handling, trust
   boundaries, permission review, and future persisted graph metadata.
 - Runtime artifact instances and renderer projections are not yet separated
-  from descriptor data. The direction is to keep serializable descriptors as
-  the durable artifact shape, produce runtime instances from those
-  descriptors, and expose renderer-specific projections from the validated
-  graph.
+  from descriptor data. The direction is to keep the new serializable
+  descriptors as the durable artifact shape, produce runtime instances from
+  those descriptors through a host-owned resolver, and expose
+  renderer-specific projections from the validated graph.
 
 For example, a menu item targeting
 `section.resource-manager.resource.overview.summary` may resolve to the

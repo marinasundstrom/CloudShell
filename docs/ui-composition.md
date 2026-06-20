@@ -70,11 +70,11 @@ stable `SectionId`, a display title, an order, and a component type. Renderers
 can show those same sections as a stack, grid, tabs, or another layout pattern
 without changing the registered content graph.
 
-The current registry stores runtime registrations directly. The proposed
-direction is to split artifact data into serializable descriptors, runtime
-instances projected from descriptors, and renderer-ready projections. That
-keeps future persistence possible without making component instances or
-renderer state the durable data model.
+The current registry stores runtime registrations directly, but modules and
+registrations can be projected into descriptor records. Descriptors are the
+first serializable shape for pages, menus, menu sections, menu items, and
+sections. Section descriptors store the component type name rather than a
+runtime `Type`, leaving future rehydration to a host-owned resolver.
 
 ## Registration
 
@@ -277,8 +277,8 @@ The core registry currently validates duplicate module, page, menu, and
 section IDs when the graph is built. Tests cover route normalization, target
 link resolution, section target links with route parameters, section ordering,
 section metadata, menu registration, module assembly, in-memory module
-mount/unmount, composed ID factories, duplicate ID validation, and extendable
-section outlet validation.
+mount/unmount, descriptor JSON round-trip, composed ID factories, duplicate ID
+validation, and extendable section outlet validation.
 
 Validation is intentionally still small. Future work should validate unknown
 targets, missing parents, unsupported content kinds, module ownership
@@ -295,8 +295,8 @@ The current composition engine does not yet include:
   activation/deactivation lifecycle
 - CloudShell extension discovery and activation rules for module mount/unmount
 - artifact-level module diagnostics in renderer projections
-- serializable descriptor objects for all artifacts
-- separate runtime artifact instances and renderer projections
+- descriptor-to-runtime rehydration
+- separate runtime artifact instances and renderer-ready projections
 - slots and sub-pages as first-class APIs
 - permissions or visibility rules
 - shell-specific metadata outlets beyond the plain `TitleOutlet`
