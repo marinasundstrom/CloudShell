@@ -29,16 +29,13 @@ http://localhost:5101/sample-workspace
 - The project references `CloudShell.Hosting`, the reusable Razor class library
   that carries CloudShell shell components and static assets.
 - `Program.cs` uses `builder.AddCloudShellUi()`.
-- `SampleWorkspaceExtension` contributes a shell navigation item and start
-  route.
-- `SampleWorkspaceExtension` also registers a composition module for the same
-  page. The current CloudShell shell still renders through the existing shell
-  catalog, but composition services are available for future integration.
+- `SampleWorkspaceExtension` registers a composition module with a page and a
+  composition-native sidebar item, and still configures the start route.
 - Shell environment preferences are persisted by the UI host's local
   `ICloudShellUserSettingsProvider` because the default
   `Shell:EnvironmentSettings:Storage` value is `Local`.
 - `Pages/SampleWorkspace.razor` is a normal routable Razor component
-  contributed by the sample extension.
+  contributed by the sample extension and targeted from the composition graph.
 - The sample uses `app.UseCloudShellUiAsync()` and
   `app.MapCloudShellUi<App>()`, so unknown routes fall back to the Blazor shell
   but Control Plane endpoints such as `/api/control-plane/v1/resources` are not

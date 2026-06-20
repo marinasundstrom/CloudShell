@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Extensions;
+using CloudShell.Hosting.Shell;
 using CloudShell.UiExtensionHost.Pages;
 using CloudShell.UI.Composition;
 using CloudShell.UI.Composition.Blazor;
@@ -7,6 +8,15 @@ namespace CloudShell.UiExtensionHost;
 
 public sealed class SampleWorkspaceExtension : ICloudShellExtension
 {
+    private static readonly CompositionModuleId ModuleId =
+        CompositionModuleId.Create("sample-workspace");
+
+    private static readonly PageId SampleWorkspacePage =
+        PageId.Create("sample-workspace");
+
+    private static readonly MenuItemId SampleWorkspaceMenuItem =
+        MenuItemId.Create(ShellCompositionIds.WorkspaceMenuGroup, "sample-workspace");
+
     public CloudShellExtensionManifest Manifest => new(
         "sample.workspace",
         "Sample Workspace",
@@ -17,18 +27,22 @@ public sealed class SampleWorkspaceExtension : ICloudShellExtension
 
     public void Configure(ICloudShellExtensionBuilder builder)
     {
-        var samplePage = PageId.Create("sample-workspace");
-
         builder.Services.AddCloudShellUiCompositionModule(
-            CompositionModuleId.Create("sample-workspace"),
+            ModuleId,
             module =>
             {
-                module.AddPage(samplePage, "Sample workspace", "/sample-workspace");
+                module.AddPage(SampleWorkspacePage, "Sample workspace", "/sample-workspace");
+
+                module
+                    .GetMenu(ShellCompositionIds.MainMenu)
+                    .AddGroup(ShellCompositionIds.WorkspaceMenuGroup, "Workspace", 10)
+                    .AddItem(SampleWorkspaceMenuItem, "Sample workspace", 5)
+                    .WithAttribute(CompositionAttributeNames.Icon, "sparkle")
+                    .Target(SampleWorkspacePage);
             });
 
         builder
             .RegisterView<SampleWorkspace>()
-            .AddNavigationItem<SampleWorkspace>("Sample workspace", "sparkle", 5)
             .UseStartView<SampleWorkspace>();
     }
 }

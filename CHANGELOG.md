@@ -107,6 +107,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Observability navigation now contributes its Overview parent item and Logs,
   Dependencies, Service map, Traces, and Metrics child items directly into the
   composition main menu with graph-encoded permission requirements.
+- The UI Extension Host sample now contributes its sample workspace sidebar
+  item through the composition main menu instead of legacy shell navigation.
 - The common Settings page now renders composition sections through a
   CloudShell-specific tabbed-layout adapter, keeping section projection,
   selection, link resolution, and dynamic section rendering reusable.

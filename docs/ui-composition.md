@@ -267,11 +267,12 @@ builder.Services.AddCloudShellUiCompositionModule<ShellCompositionHostContext>(
 ```
 
 CloudShell Hosting now registers the composition services during
-`AddCloudShellUi()`. Existing CloudShell navigation and pages still render
-through the current shell catalog. Extensions that reference the composition
-package can register modules through `builder.Services.AddCloudShellUiCompositionModule(...)`;
-the UI-extension-host sample does this for its sample workspace page. This is
-the first integration seam, not a replacement renderer.
+`AddCloudShellUi()`. Extensions that reference the composition package can
+register modules through
+`builder.Services.AddCloudShellUiCompositionModule(...)`; the UI-extension-host
+sample does this for its sample workspace page and sidebar item. The legacy
+shell catalog navigation bridge remains available for compatibility while
+extensions migrate to composition-native menu contributions.
 
 CloudShell Hosting now also has a shell-owned tabbed layout component that
 matches the resource details information architecture: local navigation in a
@@ -325,17 +326,19 @@ menus, groups, and items and hides unauthorized navigation, while future page
 and section renderers can map the same metadata to `AuthorizeView`, access
 denied states, disabled affordances, or development diagnostics.
 
-Core shell navigation, Resource Manager, and Observability have started moving
-static sidebar items from legacy shell navigation to composition-native menu
-contributions. Core shell contributes Overview, Settings, Users, and Extensions
-directly under the shell-owned Workspace and Platform menu groups. Resource
-Manager contributes Resources and Health directly under the shared Workspace
-menu group and targets registered Resource Manager page IDs. Observability
-contributes its Workspace parent item and child entries for Logs,
-Dependencies, Service map, Traces, and Metrics with per-item permission
-requirements in the graph. The legacy navigation bridge remains for unmigrated
-extension navigation items; migrated items should be removed from legacy
-`AddNavigationItem(...)` registration to avoid duplicate sidebar entries.
+Core shell navigation, Resource Manager, Observability, and the UI Extension
+Host sample have moved their static sidebar items from legacy shell navigation
+to composition-native menu contributions. Core shell contributes Overview,
+Settings, Users, and Extensions directly under the shell-owned Workspace and
+Platform menu groups. Resource Manager contributes Resources and Health
+directly under the shared Workspace menu group and targets registered Resource
+Manager page IDs. Observability contributes its Workspace parent item and child
+entries for Logs, Dependencies, Service map, Traces, and Metrics with per-item
+permission requirements in the graph. The UI Extension Host sample contributes
+its sample workspace page and sidebar item through a composition module. The
+legacy navigation bridge remains for unmigrated extension navigation items;
+migrated items should be removed from legacy `AddNavigationItem(...)`
+registration to avoid duplicate sidebar entries.
 
 The CloudShell main layout hosts `CompositionHost` in pass-through mode. Pages
 that are registered in the composition graph receive a cascaded
