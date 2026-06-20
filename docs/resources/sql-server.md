@@ -112,7 +112,9 @@ provider-owned SQL logins, database users, roles, or another provider-specific
 credential model without exposing bootstrap administrator credentials to
 workloads. Before that provider materialization lands, Resource Manager should
 distinguish requested CloudShell grants from effective SQL Server access so
-the UI can show whether the provider has actually applied a grant.
+the UI can show whether the provider has actually applied a grant. The current
+Access control view starts that distinction by marking SQL Server database
+grants as requested but not yet applied by the SQL Server provider.
 
 ## Overview
 

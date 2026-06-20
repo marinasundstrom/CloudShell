@@ -165,7 +165,13 @@
                         @foreach (var permission in group.Permissions)
                         {
                             <span class="access-control-grant-row">
-                                <span>@permission</span>
+                                <span>
+                                    @permission
+                                    @if (GetGrantEffectivenessStatus(permission) is { } effectiveness)
+                                    {
+                                        <small>@effectiveness</small>
+                                    }
+                                </span>
                                 <FluentButton Appearance="Appearance.Neutral"
                                               Disabled="@(IsReadOnly || IsRevokingPermission(group.Principal, permission))"
                                               OnClick="() => RevokePermission(group.Principal, permission)">
@@ -464,6 +470,13 @@
              grant.Permission,
              DatabaseResourceOperationPermissions.ReadWrite,
              StringComparison.OrdinalIgnoreCase)));
+
+    private string? GetGrantEffectivenessStatus(string permission) =>
+        Resource is not null &&
+        string.Equals(Resource.EffectiveTypeId, SqlServerResourceType, StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(permission, DatabaseResourceOperationPermissions.ReadWrite, StringComparison.OrdinalIgnoreCase)
+            ? L["Effective access: not applied by SQL Server provider yet"].Value
+            : null;
 
     private sealed record PermissionOption(
         string Label,

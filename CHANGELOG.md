@@ -45,6 +45,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Managed SQL Server proposal now documents the Azure-style identity boundary:
   identity brokers provide authentication artifacts, while SQL Server providers
   materialize SQL-side users, roles, or external mappings.
+- SQL Server Access control now shows database grants as requested but not yet
+  effectively applied by the SQL Server provider.
 - SQL Server resource overview now leads with SQL service details instead of
   generic container image, revision, and host placement fields.
 
