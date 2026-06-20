@@ -1,10 +1,11 @@
 @using System.Globalization
 @inject IResourceManager ResourceManager
 @inject ITraceManager TraceManager
+@inject ResourceManagerDisplaySettings DisplaySettings
 @inject IStringLocalizer<SharedResource> L
 
 @{
-    var graph = BuildGraph(Resources, Spans, GraphMode);
+    var graph = BuildGraph(Resources, Spans, GraphMode, DisplaySelection);
     var layout = BuildGraphLayout(graph);
 }
 
@@ -204,6 +205,8 @@ else
 
     private IReadOnlyList<Resource> Resources { get; set; } = [];
     private IReadOnlyList<TraceSpan> Spans { get; set; } = [];
+    private ResourceManagerDisplaySelection DisplaySelection { get; set; } =
+        ResourceManagerDisplaySelection.Default;
     private string GraphMode { get; set; } = GraphModeTraces;
 
     protected override async Task OnInitializedAsync()
@@ -213,6 +216,7 @@ else
 
     private async Task RefreshAsync()
     {
+        DisplaySelection = await DisplaySettings.GetAsync();
         Resources = await ResourceManager.ListResourcesAsync();
         Spans = await TraceManager.ListTraceSpansAsync(new TraceQuery(MaxSpans: 1000));
     }
@@ -581,7 +585,8 @@ else
     private static DependencyGraphViewModel BuildGraph(
         IReadOnlyList<Resource> resources,
         IReadOnlyList<TraceSpan> spans,
-        string graphMode)
+        string graphMode,
+        ResourceManagerDisplaySelection displaySelection)
     {
         var resourceById = resources.ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
         var nodes = new Dictionary<string, DependencyNode>(StringComparer.OrdinalIgnoreCase);
@@ -602,7 +607,7 @@ else
                 {
                     existing = existing with
                     {
-                        Subtitle = $"{GetResourceLabel(resource)} / {GetResourceTypeLabel(resource)}",
+                        Subtitle = $"{GetResourceLabel(resource, displaySelection)} / {GetResourceTypeLabel(resource)}",
                         Resource = resource,
                         StatusLabel = GetResourceStatusLabel(resource),
                         StatusKind = GetResourceStatusKind(resource)
@@ -615,7 +620,7 @@ else
 
             var subtitle = resource is null
                 ? span.ResourceId
-                : $"{GetResourceLabel(resource)} / {GetResourceTypeLabel(resource)}";
+                : $"{GetResourceLabel(resource, displaySelection)} / {GetResourceTypeLabel(resource)}";
 
             var node = new DependencyNode(
                 nodeId,
@@ -639,7 +644,7 @@ else
                 {
                     existing = existing with
                     {
-                        Subtitle = $"{GetResourceLabel(resource)} / {GetResourceTypeLabel(resource)}",
+                        Subtitle = $"{GetResourceLabel(resource, displaySelection)} / {GetResourceTypeLabel(resource)}",
                         Resource = resource,
                         StatusLabel = GetResourceStatusLabel(resource),
                         StatusKind = GetResourceStatusKind(resource)
@@ -652,7 +657,7 @@ else
 
             var node = new DependencyNode(
                 nodeId,
-                hasServiceName ? serviceName!.Trim() : GetResourceLabel(resource),
+                hasServiceName ? serviceName!.Trim() : GetResourceLabel(resource, displaySelection),
                 GetResourceTypeLabel(resource),
                 resource,
                 GetResourceStatusLabel(resource),
@@ -789,8 +794,10 @@ else
         return edge;
     }
 
-    private static string GetResourceLabel(Resource resource) =>
-        string.IsNullOrWhiteSpace(resource.DisplayName) ? resource.Name : resource.DisplayName;
+    private static string GetResourceLabel(
+        Resource resource,
+        ResourceManagerDisplaySelection displaySelection) =>
+        displaySelection.GetResourceLabel(resource);
 
     private static string GetResourceTypeLabel(Resource resource) =>
         string.IsNullOrWhiteSpace(resource.EffectiveTypeId) ? resource.Kind : resource.EffectiveTypeId;

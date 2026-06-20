@@ -129,6 +129,8 @@ on `git blame --follow`, and then by the broad type of change.
   telemetry signal.
 - Logs unavailable-resource messages now use the Resource Manager display label
   when the requested resource exists but has no registered log sources.
+- Request graph and request map resource subtitles now honor the Resource
+  Manager display-name preference instead of always preferring display names.
 
 ### 2026-06-19
 
