@@ -97,6 +97,12 @@ on `git blame --follow`, and then by the broad type of change.
   suppresses repeated polling failure logs until polling succeeds, and routes
   Resource Manager lifecycle, process, and health-probe logs through dedicated
   CloudShell logging categories that hosts can tune through appsettings.
+- Docker provider discovery and container-host commands now honor shutdown
+  cancellation by stopping refresh work, disposing cached Docker clients, and
+  killing canceled Docker CLI processes instead of leaving host connections or
+  commands alive across repeated CloudShell host restarts. Docker host client
+  creation/disposal and Docker CLI process start/exit/kill events are now
+  logged through the Resource Manager Docker host lifecycle category.
 - Resource list rows now show a warning triangle for a potential bad state
   when a resource is in a non-running lifecycle state but its latest health
   checks are still reporting healthy.

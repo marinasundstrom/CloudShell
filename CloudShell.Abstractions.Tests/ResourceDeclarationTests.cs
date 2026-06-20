@@ -2990,6 +2990,52 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task ApplicationProvider_CancellingContainerHostCommandKillsProcess()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(contentRoot);
+        var pidPath = Path.Combine(contentRoot, "fake-docker.pid");
+        var fakeDocker = CreateHangingContainerHostExecutable(contentRoot, pidPath);
+        var engine = new ContainerHostDescriptor(
+            "docker:test",
+            "Test Docker",
+            ContainerHostKind.Docker,
+            "unix:///var/run/docker.sock",
+            Metadata: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["cloudshell.executable"] = fakeDocker
+            });
+        var method = typeof(ApplicationResourceService).GetMethod(
+            "RunContainerHostCommandAsync",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+
+        Assert.NotNull(method);
+
+        using var cancellation = new CancellationTokenSource();
+        var task = Assert.IsAssignableFrom<Task<int>>(method.Invoke(
+            null,
+            [
+                engine,
+                new[] { "version" },
+                new ApplicationProcessLog(),
+                cancellation.Token,
+                null
+            ]));
+        var processId = await WaitForProcessIdFileAsync(pidPath, TimeSpan.FromSeconds(5));
+        using var process = Process.GetProcessById(processId);
+
+        await cancellation.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => task);
+        Assert.True(await WaitForExitAsync(process, TimeSpan.FromSeconds(5)));
+    }
+
+    [Fact]
     public void ApplicationProvider_RegistersResourceMonitoringProvider()
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
@@ -5129,6 +5175,21 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(provider.Endpoint.ToString().TrimEnd('/'), endpointMapping.Address);
         Assert.Equal("local", host.ResourceAttributes["docker.host.kind"]);
         Assert.Equal(ContainerRegistryDefaults.Default, host.ResourceAttributes[ResourceAttributeNames.ContainerRegistry]);
+    }
+
+    [Fact]
+    public async Task DockerProvider_RefreshAfterDisposeDoesNotReconnect()
+    {
+        var options = new DockerProviderOptions
+        {
+            Endpoint = new Uri("tcp://127.0.0.1:1"),
+            RequestTimeout = TimeSpan.FromMilliseconds(10)
+        };
+        var provider = new DockerContainerResourceProvider(options);
+
+        provider.Dispose();
+
+        await provider.RefreshAsync();
     }
 
     [Fact]
@@ -9531,6 +9592,32 @@ public sealed class ResourceDeclarationTests
             #!/bin/sh
             echo "Cannot connect to Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?" >&2
             exit 1
+            """);
+        File.SetUnixFileMode(
+            path,
+            UnixFileMode.UserRead |
+            UnixFileMode.UserExecute |
+            UnixFileMode.GroupRead |
+            UnixFileMode.GroupExecute |
+            UnixFileMode.OtherRead |
+            UnixFileMode.OtherExecute);
+        return path;
+    }
+
+    private static string CreateHangingContainerHostExecutable(string directory, string pidPath)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            throw new PlatformNotSupportedException("The fake container host executable test helper uses Unix file mode.");
+        }
+
+        var path = Path.Combine(directory, "fake-docker-hang");
+        File.WriteAllText(
+            path,
+            $$"""
+            #!/bin/sh
+            echo $$ > {{QuoteShellArgument(pidPath)}}
+            sleep 30
             """);
         File.SetUnixFileMode(
             path,

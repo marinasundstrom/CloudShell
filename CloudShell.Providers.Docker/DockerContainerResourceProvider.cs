@@ -1,8 +1,11 @@
 using CloudShell.Abstractions.Logs;
+using CloudShell.Abstractions.Logging;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using Docker.DotNet;
 using Docker.DotNet.Models;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using System.Buffers;
 using System.Globalization;
 using System.Net;
@@ -34,11 +37,19 @@ public sealed partial class DockerContainerResourceProvider :
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
     private readonly DockerProviderOptions _options;
     private readonly Dictionary<string, DockerClient> _clients = new(StringComparer.OrdinalIgnoreCase);
+    private readonly CancellationTokenSource _dispose = new();
     private DockerSnapshot _snapshot;
+    private bool _disposed;
 
-    public DockerContainerResourceProvider(DockerProviderOptions options)
+    private readonly ILogger _logger;
+
+    public DockerContainerResourceProvider(
+        DockerProviderOptions options,
+        ILoggerFactory? loggerFactory = null)
     {
         _options = options;
+        _logger = loggerFactory?.CreateLogger(CloudShellLogCategories.DockerHostLifecycle) ??
+            NullLogger.Instance;
         Endpoint = options.ResolveEndpoint();
         var initializedAt = DateTimeOffset.UtcNow;
         _snapshot = DockerSnapshot.Pending(
@@ -584,6 +595,11 @@ public sealed partial class DockerContainerResourceProvider :
 
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
+        if (IsDisposed())
+        {
+            return;
+        }
+
         if (!await _refreshGate.WaitAsync(0, cancellationToken))
         {
             return;
@@ -591,7 +607,13 @@ public sealed partial class DockerContainerResourceProvider :
 
         try
         {
-            await QueryDockerAsync(cancellationToken);
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken,
+                _dispose.Token);
+            await QueryDockerAsync(linked.Token);
+        }
+        catch (OperationCanceledException) when (IsDisposed())
+        {
         }
         finally
         {
@@ -601,12 +623,47 @@ public sealed partial class DockerContainerResourceProvider :
 
     public void Dispose()
     {
-        foreach (var client in _clients.Values)
+        IReadOnlyList<KeyValuePair<string, DockerClient>> clients;
+        lock (_gate)
         {
-            client.Dispose();
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            _dispose.Cancel();
+            clients = _clients.ToArray();
+            _clients.Clear();
         }
 
-        _refreshGate.Dispose();
+        LogDockerLifecycle(
+            "Disposing {DockerClientCount} cached Docker host client(s).",
+            clients.Count);
+
+        foreach (var (hostIdentity, client) in clients)
+        {
+            client.Dispose();
+            LogDockerLifecycle(
+                "Disposed Docker host client for {DockerHostIdentity}.",
+                hostIdentity);
+        }
+
+        if (_refreshGate.Wait(_options.RequestTimeout))
+        {
+            _refreshGate.Release();
+            _refreshGate.Dispose();
+        }
+
+        _dispose.Dispose();
+    }
+
+    private bool IsDisposed()
+    {
+        lock (_gate)
+        {
+            return _disposed;
+        }
     }
 
     private DockerSnapshot GetSnapshot()
@@ -738,19 +795,30 @@ public sealed partial class DockerContainerResourceProvider :
 
     private DockerClient GetClient(ConfiguredDockerHost host)
     {
-        if (_clients.TryGetValue(host.Host.HostIdentity, out var client))
+        lock (_gate)
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_clients.TryGetValue(host.Host.HostIdentity, out var client))
+            {
+                return client;
+            }
+
+            client = new DockerClientConfiguration(
+                host.Host.Endpoint,
+                defaultTimeout: _options.RequestTimeout,
+                namedPipeConnectTimeout: _options.RequestTimeout)
+                .CreateClient();
+            _clients[host.Host.HostIdentity] = client;
+            LogDockerLifecycle(
+                "Created Docker host client for resource {DockerHostResourceId} at {DockerHostEndpoint}.",
+                host.Id,
+                host.Host.NormalizedEndpoint);
             return client;
         }
-
-        client = new DockerClientConfiguration(
-            host.Host.Endpoint,
-            defaultTimeout: _options.RequestTimeout,
-            namedPipeConnectTimeout: _options.RequestTimeout)
-            .CreateClient();
-        _clients[host.Host.HostIdentity] = client;
-        return client;
     }
+
+    private void LogDockerLifecycle(string message, params object?[] args) =>
+        _logger.LogInformation(message, args);
 
     private DockerClient GetClientForContainerResource(Resource resource)
     {
@@ -825,6 +893,10 @@ public sealed partial class DockerContainerResourceProvider :
                 {
                     defaultStatus = status;
                 }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception exception)
             {

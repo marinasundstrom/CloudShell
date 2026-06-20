@@ -3,7 +3,10 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using CloudShell.Abstractions.Logging;
 using CloudShell.Abstractions.ResourceManager;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CloudShell.Providers.DockerCompose;
 
@@ -11,11 +14,15 @@ public sealed partial class DockerComposeResourceOrchestrator(
     DockerComposeOrchestratorOptions options,
     IEnumerable<IResourceOrchestrationDescriptorProvider> descriptorProviders,
     IContainerHostResolver containerHostResolver,
-    IEnumerable<IResourceVolumeMountMaterializationStore>? materializationStores = null) : IResourceOrchestrator
+    IEnumerable<IResourceVolumeMountMaterializationStore>? materializationStores = null,
+    ILoggerFactory? loggerFactory = null) : IResourceOrchestrator
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
     private readonly IReadOnlyList<IResourceVolumeMountMaterializationStore> materializationStores =
         materializationStores?.ToArray() ?? [];
+    private readonly ILogger logger =
+        loggerFactory?.CreateLogger(CloudShellLogCategories.DockerHostLifecycle) ??
+        NullLogger.Instance;
 
     public string Id => "docker-compose";
 
@@ -156,6 +163,10 @@ public sealed partial class DockerComposeResourceOrchestrator(
         try
         {
             process.Start();
+            logger.LogInformation(
+                "Started Docker Compose command process {ProcessId} for {DockerComposeCommand}.",
+                process.Id,
+                GetDockerComposeCommandName(arguments));
         }
         catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
         {
@@ -164,7 +175,12 @@ public sealed partial class DockerComposeResourceOrchestrator(
 
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
-        await process.WaitForExitAsync(timeout.Token);
+        await WaitForProcessExitOrKillAsync(process, timeout.Token, logger, GetDockerComposeCommandName(arguments));
+        logger.LogInformation(
+            "Docker Compose command process {ProcessId} for {DockerComposeCommand} exited with code {ExitCode}.",
+            process.Id,
+            GetDockerComposeCommandName(arguments),
+            process.ExitCode);
 
         if (process.ExitCode != 0)
         {
@@ -176,6 +192,61 @@ public sealed partial class DockerComposeResourceOrchestrator(
         }
 
         return output.ToString().Trim();
+    }
+
+    private static async Task WaitForProcessExitOrKillAsync(
+        Process process,
+        CancellationToken cancellationToken,
+        ILogger logger,
+        string command)
+    {
+        try
+        {
+            await process.WaitForExitAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            logger.LogInformation(
+                "Killing canceled Docker Compose command process {ProcessId} ({DockerComposeCommand}).",
+                process.Id,
+                command);
+            KillProcessTreeAndWait(process);
+            logger.LogInformation(
+                "Killed canceled Docker Compose command process {ProcessId} ({DockerComposeCommand}).",
+                process.Id,
+                command);
+            throw;
+        }
+    }
+
+    private static string GetDockerComposeCommandName(IReadOnlyList<string> arguments)
+    {
+        for (var index = 0; index < arguments.Count; index++)
+        {
+            if (string.Equals(arguments[index], "compose", StringComparison.Ordinal) &&
+                index + 1 < arguments.Count &&
+                !string.IsNullOrWhiteSpace(arguments[index + 1]))
+            {
+                return arguments[index + 1];
+            }
+        }
+
+        return arguments.FirstOrDefault(argument => !argument.StartsWith('-', StringComparison.Ordinal)) ?? "unknown";
+    }
+
+    private static void KillProcessTreeAndWait(Process process)
+    {
+        try
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+                process.WaitForExit(TimeSpan.FromSeconds(5));
+            }
+        }
+        catch (InvalidOperationException)
+        {
+        }
     }
 
     private string ResolveWorkingDirectory() =>

@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Authorization;
+using CloudShell.Abstractions.Logging;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
@@ -16,6 +17,8 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CloudShell.Providers.Applications;
 
@@ -31,7 +34,8 @@ public sealed partial class ApplicationResourceService(
     IEnumerable<IConfigurationEntryReferenceResolver> configurationEntryResolvers,
     IEnumerable<ISecretReferenceResolver> secretResolvers,
     ResourceDeclarationStore declarations,
-    IResourceEventSink? resourceEvents = null) :
+    IResourceEventSink? resourceEvents = null,
+    ILoggerFactory? loggerFactory = null) :
     ILogProvider,
     IResourceMonitoringProvider,
     IResourceAppSettingConfigurationProvider,
@@ -55,6 +59,9 @@ public sealed partial class ApplicationResourceService(
         new(StringComparer.OrdinalIgnoreCase);
     private readonly IReadOnlyList<IResourceIdentityCredentialEnvironmentProvider> identityCredentialEnvironmentProviders =
         identityCredentialEnvironmentProviders.ToArray();
+    private readonly ILogger dockerHostLogger =
+        loggerFactory?.CreateLogger(CloudShellLogCategories.DockerHostLifecycle) ??
+        NullLogger.Instance;
 
     public string Id => ApplicationResourceProviderIds.Applications;
 
@@ -764,12 +771,13 @@ public sealed partial class ApplicationResourceService(
             return;
         }
 
-        await LoginToContainerRegistryAsync(
-            engine,
-            GetEffectiveContainerRegistry(application),
-            application.ContainerRegistryCredentials,
-            processLog,
-            cancellationToken);
+            await LoginToContainerRegistryAsync(
+                engine,
+                GetEffectiveContainerRegistry(application),
+                application.ContainerRegistryCredentials,
+                processLog,
+                cancellationToken,
+                dockerHostLogger);
 
         foreach (var network in context.Service.ServiceNetworks
                      .Where(network => !string.IsNullOrWhiteSpace(network))
@@ -779,7 +787,8 @@ public sealed partial class ApplicationResourceService(
                 engine,
                 network,
                 processLog,
-                cancellationToken);
+                cancellationToken,
+                dockerHostLogger);
         }
     }
 
@@ -2296,7 +2305,8 @@ public sealed partial class ApplicationResourceService(
                 buildContext,
                 definition.ContainerDockerfile,
                 log,
-                cancellationToken);
+                cancellationToken,
+                dockerHostLogger);
         }
 
         procedureContext?.AppendProviderEvent(
@@ -2350,7 +2360,8 @@ public sealed partial class ApplicationResourceService(
                 engine,
                 ["rm", "-f", instance.Name],
                 processLog,
-                cancellationToken);
+                cancellationToken,
+                dockerHostLogger);
         }
 
         var startInfo = new ProcessStartInfo
@@ -2519,8 +2530,8 @@ public sealed partial class ApplicationResourceService(
                 engine,
                 service,
                 processLog,
-                cancellationToken,
-                procedureContext);
+            cancellationToken,
+            procedureContext);
         }
     }
 
@@ -2712,14 +2723,16 @@ public sealed partial class ApplicationResourceService(
             engine,
             ["stop", instance.Name],
             log,
-            cancellationToken);
+            cancellationToken,
+            dockerHostLogger);
         if (definition.Lifetime == ApplicationLifetime.ControlPlaneScoped)
         {
             await RunContainerHostCommandAsync(
                 engine,
                 ["rm", "-f", instance.Name],
                 log,
-                cancellationToken);
+                cancellationToken,
+                dockerHostLogger);
         }
         procedureContext?.AppendProviderEvent(
             Id,
@@ -2760,7 +2773,8 @@ public sealed partial class ApplicationResourceService(
             engine,
             ["rm", "-f", ingressName],
             log,
-            cancellationToken);
+            cancellationToken,
+            dockerHostLogger);
 
         var arguments = new List<string>
         {
@@ -2800,7 +2814,8 @@ public sealed partial class ApplicationResourceService(
             engine,
             arguments,
             log,
-            cancellationToken);
+            cancellationToken,
+            dockerHostLogger);
         log.Append(
             $"Started replicated container app ingress '{ingressName}' for {definition.Name}.",
             "process",
@@ -2827,7 +2842,8 @@ public sealed partial class ApplicationResourceService(
             service,
             engine,
             log,
-            cancellationToken);
+            cancellationToken,
+            dockerHostLogger);
         procedureContext?.AppendProviderEvent(
             Id,
             "application.container.ingress.stopped",
@@ -2838,13 +2854,15 @@ public sealed partial class ApplicationResourceService(
         ResourceOrchestratorService service,
         ContainerHostDescriptor engine,
         ApplicationProcessLog log,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ILogger? logger = null)
     {
         await RunContainerHostCommandAsync(
             engine,
             ["rm", "-f", GetContainerAppIngressName(service)],
             log,
-            cancellationToken);
+            cancellationToken,
+            logger);
     }
 
     private string GetContainerAppIngressConfigurationDirectory(string resourceId)
@@ -2937,21 +2955,26 @@ public sealed partial class ApplicationResourceService(
         ContainerHostDescriptor engine,
         string network,
         ApplicationProcessLog log,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ILogger? logger = null)
     {
         await RunContainerHostCommandAsync(
             engine,
             ["network", "create", network],
             log,
-            cancellationToken);
+            cancellationToken,
+            logger);
     }
 
     private static async Task<int> RunContainerHostCommandAsync(
         ContainerHostDescriptor engine,
         IReadOnlyList<string> arguments,
         ApplicationProcessLog log,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ILogger? logger = null)
     {
+        logger ??= NullLogger.Instance;
+        var command = GetContainerHostCommandName(arguments);
         var startInfo = new ProcessStartInfo
         {
             FileName = GetContainerHostExecutable(engine),
@@ -2970,12 +2993,18 @@ public sealed partial class ApplicationResourceService(
             using var process = Process.Start(startInfo);
             if (process is null)
             {
+                logger.LogWarning(
+                    "Container host command {ContainerHostCommand} could not be started for host {ContainerHostId}.",
+                    command,
+                    engine.Id);
                 return -1;
             }
 
+            LogContainerHostProcessStarted(logger, process, engine, command, startInfo.FileName);
             var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
             var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
-            await process.WaitForExitAsync(cancellationToken);
+            await WaitForProcessExitOrKillAsync(process, cancellationToken, logger, command);
+            LogContainerHostProcessExited(logger, process, engine, command);
             var output = await outputTask;
             var error = await errorTask;
             if (!string.IsNullOrWhiteSpace(output))
@@ -2992,8 +3021,17 @@ public sealed partial class ApplicationResourceService(
 
             return process.ExitCode;
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
         {
+            logger.LogWarning(
+                exception,
+                "Container host command {ContainerHostCommand} failed to start for host {ContainerHostId}.",
+                command,
+                engine.Id);
             log.Append(exception.Message, "process", "Warning");
             return -1;
         }
@@ -3002,8 +3040,11 @@ public sealed partial class ApplicationResourceService(
     private static async Task<ContainerHostCommandResult> CaptureContainerHostCommandAsync(
         ContainerHostDescriptor engine,
         IReadOnlyList<string> arguments,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ILogger? logger = null)
     {
+        logger ??= NullLogger.Instance;
+        var command = GetContainerHostCommandName(arguments);
         var startInfo = new ProcessStartInfo
         {
             FileName = GetContainerHostExecutable(engine),
@@ -3022,19 +3063,34 @@ public sealed partial class ApplicationResourceService(
             using var process = Process.Start(startInfo);
             if (process is null)
             {
+                logger.LogWarning(
+                    "Container host command {ContainerHostCommand} could not be started for host {ContainerHostId}.",
+                    command,
+                    engine.Id);
                 return new ContainerHostCommandResult(-1, string.Empty, "Container host command could not be started.");
             }
 
+            LogContainerHostProcessStarted(logger, process, engine, command, startInfo.FileName);
             var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
             var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
-            await process.WaitForExitAsync(cancellationToken);
+            await WaitForProcessExitOrKillAsync(process, cancellationToken, logger, command);
+            LogContainerHostProcessExited(logger, process, engine, command);
             return new ContainerHostCommandResult(
                 process.ExitCode,
                 await outputTask,
                 await errorTask);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
         {
+            logger.LogWarning(
+                exception,
+                "Container host command {ContainerHostCommand} failed to start for host {ContainerHostId}.",
+                command,
+                engine.Id);
             return new ContainerHostCommandResult(-1, string.Empty, exception.Message);
         }
     }
@@ -3079,7 +3135,7 @@ public sealed partial class ApplicationResourceService(
             ?? throw new InvalidOperationException("Project container publish could not be started.");
         var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
         var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
-        await process.WaitForExitAsync(cancellationToken);
+        await WaitForProcessExitOrKillAsync(process, cancellationToken);
         var output = await outputTask;
         var error = await errorTask;
 
@@ -3106,7 +3162,8 @@ public sealed partial class ApplicationResourceService(
         string buildContext,
         string dockerfile,
         ApplicationProcessLog log,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ILogger? logger = null)
     {
         log.Append(
             $"Building Dockerfile '{dockerfile}' as container image '{imageReference}'.",
@@ -3116,7 +3173,8 @@ public sealed partial class ApplicationResourceService(
             engine,
             ["build", "-t", imageReference, "-f", dockerfile, buildContext],
             log,
-            cancellationToken);
+            cancellationToken,
+            logger);
         if (exitCode != 0)
         {
             throw new InvalidOperationException(
@@ -5705,8 +5763,10 @@ public sealed partial class ApplicationResourceService(
         string registry,
         ContainerRegistryCredentials? credentials,
         ApplicationProcessLog log,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ILogger? logger = null)
     {
+        logger ??= NullLogger.Instance;
         credentials = ContainerRegistryCredentials.Normalize(credentials);
         if (credentials is null)
         {
@@ -5732,31 +5792,96 @@ public sealed partial class ApplicationResourceService(
 
         using var process = Process.Start(startInfo)
             ?? throw new InvalidOperationException("Container registry login could not be started.");
-        await process.StandardInput.WriteLineAsync(password.AsMemory(), cancellationToken);
-        process.StandardInput.Close();
-
-        var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
-        var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
-        await process.WaitForExitAsync(cancellationToken);
-        var output = await outputTask;
-        var error = await errorTask;
-
-        if (!string.IsNullOrWhiteSpace(output))
+        try
         {
-            log.Append(output.Trim(), "process", process.ExitCode == 0 ? "Information" : "Warning");
+            LogContainerHostProcessStarted(logger, process, engine, "login", startInfo.FileName);
+            await process.StandardInput.WriteLineAsync(password.AsMemory(), cancellationToken);
+            process.StandardInput.Close();
+
+            var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+            var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
+            await WaitForProcessExitOrKillAsync(process, cancellationToken, logger, "login");
+            LogContainerHostProcessExited(logger, process, engine, "login");
+            var output = await outputTask;
+            var error = await errorTask;
+
+            if (!string.IsNullOrWhiteSpace(output))
+            {
+                log.Append(output.Trim(), "process", process.ExitCode == 0 ? "Information" : "Warning");
+            }
+
+            if (!string.IsNullOrWhiteSpace(error))
+            {
+                log.Append(error.Trim(), "process", process.ExitCode == 0 ? "Information" : "Warning");
+            }
+
+            if (process.ExitCode != 0)
+            {
+                throw new InvalidOperationException(
+                    $"Container registry login failed for '{registryAddress}'.");
+            }
         }
-
-        if (!string.IsNullOrWhiteSpace(error))
+        catch (OperationCanceledException)
         {
-            log.Append(error.Trim(), "process", process.ExitCode == 0 ? "Information" : "Warning");
-        }
-
-        if (process.ExitCode != 0)
-        {
-            throw new InvalidOperationException(
-                $"Container registry login failed for '{registryAddress}'.");
+            ProcessShutdown.KillProcessTreeAndWait(process);
+            throw;
         }
     }
+
+    private static async Task WaitForProcessExitOrKillAsync(
+        Process process,
+        CancellationToken cancellationToken,
+        ILogger? logger = null,
+        string? command = null)
+    {
+        try
+        {
+            await process.WaitForExitAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            logger?.LogInformation(
+                "Killing canceled container host command process {ProcessId} ({ContainerHostCommand}).",
+                process.Id,
+                command ?? "unknown");
+            ProcessShutdown.KillProcessTreeAndWait(process);
+            logger?.LogInformation(
+                "Killed canceled container host command process {ProcessId} ({ContainerHostCommand}).",
+                process.Id,
+                command ?? "unknown");
+            throw;
+        }
+    }
+
+    private static string GetContainerHostCommandName(IReadOnlyList<string> arguments) =>
+        arguments.Count > 0 && !string.IsNullOrWhiteSpace(arguments[0])
+            ? arguments[0]
+            : "unknown";
+
+    private static void LogContainerHostProcessStarted(
+        ILogger logger,
+        Process process,
+        ContainerHostDescriptor engine,
+        string command,
+        string executable) =>
+        logger.LogInformation(
+            "Started container host command process {ProcessId} for {ContainerHostCommand} on host {ContainerHostId} using {ContainerHostExecutable}.",
+            process.Id,
+            command,
+            engine.Id,
+            executable);
+
+    private static void LogContainerHostProcessExited(
+        ILogger logger,
+        Process process,
+        ContainerHostDescriptor engine,
+        string command) =>
+        logger.LogInformation(
+            "Container host command process {ProcessId} for {ContainerHostCommand} on host {ContainerHostId} exited with code {ExitCode}.",
+            process.Id,
+            command,
+            engine.Id,
+            process.ExitCode);
 
     private static string CreateContainerRevision() =>
         $"rev-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..27];

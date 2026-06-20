@@ -13,4 +13,5 @@ public static class CloudShellLogCategories
     public const string HostScopedResourceShutdown = ResourceManager + ".HostScopedResourceShutdown";
     public const string ResourceLifecycle = ResourceManager + ".Lifecycle";
     public const string LocalProcessLifecycle = ResourceManager + ".LocalProcess";
+    public const string DockerHostLifecycle = ResourceManager + ".DockerHost";
 }
