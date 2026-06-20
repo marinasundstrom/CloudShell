@@ -1,0 +1,21 @@
+@page "/"
+
+<main class="container-fluid py-4 px-3 px-md-4">
+    <header class="mb-4">
+        <span class="eyebrow text-secondary">Composition engine</span>
+        <h1 class="display-6 fw-semibold mb-2">Composition workspace</h1>
+        <p class="text-secondary mb-3">
+            A clean Blazor application can use the composition engine without
+            referencing CloudShell Hosting, Resource Manager, or extension APIs.
+        </p>
+        <div class="d-flex flex-wrap gap-2">
+            <CompositionLink Page="@CompositionIds.WorkspacePage" />
+            <span>/</span>
+            <CompositionLink Target="@CompositionIds.ExtensionContributionSection">Open contributed section</CompositionLink>
+        </div>
+    </header>
+
+    <CompositionSectionContainer Id="@CompositionIds.WorkspaceMainOutlet">
+        <CompositionSectionOutlet />
+    </CompositionSectionContainer>
+</main>

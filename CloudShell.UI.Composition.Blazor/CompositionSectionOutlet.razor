@@ -1,16 +1,15 @@
-@using CloudShell.UiExtensionHost.Composition
-@inject SampleCompositionRegistry Composition
+@inject CompositionRegistry Composition
 
 @if (Context is null)
 {
-    <div class="empty-state">
+    <div class="composition-empty-state">
         <strong>Composition context missing</strong>
         <span>The section outlet must be rendered under a composition host.</span>
     </div>
 }
 else if (ResolvedOutletId is null)
 {
-    <div class="empty-state">
+    <div class="composition-empty-state">
         <strong>Section outlet missing</strong>
         <span>The section outlet needs an ID or a containing section container.</span>
     </div>
@@ -20,12 +19,10 @@ else
     var sections = Composition.GetSections(Context.PageId, ResolvedOutletId.Value);
     @foreach (var section in sections)
     {
-        <article class="panel" id="@section.Id.Value">
-            <div class="panel-header">
-                <div>
-                    <h2>@section.Title</h2>
-                </div>
-            </div>
+        <article class="composition-section" id="@section.Id.Value">
+            <header class="composition-section-header">
+                <h2>@section.Title</h2>
+            </header>
             <DynamicComponent Type="section.ComponentType" />
         </article>
     }
@@ -43,4 +40,3 @@ else
 
     private SectionOutletId? ResolvedOutletId => Id ?? ContainerId;
 }
-

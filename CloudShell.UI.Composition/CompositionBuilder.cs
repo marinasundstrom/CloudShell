@@ -1,46 +1,46 @@
-namespace CloudShell.UiExtensionHost.Composition;
+namespace CloudShell.UI.Composition;
 
-public sealed class SampleCompositionBuilder
+public sealed class CompositionBuilder
 {
-    internal List<PageRegistration> Pages { get; } = [];
-
-    internal List<MenuRegistration> Menus { get; } = [];
-
-    internal List<SectionRegistration> Sections { get; } = [];
-
     private readonly HashSet<SectionOutletId> _extendableOutlets = [];
 
-    public SampleMenuBuilder AddMenu(MenuId id, string title)
-    {
-        SampleCompositionRegistry.ValidateId(id.Value, nameof(id));
+    internal List<CompositionPageRegistration> Pages { get; } = [];
 
-        var menu = new SampleMenuBuilder(this, id, title);
+    internal List<CompositionMenuRegistration> Menus { get; } = [];
+
+    internal List<CompositionSectionRegistration> Sections { get; } = [];
+
+    public CompositionMenuBuilder AddMenu(MenuId id, string title)
+    {
+        CompositionRegistry.ValidateId(id.Value, nameof(id));
+
+        var menu = new CompositionMenuBuilder(this, id, title);
         Menus.Add(menu.Build());
         return menu;
     }
 
-    public SamplePageBuilder AddPage(PageId id, string title, string route)
+    public CompositionPageBuilder AddPage(PageId id, string title, string route)
     {
-        SampleCompositionRegistry.ValidateId(id.Value, nameof(id));
-        Pages.Add(new PageRegistration(id, title, NormalizeRoute(route)));
-        return new SamplePageBuilder(this, id);
+        CompositionRegistry.ValidateId(id.Value, nameof(id));
+        Pages.Add(new CompositionPageRegistration(id, title, NormalizeRoute(route)));
+        return new CompositionPageBuilder(this, id);
     }
 
-    public SampleSectionOutletBuilder GetSections(SectionOutletId outletId)
+    public CompositionSectionOutletBuilder GetSections(SectionOutletId outletId)
     {
         if (!_extendableOutlets.Contains(outletId))
         {
             throw new InvalidOperationException($"Section outlet '{outletId}' is not registered as extendable.");
         }
 
-        return new SampleSectionOutletBuilder(this, FindOutletPage(outletId), outletId);
+        return new CompositionSectionOutletBuilder(this, FindOutletPage(outletId), outletId);
     }
 
     internal void RegisterExtendableOutlet(SectionOutletId outletId) =>
         _extendableOutlets.Add(outletId);
 
-    internal SampleCompositionRegistry Build() =>
-        SampleCompositionRegistry.FromBuilder(this);
+    internal CompositionRegistry Build() =>
+        CompositionRegistry.FromBuilder(this);
 
     private PageId FindOutletPage(SectionOutletId outletId)
     {
@@ -55,36 +55,36 @@ public sealed class SampleCompositionBuilder
 
     private static string NormalizeRoute(string route)
     {
-        SampleCompositionRegistry.ValidateId(route, nameof(route));
-        return SampleCompositionRegistry.NormalizeRoute(route);
+        CompositionRegistry.ValidateId(route, nameof(route));
+        return CompositionRegistry.NormalizeRoute(route);
     }
 }
 
-public sealed class SamplePageBuilder(
-    SampleCompositionBuilder builder,
+public sealed class CompositionPageBuilder(
+    CompositionBuilder builder,
     PageId pageId)
 {
-    public SampleSectionOutletBuilder AddSections(
+    public CompositionSectionOutletBuilder AddSections(
         SectionOutletId outletId,
         bool allowExtending = false)
     {
-        SampleCompositionRegistry.ValidateId(outletId.Value, nameof(outletId));
+        CompositionRegistry.ValidateId(outletId.Value, nameof(outletId));
 
         if (allowExtending)
         {
             builder.RegisterExtendableOutlet(outletId);
         }
 
-        return new SampleSectionOutletBuilder(builder, pageId, outletId);
+        return new CompositionSectionOutletBuilder(builder, pageId, outletId);
     }
 }
 
-public sealed class SampleSectionOutletBuilder(
-    SampleCompositionBuilder builder,
+public sealed class CompositionSectionOutletBuilder(
+    CompositionBuilder builder,
     PageId pageId,
     SectionOutletId outletId)
 {
-    public SampleSectionOutletBuilder AddSection<TComponent>(
+    public CompositionSectionOutletBuilder AddSection<TComponent>(
         SectionId id,
         string title,
         int order)
@@ -93,15 +93,15 @@ public sealed class SampleSectionOutletBuilder(
         return this;
     }
 
-    public SampleSectionOutletBuilder AddSection(
+    public CompositionSectionOutletBuilder AddSection(
         SectionId id,
         string title,
         Type component,
         int order)
     {
-        SampleCompositionRegistry.ValidateId(id.Value, nameof(id));
+        CompositionRegistry.ValidateId(id.Value, nameof(id));
 
-        builder.Sections.Add(new SectionRegistration(
+        builder.Sections.Add(new CompositionSectionRegistration(
             id,
             pageId,
             outletId,
@@ -113,16 +113,16 @@ public sealed class SampleSectionOutletBuilder(
     }
 }
 
-public sealed class SampleMenuBuilder
+public sealed class CompositionMenuBuilder
 {
-    private readonly SampleCompositionBuilder _builder;
-    private readonly List<MenuItemRegistration> _items = [];
-    private readonly List<SampleMenuSectionBuilder> _sections = [];
+    private readonly CompositionBuilder _builder;
+    private readonly List<CompositionMenuItemRegistration> _items = [];
+    private readonly List<CompositionMenuSectionBuilder> _sections = [];
     private readonly MenuId _id;
     private readonly string _title;
 
-    internal SampleMenuBuilder(
-        SampleCompositionBuilder builder,
+    internal CompositionMenuBuilder(
+        CompositionBuilder builder,
         MenuId id,
         string title)
     {
@@ -131,12 +131,12 @@ public sealed class SampleMenuBuilder
         _title = title;
     }
 
-    public SampleMenuItemBuilder AddItem(
+    public CompositionMenuItemBuilder AddItem(
         MenuItemId id,
         string title,
         int order)
     {
-        var item = new SampleMenuItemBuilder(registration =>
+        var item = new CompositionMenuItemBuilder(registration =>
         {
             _items.Add(registration);
             ReplaceMenu();
@@ -144,12 +144,12 @@ public sealed class SampleMenuBuilder
         return item;
     }
 
-    public SampleMenuSectionBuilder AddSection(
+    public CompositionMenuSectionBuilder AddSection(
         MenuSectionId id,
         string title,
         int order)
     {
-        var section = new SampleMenuSectionBuilder(this, id, title, order);
+        var section = new CompositionMenuSectionBuilder(this, id, title, order);
         _sections.Add(section);
         ReplaceMenu();
         return section;
@@ -165,7 +165,7 @@ public sealed class SampleMenuBuilder
         }
     }
 
-    internal MenuRegistration Build() =>
+    internal CompositionMenuRegistration Build() =>
         new(
             _id,
             _title,
@@ -173,20 +173,20 @@ public sealed class SampleMenuBuilder
             _sections.Select(section => section.Build()).OrderBy(section => section.Order).ToArray());
 }
 
-public sealed class SampleMenuSectionBuilder(
-    SampleMenuBuilder menu,
+public sealed class CompositionMenuSectionBuilder(
+    CompositionMenuBuilder menu,
     MenuSectionId id,
     string title,
     int order)
 {
-    private readonly List<MenuItemRegistration> _items = [];
+    private readonly List<CompositionMenuItemRegistration> _items = [];
 
-    public SampleMenuItemBuilder AddItem(
+    public CompositionMenuItemBuilder AddItem(
         MenuItemId itemId,
         string itemTitle,
         int itemOrder)
     {
-        var item = new SampleMenuItemBuilder(registration =>
+        var item = new CompositionMenuItemBuilder(registration =>
         {
             _items.Add(registration);
             menu.ReplaceMenu();
@@ -194,7 +194,7 @@ public sealed class SampleMenuSectionBuilder(
         return item;
     }
 
-    internal MenuSectionRegistration Build() =>
+    internal CompositionMenuSectionRegistration Build() =>
         new(
             id,
             title,
@@ -202,15 +202,15 @@ public sealed class SampleMenuSectionBuilder(
             order);
 }
 
-public sealed class SampleMenuItemBuilder(
-    Action<MenuItemRegistration> add,
+public sealed class CompositionMenuItemBuilder(
+    Action<CompositionMenuItemRegistration> add,
     MenuItemId id,
     string title,
     int order)
 {
     public void Target(PageId target) =>
-        add(new MenuItemRegistration(id, title, target, order));
+        add(new CompositionMenuItemRegistration(id, title, target, order));
 
     public void Target(SectionId target) =>
-        add(new MenuItemRegistration(id, title, target, order));
+        add(new CompositionMenuItemRegistration(id, title, target, order));
 }

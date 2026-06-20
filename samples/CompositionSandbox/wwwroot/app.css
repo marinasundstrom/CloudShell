@@ -1,0 +1,112 @@
+body {
+    background: #f8f9fa;
+}
+
+.app-shell {
+    grid-template-columns: 280px minmax(0, 1fr);
+    min-height: 100vh;
+}
+
+.side-nav {
+    padding: 1.5rem;
+}
+
+.brand {
+    margin-bottom: 1.25rem;
+}
+
+.brand-mark {
+    place-items: center;
+    display: inline-grid;
+    width: 2.25rem;
+    height: 2.25rem;
+    background: var(--bs-primary);
+    color: var(--bs-white);
+    font-weight: 700;
+}
+
+.eyebrow {
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+}
+
+.composition-menu {
+    display: grid;
+    gap: .35rem;
+}
+
+.composition-menu a {
+    display: block;
+    border-radius: 5px;
+    padding: .5rem .6rem;
+    color: var(--bs-body-color);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.composition-menu a:hover,
+.composition-menu a:focus-visible {
+    background: var(--bs-tertiary-bg);
+    color: var(--bs-link-color);
+}
+
+.composition-menu-section {
+    display: grid;
+    gap: .25rem;
+    padding-top: .65rem;
+}
+
+.composition-menu-section > strong {
+    color: var(--bs-secondary-color);
+    font-size: .75rem;
+    text-transform: uppercase;
+}
+
+.composition-section {
+    display: grid;
+    gap: 1rem;
+    max-width: 980px;
+    border: var(--bs-border-width) solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius);
+    background: var(--bs-body-bg);
+    padding: 1.25rem;
+}
+
+.composition-section + .composition-section {
+    margin-top: 1rem;
+}
+
+.composition-section-header {
+    border-bottom: var(--bs-border-width) solid var(--bs-border-color);
+    padding-bottom: .75rem;
+}
+
+.composition-section-header h2 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.composition-empty-state {
+    border: var(--bs-border-width) solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius);
+    background: var(--bs-body-bg);
+    padding: 1rem;
+}
+
+.composition-empty-state strong,
+.composition-empty-state span {
+    display: block;
+}
+
+@media (max-width: 760px) {
+    .app-shell {
+        grid-template-columns: 1fr;
+    }
+
+    .side-nav {
+        border-right: 0;
+        border-bottom: var(--bs-border-width) solid var(--bs-border-color);
+    }
+}

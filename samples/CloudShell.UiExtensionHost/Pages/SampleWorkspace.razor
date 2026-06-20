@@ -1,5 +1,4 @@
 @page "/sample-workspace"
-@layout CompositionSandboxLayout
 
 <section class="page-heading">
     <div>
@@ -10,26 +9,39 @@
 </section>
 
 <section class="registration-layout">
-    <aside class="panel registration-options">
+    <div class="panel registration-options">
         <div class="selected-type-card">
-            <span class="resource-kind-icon">C</span>
+            <span class="resource-kind-icon">U</span>
             <div>
-                <strong>Composition sandbox</strong>
-                <p>Menu links and section content are resolved through typed composition IDs.</p>
-                <p>
-                    <CompositionLink Page="@CompositionIds.SampleWorkspacePage" />
-                    <span> / </span>
-                    <CompositionLink Target="@CompositionIds.ExtensionContributionSection">Open contributed section</CompositionLink>
-                </p>
+                <strong>UI-only host</strong>
+                <p>The sample proves a CloudShell UI extension can be hosted without Resource Manager or Control Plane endpoints.</p>
             </div>
         </div>
-
-        <CompositionMenu Id="@CompositionIds.MainMenu" />
-    </aside>
+    </div>
 
     <div class="registration-host">
-        <CompositionSectionContainer Id="@CompositionIds.WorkspaceMainOutlet">
-            <CompositionSectionOutlet />
-        </CompositionSectionContainer>
+        <article class="panel">
+            <div class="panel-header">
+                <div>
+                    <h2>Extension surface</h2>
+                </div>
+            </div>
+            <div class="activity-list">
+                <div class="activity-row">
+                    <span class="resource-kind-icon">S</span>
+                    <div>
+                        <strong>Shell navigation</strong>
+                        <span>The extension contributes the selected sidebar item and start route.</span>
+                    </div>
+                </div>
+                <div class="activity-row">
+                    <span class="resource-kind-icon">R</span>
+                    <div>
+                        <strong>Razor page</strong>
+                        <span>The workspace is a normal routed Razor component rendered inside CloudShell UI.</span>
+                    </div>
+                </div>
+            </div>
+        </article>
     </div>
 </section>

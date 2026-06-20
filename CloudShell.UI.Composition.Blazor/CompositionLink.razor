@@ -1,5 +1,4 @@
-@using CloudShell.UiExtensionHost.Composition
-@inject SampleCompositionRegistry Composition
+@inject CompositionRegistry Composition
 
 <a href="@Href">
     @if (ChildContent is null)
@@ -37,4 +36,3 @@
             ? Composition.GetPage(Page.Value)?.Title ?? Page.Value.Value
             : Target?.Value ?? string.Empty;
 }
-

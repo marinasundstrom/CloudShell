@@ -67,6 +67,13 @@ on `git blame --follow`, and then by the broad type of change.
   isolated UI Extension Host sandbox proves the model, the composition root
   should move into the core CloudShell main layout so integrating services can
   target shell-provided IDs.
+- Added initial `CloudShell.UI.Composition` and
+  `CloudShell.UI.Composition.Blazor` libraries plus a clean Blazor
+  Composition Sandbox sample that demonstrates the engine outside CloudShell
+  Hosting with plain Bootstrap styling and no CloudShell extension adapter.
+- Moved the composition proof direction away from the UI Extension Host sample:
+  CloudShell extension integration should adapt to the core composition graph
+  only after the standalone app structure is credible.
 - Refreshed the local-development MVP target around Application Topology
   confidence, immediate resource relationship comprehension, readable
   Resource Manager labels, app-centric diagnostics, and focused readiness

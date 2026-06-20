@@ -1,44 +1,46 @@
-using Microsoft.AspNetCore.Components;
+using System.Globalization;
 
-namespace CloudShell.UiExtensionHost.Composition;
+namespace CloudShell.UI.Composition;
 
-public sealed class SampleCompositionRegistry
+public sealed class CompositionRegistry
 {
-    private readonly IReadOnlyList<PageRegistration> _pages;
-    private readonly IReadOnlyList<MenuRegistration> _menus;
-    private readonly IReadOnlyList<SectionRegistration> _sections;
+    private readonly IReadOnlyList<CompositionPageRegistration> _pages;
+    private readonly IReadOnlyList<CompositionMenuRegistration> _menus;
+    private readonly IReadOnlyList<CompositionSectionRegistration> _sections;
 
-    private SampleCompositionRegistry(
-        IReadOnlyList<PageRegistration> pages,
-        IReadOnlyList<MenuRegistration> menus,
-        IReadOnlyList<SectionRegistration> sections)
+    private CompositionRegistry(
+        IReadOnlyList<CompositionPageRegistration> pages,
+        IReadOnlyList<CompositionMenuRegistration> menus,
+        IReadOnlyList<CompositionSectionRegistration> sections)
     {
         _pages = pages;
         _menus = menus;
         _sections = sections;
     }
 
-    public static SampleCompositionRegistry Create(Action<SampleCompositionBuilder> configure)
+    public static CompositionRegistry Create(Action<CompositionBuilder> configure)
     {
-        var builder = new SampleCompositionBuilder();
+        ArgumentNullException.ThrowIfNull(configure);
+
+        var builder = new CompositionBuilder();
         configure(builder);
         return builder.Build();
     }
 
-    public PageRegistration? GetPage(PageId pageId) =>
+    public CompositionPageRegistration? GetPage(PageId pageId) =>
         _pages.FirstOrDefault(page => page.Id == pageId);
 
-    public PageRegistration? GetPageByRoute(string route)
+    public CompositionPageRegistration? GetPageByRoute(string route)
     {
         var normalizedRoute = NormalizeRoute(route);
         return _pages.FirstOrDefault(page =>
             string.Equals(page.Route, normalizedRoute, StringComparison.OrdinalIgnoreCase));
     }
 
-    public MenuRegistration? GetMenu(MenuId menuId) =>
+    public CompositionMenuRegistration? GetMenu(MenuId menuId) =>
         _menus.FirstOrDefault(menu => menu.Id == menuId);
 
-    public IReadOnlyList<SectionRegistration> GetSections(
+    public IReadOnlyList<CompositionSectionRegistration> GetSections(
         PageId pageId,
         SectionOutletId outletId) =>
         _sections
@@ -83,11 +85,17 @@ public sealed class SampleCompositionRegistry
         }
     }
 
-    internal static SampleCompositionRegistry FromBuilder(SampleCompositionBuilder builder) =>
-        new(
+    internal static CompositionRegistry FromBuilder(CompositionBuilder builder)
+    {
+        ValidateUnique(builder.Pages.Select(page => page.Id.Value), "page");
+        ValidateUnique(builder.Menus.Select(menu => menu.Id.Value), "menu");
+        ValidateUnique(builder.Sections.Select(section => section.Id.Value), "section");
+
+        return new(
             builder.Pages.ToArray(),
             builder.Menus.ToArray(),
             builder.Sections.ToArray());
+    }
 
     internal static string NormalizeRoute(string route)
     {
@@ -96,7 +104,21 @@ public sealed class SampleCompositionRegistry
             return "/";
         }
 
-        return route.StartsWith('/') ? route : "/" + route;
+        var normalized = route.StartsWith('/') ? route : "/" + route;
+        var queryStart = normalized.IndexOfAny(['?', '#']);
+        return queryStart >= 0 ? normalized[..queryStart] : normalized;
+    }
+
+    private static void ValidateUnique(IEnumerable<string> values, string kind)
+    {
+        var duplicate = values
+            .GroupBy(value => value, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(group => group.Count() > 1);
+
+        if (duplicate is not null)
+        {
+            throw new InvalidOperationException($"Duplicate composition {kind} ID '{duplicate.Key}'.");
+        }
     }
 
     private static string AppendRouteParams(
@@ -113,7 +135,7 @@ public sealed class SampleCompositionRegistry
             routeParams
                 .Where(parameter => parameter.Value is not null)
                 .Select(parameter =>
-                    $"{Uri.EscapeDataString(parameter.Key)}={Uri.EscapeDataString(Convert.ToString(parameter.Value, System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)}"));
+                    $"{Uri.EscapeDataString(parameter.Key)}={Uri.EscapeDataString(Convert.ToString(parameter.Value, CultureInfo.InvariantCulture) ?? string.Empty)}"));
 
         if (string.IsNullOrEmpty(query))
         {
@@ -125,38 +147,3 @@ public sealed class SampleCompositionRegistry
             : $"{route}?{query}";
     }
 }
-
-public sealed record PageRegistration(
-    PageId Id,
-    string Title,
-    string Route);
-
-public sealed record MenuRegistration(
-    MenuId Id,
-    string Title,
-    IReadOnlyList<MenuItemRegistration> Items,
-    IReadOnlyList<MenuSectionRegistration> Sections);
-
-public sealed record MenuSectionRegistration(
-    MenuSectionId Id,
-    string Title,
-    IReadOnlyList<MenuItemRegistration> Items,
-    int Order);
-
-public sealed record MenuItemRegistration(
-    MenuItemId Id,
-    string Title,
-    CompositionTarget Target,
-    int Order);
-
-public sealed record SectionRegistration(
-    SectionId Id,
-    PageId PageId,
-    SectionOutletId OutletId,
-    string Title,
-    Type ComponentType,
-    int Order);
-
-public sealed record CompositionContext(
-    PageId PageId,
-    string Route);

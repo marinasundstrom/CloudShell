@@ -90,6 +90,7 @@ Required outcome:
 | Standard settings | Extensions can add settings pages, sub-pages, slots, section containers, and sections to a common settings surface while keeping UI-local, Control Plane-backed, provider-backed, and external-service-backed state boundaries explicit. |
 | Notifications | Extensions and Control Plane event sources can produce notifications that render as transient toasts and durable off-canvas notification history. |
 | Extension areas | Shell and Resource Manager pages expose slots and section containers so extensions can add scoped content without replacing whole pages or relying on brittle page internals. |
+| Standalone composition proof | A clean Blazor app can use `CloudShell.UI.Composition` and `CloudShell.UI.Composition.Blazor` with plain Bootstrap styling before CloudShell extension adapters are introduced. |
 | Resource Manager alignment | Resource Manager uses the generic shell composition primitives for navigation presenters, addressable content nodes, settings, notifications, slots, and section containers while keeping resource-specific provider UI on Resource Manager contracts. |
 
 ## MVP Execution Plan

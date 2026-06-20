@@ -1,5 +1,4 @@
-@using CloudShell.UiExtensionHost.Composition
-@inject SampleCompositionRegistry Composition
+@inject CompositionRegistry Composition
 
 @if (Menu is not null)
 {
@@ -26,5 +25,5 @@
     [Parameter, EditorRequired]
     public MenuId Id { get; set; }
 
-    private MenuRegistration? Menu => Composition.GetMenu(Id);
+    private CompositionMenuRegistration? Menu => Composition.GetMenu(Id);
 }

@@ -1,4 +1,4 @@
-namespace CloudShell.UiExtensionHost.Composition;
+namespace CloudShell.UI.Composition;
 
 public readonly record struct MenuId(string Value)
 {

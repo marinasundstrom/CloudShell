@@ -1,12 +1,11 @@
-@using CloudShell.UiExtensionHost.Composition
-@inject SampleCompositionRegistry Composition
+@inject CompositionRegistry Composition
 @inject NavigationManager Navigation
 
 @if (Context is null)
 {
-    <div class="empty-state">
+    <div class="composition-empty-state">
         <strong>Composition page not registered</strong>
-        <span>The current routed page is not available in the sample composition registry.</span>
+        <span>The current routed page is not available in the composition registry.</span>
     </div>
 }
 else

@@ -131,6 +131,25 @@ shell composition layer, and host applications should be able to use the same
 model for their own pages and layouts when they need CMS-like dynamic
 composition.
 
+The first implementation proof should split the composition surface into two
+libraries: `CloudShell.UI.Composition` for framework-neutral core facilities
+such as typed IDs, graph registration, validation, and target resolution, and
+`CloudShell.UI.Composition.Blazor` for plain Blazor components and routing
+context integration. The Blazor components should not depend on Fluent UI,
+Bootstrap component packages, CloudShell Hosting, Resource Manager, or the
+CloudShell extension model. Host applications can style the plain markup with
+ordinary CSS or build their own renderers over the core library.
+
+CloudShell extension integration should be layered on after the standalone
+composition structure is credible. The extension adapter maps CloudShell
+extension contributions into the core composition graph; it should not make
+the core graph depend on CloudShell extension contracts.
+
+Persisting parts of the composition graph can become a later CMS-like
+capability, but persistence should target durable core graph metadata rather
+than Blazor components. Component types, service wiring, capability checks,
+and executable UI remain code-owned integration concerns.
+
 CloudShell should eventually host the composition root from the core shell
 main layout so navigation, topbar services, notifications, routed pages, and
 nested outlets share the same resolved composition context. That lets

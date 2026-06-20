@@ -6,11 +6,10 @@ first consumer, but the shell composition model should be general enough for
 provider workspaces, settings, notifications, dashboards, and future product
 areas.
 
-The composition engine itself does not have to run only inside CloudShell UI.
-It should be usable by a host application's own Blazor pages and layouts.
-CloudShell uses it as the built-in shell composition layer and should dogfood
-it for shell navigation, settings, Resource Manager pages, and extension
-areas.
+The composition engine itself does not run only inside CloudShell UI. It should
+be usable by a host application's own Blazor pages and layouts. CloudShell
+uses it as the built-in shell composition layer and should dogfood it for
+shell navigation, settings, Resource Manager pages, and extension areas.
 
 Eventually CloudShell should build the composition root into the core shell
 layout. The main layout is where common shell chrome such as navigation,
@@ -275,9 +274,10 @@ The future shell composition stack should be layered like this:
 
 | Layer | Owns | Examples |
 | --- | --- | --- |
-| Layout graph primitives | Generic hierarchical IDs, node kinds, relationships, navigation nodes, pages, sub-pages, slots, section containers, sections, ordering, permissions, routing metadata, selection state, and component host metadata. | `ShellLayoutNodeContribution`, `ShellPageContribution`, `ShellSlotContribution`, `ShellSectionContainerContribution`, `ShellSectionContribution`, `ShellMenuProjectionContribution` |
+| Core composition facilities | Generic hierarchical IDs, node kinds, relationships, navigation nodes, pages, sub-pages, slots, section containers, sections, ordering, permissions, routing metadata, selection state, target resolution, and component host metadata. | `CloudShell.UI.Composition`, typed IDs, `CompositionRegistry`, graph validation |
 | Layout/content registry and validation | Registration, ID resolution, duplicate detection, missing-target detection, route metadata conflicts, permission rules, visibility rules, and renderer-ready projections. | `IShellLayoutRegistry`, `ShellLayoutGraph`, startup validation diagnostics |
-| Shell composition renderer | Common layout, grouped local navigation, content-ID link resolution, URL selection, dynamic component rendering, empty/not-found states, permission-aware visibility, and slot/section rendering. | Hosted workspace layout, settings layout, Resource Manager detail layout, dashboard layout |
+| Blazor composition integration | Plain Blazor components and context integration with no dependency on a visual component framework. | `CloudShell.UI.Composition.Blazor`, `CompositionHost`, `CompositionMenu`, `CompositionLink`, `CompositionSectionOutlet` |
+| Shell composition renderer | Host-specific layout, grouped local navigation, URL selection, dynamic component rendering, empty/not-found states, permission-aware visibility, and slot/section rendering. | Hosted workspace layout, settings layout, Resource Manager detail layout, dashboard layout |
 | Product adapters | Domain-specific contribution APIs that project into shell composition primitives while preserving their own vocabulary and validation. | Resource Manager tabs, settings pages, notification center pages, provider workspaces |
 | Domain services | Control Plane or provider behavior behind the UI. | `IResourceManager`, `ITraceManager`, identity provider hooks, provider settings contracts |
 
@@ -293,32 +293,38 @@ The practical path should be incremental:
    sub-menu items, pages, sub-pages, slots, section containers, and sections,
    without replacing existing Resource Manager tabs or shell view menu items
    yet.
-2. Prove the model in the UI Extension Host sample as an isolated sandbox.
-   The sandbox can use a Blazor layout-hosted composition root, typed IDs,
-   dynamic menus, section outlets, and content-ID link resolution without
-   changing the core shell API.
-3. Move the composition root into the core CloudShell main layout once the
-   sandbox proves the model. The core layout should resolve current route/page
-   context and cascade composition context to shell chrome, routed pages, and
-   nested outlets so integrating services can target shell-provided IDs.
-4. Dogfood the graph with a standard Settings page made from shell pages,
+2. Prove the model in a clean standalone Blazor app before adding CloudShell
+   extension integration. The sample should reference only the composition
+   libraries, use normal Blazor routing and layout, and demonstrate that plain
+   Bootstrap CSS can style the generic Blazor components without requiring a
+   UI framework package.
+3. Define a CloudShell extension adapter after the standalone structure is
+   credible. The adapter should map CloudShell extension contributions into
+   the core composition graph rather than making the composition engine depend
+   on the CloudShell extension model.
+4. Move the composition root into the core CloudShell main layout once the
+   composition app and adapter prove the model. The core layout should resolve
+   current route/page context and cascade composition context to shell chrome,
+   routed pages, and nested outlets so integrating services can target
+   shell-provided IDs.
+5. Dogfood the graph with a standard Settings page made from shell pages,
    sub-pages, slots, section containers, and sections. The initial settings
    experience can render as tabs, but the contract should remain layout-node
    based rather than tab based.
-5. Extract a generic ordered-section renderer from
+6. Extract a generic ordered-section renderer from
    `GeneratedResourceViewLayout` and `ResourcePredefinedViewSections`, keeping
    the current Resource Manager section contracts as adapters.
-6. Extract a generic grouped local-navigation renderer from the Resource
+7. Extract a generic grouped local-navigation renderer from the Resource
    Manager tab grouping and the shell-hosted view menu item model. Treat tab
    rendering as one renderer over child layout nodes.
-7. Let `CustomShellViewContribution`, the new Settings page, and Resource
+8. Let `CustomShellViewContribution`, the new Settings page, and Resource
    Manager detail pages render through the same hosted-page/layout graph
    infrastructure where their needs overlap.
-8. Add generic slot and section-container contributions and map
+9. Add generic slot and section-container contributions and map
    `ResourcePredefinedViewSectionContribution` into section contributions for
    predefined resource views.
-9. Add notification-center and dashboard adapters over the same primitives.
-10. Only after the generic renderer is proven, consider renaming or replacing
+10. Add notification-center and dashboard adapters over the same primitives.
+11. Only after the generic renderer is proven, consider renaming or replacing
    `CustomShellView` APIs with clearer shell composition names.
 
 During the extraction, Resource Manager behavior should not regress:
@@ -449,6 +455,21 @@ builder.AddResourcePredefinedViewSection<AcmeEndpointPolicy>(
 The second call remains the right public API for resource-provider authors
 because it expresses Resource Manager intent. The first set is for generic
 shell content nodes and navigation presenters.
+
+## Persistence Direction
+
+The first composition model is programmatic and in-memory. That keeps the
+initial engine focused on the graph shape, routing bridge, and rendering
+contracts. A later CMS-like experience may persist parts of the composition
+graph in a database, but that persistence should target the core composition
+facilities rather than the Blazor integration layer.
+
+Persistable composition state should be limited to durable graph metadata such
+as layout IDs, ownership, ordering, visibility, target relationships, and
+route/deep-link metadata. Component types, service wiring, extension
+capabilities, and permission checks remain code-owned integration concerns.
+That split would let CloudShell support curated or admin-configured layouts
+without turning arbitrary database rows into executable UI components.
 
 ## Settings
 
