@@ -1,0 +1,14 @@
+@using CloudShell.UiExtensionHost.Composition
+
+<CascadingValue Value="Id" IsFixed="true">
+    @ChildContent
+</CascadingValue>
+
+@code {
+    [Parameter, EditorRequired]
+    public SectionOutletId Id { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}
+

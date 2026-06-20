@@ -1,0 +1,36 @@
+@using CloudShell.UiExtensionHost.Composition
+@inject SampleCompositionRegistry Composition
+
+@if (Context is null)
+{
+    <div class="empty-state">
+        <strong>Composition page not registered</strong>
+        <span>The requested page ID is not available in the sample composition registry.</span>
+    </div>
+}
+else
+{
+    <CascadingValue Value="Context" IsFixed="true">
+        @ChildContent
+    </CascadingValue>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public PageId Id { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    private CompositionContext? Context
+    {
+        get
+        {
+            var page = Composition.GetPage(Id);
+            return page is null
+                ? null
+                : new CompositionContext(page.Id, page.Route);
+        }
+    }
+}
+

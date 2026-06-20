@@ -1,0 +1,30 @@
+.composition-menu {
+    display: grid;
+    gap: .35rem;
+}
+
+.composition-menu a {
+    display: block;
+    padding: .45rem .55rem;
+    border-radius: 4px;
+    color: var(--cloudshell-text);
+    text-decoration: none;
+}
+
+.composition-menu a:hover,
+.composition-menu a:focus-visible {
+    background: var(--cloudshell-surface-muted);
+}
+
+.composition-menu-section {
+    display: grid;
+    gap: .25rem;
+    padding-top: .65rem;
+}
+
+.composition-menu-section>strong {
+    color: var(--cloudshell-text-muted);
+    font-size: .75rem;
+    text-transform: uppercase;
+}
+

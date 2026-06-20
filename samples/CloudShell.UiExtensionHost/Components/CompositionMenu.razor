@@ -1,0 +1,31 @@
+@using CloudShell.UiExtensionHost.Composition
+@inject SampleCompositionRegistry Composition
+
+@if (Menu is not null)
+{
+    <nav class="composition-menu" aria-label="@Menu.Title">
+        @foreach (var item in Menu.Items)
+        {
+            <a href="@Composition.ResolveHref(item.TargetId)">@item.Title</a>
+        }
+
+        @foreach (var section in Menu.Sections)
+        {
+            <div class="composition-menu-section">
+                <strong>@section.Title</strong>
+                @foreach (var item in section.Items)
+                {
+                    <a href="@Composition.ResolveHref(item.TargetId)">@item.Title</a>
+                }
+            </div>
+        }
+    </nav>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public MenuId Id { get; set; }
+
+    private MenuRegistration? Menu => Composition.GetMenu(Id);
+}
+

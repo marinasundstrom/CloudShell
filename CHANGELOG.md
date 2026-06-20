@@ -50,6 +50,10 @@ on `git blame --follow`, and then by the broad type of change.
   hierarchies, content-ID link resolution, Razor-owned routing, slots, section
   containers, section outlets, and Resource Manager tabs as one
   renderer-specific adapter.
+- CloudShell UI Extension Host now includes an isolated shell-composition
+  sandbox with sample-local typed IDs, a registry, composition context host,
+  menu renderer, section container, and section outlet so the layout/content
+  model can be explored without changing the core shell APIs.
 - Refreshed the local-development MVP target around Application Topology
   confidence, immediate resource relationship comprehension, readable
   Resource Manager labels, app-centric diagnostics, and focused readiness
