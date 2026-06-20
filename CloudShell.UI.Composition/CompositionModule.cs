@@ -17,6 +17,47 @@ public sealed record CompositionModule(
         configure(builder);
         return builder.Build();
     }
+
+    public static CompositionModule FromDescriptor(
+        CompositionModuleDescriptor descriptor,
+        ICompositionComponentTypeResolver componentTypes)
+    {
+        ArgumentNullException.ThrowIfNull(descriptor);
+        ArgumentNullException.ThrowIfNull(componentTypes);
+
+        CompositionRegistry.ValidateId(descriptor.Id.Value, nameof(descriptor));
+
+        return new CompositionModule(
+            descriptor.Id,
+            descriptor.Pages.Select(page => new CompositionPageRegistration(
+                page.Id,
+                page.Title,
+                page.Route)).ToArray(),
+            descriptor.Menus.Select(menu => new CompositionMenuRegistration(
+                menu.Id,
+                menu.Title,
+                menu.Items.Select(ToMenuItemRegistration).ToArray(),
+                menu.Sections.Select(section => new CompositionMenuSectionRegistration(
+                    section.Id,
+                    section.Title,
+                    section.Items.Select(ToMenuItemRegistration).ToArray(),
+                    section.Order)).ToArray())).ToArray(),
+            descriptor.Sections.Select(section => new CompositionSectionRegistration(
+                section.Id,
+                section.PageId,
+                section.OutletId,
+                section.Title,
+                componentTypes.ResolveComponentType(section.ComponentTypeName),
+                section.Order)).ToArray());
+    }
+
+    private static CompositionMenuItemRegistration ToMenuItemRegistration(CompositionMenuItemDescriptor item) =>
+        new(item.Id, item.Title, item.Target, item.Order);
+}
+
+public interface ICompositionComponentTypeResolver
+{
+    Type ResolveComponentType(string componentTypeName);
 }
 
 public sealed class CompositionModuleBuilder

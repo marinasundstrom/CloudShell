@@ -109,6 +109,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added first-pass composition descriptor records and mapping helpers for
   modules, pages, menus, menu sections, menu items, and sections, including
   JSON round-trip coverage for the serializable descriptor shape.
+- Added descriptor-to-module rehydration through a host-provided component
+  type resolver so persisted component type names do not directly activate
+  runtime components.
 - Moved the composition proof direction away from the UI Extension Host sample:
   CloudShell extension integration should adapt to the core composition graph
   only after the standalone app structure is credible.

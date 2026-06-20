@@ -291,7 +291,8 @@ proposal:
   rebuilds the active registry projection when a module is mounted or
   unmounted.
 - Modules and runtime registrations can be projected into descriptor records
-  that JSON round-trip. Descriptor-to-runtime rehydration remains future work.
+  that JSON round-trip. Module descriptors can be rehydrated into runtime
+  modules through a host-provided component type resolver.
 - Registration titles are plain strings. Localization metadata, localization
   providers, and title content templates remain future design work.
 - Registration ownership is recorded at the module boundary through

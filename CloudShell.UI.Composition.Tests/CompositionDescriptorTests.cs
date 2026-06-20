@@ -55,6 +55,36 @@ public sealed class CompositionDescriptorTests
         Assert.Equal(descriptor.Sections[0].ComponentTypeName, roundTrip.Sections[0].ComponentTypeName);
     }
 
+    [Fact]
+    public void FromDescriptor_RehydratesModuleThroughComponentTypeResolver()
+    {
+        var descriptor = CreateModule().ToDescriptor();
+        var resolver = new TestComponentTypeResolver([
+            typeof(OverviewSectionComponent),
+            typeof(DetailsSectionComponent)]);
+
+        var module = CompositionModule.FromDescriptor(descriptor, resolver);
+        var registry = CompositionRegistry.FromModules(module);
+
+        Assert.Equal(ModuleId, module.Id);
+        Assert.NotNull(registry.GetPage(WorkspacePage));
+        var details = registry.GetSections(WorkspacePage, MainOutlet)
+            .Single(section => section.Id == DetailsSection);
+        Assert.Equal(typeof(DetailsSectionComponent), details.ComponentType);
+    }
+
+    [Fact]
+    public void FromDescriptor_RequiresComponentTypeResolverToRecognizeSectionComponents()
+    {
+        var descriptor = CreateModule().ToDescriptor();
+        var resolver = new TestComponentTypeResolver([typeof(OverviewSectionComponent)]);
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            CompositionModule.FromDescriptor(descriptor, resolver));
+
+        Assert.Contains(nameof(DetailsSectionComponent), exception.Message);
+    }
+
     private static CompositionModule CreateModule() =>
         CompositionModule.Create(ModuleId, module =>
         {
@@ -75,4 +105,21 @@ public sealed class CompositionDescriptorTests
     private sealed class OverviewSectionComponent;
 
     private sealed class DetailsSectionComponent;
+
+    private sealed class TestComponentTypeResolver(IEnumerable<Type> componentTypes) : ICompositionComponentTypeResolver
+    {
+        private readonly IReadOnlyDictionary<string, Type> _componentTypes = componentTypes.ToDictionary(
+            componentType => componentType.AssemblyQualifiedName ?? componentType.FullName ?? componentType.Name,
+            componentType => componentType);
+
+        public Type ResolveComponentType(string componentTypeName)
+        {
+            if (_componentTypes.TryGetValue(componentTypeName, out var componentType))
+            {
+                return componentType;
+            }
+
+            throw new InvalidOperationException($"Composition component type '{componentTypeName}' is not registered.");
+        }
+    }
 }

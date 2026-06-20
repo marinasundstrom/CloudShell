@@ -74,7 +74,10 @@ The current registry stores runtime registrations directly, but modules and
 registrations can be projected into descriptor records. Descriptors are the
 first serializable shape for pages, menus, menu sections, menu items, and
 sections. Section descriptors store the component type name rather than a
-runtime `Type`, leaving future rehydration to a host-owned resolver.
+runtime `Type`. A module descriptor can be rehydrated through
+`CompositionModule.FromDescriptor(...)` only when the caller supplies an
+`ICompositionComponentTypeResolver`, keeping component activation under host
+control.
 
 ## Registration
 
@@ -277,8 +280,9 @@ The core registry currently validates duplicate module, page, menu, and
 section IDs when the graph is built. Tests cover route normalization, target
 link resolution, section target links with route parameters, section ordering,
 section metadata, menu registration, module assembly, in-memory module
-mount/unmount, descriptor JSON round-trip, composed ID factories, duplicate ID
-validation, and extendable section outlet validation.
+mount/unmount, descriptor JSON round-trip, descriptor rehydration through a
+component type resolver, composed ID factories, duplicate ID validation, and
+extendable section outlet validation.
 
 Validation is intentionally still small. Future work should validate unknown
 targets, missing parents, unsupported content kinds, module ownership
@@ -295,7 +299,7 @@ The current composition engine does not yet include:
   activation/deactivation lifecycle
 - CloudShell extension discovery and activation rules for module mount/unmount
 - artifact-level module diagnostics in renderer projections
-- descriptor-to-runtime rehydration
+- persisted descriptor storage
 - separate runtime artifact instances and renderer-ready projections
 - slots and sub-pages as first-class APIs
 - permissions or visibility rules
