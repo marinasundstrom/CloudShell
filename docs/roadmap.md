@@ -675,8 +675,10 @@ listed here before pulling in broader proposal work.
   permission on both the target and provisioning resource.
 - Defer broad IAM work unless it blocks the built-in identity MVP: resource
   group or parent-resource identity inheritance, multiple identities per
-  resource, effective permission APIs, durable external authority
-  reconciliation, and provider-native requested-versus-effective grants.
+  resource, effective permission APIs, and durable external authority
+  reconciliation. Keep provider-native requested-versus-effective grant status
+  narrow when it is needed to prevent MVP flows from implying enforcement that
+  does not exist yet, such as SQL Server database grants.
 - Keep Microsoft Entra ID compatibility as a required contract target, but do
   not block MVP on a full Entra provider if the provider-neutral contract and
   compatibility tests are clear.
@@ -972,8 +974,10 @@ forces a smaller slice:
   rollback, and first-class deployment resources.
 - Provider-backed network-level service discovery and public DNS propagation.
 - Broad IAM features such as inheritance, multiple identities per resource,
-  effective permission APIs, durable external authority reconciliation, and
-  provider-native requested-versus-effective grant models.
+  effective permission APIs, and durable external authority reconciliation.
+  Provider-native requested-versus-effective grant models should stay deferred
+  except for narrow resource-provider diagnostics that prevent misleading MVP
+  experiences.
 - External deployment projection, resource graph import/code generation, and
   container application environments.
 - The initial on-premise hosting scenario beyond the design and sample

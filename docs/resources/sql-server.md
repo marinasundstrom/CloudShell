@@ -110,7 +110,9 @@ Resource Manager can show intended access. They are not yet enforced inside
 SQL Server. The next access-control slice should translate grants into
 provider-owned SQL logins, database users, roles, or another provider-specific
 credential model without exposing bootstrap administrator credentials to
-workloads.
+workloads. Before that provider materialization lands, Resource Manager should
+distinguish requested CloudShell grants from effective SQL Server access so
+the UI can show whether the provider has actually applied a grant.
 
 ## Overview
 

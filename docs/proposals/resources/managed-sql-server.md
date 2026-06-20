@@ -262,9 +262,9 @@ SQL-specific credential projection:
 * The SQL Server provider materializes the grant into provider-owned SQL
   objects: server logins, contained database users, role membership, or
   provider-specific external identity configuration.
-* The provider reports provisioning and drift diagnostics without projecting
-  passwords, tokens, connection secrets, or raw credential material through
-  `Resource.Attributes`.
+* The provider reports requested-versus-effective access status and drift
+  diagnostics without projecting passwords, tokens, connection secrets, or raw
+  credential material through `Resource.Attributes`.
 
 Azure should guide the shape without becoming the only implementation. The
 CloudShell model should resemble an app with a managed identity granted access
@@ -285,6 +285,14 @@ The provider should translate those CloudShell grants into SQL roles or custom
 grant materialization. The stable CloudShell permission names can be refined
 when database child resources are introduced, but the grant target should be a
 resource ID, not a connection string or secret.
+
+The next implementation step should not start by generating workload passwords
+or exposing connection-string credentials. It should first give Resource
+Manager an effective-access observation from the SQL Server provider so the UI
+can show a requested grant, whether it has been applied, and any provider
+diagnostic explaining why it is still pending or failed. Once that status
+contract is in place, the local provider can materialize SQL logins, contained
+users, or role membership behind the provider boundary.
 
 ## Programmatic API Direction
 
@@ -359,6 +367,8 @@ MVP container app, storage, networking, and identity primitives are stable.
 * Add identity-backed SQL login/database user provisioning.
 * Define stable database permission names and map them to SQL Server logins,
   database users, roles, and provider-specific identity integration.
+* Add requested-versus-effective database grant status before exposing SQL
+  grant materialization as working access.
 * Define provider-owned backup/restore and maintenance operations.
 * Split runtime container diagnostics from the SQL Server managed resource
   surface.
