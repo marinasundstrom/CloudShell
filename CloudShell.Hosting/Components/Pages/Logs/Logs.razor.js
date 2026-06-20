@@ -14,11 +14,12 @@ export async function scrollToLatest(element) {
         return false;
     }
 
-    await nextFrame();
-    element.scrollTop = element.scrollHeight;
-    await nextFrame();
-    element.scrollTop = element.scrollHeight;
-    return true;
+    for (let attempt = 0; attempt < 3; attempt++) {
+        await nextFrame();
+        element.scrollTop = element.scrollHeight;
+    }
+
+    return isAtLatest(element);
 }
 
 export function getScrollHeight(element) {

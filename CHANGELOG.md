@@ -27,6 +27,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Dashboard failed request rows now reuse the trace severity treatment: entry
   span failures render as red failure rows, while traces with failed child spans
   render as yellow attention rows.
+- Log views now keep initial and streaming auto-scroll requests pending across
+  render frames so the viewer scrolls to the latest entry after the nested log
+  list is attached.
 - Unauthenticated request-bound resource operations now record activity with
   the generic `user` actor instead of falling through to system activity, while
   background work without a request context remains system-owned.

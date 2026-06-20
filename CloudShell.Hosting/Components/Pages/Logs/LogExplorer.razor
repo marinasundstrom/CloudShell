@@ -235,6 +235,7 @@ else if (ShowHeading)
     private bool WrapLogMessages { get; set; }
     private bool ShowStructuredOnly { get; set; }
     private bool ShouldScrollToLatest { get; set; }
+    private int ScrollToLatestAttemptCount { get; set; }
     private double? PreservePrependedScrollHeight { get; set; }
     private bool IsDisposed { get; set; }
     private IReadOnlyList<LogDescriptor> VisibleLogs { get; set; } = [];
@@ -250,6 +251,7 @@ else if (ShowHeading)
     private const int InitialWindowEntries = 100;
     private const int HistoryPageEntries = 100;
     private const int MaxWindowEntries = 500;
+    private const int MaxScrollToLatestAttempts = 4;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -263,6 +265,7 @@ else if (ShowHeading)
             Entries = [];
             LoadedLogId = null;
             CanLoadOlderEntries = false;
+            CancelScrollToLatest();
             return;
         }
 
@@ -294,6 +297,23 @@ else if (ShowHeading)
         if (await ScrollLogToLatestAsync())
         {
             ShouldScrollToLatest = false;
+            ScrollToLatestAttemptCount = 0;
+            return;
+        }
+
+        if (ScrollToLatestAttemptCount < MaxScrollToLatestAttempts)
+        {
+            ScrollToLatestAttemptCount++;
+            await Task.Delay(25);
+            if (!IsDisposed)
+            {
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        else
+        {
+            ShouldScrollToLatest = false;
+            ScrollToLatestAttemptCount = 0;
         }
     }
 
@@ -591,7 +611,10 @@ else if (ShowHeading)
                     log.Id,
                     new ReadLogOptions(MaxEntries: InitialWindowEntries));
             CanLoadOlderEntries = Entries.Count >= InitialWindowEntries;
-            ShouldScrollToLatest = Entries.Count > 0;
+            if (Entries.Count > 0)
+            {
+                RequestScrollToLatest();
+            }
             LoadedLogId = log.Id;
         }
         catch (Exception exception)
@@ -600,6 +623,7 @@ else if (ShowHeading)
             CanLoadOlderEntries = false;
             ReadError = exception.Message;
             LoadedLogId = log.Id;
+            CancelScrollToLatest();
         }
         finally
         {
@@ -665,7 +689,7 @@ else if (ShowHeading)
                 .OrderBy(entry => entry.Timestamp)
                 .Take(MaxWindowEntries)
                 .ToArray();
-            ShouldScrollToLatest = false;
+            CancelScrollToLatest();
             PreservePrependedScrollHeight = previousScrollHeight;
         }
         catch (Exception exception)
@@ -714,7 +738,7 @@ else if (ShowHeading)
         StreamingCancellation = cancellation;
         StreamingLogId = log.Id;
         IsStreaming = true;
-        ShouldScrollToLatest = true;
+        RequestScrollToLatest();
         StreamingTask = StreamEntriesAsync(log, cancellation);
     }
 
@@ -762,7 +786,14 @@ else if (ShowHeading)
                         .Concat([entry])
                         .TakeLast(MaxWindowEntries)
                         .ToArray();
-                    ShouldScrollToLatest = shouldFollowLatest;
+                    if (shouldFollowLatest)
+                    {
+                        RequestScrollToLatest();
+                    }
+                    else
+                    {
+                        CancelScrollToLatest();
+                    }
                     StateHasChanged();
                 });
             }
@@ -811,6 +842,18 @@ else if (ShowHeading)
     private async Task<bool> ScrollLogToLatestAsync()
     {
         return LogViewerComponent is not null && await LogViewerComponent.ScrollToLatestAsync();
+    }
+
+    private void RequestScrollToLatest()
+    {
+        ShouldScrollToLatest = true;
+        ScrollToLatestAttemptCount = 0;
+    }
+
+    private void CancelScrollToLatest()
+    {
+        ShouldScrollToLatest = false;
+        ScrollToLatestAttemptCount = 0;
     }
 
     private async Task<double> GetLogScrollHeightAsync() =>
