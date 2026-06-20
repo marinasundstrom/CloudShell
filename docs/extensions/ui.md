@@ -214,9 +214,9 @@ builder
 ```
 
 Menu items are rendered in the left rail using the same interaction pattern as
-resource configuration views. The active menu item is stored in the `item`
-query string, so shell-hosted views can be linked directly, for example
-`/acme/workspace?item=settings`.
+resource configuration views. Shell-hosted views use a fragment for the active
+menu item because their route is already owned by the hosted view. For example,
+`/acme/workspace#settings` opens the Settings item directly.
 
 A minimal workspace view is enough to prove the view contribution path:
 

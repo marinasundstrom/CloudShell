@@ -436,12 +436,15 @@ the relevant section outlet opts into child addresses so selected sections
 resolve as `/resources/{resourceId}/{view}` instead of the default
 parent-addressed fragment form.
 
-The content selected inside a page or view may be dictated by route values and
-query parameters. The route can establish the page context, while query
-parameters, fragments, or renderer-local state can select sub-pages, sections,
-or view variants. The composition engine should normalize that state back to
-content IDs where possible so links, menus, tabs, section outlets, and custom
-renderers all resolve the same target consistently.
+The content selected inside a page or view may be dictated by route values,
+fragments, and page-local state. The route establishes the page context and
+stable child-address selections. Fragments can target content inside that
+page. Query parameters should remain page-local state, such as filters,
+selected telemetry records, sort order, or temporary view modes, rather than
+the default representation for stable tabs or sub-pages. The composition
+engine should normalize address state back to content IDs where possible so
+links, menus, tabs, section outlets, and custom renderers all resolve the same
+target consistently.
 
 Projection remains the consumer's responsibility. The composition model can
 describe a page with subordinate sub-pages, but a host component decides
@@ -546,13 +549,12 @@ CloudShell already has two similar UI composition paths:
 
 - Shell-hosted views use `CustomShellViewContribution` and
   `CustomShellViewMenuItemContribution`. They provide one hosted route, an
-  ordered local menu, selected-item routing through the `item` query string,
-  and dynamic component rendering.
+  ordered local menu, selected-item routing, and dynamic component rendering.
 - Resource Manager uses `ResourceTabContribution`,
   `ResourcePredefinedViewSectionContribution`, `ResourceViewId`, generated
   fallback tabs, predefined view validation, resource-tab grouping, selected
-  tab routing through the `tab` query string, and dynamic component rendering
-  with resource context parameters.
+  tab routing, and dynamic component rendering with resource context
+  parameters.
 
 This means the reusable shape exists, but it is currently split between shell
 and Resource Manager concepts. The shared part is not "resource tabs"; it is a
@@ -843,9 +845,10 @@ that something in the routed component hosts the composition context.
 
 The composition host is the bridge between Razor routing and the content
 engine. The implementation can inject the layout engine into the host, resolve
-the content context from the supplied ID plus route/query state, and cascade
-that context to `Menu`, `SectionContainer`, `SectionOutlet`, and custom
-renderer components. A standard menu component can then render the
+the content context from the supplied ID plus route, fragment, and page-local
+state, and cascade that context to `Menu`, `SectionContainer`,
+`SectionOutlet`, and custom renderer components. A standard menu component can
+then render the
 hierarchical navigation tree and ask the content engine to construct links
 from target content IDs. A section outlet can render all sections registered
 for the current section container, including sections declared by extensions.

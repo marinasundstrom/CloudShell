@@ -140,6 +140,8 @@ on `git blame --follow`, and then by the broad type of change.
   smooth scrolling and a target highlight.
 - Composition tab renderers now select sections through child addresses or
   fragments instead of reserving a query-string parameter for tab state.
+- Legacy custom shell views now use URL fragments for local menu item
+  selection, matching the parent-addressed composition section convention.
 - The CloudShell Fluent composition tabbed layout now resolves non-default
   section navigation through section targets instead of duplicating route
   parameter construction in the UI adapter.

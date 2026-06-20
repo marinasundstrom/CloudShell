@@ -2,6 +2,8 @@
 @rendermode InteractiveServer
 @inject ShellCatalog ShellCatalog
 @inject NavigationManager Navigation
+@using Microsoft.AspNetCore.Components.Routing
+@implements IDisposable
 
 @{
     var normalizedRoute = NormalizeRoute(ViewRoute);
@@ -85,16 +87,26 @@ else
     [Parameter]
     public string? ViewRoute { get; set; }
 
-    [SupplyParameterFromQuery(Name = "item")]
-    private string? RequestedMenuItemId { get; set; }
+    private string? SelectedMenuItemId { get; set; }
+
+    protected override void OnInitialized()
+    {
+        SelectedMenuItemId = ReadRequestedMenuItemId();
+        Navigation.LocationChanged += HandleLocationChanged;
+    }
+
+    protected override void OnParametersSet()
+    {
+        SelectedMenuItemId = ReadRequestedMenuItemId();
+    }
 
     private CustomShellViewMenuItemContribution? GetSelectedItem(
         IReadOnlyList<CustomShellViewMenuItemContribution> menuItems)
     {
-        if (!string.IsNullOrWhiteSpace(RequestedMenuItemId))
+        if (!string.IsNullOrWhiteSpace(SelectedMenuItemId))
         {
             var requested = menuItems.FirstOrDefault(item =>
-                string.Equals(item.Id, RequestedMenuItemId, StringComparison.OrdinalIgnoreCase));
+                string.Equals(item.Id, SelectedMenuItemId, StringComparison.OrdinalIgnoreCase));
             if (requested is not null)
             {
                 return requested;
@@ -104,10 +116,13 @@ else
         return menuItems.FirstOrDefault();
     }
 
-    private void SelectMenuItem(string route, string menuItemId) =>
+    private void SelectMenuItem(string route, string menuItemId)
+    {
+        SelectedMenuItemId = menuItemId;
         Navigation.NavigateTo(
-            $"{route}?item={Uri.EscapeDataString(menuItemId)}",
+            $"{route}#{Uri.EscapeDataString(menuItemId)}",
             replace: true);
+    }
 
     private static IReadOnlyList<CloudShellTabbedLayoutItem> BuildItems(
         IReadOnlyList<CustomShellViewMenuItemContribution> menuItems) =>
@@ -121,4 +136,33 @@ else
 
     private static string NormalizeRoute(string? route) =>
         string.IsNullOrWhiteSpace(route) ? "/" : "/" + route.Trim('/');
+
+    private void HandleLocationChanged(object? sender, LocationChangedEventArgs args)
+    {
+        var requestedMenuItemId = ReadRequestedMenuItemId(args.Location);
+        if (string.Equals(SelectedMenuItemId, requestedMenuItemId, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        SelectedMenuItemId = requestedMenuItemId;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private string? ReadRequestedMenuItemId(string? location = null)
+    {
+        var uri = Navigation.ToAbsoluteUri(location ?? Navigation.Uri);
+        if (string.IsNullOrWhiteSpace(uri.Fragment))
+        {
+            return null;
+        }
+
+        var requested = Uri.UnescapeDataString(uri.Fragment.TrimStart('#')).Trim();
+        return string.IsNullOrWhiteSpace(requested) ? null : requested;
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= HandleLocationChanged;
+    }
 }
