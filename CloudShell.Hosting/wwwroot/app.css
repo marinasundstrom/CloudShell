@@ -1052,6 +1052,7 @@ h3 {
     color: var(--cloudshell-text-subtle);
 }
 
+.cloudshell-tabbed-layout,
 .registration-layout {
     display: grid;
     grid-template-columns: 18rem minmax(0, 1fr);
@@ -1059,15 +1060,18 @@ h3 {
     align-items: start;
 }
 
+.cloudshell-tabbed-summary,
 .registration-options {
     display: grid;
     gap: .5rem;
 }
 
+.cloudshell-tabbed-summary fluent-select,
 .registration-options fluent-select {
     width: 100%;
 }
 
+.cloudshell-tabbed-summary p,
 .registration-options p {
     color: var(--cloudshell-text-muted);
     font-size: .8rem;
@@ -1100,6 +1104,7 @@ h3 {
     gap: .75rem;
 }
 
+.cloudshell-tabbed-list,
 .resource-tab-list {
     display: grid;
     gap: .65rem;
@@ -1108,17 +1113,20 @@ h3 {
     border-top: 1px solid var(--cloudshell-divider);
 }
 
+.cloudshell-tabbed-summary>.resource-status-summary,
 .registration-options>.resource-status-summary {
     margin-bottom: 0;
     padding-bottom: 0;
     border-bottom: 0;
 }
 
+.cloudshell-tabbed-group,
 .resource-tab-group {
     display: grid;
     gap: .25rem;
 }
 
+.cloudshell-tabbed-group-title,
 .resource-tab-group-title {
     color: var(--cloudshell-text-muted);
     font-size: .72rem;
@@ -1127,6 +1135,7 @@ h3 {
     text-transform: uppercase;
 }
 
+.cloudshell-tabbed-button,
 .resource-tab-button {
     display: flex;
     align-items: center;
@@ -1141,24 +1150,47 @@ h3 {
     cursor: pointer;
 }
 
+.cloudshell-tabbed-button fluent-icon,
 .resource-tab-button fluent-icon {
     flex: 0 0 auto;
 }
 
+.cloudshell-tabbed-button-text {
+    display: grid;
+    gap: .1rem;
+    min-width: 0;
+}
+
+.cloudshell-tabbed-button-text span,
+.cloudshell-tabbed-button-text small {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.cloudshell-tabbed-button-text small {
+    color: var(--cloudshell-text-muted);
+    font-size: .75rem;
+    line-height: 1.25;
+}
+
+.cloudshell-tabbed-button:hover,
 .resource-tab-button:hover {
     background: var(--cloudshell-hover);
 }
 
+.cloudshell-tabbed-button.active,
 .resource-tab-button.active {
     border-color: var(--cloudshell-accent);
     background: var(--cloudshell-selected);
     box-shadow: inset 3px 0 0 var(--cloudshell-accent);
 }
 
+.cloudshell-tabbed-host,
 .registration-host {
     min-height: 18rem;
 }
 
+.cloudshell-tabbed-host>.provider-summary.compact,
 .registration-host>.provider-summary.compact {
     margin-bottom: .85rem;
 }
@@ -4032,6 +4064,7 @@ h3 {
 
     .provider-summary,
     .provider-facts,
+    .cloudshell-tabbed-layout,
     .registration-layout,
     .template-layout {
         grid-template-columns: 1fr;

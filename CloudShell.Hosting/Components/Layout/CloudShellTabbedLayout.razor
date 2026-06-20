@@ -1,19 +1,19 @@
 @using Microsoft.FluentUI.AspNetCore.Components
 
-<section class="registration-layout @Class" @attributes="AdditionalAttributes">
-    <aside class="panel registration-options">
+<section class="cloudshell-tabbed-layout registration-layout @Class" @attributes="AdditionalAttributes">
+    <aside class="panel cloudshell-tabbed-summary registration-options">
         @SummaryContent
 
         @if (OrderedItems.Count > 0)
         {
-            <div class="resource-tab-list" role="tablist" aria-label="@AriaLabel">
+            <div class="cloudshell-tabbed-list" role="tablist" aria-label="@AriaLabel">
                 @foreach (var group in OrderedItems.GroupBy(GetGroupKey))
                 {
                     var firstItem = group.First();
-                    <div class="resource-tab-group" role="group" aria-label="@GetGroupTitle(firstItem)">
+                    <div class="cloudshell-tabbed-group" role="group" aria-label="@GetGroupTitle(firstItem)">
                         @if (!string.IsNullOrWhiteSpace(GetGroupTitle(firstItem)))
                         {
-                            <span class="resource-tab-group-title">@GetGroupTitle(firstItem)</span>
+                            <span class="cloudshell-tabbed-group-title">@GetGroupTitle(firstItem)</span>
                         }
                         @foreach (var item in group)
                         {
@@ -26,7 +26,13 @@
                                 {
                                     <FluentIcon Value="@ResolveIcon(item.Icon)" />
                                 }
-                                <span>@item.Title</span>
+                                <span class="cloudshell-tabbed-button-text">
+                                    <span>@item.Title</span>
+                                    @if (!string.IsNullOrWhiteSpace(item.Description))
+                                    {
+                                        <small>@item.Description</small>
+                                    }
+                                </span>
                             </button>
                         }
                     </div>
@@ -35,7 +41,7 @@
         }
     </aside>
 
-    <div class="panel registration-host">
+    <div class="panel cloudshell-tabbed-host registration-host">
         @if (SelectedItem is null)
         {
             @EmptyContent
@@ -135,8 +141,8 @@
 
     private string GetTabButtonClass(CloudShellTabbedLayoutItem item) =>
         item.Id == SelectedItem?.Id
-            ? "resource-tab-button active"
-            : "resource-tab-button";
+            ? "cloudshell-tabbed-button active"
+            : "cloudshell-tabbed-button";
 
     private Icon ResolveIcon(string? icon) =>
         IconResolver(icon);

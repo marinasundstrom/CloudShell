@@ -269,9 +269,11 @@ uses this component and renders composition-backed settings sections. Its
 public `ShellCompositionIds.SettingsPage` and
 `ShellCompositionIds.SettingsMainOutlet` IDs are the initial CloudShell-owned
 targets for future settings contributors. This is the first shell-owned
-composition consumer; the resource details page should move to the same layout
-pattern in a later slice. The standalone CompositionSandbox sample remains
-the place to explore layout patterns before the shell adopts them.
+composition consumer. Resource Details and legacy custom shell views now use
+the same layout through adapter code while keeping Resource Manager and
+custom-view contribution models separate from the generic shell layout. The
+standalone CompositionSandbox sample remains the place to explore layout
+patterns before the shell adopts them.
 
 The composition menu model represents named menu groups, menu items that can
 live inside or outside a group, one level of menu sub-items through parent
@@ -315,6 +317,11 @@ Settings while preserving the Resource Manager-owned tab contribution model,
 generated fallback views, tab grouping, invalid-tab recovery, and
 resource-scoped summary content. This keeps Resource Manager vocabulary behind
 its adapter while moving the visual layout to the shared shell component.
+Legacy custom shell views also consume the same layout and pass optional item
+descriptions through the shared tab item model. The layout exposes neutral
+`cloudshell-tabbed-*` CSS hooks; older `resource-tab-*` and registration
+layout selectors remain for compatibility with Resource Manager-specific
+surfaces that have not moved to the shared component.
 
 `CompositionEngineHost` is an in-memory host for mounted modules. It owns the
 currently mounted module list and rebuilds the active registry projection when

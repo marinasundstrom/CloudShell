@@ -6,4 +6,5 @@ public sealed record CloudShellTabbedLayoutItem(
     int Order,
     string Group = "General",
     string? GroupTitle = null,
-    string? Icon = null);
+    string? Icon = null,
+    string? Description = null);

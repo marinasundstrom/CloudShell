@@ -63,6 +63,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Details now uses the shared shell tabbed layout component while
   preserving Resource Manager tab grouping, generated views, and invalid-tab
   recovery behavior.
+- Custom shell views now use the same shared shell tabbed layout as Settings
+  and Resource Details, and the layout exposes neutral shell CSS hooks while
+  keeping Resource Manager compatibility styles.
 - CloudShell UI Extension Host now includes an isolated shell-composition
   sandbox with sample-local typed IDs, a registry, composition context host,
   menu renderer, section container, and section outlet so the layout/content

@@ -37,8 +37,11 @@ else
         </div>
     </section>
 
-    <section class="registration-layout">
-        <aside class="panel registration-options">
+    <CloudShellTabbedLayout Items="@BuildItems(menuItems)"
+                            SelectedItemId="@selectedItem?.Id"
+                            SelectedItemChanged="item => SelectMenuItem(view.Route, item.Id)"
+                            AriaLabel="@($"{view.Title} views")">
+        <SummaryContent>
             <div class="selected-type-card">
                 <span class="resource-kind-icon" aria-hidden="true">
                     <FluentIcon Value="@ShellNavigationIcons.FromName(view.Icon)" />
@@ -51,51 +54,31 @@ else
                     }
                 </div>
             </div>
-
-            @if (menuItems.Length > 0)
-            {
-                <div class="resource-tab-list" role="tablist" aria-label="@($"{view.Title} views")">
-                    @foreach (var menuItem in menuItems)
+        </SummaryContent>
+        <EmptyContent>
+            <div class="empty-state">
+                <strong>No view selected</strong>
+                <span>This shell view does not have any registered menu items.</span>
+            </div>
+        </EmptyContent>
+        <HeaderContent Context="item">
+            <div class="panel-header">
+                <div>
+                    <h2>@item.Title</h2>
+                    @if (!string.IsNullOrWhiteSpace(item.Description))
                     {
-                        <button class="resource-tab-button @(selectedItem?.Id == menuItem.Id ? "active" : null)"
-                                type="button"
-                                role="tab"
-                                aria-selected="@(selectedItem?.Id == menuItem.Id)"
-                                @onclick="() => SelectMenuItem(view.Route, menuItem.Id)">
-                            <strong>@menuItem.Title</strong>
-                            @if (!string.IsNullOrWhiteSpace(menuItem.Description))
-                            {
-                                <small>@menuItem.Description</small>
-                            }
-                        </button>
+                        <p>@item.Description</p>
                     }
                 </div>
-            }
-        </aside>
-
-        <div class="panel registration-host">
-            @if (selectedItem is null)
+            </div>
+        </HeaderContent>
+        <ChildContent Context="item">
+            @if (selectedItem is not null)
             {
-                <div class="empty-state">
-                    <strong>No view selected</strong>
-                    <span>This shell view does not have any registered menu items.</span>
-                </div>
-            }
-            else
-            {
-                <div class="panel-header">
-                    <div>
-                        <h2>@selectedItem.Title</h2>
-                        @if (!string.IsNullOrWhiteSpace(selectedItem.Description))
-                        {
-                            <p>@selectedItem.Description</p>
-                        }
-                    </div>
-                </div>
                 <DynamicComponent Type="selectedItem.ComponentType" />
             }
-        </div>
-    </section>
+        </ChildContent>
+    </CloudShellTabbedLayout>
 }
 
 @code {
@@ -125,6 +108,16 @@ else
         Navigation.NavigateTo(
             $"{route}?item={Uri.EscapeDataString(menuItemId)}",
             replace: true);
+
+    private static IReadOnlyList<CloudShellTabbedLayoutItem> BuildItems(
+        IReadOnlyList<CustomShellViewMenuItemContribution> menuItems) =>
+        menuItems
+            .Select(item => new CloudShellTabbedLayoutItem(
+                item.Id,
+                item.Title,
+                item.Order,
+                Description: item.Description))
+            .ToArray();
 
     private static string NormalizeRoute(string? route) =>
         string.IsNullOrWhiteSpace(route) ? "/" : "/" + route.Trim('/');
