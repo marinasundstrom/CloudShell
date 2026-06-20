@@ -3,6 +3,7 @@
 @inject IJSRuntime JSRuntime
 @inject NavigationManager Navigation
 @inject IStringLocalizer<SharedResource> L
+@using CloudShell.UI.Composition.Blazor
 @implements IDisposable
 
 <div class="shell @CollapsedClass">
@@ -14,7 +15,9 @@
         <ShellTopbar />
 
         <article class="shell-content">
-            @Body
+            <CompositionHost RequireRegisteredPage="false">
+                @Body
+            </CompositionHost>
         </article>
     </main>
 </div>

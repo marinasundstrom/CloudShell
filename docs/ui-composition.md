@@ -303,6 +303,11 @@ composition-native menus should prefer artifact-ID targets when they point at
 registered pages or sections, and href targets when they point outside the
 composition graph.
 
+The CloudShell main layout hosts `CompositionHost` in pass-through mode. Pages
+that are registered in the composition graph receive a cascaded
+`CompositionContext`; legacy routes that are not composition-native continue
+to render normally while the shell migrates surfaces one at a time.
+
 The standalone Composition Sandbox also includes a sample-owned Bootstrap
 menu presenter. It reads the same namespaced icon attribute, interprets values
 as Bootstrap Icons classes, and keeps that interpretation outside the generic
@@ -375,7 +380,7 @@ The Blazor library currently provides these components:
 
 | Component | Purpose |
 | --- | --- |
-| `CompositionHost` | Resolves the current route to a registered page and cascades `CompositionContext` to child content. It can also receive an explicit `PageId`. |
+| `CompositionHost` | Resolves the current route to a registered page and cascades `CompositionContext` to child content. It can also receive an explicit `PageId`. Hosts can opt into pass-through rendering for routes that are not composition-registered yet. |
 | `CompositionMenu` | Renders a registered menu, menu groups, root items, and sub-items. Menu items use composition targets rather than hard-coded routes. |
 | `CompositionLink` | Resolves a composition target into an anchor `href`. Page targets resolve to registered routes, section targets resolve to the nearest page route plus a fragment, menu item targets resolve through the menu item's own target, and href targets are emitted directly. When child content is omitted, the link uses the target artifact title where one exists. |
 | `TitleOutlet` | Renders visible text for the current composition page title from the cascaded context, an explicit `Page`, or the current route. |

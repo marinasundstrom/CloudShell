@@ -1,12 +1,16 @@
 @inject CompositionRegistry Composition
 @inject NavigationManager Navigation
 
-@if (Context is null)
+@if (Context is null && RequireRegisteredPage)
 {
     <div class="composition-empty-state">
         <strong>Composition page not registered</strong>
         <span>The current routed page is not available in the composition registry.</span>
     </div>
+}
+else if (Context is null)
+{
+    @ChildContent
 }
 else
 {
@@ -21,6 +25,9 @@ else
 
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public bool RequireRegisteredPage { get; set; } = true;
 
     private CompositionContext? Context
     {
