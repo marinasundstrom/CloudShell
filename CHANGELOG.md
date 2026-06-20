@@ -48,6 +48,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager now exposes provider-backed permission-grant status, and SQL
   Server Access control uses it to show database grants as requested but not
   yet effectively applied by the SQL Server provider.
+- Access control grant rows now include provider status details so SQL Server
+  grants explain why requested access has not been applied.
 - SQL Server resource overview now leads with SQL service details instead of
   generic container image, revision, and host placement fields.
 

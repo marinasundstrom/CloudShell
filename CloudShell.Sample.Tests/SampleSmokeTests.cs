@@ -803,6 +803,7 @@ public sealed class SampleSmokeTests
         Assert.Contains("The SQL Server provider does not create users or roles yet", sqlAccessControlHtml);
         Assert.Contains("Database: read/write", sqlAccessControlHtml);
         Assert.Contains("Effective access: not applied by provider yet", sqlAccessControlHtml);
+        Assert.Contains("SQL Server provider has not created SQL users or roles for this grant yet", sqlAccessControlHtml);
         Assert.Contains("application-topology-api", sqlAccessControlHtml);
         Assert.Contains(DatabaseResourceOperationPermissions.ReadWrite, sqlAccessControlHtml);
         Assert.DoesNotContain("Deploy image", sqlAccessControlHtml);

@@ -169,9 +169,15 @@
                             <span class="access-control-grant-row">
                                 <span>
                                     @permission
-                                    @if (GetGrantEffectivenessStatus(group.Principal, permission) is { } effectiveness)
+                                    @if (GetGrantEffectiveness(group.Principal, permission) is { } effectiveness)
                                     {
-                                        <small>@effectiveness</small>
+                                        <small>
+                                            @effectiveness.Label
+                                            @if (!string.IsNullOrWhiteSpace(effectiveness.Detail))
+                                            {
+                                                <span> @effectiveness.Detail</span>
+                                            }
+                                        </small>
                                     }
                                 </span>
                                 <FluentButton Appearance="Appearance.Neutral"
@@ -479,7 +485,7 @@
              DatabaseResourceOperationPermissions.ReadWrite,
              StringComparison.OrdinalIgnoreCase)));
 
-    private string? GetGrantEffectivenessStatus(ResourcePrincipalReference principal, string permission)
+    private GrantEffectivenessView? GetGrantEffectiveness(ResourcePrincipalReference principal, string permission)
     {
         if (!GrantStatuses.TryGetValue(GetPermissionKey(principal, permission), out var status))
         {
@@ -492,7 +498,7 @@
             return null;
         }
 
-        return status.State switch
+        var label = status.State switch
         {
             ResourcePermissionGrantEffectivenessState.Applied => L["Effective access: applied"].Value,
             ResourcePermissionGrantEffectivenessState.Pending => L["Effective access: pending"].Value,
@@ -501,6 +507,8 @@
             ResourcePermissionGrantEffectivenessState.NotApplied => L["Effective access: not applied by provider yet"].Value,
             _ => L["Effective access: unknown"].Value
         };
+
+        return new GrantEffectivenessView(label, status.Detail);
     }
 
     private sealed record PermissionOption(
@@ -587,4 +595,8 @@
     private sealed record GrantGroup(
         ResourcePrincipalReference Principal,
         IReadOnlyList<string> Permissions);
+
+    private sealed record GrantEffectivenessView(
+        string Label,
+        string? Detail);
 }
