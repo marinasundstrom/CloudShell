@@ -248,6 +248,14 @@ hosting, and deployments.
 * Keep Resource Manager release-hardening work focused on generated details,
   action availability, activity records, explicit not-found states, read-only
   behavior, transient declaration warnings, and sample documentation.
+* Define the future common Health aggregation model before building
+  status-page-style summaries. Resource-scoped Health should stay focused on
+  the selected resource, while the shared Health workspace can later summarize
+  explicit health scopes such as systems, services, capabilities, or other
+  operator-defined groups. That model should define contributing resources and
+  checks, degraded/healthy/unknown aggregation rules, drill-down from a
+  degraded timeline segment to affected resources, and how curated incident
+  annotations relate to resource events without becoming MVP scope.
 * Identify cross-cutting dependencies.
 * Define common terminology.
 * Define shared platform services.

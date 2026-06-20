@@ -403,6 +403,18 @@ metrics when useful, but should not blur the line between application health
 signals and provider-owned resource metrics. The shared Telemetry trace
 explorer remains the cross-resource application telemetry investigation view.
 
+Health has two distinct UI targets. A resource-scoped Health tab should answer
+questions about the selected resource and its configured checks: current
+status, recent polling history, and when a check degraded. The common Health
+workspace can later become a system-health summary similar to a status page,
+with timeline rows for explicit health scopes and drill-down into affected
+resources and checks. That future view should not rely on ordinary resource
+groups alone, because operators may need to define health scopes such as a
+service, product area, capability, tenant environment, or other system slice.
+Incident comments, subscriptions, and curated public summaries are related but
+separate incident-management features and should remain outside the immediate
+MVP.
+
 This is an interaction target, not a requirement to copy any specific vendor
 UI. CloudShell should keep the view consistent with Resource Manager and should
 prefer resource-aware terminology where generic tracing tools expose only

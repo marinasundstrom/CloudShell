@@ -127,6 +127,14 @@ historical views use retained `ResourceHealthSummary` snapshots keyed by
 resource ID, so the resource page and common Health page can correlate the same
 polling history.
 
+Resource-scoped Health should remain focused on the selected resource. The
+common Health page may later use the same retained snapshots to render
+status-page-style timelines for explicit health scopes such as systems,
+services, capabilities, or other operator-defined groups. That aggregate view
+requires a separate health-scope model that declares contributing resources and
+checks, aggregation rules, and drill-down behavior; it should not treat normal
+resource groups as the only system-health boundary.
+
 ## Resource Manager Projection
 
 The shell generates a default resource detail view from the projected

@@ -650,6 +650,15 @@ listed here before pulling in broader proposal work.
   health-check model. Cross-resource trace exploration can keep a shared
   Telemetry area with resource-aware links back into the relevant resource
   detail views.
+- Keep resource-scoped Health focused on the current resource. The common
+  Health workspace can later evolve toward a status-page-style system summary
+  with timeline rows for services, capabilities, or other health scopes, but
+  that requires a grouping model beyond ordinary resource groups. Do not infer
+  environment-wide degradation percentages from resource groups for MVP; first
+  define explicit health scopes, which checks/resources contribute to each
+  scope, and how a degraded segment drills down to the affected resources and
+  checks. Curated incident comments, public subscriptions, and operator-owned
+  annotations should remain later incident-management work.
 - Keep resource identity clear when display names are enabled: Resource ID
   should appear first in details and overview identity surfaces, while create
   flows ask for the scoped resource name. Resource Manager now has a
@@ -1025,6 +1034,11 @@ forces a smaller slice:
   should visualize current projected resources and strong relationships; weak
   projected references need a later resource-model, serialized-graph, and
   specialized selector design.
+- Status-page-style common Health aggregation, including health scopes beyond
+  resource groups, uptime/degradation estimates, incident annotations, public
+  summaries, subscriptions, and curated comments. MVP Health should stay
+  resource-scoped plus a simple common list backed by retained health
+  snapshots.
 - The initial on-premise hosting scenario beyond the design and sample
   preparation needed to avoid dead-end MVP choices.
 
