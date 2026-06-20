@@ -341,13 +341,16 @@ The registry also exposes basic page, menu, and section projection queries
 that include the owning `CompositionModuleId`. Existing registration queries
 remain available for simple renderers, while projection queries are the first
 step toward diagnostics and renderer-specific views that need module
-ownership.
+ownership. Menu item projections can be queried for a specific menu so
+presenters do not need to scan registration lists when they need item-level
+module metadata.
 
 The Blazor renderers consume these projections where module ownership matters.
 Menu, stacked section, and tabbed section renderers add
 `data-composition-module` attributes to rendered navigation or section
 elements so diagnostics and future tooling can trace visible content back to
-the module that registered it.
+the module that registered it. CloudShell's Fluent navigation presenter uses
+the same menu item projection path for its root and child navigation items.
 
 `isExtendable: true` marks a page or section outlet as an extension point.
 Other modules can add section outlets only to pages that are marked

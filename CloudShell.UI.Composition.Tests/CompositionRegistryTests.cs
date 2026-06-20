@@ -111,6 +111,35 @@ public sealed class CompositionRegistryTests
     }
 
     [Fact]
+    public void GetMenuItemProjections_ReturnsMenuScopedItemContexts()
+    {
+        var registry = CreateRegistry();
+
+        var projections = registry.GetMenuItemProjections(MainMenu);
+
+        Assert.Collection(
+            projections,
+            projection =>
+            {
+                Assert.Equal(CompositionModuleId.Host, projection.ModuleId);
+                Assert.Null(projection.Group);
+                Assert.Equal(WorkspaceMenuItem, projection.Item.Id);
+            },
+            projection =>
+            {
+                Assert.Equal(CompositionModuleId.Host, projection.ModuleId);
+                Assert.Equal(WorkspaceMenuGroup, projection.Group?.Id);
+                Assert.Equal(SectionMenuItem, projection.Item.Id);
+            },
+            projection =>
+            {
+                Assert.Equal(CompositionModuleId.Host, projection.ModuleId);
+                Assert.Equal(WorkspaceMenuGroup, projection.Group?.Id);
+                Assert.Equal(ChildMenuItem, projection.Item.Id);
+            });
+    }
+
+    [Fact]
     public void GetSections_OrdersByOrderThenTitle()
     {
         var registry = CreateRegistry();

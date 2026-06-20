@@ -66,6 +66,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Custom shell views now use the same shared shell tabbed layout as Settings
   and Resource Details, and the layout exposes neutral shell CSS hooks while
   keeping Resource Manager compatibility styles.
+- The CloudShell Fluent navigation presenter now consumes composition menu item
+  projections and renders module ownership metadata for root and child menu
+  items.
 - CloudShell UI Extension Host now includes an isolated shell-composition
   sandbox with sample-local typed IDs, a registry, composition context host,
   menu renderer, section container, and section outlet so the layout/content

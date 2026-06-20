@@ -13,6 +13,7 @@ public sealed class CompositionRegistry
     private readonly IReadOnlyDictionary<string, CompositionPageRegistration> _pagesByRoute;
     private readonly IReadOnlyDictionary<MenuId, CompositionMenuProjection> _menuProjectionsById;
     private readonly IReadOnlyDictionary<MenuItemId, CompositionMenuItemProjection> _menuItemProjectionsById;
+    private readonly IReadOnlyDictionary<MenuId, IReadOnlyList<CompositionMenuItemProjection>> _menuItemProjectionsByMenu;
     private readonly IReadOnlyDictionary<SectionOutletId, CompositionSectionOutletProjection> _sectionOutletProjectionsById;
     private readonly IReadOnlyDictionary<(PageId PageId, SectionOutletId OutletId), IReadOnlyList<CompositionSectionRegistration>> _sectionsByOutlet;
     private readonly IReadOnlyDictionary<SectionId, CompositionSectionProjection> _sectionProjectionsById;
@@ -43,6 +44,11 @@ public sealed class CompositionRegistry
         _menuItemProjectionsById = modules
             .SelectMany(GetMenuItemProjections)
             .ToDictionary(projection => projection.Item.Id);
+        _menuItemProjectionsByMenu = _menuItemProjectionsById.Values
+            .GroupBy(projection => projection.Menu.Id)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyList<CompositionMenuItemProjection>)group.ToArray());
         _sectionOutletProjectionsById = modules
             .SelectMany(module => module.SectionOutlets.Select(outlet => new CompositionSectionOutletProjection(module.Id, outlet)))
             .ToDictionary(projection => projection.Outlet.Id);
@@ -138,6 +144,9 @@ public sealed class CompositionRegistry
 
     public CompositionMenuItemProjection? GetMenuItemProjection(MenuItemId menuItemId) =>
         _menuItemProjectionsById.GetValueOrDefault(menuItemId);
+
+    public IReadOnlyList<CompositionMenuItemProjection> GetMenuItemProjections(MenuId menuId) =>
+        _menuItemProjectionsByMenu.GetValueOrDefault(menuId) ?? [];
 
     public CompositionSectionOutletRegistration? GetSectionOutlet(SectionOutletId outletId) =>
         _sectionOutletProjectionsById.GetValueOrDefault(outletId)?.Outlet;

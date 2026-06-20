@@ -8,26 +8,33 @@
 @if (MenuProjection is not null)
 {
     var menu = MenuProjection.Menu;
-    var visibleItems = GetMenuItems(menu)
+    var itemProjectionsById = Composition
+        .GetMenuItemProjections(menu.Id)
+        .ToDictionary(projection => projection.Item.Id);
+    var visibleItems = itemProjectionsById.Values
         .Where(CanShowNavigationItem)
         .ToArray();
     var childItemsByParent = visibleItems
-        .Where(item => item.ParentId is not null)
-        .GroupBy(item => item.ParentId!.Value.Value, StringComparer.OrdinalIgnoreCase)
+        .Where(projection => projection.Item.ParentId is not null)
+        .GroupBy(projection => projection.Item.ParentId!.Value.Value, StringComparer.OrdinalIgnoreCase)
         .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.OrdinalIgnoreCase);
 
     <FluentNavMenu Class="cloudshell-nav-menu"
                    Title="@L[menu.Title]"
                    Margin="0">
-        @foreach (var item in menu.Items.Where(item => item.ParentId is null && visibleItems.Contains(item)))
+        @foreach (var item in menu.Items.Where(item => item.ParentId is null && itemProjectionsById.ContainsKey(item.Id)))
         {
-            @RenderItem(item, childItemsByParent)
+            var projection = itemProjectionsById[item.Id];
+            if (visibleItems.Contains(projection))
+            {
+                @RenderItem(projection, childItemsByParent)
+            }
         }
 
         @foreach (var group in menu.Groups)
         {
             var rootItems = group.Items
-                .Where(item => item.ParentId is null && visibleItems.Contains(item))
+                .Where(item => item.ParentId is null && itemProjectionsById.TryGetValue(item.Id, out var projection) && visibleItems.Contains(projection))
                 .ToArray();
 
             if (rootItems.Length == 0)
@@ -40,7 +47,7 @@
 
                 @foreach (var item in rootItems)
                 {
-                    @RenderItem(item, childItemsByParent)
+                    @RenderItem(itemProjectionsById[item.Id], childItemsByParent)
                 }
             </section>
         }
@@ -65,16 +72,18 @@
     }
 
     private RenderFragment RenderItem(
-        CompositionMenuItemRegistration item,
-        IReadOnlyDictionary<string, CompositionMenuItemRegistration[]> childItemsByParent) => @<text>
+        CompositionMenuItemProjection projection,
+        IReadOnlyDictionary<string, CompositionMenuItemProjection[]> childItemsByParent) => @<text>
         @{
+            var item = projection.Item;
             var href = Composition.ResolveHref(item.Target);
             var hasChildren = childItemsByParent.TryGetValue(item.Id.Value, out var childItems);
             var childrenCollapsed = IsGroupCollapsed(item.Id);
         }
 
         <div class="nav-parent-row @(hasChildren ? "has-children" : null)"
-             data-composition-menu-item="@item.Id.Value">
+             data-composition-menu-item="@item.Id.Value"
+             data-composition-module="@projection.ModuleId.Value">
             <FluentNavLink Class="cloudshell-nav-link"
                            Href="@href"
                            Match="@GetMatch(href)"
@@ -101,18 +110,22 @@
         @if (hasChildren && !childrenCollapsed)
         {
             <div class="nav-subitems">
-                @foreach (var child in childItems!)
+                @foreach (var childProjection in childItems!)
                 {
+                    var child = childProjection.Item;
                     var childHref = Composition.ResolveHref(child.Target);
-                    <FluentNavLink Class="cloudshell-nav-link cloudshell-nav-sub-link"
-                                   Href="@childHref"
-                                   Match="@GetMatch(childHref)"
-                                   Icon="@ShellNavigationIcons.FromName(GetIcon(child))"
-                                   IconColor="Color.Neutral"
-                                   Tooltip="@L[child.Title]"
-                                   ActiveClass="active">
-                        <span class="nav-label">@L[child.Title]</span>
-                    </FluentNavLink>
+                    <div data-composition-menu-item="@child.Id.Value"
+                         data-composition-module="@childProjection.ModuleId.Value">
+                        <FluentNavLink Class="cloudshell-nav-link cloudshell-nav-sub-link"
+                                       Href="@childHref"
+                                       Match="@GetMatch(childHref)"
+                                       Icon="@ShellNavigationIcons.FromName(GetIcon(child))"
+                                       IconColor="Color.Neutral"
+                                       Tooltip="@L[child.Title]"
+                                       ActiveClass="active">
+                            <span class="nav-label">@L[child.Title]</span>
+                        </FluentNavLink>
+                    </div>
                 }
             </div>
         }
@@ -121,9 +134,9 @@
     private static NavLinkMatch GetMatch(string href) =>
         href == "/" ? NavLinkMatch.All : NavLinkMatch.Prefix;
 
-    private bool CanShowNavigationItem(CompositionMenuItemRegistration item) =>
-        item.PermissionsRequiredForNavigation.Count == 0 ||
-        Authorization.HasAnyPermission(item.PermissionsRequiredForNavigation);
+    private bool CanShowNavigationItem(CompositionMenuItemProjection projection) =>
+        projection.Item.PermissionsRequiredForNavigation.Count == 0 ||
+        Authorization.HasAnyPermission(projection.Item.PermissionsRequiredForNavigation);
 
     private bool IsGroupCollapsed(MenuItemId itemId) =>
         CollapsedGroups.Contains(itemId.Value);
@@ -147,9 +160,6 @@
 
     private static string GetIcon(CompositionMenuItemRegistration item) =>
         item.Attributes.GetValueOrDefault(CompositionAttributeNames.Icon) ?? string.Empty;
-
-    private static IReadOnlyList<CompositionMenuItemRegistration> GetMenuItems(CompositionMenuRegistration menu) =>
-        menu.Items.Concat(menu.Groups.SelectMany(group => group.Items)).ToArray();
 
     private static IReadOnlyList<string> ParseCollapsedGroups(string? value)
     {
