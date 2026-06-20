@@ -2594,6 +2594,10 @@ h3 {
     text-transform: uppercase;
 }
 
+.trace-source-filter.compact {
+    grid-template-columns: auto minmax(10rem, 13rem);
+}
+
 .trace-source-select {
     min-width: 14rem;
     min-height: 2rem;
@@ -2603,6 +2607,10 @@ h3 {
     color: var(--cloudshell-text);
     padding: 0 .6rem;
     text-transform: none;
+}
+
+.trace-source-select.compact {
+    min-width: 10rem;
 }
 
 .log-wrap-toggle,

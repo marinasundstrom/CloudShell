@@ -217,6 +217,7 @@ public sealed class SampleSmokeTests
         Assert.Contains("Related activity", traceHtml);
         Assert.Contains("Open resource", traceHtml);
         Assert.Contains("<fluent-anchor", traceHtml);
+        Assert.DoesNotContain("id=\"trace-sort-mode\"", traceHtml);
         Assert.Contains("Error spans", traceHtml);
         Assert.Contains("trace-span-row selected attention", traceHtml);
         Assert.Contains("trace-attention-pill", traceHtml);
@@ -233,6 +234,10 @@ public sealed class SampleSmokeTests
 
         var traceListHtml = await host.GetStringAsync(
             "/observability/traces?resourceId=application%3Aproject-reference-api");
+        Assert.Contains("id=\"trace-sort-mode\"", traceListHtml);
+        Assert.Contains("Newest", traceListHtml);
+        Assert.Contains("Longest duration", traceListHtml);
+        Assert.Contains("Errors first", traceListHtml);
         Assert.Contains("recent-trace-item error", traceListHtml);
         Assert.Contains("1 error span(s)", traceListHtml);
 

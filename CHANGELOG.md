@@ -73,6 +73,8 @@ on `git blame --follow`, and then by the broad type of change.
   summaries that only contain error spans, using red error treatment for the
   failing span itself and a softer attention treatment for recovered or
   fallback flows.
+- Recent trace summaries now default to newest-first ordering and expose sort
+  options for newest, longest duration, and errors first.
 - Application Topology sample now includes an `/upstream/fallback` endpoint
   that preserves one trace across a failed upstream attempt and successful
   recovery path.

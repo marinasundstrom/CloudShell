@@ -167,6 +167,22 @@ else if (ShowHeading)
                     <h2>@(string.IsNullOrWhiteSpace(TraceId) ? L["Recent spans"] : L["Trace chart"])</h2>
                     <p>@GetSpanSummary(spans.Count)</p>
                 </div>
+                @if (string.IsNullOrWhiteSpace(TraceId))
+                {
+                    <div class="log-viewer-actions">
+                        <label class="trace-source-filter compact" for="trace-sort-mode">
+                            <span>@L["Sort"]</span>
+                            <select id="trace-sort-mode"
+                                    class="trace-source-select compact"
+                                    value="@TraceSortMode"
+                                    @onchange="SelectTraceSortMode">
+                                <option value="@TraceSortModes.Newest">@L["Newest"]</option>
+                                <option value="@TraceSortModes.LongestDuration">@L["Longest duration"]</option>
+                                <option value="@TraceSortModes.ErrorsFirst">@L["Errors first"]</option>
+                            </select>
+                        </label>
+                    </div>
+                }
             </div>
 
             @if (spans.Count == 0)
@@ -460,6 +476,7 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
     private IReadOnlyList<Resource> TraceResources { get; set; } = [];
     private IReadOnlyList<TraceSpan> RecentSpans { get; set; } = [];
     private string? SelectedSpanId { get; set; }
+    private string TraceSortMode { get; set; } = TraceSortModes.Newest;
     private bool IsDisposed { get; set; }
     private bool IsRefreshingSpans { get; set; }
 
@@ -598,6 +615,14 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
         }
 
         Navigation.NavigateTo(BuildTraceRoute(selected.Id, TraceId, args.Value?.ToString()));
+    }
+
+    private void SelectTraceSortMode(ChangeEventArgs args)
+    {
+        var value = args.Value?.ToString();
+        TraceSortMode = TraceSortModes.IsSupported(value)
+            ? value!
+            : TraceSortModes.Newest;
     }
 
     private void ShowAllResources() => Navigation.NavigateTo("/observability/traces");
@@ -817,34 +842,36 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
             services);
     }
 
-    private static IReadOnlyList<RecentTraceSummary> BuildRecentTraceSummaries(
+    private IReadOnlyList<RecentTraceSummary> BuildRecentTraceSummaries(
         IReadOnlyList<TraceSpan> spans) =>
-        spans
-            .GroupBy(span => span.TraceId, StringComparer.OrdinalIgnoreCase)
-            .Select(group =>
-            {
-                var ordered = group.OrderBy(span => span.StartTime).ToArray();
-                var first = ordered.First();
-                var entry = ordered.FirstOrDefault(span => string.IsNullOrWhiteSpace(span.ParentSpanId)) ?? first;
-                var end = ordered
-                    .Select(span => span.StartTime.Add(span.Duration))
-                    .DefaultIfEmpty(first.StartTime)
-                    .Max();
-                var services = ordered
-                    .Select(span => span.ServiceName)
-                    .Distinct(StringComparer.OrdinalIgnoreCase);
+        ApplyTraceSort(
+            spans
+                .GroupBy(span => span.TraceId, StringComparer.OrdinalIgnoreCase)
+                .Select(group =>
+                {
+                    var ordered = group.OrderBy(span => span.StartTime).ToArray();
+                    var first = ordered.First();
+                    var entry = ordered.FirstOrDefault(span => string.IsNullOrWhiteSpace(span.ParentSpanId)) ?? first;
+                    var end = ordered
+                        .Select(span => span.StartTime.Add(span.Duration))
+                        .DefaultIfEmpty(first.StartTime)
+                        .Max();
+                    var services = ordered
+                        .Select(span => span.ServiceName)
+                        .Distinct(StringComparer.OrdinalIgnoreCase);
 
-                return new RecentTraceSummary(
-                    first.TraceId,
-                    entry.Name,
-                    ordered.Length,
-                    ordered.Count(IsErrorSpan),
-                    IsErrorSpan(entry),
-                    end - first.StartTime,
-                    string.Join(", ", services));
-            })
-            .OrderByDescending(trace => trace.SpanCount)
-            .ThenBy(trace => trace.EntryOperation, StringComparer.OrdinalIgnoreCase)
+                    return new RecentTraceSummary(
+                        first.TraceId,
+                        entry.Name,
+                        ordered.Length,
+                        ordered.Count(IsErrorSpan),
+                        IsErrorSpan(entry),
+                        first.StartTime,
+                        end,
+                        end - first.StartTime,
+                        string.Join(", ", services));
+                }),
+            TraceSortMode)
             .Take(8)
             .ToArray();
 
@@ -904,6 +931,38 @@ StringComparison.OrdinalIgnoreCase))?.Span
             : trace.NeedsAttention
                 ? "recent-trace-item attention"
                 : "recent-trace-item";
+
+    private static IOrderedEnumerable<RecentTraceSummary> ApplyTraceSort(
+        IEnumerable<RecentTraceSummary> traces,
+        string sortMode) =>
+        sortMode switch
+        {
+            TraceSortModes.LongestDuration => traces
+                .OrderByDescending(trace => trace.Duration)
+                .ThenByDescending(trace => trace.EndedAt)
+                .ThenBy(trace => trace.EntryOperation, StringComparer.OrdinalIgnoreCase),
+            TraceSortModes.ErrorsFirst => traces
+                .OrderByDescending(trace => trace.AttentionRank)
+                .ThenByDescending(trace => trace.EndedAt)
+                .ThenByDescending(trace => trace.Duration)
+                .ThenBy(trace => trace.EntryOperation, StringComparer.OrdinalIgnoreCase),
+            _ => traces
+                .OrderByDescending(trace => trace.EndedAt)
+                .ThenByDescending(trace => trace.Duration)
+                .ThenBy(trace => trace.EntryOperation, StringComparer.OrdinalIgnoreCase)
+        };
+
+    private static class TraceSortModes
+    {
+        public const string Newest = "newest";
+        public const string LongestDuration = "longest-duration";
+        public const string ErrorsFirst = "errors-first";
+
+        public static bool IsSupported(string? value) =>
+            string.Equals(value, Newest, StringComparison.Ordinal) ||
+            string.Equals(value, LongestDuration, StringComparison.Ordinal) ||
+            string.Equals(value, ErrorsFirst, StringComparison.Ordinal);
+    }
 
     private static string GetServiceColorStyle(string color) =>
         $"background: {color};";
@@ -1032,10 +1091,14 @@ StringComparison.OrdinalIgnoreCase))?.Span
         int SpanCount,
         int ErrorSpanCount,
         bool EntryHasError,
+        DateTimeOffset StartedAt,
+        DateTimeOffset EndedAt,
         TimeSpan Duration,
         string Services)
     {
         public bool NeedsAttention => !EntryHasError && ErrorSpanCount > 0;
+
+        public int AttentionRank => EntryHasError ? 2 : NeedsAttention ? 1 : 0;
     }
 
     private sealed record TelemetrySelectionIssue(
