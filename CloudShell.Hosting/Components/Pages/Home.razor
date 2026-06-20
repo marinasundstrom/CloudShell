@@ -21,14 +21,16 @@
     </div>
     <div class="heading-actions">
         <span class="toolbar-meta">@L["Polling every {0}s", GetDashboardIntervalSeconds()]</span>
-        <FluentAnchor Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.AppFolder())"
-                      Href="/resources">
+        <CloudShellCompositionAnchor Appearance="Appearance.Neutral"
+                                     IconStart="@(new Icons.Regular.Size20.AppFolder())"
+                                     Page="@ResourceManagerCompositionIds.ResourcesPage">
             @L["Resources"]
-        </FluentAnchor>
-        <FluentAnchor Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.HeartPulseCheckmark())"
-                      Href="/health">
+        </CloudShellCompositionAnchor>
+        <CloudShellCompositionAnchor Appearance="Appearance.Neutral"
+                                     IconStart="@(new Icons.Regular.Size20.HeartPulseCheckmark())"
+                                     Page="@ResourceManagerCompositionIds.HealthPage">
             @L["Health"]
-        </FluentAnchor>
+        </CloudShellCompositionAnchor>
         @if (Authorization.CanReadAnyObservability())
         {
             <FluentAnchor Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.DataUsage())"

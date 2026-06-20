@@ -90,6 +90,8 @@ on `git blame --follow`, and then by the broad type of change.
   section.
 - CloudShell Fluent surfaces can now use a composition-aware anchor component
   that resolves page and artifact targets through the composition registry.
+- The Home dashboard's Fluent Resources and Health actions now resolve
+  registered Resource Manager page IDs through composition targets.
 - The Platform section on the common Settings page now resolves Users and
   Extensions links through composition page targets instead of querying the
   legacy shell catalog directly.
