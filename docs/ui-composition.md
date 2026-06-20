@@ -324,6 +324,11 @@ through a CloudShell-specific composition tabbed-layout adapter so the shell
 can keep its Fluent/resource-details visual language without forcing that
 presentation into the generic Blazor composition package.
 
+Resource Manager also registers its static shell pages as composition pages.
+Parameterized resource detail routes remain outside the composition graph for
+now because the link resolver does not yet model route templates or required
+route values.
+
 Resource Details now consumes the same shell-owned tabbed layout component as
 Settings while preserving the Resource Manager-owned tab contribution model,
 generated fallback views, tab grouping, invalid-tab recovery, and

@@ -83,6 +83,9 @@ on `git blame --follow`, and then by the broad type of change.
 - CloudShell's main layout now hosts the composition context in pass-through
   mode so composition-registered pages receive cascaded context without
   blocking legacy routes that are not registered yet.
+- Resource Manager now registers its static shell pages as composition pages,
+  leaving parameterized resource detail routes on the existing route helpers
+  until route-template targets are modeled.
 - CloudShell UI Extension Host now includes an isolated shell-composition
   sandbox with sample-local typed IDs, a registry, composition context host,
   menu renderer, section container, and section outlet so the layout/content

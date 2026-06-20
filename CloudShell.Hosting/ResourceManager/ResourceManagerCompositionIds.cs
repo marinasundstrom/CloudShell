@@ -5,8 +5,32 @@ namespace CloudShell.Hosting.ResourceManager;
 
 public static class ResourceManagerCompositionIds
 {
+    public static readonly CompositionModuleId Module =
+        CompositionModuleId.Create("cloudshell.resource-manager");
+
     public static readonly CompositionModuleId SettingsModule =
         CompositionModuleId.Create("cloudshell.resource-manager.settings");
+
+    public static readonly PageId ResourcesPage =
+        PageId.Create("cloudshell.resource-manager.resources");
+
+    public static readonly PageId ResourceGraphPage =
+        PageId.Create("cloudshell.resource-manager.resources.graph");
+
+    public static readonly PageId HealthPage =
+        PageId.Create("cloudshell.resource-manager.health");
+
+    public static readonly PageId AddResourcePage =
+        PageId.Create("cloudshell.resource-manager.resources.add");
+
+    public static readonly PageId CreateResourceGroupPage =
+        PageId.Create("cloudshell.resource-manager.resources.groups.new");
+
+    public static readonly PageId ResourceTemplatesPage =
+        PageId.Create("cloudshell.resource-manager.resources.templates");
+
+    public static readonly PageId ResourceSettingsPage =
+        PageId.Create("cloudshell.resource-manager.resources.settings");
 
     public static readonly SectionId SettingsSection =
         SectionId.Create(ShellCompositionIds.SettingsMainOutlet, "resource-manager");

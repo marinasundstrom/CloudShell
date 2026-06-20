@@ -23,6 +23,40 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
 
     public void Configure(ICloudShellExtensionBuilder builder)
     {
+        builder.Services.AddCloudShellUiCompositionModule(
+            ResourceManagerCompositionIds.Module,
+            composition =>
+            {
+                composition.AddPage(
+                    ResourceManagerCompositionIds.ResourcesPage,
+                    "Resources",
+                    ResourceManagerRoutes.Resources);
+                composition.AddPage(
+                    ResourceManagerCompositionIds.ResourceGraphPage,
+                    "Resource graph",
+                    ResourceManagerRoutes.ResourceGraph);
+                composition.AddPage(
+                    ResourceManagerCompositionIds.HealthPage,
+                    "Health",
+                    "/health");
+                composition.AddPage(
+                    ResourceManagerCompositionIds.AddResourcePage,
+                    "Add resource",
+                    "/resources/add");
+                composition.AddPage(
+                    ResourceManagerCompositionIds.CreateResourceGroupPage,
+                    "Create resource group",
+                    "/resources/groups/new");
+                composition.AddPage(
+                    ResourceManagerCompositionIds.ResourceTemplatesPage,
+                    "Resource templates",
+                    "/resources/templates");
+                composition.AddPage(
+                    ResourceManagerCompositionIds.ResourceSettingsPage,
+                    "Resource Manager settings",
+                    "/resources/settings");
+            });
+
         builder
             .RegisterView<Resources>(ResourceManagerViews.Resources)
             .AddNavigationItem<Resources>("Resources", "server", 10)

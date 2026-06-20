@@ -1,6 +1,8 @@
 using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.Hosting;
+using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Abstractions.Shell;
+using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
 using CloudShell.UI.Composition;
 using Microsoft.AspNetCore.Components;
@@ -132,6 +134,44 @@ public sealed class ShellNavigationTests
         Assert.Equal(ShellCompositionIds.SettingsPage.Value, items["Settings"].Target.Value);
         Assert.Equal(ShellCompositionIds.UsersPage.Value, items["Users"].Target.Value);
         Assert.Equal(ShellCompositionIds.ExtensionsPage.Value, items["Extensions"].Target.Value);
+    }
+
+    [Fact]
+    public void ResourceManagerExtension_RegistersStaticShellPagesAsCompositionPages()
+    {
+        var services = new ServiceCollection();
+        services
+            .AddCloudShell()
+            .AddExtension(new ResourceManagerExtension(includeSettings: false));
+
+        var module = services
+            .Where(descriptor => descriptor.ServiceType == typeof(CompositionModule))
+            .Select(descriptor => descriptor.ImplementationInstance)
+            .OfType<CompositionModule>()
+            .Single(module => module.Id == ResourceManagerCompositionIds.Module);
+        var registry = CompositionRegistry.FromModules(module);
+
+        Assert.Equal(
+            ResourceManagerRoutes.Resources,
+            registry.ResolveHref(ResourceManagerCompositionIds.ResourcesPage));
+        Assert.Equal(
+            ResourceManagerRoutes.ResourceGraph,
+            registry.ResolveHref(ResourceManagerCompositionIds.ResourceGraphPage));
+        Assert.Equal(
+            "/health",
+            registry.ResolveHref(ResourceManagerCompositionIds.HealthPage));
+        Assert.Equal(
+            "/resources/add",
+            registry.ResolveHref(ResourceManagerCompositionIds.AddResourcePage));
+        Assert.Equal(
+            "/resources/groups/new",
+            registry.ResolveHref(ResourceManagerCompositionIds.CreateResourceGroupPage));
+        Assert.Equal(
+            "/resources/templates",
+            registry.ResolveHref(ResourceManagerCompositionIds.ResourceTemplatesPage));
+        Assert.Equal(
+            "/resources/settings",
+            registry.ResolveHref(ResourceManagerCompositionIds.ResourceSettingsPage));
     }
 
     private static ICloudShellNavigator CreateNavigator<TExtension>(
