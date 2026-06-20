@@ -1,12 +1,15 @@
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Hosting.Components.Layout;
+using CloudShell.UI.Composition;
 
 namespace CloudShell.Hosting.ResourceManager;
 
 internal static class ResourceTabLayoutProjection
 {
     public static IReadOnlyList<CloudShellTabbedLayoutItem> CreateItems(
-        IReadOnlyList<ResourceTabContribution> tabs) =>
+        IReadOnlyList<ResourceTabContribution> tabs,
+        CompositionRegistry? composition = null,
+        string? resourceId = null) =>
         BuildGroups(tabs)
             .SelectMany((group, groupIndex) => group.Tabs.Select((tab, tabIndex) =>
                 new CloudShellTabbedLayoutItem(
@@ -15,8 +18,17 @@ internal static class ResourceTabLayoutProjection
                     (groupIndex * 10_000) + tabIndex,
                     Group: group.Id,
                     GroupTitle: group.Title,
-                    Icon: tab.Icon)))
+                    Icon: tab.Icon,
+                    Href: BuildHref(composition, resourceId, tab.Id))))
             .ToArray();
+
+    private static string? BuildHref(
+        CompositionRegistry? composition,
+        string? resourceId,
+        ResourceViewId tabId) =>
+        composition is null || string.IsNullOrWhiteSpace(resourceId)
+            ? null
+            : ResourceManagerCompositionLinks.ResourceDetails(composition, resourceId, tabId);
 
     private static IReadOnlyList<ResourceTabGroup> BuildGroups(
         IReadOnlyList<ResourceTabContribution> tabs)

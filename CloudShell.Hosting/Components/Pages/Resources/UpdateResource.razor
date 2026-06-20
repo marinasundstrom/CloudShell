@@ -144,7 +144,7 @@
         </div>
     }
 
-    <CloudShellTabbedLayout Items="@ResourceTabLayoutProjection.CreateItems(tabs)"
+    <CloudShellTabbedLayout Items="@ResourceTabLayoutProjection.CreateItems(tabs, Composition, ResourceId)"
                             SelectedItemId="@selectedTab?.Id.Value"
                             SelectedItemChanged="SelectLayoutTab"
                             SelectFirstItemWhenSelectedMissing="@(selectedTabIssue is null)"

@@ -17,24 +17,29 @@
                         }
                         @foreach (var item in group)
                         {
-                            <button class="@GetTabButtonClass(item)"
-                                    type="button"
-                                    role="tab"
-                                    aria-selected="@(item.Id == SelectedItem?.Id)"
-                                    data-composition-module="@item.ModuleId"
-                                    @onclick="() => SelectItemAsync(item)">
-                                @if (!string.IsNullOrWhiteSpace(item.Icon))
-                                {
-                                    <FluentIcon Value="@ResolveIcon(item.Icon)" />
-                                }
-                                <span class="cloudshell-tabbed-button-text">
-                                    <span>@item.Title</span>
-                                    @if (!string.IsNullOrWhiteSpace(item.Description))
-                                    {
-                                        <small>@item.Description</small>
-                                    }
-                                </span>
-                            </button>
+                            @if (!string.IsNullOrWhiteSpace(item.Href))
+                            {
+                                <FluentAnchor Class="@GetTabButtonClass(item)"
+                                              Appearance="Appearance.Stealth"
+                                              Href="@item.Href"
+                                              role="tab"
+                                              aria-selected="@(item.Id == SelectedItem?.Id)"
+                                              data-composition-module="@item.ModuleId">
+                                    @RenderTabContent(item)
+                                </FluentAnchor>
+                            }
+                            else
+                            {
+                                <FluentButton Class="@GetTabButtonClass(item)"
+                                              Appearance="Appearance.Stealth"
+                                              Type="ButtonType.Button"
+                                              role="tab"
+                                              aria-selected="@(item.Id == SelectedItem?.Id)"
+                                              data-composition-module="@item.ModuleId"
+                                              OnClick="() => SelectItemAsync(item)">
+                                    @RenderTabContent(item)
+                                </FluentButton>
+                            }
                         }
                     </div>
                 }
@@ -145,6 +150,20 @@
         item.Id == SelectedItem?.Id
             ? "cloudshell-tabbed-button active"
             : "cloudshell-tabbed-button";
+
+    private RenderFragment RenderTabContent(CloudShellTabbedLayoutItem item) => @<text>
+        @if (!string.IsNullOrWhiteSpace(item.Icon))
+        {
+            <FluentIcon Value="@ResolveIcon(item.Icon)" />
+        }
+        <span class="cloudshell-tabbed-button-text">
+            <span>@item.Title</span>
+            @if (!string.IsNullOrWhiteSpace(item.Description))
+            {
+                <small>@item.Description</small>
+            }
+        </span>
+    </text>;
 
     private Icon ResolveIcon(string? icon) =>
         IconResolver(icon);

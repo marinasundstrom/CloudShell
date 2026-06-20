@@ -39,7 +39,7 @@ else
         </div>
     </section>
 
-    <CloudShellTabbedLayout Items="@BuildItems(menuItems)"
+    <CloudShellTabbedLayout Items="@BuildItems(view.Route, menuItems)"
                             SelectedItemId="@selectedItem?.Id"
                             SelectedItemChanged="item => SelectMenuItem(view.Route, item.Id)"
                             AriaLabel="@($"{view.Title} views")">
@@ -125,13 +125,15 @@ else
     }
 
     private static IReadOnlyList<CloudShellTabbedLayoutItem> BuildItems(
+        string route,
         IReadOnlyList<CustomShellViewMenuItemContribution> menuItems) =>
         menuItems
             .Select(item => new CloudShellTabbedLayoutItem(
                 item.Id,
                 item.Title,
                 item.Order,
-                Description: item.Description))
+                Description: item.Description,
+                Href: $"{route}#{Uri.EscapeDataString(item.Id)}"))
             .ToArray();
 
     private static string NormalizeRoute(string? route) =>

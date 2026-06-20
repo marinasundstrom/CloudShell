@@ -29,6 +29,13 @@ package should keep standard, render-mode-neutral components that emit normal
 HTML and expose class parameters. CloudShell Hosting can add Fluent UI
 presenters for the same composition projections, and another host can add
 Bootstrap or custom presenters without changing the core graph.
+Because CloudShell Hosting is a Fluent UI shell, shell-specific presenters
+should use Fluent UI components for navigation, commands, inputs, and other
+interactive elements whenever those components provide the needed semantics and
+styling hooks. Drop to plain HTML only when Fluent does not expose the required
+behavior, render-mode shape, or layout flexibility. The reusable Blazor
+composition package remains the exception: it intentionally stays plain and
+framework-neutral so non-Fluent hosts can consume the same graph.
 
 Render-mode neutrality is a design objective for the Blazor integration. The
 base components should work when a host uses static SSR, interactive server,
@@ -378,7 +385,7 @@ stable child locations. The Settings page renderer still decides to present
 those sections as tabs through a CloudShell-specific composition tabbed-layout
 adapter so the shell can keep its Fluent/resource-details visual language
 without forcing that presentation into the generic Blazor composition package.
-The adapter preserves section module ownership on rendered tab buttons and
+The adapter preserves section module ownership on rendered tab items and
 panels through `data-composition-module` attributes.
 
 Resource Manager also registers its static shell pages as composition pages.
@@ -406,6 +413,11 @@ descriptions through the shared tab item model. The layout exposes neutral
 `cloudshell-tabbed-*` CSS hooks; older `resource-tab-*` and registration
 layout selectors remain for compatibility with Resource Manager-specific
 surfaces that have not moved to the shared component.
+When a tab item has a route or fragment target, the shared shell layout renders
+it as a `FluentAnchor` with an `href`. Non-link tab items render as
+`FluentButton` and keep callback-driven selection. This keeps route-backed
+local navigation linkable without making non-navigational tab items pretend to
+have URLs.
 
 `CompositionEngineHost` is an in-memory host for mounted modules. It owns the
 currently mounted module list and rebuilds the active registry projection when

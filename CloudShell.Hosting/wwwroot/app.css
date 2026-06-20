@@ -1147,6 +1147,7 @@ h3 {
     background: transparent;
     color: var(--cloudshell-text);
     text-align: left;
+    text-decoration: none;
     cursor: pointer;
 }
 

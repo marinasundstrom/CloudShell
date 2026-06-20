@@ -8,4 +8,5 @@ public sealed record CloudShellTabbedLayoutItem(
     string? GroupTitle = null,
     string? Icon = null,
     string? Description = null,
-    string? ModuleId = null);
+    string? ModuleId = null,
+    string? Href = null);
