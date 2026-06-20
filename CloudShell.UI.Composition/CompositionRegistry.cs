@@ -131,7 +131,15 @@ public sealed class CompositionRegistry
     public CompositionPageRegistration? GetPageByRoute(string route)
     {
         var normalizedRoute = NormalizeRoute(route);
-        return _pagesByRoute.GetValueOrDefault(normalizedRoute);
+        if (_pagesByRoute.TryGetValue(normalizedRoute, out var exactPage))
+        {
+            return exactPage;
+        }
+
+        return _pages
+            .Where(page => RouteTemplateMatches(page.Route, normalizedRoute))
+            .OrderByDescending(page => GetRouteTemplateSpecificity(page.Route))
+            .FirstOrDefault();
     }
 
     public CompositionMenuRegistration? GetMenu(MenuId menuId) =>
@@ -167,6 +175,17 @@ public sealed class CompositionRegistry
 
     public CompositionSectionProjection? GetSectionProjection(SectionId sectionId) =>
         _sectionProjectionsById.GetValueOrDefault(sectionId);
+
+    public string? GetSectionAddressValue(SectionId sectionId)
+    {
+        if (!_sectionsByTarget.TryGetValue(sectionId.Value, out var section) ||
+            GetSectionOutlet(section.OutletId) is not { } outlet)
+        {
+            return null;
+        }
+
+        return GetSectionSelectionValue(section, outlet);
+    }
 
     public string ResolveHref(CompositionTarget target) =>
         ResolveHref(target, routeParams: null);
@@ -680,6 +699,80 @@ public sealed class CompositionRegistry
             ? trimmed
             : trimmed[..end];
         return new(name, trimmed.Contains('?', StringComparison.Ordinal));
+    }
+
+    private static bool RouteTemplateMatches(string template, string route)
+    {
+        var templateSegments = GetRouteSegments(template);
+        var routeSegments = GetRouteSegments(route);
+        var routeIndex = 0;
+
+        for (var templateIndex = 0; templateIndex < templateSegments.Length; templateIndex++)
+        {
+            var templateSegment = templateSegments[templateIndex];
+            if (TryParseSegmentParameter(templateSegment, out var parameter))
+            {
+                if (routeIndex >= routeSegments.Length)
+                {
+                    if (parameter.IsOptional)
+                    {
+                        continue;
+                    }
+
+                    return false;
+                }
+
+                routeIndex++;
+                continue;
+            }
+
+            if (routeIndex >= routeSegments.Length ||
+                !string.Equals(
+                    templateSegment,
+                    routeSegments[routeIndex],
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            routeIndex++;
+        }
+
+        return routeIndex == routeSegments.Length;
+    }
+
+    private static int GetRouteTemplateSpecificity(string template)
+    {
+        var segments = GetRouteSegments(template);
+        var literalSegments = segments.Count(segment => !TryParseSegmentParameter(segment, out _));
+        var requiredParameters = segments.Count(segment =>
+            TryParseSegmentParameter(segment, out var parameter) &&
+            !parameter.IsOptional);
+        return (literalSegments * 100) + (requiredParameters * 10) + segments.Length;
+    }
+
+    private static string[] GetRouteSegments(string route)
+    {
+        var normalized = NormalizeRoute(route);
+        return normalized == "/"
+            ? []
+            : normalized.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+    }
+
+    private static bool TryParseSegmentParameter(
+        string segment,
+        out RouteTemplateParameter parameter)
+    {
+        parameter = default;
+        if (segment.Length < 2 ||
+            segment[0] != '{' ||
+            segment[^1] != '}')
+        {
+            return false;
+        }
+
+        parameter = ParseRouteTemplateParameter(segment[1..^1]);
+        return !string.IsNullOrWhiteSpace(parameter.Name);
     }
 
     private readonly record struct RouteTemplateParameter(string Name, bool IsOptional);

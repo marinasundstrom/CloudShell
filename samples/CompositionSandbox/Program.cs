@@ -96,8 +96,9 @@ builder.Services.AddCloudShellUiCompositionModule(CompositionModuleId.Host, comp
         .AddPage(
             CompositionIds.SettingsPage,
             "Composition settings",
-            "/settings")
+            "/settings/{section?}")
         .AddSections(CompositionIds.SettingsMainOutlet)
+        .UseChildAddresses()
         .AddSection<GeneralSettingsSection>(
             CompositionIds.SettingsGeneralSection,
             "General",

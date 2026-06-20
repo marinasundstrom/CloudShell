@@ -48,6 +48,34 @@ public sealed class CompositionRegistryTests
     }
 
     [Fact]
+    public void GetPageByRoute_MatchesMaterializedRouteTemplateParameters()
+    {
+        var registry = CompositionRegistry.Create(composition =>
+        {
+            composition.AddPage(ResourceDetailsPage, "Resource details", "/resources/{resourceId}/{view?}");
+        });
+
+        var page = registry.GetPageByRoute("/resources/application%3Aapi/logs?traceId=123#activity");
+
+        Assert.NotNull(page);
+        Assert.Equal(ResourceDetailsPage, page.Id);
+    }
+
+    [Fact]
+    public void GetPageByRoute_MatchesMaterializedRouteTemplatesWithOptionalSegmentsOmitted()
+    {
+        var registry = CompositionRegistry.Create(composition =>
+        {
+            composition.AddPage(ResourceDetailsPage, "Resource details", "/resources/{resourceId}/{view?}");
+        });
+
+        var page = registry.GetPageByRoute("/resources/application%3Aapi");
+
+        Assert.NotNull(page);
+        Assert.Equal(ResourceDetailsPage, page.Id);
+    }
+
+    [Fact]
     public void ResolveHref_ResolvesPageTargetsWithRouteParameters()
     {
         var registry = CreateRegistry();
@@ -201,6 +229,26 @@ public sealed class CompositionRegistryTests
             });
 
         Assert.Equal("/settings/advanced?culture=en", href);
+    }
+
+    [Fact]
+    public void GetSectionAddressValue_ReturnsSectionSelectionValue()
+    {
+        var settingsPage = new PageId("page.settings");
+        var settingsOutlet = SectionOutletId.Create(settingsPage, "main");
+        var advancedSection = SectionId.Create(settingsOutlet, "advanced");
+        var registry = CompositionRegistry.Create(composition =>
+        {
+            composition
+                .AddPage(settingsPage, "Settings", "/settings/{section?}")
+                .AddSections(settingsOutlet)
+                .UseChildAddresses()
+                .AddSection<OverviewSectionComponent>(advancedSection, "Advanced", 10);
+        });
+
+        var addressValue = registry.GetSectionAddressValue(advancedSection);
+
+        Assert.Equal("advanced", addressValue);
     }
 
     [Fact]

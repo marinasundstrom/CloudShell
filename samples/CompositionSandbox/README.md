@@ -17,9 +17,9 @@ The sample proves the first boundary:
   resolve registered page IDs to links, and `CompositionHost` resolves the
   active composition page from the current route.
 - The reusable Blazor components are intended to be render-mode neutral:
-  they render normal anchors and markup, keep tab selection in the query
-  string, and can resolve page context from cascade, an explicit page ID, or
-  the current route.
+  they render normal anchors and markup, use composition section targets for
+  tab links, and can resolve page context from cascade, an explicit page ID,
+  or the current route.
 - Page headers use `TitleOutlet` for visible title text, while
   `PageTitleOutlet` wraps Blazor `PageTitle` so document titles flow
   through the standard `HeadOutlet` pipeline.
@@ -30,9 +30,10 @@ The sample proves the first boundary:
   route uses a sample-owned Bootstrap grid outlet over the same composition
   registry, while the other pages use the plain stacked section outlet from
   `CloudShell.UI.Composition.Blazor`.
-- The `/settings` route uses the reusable composition tab outlet from
-  `CloudShell.UI.Composition.Blazor`, styles it with Bootstrap classes, and
-  stores selected named-section state in the `section` query parameter.
+- The `/settings/{section?}` route uses the reusable composition tab outlet
+  from `CloudShell.UI.Composition.Blazor`, styles it with Bootstrap classes,
+  and opts into child addresses so selected named sections resolve as
+  `/settings/general` or `/settings/advanced`.
 
 Future CloudShell extension integration should adapt extension contributions
 into the core composition model after this standalone API shape is proven.
@@ -61,4 +62,5 @@ The sample also exposes:
 http://localhost:5102/reports
 http://localhost:5102/dashboard
 http://localhost:5102/settings
+http://localhost:5102/settings/advanced
 ```

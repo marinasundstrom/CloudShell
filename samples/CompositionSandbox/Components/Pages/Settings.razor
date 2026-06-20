@@ -1,4 +1,5 @@
 @page "/settings"
+@page "/settings/{Section}"
 
 <CompositionTabbedPageLayout Page="@CompositionIds.SettingsPage"
                              Outlet="@CompositionIds.SettingsMainOutlet"
@@ -18,8 +19,8 @@
     <EyebrowContent>Layout patterns</EyebrowContent>
     <SummaryContent>
         This page uses the reusable composition tabbed page layout styled with
-        plain Bootstrap classes. It selects a named section through a normal
-        query string instead of a framework-specific tab component.
+        plain Bootstrap classes. Its section outlet opts into child addresses,
+        so each tab is a normal link under the page route.
     </SummaryContent>
     <NavigationContent>
         <CompositeAnchor Page="@CompositionIds.WorkspacePage" />
@@ -31,3 +32,8 @@
         <CompositeAnchor Page="@CompositionIds.SettingsPage" />
     </NavigationContent>
 </CompositionTabbedPageLayout>
+
+@code {
+    [Parameter]
+    public string? Section { get; set; }
+}

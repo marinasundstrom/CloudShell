@@ -460,7 +460,7 @@ The Blazor library currently provides these components:
 | `CompositionPageLayout` | Renders a plain page frame with document title, visible title, optional eyebrow, summary, actions, navigation, and child content. Text-heavy regions are render fragments so hosts can localize or customize them. |
 | `CompositionSectionContainer` | Cascades the current section outlet ID to nested content. |
 | `CompositionSectionOutlet` | Renders all registered sections for the current page and section outlet using Blazor `DynamicComponent`. It can resolve the page from cascade, an explicit `Page`, or the current route. |
-| `CompositionSectionTabs` | Renders registered named sections as tab items, stores the selected section in a query-string value, and renders the selected section with `DynamicComponent`. It can resolve the page from cascade, an explicit `Page`, or the current route. |
+| `CompositionSectionTabs` | Renders registered named sections as tab items and uses composition section targets for tab links. It can read selection from query state, child-address routes, or parent-address fragments, and renders the selected section with `DynamicComponent`. It can resolve the page from cascade, an explicit `Page`, or the current route. |
 | `CompositionTabbedPageLayout` | Composes `CompositionPageLayout`, `CompositionSectionContainer`, and `CompositionSectionTabs` into a reusable tabbed page layout. It is useful for settings-like pages while keeping tabs as a renderer choice over named sections. |
 
 A typical layout hosts the composition root around the routed body:
@@ -674,15 +674,16 @@ values become query parameters. For example, a registered route like
 `/resources/application%3Aapi/overview?traceId=...` for an explicit Details
 tab/view plus query-scoped context.
 
-The current tab renderer uses a query parameter for selected sections because
-it is renderer state inside an already-routed page. That should not be treated
-as the default for every navigation hierarchy. Prefer child addresses when the
-selected target is a stable page, sub-page, or child-section location; keep
-query parameters for filters, sort order, and other page-local state. A URI
-resolver may still materialize parent-addressed sections as in-page focus
-targets or section anchors. Full composition IDs remain stable internal
-addresses; a host or adapter may map them to shorter, product-shaped URLs
-instead of exposing the entire hierarchical ID in the path.
+The standard tab renderer uses section target resolution for its tab links.
+When the outlet is parent-addressed, those links resolve inside the page
+address. When the outlet is child-addressed, they resolve through the owning
+page route. Prefer child addresses when the selected target is a stable page,
+sub-page, or child-section location; keep query parameters for filters, sort
+order, and other page-local state. A URI resolver may still materialize
+parent-addressed sections as in-page focus targets or section anchors. Full
+composition IDs remain stable internal addresses; a host or adapter may map
+them to shorter, product-shaped URLs instead of exposing the entire
+hierarchical ID in the path.
 
 Until a custom mapping facility exists, public child address values are derived
 by convention from the addressable artifact's local identifier in its parent

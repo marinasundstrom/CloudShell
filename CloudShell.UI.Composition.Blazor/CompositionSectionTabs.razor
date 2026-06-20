@@ -135,9 +135,31 @@ else
     {
         var uri = Navigation.ToAbsoluteUri(location ?? Navigation.Uri);
         var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
-        return query.TryGetValue(QueryParameter, out var value)
-            ? value.ToString()
-            : null;
+        if (query.TryGetValue(QueryParameter, out var value) &&
+            TryResolveSectionRequest(value.ToString(), out var querySection))
+        {
+            return querySection.Section.Id.Value;
+        }
+
+        if (ResolvedContext is not null &&
+            ResolvedOutletId is not null &&
+            Composition.GetSectionOutlet(ResolvedOutletId.Value)?.AddressMode == CompositionSectionAddressMode.Child &&
+            TryReadChildAddress(uri, out var childAddress) &&
+            TryResolveSectionRequest(childAddress, out var childSection))
+        {
+            return childSection.Section.Id.Value;
+        }
+
+        if (!string.IsNullOrWhiteSpace(uri.Fragment))
+        {
+            var fragment = Uri.UnescapeDataString(uri.Fragment.TrimStart('#'));
+            if (TryResolveSectionRequest(fragment, out var fragmentSection))
+            {
+                return fragmentSection.Section.Id.Value;
+            }
+        }
+
+        return null;
     }
 
     private string GetTabClass(CompositionSectionProjection section) =>
@@ -146,14 +168,66 @@ else
             : TabClass;
 
     private string GetTabHref(CompositionSectionProjection section) =>
-        ResolvedContext is null
-            ? "#"
-            : Composition.ResolveHref(
-                CompositionTarget.ForPage(ResolvedContext.PageId),
-                new Dictionary<string, object?>
-                {
-                    [QueryParameter] = section.Section.Id.Value
-                });
+        Composition.ResolveHref(section.Section.Id);
+
+    private bool TryReadChildAddress(Uri uri, out string childAddress)
+    {
+        childAddress = string.Empty;
+        if (ResolvedContext is null)
+        {
+            return false;
+        }
+
+        var pageHref = Composition.ResolveHref(ResolvedContext.PageId);
+        if (pageHref == "#")
+        {
+            return false;
+        }
+
+        var pagePath = Navigation.ToAbsoluteUri(pageHref).AbsolutePath.TrimEnd('/');
+        var currentPath = uri.AbsolutePath.TrimEnd('/');
+        if (!currentPath.StartsWith(pagePath + "/", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var remaining = currentPath[(pagePath.Length + 1)..];
+        if (remaining.Length == 0 || remaining.Contains('/', StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        childAddress = Uri.UnescapeDataString(remaining);
+        return true;
+    }
+
+    private bool TryResolveSectionRequest(
+        string requested,
+        out CompositionSectionProjection section)
+    {
+        section = null!;
+        if (string.IsNullOrWhiteSpace(requested))
+        {
+            return false;
+        }
+
+        var trimmed = requested.Trim();
+        var matchingSections = Sections
+            .Where(candidate =>
+                string.Equals(candidate.Section.Id.Value, trimmed, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(
+                    Composition.GetSectionAddressValue(candidate.Section.Id),
+                    trimmed,
+                    StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if (matchingSections.Length != 1)
+        {
+            return false;
+        }
+
+        section = matchingSections[0];
+        return true;
+    }
 
     private static string JoinClasses(params string[] values) =>
         string.Join(' ', values.Where(value => !string.IsNullOrWhiteSpace(value)));
