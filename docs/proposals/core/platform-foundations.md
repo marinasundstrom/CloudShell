@@ -221,8 +221,14 @@ hosting, and deployments.
   logs, traces, local exposure, load-balancer or public endpoint
   relationships, and DNS/name mapping.
 * Keep the local development MVP target focused on app-centric Resource
-  Manager workflows, readiness diagnostics, settings/secrets/identity polish,
-  and a clear persisted-state handoff.
+  Manager workflows, focused dependency/dependent visualization, readiness
+  diagnostics, settings/secrets/identity polish, and a clear persisted-state
+  handoff.
+* Use readable resource labels in routine Resource Manager UI, observability
+  summaries, graph labels, alerts, and diagnostics when a display name or
+  resource name exists. Keep Resource ID visible in canonical details, links,
+  and raw diagnostic fields, but avoid leading normal user-facing messages with
+  internal IDs.
 * Tighten readiness diagnostics before Start, Restart, image update,
   configuration update, or provider reconcile can fail for expected local
   blockers such as missing hosts, unavailable credentials, port or route

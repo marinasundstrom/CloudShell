@@ -17,6 +17,10 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Refreshed the local-development MVP target around Application Topology
+  confidence, immediate resource relationship comprehension, readable
+  Resource Manager labels, app-centric diagnostics, and focused readiness
+  hardening.
 - Unauthenticated request-bound resource operations now record activity with
   the generic `user` actor instead of falling through to system activity, while
   background work without a request context remains system-owned.

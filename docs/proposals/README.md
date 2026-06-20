@@ -19,7 +19,7 @@ changes. Milestone scope remains authoritative in [Roadmap](../roadmap.md).
 
 | Order | Proposal | Status | Milestone relationship | Notes |
 | --- | --- | --- | --- | --- |
-| 1 | [Platform foundations](core/platform-foundations.md) | In progress | MVP: UX polish; Samples should work | Current MVP convergence focus. Tracks the local development target: supported sample confidence, app-centric Resource Manager workflows, readiness diagnostics, settings/secrets/identity polish, persisted-state handoff, and cross-cutting reliability. |
+| 1 | [Platform foundations](core/platform-foundations.md) | In progress | MVP: UX polish; Samples should work | Current MVP convergence focus. Tracks the local development target: supported sample confidence, immediate resource relationships, app-centric Resource Manager workflows, readiness diagnostics, readable resource labels, settings/secrets/identity polish, persisted-state handoff, and cross-cutting reliability. |
 | 2 | [Secrets management](services/secrets-management.md) | In progress | MVP: App settings and secrets integrations | Built-in vault and reference flow exist; remaining work focuses Resource Manager assignment polish, safe reference display, diagnostics, and identity-backed access where needed. |
 | 3 | [Identity and access](core/identity-and-access.md) | Current implementation working document | MVP: Identity, Built-in; external validation | Built-in provisioning, scoped tokens, grants, and service integration are working. A Keycloak sample validates external OIDC user sign-in, role claim mapping, sample-scoped resource identity provisioning, runtime credential injection, provider setup, external service-bearer validation plumbing, and automated workload smoke coverage with a Keycloak-issued token. |
 | 4 | [Lifecycle orchestration](core/lifecycle-orchestration.md) | Proposed | MVP: Resource Manager behavior and traceability | Defines the common lifecycle action procedure, dependency execution flow, resource events, failure semantics, and future event-triggered extension point. |
@@ -51,8 +51,9 @@ hardening.
 
 1. MVP convergence and Resource Manager reliability through
    [Platform foundations](core/platform-foundations.md), keeping supported
-   samples green and making Application Topology the broad local-development
-   proof.
+   samples green, making Application Topology the broad local-development
+   proof, and prioritizing focused dependency/dependent visualization before
+   broader graph import or code generation.
 2. Application environment management path through
    [Container applications](containers/container-applications.md), app-owned
    exposure/discovery, virtual networks, public endpoints, load balancers, and
