@@ -3,6 +3,7 @@ using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Client.Authentication;
+using CloudShell.Components;
 using Microsoft.Data.SqlClient;
 using System.Collections.Concurrent;
 using System.Diagnostics;
@@ -2110,13 +2111,23 @@ public sealed partial class ApplicationResourceService(
             return null;
         }
 
-        return $"Setting '{settingName}' references '{referencedResourceId}', but identity '{FormatIdentity(identity)}' is not allowed to read {readableItemLabel}. Grant '{permission}' on resource '{target.Id}'.";
+        var targetLabel = ResourceDisplayLabels.GetLabel(target, referencedResourceId);
+        return $"Setting '{settingName}' references '{targetLabel}', but identity '{FormatIdentity(identity, definition)}' " +
+            $"is not allowed to read {readableItemLabel}. Grant '{permission}' on resource '{targetLabel}'.";
     }
 
-    private static string FormatIdentity(ResourceIdentityReference identity) =>
-        string.IsNullOrWhiteSpace(identity.Name)
-            ? identity.ResourceId
-            : $"{identity.ResourceId}/{identity.Name}";
+    private static string FormatIdentity(
+        ResourceIdentityReference identity,
+        ApplicationResourceDefinition? definition = null)
+    {
+        var resourceName = definition is not null &&
+            string.Equals(identity.ResourceId, definition.Id, StringComparison.OrdinalIgnoreCase)
+                ? FormatApplicationResourceName(definition)
+                : identity.ResourceId;
+        return string.IsNullOrWhiteSpace(identity.Name)
+            ? resourceName
+            : $"{resourceName}/{identity.Name}";
+    }
 
     private async Task StartContainerApplicationAsync(
         ApplicationResourceDefinition definition,

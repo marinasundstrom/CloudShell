@@ -2114,8 +2114,9 @@ public sealed class ResourceDeclarationTests
             ResourceAction.Start);
 
         Assert.NotNull(reason);
-        Assert.Contains("Setting 'SAMPLE_API_KEY' references 'secrets-vault:app'", reason);
-        Assert.Contains("identity 'application:api/api-service' is not allowed to read secrets", reason);
+        Assert.Contains("Setting 'SAMPLE_API_KEY' references 'App Secrets'", reason);
+        Assert.Contains("identity 'api/api-service' is not allowed to read secrets", reason);
+        Assert.Contains("on resource 'App Secrets'", reason);
         Assert.Contains(SecretsVaultResourceOperationPermissions.ReadSecrets, reason);
     }
 

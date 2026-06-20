@@ -59,6 +59,8 @@ on `git blame --follow`, and then by the broad type of change.
   show the manual Refresh command when auto-refresh is disabled.
 - Application action-readiness messages now use the resource name instead of
   leading with internal resource IDs.
+- Application setting and secret grant diagnostics now use displayed resource
+  labels for the referenced resource and the calling identity.
 
 ### 2026-06-19
 
