@@ -287,11 +287,16 @@ proposal:
 - Sections are the current named content primitive.
 - The Blazor package provides plain renderers for menus, links, titles,
   stacked sections, and section tabs.
+- `CompositionEngineHost` provides an in-memory mounted-module list and
+  rebuilds the active registry projection when a module is mounted or
+  unmounted.
 - Registration titles are plain strings. Localization metadata, localization
   providers, and title content templates remain future design work.
 - Registration ownership is recorded at the module boundary through
   `CompositionModuleId`. Artifact-level ownership in renderer projections and
-  diagnostics remains future work. That richer module metadata will be needed
+  diagnostics remains future work. CloudShell extension discovery and
+  activation/deactivation rules for deciding when modules mount or unmount
+  also remain future adapter work. That richer module metadata will be needed
   for diagnostics, disable/unload behavior, conflict handling, trust
   boundaries, permission review, and future persisted graph metadata.
 - Runtime artifact instances and renderer projections are not yet separated

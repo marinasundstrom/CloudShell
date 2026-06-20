@@ -130,9 +130,19 @@ var hostModule = CompositionModule.Create(
 var registry = CompositionRegistry.FromModules(hostModule);
 ```
 
-This is still static composition. CloudShell extension activation,
-deactivation, dynamic mount/unmount, and artifact-level diagnostics are future
-adapter work.
+`CompositionEngineHost` is an in-memory host for mounted modules. It owns the
+currently mounted module list and rebuilds the active registry projection when
+modules are mounted or unmounted:
+
+```csharp
+var host = new CompositionEngineHost([hostModule]);
+host.Mount(extensionModule);
+host.Unmount(extensionModule.Id);
+```
+
+This is still local in-memory composition. CloudShell extension discovery,
+activation/deactivation rules, persistence, and artifact-level diagnostics are
+future adapter work.
 
 `allowExtending: true` marks a section outlet as extendable. Only extendable
 outlets can be reopened through `GetSections(...)`. This keeps extension-style
@@ -256,11 +266,12 @@ to opt into custom display behavior.
 
 ## Current Validation
 
-The core registry currently validates duplicate module, page, menu, and section IDs
-when the graph is built. Tests cover route normalization, target link
-resolution, section target links with route parameters, section ordering,
-section metadata, menu registration, module assembly, duplicate ID validation,
-and extendable section outlet validation.
+The core registry currently validates duplicate module, page, menu, and
+section IDs when the graph is built. Tests cover route normalization, target
+link resolution, section target links with route parameters, section ordering,
+section metadata, menu registration, module assembly, in-memory module
+mount/unmount, duplicate ID validation, and extendable section outlet
+validation.
 
 Validation is intentionally still small. Future work should validate unknown
 targets, missing parents, unsupported content kinds, module ownership
@@ -275,7 +286,7 @@ The current composition engine does not yet include:
 - persisted composition graph metadata
 - `CompositionModuleBuilder` integration with the CloudShell extension
   activation/deactivation lifecycle
-- dynamic module mount/unmount in a running composition host
+- CloudShell extension discovery and activation rules for module mount/unmount
 - artifact-level module diagnostics in renderer projections
 - serializable descriptor objects for all artifacts
 - separate runtime artifact instances and renderer projections

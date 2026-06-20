@@ -99,6 +99,10 @@ on `git blame --follow`, and then by the broad type of change.
   `CompositionModuleBuilder`, module assembly APIs, registry creation from
   modules, and tests for module identity, composition, and duplicate module
   validation.
+- Added an in-memory `CompositionEngineHost` that mounts and unmounts
+  composition modules by rebuilding the active registry projection, with tests
+  for successful mounts, failed duplicate mounts, unmounts, and missing module
+  removals.
 - Moved the composition proof direction away from the UI Extension Host sample:
   CloudShell extension integration should adapt to the core composition graph
   only after the standalone app structure is credible.
