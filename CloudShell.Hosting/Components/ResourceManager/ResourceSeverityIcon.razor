@@ -9,6 +9,9 @@
     [Parameter]
     public string? Class { get; set; }
 
+    [Parameter]
+    public bool Filled { get; set; }
+
     private string CssClass =>
         string.Join(
             ' ',
@@ -20,11 +23,23 @@
             }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
     private Icon ResolveIcon() =>
+        Filled ? ResolveFilledIcon() : ResolveRegularIcon();
+
+    private Icon ResolveRegularIcon() =>
         Severity switch
         {
             ResourceSignalSeverity.Success => new Icons.Regular.Size20.CheckmarkCircle(),
-            ResourceSignalSeverity.Info => new Icons.Regular.Size20.InfoShield(),
+            ResourceSignalSeverity.Info => new Icons.Regular.Size20.Info(),
             ResourceSignalSeverity.Error => new Icons.Regular.Size20.ErrorCircle(),
-            _ => new Icons.Regular.Size20.Important()
+            _ => new Icons.Regular.Size20.Warning()
+        };
+
+    private Icon ResolveFilledIcon() =>
+        Severity switch
+        {
+            ResourceSignalSeverity.Success => new Icons.Filled.Size20.CheckmarkCircle(),
+            ResourceSignalSeverity.Info => new Icons.Filled.Size20.Info(),
+            ResourceSignalSeverity.Error => new Icons.Filled.Size20.ErrorCircle(),
+            _ => new Icons.Filled.Size20.Warning()
         };
 }
