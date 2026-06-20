@@ -31,6 +31,13 @@ project the graph as menu navigation, pages, sections, tabs, settings layouts,
 dashboards, or custom extension-owned layouts. Resource Manager tabs are one
 adapter over this model, not the generic model itself.
 
+The reusable Blazor integration should provide standard components that emit
+plain HTML and are styled through classes. Component-framework-specific
+presenters are host adapters over the same graph. CloudShell Hosting should
+add Fluent UI presenters for shell navigation, settings, and Resource Manager
+surfaces, while the standalone sample can continue proving generic behavior
+with plain Bootstrap or custom CSS.
+
 ## Status
 
 Proposed. This is post-MVP platform direction. MVP work should keep Resource
@@ -494,8 +501,11 @@ The practical path should be incremental:
    section, and outlet projections inside CloudShell without forcing an
    immediate menu-system migration.
 6. Gradually move shell navigation to composition-backed menus, identify
-   missing metadata, selection, localization, icon, and projection APIs, and
-   fill those gaps in the reusable composition layer where they are generic.
+   missing metadata, selection, localization, icon, permission, grouping,
+   parent/child, and projection APIs, and fill those gaps in the reusable
+   composition layer where they are generic. Fluent UI-specific rendering
+   should live in CloudShell Hosting presenters rather than the reusable
+   composition packages.
 7. Move the composition root into the core CloudShell main layout once the
    composition app and adapter prove the model. The core layout should resolve
    current route/page context and cascade composition context to shell chrome,

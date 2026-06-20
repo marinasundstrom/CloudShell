@@ -22,6 +22,12 @@ The Blazor components render ordinary HTML elements and can be styled by the
 host app with normal CSS. The `samples/CompositionSandbox` app demonstrates
 this with plain Bootstrap CSS and a small app stylesheet.
 
+Framework-specific presentation belongs in host adapters. The base Blazor
+package should keep standard, render-mode-neutral components that emit normal
+HTML and expose class parameters. CloudShell Hosting can add Fluent UI
+presenters for the same composition projections, and another host can add
+Bootstrap or custom presenters without changing the core graph.
+
 Render-mode neutrality is a design objective for the Blazor integration. The
 base components should work when a host uses static SSR, interactive server,
 WebAssembly, or mixed render modes. They should render normal links and
@@ -210,6 +216,15 @@ projection APIs, and then introduce a common settings page built from the same
 page, menu, section, and outlet primitives. The standalone CompositionSandbox
 sample remains the place to explore layout patterns before the shell adopts
 them.
+
+The current CloudShell navigation model still carries data that the generic
+composition menu model does not yet expose: Fluent icon names, menu groups,
+parent/child item relationships, active-route matching, permission-driven
+visibility, and localized labels. The migration should close those projection
+gaps before replacing the rendered `NavMenu`. The plain `CompositionMenu`
+remains the standard non-framework-specific renderer; a future
+CloudShell-hosted Fluent presenter should consume the same composition
+projections while applying CloudShell navigation styling and behavior.
 
 `CompositionEngineHost` is an in-memory host for mounted modules. It owns the
 currently mounted module list and rebuilds the active registry projection when
