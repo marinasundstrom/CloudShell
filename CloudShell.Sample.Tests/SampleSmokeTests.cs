@@ -743,6 +743,7 @@ public sealed class SampleSmokeTests
         Assert.Contains(">Used by<", frontendDetailsHtml);
         Assert.Contains("application-topology-api", frontendDetailsHtml);
         Assert.Contains("application.aspnet-core-project", frontendDetailsHtml);
+        Assert.Contains("Health: Unhealthy", frontendDetailsHtml);
         Assert.Contains("app.application-topology.cloudshell.local", frontendDetailsHtml);
         Assert.Contains("app.application-topology.cloudshell.local -&gt; application-topology-frontend/http", frontendDetailsHtml);
         Assert.Contains("Zone: Local DNS", frontendDetailsHtml);

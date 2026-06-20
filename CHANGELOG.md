@@ -24,6 +24,8 @@ on `git blame --follow`, and then by the broad type of change.
   display names and resource names instead of internal resource IDs.
 - Resource relationship graphs now expose related resource actions for opening
   the resource, activity, logs, and traces from dependency/dependent nodes.
+- Resource relationship graphs now include related resource health and
+  readiness details in dependency/dependent summaries when available.
 - Documented weak projected-resource references and reusable Resource Manager
   selector components as deferred model/UI design work beyond the immediate
   local-development MVP slice.

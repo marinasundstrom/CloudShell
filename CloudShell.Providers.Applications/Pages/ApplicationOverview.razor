@@ -3,6 +3,7 @@
 @using Microsoft.JSInterop
 @inject ApplicationResourceService ApplicationProvider
 @inject ILogManager LogManager
+@inject IResourceHealthManager HealthManager
 @inject IResourceManagerStore ResourceManager
 @inject IResourceManager ResourceManagerClient
 @inject IResourceRegistrationStore Registrations
@@ -453,6 +454,10 @@ else
     private IReadOnlyList<LogDescriptor> Logs { get; set; } = [];
     private IReadOnlyDictionary<string, IReadOnlyList<LogDescriptor>> RelatedLogsByResourceId { get; set; } =
         new Dictionary<string, IReadOnlyList<LogDescriptor>>(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyDictionary<string, ResourceHealthSummary> RelatedHealthByResourceId { get; set; } =
+        new Dictionary<string, ResourceHealthSummary>(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyDictionary<string, ResourceOperationCapabilities> RelatedCapabilitiesByResourceId { get; set; } =
+        new Dictionary<string, ResourceOperationCapabilities>(StringComparer.OrdinalIgnoreCase);
     private ContainerHostPlacementView? ContainerHostPlacement { get; set; }
 
     protected override async Task OnParametersSetAsync()
@@ -496,6 +501,12 @@ else
         RelatedLogsByResourceId = Application is null
             ? new Dictionary<string, IReadOnlyList<LogDescriptor>>(StringComparer.OrdinalIgnoreCase)
             : await LoadRelatedLogsAsync(GetRelationshipResourceIds());
+        RelatedHealthByResourceId = Application is null
+            ? new Dictionary<string, ResourceHealthSummary>(StringComparer.OrdinalIgnoreCase)
+            : await LoadRelatedHealthAsync(GetRelationshipResourceIds());
+        RelatedCapabilitiesByResourceId = Application is null
+            ? new Dictionary<string, ResourceOperationCapabilities>(StringComparer.OrdinalIgnoreCase)
+            : await LoadRelatedCapabilitiesAsync(GetRelationshipResourceIds());
         ContainerHostPlacement = Application is null || !IsContainerBacked(Application) || IsSqlServer(Application)
             ? null
             : GetContainerHostPlacement(Application);
@@ -1159,16 +1170,31 @@ else
             ? Application?.Name ?? fallbackResourceId ?? ResourceId ?? "resource"
             : GetResourceLabel(ProjectedResource);
 
-    private static string FormatDependencySummary(Resource? dependency, string dependencyId)
+    private string FormatDependencySummary(Resource? dependency, string dependencyId)
     {
         if (dependency is null)
         {
             return $"{dependencyId} is unavailable.";
         }
 
-        return dependency.State is null
-            ? "Registered dependency"
-            : $"State: {dependency.State}";
+        var parts = new List<string>
+        {
+            dependency.State is null
+                ? "Registered dependency"
+                : $"State: {dependency.State}"
+        };
+
+        if (RelatedHealthByResourceId.GetValueOrDefault(dependency.Id) is { } health)
+        {
+            parts.Add($"Health: {health.Status}");
+        }
+
+        if (GetRelationshipReadinessDiagnostic(dependency) is { } readiness)
+        {
+            parts.Add(readiness);
+        }
+
+        return string.Join(" · ", parts);
     }
 
     private static string FormatDependencyMetadata(Resource? dependency) =>
@@ -1245,6 +1271,70 @@ else
                     .ThenBy(log => log.Id, StringComparer.OrdinalIgnoreCase)
                     .ToArray(),
                 StringComparer.OrdinalIgnoreCase);
+    }
+
+    private async Task<IReadOnlyDictionary<string, ResourceHealthSummary>> LoadRelatedHealthAsync(
+        IEnumerable<string> resourceIds)
+    {
+        var requested = resourceIds
+            .Append(Application?.Id)
+            .Where(resourceId => !string.IsNullOrWhiteSpace(resourceId))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (requested.Count == 0)
+        {
+            return new Dictionary<string, ResourceHealthSummary>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var health = await HealthManager.ListResourceHealthAsync();
+        return health
+            .Where(item => requested.Contains(item.Key))
+            .ToDictionary(item => item.Key, item => item.Value, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private async Task<IReadOnlyDictionary<string, ResourceOperationCapabilities>> LoadRelatedCapabilitiesAsync(
+        IEnumerable<string> resourceIds)
+    {
+        var requested = resourceIds
+            .Append(Application?.Id)
+            .Where(resourceId => !string.IsNullOrWhiteSpace(resourceId))
+            .Select(resourceId => resourceId!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        return requested.Length == 0
+            ? new Dictionary<string, ResourceOperationCapabilities>(StringComparer.OrdinalIgnoreCase)
+            : await ResourceManagerClient.GetResourceOperationCapabilitiesAsync(requested);
+    }
+
+    private string? GetRelationshipReadinessDiagnostic(Resource resource)
+    {
+        if (!RelatedCapabilitiesByResourceId.TryGetValue(resource.Id, out var capabilities))
+        {
+            return null;
+        }
+
+        var action = GetReadinessAction(resource);
+        if (action is null ||
+            capabilities.CanExecuteAction(action.Id))
+        {
+            return null;
+        }
+
+        var reason = capabilities.GetActionUnavailableReason(action.Id);
+        return string.IsNullOrWhiteSpace(reason)
+            ? null
+            : reason;
+    }
+
+    private static ResourceAction? GetReadinessAction(Resource resource)
+    {
+        var preferredKind = resource.State is ResourceState.Running or ResourceState.Starting or ResourceState.Degraded
+            ? ResourceActionKind.Restart
+            : ResourceActionKind.Start;
+
+        return resource.ResourceActions.FirstOrDefault(action => action.Kind == preferredKind) ??
+            resource.ResourceActions.FirstOrDefault(action =>
+                action.Kind is ResourceActionKind.Start or ResourceActionKind.Restart);
     }
 
     private IReadOnlyList<ResourceRelationshipNodeAction> GetRelationshipActions(Resource resource)
