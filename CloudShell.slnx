@@ -90,6 +90,7 @@
   <Project Path="CloudShell.Hosting/CloudShell.Hosting.csproj" />
   <Project Path="CloudShell.Persistence/CloudShell.Persistence.csproj" />
   <Project Path="CloudShell.UI.Composition.Blazor/CloudShell.UI.Composition.Blazor.csproj" />
+  <Project Path="CloudShell.UI.Composition.Tests/CloudShell.UI.Composition.Tests.csproj" />
   <Project Path="CloudShell.UI.Composition/CloudShell.UI.Composition.csproj" />
   <Project Path="CloudShell.Providers.Applications/CloudShell.Providers.Applications.csproj" />
   <Project Path="CloudShell.Providers.Configuration/CloudShell.Providers.Configuration.csproj" />

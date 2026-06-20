@@ -74,6 +74,11 @@ on `git blame --follow`, and then by the broad type of change.
 - The Blazor composition library now includes a plain `TitleOutlet` component
   that renders the title for the current composition page from the cascaded
   composition context.
+- The core composition registry now has focused tests for route normalization,
+  target link resolution, section ordering, menu registration, duplicate ID
+  validation, and extendable section outlet validation.
+- The standalone Composition Sandbox now includes a second registered Blazor
+  page to prove page-to-page navigation through composition page IDs.
 - Moved the composition proof direction away from the UI Extension Host sample:
   CloudShell extension integration should adapt to the core composition graph
   only after the standalone app structure is credible.

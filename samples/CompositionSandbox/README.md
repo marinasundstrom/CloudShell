@@ -13,6 +13,9 @@ The sample proves the first boundary:
   outlets.
 - The app owns visual styling. This sample uses plain Bootstrap CSS plus a
   small app stylesheet; it does not use a Blazor Bootstrap component package.
+- Page navigation uses normal Blazor routes. The menu and `CompositionLink`
+  resolve registered page IDs to links, and `CompositionHost` resolves the
+  active composition page from the current route.
 
 Future CloudShell extension integration should adapt extension contributions
 into the core composition model after this standalone API shape is proven.
