@@ -9,9 +9,13 @@ public sealed class CompositionRegistryTests
     private static readonly MenuItemId WorkspaceMenuItem = new("menu-item.main.workspace");
     private static readonly MenuItemId SectionMenuItem = new("menu-item.main.workspace.section");
     private static readonly PageId WorkspacePage = new("page.workspace");
+    private static readonly PageId ReportsPage = new("page.reports");
     private static readonly SectionOutletId MainOutlet = new("section-outlet.workspace.main");
+    private static readonly SectionOutletId ReportsOutlet = new("section-outlet.reports.main");
     private static readonly SectionId OverviewSection = new("section.workspace.main.overview");
     private static readonly SectionId DetailsSection = new("section.workspace.main.details");
+    private static readonly SectionId ReportsSummarySection = new("section.reports.main.summary");
+    private static readonly CompositionModuleId ReportsModule = new("composition-module.reports");
 
     [Fact]
     public void GetPageByRoute_NormalizesRouteQueryAndFragment()
@@ -157,26 +161,95 @@ public sealed class CompositionRegistryTests
         Assert.Equal(DetailsSection.Value, sectionItem.Target.Value);
     }
 
-    private static CompositionRegistry CreateRegistry() =>
-        CompositionRegistry.Create(composition =>
-        {
-            var menu = composition.AddMenu(MainMenu, "Main");
-            menu
-                .AddItem(WorkspaceMenuItem, "Workspace", 10)
-                .Target(WorkspacePage);
-            menu
-                .AddSection(WorkspaceMenuSection, "Workspace sections", 20)
-                .AddItem(SectionMenuItem, "Details", 10)
-                .Target(DetailsSection);
+    [Fact]
+    public void Create_AssignsDefaultHostModule()
+    {
+        var registry = CreateRegistry();
 
-            var page = composition.AddPage(WorkspacePage, "Workspace", "/workspace");
-            page
-                .AddSections(MainOutlet, allowExtending: true)
-                .AddSection<OverviewSectionComponent>(OverviewSection, "Overview", 10)
-                .AddSection<DetailsSectionComponent>(DetailsSection, "Details", 10);
+        var module = Assert.Single(registry.Modules);
+
+        Assert.Equal(CompositionModuleId.Host, module.Id);
+        Assert.Single(module.Pages);
+        Assert.Single(module.Menus);
+        Assert.Equal(2, module.Sections.Count);
+    }
+
+    [Fact]
+    public void FromModules_CombinesModuleArtifacts()
+    {
+        var host = CreateHostModule();
+        var reports = CompositionModule.Create(ReportsModule, module =>
+        {
+            module
+                .AddPage(ReportsPage, "Reports", "/reports")
+                .AddSections(ReportsOutlet)
+                .AddSection<ReportsSectionComponent>(ReportsSummarySection, "Summary", 10);
         });
+
+        var registry = CompositionRegistry.FromModules(host, reports);
+
+        Assert.Equal(2, registry.Modules.Count);
+        Assert.NotNull(registry.GetPage(WorkspacePage));
+        Assert.NotNull(registry.GetPage(ReportsPage));
+        Assert.Single(registry.GetSections(ReportsPage, ReportsOutlet));
+    }
+
+    [Fact]
+    public void FromModules_RejectsDuplicateModuleIds()
+    {
+        var module = CreateHostModule();
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            CompositionRegistry.FromModules(module, module));
+
+        Assert.Contains("Duplicate composition module ID", exception.Message);
+    }
+
+    private static CompositionRegistry CreateRegistry() =>
+        CompositionRegistry.Create(ConfigureHostModule);
+
+    private static CompositionModule CreateHostModule() =>
+        CompositionModule.Create(CompositionModuleId.Host, ConfigureHostModule);
+
+    private static void ConfigureHostModule(CompositionBuilder composition)
+    {
+        var menu = composition.AddMenu(MainMenu, "Main");
+        menu
+            .AddItem(WorkspaceMenuItem, "Workspace", 10)
+            .Target(WorkspacePage);
+        menu
+            .AddSection(WorkspaceMenuSection, "Workspace sections", 20)
+            .AddItem(SectionMenuItem, "Details", 10)
+            .Target(DetailsSection);
+
+        var page = composition.AddPage(WorkspacePage, "Workspace", "/workspace");
+        page
+            .AddSections(MainOutlet, allowExtending: true)
+            .AddSection<OverviewSectionComponent>(OverviewSection, "Overview", 10)
+            .AddSection<DetailsSectionComponent>(DetailsSection, "Details", 10);
+    }
+
+    private static void ConfigureHostModule(CompositionModuleBuilder composition)
+    {
+        var menu = composition.AddMenu(MainMenu, "Main");
+        menu
+            .AddItem(WorkspaceMenuItem, "Workspace", 10)
+            .Target(WorkspacePage);
+        menu
+            .AddSection(WorkspaceMenuSection, "Workspace sections", 20)
+            .AddItem(SectionMenuItem, "Details", 10)
+            .Target(DetailsSection);
+
+        var page = composition.AddPage(WorkspacePage, "Workspace", "/workspace");
+        page
+            .AddSections(MainOutlet, allowExtending: true)
+            .AddSection<OverviewSectionComponent>(OverviewSection, "Overview", 10)
+            .AddSection<DetailsSectionComponent>(DetailsSection, "Details", 10);
+    }
 
     private sealed class OverviewSectionComponent;
 
     private sealed class DetailsSectionComponent;
+
+    private sealed class ReportsSectionComponent;
 }

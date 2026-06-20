@@ -4,15 +4,18 @@ namespace CloudShell.UI.Composition;
 
 public sealed class CompositionRegistry
 {
+    private readonly IReadOnlyList<CompositionModule> _modules;
     private readonly IReadOnlyList<CompositionPageRegistration> _pages;
     private readonly IReadOnlyList<CompositionMenuRegistration> _menus;
     private readonly IReadOnlyList<CompositionSectionRegistration> _sections;
 
     private CompositionRegistry(
+        IReadOnlyList<CompositionModule> modules,
         IReadOnlyList<CompositionPageRegistration> pages,
         IReadOnlyList<CompositionMenuRegistration> menus,
         IReadOnlyList<CompositionSectionRegistration> sections)
     {
+        _modules = modules;
         _pages = pages;
         _menus = menus;
         _sections = sections;
@@ -26,6 +29,33 @@ public sealed class CompositionRegistry
         configure(builder);
         return builder.Build();
     }
+
+    public static CompositionRegistry FromModules(params CompositionModule[] modules) =>
+        FromModules((IEnumerable<CompositionModule>)modules);
+
+    public static CompositionRegistry FromModules(IEnumerable<CompositionModule> modules)
+    {
+        ArgumentNullException.ThrowIfNull(modules);
+
+        var materializedModules = modules.ToArray();
+        ValidateUnique(materializedModules.Select(module => module.Id.Value), "module");
+
+        var pages = materializedModules.SelectMany(module => module.Pages).ToArray();
+        var menus = materializedModules.SelectMany(module => module.Menus).ToArray();
+        var sections = materializedModules.SelectMany(module => module.Sections).ToArray();
+
+        ValidateUnique(pages.Select(page => page.Id.Value), "page");
+        ValidateUnique(menus.Select(menu => menu.Id.Value), "menu");
+        ValidateUnique(sections.Select(section => section.Id.Value), "section");
+
+        return new(
+            materializedModules,
+            pages,
+            menus,
+            sections);
+    }
+
+    public IReadOnlyList<CompositionModule> Modules => _modules;
 
     public CompositionPageRegistration? GetPage(PageId pageId) =>
         _pages.FirstOrDefault(page => page.Id == pageId);
@@ -86,16 +116,7 @@ public sealed class CompositionRegistry
     }
 
     internal static CompositionRegistry FromBuilder(CompositionBuilder builder)
-    {
-        ValidateUnique(builder.Pages.Select(page => page.Id.Value), "page");
-        ValidateUnique(builder.Menus.Select(menu => menu.Id.Value), "menu");
-        ValidateUnique(builder.Sections.Select(section => section.Id.Value), "section");
-
-        return new(
-            builder.Pages.ToArray(),
-            builder.Menus.ToArray(),
-            builder.Sections.ToArray());
-    }
+        => FromModules(builder.BuildModule(CompositionModuleId.Host));
 
     internal static string NormalizeRoute(string route)
     {

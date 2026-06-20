@@ -42,6 +42,13 @@ public sealed class CompositionBuilder
     internal CompositionRegistry Build() =>
         CompositionRegistry.FromBuilder(this);
 
+    internal CompositionModule BuildModule(CompositionModuleId moduleId) =>
+        new(
+            moduleId,
+            Pages.ToArray(),
+            Menus.ToArray(),
+            Sections.ToArray());
+
     private PageId FindOutletPage(SectionOutletId outletId)
     {
         var existing = Sections.FirstOrDefault(section => section.OutletId == outletId);

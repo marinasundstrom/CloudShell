@@ -15,7 +15,7 @@ The current implementation is split into two libraries:
 
 | Library | Current role |
 | --- | --- |
-| `CloudShell.UI.Composition` | Core facilities: typed IDs, page/menu/section registrations, registry builder, route lookup, section ordering, and target-to-link resolution. |
+| `CloudShell.UI.Composition` | Core facilities: typed IDs, page/menu/section registrations, module building, registry builder, route lookup, section ordering, and target-to-link resolution. |
 | `CloudShell.UI.Composition.Blazor` | Plain Blazor components and DI registration for rendering the core graph. It does not depend on Fluent UI, Bootstrap component packages, CloudShell Hosting, Resource Manager, or CloudShell extension contracts. |
 
 The Blazor components render ordinary HTML elements and can be styled by the
@@ -46,6 +46,7 @@ serialized address.
 
 The current graph supports:
 
+- composition modules
 - menus
 - menu sections
 - menu items
@@ -113,6 +114,25 @@ builder.Services.AddCloudShellUiComposition(composition =>
             10);
 });
 ```
+
+Modules are the first implementation step toward extension-owned composition.
+A module records the pages, menus, and sections produced by a module-scoped
+builder. A registry can then be assembled from one or more modules:
+
+```csharp
+var hostModule = CompositionModule.Create(
+    CompositionModuleId.Host,
+    module =>
+    {
+        module.AddPage(CompositionIds.WorkspacePage, "Workspace", "/");
+    });
+
+var registry = CompositionRegistry.FromModules(hostModule);
+```
+
+This is still static composition. CloudShell extension activation,
+deactivation, dynamic mount/unmount, and artifact-level diagnostics are future
+adapter work.
 
 `allowExtending: true` marks a section outlet as extendable. Only extendable
 outlets can be reopened through `GetSections(...)`. This keeps extension-style
@@ -236,11 +256,11 @@ to opt into custom display behavior.
 
 ## Current Validation
 
-The core registry currently validates duplicate page, menu, and section IDs
+The core registry currently validates duplicate module, page, menu, and section IDs
 when the graph is built. Tests cover route normalization, target link
 resolution, section target links with route parameters, section ordering,
-section metadata, menu registration, duplicate ID validation, and extendable
-section outlet validation.
+section metadata, menu registration, module assembly, duplicate ID validation,
+and extendable section outlet validation.
 
 Validation is intentionally still small. Future work should validate unknown
 targets, missing parents, unsupported content kinds, module ownership
@@ -253,9 +273,10 @@ The current composition engine does not yet include:
 - CloudShell extension adapter APIs
 - Resource Manager adapters
 - persisted composition graph metadata
-- `CompositionModule` ownership records
 - `CompositionModuleBuilder` integration with the CloudShell extension
   activation/deactivation lifecycle
+- dynamic module mount/unmount in a running composition host
+- artifact-level module diagnostics in renderer projections
 - serializable descriptor objects for all artifacts
 - separate runtime artifact instances and renderer projections
 - composed ID factories for parent/child artifact IDs

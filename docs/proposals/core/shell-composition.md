@@ -289,12 +289,11 @@ proposal:
   stacked sections, and section tabs.
 - Registration titles are plain strings. Localization metadata, localization
   providers, and title content templates remain future design work.
-- Registration ownership is not yet recorded. A future `CompositionModule`
-  concept should identify whether an artifact came from the shell, Resource
-  Manager, a built-in capability, a sample host, or an extension. That module
-  metadata will be needed for diagnostics, disable/unload behavior, conflict
-  handling, trust boundaries, permission review, and future persisted graph
-  metadata.
+- Registration ownership is recorded at the module boundary through
+  `CompositionModuleId`. Artifact-level ownership in renderer projections and
+  diagnostics remains future work. That richer module metadata will be needed
+  for diagnostics, disable/unload behavior, conflict handling, trust
+  boundaries, permission review, and future persisted graph metadata.
 - Runtime artifact instances and renderer projections are not yet separated
   from descriptor data. The direction is to keep serializable descriptors as
   the durable artifact shape, produce runtime instances from those

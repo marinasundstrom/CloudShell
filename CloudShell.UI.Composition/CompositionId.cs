@@ -1,5 +1,12 @@
 namespace CloudShell.UI.Composition;
 
+public readonly record struct CompositionModuleId(string Value)
+{
+    public static readonly CompositionModuleId Host = new("composition-module.host");
+
+    public override string ToString() => Value;
+}
+
 public readonly record struct MenuId(string Value)
 {
     public override string ToString() => Value;
