@@ -9,6 +9,7 @@ public sealed class CompositionRegistryTests
     private static readonly MenuItemId WorkspaceMenuItem = new("menu-item.main.workspace");
     private static readonly MenuItemId SectionMenuItem = new("menu-item.main.workspace.section");
     private static readonly MenuItemId ChildMenuItem = new("menu-item.main.workspace.child");
+    private static readonly MenuItemId ReportsMenuItem = new("menu-item.main.workspace.reports");
     private static readonly PageId WorkspacePage = new("page.workspace");
     private static readonly PageId ReportsPage = new("page.reports");
     private static readonly PageId ResourceDetailsPage = new("page.resources.details");
@@ -407,6 +408,37 @@ public sealed class CompositionRegistryTests
                 Assert.Equal(SectionMenuItem, childItem.ParentId);
                 Assert.Equal("/workspace/child", childItem.Target.Value);
             });
+    }
+
+    [Fact]
+    public void FromModules_MergesMenuContributionsByMenuAndGroup()
+    {
+        var host = CreateHostModule();
+        var reports = CompositionModule.Create(ReportsModule, module =>
+        {
+            module
+                .GetMenu(MainMenu)
+                .AddGroup(WorkspaceMenuGroup, "Workspace sections", 20)
+                .AddItem(ReportsMenuItem, "Reports", 30)
+                .Target(ReportsPage);
+        });
+
+        var registry = CompositionRegistry.FromModules(host, reports);
+
+        var menu = registry.GetMenu(MainMenu);
+        Assert.NotNull(menu);
+        var group = Assert.Single(menu.Groups);
+        Assert.Equal(WorkspaceMenuGroup, group.Id);
+        Assert.Collection(
+            group.Items,
+            item => Assert.Equal(SectionMenuItem, item.Id),
+            item => Assert.Equal(ChildMenuItem, item.Id),
+            item => Assert.Equal(ReportsMenuItem, item.Id));
+        var reportsProjection = registry.GetMenuItemProjection(ReportsMenuItem);
+        Assert.NotNull(reportsProjection);
+        Assert.Equal(ReportsModule, reportsProjection.ModuleId);
+        Assert.Equal(MainMenu, reportsProjection.Menu.Id);
+        Assert.Equal(WorkspaceMenuGroup, reportsProjection.Group?.Id);
     }
 
     [Fact]

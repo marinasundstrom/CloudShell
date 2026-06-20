@@ -95,6 +95,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The Platform section on the common Settings page now resolves Users and
   Extensions links through composition page targets instead of querying the
   legacy shell catalog directly.
+- Composition menu registrations can now be contributed by multiple modules
+  and merged by menu/group ID, and Resource Manager contributes its Resources
+  and Health sidebar items directly into the composition main menu.
 - The common Settings page now renders composition sections through a
   CloudShell-specific tabbed-layout adapter, keeping section projection,
   selection, link resolution, and dynamic section rendering reusable.

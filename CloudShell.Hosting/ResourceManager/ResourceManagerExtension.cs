@@ -2,6 +2,7 @@ using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Hosting.Components.Pages.Resources;
 using CloudShell.Hosting.Shell;
+using CloudShell.UI.Composition;
 using CloudShell.UI.Composition.Blazor;
 
 namespace CloudShell.Hosting.ResourceManager;
@@ -55,14 +56,25 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                     ResourceManagerCompositionIds.ResourceSettingsPage,
                     "Resource Manager settings",
                     ResourceManagerRoutes.ResourceSettings);
+
+                var workspaceMenu = composition
+                    .GetMenu(ShellCompositionIds.MainMenu)
+                    .AddGroup(ResourceManagerCompositionIds.WorkspaceMenuGroup, "Workspace", 10);
+
+                workspaceMenu
+                    .AddItem(ResourceManagerCompositionIds.ResourcesMenuItem, "Resources", 10)
+                    .WithAttribute(CompositionAttributeNames.Icon, "server")
+                    .Target(ResourceManagerCompositionIds.ResourcesPage);
+                workspaceMenu
+                    .AddItem(ResourceManagerCompositionIds.HealthMenuItem, "Health", 15)
+                    .WithAttribute(CompositionAttributeNames.Icon, "health")
+                    .Target(ResourceManagerCompositionIds.HealthPage);
             });
 
         builder
             .RegisterView<Resources>(ResourceManagerViews.Resources)
-            .AddNavigationItem<Resources>("Resources", "server", 10)
             .RegisterView<ResourceDependencyGraph>(ResourceManagerViews.ResourceGraph)
             .RegisterView<Health>(ResourceManagerViews.Health)
-            .AddNavigationItem<Health>("Health", "health", 15)
             .RegisterView<AddResource>(ResourceManagerViews.AddResource)
             .RegisterView<CreateResourceGroup>(ResourceManagerViews.CreateResourceGroup)
             .RegisterView<ResourceTemplates>(ResourceManagerViews.ResourceTemplates)

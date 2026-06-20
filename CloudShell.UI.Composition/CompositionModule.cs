@@ -88,6 +88,9 @@ public sealed class CompositionModuleBuilder
     public CompositionMenuBuilder AddMenu(MenuId id, string title) =>
         _builder.AddMenu(id, title);
 
+    public CompositionMenuBuilder GetMenu(MenuId id) =>
+        _builder.GetMenu(id);
+
     public CompositionPageBuilder AddPage(
         PageId id,
         string title,

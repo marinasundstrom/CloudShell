@@ -1,10 +1,12 @@
 # UI Composition
 
 CloudShell UI composition is an experimental layout/content engine for Blazor
-applications. It is currently independent from CloudShell Hosting, Resource
-Manager, and the CloudShell extension model. The first goal is to prove the
-basic graph, routing bridge, and rendering components in a normal Blazor app
-before adding CloudShell-specific adapters.
+applications. It started outside CloudShell Hosting and Resource Manager so the
+basic graph, routing bridge, and rendering components could be proven in a
+normal Blazor app before adding CloudShell-specific adapters. CloudShell
+Hosting now consumes the same libraries for selected shell surfaces while the
+standalone sample remains the place to prove layout patterns without coupling
+them to the shell.
 
 For future direction, see the
 [shell composition proposal](proposals/core/shell-composition.md).
@@ -220,6 +222,15 @@ This is still startup composition, not CloudShell extension discovery. It gives
 hosts and packages a small integration point for contributing modules without
 introducing a CMS/editor layer.
 
+Multiple modules may contribute to the same menu ID. A host module can declare
+the menu with `AddMenu(...)`, while another module can retrieve that menu target
+with `GetMenu(...)` and add groups or items to it. During registry assembly,
+menu registrations with the same `MenuId` are merged, groups with the same
+`MenuGroupId` are merged, and menu item IDs must remain unique across all
+contributions to that menu. Menu item projections still preserve the module
+that contributed each item, so presenters and diagnostics can identify
+ownership after the visible menu has been merged.
+
 Cross-module extension depends on a shared composition host context. The module
 that owns a page or section outlet publishes strongly typed extension points,
 such as `CompositionSectionOutletExtensionPoint`, from that context. Every
@@ -302,6 +313,14 @@ interpretation through `CompositionAttributeNames.Icon`. New
 composition-native menus should prefer artifact-ID targets when they point at
 registered pages or sections, and href targets when they point outside the
 composition graph.
+
+Resource Manager has started moving static sidebar items from legacy shell
+navigation to composition-native menu contributions. Its Resources and Health
+items now contribute directly to `ShellCompositionIds.MainMenu` under the shared
+Workspace menu group and target registered Resource Manager page IDs. The
+legacy navigation bridge remains for shell-owned pages and unmigrated extension
+navigation items; migrated items should be removed from legacy
+`AddNavigationItem(...)` registration to avoid duplicate sidebar entries.
 
 The CloudShell main layout hosts `CompositionHost` in pass-through mode. Pages
 that are registered in the composition graph receive a cascaded

@@ -19,6 +19,15 @@ public sealed class CompositionBuilder
         return menu;
     }
 
+    public CompositionMenuBuilder GetMenu(MenuId id)
+    {
+        CompositionRegistry.ValidateId(id.Value, nameof(id));
+
+        var menu = new CompositionMenuBuilder(this, id, title: string.Empty);
+        Menus.Add(menu.Build());
+        return menu;
+    }
+
     public CompositionPageBuilder AddPage(
         PageId id,
         string title,

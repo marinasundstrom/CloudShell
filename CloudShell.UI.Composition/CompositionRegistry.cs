@@ -32,18 +32,18 @@ public sealed class CompositionRegistry
     {
         _modules = modules;
         _pages = pages;
-        _menus = menus;
+        _menus = MergeMenus(menus);
         _sectionOutlets = sectionOutlets;
         _sections = sections;
         _pageProjectionsById = modules
             .SelectMany(module => module.Pages.Select(page => new CompositionPageProjection(module.Id, page)))
             .ToDictionary(projection => projection.Page.Id);
         _pagesByRoute = pages.ToDictionary(page => page.Route, StringComparer.OrdinalIgnoreCase);
-        _menuProjectionsById = modules
-            .SelectMany(module => module.Menus.Select(menu => new CompositionMenuProjection(module.Id, menu)))
+        _menuProjectionsById = _menus
+            .Select(menu => new CompositionMenuProjection(GetMenuOwner(modules, menu.Id), menu))
             .ToDictionary(projection => projection.Menu.Id);
         _menuItemProjectionsById = modules
-            .SelectMany(GetMenuItemProjections)
+            .SelectMany(module => GetMenuItemProjections(module, _menuProjectionsById))
             .ToDictionary(projection => projection.Item.Id);
         _menuItemProjectionsByMenu = _menuItemProjectionsById.Values
             .GroupBy(projection => projection.Menu.Id)
@@ -105,7 +105,6 @@ public sealed class CompositionRegistry
         var sections = materializedModules.SelectMany(module => module.Sections).ToArray();
 
         ValidateUnique(pages.Select(page => page.Id.Value), "page");
-        ValidateUnique(menus.Select(menu => menu.Id.Value), "menu");
         ValidateMenuContributions(menus);
         ValidateUnique(sectionOutlets.Select(outlet => outlet.Id.Value), "section outlet");
         ValidateUnique(sections.Select(section => section.Id.Value), "section");
@@ -268,16 +267,21 @@ public sealed class CompositionRegistry
 
     private static void ValidateMenuContributions(IReadOnlyList<CompositionMenuRegistration> menus)
     {
-        ValidateUnique(menus.SelectMany(menu => menu.Groups).Select(group => group.Id.Value), "menu group");
-        ValidateUnique(menus.SelectMany(GetMenuItems).Select(item => item.Id.Value), "menu item");
-
         foreach (var menu in menus)
         {
-            var itemIds = GetMenuItems(menu)
-                .Select(item => item.Id)
-                .ToHashSet();
+            ValidateUnique(menu.Groups.Select(group => group.Id.Value), "menu group");
+        }
 
-            foreach (var item in GetMenuItems(menu).Where(item => item.ParentId is not null))
+        foreach (var menuContributions in menus.GroupBy(menu => menu.Id))
+        {
+            var contributedItemIds = menuContributions
+                .SelectMany(GetMenuItems)
+                .Select(item => item.Id)
+                .ToArray();
+            ValidateUnique(contributedItemIds.Select(id => id.Value), "menu item");
+            var itemIds = contributedItemIds.ToHashSet();
+
+            foreach (var item in menuContributions.SelectMany(GetMenuItems).Where(item => item.ParentId is not null))
             {
                 if (!itemIds.Contains(item.ParentId!.Value))
                 {
@@ -291,20 +295,72 @@ public sealed class CompositionRegistry
     private static IEnumerable<CompositionMenuItemRegistration> GetMenuItems(CompositionMenuRegistration menu) =>
         menu.Items.Concat(menu.Groups.SelectMany(group => group.Items));
 
-    private static IEnumerable<CompositionMenuItemProjection> GetMenuItemProjections(CompositionModule module)
+    private static IReadOnlyList<CompositionMenuRegistration> MergeMenus(IReadOnlyList<CompositionMenuRegistration> menus) =>
+        menus
+            .GroupBy(menu => menu.Id)
+            .Select(MergeMenu)
+            .ToArray();
+
+    private static CompositionMenuRegistration MergeMenu(IGrouping<MenuId, CompositionMenuRegistration> menus)
+    {
+        var menuList = menus.ToArray();
+        var title = menuList
+            .Select(menu => menu.Title)
+            .FirstOrDefault(title => !string.IsNullOrWhiteSpace(title))
+            ?? menus.Key.Value;
+        var rootItems = menuList
+            .SelectMany(menu => menu.Items)
+            .OrderBy(item => item.Order)
+            .ThenBy(item => item.Title, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var groups = menuList
+            .SelectMany(menu => menu.Groups)
+            .GroupBy(group => group.Id)
+            .Select(MergeMenuGroup)
+            .OrderBy(group => group.Order)
+            .ThenBy(group => group.Title, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return new(menus.Key, title, rootItems, groups);
+    }
+
+    private static CompositionMenuGroupRegistration MergeMenuGroup(
+        IGrouping<MenuGroupId, CompositionMenuGroupRegistration> groups)
+    {
+        var groupList = groups.ToArray();
+        var first = groupList[0];
+        var items = groupList
+            .SelectMany(group => group.Items)
+            .OrderBy(item => item.Order)
+            .ThenBy(item => item.Title, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return first with { Items = items };
+    }
+
+    private static CompositionModuleId GetMenuOwner(
+        IReadOnlyList<CompositionModule> modules,
+        MenuId menuId) =>
+        modules.First(module => module.Menus.Any(menu => menu.Id == menuId)).Id;
+
+    private static IEnumerable<CompositionMenuItemProjection> GetMenuItemProjections(
+        CompositionModule module,
+        IReadOnlyDictionary<MenuId, CompositionMenuProjection> menuProjections)
     {
         foreach (var menu in module.Menus)
         {
+            var mergedMenu = menuProjections[menu.Id].Menu;
             foreach (var item in menu.Items)
             {
-                yield return new CompositionMenuItemProjection(module.Id, menu, Group: null, item);
+                yield return new CompositionMenuItemProjection(module.Id, mergedMenu, Group: null, item);
             }
 
             foreach (var group in menu.Groups)
             {
+                var mergedGroup = mergedMenu.Groups.FirstOrDefault(mergedGroup => mergedGroup.Id == group.Id) ?? group;
                 foreach (var item in group.Items)
                 {
-                    yield return new CompositionMenuItemProjection(module.Id, menu, group, item);
+                    yield return new CompositionMenuItemProjection(module.Id, mergedMenu, mergedGroup, item);
                 }
             }
         }

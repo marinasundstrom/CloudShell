@@ -52,8 +52,8 @@ Proposed. This is post-MVP platform direction. MVP work should keep Resource
 Manager and supported local-development samples stable while avoiding
 short-term UI decisions that would prevent this model.
 
-For the current experimental library and sample behavior, see
-[UI composition](../../ui-composition.md).
+For the current experimental library, CloudShell Hosting integration slices,
+and sample behavior, see [UI composition](../../ui-composition.md).
 
 ## Goals
 
@@ -133,6 +133,13 @@ page, sub-page, slot, section container, or section. The menu renderer does not
 need to know whether the target is implemented as a Razor page, a tab, an
 accordion section, a dashboard region, or a custom layout. It asks the
 layout/content engine to resolve the target ID into a navigable link.
+
+Menu composition should allow several modules to contribute to the same menu
+or named menu group. The shell can own the main menu ID, while built-in
+capabilities and extensions add items through that shared ID. The validated
+runtime projection should merge those contributions for rendering, but still
+preserve item-level module ownership for diagnostics, permissions, extension
+activation, and future unload behavior.
 
 Routing remains a separate concern from content registration. Razor components
 can still declare routes through the normal `@page` directive. The

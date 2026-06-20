@@ -173,6 +173,36 @@ public sealed class ShellNavigationTests
     }
 
     [Fact]
+    public void MainMenu_CanCombineProjectedLegacyItemsAndNativeCompositionItems()
+    {
+        var services = new ServiceCollection();
+        services
+            .AddCloudShell()
+            .AddExtension<CoreShellExtension>()
+            .AddExtension(new ResourceManagerExtension(includeSettings: false));
+        var registry = Assert.IsType<CloudShellExtensionRegistry>(
+            Assert.Single(services, descriptor => descriptor.ServiceType == typeof(CloudShellExtensionRegistry))
+                .ImplementationInstance);
+        registry.Validate();
+        var shellCatalog = new ShellCatalog(registry, new InMemoryCloudShellExtensionActivationStore());
+        var navigationModule = new ShellNavigationCompositionProjector(shellCatalog).CreateModule();
+        var compositionModules = services
+            .Where(descriptor => descriptor.ServiceType == typeof(CompositionModule))
+            .Select(descriptor => descriptor.ImplementationInstance)
+            .OfType<CompositionModule>()
+            .Append(navigationModule)
+            .ToArray();
+        var composition = CompositionRegistry.FromModules(compositionModules);
+
+        var menu = composition.GetMenu(ShellCompositionIds.MainMenu);
+        Assert.NotNull(menu);
+        var workspaceGroup = Assert.Single(menu.Groups, group => group.Id == ResourceManagerCompositionIds.WorkspaceMenuGroup);
+        Assert.Contains(workspaceGroup.Items, item => item.Target.Value == ShellCompositionIds.OverviewPage.Value);
+        Assert.Contains(workspaceGroup.Items, item => item.Target.Value == ResourceManagerCompositionIds.ResourcesPage.Value);
+        Assert.Contains(workspaceGroup.Items, item => item.Target.Value == ResourceManagerCompositionIds.HealthPage.Value);
+    }
+
+    [Fact]
     public void ResourceManagerExtension_RegistersStaticShellPagesAsCompositionPages()
     {
         var services = new ServiceCollection();
@@ -208,6 +238,23 @@ public sealed class ShellNavigationTests
         Assert.Equal(
             ResourceManagerRoutes.ResourceSettings,
             registry.ResolveHref(ResourceManagerCompositionIds.ResourceSettingsPage));
+
+        var menu = registry.GetMenu(ShellCompositionIds.MainMenu);
+        Assert.NotNull(menu);
+        var workspaceGroup = Assert.Single(menu.Groups);
+        Assert.Equal(ResourceManagerCompositionIds.WorkspaceMenuGroup, workspaceGroup.Id);
+        Assert.Collection(
+            workspaceGroup.Items,
+            item =>
+            {
+                Assert.Equal(ResourceManagerCompositionIds.ResourcesMenuItem, item.Id);
+                Assert.Equal(ResourceManagerCompositionIds.ResourcesPage.Value, item.Target.Value);
+            },
+            item =>
+            {
+                Assert.Equal(ResourceManagerCompositionIds.HealthMenuItem, item.Id);
+                Assert.Equal(ResourceManagerCompositionIds.HealthPage.Value, item.Target.Value);
+            });
     }
 
     private static ICloudShellNavigator CreateNavigator<TExtension>(
