@@ -149,14 +149,23 @@ The exact naming constants should live in public abstractions when extension
 authors need to target them. Display text, localization, iconography, and
 ordering remain metadata on the node rather than inferred from the ID.
 
-IDs should be typed value objects rather than interchangeable strings. The
-initial model should include value objects such as `PageId`, `MenuId`,
+IDs should be typed value objects rather than interchangeable strings. They
+are central to referencing artifacts and to describing hierarchy. The initial
+model should include value objects such as `PageId`, `MenuId`,
 `MenuSectionId`, `MenuItemId`, `SectionOutletId`, `SectionContainerId`, and
 `SectionId`, or close equivalents as the API names settle. These IDs encode
 the relevant navigation or content hierarchy in their value, while the type
 keeps a menu ID from accidentally being used as a page or section ID. The
 hierarchical value is the stable address; title, icon, ordering, permissions,
 and component metadata remain separate registration metadata.
+
+Some IDs should be composed from parent IDs rather than assembled as unrelated
+strings. For example, a `SectionId` should be built from a section identifier
+and the parent page, sub-page, slot, or section-container ID it belongs to.
+This keeps hierarchy explicit in the type system and lets builders create
+stable child IDs from known parent artifacts. The string value remains useful
+as a serialized address, but callers should normally construct IDs through
+typed factories or builders instead of string concatenation.
 
 The graph should make these relationships explicit:
 
@@ -193,6 +202,9 @@ should converge toward.
 | Composition target | A reference to an addressable artifact. | Used by menu items, links, commands, diagnostics, and sections. The resolver turns a target into a route, fragment, selected state, or not-found result. |
 | Composition context | Runtime context for the currently resolved content. | Starts with current page and route; should grow to include selected sub-page/section, route values, query state, ambient data, and caller/user state. |
 | Composition metadata | Non-rendered facts attached to artifacts. | Title, description, icon, order, localization key, permissions, visibility, and module ownership belong here. |
+| Composition descriptor | Serializable artifact data. | Descriptor objects should carry IDs, kind, ordering, owner/module, target relationships, route metadata, and serializable metadata for future dehydration and persistence. |
+| Composition instance | Runtime artifact object. | Instance objects are projections over descriptors and runtime component bindings, after validation and module mounting. |
+| Composition projection | Renderer-ready view over artifacts. | Menus, tab sets, section lists, breadcrumbs, and settings layouts should consume projections rather than raw mutable builder state. |
 
 ### Navigation Primitives
 
@@ -269,6 +281,9 @@ proposal:
 
 - Page, menu, menu item, section outlet, and section IDs are typed value
   objects.
+- Current IDs wrap stable string values. The direction is composed ID value
+  types where child IDs, such as section IDs, are created from an identifier
+  plus a parent artifact ID.
 - Sections are the current named content primitive.
 - The Blazor package provides plain renderers for menus, links, titles,
   stacked sections, and section tabs.
@@ -280,6 +295,11 @@ proposal:
   metadata will be needed for diagnostics, disable/unload behavior, conflict
   handling, trust boundaries, permission review, and future persisted graph
   metadata.
+- Runtime artifact instances and renderer projections are not yet separated
+  from descriptor data. The direction is to keep serializable descriptors as
+  the durable artifact shape, produce runtime instances from those
+  descriptors, and expose renderer-specific projections from the validated
+  graph.
 
 For example, a menu item targeting
 `section.resource-manager.resource.overview.summary` may resolve to the
@@ -456,7 +476,7 @@ boundaries so extension authors can target known layout nodes without relying
 on ad hoc string conventions.
 
 The host application or built-in shell capabilities define the initial
-navigation and content structure:
+navigation and content structure through builders:
 
 ```csharp
 var mainMenu = builder.AddMenu(PredefinedMenus.Main);
@@ -482,6 +502,32 @@ settingsSections.AddSection(
     PredefinedSections.SettingsGeneral,
     component: typeof(GeneralSettingsSection));
 ```
+
+An extension should receive a `CompositionModuleBuilder`, or equivalent
+builder scoped to its extension module. That builder creates a
+`CompositionModule` containing the extension-owned descriptors. The CloudShell
+extension framework then mounts or unmounts the resulting module according to
+extension activation rules:
+
+```csharp
+public sealed class IdentityExtension : ICloudShellExtension
+{
+    public void Compose(CompositionModuleBuilder module)
+    {
+        module
+            .GetSections(PredefinedSectionContainers.Settings)
+            .AddSection(
+                MySections.IdentityProviders,
+                component: typeof(IdentityProviderSettingsSection));
+    }
+}
+```
+
+Once a module is built, the composition engine host can mount it at the
+appropriate time. Mounting does not require application startup; it can happen
+whenever the shell or extension framework decides the module is available.
+Unmounting removes or disables that module's artifacts and causes projections
+to be rebuilt.
 
 An extension can then tap into explicitly extendable nodes and add its own
 content without owning the surrounding layout:
@@ -666,3 +712,10 @@ before broad new shell surfaces become release blockers.
   extension points without creating brittle page internals?
 - What is the right `CompositionModule` shape for built-in shell areas,
   Resource Manager adapters, capability packages, and third-party extensions?
+- What is the exact descriptor/instance/projection split for component-backed
+  artifacts so descriptors remain serializable without leaking runtime-only
+  component state into persistence?
+- Which ID factories are needed first so composed child IDs remain ergonomic
+  without hiding hierarchy from extension authors?
+- Should module unmount remove artifacts from the active graph immediately, or
+  mark them unavailable so deep links can produce better diagnostics?

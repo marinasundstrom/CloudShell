@@ -92,6 +92,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Hardened the experimental composition docs and registry tests around named
   sections, section-link route parameters, duplicate section IDs, and deferred
   localization/module ownership.
+- Documented the shell composition direction for composed ID value types,
+  builder-created modules, mountable `CompositionModule` lifecycles, and a
+  future descriptor/instance/projection split for serializable artifacts.
 - Moved the composition proof direction away from the UI Extension Host sample:
   CloudShell extension integration should adapt to the core composition graph
   only after the standalone app structure is credible.

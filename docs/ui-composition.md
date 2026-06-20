@@ -38,6 +38,12 @@ new SectionId("section.workspace.main.overview");
 The ID value is the stable address. The type prevents accidentally using a
 page ID where a menu ID or section outlet ID is expected.
 
+The current implementation wraps string values. The proposed direction is
+stronger composed ID value types, where child artifacts such as sections are
+created from a local identifier plus the parent page, sub-page, slot, or
+section outlet ID. That keeps hierarchy explicit while preserving a stable
+serialized address.
+
 The current graph supports:
 
 - menus
@@ -55,6 +61,12 @@ Named sections are the current content contribution primitive. A section has a
 stable `SectionId`, a display title, an order, and a component type. Renderers
 can show those same sections as a stack, grid, tabs, or another layout pattern
 without changing the registered content graph.
+
+The current registry stores runtime registrations directly. The proposed
+direction is to split artifact data into serializable descriptors, runtime
+instances projected from descriptors, and renderer-ready projections. That
+keeps future persistence possible without making component instances or
+renderer state the durable data model.
 
 ## Registration
 
@@ -242,6 +254,11 @@ The current composition engine does not yet include:
 - Resource Manager adapters
 - persisted composition graph metadata
 - `CompositionModule` ownership records
+- `CompositionModuleBuilder` integration with the CloudShell extension
+  activation/deactivation lifecycle
+- serializable descriptor objects for all artifacts
+- separate runtime artifact instances and renderer projections
+- composed ID factories for parent/child artifact IDs
 - slots and sub-pages as first-class APIs
 - permissions or visibility rules
 - shell-specific metadata outlets beyond the plain `TitleOutlet`
