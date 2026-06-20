@@ -84,6 +84,9 @@ on `git blame --follow`, and then by the broad type of change.
   suppresses repeated polling failure logs until polling succeeds, and routes
   Resource Manager lifecycle, process, and health-probe logs through dedicated
   CloudShell logging categories that hosts can tune through appsettings.
+- Resource list rows now show a warning triangle for a potential bad state
+  when a resource is in a non-running lifecycle state but its latest health
+  checks are still reporting healthy.
 - Resource Manager now has a D3-powered resource dependency graph page linked
   from Resources, showing visible resources, endpoint summaries, lifecycle
   state, and `DependsOn` relationships.

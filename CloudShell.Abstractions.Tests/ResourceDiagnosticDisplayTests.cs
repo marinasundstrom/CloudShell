@@ -78,6 +78,51 @@ public sealed class ResourceDiagnosticDisplayTests
     }
 
     [Fact]
+    public void HasStateHealthIncongruity_ReturnsTrueForStoppedHealthyResource()
+    {
+        var resource = CreateLifecycleResource(
+            ResourceState.Stopped,
+            healthChecks: [new ResourceHealthCheck("/health")]);
+        var health = new ResourceHealthSummary(
+            resource.Id,
+            ResourceHealthStatus.Healthy,
+            DateTimeOffset.UtcNow,
+            []);
+
+        Assert.True(ResourceLifecycleDisplay.HasStateHealthIncongruity(resource, health));
+    }
+
+    [Fact]
+    public void HasStateHealthIncongruity_ReturnsFalseForRunningHealthyResource()
+    {
+        var resource = CreateLifecycleResource(
+            ResourceState.Running,
+            healthChecks: [new ResourceHealthCheck("/health")]);
+        var health = new ResourceHealthSummary(
+            resource.Id,
+            ResourceHealthStatus.Healthy,
+            DateTimeOffset.UtcNow,
+            []);
+
+        Assert.False(ResourceLifecycleDisplay.HasStateHealthIncongruity(resource, health));
+    }
+
+    [Fact]
+    public void HasStateHealthIncongruity_ReturnsFalseWhenStoppedHealthIsUnhealthy()
+    {
+        var resource = CreateLifecycleResource(
+            ResourceState.Stopped,
+            healthChecks: [new ResourceHealthCheck("/health")]);
+        var health = new ResourceHealthSummary(
+            resource.Id,
+            ResourceHealthStatus.Unhealthy,
+            DateTimeOffset.UtcNow,
+            []);
+
+        Assert.False(ResourceLifecycleDisplay.HasStateHealthIncongruity(resource, health));
+    }
+
+    [Fact]
     public void GetDiagnostics_WarnsWhenNameMappingPublisherResourceIsMissing()
     {
         var mapping = CreateNameMapping("networking:missing");
@@ -652,7 +697,9 @@ public sealed class ResourceDiagnosticDisplayTests
             Capabilities: [new(ResourceCapabilityIds.NetworkingNameMapping)]);
     }
 
-    private static Resource CreateLifecycleResource(ResourceState state) =>
+    private static Resource CreateLifecycleResource(
+        ResourceState state,
+        IReadOnlyList<ResourceHealthCheck>? healthChecks = null) =>
         new(
             "application:api",
             "API",
@@ -668,7 +715,8 @@ public sealed class ResourceDiagnosticDisplayTests
             [
                 ResourceAction.Start,
                 ResourceAction.Restart
-            ]);
+            ],
+            HealthChecks: healthChecks);
 
     private static Dictionary<string, Resource> CreateNameMappingRelatedResources(params Resource[] resources)
     {

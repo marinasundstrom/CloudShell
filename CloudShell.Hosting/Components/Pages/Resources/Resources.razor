@@ -209,7 +209,7 @@
                         }
 
                         <ResourceKindIcon Resource="resource" />
-                        <ResourceFailureIndicator Signal="GetFailureSignal(resource)" />
+                        <ResourceAttentionIndicator Signal="GetAttentionSignal(resource)" />
                         <div>
                             @if (resource.DetailRoute is not null)
                             {
@@ -973,6 +973,26 @@ StringComparer.OrdinalIgnoreCase);
         ResourceFailureSignals.TryGetValue(resource.Id, out var failure)
             ? failure
             : null;
+
+    private ResourceAttentionSignal? GetAttentionSignal(Resource resource)
+    {
+        if (GetFailureSignal(resource) is { } failure)
+        {
+            return new ResourceAttentionSignal(
+                failure.Severity,
+                ResourceFailureSignalDisplay.GetTooltip(failure, L));
+        }
+
+        if (ResourceLifecycleDisplay.HasStateHealthIncongruity(resource, GetHealthSummary(resource)))
+        {
+            return new ResourceAttentionSignal(
+                ResourceSignalSeverity.Warning,
+                L["Potential bad state: health checks report healthy while the resource is {0}. Verify the lifecycle state, health probe target, and possible leftover process.",
+                    resource.State?.ToString() ?? L["not running"].Value].Value);
+        }
+
+        return null;
+    }
 
     private IReadOnlyList<ResourceTypeFilterOption> GetResourceTypeOptions(IReadOnlyList<Resource> resources) =>
     [

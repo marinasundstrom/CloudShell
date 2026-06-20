@@ -1,0 +1,18 @@
+@if (Signal is not null)
+{
+    <span class="@CssClass" title="@Signal.Tooltip" aria-label="@Signal.Tooltip">
+        <ResourceSeverityIcon Severity="Signal.Severity" />
+    </span>
+}
+
+@code {
+    [Parameter]
+    public ResourceAttentionSignal? Signal { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    private string CssClass => string.IsNullOrWhiteSpace(Class)
+        ? "resource-failure-indicator"
+        : $"resource-failure-indicator {Class}";
+}
