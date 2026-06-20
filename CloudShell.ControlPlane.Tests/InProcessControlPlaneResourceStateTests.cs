@@ -1225,16 +1225,16 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.Contains(dependencyEvents, resourceEvent =>
             resourceEvent.EventType == ResourceEventTypes.Actions.ForAction(ResourceActionIds.Start) &&
             resourceEvent.TriggeredBy == "operator" &&
-            resourceEvent.Message.Contains("Dependency auto-start for 'api' (api)", StringComparison.Ordinal));
+            resourceEvent.Message.Contains("Dependency auto-start for api", StringComparison.Ordinal));
         Assert.Contains(dependencyEvents, resourceEvent =>
             resourceEvent.EventType == ResourceEventTypes.Events.Lifecycle.Starting &&
             resourceEvent.TriggeredBy == "operator" &&
-            resourceEvent.Message.Contains("Dependency auto-start for 'api' (api)", StringComparison.Ordinal));
+            resourceEvent.Message.Contains("Dependency auto-start for api", StringComparison.Ordinal));
         Assert.Contains(dependencyEvents, resourceEvent =>
             resourceEvent.EventType == ResourceEventTypes.Events.Lifecycle.Started &&
             resourceEvent.TriggeredBy == "operator" &&
             resourceEvent.Message.Contains("Executed start", StringComparison.Ordinal) &&
-            resourceEvent.Message.Contains("Dependency auto-start for 'api' (api)", StringComparison.Ordinal));
+            resourceEvent.Message.Contains("Dependency auto-start for api", StringComparison.Ordinal));
 
         var rootEvents = resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "api"));
         Assert.Contains(rootEvents, resourceEvent =>
@@ -1325,7 +1325,7 @@ public sealed class InProcessControlPlaneResourceStateTests
                     TriggeredBy: "operator")));
 
         Assert.Equal(ControlPlaneErrorCodes.DependencyAutoStartFailed, exception.Error.Code);
-        Assert.Contains("Dependency path: frontend (frontend) -> api (api) -> sql (sql).", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("Dependency path: frontend -> api -> sql.", exception.Message, StringComparison.Ordinal);
         Assert.Contains("Reason: Docker is unavailable.", exception.Message, StringComparison.Ordinal);
         Assert.Equal(["sql:start"], provider.ExecutedActions);
         Assert.Equal(
@@ -1359,6 +1359,55 @@ public sealed class InProcessControlPlaneResourceStateTests
             resourceEvent.Severity == ResourceSignalSeverity.Error &&
             resourceEvent.Message.Contains("A dependency could not start", StringComparison.Ordinal) &&
             resourceEvent.Message.Contains("Docker is unavailable", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ExecuteResourceActionAsync_UsesDisplayNamesInDependencyAutoStartFailures()
+    {
+        var provider = new TestResourceProvider
+        {
+            FailedActionResourceId = "application:sql",
+            FailureMessage = "Docker is unavailable."
+        };
+        var controlPlane = CreateControlPlane(
+            [
+                CreateResource(
+                    "application:frontend",
+                    ResourceState.Stopped,
+                    dependsOn: ["application:api"],
+                    name: "frontend",
+                    displayName: "Frontend"),
+                CreateResource(
+                    "application:api",
+                    ResourceState.Stopped,
+                    dependsOn: ["application:sql"],
+                    name: "api",
+                    displayName: "API"),
+                CreateResource(
+                    "application:sql",
+                    ResourceState.Stopped,
+                    name: "sql",
+                    displayName: "SQL Server")
+            ],
+            provider);
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
+            controlPlane.ExecuteResourceActionAsync(
+                new ExecuteResourceActionCommand(
+                    "application:frontend",
+                    ResourceActionIds.Start,
+                    StartDependencies: true,
+                    TriggeredBy: "operator")));
+
+        Assert.Equal(ControlPlaneErrorCodes.DependencyAutoStartFailed, exception.Error.Code);
+        Assert.Contains(
+            "Could not auto-start dependency 'SQL Server (sql)' for resource 'Frontend (frontend)'.",
+            exception.Message,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "Dependency path: Frontend (frontend) -> API (api) -> SQL Server (sql).",
+            exception.Message,
+            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -2288,10 +2337,12 @@ public sealed class InProcessControlPlaneResourceStateTests
         string id,
         ResourceState state,
         IReadOnlyList<string>? dependsOn = null,
-        IReadOnlyList<ResourceAction>? actions = null) =>
+        IReadOnlyList<ResourceAction>? actions = null,
+        string? name = null,
+        string? displayName = null) =>
         new(
             id,
-            id,
+            name ?? id,
             "Test",
             "Test",
             "local",
@@ -2306,7 +2357,8 @@ public sealed class InProcessControlPlaneResourceStateTests
                 ResourceAction.Stop,
                 ResourceAction.Pause,
                 ResourceAction.Restart
-            ]);
+            ],
+            DisplayName: displayName);
 
     private static TraceSpan CreateTraceSpan(string traceId, string resourceId) =>
         new(

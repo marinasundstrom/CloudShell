@@ -20,6 +20,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource action-readiness diagnostics now trim redundant current-resource
   prefixes from blocked reasons so resource pages show concise local dev
   preflight feedback.
+- Dependency auto-start errors now describe dependency paths with resource
+  display names and resource names instead of internal resource IDs.
 - Documented weak projected-resource references and reusable Resource Manager
   selector components as deferred model/UI design work beyond the immediate
   local-development MVP slice.

@@ -335,7 +335,7 @@ public sealed class ResourceOrchestrationService(
                             runAction,
                             cancellationToken,
                             triggeredBy ?? rootResource.Id,
-                            $"Dependency auto-start for '{rootResource.Name}' ({rootResource.Id}).",
+                            $"Dependency auto-start for {FormatResource(rootResource)}.",
                             notifyResourceChange);
                     }
                     catch (Exception exception) when (exception is not OperationCanceledException)
@@ -578,14 +578,14 @@ public sealed class ResourceOrchestrationService(
         Exception? innerException = null) =>
         CreateDependencyAutoStartException(
             rootResource,
-            dependency.Name,
+            FormatResource(dependency),
             path.Select(FormatResource),
             reason,
             innerException);
 
     private static ControlPlaneException CreateDependencyAutoStartException(
         Resource rootResource,
-        string dependencyName,
+        string dependencyLabel,
         IEnumerable<string> path,
         string reason,
         Exception? innerException = null)
@@ -594,7 +594,7 @@ public sealed class ResourceOrchestrationService(
             ? "no failure reason was provided"
             : reason.Trim().TrimEnd('.');
         var message =
-            $"Could not auto-start dependency '{dependencyName}' for resource '{rootResource.Name}'. " +
+            $"Could not auto-start dependency '{dependencyLabel}' for resource '{FormatResource(rootResource)}'. " +
             $"Dependency path: {string.Join(" -> ", path)}. " +
             $"Reason: {normalizedReason}.";
         var error = ControlPlaneError.DependencyAutoStartFailed(message);
@@ -603,8 +603,29 @@ public sealed class ResourceOrchestrationService(
             : new ControlPlaneException(error, innerException);
     }
 
-    private static string FormatResource(Resource resource) =>
-        $"{resource.Name} ({resource.Id})";
+    private static string FormatResource(Resource resource)
+    {
+        var resourceName = GetResourceName(resource);
+        var label = string.IsNullOrWhiteSpace(resource.DisplayName)
+            ? resourceName
+            : resource.DisplayName.Trim();
+
+        return string.Equals(label, resourceName, StringComparison.Ordinal)
+            ? resourceName
+            : $"{label} ({resourceName})";
+    }
+
+    private static string GetResourceName(Resource resource)
+    {
+        if (!string.IsNullOrWhiteSpace(resource.Name))
+        {
+            return resource.Name.Trim();
+        }
+
+        return ResourceId.TryParse(resource.Id, out var resourceId)
+            ? resourceId.Name
+            : resource.Id;
+    }
 
     private bool ShouldAutoStartAsDependency(Resource resource)
     {
