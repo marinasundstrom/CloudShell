@@ -154,6 +154,12 @@ This is still local in-memory composition. CloudShell extension discovery,
 activation/deactivation rules, persistence, and artifact-level diagnostics are
 future adapter work.
 
+The registry also exposes basic page, menu, and section projection queries
+that include the owning `CompositionModuleId`. Existing registration queries
+remain available for simple renderers, while projection queries are the first
+step toward diagnostics and renderer-specific views that need module
+ownership.
+
 `allowExtending: true` marks a section outlet as extendable. Only extendable
 outlets can be reopened through `GetSections(...)`. This keeps extension-style
 contribution explicit even before CloudShell extension adapters exist.
@@ -281,8 +287,8 @@ section IDs when the graph is built. Tests cover route normalization, target
 link resolution, section target links with route parameters, section ordering,
 section metadata, menu registration, module assembly, in-memory module
 mount/unmount, descriptor JSON round-trip, descriptor rehydration through a
-component type resolver, composed ID factories, duplicate ID validation, and
-extendable section outlet validation.
+component type resolver, module-owned projections, composed ID factories,
+duplicate ID validation, and extendable section outlet validation.
 
 Validation is intentionally still small. Future work should validate unknown
 targets, missing parents, unsupported content kinds, module ownership
@@ -298,9 +304,9 @@ The current composition engine does not yet include:
 - `CompositionModuleBuilder` integration with the CloudShell extension
   activation/deactivation lifecycle
 - CloudShell extension discovery and activation rules for module mount/unmount
-- artifact-level module diagnostics in renderer projections
+- artifact-level module diagnostics beyond basic module ownership projections
 - persisted descriptor storage
-- separate runtime artifact instances and renderer-ready projections
+- richer runtime artifact instances and renderer-specific projections
 - slots and sub-pages as first-class APIs
 - permissions or visibility rules
 - shell-specific metadata outlets beyond the plain `TitleOutlet`

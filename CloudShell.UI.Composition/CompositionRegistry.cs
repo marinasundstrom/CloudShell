@@ -60,6 +60,11 @@ public sealed class CompositionRegistry
     public CompositionPageRegistration? GetPage(PageId pageId) =>
         _pages.FirstOrDefault(page => page.Id == pageId);
 
+    public CompositionPageProjection? GetPageProjection(PageId pageId) =>
+        _modules
+            .SelectMany(module => module.Pages.Select(page => new CompositionPageProjection(module.Id, page)))
+            .FirstOrDefault(projection => projection.Page.Id == pageId);
+
     public CompositionPageRegistration? GetPageByRoute(string route)
     {
         var normalizedRoute = NormalizeRoute(route);
@@ -70,6 +75,11 @@ public sealed class CompositionRegistry
     public CompositionMenuRegistration? GetMenu(MenuId menuId) =>
         _menus.FirstOrDefault(menu => menu.Id == menuId);
 
+    public CompositionMenuProjection? GetMenuProjection(MenuId menuId) =>
+        _modules
+            .SelectMany(module => module.Menus.Select(menu => new CompositionMenuProjection(module.Id, menu)))
+            .FirstOrDefault(projection => projection.Menu.Id == menuId);
+
     public IReadOnlyList<CompositionSectionRegistration> GetSections(
         PageId pageId,
         SectionOutletId outletId) =>
@@ -77,6 +87,16 @@ public sealed class CompositionRegistry
             .Where(section => section.PageId == pageId && section.OutletId == outletId)
             .OrderBy(section => section.Order)
             .ThenBy(section => section.Title, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    public IReadOnlyList<CompositionSectionProjection> GetSectionProjections(
+        PageId pageId,
+        SectionOutletId outletId) =>
+        _modules
+            .SelectMany(module => module.Sections.Select(section => new CompositionSectionProjection(module.Id, section)))
+            .Where(projection => projection.Section.PageId == pageId && projection.Section.OutletId == outletId)
+            .OrderBy(projection => projection.Section.Order)
+            .ThenBy(projection => projection.Section.Title, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     public string ResolveHref(CompositionTarget target) =>

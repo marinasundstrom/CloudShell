@@ -112,6 +112,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added descriptor-to-module rehydration through a host-provided component
   type resolver so persisted component type names do not directly activate
   runtime components.
+- Added first-pass composition projections for pages, menus, and sections that
+  preserve the owning composition module ID for diagnostics and future
+  renderer-specific views.
 - Moved the composition proof direction away from the UI Extension Host sample:
   CloudShell extension integration should adapt to the core composition graph
   only after the standalone app structure is credible.

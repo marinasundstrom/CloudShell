@@ -290,17 +290,19 @@ proposal:
 - `CompositionEngineHost` provides an in-memory mounted-module list and
   rebuilds the active registry projection when a module is mounted or
   unmounted.
+- The registry exposes first-pass page, menu, and section projections that
+  preserve the owning `CompositionModuleId`.
 - Modules and runtime registrations can be projected into descriptor records
   that JSON round-trip. Module descriptors can be rehydrated into runtime
   modules through a host-provided component type resolver.
 - Registration titles are plain strings. Localization metadata, localization
   providers, and title content templates remain future design work.
 - Registration ownership is recorded at the module boundary through
-  `CompositionModuleId`. Artifact-level ownership in renderer projections and
-  diagnostics remains future work. CloudShell extension discovery and
-  activation/deactivation rules for deciding when modules mount or unmount
-  also remain future adapter work. That richer module metadata will be needed
-  for diagnostics, disable/unload behavior, conflict handling, trust
+  `CompositionModuleId`, and basic artifact projections preserve that module
+  owner. Richer renderer diagnostics remain future work. CloudShell extension
+  discovery and activation/deactivation rules for deciding when modules mount
+  or unmount also remain future adapter work. That richer module metadata will
+  be needed for diagnostics, disable/unload behavior, conflict handling, trust
   boundaries, permission review, and future persisted graph metadata.
 - Runtime artifact instances and renderer projections are not yet separated
   from descriptor data. The direction is to keep the new serializable

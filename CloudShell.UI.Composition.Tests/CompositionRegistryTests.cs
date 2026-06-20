@@ -205,6 +205,31 @@ public sealed class CompositionRegistryTests
         Assert.Contains("Duplicate composition module ID", exception.Message);
     }
 
+    [Fact]
+    public void ProjectionQueries_PreserveModuleOwnership()
+    {
+        var host = CreateHostModule();
+        var reports = CompositionModule.Create(ReportsModule, module =>
+        {
+            module
+                .AddPage(ReportsPage, "Reports", "/reports")
+                .AddSections(ReportsOutlet)
+                .AddSection<ReportsSectionComponent>(ReportsSummarySection, "Summary", 10);
+        });
+        var registry = CompositionRegistry.FromModules(host, reports);
+
+        var page = registry.GetPageProjection(ReportsPage);
+        var menu = registry.GetMenuProjection(MainMenu);
+        var section = Assert.Single(registry.GetSectionProjections(ReportsPage, ReportsOutlet));
+
+        Assert.NotNull(page);
+        Assert.Equal(ReportsModule, page.ModuleId);
+        Assert.NotNull(menu);
+        Assert.Equal(CompositionModuleId.Host, menu.ModuleId);
+        Assert.Equal(ReportsModule, section.ModuleId);
+        Assert.Equal(ReportsSummarySection, section.Section.Id);
+    }
+
     private static CompositionRegistry CreateRegistry() =>
         CompositionRegistry.Create(ConfigureHostModule);
 
