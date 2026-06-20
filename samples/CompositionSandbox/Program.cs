@@ -4,13 +4,14 @@ using CloudShell.CompositionSandbox.Components.Pages.Sections.Dashboard;
 using CloudShell.CompositionSandbox.Components.Pages.Sections;
 using CloudShell.CompositionSandbox.Components.Pages.Sections.Reports;
 using CloudShell.CompositionSandbox.Components.Pages.Sections.Settings;
+using CloudShell.UI.Composition;
 using CloudShell.UI.Composition.Blazor;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddRazorComponents();
 
-builder.Services.AddCloudShellUiComposition(composition =>
+builder.Services.AddCloudShellUiCompositionModule(CompositionModuleId.Host, composition =>
 {
     var mainMenu = composition.AddMenu(CompositionIds.MainMenu, "Main");
 
@@ -53,13 +54,6 @@ builder.Services.AddCloudShellUiComposition(composition =>
         CompositionIds.OverviewSection,
         "Composition root",
         10);
-
-    composition
-        .GetSections(CompositionIds.WorkspaceMainOutlet)
-        .AddSection<ExtensionContributionSection>(
-            CompositionIds.ExtensionContributionSection,
-            "Contributed section",
-            20);
 
     composition
         .AddPage(
@@ -106,6 +100,20 @@ builder.Services.AddCloudShellUiComposition(composition =>
             "Advanced",
             20);
 });
+
+builder.Services.AddCloudShellUiCompositionModule(
+    CompositionModuleId.Create("sample-extension"),
+    composition =>
+    {
+        composition
+            .GetSections(CompositionIds.WorkspacePage, CompositionIds.WorkspaceMainOutlet)
+            .AddSection<ExtensionContributionSection>(
+                CompositionIds.ExtensionContributionSection,
+                "Contributed section",
+                20);
+    });
+
+builder.Services.AddCloudShellUiComposition();
 
 var app = builder.Build();
 

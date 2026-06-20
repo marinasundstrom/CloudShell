@@ -93,7 +93,8 @@ control.
 
 ## Registration
 
-Host applications register the composition graph during startup:
+Host applications can register the composition graph during startup. For a
+single host-owned graph, the simple builder overload is still available:
 
 ```csharp
 builder.Services.AddCloudShellUiComposition(composition =>
@@ -146,11 +147,53 @@ var hostModule = CompositionModule.Create(
     CompositionModuleId.Host,
     module =>
     {
-        module.AddPage(CompositionIds.WorkspacePage, "Workspace", "/");
+        module
+            .AddPage(CompositionIds.WorkspacePage, "Workspace", "/")
+            .AddSections(CompositionIds.WorkspaceMainOutlet, isExtendable: true)
+            .AddSection<OverviewSection>(
+                CompositionIds.OverviewSection,
+                "Overview",
+                10);
     });
 
 var registry = CompositionRegistry.FromModules(hostModule);
 ```
+
+Blazor hosts can register modules independently in DI and then assemble the
+composition services:
+
+```csharp
+builder.Services.AddCloudShellUiCompositionModule(
+    CompositionModuleId.Host,
+    module =>
+    {
+        module
+            .AddPage(CompositionIds.WorkspacePage, "Workspace", "/")
+            .AddSections(CompositionIds.WorkspaceMainOutlet, isExtendable: true)
+            .AddSection<OverviewSection>(
+                CompositionIds.OverviewSection,
+                "Overview",
+                10);
+    });
+
+builder.Services.AddCloudShellUiCompositionModule(
+    CompositionModuleId.Create("sample-extension"),
+    module =>
+    {
+        module
+            .GetSections(CompositionIds.WorkspacePage, CompositionIds.WorkspaceMainOutlet)
+            .AddSection<ExtensionContributionSection>(
+                CompositionIds.ExtensionContributionSection,
+                "Contributed section",
+                20);
+    });
+
+builder.Services.AddCloudShellUiComposition();
+```
+
+This is still startup composition, not CloudShell extension discovery. It gives
+hosts and packages a small integration point for contributing modules without
+introducing a CMS/editor layer.
 
 `CompositionEngineHost` is an in-memory host for mounted modules. It owns the
 currently mounted module list and rebuilds the active registry projection when

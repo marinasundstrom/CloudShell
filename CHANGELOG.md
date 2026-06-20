@@ -128,6 +128,9 @@ on `git blame --follow`, and then by the broad type of change.
   render-mode hosts.
 - Added a separate `PageTitleOutlet` that wraps Blazor `PageTitle`, keeping
   visible page-header rendering separate from document-title rendering.
+- Added Blazor DI helpers for registering multiple `CompositionModule`
+  instances before assembling the composition registry, and updated the
+  sandbox to use separate host and sample-extension modules.
 - Moved the composition proof direction away from the UI Extension Host sample:
   CloudShell extension integration should adapt to the core composition graph
   only after the standalone app structure is credible.

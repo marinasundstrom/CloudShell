@@ -23,6 +23,9 @@ The sample proves the first boundary:
 - Page headers use `TitleOutlet` for visible title text, while
   `PageTitleOutlet` wraps Blazor `PageTitle` so document titles flow
   through the standard `HeadOutlet` pipeline.
+- The startup registration uses separate composition modules: the host module
+  owns the shell pages and menu, and a sample extension module contributes a
+  section to an extendable outlet.
 - Layout patterns are explored in the sample app itself. The `/dashboard`
   route uses a sample-owned Bootstrap grid outlet over the same composition
   registry, while the other pages use the plain stacked section outlet from

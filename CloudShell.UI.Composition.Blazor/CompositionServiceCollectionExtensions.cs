@@ -1,10 +1,24 @@
 using CloudShell.UI.Composition;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace CloudShell.UI.Composition.Blazor;
 
 public static class CompositionServiceCollectionExtensions
 {
+    public static IServiceCollection AddCloudShellUiComposition(
+        this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.TryAddSingleton(serviceProvider =>
+            new CompositionEngineHost(serviceProvider.GetServices<CompositionModule>()));
+        services.TryAddSingleton(serviceProvider =>
+            serviceProvider.GetRequiredService<CompositionEngineHost>().Registry);
+
+        return services;
+    }
+
     public static IServiceCollection AddCloudShellUiComposition(
         this IServiceCollection services,
         Action<CompositionBuilder> configure)
@@ -14,5 +28,43 @@ public static class CompositionServiceCollectionExtensions
 
         services.AddSingleton(CompositionRegistry.Create(configure));
         return services;
+    }
+
+    public static IServiceCollection AddCloudShellUiComposition(
+        this IServiceCollection services,
+        IEnumerable<CompositionModule> modules)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(modules);
+
+        foreach (var module in modules)
+        {
+            services.AddCloudShellUiCompositionModule(module);
+        }
+
+        return services.AddCloudShellUiComposition();
+    }
+
+    public static IServiceCollection AddCloudShellUiCompositionModule(
+        this IServiceCollection services,
+        CompositionModule module)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(module);
+
+        services.AddSingleton(module);
+        return services;
+    }
+
+    public static IServiceCollection AddCloudShellUiCompositionModule(
+        this IServiceCollection services,
+        CompositionModuleId id,
+        Action<CompositionModuleBuilder> configure)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        return services.AddCloudShellUiCompositionModule(
+            CompositionModule.Create(id, configure));
     }
 }
