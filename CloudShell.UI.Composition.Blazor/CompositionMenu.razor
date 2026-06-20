@@ -1,14 +1,15 @@
 @inject CompositionRegistry Composition
 
-@if (Menu is not null)
+@if (MenuProjection is not null)
 {
-    <nav class="composition-menu" aria-label="@Menu.Title">
-        @foreach (var item in Menu.Items)
+    var menu = MenuProjection.Menu;
+    <nav class="composition-menu" aria-label="@menu.Title" data-composition-module="@MenuProjection.ModuleId.Value">
+        @foreach (var item in menu.Items)
         {
             <CompositionLink Target="@item.Target">@item.Title</CompositionLink>
         }
 
-        @foreach (var section in Menu.Sections)
+        @foreach (var section in menu.Sections)
         {
             <div class="composition-menu-section">
                 <strong>@section.Title</strong>
@@ -25,5 +26,5 @@
     [Parameter, EditorRequired]
     public MenuId Id { get; set; }
 
-    private CompositionMenuRegistration? Menu => Composition.GetMenu(Id);
+    private CompositionMenuProjection? MenuProjection => Composition.GetMenuProjection(Id);
 }

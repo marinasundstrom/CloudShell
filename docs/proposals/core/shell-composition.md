@@ -292,6 +292,8 @@ proposal:
   unmounted.
 - The registry exposes first-pass page, menu, and section projections that
   preserve the owning `CompositionModuleId`.
+- Plain Blazor menu and section renderers consume those projections and expose
+  the owning module as `data-composition-module` attributes for diagnostics.
 - Modules and runtime registrations can be projected into descriptor records
   that JSON round-trip. Module descriptors can be rehydrated into runtime
   modules through a host-provided component type resolver.

@@ -33,6 +33,6 @@
 
     private string ResolvedTitle =>
         Page.HasValue
-            ? Composition.GetPage(Page.Value)?.Title ?? Page.Value.Value
+            ? Composition.GetPageProjection(Page.Value)?.Page.Title ?? Page.Value.Value
             : Target?.Value ?? string.Empty;
 }

@@ -16,10 +16,13 @@ else if (ResolvedOutletId is null)
 }
 else
 {
-    var sections = Composition.GetSections(Context.PageId, ResolvedOutletId.Value);
-    @foreach (var section in sections)
+    var sections = Composition.GetSectionProjections(Context.PageId, ResolvedOutletId.Value);
+    @foreach (var projection in sections)
     {
-        <article class="composition-section" id="@section.Id.Value">
+        var section = projection.Section;
+        <article class="composition-section"
+                 id="@section.Id.Value"
+                 data-composition-module="@projection.ModuleId.Value">
             <header class="composition-section-header">
                 <h2>@section.Title</h2>
             </header>

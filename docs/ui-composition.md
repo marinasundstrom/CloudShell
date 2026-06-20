@@ -160,6 +160,12 @@ remain available for simple renderers, while projection queries are the first
 step toward diagnostics and renderer-specific views that need module
 ownership.
 
+The Blazor renderers consume these projections where module ownership matters.
+Menu, stacked section, and tabbed section renderers add
+`data-composition-module` attributes to rendered navigation or section
+elements so diagnostics and future tooling can trace visible content back to
+the module that registered it.
+
 `allowExtending: true` marks a section outlet as extendable. Only extendable
 outlets can be reopened through `GetSections(...)`. This keeps extension-style
 contribution explicit even before CloudShell extension adapters exist.
@@ -288,7 +294,8 @@ link resolution, section target links with route parameters, section ordering,
 section metadata, menu registration, module assembly, in-memory module
 mount/unmount, descriptor JSON round-trip, descriptor rehydration through a
 component type resolver, module-owned projections, composed ID factories,
-duplicate ID validation, and extendable section outlet validation.
+Blazor renderer projection consumption, duplicate ID validation, and
+extendable section outlet validation.
 
 Validation is intentionally still small. Future work should validate unknown
 targets, missing parents, unsupported content kinds, module ownership

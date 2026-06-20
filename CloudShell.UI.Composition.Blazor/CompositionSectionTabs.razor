@@ -32,15 +32,19 @@ else
                     <a class="@GetTabClass(section)"
                        href="@GetTabHref(section)"
                        role="tab"
-                       aria-selected="@(section.Id == SelectedSection.Id)">
-                        @section.Title
+                       aria-selected="@(section.Section.Id == SelectedSection.Section.Id)"
+                       data-composition-module="@section.ModuleId.Value">
+                        @section.Section.Title
                     </a>
                 }
             </nav>
         </div>
 
-        <div class="@ContentClass" role="tabpanel" id="@SelectedSection.Id.Value">
-            <DynamicComponent Type="SelectedSection.ComponentType" />
+        <div class="@ContentClass"
+             role="tabpanel"
+             id="@SelectedSection.Section.Id.Value"
+             data-composition-module="@SelectedSection.ModuleId.Value">
+            <DynamicComponent Type="SelectedSection.Section.ComponentType" />
         </div>
     </div>
 }
@@ -87,13 +91,13 @@ else
 
     private SectionOutletId? ResolvedOutletId => Id ?? ContainerId;
 
-    private IReadOnlyList<CompositionSectionRegistration> Sections =>
+    private IReadOnlyList<CompositionSectionProjection> Sections =>
         Context is null || ResolvedOutletId is null
             ? []
-            : Composition.GetSections(Context.PageId, ResolvedOutletId.Value);
+            : Composition.GetSectionProjections(Context.PageId, ResolvedOutletId.Value);
 
-    private CompositionSectionRegistration SelectedSection =>
-        Sections.FirstOrDefault(section => section.Id.Value == SelectedSectionId) ?? Sections[0];
+    private CompositionSectionProjection SelectedSection =>
+        Sections.FirstOrDefault(section => section.Section.Id.Value == SelectedSectionId) ?? Sections[0];
 
     private string? SelectedSectionId
     {
@@ -107,19 +111,19 @@ else
         }
     }
 
-    private string GetTabClass(CompositionSectionRegistration section) =>
-        section.Id == SelectedSection.Id
+    private string GetTabClass(CompositionSectionProjection section) =>
+        section.Section.Id == SelectedSection.Section.Id
             ? JoinClasses(TabClass, SelectedTabClass)
             : TabClass;
 
-    private string GetTabHref(CompositionSectionRegistration section) =>
+    private string GetTabHref(CompositionSectionProjection section) =>
         Context is null
             ? "#"
             : Composition.ResolveHref(
                 CompositionTarget.ForPage(Context.PageId),
                 new Dictionary<string, object?>
                 {
-                    [QueryParameter] = section.Id.Value
+                    [QueryParameter] = section.Section.Id.Value
                 });
 
     private static string JoinClasses(params string[] values) =>
