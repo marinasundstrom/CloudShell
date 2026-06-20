@@ -38,11 +38,18 @@ new SectionId("section.workspace.main.overview");
 The ID value is the stable address. The type prevents accidentally using a
 page ID where a menu ID or section outlet ID is expected.
 
-The current implementation wraps string values. The proposed direction is
-stronger composed ID value types, where child artifacts such as sections are
-created from a local identifier plus the parent page, sub-page, slot, or
-section outlet ID. That keeps hierarchy explicit while preserving a stable
-serialized address.
+The value types can also compose child IDs from parent IDs:
+
+```csharp
+var workspacePage = PageId.Create("workspace");
+var mainOutlet = SectionOutletId.Create(workspacePage, "main");
+var overviewSection = SectionId.Create(mainOutlet, "overview");
+```
+
+This produces stable hierarchical values such as
+`section-outlet.workspace.main` and `section.workspace.main.overview` without
+requiring callers to concatenate strings by hand. The constructors remain
+available for predefined or migrated IDs.
 
 The current graph supports:
 
@@ -270,8 +277,8 @@ The core registry currently validates duplicate module, page, menu, and
 section IDs when the graph is built. Tests cover route normalization, target
 link resolution, section target links with route parameters, section ordering,
 section metadata, menu registration, module assembly, in-memory module
-mount/unmount, duplicate ID validation, and extendable section outlet
-validation.
+mount/unmount, composed ID factories, duplicate ID validation, and extendable
+section outlet validation.
 
 Validation is intentionally still small. Future work should validate unknown
 targets, missing parents, unsupported content kinds, module ownership
@@ -290,7 +297,6 @@ The current composition engine does not yet include:
 - artifact-level module diagnostics in renderer projections
 - serializable descriptor objects for all artifacts
 - separate runtime artifact instances and renderer projections
-- composed ID factories for parent/child artifact IDs
 - slots and sub-pages as first-class APIs
 - permissions or visibility rules
 - shell-specific metadata outlets beyond the plain `TitleOutlet`

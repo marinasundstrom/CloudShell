@@ -103,6 +103,9 @@ on `git blame --follow`, and then by the broad type of change.
   composition modules by rebuilding the active registry projection, with tests
   for successful mounts, failed duplicate mounts, unmounts, and missing module
   removals.
+- Added first-pass composed ID factories for composition modules, menus, menu
+  sections, menu items, pages, section outlets, and sections so child IDs can
+  be derived from parent IDs without string concatenation.
 - Moved the composition proof direction away from the UI Extension Host sample:
   CloudShell extension integration should adapt to the core composition graph
   only after the standalone app structure is credible.

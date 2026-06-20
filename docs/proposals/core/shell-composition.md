@@ -281,9 +281,9 @@ proposal:
 
 - Page, menu, menu item, section outlet, and section IDs are typed value
   objects.
-- Current IDs wrap stable string values. The direction is composed ID value
-  types where child IDs, such as section IDs, are created from an identifier
-  plus a parent artifact ID.
+- Current IDs wrap stable string values and include first-pass factories for
+  composing child IDs, such as section IDs, from an identifier plus a parent
+  artifact ID.
 - Sections are the current named content primitive.
 - The Blazor package provides plain renderers for menus, links, titles,
   stacked sections, and section tabs.
@@ -719,7 +719,7 @@ before broad new shell surfaces become release blockers.
 - What is the exact descriptor/instance/projection split for component-backed
   artifacts so descriptors remain serializable without leaking runtime-only
   component state into persistence?
-- Which ID factories are needed first so composed child IDs remain ergonomic
-  without hiding hierarchy from extension authors?
+- Which additional ID factories are needed so composed child IDs remain
+  ergonomic without hiding hierarchy from extension authors?
 - Should module unmount remove artifacts from the active graph immediately, or
   mark them unavailable so deep links can produce better diagnostics?
