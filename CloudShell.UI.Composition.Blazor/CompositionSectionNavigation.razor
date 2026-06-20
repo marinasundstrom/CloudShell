@@ -1,0 +1,98 @@
+@inject CompositionRegistry Composition
+@inject NavigationManager Navigation
+
+@if (ResolvedContext is null)
+{
+    <div class="@EmptyStateClass">
+        <strong>Composition context missing</strong>
+        <span>The section navigation needs a composition host, an explicit page, or a registered route.</span>
+    </div>
+}
+else if (ResolvedOutletId is null)
+{
+    <div class="@EmptyStateClass">
+        <strong>Section outlet missing</strong>
+        <span>The section navigation needs an ID or a containing section container.</span>
+    </div>
+}
+else if (Sections.Count > 0)
+{
+    <nav class="@ContainerClass" aria-label="@AriaLabel" @attributes="AdditionalAttributes">
+        @if (!string.IsNullOrWhiteSpace(ListClass))
+        {
+            <ul class="@ListClass">
+                @foreach (var section in Sections)
+                {
+                    <li class="@ItemClass" data-composition-module="@section.ModuleId.Value">
+                        <a class="@LinkClass" href="@GetSectionHref(section)">
+                            @section.Section.Title
+                        </a>
+                    </li>
+                }
+            </ul>
+        }
+        else
+        {
+            @foreach (var section in Sections)
+            {
+                <a class="@LinkClass"
+                   href="@GetSectionHref(section)"
+                   data-composition-module="@section.ModuleId.Value">
+                    @section.Section.Title
+                </a>
+            }
+        }
+    </nav>
+}
+
+@code {
+    [CascadingParameter]
+    public CompositionContext? Context { get; set; }
+
+    [CascadingParameter]
+    public SectionOutletId? ContainerId { get; set; }
+
+    [Parameter]
+    public PageId? Page { get; set; }
+
+    [Parameter]
+    public SectionOutletId? Id { get; set; }
+
+    [Parameter]
+    public string AriaLabel { get; set; } = "Sections";
+
+    [Parameter]
+    public string ContainerClass { get; set; } = "composition-section-navigation";
+
+    [Parameter]
+    public string? ListClass { get; set; } = "composition-section-navigation-list";
+
+    [Parameter]
+    public string ItemClass { get; set; } = "composition-section-navigation-item";
+
+    [Parameter]
+    public string LinkClass { get; set; } = "composition-section-navigation-link";
+
+    [Parameter]
+    public string EmptyStateClass { get; set; } = "composition-empty-state";
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private CompositionContext? ResolvedContext =>
+        CompositionPageContextResolver.Resolve(
+            Composition,
+            Navigation,
+            Context,
+            Page);
+
+    private SectionOutletId? ResolvedOutletId => Id ?? ContainerId;
+
+    private IReadOnlyList<CompositionSectionProjection> Sections =>
+        ResolvedContext is null || ResolvedOutletId is null
+            ? []
+            : Composition.GetSectionProjections(ResolvedContext.PageId, ResolvedOutletId.Value);
+
+    private string GetSectionHref(CompositionSectionProjection section) =>
+        Composition.ResolveHref(section.Section.Id);
+}

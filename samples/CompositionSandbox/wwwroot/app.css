@@ -2,6 +2,12 @@ body {
     background: #f8f9fa;
 }
 
+@media (prefers-reduced-motion: no-preference) {
+    html {
+        scroll-behavior: smooth;
+    }
+}
+
 .app-shell {
     grid-template-columns: 280px minmax(0, 1fr);
     min-height: 100vh;
@@ -100,10 +106,16 @@ body {
     display: grid;
     gap: 1rem;
     max-width: 980px;
+    scroll-margin-top: 1rem;
     border: var(--bs-border-width) solid var(--bs-border-color);
     border-radius: var(--bs-border-radius);
     background: var(--bs-body-bg);
     padding: 1.25rem;
+}
+
+.composition-section:target {
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 .2rem rgba(var(--bs-primary-rgb), .15);
 }
 
 .composition-section + .composition-section {

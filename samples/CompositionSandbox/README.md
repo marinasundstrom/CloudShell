@@ -63,4 +63,5 @@ http://localhost:5102/reports
 http://localhost:5102/dashboard
 http://localhost:5102/settings
 http://localhost:5102/settings/advanced
+http://localhost:5102/#section.workspace.main.extension
 ```

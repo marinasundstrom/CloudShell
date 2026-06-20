@@ -459,6 +459,7 @@ The Blazor library currently provides these components:
 | `PageTitleOutlet` | Wraps Blazor `PageTitle` for the current composition page title from the cascaded context, an explicit `Page`, or the current route. Use this for the document title instead of mixing document-head behavior into visible page headers. |
 | `CompositionPageLayout` | Renders a plain page frame with document title, visible title, optional eyebrow, summary, actions, navigation, and child content. Text-heavy regions are render fragments so hosts can localize or customize them. |
 | `CompositionSectionContainer` | Cascades the current section outlet ID to nested content. |
+| `CompositionSectionNavigation` | Renders normal anchor links to the registered sections in an outlet. Parent-addressed sections resolve to page-local hashes, while child-addressed sections resolve through the owning page route. |
 | `CompositionSectionOutlet` | Renders all registered sections for the current page and section outlet using Blazor `DynamicComponent`. It can resolve the page from cascade, an explicit `Page`, or the current route. |
 | `CompositionSectionTabs` | Renders registered named sections as tab items and uses composition section targets for tab links. It can read selection from query state, child-address routes, or parent-address fragments, and renders the selected section with `DynamicComponent`. It can resolve the page from cascade, an explicit `Page`, or the current route. |
 | `CompositionTabbedPageLayout` | Composes `CompositionPageLayout`, `CompositionSectionContainer`, and `CompositionSectionTabs` into a reusable tabbed page layout. It is useful for settings-like pages while keeping tabs as a renderer choice over named sections. |
@@ -489,6 +490,7 @@ A routed page can then use the cascaded context:
 <h1><TitleOutlet /></h1>
 
 <CompositionSectionContainer Id="@CompositionIds.ReportsMainOutlet">
+    <CompositionSectionNavigation />
     <CompositionSectionOutlet />
 </CompositionSectionContainer>
 ```
@@ -653,6 +655,11 @@ The core registry resolves:
 
 - page target: `/reports`
 - section target: `/#section.workspace.main.extension`
+
+`CompositionSectionOutlet` renders each stacked section with an `id` equal to
+the section ID. `CompositionSectionNavigation` uses the same target resolver,
+so parent-addressed sections produce hash links that jump to those named
+sections on the page.
 
 Default Blazor composition components support unmatched attributes when there
 is a clear HTML root to attach them to. `CompositeAnchor` splats onto the

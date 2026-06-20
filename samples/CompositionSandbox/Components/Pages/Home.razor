@@ -23,7 +23,25 @@
         </div>
     </header>
 
+    <section class="alert alert-info border-info-subtle">
+        <h2 class="h6">Section deep links</h2>
+        <p class="mb-2">
+            Parent-addressed sections render with stable IDs, and section
+            targets resolve to hash links on the page.
+        </p>
+        <div class="d-flex flex-wrap gap-2">
+            <CompositeAnchor Target="@CompositionIds.OverviewSection"
+                             class="alert-link" />
+            <span>/</span>
+            <CompositeAnchor Target="@CompositionIds.ExtensionContributionSection"
+                             class="alert-link" />
+        </div>
+    </section>
+
     <CompositionSectionContainer Id="@CompositionIds.WorkspaceMainOutlet">
+        <CompositionSectionNavigation ListClass=""
+                                      ContainerClass="d-flex flex-wrap gap-2 mb-3"
+                                      LinkClass="btn btn-outline-secondary btn-sm" />
         <CompositionSectionOutlet />
     </CompositionSectionContainer>
 </main>

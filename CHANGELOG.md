@@ -133,6 +133,11 @@ on `git blame --follow`, and then by the broad type of change.
 - The plain Blazor composition tab outlet now uses section target resolution
   for tab links and can select sections from query state, child-address routes,
   or parent-address fragments.
+- Plain Blazor composition now includes a section navigation component that
+  renders normal anchors to registered sections, enabling page-local hash
+  deep links for parent-addressed sections.
+- The composition sandbox now demonstrates section deep links with CSS-only
+  smooth scrolling and a target highlight.
 - The CloudShell Fluent composition tabbed layout now resolves non-default
   section navigation through section targets instead of duplicating route
   parameter construction in the UI adapter.
