@@ -113,6 +113,7 @@ The Blazor library currently provides these components:
 | `TitleOutlet` | Renders the title of the current composition page from the cascaded context. |
 | `CompositionSectionContainer` | Cascades the current section outlet ID to nested content. |
 | `CompositionSectionOutlet` | Renders all registered sections for the current page and section outlet using Blazor `DynamicComponent`. |
+| `CompositionSectionTabs` | Renders registered named sections as tab items, stores the selected section in a query-string value, and renders the selected section with `DynamicComponent`. |
 
 A typical layout hosts the composition root around the routed body:
 
@@ -141,6 +142,19 @@ A routed page can then use the cascaded context:
     <CompositionSectionOutlet />
 </CompositionSectionContainer>
 ```
+
+The same named sections can be rendered as tabs when a page should show one
+selected section at a time:
+
+```razor
+<CompositionSectionContainer Id="@CompositionIds.SettingsMainOutlet">
+    <CompositionSectionTabs QueryParameter="section" />
+</CompositionSectionContainer>
+```
+
+The tabs component handles item routing and selected section rendering. Visual
+classes are parameters so an app can use Bootstrap, shell-specific classes, or
+plain CSS without changing the composition model.
 
 Routing remains normal Blazor routing. Razor components still declare routes
 with `@page`; the composition registry records which composition page ID maps
@@ -194,6 +208,13 @@ The sample includes two registered pages:
   sample-owned Bootstrap grid outlet. This demonstrates how host apps can
   explore layout patterns without adding a visual framework dependency to the
   base composition libraries.
+- `/settings` renders registered named sections through the reusable
+  `CompositionSectionTabs` component. The selected section is represented with
+  a normal `section` query parameter.
+
+Registration titles are plain strings for this prototype. Localization is a
+future concern; likely options include localized title providers or title
+content templates on renderers that need to opt into custom display behavior.
 
 ## Current Validation
 

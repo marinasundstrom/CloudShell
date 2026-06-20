@@ -20,6 +20,9 @@ The sample proves the first boundary:
   route uses a sample-owned Bootstrap grid outlet over the same composition
   registry, while the other pages use the plain stacked section outlet from
   `CloudShell.UI.Composition.Blazor`.
+- The `/settings` route uses the reusable composition tab outlet from
+  `CloudShell.UI.Composition.Blazor`, styles it with Bootstrap classes, and
+  stores selected named-section state in the `section` query parameter.
 
 Future CloudShell extension integration should adapt extension contributions
 into the core composition model after this standalone API shape is proven.
@@ -43,4 +46,5 @@ The sample also exposes:
 ```text
 http://localhost:5102/reports
 http://localhost:5102/dashboard
+http://localhost:5102/settings
 ```

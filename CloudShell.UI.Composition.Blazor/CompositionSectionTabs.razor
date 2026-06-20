@@ -1,0 +1,127 @@
+@inject CompositionRegistry Composition
+@inject NavigationManager Navigation
+
+@if (Context is null)
+{
+    <div class="@EmptyStateClass">
+        <strong>Composition context missing</strong>
+        <span>The tab outlet must be rendered under a composition host.</span>
+    </div>
+}
+else if (ResolvedOutletId is null)
+{
+    <div class="@EmptyStateClass">
+        <strong>Section outlet missing</strong>
+        <span>The tab outlet needs an ID or a containing section container.</span>
+    </div>
+}
+else if (Sections.Count == 0)
+{
+    <div class="@EmptyStateClass">
+        <strong>No sections registered</strong>
+        <span>The current outlet has no sections for this page.</span>
+    </div>
+}
+else
+{
+    <div class="@ContainerClass" @attributes="AdditionalAttributes">
+        <div class="@TabListContainerClass">
+            <nav class="@TabListClass" aria-label="@AriaLabel" role="tablist">
+                @foreach (var section in Sections)
+                {
+                    <a class="@GetTabClass(section)"
+                       href="@GetTabHref(section)"
+                       role="tab"
+                       aria-selected="@(section.Id == SelectedSection.Id)">
+                        @section.Title
+                    </a>
+                }
+            </nav>
+        </div>
+
+        <div class="@ContentClass" role="tabpanel" id="@SelectedSection.Id.Value">
+            <DynamicComponent Type="SelectedSection.ComponentType" />
+        </div>
+    </div>
+}
+
+@code {
+    [CascadingParameter]
+    public CompositionContext? Context { get; set; }
+
+    [CascadingParameter]
+    public SectionOutletId? ContainerId { get; set; }
+
+    [Parameter]
+    public SectionOutletId? Id { get; set; }
+
+    [Parameter]
+    public string AriaLabel { get; set; } = "Sections";
+
+    [Parameter]
+    public string QueryParameter { get; set; } = "section";
+
+    [Parameter]
+    public string ContainerClass { get; set; } = "composition-tabs";
+
+    [Parameter]
+    public string TabListContainerClass { get; set; } = "composition-tab-list-container";
+
+    [Parameter]
+    public string TabListClass { get; set; } = "composition-tab-list";
+
+    [Parameter]
+    public string TabClass { get; set; } = "composition-tab";
+
+    [Parameter]
+    public string SelectedTabClass { get; set; } = "is-selected";
+
+    [Parameter]
+    public string ContentClass { get; set; } = "composition-tab-panel";
+
+    [Parameter]
+    public string EmptyStateClass { get; set; } = "composition-empty-state";
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private SectionOutletId? ResolvedOutletId => Id ?? ContainerId;
+
+    private IReadOnlyList<CompositionSectionRegistration> Sections =>
+        Context is null || ResolvedOutletId is null
+            ? []
+            : Composition.GetSections(Context.PageId, ResolvedOutletId.Value);
+
+    private CompositionSectionRegistration SelectedSection =>
+        Sections.FirstOrDefault(section => section.Id.Value == SelectedSectionId) ?? Sections[0];
+
+    private string? SelectedSectionId
+    {
+        get
+        {
+            var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+            var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+            return query.TryGetValue(QueryParameter, out var value)
+                ? value.ToString()
+                : null;
+        }
+    }
+
+    private string GetTabClass(CompositionSectionRegistration section) =>
+        section.Id == SelectedSection.Id
+            ? JoinClasses(TabClass, SelectedTabClass)
+            : TabClass;
+
+    private string GetTabHref(CompositionSectionRegistration section) =>
+        Context is null
+            ? "#"
+            : Composition.ResolveHref(
+                CompositionTarget.ForPage(Context.PageId),
+                new Dictionary<string, object?>
+                {
+                    [QueryParameter] = section.Id.Value
+                });
+
+    private static string JoinClasses(params string[] values) =>
+        string.Join(' ', values.Where(value => !string.IsNullOrWhiteSpace(value)));
+}

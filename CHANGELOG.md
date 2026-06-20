@@ -86,6 +86,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The Composition Sandbox now includes a dashboard route with a sample-owned
   Bootstrap grid section outlet so layout renderer patterns can be explored
   without changing the core composition libraries.
+- The Composition Sandbox now includes a settings route that uses the reusable
+  composition tab section outlet with a normal `section` query parameter for
+  selected named-section state.
 - Moved the composition proof direction away from the UI Extension Host sample:
   CloudShell extension integration should adapt to the core composition graph
   only after the standalone app structure is credible.
