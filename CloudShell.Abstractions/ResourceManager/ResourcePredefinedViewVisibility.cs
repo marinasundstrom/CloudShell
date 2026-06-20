@@ -33,6 +33,9 @@ public static class ResourcePredefinedViewVisibility
     public static bool HasStorageVolumesView(Resource? resource) =>
         resource?.HasCapability(ResourceCapabilityIds.StorageProvider) == true;
 
+    public static bool HasHealthView(Resource? resource) =>
+        resource?.ResourceHealthChecks.Count > 0;
+
     public static bool HasEnvironmentView(Resource? resource) =>
         resource?.HasCapability(ResourceCapabilityIds.EnvironmentVariables) == true;
 }

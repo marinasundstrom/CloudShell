@@ -74,6 +74,17 @@ public sealed class ResourcePredefinedViewVisibilityTests
     }
 
     [Fact]
+    public void HasHealthView_LightsUpFromHealthChecks()
+    {
+        var resource = CreateResource() with
+        {
+            HealthChecks = [new ResourceHealthCheck("/health")]
+        };
+
+        Assert.True(ResourcePredefinedViewVisibility.HasHealthView(resource));
+    }
+
+    [Fact]
     public void HasEnvironmentView_LightsUpFromEnvironmentCapability()
     {
         var resource = CreateResource() with

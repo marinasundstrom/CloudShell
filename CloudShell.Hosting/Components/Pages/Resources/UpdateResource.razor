@@ -233,6 +233,7 @@
     private static readonly ResourceViewId GeneratedAccessControlTabId = ResourcePredefinedViewIds.AccessControl;
     private static readonly ResourceViewId GeneratedStorageVolumesTabId = ResourcePredefinedViewIds.Volumes;
     private static readonly ResourceViewId GeneratedActivityTabId = ResourcePredefinedViewIds.Activity;
+    private static readonly ResourceViewId GeneratedHealthTabId = ResourcePredefinedViewIds.Health;
     private static readonly ResourceViewId GeneratedMonitoringTabId = ResourcePredefinedViewIds.Monitoring;
     private static readonly ResourceViewId GeneratedLogsTabId = ResourcePredefinedViewIds.Logs;
     private static readonly ResourceViewId GeneratedTracesTabId = ResourcePredefinedViewIds.Traces;
@@ -710,6 +711,7 @@
         tab.ComponentType == typeof(GeneratedResourceIdentity) ||
         tab.ComponentType == typeof(GeneratedResourceAccessControl) ||
         tab.ComponentType == typeof(ResourceActivity) ||
+        tab.ComponentType == typeof(GeneratedResourceHealth) ||
         tab.ComponentType == typeof(GeneratedResourceMonitoring) ||
         tab.ComponentType == typeof(GeneratedResourceEndpoints) ||
         tab.ComponentType == typeof(GeneratedResourceDns);
@@ -803,6 +805,18 @@
                 typeof(ResourceActivity),
                 GroupTitle: ResourceTabGroupTitles.Management,
                 Icon: GetPredefinedViewIcon(GeneratedActivityTabId)));
+        }
+
+        if (ResourcePredefinedViewVisibility.HasHealthView(resource) &&
+            !contributedTabs.Any(tab => tab.Id == GeneratedHealthTabId))
+        {
+            tabs.Add(new ResourceTabContribution(
+                GeneratedHealthTabId,
+                "Health",
+                78,
+                typeof(GeneratedResourceHealth),
+                GroupTitle: ResourceTabGroupTitles.Management,
+                Icon: GetPredefinedViewIcon(GeneratedHealthTabId)));
         }
 
         if (hasResourceMonitoring &&

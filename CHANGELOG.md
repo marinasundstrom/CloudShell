@@ -26,6 +26,9 @@ on `git blame --follow`, and then by the broad type of change.
   the resource, activity, logs, and traces from dependency/dependent nodes.
 - Resource relationship graphs now include related resource health and
   readiness details in dependency/dependent summaries when available.
+- Resource details now include a Management **Health** tab for resources with
+  configured health checks, showing latest status, individual probes, and a
+  manual refresh action.
 - Documented weak projected-resource references and reusable Resource Manager
   selector components as deferred model/UI design work beyond the immediate
   local-development MVP slice.

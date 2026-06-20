@@ -1,0 +1,246 @@
+@using System.Globalization
+@inject IResourceManager ResourceManager
+@inject IResourceHealthManager HealthChecks
+@inject IStringLocalizer<SharedResource> L
+
+<div class="generated-resource-view">
+    <GeneratedResourceViewLayout ResourceType="ResourceType"
+                                 ResourceId="@(ResourceId ?? string.Empty)"
+                                 Resource="Resource"
+                                 ViewId="@ResourcePredefinedViewIds.Health"
+                                 Sections="@BuildSections()" />
+</div>
+
+@code {
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    [Parameter]
+    public ResourceTypeContribution? ResourceType { get; set; }
+
+    private Resource? Resource { get; set; }
+    private ResourceHealthSummary? Summary { get; set; }
+    private bool IsCheckingHealth { get; set; }
+
+    protected override Task OnParametersSetAsync() => LoadHealthAsync();
+
+    private async Task LoadHealthAsync()
+    {
+        if (string.IsNullOrWhiteSpace(ResourceId))
+        {
+            Resource = null;
+            Summary = null;
+            return;
+        }
+
+        Resource = await ResourceManager.GetResourceAsync(ResourceId);
+        Summary = await HealthChecks.GetResourceHealthAsync(ResourceId);
+    }
+
+    private async Task RefreshHealthAsync()
+    {
+        if (string.IsNullOrWhiteSpace(ResourceId))
+        {
+            return;
+        }
+
+        IsCheckingHealth = true;
+        try
+        {
+            Summary = await HealthChecks.RefreshResourceHealthAsync(ResourceId);
+        }
+        finally
+        {
+            IsCheckingHealth = false;
+        }
+    }
+
+    private IReadOnlyList<GeneratedResourceViewSection> BuildSections() =>
+    [
+        new("health", string.Empty, 0, RenderHealth())
+    ];
+
+    private RenderFragment RenderHealth() => @<text>
+        <div class="resource-activity-header">
+            <div>
+                <h3>@L["Health"]</h3>
+                <span>@GetStatusText()</span>
+            </div>
+            <FluentButton Appearance="Appearance.Neutral"
+                          Disabled="@IsCheckingHealth"
+                          IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                          OnClick="RefreshHealthAsync">
+                @(IsCheckingHealth ? L["Checking"] : L["Refresh"])
+            </FluentButton>
+        </div>
+
+        @if (Resource is null)
+        {
+            <EmptyState Title="@L["Resource unavailable"].Value"
+                        Message="@L["The resource could not be loaded."].Value"
+                        Compact="true" />
+        }
+        else if (Resource.ResourceHealthChecks.Count == 0)
+        {
+            <EmptyState Title="@L["No health checks configured"].Value"
+                        Message="@L["This resource does not declare health checks."].Value"
+                        Compact="true" />
+        }
+        else
+        {
+            <div class="resource-activity-groups" aria-label="@L["Health summary"]">
+                <span class="resource-activity-group">
+                    <strong>@L["Status"]</strong>
+                    <span class="health-pill @GetHealthClass(Summary?.Status)">
+                        @GetHealthLabel(Summary?.Status)
+                    </span>
+                </span>
+                <span class="resource-activity-group">
+                    <strong>@L["Checks"]</strong>
+                    <span>@GetCheckCountLabel()</span>
+                </span>
+                <span class="resource-activity-group">
+                    <strong>@L["Last checked"]</strong>
+                    <span>@GetCheckedAtLabel()</span>
+                </span>
+            </div>
+
+            <div class="resource-activity-list">
+                @foreach (var row in GetHealthCheckRows())
+                {
+                    <article class="resource-activity-event">
+                        <div>
+                            <div>
+                                <strong>@row.Check.Name</strong>
+                                <span>@row.Check.Type</span>
+                            </div>
+                            <span class="health-pill @GetHealthClass(row.Result?.Status)">
+                                @GetHealthLabel(row.Result?.Status)
+                            </span>
+                        </div>
+                        <p>@(row.Result?.Detail ?? GetPendingDetail())</p>
+                        <footer>
+                            <span>@FormatEndpoint(row.Check)</span>
+                            <span>@FormatPath(row.Check)</span>
+                        </footer>
+                        @if (row.Result?.Uri is not null)
+                        {
+                            <footer>
+                                <span>@L["Resolved URI"]</span>
+                                <span>@row.Result.Uri</span>
+                            </footer>
+                        }
+                    </article>
+                }
+            </div>
+        }
+    </text>;
+
+    private string GetStatusText()
+    {
+        if (Resource is null)
+        {
+            return L["Resource health checks"].Value;
+        }
+
+        if (Resource.ResourceHealthChecks.Count == 0)
+        {
+            return L["No configured health checks"].Value;
+        }
+
+        return Summary is null
+            ? L["{0} configured check(s)", Resource.ResourceHealthChecks.Count].Value
+            : L["{0} / checked {1}",
+                GetHealthLabel(Summary.Status),
+                Summary.CheckedAt.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentCulture)].Value;
+    }
+
+    private string GetCheckCountLabel()
+    {
+        if (Summary is null)
+        {
+            return L["{0} configured", Resource?.ResourceHealthChecks.Count ?? 0].Value;
+        }
+
+        var unhealthy = Summary.Checks.Count(check => check.Status == ResourceHealthStatus.Unhealthy);
+        return unhealthy == 0
+            ? L["{0} configured", Resource?.ResourceHealthChecks.Count ?? Summary.Checks.Count].Value
+            : L["{0} unhealthy / {1} configured", unhealthy, Resource?.ResourceHealthChecks.Count ?? Summary.Checks.Count].Value;
+    }
+
+    private string GetCheckedAtLabel() =>
+        Summary is null
+            ? (IsCheckingHealth ? L["Checking"].Value : L["Not checked"].Value)
+            : Summary.CheckedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.CurrentCulture);
+
+    private IReadOnlyList<HealthCheckRow> GetHealthCheckRows()
+    {
+        if (Resource is null)
+        {
+            return [];
+        }
+
+        var results = Summary?.Checks ?? [];
+        return Resource.ResourceHealthChecks
+            .Select(check => new HealthCheckRow(
+                check,
+                results.FirstOrDefault(result => ReferenceEquals(result.Check, check) || result.Check == check)))
+            .OrderBy(row => GetHealthRank(row.Result?.Status))
+            .ThenBy(row => row.Check.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private string GetHealthLabel(ResourceHealthStatus? status)
+    {
+        if (status is null)
+        {
+            return IsCheckingHealth ? L["Checking"].Value : L["Not checked"].Value;
+        }
+
+        return status switch
+        {
+            ResourceHealthStatus.Healthy => L["Healthy"].Value,
+            ResourceHealthStatus.Unhealthy => L["Unhealthy"].Value,
+            _ => L["Unknown"].Value
+        };
+    }
+
+    private string GetPendingDetail() =>
+        IsCheckingHealth ? L["Checking"].Value : L["No result"].Value;
+
+    private static string GetHealthClass(ResourceHealthStatus? status) =>
+        status switch
+        {
+            ResourceHealthStatus.Healthy => "health-healthy",
+            ResourceHealthStatus.Unhealthy => "health-unhealthy",
+            ResourceHealthStatus.Unknown => "health-unknown",
+            _ => "health-pending"
+        };
+
+    private static int GetHealthRank(ResourceHealthStatus? status) =>
+        status switch
+        {
+            ResourceHealthStatus.Unhealthy => 0,
+            ResourceHealthStatus.Unknown => 1,
+            null => 2,
+            ResourceHealthStatus.Healthy => 3,
+            _ => 4
+        };
+
+    private string FormatEndpoint(ResourceHealthCheck check) =>
+        string.IsNullOrWhiteSpace(check.EndpointName)
+            ? L["default endpoint"].Value
+            : check.EndpointName;
+
+    private static string FormatPath(ResourceHealthCheck check)
+    {
+        var path = string.IsNullOrWhiteSpace(check.Path) ? "/" : check.Path;
+        return check.Timeout is null
+            ? path
+            : $"{path} / {check.Timeout.Value.TotalSeconds:0.#}s";
+    }
+
+    private sealed record HealthCheckRow(
+        ResourceHealthCheck Check,
+        ResourceHealthCheckResult? Result);
+}

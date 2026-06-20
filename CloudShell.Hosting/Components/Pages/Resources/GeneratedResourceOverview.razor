@@ -827,6 +827,11 @@
             new(L["Activity"].Value, BuildActivityRoute(resource.Id))
         };
 
+        if (ResourcePredefinedViewVisibility.HasHealthView(resource))
+        {
+            actions.Add(new ResourceRelationshipNodeAction(L["Health"].Value, BuildResourceTabRoute(resource.Id, ResourcePredefinedViewIds.Health)));
+        }
+
         if (RelatedLogsByResourceId.GetValueOrDefault(resource.Id) is { Count: > 0 } logs)
         {
             actions.Add(new ResourceRelationshipNodeAction(L["Logs"].Value, BuildLogRoute(resource.Id, logs)));
