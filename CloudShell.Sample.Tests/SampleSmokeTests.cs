@@ -647,6 +647,10 @@ public sealed class SampleSmokeTests
         Assert.Contains("Built-in resource identity client is registered.", apiDetailsHtml);
         Assert.Contains(ConfigurationStoreResourceOperationPermissions.ReadEntries, apiDetailsHtml);
         Assert.Contains(SecretsVaultResourceOperationPermissions.ReadSecrets, apiDetailsHtml);
+        Assert.Contains("href=\"/resources/application%3Aapplication-topology-api/logs", apiDetailsHtml);
+        Assert.Contains("href=\"/resources/application%3Aapplication-topology-api/traces\"", apiDetailsHtml);
+        Assert.DoesNotContain("href=\"/logs?resourceId=application%3Aapplication-topology-api", apiDetailsHtml);
+        Assert.DoesNotContain("href=\"/observability/traces?resourceId=application%3Aapplication-topology-api", apiDetailsHtml);
         Assert.DoesNotContain("CloudShell-Passw0rd!", apiDetailsHtml);
         Assert.DoesNotContain("local-development-api-key", apiDetailsHtml);
 

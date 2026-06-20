@@ -419,7 +419,7 @@ else
                 <GeneratedListItem Summary="@GetLogsSummary(Logs)"
                                    Metadata="@GetLogSourcesSummary(Logs)">
                     <TitleContent>
-                        <a class="resource-link" href="@BuildLogsRoute(Application.Id, Logs)">
+                        <a class="resource-link" href="@BuildResourceLogsRoute(Application.Id, Logs)">
                             Logs
                         </a>
                     </TitleContent>
@@ -1648,21 +1648,6 @@ else
             : $"Sources: {string.Join(", ", sourceKinds)}";
     }
 
-    private static string BuildLogsRoute(string resourceId, IReadOnlyList<LogDescriptor> logs)
-    {
-        var query = new Dictionary<string, string?>
-        {
-            ["resourceId"] = resourceId
-        };
-
-        if (logs.Count == 1)
-        {
-            query["logId"] = logs[0].Id;
-        }
-
-        return BuildRoute("/logs", query);
-    }
-
     private static string BuildResourceLogsRoute(string resourceId, IReadOnlyList<LogDescriptor> logs)
     {
         var query = new Dictionary<string, string?>();
@@ -1678,9 +1663,7 @@ else
     }
 
     private static string BuildTraceRoute(string resourceId) =>
-        BuildRoute(
-            "/observability/traces",
-            new Dictionary<string, string?> { ["resourceId"] = resourceId });
+        ResourceManagerRoutes.ResourceDetails(resourceId, ResourcePredefinedViewIds.Traces);
 
     private static string BuildActivityRoute(string resourceId) =>
         ResourceManagerRoutes.ResourceDetails(resourceId, ResourcePredefinedViewIds.Activity);

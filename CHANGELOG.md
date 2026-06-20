@@ -33,6 +33,8 @@ on `git blame --follow`, and then by the broad type of change.
   manual refresh action.
 - Application and generated resource overviews now link directly to the
   resource-scoped **Health** tab when the resource declares health checks.
+- Application overviews now link Logs and Traces diagnostics to the
+  resource-scoped tabs instead of global observability filters.
 - Health views now share a resource health history chart backed by retained
   resource health snapshots, and the resource-scoped Health tab auto-refreshes
   while open.
