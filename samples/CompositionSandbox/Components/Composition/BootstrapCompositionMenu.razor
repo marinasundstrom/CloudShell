@@ -1,4 +1,5 @@
 @inject CompositionRegistry Composition
+@inject NavigationManager Navigation
 
 @if (MenuProjection is not null)
 {
@@ -47,7 +48,9 @@
     private RenderFragment RenderMenuItem(
         CompositionMenuItemRegistration item,
         IReadOnlyDictionary<string, CompositionMenuItemRegistration[]> childItemsByParent) => @<div class="bootstrap-composition-menu-item">
-        <CompositeAnchor Target="@item.Id">
+        <CompositeAnchor Target="@item.Id"
+                         class="@GetLinkClass(item)"
+                         aria-current="@GetAriaCurrent(item)">
             @if (TryGetIcon(item, out var icon))
             {
                 <i class="composition-menu-icon bi @icon" aria-hidden="true"></i>
@@ -75,4 +78,60 @@
         item.Attributes.TryGetValue(CompositionAttributeNames.Icon, out icon) &&
         !string.IsNullOrWhiteSpace(icon);
 
+    private string GetLinkClass(CompositionMenuItemRegistration item) =>
+        IsActive(item) ? "is-active" : string.Empty;
+
+    private string? GetAriaCurrent(CompositionMenuItemRegistration item) =>
+        IsActive(item) ? "page" : null;
+
+    private bool IsActive(CompositionMenuItemRegistration item)
+    {
+        var href = Composition.ResolveHref(item.Target);
+        if (href == "#")
+        {
+            return false;
+        }
+
+        var target = Navigation.ToAbsoluteUri(href);
+        var current = Navigation.ToAbsoluteUri(Navigation.Uri);
+        if (!IsSameOrigin(target, current))
+        {
+            return false;
+        }
+
+        if (!PathMatches(target.AbsolutePath, current.AbsolutePath))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(target.Fragment))
+        {
+            return string.Equals(target.Fragment, current.Fragment, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return true;
+    }
+
+    private static bool IsSameOrigin(Uri target, Uri current) =>
+        string.Equals(target.Scheme, current.Scheme, StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(target.Authority, current.Authority, StringComparison.OrdinalIgnoreCase);
+
+    private static bool PathMatches(string targetPath, string currentPath)
+    {
+        var normalizedTarget = NormalizePath(targetPath);
+        var normalizedCurrent = NormalizePath(currentPath);
+        if (string.Equals(normalizedTarget, "/", StringComparison.OrdinalIgnoreCase))
+        {
+            return string.Equals(normalizedCurrent, "/", StringComparison.OrdinalIgnoreCase);
+        }
+
+        return string.Equals(normalizedTarget, normalizedCurrent, StringComparison.OrdinalIgnoreCase) ||
+            normalizedCurrent.StartsWith(normalizedTarget + "/", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string NormalizePath(string path)
+    {
+        var normalized = string.IsNullOrWhiteSpace(path) ? "/" : path.TrimEnd('/');
+        return normalized.Length == 0 ? "/" : normalized;
+    }
 }

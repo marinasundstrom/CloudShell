@@ -1,4 +1,5 @@
 @inject CompositionRegistry Composition
+@inject NavigationManager Navigation
 
 @if (MenuProjection is not null)
 {
@@ -10,13 +11,21 @@
         @foreach (var item in GetRootItems(menu.Items))
         {
             <div class="@ItemClass" data-composition-menu-item="@item.Id.Value">
-                <CompositeAnchor Target="@item.Target">@item.Title</CompositeAnchor>
+                <CompositeAnchor Target="@item.Target"
+                                 class="@GetLinkClass(item)"
+                                 aria-current="@GetAriaCurrent(item)">
+                    @item.Title
+                </CompositeAnchor>
                 @if (GetChildren(menu.Items, item).Count > 0)
                 {
                     <div class="@SubItemsClass">
                         @foreach (var child in GetChildren(menu.Items, item))
                         {
-                            <CompositeAnchor Target="@child.Target">@child.Title</CompositeAnchor>
+                            <CompositeAnchor Target="@child.Target"
+                                             class="@GetLinkClass(child)"
+                                             aria-current="@GetAriaCurrent(child)">
+                                @child.Title
+                            </CompositeAnchor>
                         }
                     </div>
                 }
@@ -30,13 +39,21 @@
                 @foreach (var item in GetRootItems(group.Items))
                 {
                     <div class="@ItemClass" data-composition-menu-item="@item.Id.Value">
-                        <CompositeAnchor Target="@item.Target">@item.Title</CompositeAnchor>
+                        <CompositeAnchor Target="@item.Target"
+                                         class="@GetLinkClass(item)"
+                                         aria-current="@GetAriaCurrent(item)">
+                            @item.Title
+                        </CompositeAnchor>
                         @if (GetChildren(group.Items, item).Count > 0)
                         {
                             <div class="@SubItemsClass">
                                 @foreach (var child in GetChildren(group.Items, item))
                                 {
-                                    <CompositeAnchor Target="@child.Target">@child.Title</CompositeAnchor>
+                                    <CompositeAnchor Target="@child.Target"
+                                                     class="@GetLinkClass(child)"
+                                                     aria-current="@GetAriaCurrent(child)">
+                                        @child.Title
+                                    </CompositeAnchor>
                                 }
                             </div>
                         }
@@ -63,10 +80,52 @@
     [Parameter]
     public string SubItemsClass { get; set; } = "composition-menu-subitems";
 
+    [Parameter]
+    public string LinkClass { get; set; } = "composition-menu-link";
+
+    [Parameter]
+    public string ActiveLinkClass { get; set; } = "is-active";
+
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     private CompositionMenuProjection? MenuProjection => Composition.GetMenuProjection(Id);
+
+    private string GetLinkClass(CompositionMenuItemRegistration item) =>
+        IsActive(item)
+            ? JoinClasses(LinkClass, ActiveLinkClass)
+            : LinkClass;
+
+    private string? GetAriaCurrent(CompositionMenuItemRegistration item) =>
+        IsActive(item) ? "page" : null;
+
+    private bool IsActive(CompositionMenuItemRegistration item)
+    {
+        var href = Composition.ResolveHref(item.Target);
+        if (href == "#")
+        {
+            return false;
+        }
+
+        var target = Navigation.ToAbsoluteUri(href);
+        var current = Navigation.ToAbsoluteUri(Navigation.Uri);
+        if (!IsSameOrigin(target, current))
+        {
+            return false;
+        }
+
+        if (!PathMatches(target.AbsolutePath, current.AbsolutePath))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(target.Fragment))
+        {
+            return string.Equals(target.Fragment, current.Fragment, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return true;
+    }
 
     private static IReadOnlyList<CompositionMenuItemRegistration> GetRootItems(
         IReadOnlyList<CompositionMenuItemRegistration> items) =>
@@ -84,4 +143,30 @@
             .OrderBy(item => item.Order)
             .ThenBy(item => item.Title, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+
+    private static string JoinClasses(params string[] values) =>
+        string.Join(' ', values.Where(value => !string.IsNullOrWhiteSpace(value)));
+
+    private static bool IsSameOrigin(Uri target, Uri current) =>
+        string.Equals(target.Scheme, current.Scheme, StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(target.Authority, current.Authority, StringComparison.OrdinalIgnoreCase);
+
+    private static bool PathMatches(string targetPath, string currentPath)
+    {
+        var normalizedTarget = NormalizePath(targetPath);
+        var normalizedCurrent = NormalizePath(currentPath);
+        if (string.Equals(normalizedTarget, "/", StringComparison.OrdinalIgnoreCase))
+        {
+            return string.Equals(normalizedCurrent, "/", StringComparison.OrdinalIgnoreCase);
+        }
+
+        return string.Equals(normalizedTarget, normalizedCurrent, StringComparison.OrdinalIgnoreCase) ||
+            normalizedCurrent.StartsWith(normalizedTarget + "/", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string NormalizePath(string path)
+    {
+        var normalized = string.IsNullOrWhiteSpace(path) ? "/" : path.TrimEnd('/');
+        return normalized.Length == 0 ? "/" : normalized;
+    }
 }

@@ -467,7 +467,7 @@ The Blazor library currently provides these components:
 | Component | Purpose |
 | --- | --- |
 | `CompositionHost` | Resolves the current route to a registered page and cascades `CompositionContext` to child content. It can also receive an explicit `PageId`. Hosts can opt into pass-through rendering for routes that are not composition-registered yet. |
-| `CompositionMenu` | Renders a registered menu, menu groups, root items, and sub-items. Menu items use composition targets rather than hard-coded routes. Unmatched attributes attach to the rendered `<nav>` root, and class parameters customize the root/group/item/sub-item elements. |
+| `CompositionMenu` | Renders a registered menu, menu groups, root items, and sub-items. Menu items use composition targets rather than hard-coded routes. The current page or section target receives `aria-current="page"` and the active link class. Unmatched attributes attach to the rendered `<nav>` root, and class parameters customize the root/group/item/sub-item/link elements. |
 | `CompositeAnchor` | Resolves a composition target into an anchor `href`. Page targets resolve to registered routes, section targets resolve to the nearest page route plus a fragment, menu item targets resolve through the menu item's own target, and href targets are emitted directly. When child content is omitted, the link uses the target artifact title where one exists. |
 | `TitleOutlet` | Renders visible text for the current composition page title from the cascaded context, an explicit `Page`, or the current route. |
 | `PageTitleOutlet` | Wraps Blazor `PageTitle` for the current composition page title from the cascaded context, an explicit `Page`, or the current route. Use this for the document title instead of mixing document-head behavior into visible page headers. |
@@ -797,7 +797,6 @@ The current composition engine does not yet include:
 - permissions or visibility rules
 - shell-specific metadata outlets beyond the plain `TitleOutlet` and
   `PageTitleOutlet`
-- active menu item selection
 - explicit localization metadata or title templates
 - UI configuration or layout editing in the core package; CloudShell or
   another host can build its own CMS/editor experience on top of the

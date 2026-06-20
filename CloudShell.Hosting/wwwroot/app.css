@@ -1151,6 +1151,17 @@ h3 {
     cursor: pointer;
 }
 
+.cloudshell-tabbed-button:hover,
+.cloudshell-tabbed-button:focus,
+.cloudshell-tabbed-button:focus-visible,
+.cloudshell-tabbed-button:active,
+.resource-tab-button:hover,
+.resource-tab-button:focus,
+.resource-tab-button:focus-visible,
+.resource-tab-button:active {
+    text-decoration: none;
+}
+
 .cloudshell-tabbed-button fluent-icon,
 .resource-tab-button fluent-icon {
     flex: 0 0 auto;
@@ -1175,11 +1186,14 @@ h3 {
 }
 
 .cloudshell-tabbed-button:hover,
+.cloudshell-tabbed-button:focus-visible,
 .resource-tab-button:hover {
     background: var(--cloudshell-hover);
 }
 
 .cloudshell-tabbed-button.active,
+.cloudshell-tabbed-button.active:focus-visible,
+.cloudshell-tabbed-button.active:hover,
 .resource-tab-button.active {
     border-color: var(--cloudshell-accent);
     background: var(--cloudshell-selected);

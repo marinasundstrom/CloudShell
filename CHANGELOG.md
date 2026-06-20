@@ -145,6 +145,8 @@ on `git blame --follow`, and then by the broad type of change.
 - The shared CloudShell tabbed layout now renders route-backed tab items as
   plain links with real hrefs because the layout needs full row-level CSS
   control that the Fluent anchor wrapper does not expose cleanly.
+- The plain Blazor composition menu and sandbox Bootstrap presenter now mark
+  the active menu item from the resolved page or section target.
 - The CloudShell Fluent composition tabbed layout now resolves non-default
   section navigation through section targets instead of duplicating route
   parameter construction in the UI adapter.
@@ -176,6 +178,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Composition link resolution now materializes matching route-template values
   into path segments, omits missing optional route segments, and leaves
   remaining route values as query parameters.
+- Shell tab links now suppress browser link underlines on hover and focus,
+  because the tab item itself provides the hover and active treatment.
 - Resource Manager static navigation routes now use shared
   `ResourceManagerRoutes` constants for add-resource, resource-group,
   templates, and settings links.
