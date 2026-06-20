@@ -75,16 +75,15 @@ on `git blame --follow`, and then by the broad type of change.
   parent items with sub-items keep their custom row, toggle, and child-list
   layout under Blazor CSS isolation.
 - Composition-backed section tabs now keep selected section state in sync with
-  same-route query string navigation so Settings tab content updates on the
-  first click.
+  query state, child-address routes, and parent-address fragments so tab
+  content updates on the first click.
 - The legacy shell navigation bridge now targets the composition Settings page
   by page ID while leaving other legacy shell items on direct href targets.
 - The shell-owned Overview, Users, Extensions, and Settings pages are now
   registered as composition page targets so core navigation can resolve
   through stable page IDs during the menu migration.
-- The common Settings page now resolves nested section navigation through
-  `/settings/{section}` while keeping direct `SectionId` targets as page
-  fragments.
+- The common Settings page now resolves nested section navigation and direct
+  settings `SectionId` targets through `/settings/{section}`.
 - Composition-backed section layouts now show a not-found empty state for
   unknown section route/query selections instead of silently opening the first
   section.
@@ -134,6 +133,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The plain Blazor composition tab outlet now uses section target resolution
   for tab links and can select sections from query state, child-address routes,
   or parent-address fragments.
+- The CloudShell Fluent composition tabbed layout now resolves non-default
+  section navigation through section targets instead of duplicating route
+  parameter construction in the UI adapter.
 - Resource Manager static page links for graph, add resource, create group,
   templates, settings, and Resources recovery states now resolve through the
   shared composition-backed helper with legacy routes kept as fallbacks.

@@ -499,8 +499,7 @@ tabbed page layout:
 ```razor
 <CompositionTabbedPageLayout Page="@CompositionIds.SettingsPage"
                              Outlet="@CompositionIds.SettingsMainOutlet"
-                             TabsAriaLabel="Settings sections"
-                             QueryParameter="section">
+                             TabsAriaLabel="Settings sections">
     <EyebrowContent>Settings</EyebrowContent>
     <SummaryContent>
         Configure this host through sections contributed to the settings page.
@@ -526,13 +525,14 @@ selected section at a time:
 
 ```razor
 <CompositionSectionContainer Id="@CompositionIds.SettingsMainOutlet">
-    <CompositionSectionTabs QueryParameter="section" />
+    <CompositionSectionTabs />
 </CompositionSectionContainer>
 ```
 
-The tabs component handles item routing and selected section rendering. Visual
-classes are parameters so an app can use Bootstrap, shell-specific classes, or
-plain CSS without changing the composition model.
+The tabs component handles item routing through composition section targets and
+renders the selected section. Visual classes are parameters so an app can use
+Bootstrap, shell-specific classes, or plain CSS without changing the
+composition model.
 
 Routing remains normal Blazor routing. Razor components still declare routes
 with `@page`; the composition registry records which composition page ID maps
@@ -727,9 +727,10 @@ The sample includes two registered pages:
   sample-owned Bootstrap grid outlet. This demonstrates how host apps can
   explore layout patterns without adding a visual framework dependency to the
   base composition libraries.
-- `/settings` renders registered named sections through the reusable
-  `CompositionTabbedPageLayout` component. The selected section is represented
-  with a normal `section` query parameter.
+- `/settings` and `/settings/{section}` render registered named sections
+  through the reusable `CompositionTabbedPageLayout` component. The settings
+  outlet opts into child addresses, so `/settings/advanced` can open the
+  advanced section directly.
 
 Registration titles are plain strings for this prototype and serve as the
 stable fallback display value. Hosts may choose to treat the same value as a

@@ -91,9 +91,6 @@
     public string? RouteSegment { get; set; }
 
     [Parameter]
-    public string RouteParameter { get; set; } = "section";
-
-    [Parameter]
     public string AriaLabel { get; set; } = "Sections";
 
     [Parameter]
@@ -263,7 +260,7 @@
         return !string.IsNullOrWhiteSpace(requested);
     }
 
-    private static bool TryResolveSectionRequest(
+    private bool TryResolveSectionRequest(
         IReadOnlyList<CompositionSectionProjection> sections,
         string requested,
         out CompositionSectionProjection section)
@@ -277,7 +274,7 @@
             return true;
         }
 
-        return TryResolveSectionRouteSegment(sections, requested, out section);
+        return TryResolveSectionAddressValue(sections, requested, out section);
     }
 
     private static CompositionSectionProjection? FindSection(
@@ -296,21 +293,19 @@
             return pageHref;
         }
 
-        return Composition.ResolveHref(
-            CompositionTarget.ForPage(Page),
-            new Dictionary<string, object?>
-            {
-                [RouteParameter] = GetSectionRouteSegment(section.Section.Id)
-            });
+        var sectionHref = Composition.ResolveHref(section.Section.Id);
+        return sectionHref == "#"
+            ? pageHref
+            : sectionHref;
     }
 
     private bool TryReadRouteSectionSegment(
         Uri uri,
-        bool allowRouteParameter,
+        bool allowRouteSegmentParameter,
         out string segment)
     {
         segment = string.Empty;
-        if (allowRouteParameter && !string.IsNullOrWhiteSpace(RouteSegment))
+        if (allowRouteSegmentParameter && !string.IsNullOrWhiteSpace(RouteSegment))
         {
             segment = Uri.UnescapeDataString(RouteSegment.Trim());
             return true;
@@ -334,16 +329,16 @@
         return true;
     }
 
-    private static bool TryResolveSectionRouteSegment(
+    private bool TryResolveSectionAddressValue(
         IReadOnlyList<CompositionSectionProjection> sections,
-        string segment,
+        string addressValue,
         out CompositionSectionProjection section)
     {
         section = null!;
         var matchingSections = sections
             .Where(item => string.Equals(
-                GetSectionRouteSegment(item.Section.Id),
-                segment,
+                Composition.GetSectionAddressValue(item.Section.Id),
+                addressValue,
                 StringComparison.OrdinalIgnoreCase))
             .ToArray();
         if (matchingSections.Length != 1)
@@ -354,14 +349,6 @@
         section = matchingSections[0];
         return true;
     }
-
-    private static string GetSectionRouteSegment(SectionId id)
-    {
-        var value = id.Value;
-        var separatorIndex = value.LastIndexOf('.', StringComparison.Ordinal);
-        return separatorIndex < 0 ? value : value[(separatorIndex + 1)..];
-    }
-
     public void Dispose()
     {
         Navigation.LocationChanged -= HandleLocationChanged;
