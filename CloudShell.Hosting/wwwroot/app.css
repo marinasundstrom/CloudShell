@@ -1288,8 +1288,37 @@ h3 {
 }
 
 .resource-graph-status {
+    fill: #8b5cf6;
     stroke: var(--cloudshell-surface);
     stroke-width: 3;
+}
+
+.resource-graph-status.state-running {
+    fill: #16a34a;
+}
+
+.resource-graph-status.state-starting {
+    fill: #f59e0b;
+}
+
+.resource-graph-status.state-stopping {
+    fill: #f97316;
+}
+
+.resource-graph-status.state-paused {
+    fill: #7c3aed;
+}
+
+.resource-graph-status.state-degraded {
+    fill: #dc2626;
+}
+
+.resource-graph-status.state-stopped {
+    fill: #64748b;
+}
+
+.resource-graph-status.state-unknown {
+    fill: #8b5cf6;
 }
 
 .resource-graph-node-label {
