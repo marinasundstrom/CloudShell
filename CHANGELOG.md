@@ -69,9 +69,10 @@ on `git blame --follow`, and then by the broad type of change.
   `ProcedureMessage` styling instead of the default Fluent message bar.
 - Account setup, sign-in, and local user feedback now use the same custom
   `ProcedureMessage` styling as Resource Manager feedback.
-- Trace views now highlight error spans using OpenTelemetry span status
-  conventions, with span-level summary wording, an icon marker, red-tinted
-  item background, and error-colored timeline bar.
+- Trace views now distinguish OpenTelemetry error spans from spans and trace
+  summaries that only contain error spans, using red error treatment for the
+  failing span itself and a softer attention treatment for recovered or
+  fallback flows.
 - Application Topology sample now includes an `/upstream/fallback` endpoint
   that preserves one trace across a failed upstream attempt and successful
   recovery path.

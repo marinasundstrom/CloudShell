@@ -2908,6 +2908,12 @@ h3 {
     box-shadow: inset 3px 0 0 var(--cloudshell-danger-text);
 }
 
+.recent-trace-item.attention {
+    border-color: var(--cloudshell-warning-text);
+    background: var(--cloudshell-warning-fill);
+    box-shadow: inset 3px 0 0 var(--cloudshell-warning-text);
+}
+
 .recent-trace-item span {
     display: grid;
     gap: .12rem;
@@ -3118,9 +3124,25 @@ h3 {
     box-shadow: inset 3px 0 0 var(--cloudshell-danger-text);
 }
 
+.trace-span-row.attention {
+    border-color: var(--cloudshell-warning-text);
+    background: var(--cloudshell-warning-fill);
+    box-shadow: inset 3px 0 0 var(--cloudshell-warning-text);
+}
+
 .trace-span-row.selected {
     border-color: var(--cloudshell-accent);
     background: var(--cloudshell-selected);
+}
+
+.trace-span-row.selected.error {
+    border-color: var(--cloudshell-accent);
+    background: var(--cloudshell-danger-fill);
+}
+
+.trace-span-row.selected.attention {
+    border-color: var(--cloudshell-accent);
+    background: var(--cloudshell-warning-fill);
 }
 
 .trace-span-label {
@@ -3170,6 +3192,22 @@ h3 {
     flex: 0 0 auto;
 }
 
+.trace-attention-pill {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    max-width: 100%;
+    padding: .08rem .36rem;
+    border: 1px solid color-mix(in srgb, var(--cloudshell-warning-text) 36%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--cloudshell-warning-fill) 76%, var(--cloudshell-surface));
+    color: var(--cloudshell-warning-text);
+    font-size: .68rem;
+    font-weight: 700;
+    line-height: 1.1;
+    white-space: nowrap;
+}
+
 .trace-span-service {
     display: grid;
     grid-template-columns: .55rem minmax(0, 1fr);
@@ -3197,6 +3235,10 @@ h3 {
 
 .trace-span-bar.error {
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--cloudshell-danger-text) 40%, transparent);
+}
+
+.trace-span-bar.attention {
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--cloudshell-warning-text) 36%, transparent);
 }
 
 .trace-span-duration {

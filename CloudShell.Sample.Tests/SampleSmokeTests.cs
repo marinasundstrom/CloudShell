@@ -218,6 +218,9 @@ public sealed class SampleSmokeTests
         Assert.Contains("Open resource", traceHtml);
         Assert.Contains("<fluent-anchor", traceHtml);
         Assert.Contains("Error spans", traceHtml);
+        Assert.Contains("trace-span-row selected attention", traceHtml);
+        Assert.Contains("trace-attention-pill", traceHtml);
+        Assert.Contains("Needs attention", traceHtml);
         Assert.Contains("trace-span-row error", traceHtml);
         Assert.Contains("trace-error-pill", traceHtml);
         Assert.Contains(
@@ -934,6 +937,12 @@ public sealed class SampleSmokeTests
         Assert.Contains(
             fallbackSpans,
             span => IsHttpClientSpanForPath(span, "/message", "Unset"));
+
+        var fallbackTraceListHtml = await host.GetStringAsync(
+            $"/observability/traces?resourceId={Uri.EscapeDataString("application:application-topology-frontend")}");
+        Assert.Contains("GET /upstream/fallback", fallbackTraceListHtml);
+        Assert.Contains("recent-trace-item attention", fallbackTraceListHtml);
+        Assert.Contains("Needs attention: 1 error span(s)", fallbackTraceListHtml);
     }
 
     [Fact]

@@ -256,6 +256,12 @@ else if (ShowHeading)
                                                                 @L["Error"]
                                                             </mark>
                                                         }
+                                                        else if (row.NeedsAttention)
+                                                        {
+                                                            <mark class="trace-attention-pill">
+                                                                @L["Needs attention"]
+                                                            </mark>
+                                                        }
                                                     </span>
                                                     <small>@row.Span.Kind</small>
                                                 </span>
@@ -264,7 +270,7 @@ else if (ShowHeading)
                                                     <span>@row.Span.ServiceName</span>
                                                 </span>
                                                 <span class="trace-span-track">
-                                                    <span class="trace-span-bar @(row.HasError ? "error" : null)" style="@GetTraceSpanBarStyle(row)"></span>
+                                                    <span class="@GetTraceSpanBarClass(row)" style="@GetTraceSpanBarStyle(row)"></span>
                                                 </span>
                                                 <span class="trace-span-duration">@FormatDuration(row.Span.Duration)</span>
                                             </button>
@@ -294,6 +300,12 @@ else if (ShowHeading)
                                                 <mark class="trace-error-pill">
                                                     <FluentIcon Value="@(new Icons.Regular.Size16.ErrorCircle())" />
                                                     @L["Error"]
+                                                </mark>
+                                            }
+                                            else if (trace.Rows.FirstOrDefault(row => row.Span.SpanId == selectedSpan.SpanId)?.NeedsAttention == true)
+                                            {
+                                                <mark class="trace-attention-pill">
+                                                    @L["Needs attention"]
                                                 </mark>
                                             }
                                         </div>
@@ -370,11 +382,17 @@ else if (ShowHeading)
                                     <span>
                                         <strong>@trace.EntryOperation</strong>
                                         <small>@FormatTraceId(trace.TraceId) / @trace.Services</small>
-                                        @if (trace.ErrorSpanCount > 0)
+                                        @if (trace.EntryHasError)
                                         {
                                             <mark class="trace-error-pill">
                                                 <FluentIcon Value="@(new Icons.Regular.Size16.ErrorCircle())" />
                                                 @L["{0} error span(s)", trace.ErrorSpanCount]
+                                            </mark>
+                                        }
+                                        else if (trace.NeedsAttention)
+                                        {
+                                            <mark class="trace-attention-pill">
+                                                @L["Needs attention: {0} error span(s)", trace.ErrorSpanCount]
                                             </mark>
                                         }
                                     </span>
@@ -736,6 +754,24 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
         }
 
         var traceDurationMilliseconds = Math.Max(traceDuration.TotalMilliseconds, 1);
+        var childrenByParentSpanId = ordered
+            .Where(span => !string.IsNullOrWhiteSpace(span.ParentSpanId))
+            .GroupBy(span => span.ParentSpanId!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.OrdinalIgnoreCase);
+        var hasErrorDescendantBySpanId = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        bool HasErrorDescendant(TraceSpan span)
+        {
+            if (hasErrorDescendantBySpanId.TryGetValue(span.SpanId, out var hasErrorDescendant))
+            {
+                return hasErrorDescendant;
+            }
+
+            hasErrorDescendant = childrenByParentSpanId.TryGetValue(span.SpanId, out var children) &&
+                children.Any(child => IsErrorSpan(child) || HasErrorDescendant(child));
+            hasErrorDescendantBySpanId[span.SpanId] = hasErrorDescendant;
+            return hasErrorDescendant;
+        }
+
         var rows = ordered
             .Select(span =>
             {
@@ -747,7 +783,8 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
                     Math.Min(offset, 99.4),
                     Math.Min(width, 100 - Math.Min(offset, 99.4)),
                     serviceColors.TryGetValue(span.ServiceName, out var color) ? color : ServicePalette[0],
-                    IsErrorSpan(span));
+                    IsErrorSpan(span),
+                    HasErrorDescendant(span));
             })
             .ToArray();
 
@@ -768,12 +805,14 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
 
         var entry = ordered.FirstOrDefault(span => string.IsNullOrWhiteSpace(span.ParentSpanId)) ?? ordered.FirstOrDefault();
         var errorSpanCount = ordered.Count(IsErrorSpan);
+        var entryHasError = entry is not null && IsErrorSpan(entry);
 
         return new TraceViewModel(
             traceId,
             entry?.Name ?? "trace",
             traceDuration,
             errorSpanCount,
+            entryHasError,
             rows,
             services);
     }
@@ -786,6 +825,7 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
             {
                 var ordered = group.OrderBy(span => span.StartTime).ToArray();
                 var first = ordered.First();
+                var entry = ordered.FirstOrDefault(span => string.IsNullOrWhiteSpace(span.ParentSpanId)) ?? first;
                 var end = ordered
                     .Select(span => span.StartTime.Add(span.Duration))
                     .DefaultIfEmpty(first.StartTime)
@@ -796,9 +836,10 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
 
                 return new RecentTraceSummary(
                     first.TraceId,
-                    first.Name,
+                    entry.Name,
                     ordered.Length,
                     ordered.Count(IsErrorSpan),
+                    IsErrorSpan(entry),
                     end - first.StartTime,
                     string.Join(", ", services));
             })
@@ -830,19 +871,39 @@ StringComparison.OrdinalIgnoreCase))?.Span
     private static string GetTraceSpanBarStyle(TraceSpanRow row) =>
         string.Create(
             CultureInfo.InvariantCulture,
-            $"left: {row.OffsetPercent:0.###}%; width: {row.WidthPercent:0.###}%; background: {(row.HasError ? "var(--cloudshell-danger-text)" : row.Color)};");
+            $"left: {row.OffsetPercent:0.###}%; width: {row.WidthPercent:0.###}%; background: {GetTraceSpanBarColor(row)};");
+
+    private static string GetTraceSpanBarColor(TraceSpanRow row) =>
+        row.HasError
+            ? "var(--cloudshell-danger-text)"
+            : row.NeedsAttention
+                ? "var(--cloudshell-warning-text)"
+                : row.Color;
 
     private static string GetTraceSpanRowClass(TraceSpanRow row, bool isSelected) =>
-        (isSelected, row.HasError) switch
+        (isSelected, row.HasError, row.NeedsAttention) switch
         {
-            (true, true) => "trace-span-row selected error",
-            (true, false) => "trace-span-row selected",
-            (false, true) => "trace-span-row error",
+            (true, true, _) => "trace-span-row selected error",
+            (true, false, true) => "trace-span-row selected attention",
+            (true, false, false) => "trace-span-row selected",
+            (false, true, _) => "trace-span-row error",
+            (false, false, true) => "trace-span-row attention",
             _ => "trace-span-row"
         };
 
+    private static string GetTraceSpanBarClass(TraceSpanRow row) =>
+        row.HasError
+            ? "trace-span-bar error"
+            : row.NeedsAttention
+                ? "trace-span-bar attention"
+                : "trace-span-bar";
+
     private static string GetRecentTraceItemClass(RecentTraceSummary trace) =>
-        trace.ErrorSpanCount > 0 ? "recent-trace-item error" : "recent-trace-item";
+        trace.EntryHasError
+            ? "recent-trace-item error"
+            : trace.NeedsAttention
+                ? "recent-trace-item attention"
+                : "recent-trace-item";
 
     private static string GetServiceColorStyle(string color) =>
         $"background: {color};";
@@ -941,8 +1002,12 @@ StringComparison.OrdinalIgnoreCase))?.Span
         string EntryOperation,
         TimeSpan Duration,
         int ErrorSpanCount,
+        bool EntryHasError,
         IReadOnlyList<TraceSpanRow> Rows,
-        IReadOnlyList<TraceServiceSummary> Services);
+        IReadOnlyList<TraceServiceSummary> Services)
+    {
+        public bool NeedsAttention => !EntryHasError && ErrorSpanCount > 0;
+    }
 
     private sealed record TraceSpanRow(
         TraceSpan Span,
@@ -950,7 +1015,11 @@ StringComparison.OrdinalIgnoreCase))?.Span
         double OffsetPercent,
         double WidthPercent,
         string Color,
-        bool HasError);
+        bool HasError,
+        bool HasErrorDescendant)
+    {
+        public bool NeedsAttention => !HasError && HasErrorDescendant;
+    }
 
     private sealed record TraceServiceSummary(
         string Name,
@@ -962,8 +1031,12 @@ StringComparison.OrdinalIgnoreCase))?.Span
         string EntryOperation,
         int SpanCount,
         int ErrorSpanCount,
+        bool EntryHasError,
         TimeSpan Duration,
-        string Services);
+        string Services)
+    {
+        public bool NeedsAttention => !EntryHasError && ErrorSpanCount > 0;
+    }
 
     private sealed record TelemetrySelectionIssue(
         string Title,
