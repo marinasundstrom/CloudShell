@@ -118,6 +118,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Observability log, trace, and metric source selectors now use Resource
   Manager display labels when available while keeping canonical resource IDs in
   detail fields.
+- Trace and metric views now share a Resource Manager resource-source selector
+  component so resource option formatting stays consistent across
+  observability views.
 
 ### 2026-06-19
 

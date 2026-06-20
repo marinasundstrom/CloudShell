@@ -86,16 +86,12 @@ else if (ShowHeading)
                     <div class="log-viewer-actions">
                         @if (ShowResourceSelector)
                         {
-                            <label class="trace-source-filter" for="metric-source-filter">
-                                <span>@L["Metric source"]</span>
-                                <select id="metric-source-filter" class="trace-source-select" value="@selected.Id"
-                                        @onchange="SelectResource">
-                                    @foreach (var resource in resources)
-                                    {
-                                        <option value="@resource.Id">@GetResourceLabel(resource)</option>
-                                    }
-                                </select>
-                            </label>
+                            <ResourceSourceSelect Id="metric-source-filter"
+                                                  Label="@L["Metric source"]"
+                                                  Resources="resources"
+                                                  SelectedResourceId="selected.Id"
+                                                  SelectedResourceIdChanged="SelectResource"
+                                                  ResourceLabel="GetResourceLabel" />
                         }
                         @if (scopes.Count > 1)
                         {

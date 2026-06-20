@@ -113,20 +113,13 @@ else if (ShowHeading)
                         }
                         @if (ShowResourceSelector)
                         {
-                            <label class="trace-source-filter" for="trace-source-filter">
-                                <span>@L["Trace source"]</span>
-                                <select id="trace-source-filter" class="trace-source-select" value="@(selected?.Id ?? string.Empty)"
-                                        @onchange="SelectResource">
-                                    @if (!Inline)
-                                    {
-                                        <option value="">@L["All sources"]</option>
-                                    }
-                                    @foreach (var resource in resources)
-                                    {
-                                        <option value="@resource.Id">@GetResourceLabel(resource)</option>
-                                    }
-                                </select>
-                            </label>
+                            <ResourceSourceSelect Id="trace-source-filter"
+                                                  Label="@L["Trace source"]"
+                                                  Resources="resources"
+                                                  SelectedResourceId="selected?.Id"
+                                                  SelectedResourceIdChanged="SelectResource"
+                                                  AllOptionLabel="@(Inline ? null : L["All sources"].Value)"
+                                                  ResourceLabel="GetResourceLabel" />
                         }
                         @if (selected is not null && scopes.Count > 1)
                         {
