@@ -10,9 +10,19 @@
         {
             <option value="">@AllOptionLabel</option>
         }
-        @foreach (var resource in Resources)
+        @if (Options.Count > 0)
         {
-            <option value="@resource.Id">@GetResourceLabel(resource)</option>
+            @foreach (var option in Options)
+            {
+                <option value="@option.ResourceId">@option.Name</option>
+            }
+        }
+        else
+        {
+            @foreach (var resource in Resources)
+            {
+                <option value="@resource.Id">@GetResourceLabel(resource)</option>
+            }
         }
     </select>
 </label>
@@ -26,6 +36,9 @@
 
     [Parameter]
     public IReadOnlyList<Resource> Resources { get; set; } = [];
+
+    [Parameter]
+    public IReadOnlyList<ResourceSourceSelectOption> Options { get; set; } = [];
 
     [Parameter]
     public string? SelectedResourceId { get; set; }

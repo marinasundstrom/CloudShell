@@ -94,18 +94,12 @@ else if (ShowHeading)
                     }
                     @if (!Inline)
                     {
-                        <label class="trace-source-filter" for="log-resource-filter">
-                            <span>@L["Resource"]</span>
-                            <select id="log-resource-filter" class="trace-source-select"
-                                    value="@(selectedResourceFilterId ?? string.Empty)"
-                                    @onchange="SelectResourceFilter">
-                                <option value="">@L["All resources"]</option>
-                                @foreach (var resource in LogResourceFilters)
-                                {
-                                    <option value="@resource.ResourceId">@resource.Name</option>
-                                }
-                            </select>
-                        </label>
+                        <ResourceSourceSelect Id="log-resource-filter"
+                                              Label="@L["Resource"]"
+                                              Options="LogResourceFilters"
+                                              SelectedResourceId="selectedResourceFilterId"
+                                              SelectedResourceIdChanged="SelectResourceFilter"
+                                              AllOptionLabel="@L["All resources"].Value" />
                     }
                     <label class="trace-source-filter" for="log-source-filter">
                         <span>@L["Log source"]</span>
@@ -239,7 +233,7 @@ else if (ShowHeading)
     private double? PreservePrependedScrollHeight { get; set; }
     private bool IsDisposed { get; set; }
     private IReadOnlyList<LogDescriptor> VisibleLogs { get; set; } = [];
-    private IReadOnlyList<LogResourceFilterOption> LogResourceFilters { get; set; } = [];
+    private IReadOnlyList<ResourceSourceSelectOption> LogResourceFilters { get; set; } = [];
     private IReadOnlyDictionary<string, Resource> LogResourcesById { get; set; } =
         new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
     private ResourceManagerDisplaySelection DisplaySelection { get; set; } =
@@ -430,7 +424,7 @@ else if (ShowHeading)
         LogResourcesById = resourcesById;
 
         LogResourceFilters = resourceIds
-            .Select(resourceId => new LogResourceFilterOption(
+            .Select(resourceId => new ResourceSourceSelectOption(
                 resourceId!,
                 resourcesById.TryGetValue(resourceId!, out var resource)
                     ? GetResourceLabel(resource)
@@ -514,9 +508,8 @@ else if (ShowHeading)
     private void SelectLog(ChangeEventArgs args) =>
         SelectLog(args.Value?.ToString());
 
-    private void SelectResourceFilter(ChangeEventArgs args)
+    private void SelectResourceFilter(string? resourceId)
     {
-        var resourceId = args.Value?.ToString();
         var query = new Dictionary<string, string?>();
         if (!string.IsNullOrWhiteSpace(resourceId))
         {
@@ -1014,5 +1007,4 @@ else if (ShowHeading)
         string RecoveryLabel,
         string RecoveryHref);
 
-    private sealed record LogResourceFilterOption(string ResourceId, string Name);
 }

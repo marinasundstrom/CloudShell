@@ -121,6 +121,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Trace and metric views now share a Resource Manager resource-source selector
   component so resource option formatting stays consistent across
   observability views.
+- The Logs resource filter now uses the same Resource Manager source selector
+  path as trace and metric sources, including preformatted resource labels for
+  sources whose resource projection is unavailable.
 
 ### 2026-06-19
 
