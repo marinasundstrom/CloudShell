@@ -152,8 +152,8 @@
             <div class="activity-list">
                 @foreach (var item in ActiveRequestFailures.Take(6))
                 {
-                    <a class="activity-row" href="@BuildTraceRoute(item.RouteResourceId, item.TraceId)">
-                        <ResourceSeverityIcon Severity="ResourceSignalSeverity.Error" />
+                    <a class="@GetRequestIssueRowClass(item)" href="@BuildTraceRoute(item.RouteResourceId, item.TraceId)">
+                        <ResourceSeverityIcon Severity="@GetRequestIssueSeverity(item)" />
                         <div>
                             <strong>@item.RequestName</strong>
                             <span>@L["{0} / {1} failed span(s) / latest {2}",
@@ -250,15 +250,8 @@
             .ThenBy(issue => issue.Resource.EffectiveDisplayName, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-    private IReadOnlyList<RequestFailureItem> ActiveRequestFailures =>
+    private IReadOnlyList<RequestFailureSummary> ActiveRequestFailures =>
         RequestFailures
-            .Select(item => new RequestFailureItem(
-                item.TraceId,
-                item.RouteResourceId,
-                item.RequestName,
-                item.ServiceSummary,
-                item.ErrorSpanCount,
-                item.LastSeen))
             .OrderByDescending(item => item.LastSeen)
             .ToArray();
 
@@ -399,13 +392,15 @@
         var latest = errorSpans
             .OrderByDescending(span => span.StartTime)
             .First();
+        var first = traceSpans.First();
+        var entry = traceSpans.FirstOrDefault(span => string.IsNullOrWhiteSpace(span.ParentSpanId)) ?? first;
         var routeResourceId = FirstNonEmpty(
             latest.ResourceId,
             errorSpans.Select(span => span.ResourceId).FirstOrDefault(resourceId => !string.IsNullOrWhiteSpace(resourceId)),
             traceSpans.Select(span => span.ResourceId).FirstOrDefault(resourceId => !string.IsNullOrWhiteSpace(resourceId)))
             ?? string.Empty;
         var requestName = FirstNonEmpty(
-            traceSpans.FirstOrDefault(span => string.IsNullOrWhiteSpace(span.ParentSpanId))?.Name,
+            entry.Name,
             traceSpans.FirstOrDefault()?.Name,
             L["Failed trace"].Value)
             ?? L["Failed trace"].Value;
@@ -419,6 +414,7 @@
             requestName,
             serviceSummary,
             errorSpans.Length,
+            IsErrorSpan(entry),
             latest.StartTime);
     }
 
@@ -520,6 +516,14 @@
         !string.Equals(span.Status, "Unset", StringComparison.OrdinalIgnoreCase) &&
         !string.Equals(span.Status, "Ok", StringComparison.OrdinalIgnoreCase);
 
+    private static ResourceSignalSeverity GetRequestIssueSeverity(RequestFailureSummary item) =>
+        item.EntryHasError ? ResourceSignalSeverity.Error : ResourceSignalSeverity.Warning;
+
+    private static string GetRequestIssueRowClass(RequestFailureSummary item) =>
+        item.EntryHasError
+            ? "activity-row request-issue error"
+            : "activity-row request-issue attention";
+
     private string GetStateLabel(ResourceState state) =>
         state.ToString();
 
@@ -571,14 +575,7 @@
         string RequestName,
         string ServiceSummary,
         int ErrorSpanCount,
-        DateTimeOffset LastSeen);
-
-    private sealed record RequestFailureItem(
-        string TraceId,
-        string RouteResourceId,
-        string RequestName,
-        string ServiceSummary,
-        int ErrorSpanCount,
+        bool EntryHasError,
         DateTimeOffset LastSeen);
 
     private sealed record ResourceStateSummary(

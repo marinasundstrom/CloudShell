@@ -274,6 +274,23 @@ h3 {
     font-size: .76rem;
 }
 
+.activity-row.request-issue:hover {
+    border-color: var(--cloudshell-accent);
+    background: var(--cloudshell-hover);
+}
+
+.activity-row.request-issue.error {
+    border-color: var(--cloudshell-danger-text);
+    background: var(--cloudshell-danger-fill);
+    box-shadow: inset 3px 0 0 var(--cloudshell-danger-text);
+}
+
+.activity-row.request-issue.attention {
+    border-color: var(--cloudshell-warning-text);
+    background: var(--cloudshell-warning-fill);
+    box-shadow: inset 3px 0 0 var(--cloudshell-warning-text);
+}
+
 .group-meta {
     text-align: right;
 }

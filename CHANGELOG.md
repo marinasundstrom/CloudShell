@@ -24,6 +24,9 @@ on `git blame --follow`, and then by the broad type of change.
   confidence, immediate resource relationship comprehension, readable
   Resource Manager labels, app-centric diagnostics, and focused readiness
   hardening.
+- Dashboard failed request rows now reuse the trace severity treatment: entry
+  span failures render as red failure rows, while traces with failed child spans
+  render as yellow attention rows.
 - Unauthenticated request-bound resource operations now record activity with
   the generic `user` actor instead of falling through to system activity, while
   background work without a request context remains system-owned.
