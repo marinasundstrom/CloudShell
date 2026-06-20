@@ -152,7 +152,10 @@ resolver turns that structure into links. The integrating UI framework remains
 responsible for route handling and must honor the declared URLs when it defines
 pages with its router. In Blazor, this can start with ordinary Razor pages and
 later move to a CloudShell-owned composition-aware router component that maps
-composition route metadata to Blazor route entries.
+composition route metadata to Blazor route entries. The benefit of that router
+is that composed pages would no longer have to duplicate route metadata in
+`@page` directives; the composition graph could become the source of route
+declarations while the Blazor integration handles matching and rendering.
 
 Programmatic link resolution should start from typed composition targets such
 as `PageId`, `SectionId`, `MenuItemId`, or an explicit href target. The
@@ -185,6 +188,8 @@ component that registers route entries from this model instead of requiring
 each routed Razor component to duplicate the same route shape. That should be
 treated as a host routing adapter over the composition graph, not as a
 requirement for the generic composition model or the first Blazor integration.
+It should still keep component activation and authorization under host control
+instead of letting arbitrary modules bypass shell validation.
 
 Relationships describe cross-tree links and non-hierarchical targets such as a
 menu item targeting a page, a page content node binding to a route, component

@@ -583,9 +583,11 @@ must declare routes that match the composition route metadata.
 A later host could go further and provide its own composition-aware Blazor
 router component that registers routable entries directly from the composition
 model. That would reduce the amount of duplicated route declaration in Razor
-pages, but it is a separate routing integration layer over the graph. The
-current implementation stays aligned with Blazor's built-in router and uses the
-composition registry for link generation.
+pages and could eventually let composed pages rely on composition route
+registrations instead of `@page` directives. That router remains a separate
+routing integration layer over the graph. The current implementation stays
+aligned with Blazor's built-in router and uses the composition registry for
+link generation.
 
 `PageTitleOutlet` relies on Blazor's normal `PageTitle` and `HeadOutlet`
 behavior. Hosts still need to include a Blazor `HeadOutlet` in their app shell

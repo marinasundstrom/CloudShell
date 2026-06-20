@@ -130,6 +130,9 @@ on `git blame --follow`, and then by the broad type of change.
   where a page or section outlet can later declare that its child sections are
   rendered as path segments for tabs, side navigation, or similar local
   navigation renderers.
+- Documented the future composition-aware Blazor router as the path toward
+  route declarations sourced from the composition graph instead of duplicated
+  `@page` directives.
 - Composition links are now exposed as `CompositeAnchor`, support unmatched
   anchor attributes, and render a customizable unresolved placeholder instead
   of a broken `href="#"` when an artifact target cannot resolve.
