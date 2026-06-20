@@ -1716,7 +1716,7 @@ public sealed class ResourceDeclarationTests
             ResourceAction.Start);
 
         Assert.Equal(
-            $"Project-backed application resource 'application:api' cannot start because project path '{missingProjectPath}' was not found at '{Path.GetFullPath(missingProjectPath, contentRoot)}'.",
+            $"Project-backed application resource 'api' cannot start because project path '{missingProjectPath}' was not found at '{Path.GetFullPath(missingProjectPath, contentRoot)}'.",
             reason);
     }
 
@@ -1820,7 +1820,7 @@ public sealed class ResourceDeclarationTests
             ResourceAction.Start);
 
         Assert.Equal(
-            $"Application resource 'application:api' cannot start because working directory '{Path.GetFullPath(workingDirectory, contentRoot)}' was not found.",
+            $"Application resource 'api' cannot start because working directory '{Path.GetFullPath(workingDirectory, contentRoot)}' was not found.",
             reason);
     }
 
@@ -1873,7 +1873,7 @@ public sealed class ResourceDeclarationTests
             ResourceAction.Start);
 
         Assert.Equal(
-            $"Executable application resource 'application:api' cannot start because executable path '{executablePath}' was not found at '{Path.GetFullPath(executablePath, contentRoot)}'.",
+            $"Executable application resource 'api' cannot start because executable path '{executablePath}' was not found at '{Path.GetFullPath(executablePath, contentRoot)}'.",
             reason);
     }
 
@@ -2305,7 +2305,7 @@ public sealed class ResourceDeclarationTests
                 ResourceAction.Start);
 
             Assert.Equal(
-                $"Container app resource 'application:api' cannot access registry 'registry.example.com' because credential environment variable '{passwordVariable}' is not configured.",
+                $"Container app resource 'API' cannot access registry 'registry.example.com' because credential environment variable '{passwordVariable}' is not configured.",
                 reason);
         }
         finally
@@ -9180,7 +9180,7 @@ public sealed class ResourceDeclarationTests
         var updated = provider.GetApplication("application:api");
 
         Assert.Contains(
-            "Container app resource 'application:api' cannot update image and restart because Could not resolve configuration-entry reference for setting 'WELCOME_MESSAGE'.",
+            "Container app resource 'api' cannot update image and restart because Could not resolve configuration-entry reference for setting 'WELCOME_MESSAGE'.",
             exception.Message);
         Assert.NotNull(updated);
         Assert.Equal("example/api:latest", updated.ContainerImage);
@@ -9283,7 +9283,7 @@ public sealed class ResourceDeclarationTests
         var updated = provider.GetApplication("application:api");
 
         Assert.Contains(
-            "Container app resource 'application:api' cannot update replicas and restart because Could not resolve configuration-entry reference for setting 'WELCOME_MESSAGE'.",
+            "Container app resource 'api' cannot update replicas and restart because Could not resolve configuration-entry reference for setting 'WELCOME_MESSAGE'.",
             exception.Message);
         Assert.NotNull(updated);
         Assert.True(updated.ReplicasEnabled);

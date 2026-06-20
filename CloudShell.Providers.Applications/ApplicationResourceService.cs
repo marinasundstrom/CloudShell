@@ -652,14 +652,14 @@ public sealed partial class ApplicationResourceService(
 
         if (string.IsNullOrWhiteSpace(application.ProjectPath))
         {
-            return $"Project-backed application resource '{application.Id}' does not declare a project path.";
+            return $"Project-backed application resource '{FormatApplicationResourceName(application)}' does not declare a project path.";
         }
 
         var projectPath = application.ProjectPath.Trim();
         var resolvedPath = ResolveProjectPath(application);
         return File.Exists(resolvedPath) || Directory.Exists(resolvedPath)
             ? null
-            : $"Project-backed application resource '{application.Id}' cannot start because project path '{projectPath}' was not found at '{resolvedPath}'.";
+            : $"Project-backed application resource '{FormatApplicationResourceName(application)}' cannot start because project path '{projectPath}' was not found at '{resolvedPath}'.";
     }
 
     private string? GetLocalProcessUnavailableReason(ApplicationResourceDefinition application)
@@ -672,7 +672,7 @@ public sealed partial class ApplicationResourceService(
         var workingDirectory = ResolveConfiguredWorkingDirectory(application);
         if (!Directory.Exists(workingDirectory))
         {
-            return $"Application resource '{application.Id}' cannot start because working directory '{workingDirectory}' was not found.";
+            return $"Application resource '{FormatApplicationResourceName(application)}' cannot start because working directory '{workingDirectory}' was not found.";
         }
 
         if (IsProjectBacked(application))
@@ -682,7 +682,7 @@ public sealed partial class ApplicationResourceService(
 
         if (string.IsNullOrWhiteSpace(application.ExecutablePath))
         {
-            return $"Executable application resource '{application.Id}' does not declare an executable path.";
+            return $"Executable application resource '{FormatApplicationResourceName(application)}' does not declare an executable path.";
         }
 
         var executablePath = application.ExecutablePath.Trim();
@@ -694,7 +694,7 @@ public sealed partial class ApplicationResourceService(
         var resolvedPath = ResolveConfiguredExecutablePath(application, workingDirectory);
         return File.Exists(resolvedPath)
             ? null
-            : $"Executable application resource '{application.Id}' cannot start because executable path '{executablePath}' was not found at '{resolvedPath}'.";
+            : $"Executable application resource '{FormatApplicationResourceName(application)}' cannot start because executable path '{executablePath}' was not found at '{resolvedPath}'.";
     }
 
     private static string? GetRegistryCredentialUnavailableReason(ApplicationResourceDefinition application)
@@ -711,7 +711,7 @@ public sealed partial class ApplicationResourceService(
         }
 
         return string.IsNullOrEmpty(Environment.GetEnvironmentVariable(credentials.NormalizedPasswordEnvironmentVariable))
-            ? $"Container app resource '{application.Id}' cannot access registry '{GetImageRegistryAddress(GetEffectiveContainerRegistry(application))}' because credential environment variable '{credentials.NormalizedPasswordEnvironmentVariable}' is not configured."
+            ? $"Container app resource '{FormatApplicationResourceName(application)}' cannot access registry '{GetImageRegistryAddress(GetEffectiveContainerRegistry(application))}' because credential environment variable '{credentials.NormalizedPasswordEnvironmentVariable}' is not configured."
             : null;
     }
 
@@ -1100,8 +1100,11 @@ public sealed partial class ApplicationResourceService(
             cancellationToken);
         if (!string.IsNullOrWhiteSpace(restartReason))
         {
+            var applicationName = store.GetApplication(context.Resource.Id) is { } application
+                ? FormatApplicationResourceName(application)
+                : context.Resource.Name;
             throw new InvalidOperationException(
-                $"Container app resource '{context.Resource.Id}' cannot {operation} and restart because {restartReason}");
+                $"Container app resource '{applicationName}' cannot {operation} and restart because {restartReason}");
         }
     }
 
@@ -3549,6 +3552,11 @@ public sealed partial class ApplicationResourceService(
 
     private static string Pluralize(int count) =>
         count == 1 ? string.Empty : "s";
+
+    private static string FormatApplicationResourceName(ApplicationResourceDefinition application) =>
+        string.IsNullOrWhiteSpace(application.Name)
+            ? application.Id
+            : application.Name;
 
     private static bool IsAspNetCoreProject(ApplicationResourceDefinition application) =>
         string.Equals(

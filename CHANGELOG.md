@@ -57,6 +57,8 @@ on `git blame --follow`, and then by the broad type of change.
   login, user, role, and drift inspection as the remaining provider work.
 - Resource Monitoring tabs now auto-refresh while open by default and only
   show the manual Refresh command when auto-refresh is disabled.
+- Application action-readiness messages now use the resource name instead of
+  leading with internal resource IDs.
 
 ### 2026-06-19
 
