@@ -24,7 +24,6 @@
         <CompositionSectionTabs Page="@Page"
                                 Id="@Outlet"
                                 AriaLabel="@TabsAriaLabel"
-                                QueryParameter="@QueryParameter"
                                 ContainerClass="@TabsContainerClass"
                                 TabListContainerClass="@TabListContainerClass"
                                 TabListClass="@TabListClass"
@@ -100,9 +99,6 @@
 
     [Parameter]
     public string TabsAriaLabel { get; set; } = "Sections";
-
-    [Parameter]
-    public string QueryParameter { get; set; } = "section";
 
     [Parameter]
     public string TabsContainerClass { get; set; } = "composition-tabs";

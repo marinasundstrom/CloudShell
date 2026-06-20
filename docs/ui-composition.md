@@ -461,7 +461,7 @@ The Blazor library currently provides these components:
 | `CompositionSectionContainer` | Cascades the current section outlet ID to nested content. |
 | `CompositionSectionNavigation` | Renders normal anchor links to the registered sections in an outlet. Parent-addressed sections resolve to page-local hashes, while child-addressed sections resolve through the owning page route. |
 | `CompositionSectionOutlet` | Renders all registered sections for the current page and section outlet using Blazor `DynamicComponent`. It can resolve the page from cascade, an explicit `Page`, or the current route. |
-| `CompositionSectionTabs` | Renders registered named sections as tab items and uses composition section targets for tab links. It can read selection from query state, child-address routes, or parent-address fragments, and renders the selected section with `DynamicComponent`. It can resolve the page from cascade, an explicit `Page`, or the current route. |
+| `CompositionSectionTabs` | Renders registered named sections as tab items and uses composition section targets for tab links. It reads selection from child-address routes or parent-address fragments, and renders the selected section with `DynamicComponent`. It can resolve the page from cascade, an explicit `Page`, or the current route. |
 | `CompositionTabbedPageLayout` | Composes `CompositionPageLayout`, `CompositionSectionContainer`, and `CompositionSectionTabs` into a reusable tabbed page layout. It is useful for settings-like pages while keeping tabs as a renderer choice over named sections. |
 
 A typical layout hosts the composition root around the routed body:

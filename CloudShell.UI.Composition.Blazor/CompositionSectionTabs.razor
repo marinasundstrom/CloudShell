@@ -68,9 +68,6 @@ else
     public string AriaLabel { get; set; } = "Sections";
 
     [Parameter]
-    public string QueryParameter { get; set; } = "section";
-
-    [Parameter]
     public string ContainerClass { get; set; } = "composition-tabs";
 
     [Parameter]
@@ -134,13 +131,6 @@ else
     private string? ReadSelectedSectionId(string? location = null)
     {
         var uri = Navigation.ToAbsoluteUri(location ?? Navigation.Uri);
-        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
-        if (query.TryGetValue(QueryParameter, out var value) &&
-            TryResolveSectionRequest(value.ToString(), out var querySection))
-        {
-            return querySection.Section.Id.Value;
-        }
-
         if (ResolvedContext is not null &&
             ResolvedOutletId is not null &&
             Composition.GetSectionOutlet(ResolvedOutletId.Value)?.AddressMode == CompositionSectionAddressMode.Child &&

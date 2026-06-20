@@ -85,9 +85,6 @@
     public SectionOutletId Outlet { get; set; }
 
     [Parameter]
-    public string QueryParameter { get; set; } = "section";
-
-    [Parameter]
     public string? RouteSegment { get; set; }
 
     [Parameter]
@@ -250,13 +247,12 @@
             return true;
         }
 
-        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
-        if (!query.TryGetValue(QueryParameter, out var value))
+        if (string.IsNullOrWhiteSpace(uri.Fragment))
         {
             return false;
         }
 
-        requested = Uri.UnescapeDataString(value.ToString().Trim());
+        requested = Uri.UnescapeDataString(uri.Fragment.TrimStart('#'));
         return !string.IsNullOrWhiteSpace(requested);
     }
 

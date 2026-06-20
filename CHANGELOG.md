@@ -75,8 +75,8 @@ on `git blame --follow`, and then by the broad type of change.
   parent items with sub-items keep their custom row, toggle, and child-list
   layout under Blazor CSS isolation.
 - Composition-backed section tabs now keep selected section state in sync with
-  query state, child-address routes, and parent-address fragments so tab
-  content updates on the first click.
+  child-address routes and parent-address fragments so tab content updates on
+  the first click.
 - The legacy shell navigation bridge now targets the composition Settings page
   by page ID while leaving other legacy shell items on direct href targets.
 - The shell-owned Overview, Users, Extensions, and Settings pages are now
@@ -131,13 +131,15 @@ on `git blame --follow`, and then by the broad type of change.
   page-local fragments while the Settings renderer decides how to present the
   sections.
 - The plain Blazor composition tab outlet now uses section target resolution
-  for tab links and can select sections from query state, child-address routes,
-  or parent-address fragments.
+  for tab links and can select sections from child-address routes or
+  parent-address fragments.
 - Plain Blazor composition now includes a section navigation component that
   renders normal anchors to registered sections, enabling page-local hash
   deep links for parent-addressed sections.
 - The composition sandbox now demonstrates section deep links with CSS-only
   smooth scrolling and a target highlight.
+- Composition tab renderers now select sections through child addresses or
+  fragments instead of reserving a query-string parameter for tab state.
 - The CloudShell Fluent composition tabbed layout now resolves non-default
   section navigation through section targets instead of duplicating route
   parameter construction in the UI adapter.
