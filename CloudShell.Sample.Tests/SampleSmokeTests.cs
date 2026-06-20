@@ -214,6 +214,17 @@ public sealed class SampleSmokeTests
             }
             """);
 
+        var frontendOverviewHtml = await host.GetStringAsync(
+            "/resources/application%3Aproject-reference-frontend/details");
+        Assert.Contains("Dependency graph", frontendOverviewHtml);
+        Assert.Contains("Project Reference API", frontendOverviewHtml);
+        Assert.Contains(
+            $"href=\"/resources/application%3Aproject-reference-api/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Activity.Value)}\"",
+            frontendOverviewHtml);
+        Assert.Contains(
+            $"href=\"/resources/application%3Aproject-reference-api/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Traces.Value)}\"",
+            frontendOverviewHtml);
+
         var traceHtml = await host.GetStringAsync(
             $"/observability/traces?resourceId=application%3Aproject-reference-frontend&traceId={traceId}");
         Assert.Contains("Trace chart", traceHtml);

@@ -1126,6 +1126,14 @@ h3 {
     color: var(--cloudshell-text-muted);
 }
 
+.resource-relationship-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem .55rem;
+    margin-top: .2rem;
+    font-size: .85rem;
+}
+
 .resource-relationship-node.missing {
     border-color: #f2c94c;
     background: var(--cloudshell-warning-fill);

@@ -5,4 +5,12 @@ public sealed record ResourceRelationshipNode(
     string? Href = null,
     string? Summary = null,
     string? Metadata = null,
-    bool IsMissing = false);
+    bool IsMissing = false,
+    IReadOnlyList<ResourceRelationshipNodeAction>? Actions = null)
+{
+    public IReadOnlyList<ResourceRelationshipNodeAction> NodeActions => Actions ?? [];
+}
+
+public sealed record ResourceRelationshipNodeAction(
+    string Label,
+    string Href);

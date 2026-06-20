@@ -451,6 +451,8 @@ else
     private IReadOnlyList<VolumeMountView> VolumeMounts { get; set; } = [];
     private IReadOnlyList<ServiceDiscoveryReferenceView> ServiceDiscoveryReferences { get; set; } = [];
     private IReadOnlyList<LogDescriptor> Logs { get; set; } = [];
+    private IReadOnlyDictionary<string, IReadOnlyList<LogDescriptor>> RelatedLogsByResourceId { get; set; } =
+        new Dictionary<string, IReadOnlyList<LogDescriptor>>(StringComparer.OrdinalIgnoreCase);
     private ContainerHostPlacementView? ContainerHostPlacement { get; set; }
 
     protected override async Task OnParametersSetAsync()
@@ -491,6 +493,9 @@ else
         Logs = Application is null
             ? []
             : await GetLogsAsync(Application.Id);
+        RelatedLogsByResourceId = Application is null
+            ? new Dictionary<string, IReadOnlyList<LogDescriptor>>(StringComparer.OrdinalIgnoreCase)
+            : await LoadRelatedLogsAsync(GetRelationshipResourceIds());
         ContainerHostPlacement = Application is null || !IsContainerBacked(Application) || IsSqlServer(Application)
             ? null
             : GetContainerHostPlacement(Application);
@@ -1183,7 +1188,8 @@ else
                     dependency is null ? null : BuildResourceRoute(dependency.Id),
                     FormatDependencySummary(dependency, dependencyId),
                     FormatDependencyMetadata(dependency),
-                    dependency is null);
+                    dependency is null,
+                    dependency is null ? null : GetRelationshipActions(dependency));
             })
             .ToArray();
 
@@ -1194,7 +1200,8 @@ else
                     GetResourceLabel(dependent),
                     BuildResourceRoute(dependent.Id),
                     FormatDependencySummary(dependent, dependent.Id),
-                    FormatDependencyMetadata(dependent)))
+                    FormatDependencyMetadata(dependent),
+                    Actions: GetRelationshipActions(dependent)))
             .ToArray();
 
     private IReadOnlyList<Resource> GetDependentResources(string resourceId) =>
@@ -1207,6 +1214,59 @@ else
             .OrderBy(GetResourceLabel, StringComparer.OrdinalIgnoreCase)
             .ThenBy(resource => resource.Id, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+
+    private IEnumerable<string> GetRelationshipResourceIds() =>
+        EffectiveDependencies
+            .Concat(DependentResources.Select(resource => resource.Id))
+            .Where(resourceId => !string.IsNullOrWhiteSpace(resourceId))
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+    private async Task<IReadOnlyDictionary<string, IReadOnlyList<LogDescriptor>>> LoadRelatedLogsAsync(
+        IEnumerable<string> resourceIds)
+    {
+        var requested = resourceIds
+            .Append(Application?.Id)
+            .Where(resourceId => !string.IsNullOrWhiteSpace(resourceId))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (requested.Count == 0)
+        {
+            return new Dictionary<string, IReadOnlyList<LogDescriptor>>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var logs = await LogManager.ListLogsAsync();
+        return logs
+            .Where(log => !string.IsNullOrWhiteSpace(log.ResourceId) && requested.Contains(log.ResourceId))
+            .GroupBy(log => log.ResourceId!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyList<LogDescriptor>)group
+                    .OrderBy(log => log.Name, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(log => log.Id, StringComparer.OrdinalIgnoreCase)
+                    .ToArray(),
+                StringComparer.OrdinalIgnoreCase);
+    }
+
+    private IReadOnlyList<ResourceRelationshipNodeAction> GetRelationshipActions(Resource resource)
+    {
+        var actions = new List<ResourceRelationshipNodeAction>
+        {
+            new("Open", BuildResourceRoute(resource.Id)),
+            new("Activity", BuildResourceTabRoute(resource.Id, ResourcePredefinedViewIds.Activity))
+        };
+
+        if (RelatedLogsByResourceId.GetValueOrDefault(resource.Id) is { Count: > 0 } logs)
+        {
+            actions.Add(new ResourceRelationshipNodeAction("Logs", BuildResourceLogsRoute(resource.Id, logs)));
+        }
+
+        if (resource.EffectiveObservability.Traces)
+        {
+            actions.Add(new ResourceRelationshipNodeAction("Traces", BuildResourceTabRoute(resource.Id, ResourcePredefinedViewIds.Traces)));
+        }
+
+        return actions;
+    }
 
     private string FormatEnvironmentSummary()
     {
@@ -1467,6 +1527,21 @@ else
         }
 
         return BuildRoute("/logs", query);
+    }
+
+    private static string BuildResourceLogsRoute(string resourceId, IReadOnlyList<LogDescriptor> logs)
+    {
+        var query = new Dictionary<string, string?>
+        {
+            ["tab"] = ResourcePredefinedViewIds.Logs.Value
+        };
+
+        if (logs.Count == 1)
+        {
+            query["logId"] = logs[0].Id;
+        }
+
+        return BuildRoute(ResourceManagerRoutes.ResourceDetails(resourceId), query);
     }
 
     private static string BuildTraceRoute(string resourceId) =>

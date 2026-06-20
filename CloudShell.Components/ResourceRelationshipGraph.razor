@@ -87,6 +87,15 @@
                     {
                         <small>@node.Metadata</small>
                     }
+                    @if (node.NodeActions.Count > 0)
+                    {
+                        <div class="resource-relationship-actions">
+                            @foreach (var action in node.NodeActions)
+                            {
+                                <a class="resource-link" href="@action.Href">@action.Label</a>
+                            }
+                        </div>
+                    }
                 </div>
             }
         }

@@ -22,6 +22,8 @@ on `git blame --follow`, and then by the broad type of change.
   preflight feedback.
 - Dependency auto-start errors now describe dependency paths with resource
   display names and resource names instead of internal resource IDs.
+- Resource relationship graphs now expose related resource actions for opening
+  the resource, activity, logs, and traces from dependency/dependent nodes.
 - Documented weak projected-resource references and reusable Resource Manager
   selector components as deferred model/UI design work beyond the immediate
   local-development MVP slice.

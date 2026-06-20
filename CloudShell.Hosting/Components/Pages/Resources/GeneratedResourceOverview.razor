@@ -51,6 +51,8 @@
     private IReadOnlyList<NameMappingView> InboundNameMappings { get; set; } = [];
     private IReadOnlyDictionary<string, Resource> RelatedResources { get; set; } =
         new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyDictionary<string, IReadOnlyList<LogDescriptor>> RelatedLogsByResourceId { get; set; } =
+        new Dictionary<string, IReadOnlyList<LogDescriptor>>(StringComparer.OrdinalIgnoreCase);
     private ResourceOperationCapabilities Capabilities { get; set; } =
         ResourceOperationCapabilities.None(string.Empty);
     private HashSet<string> ExecutingActionIds { get; } = new(StringComparer.OrdinalIgnoreCase);
@@ -78,6 +80,7 @@
         InboundLoadBalancerRoutes = await LoadInboundLoadBalancerRoutesAsync();
         InboundNameMappings = await LoadInboundNameMappingsAsync();
         RelatedResources = await LoadRelatedResourcesAsync();
+        RelatedLogsByResourceId = await LoadRelatedLogsAsync(RelatedResources.Keys);
     }
 
     private IReadOnlyList<GeneratedResourceViewSection> BuildSections()
@@ -639,7 +642,8 @@
                     dependency is null ? null : BuildResourceRoute(dependency.Id),
                     FormatRelationshipSummary(dependency, dependencyId),
                     FormatRelationshipMetadata(dependency),
-                    dependency is null);
+                    dependency is null,
+                    dependency is null ? null : GetRelationshipActions(dependency));
             })
             .ToArray();
 
@@ -650,7 +654,8 @@
                     GetResourceLabel(dependent),
                     BuildResourceRoute(dependent.Id),
                     FormatRelationshipSummary(dependent, dependent.Id),
-                    FormatRelationshipMetadata(dependent)))
+                    FormatRelationshipMetadata(dependent),
+                    Actions: GetRelationshipActions(dependent)))
             .ToArray();
 
     private string FormatRelationshipSummary(Resource? resource, string resourceId)
@@ -714,6 +719,58 @@
         }
 
         return resources;
+    }
+
+    private async Task<IReadOnlyDictionary<string, IReadOnlyList<LogDescriptor>>> LoadRelatedLogsAsync(
+        IEnumerable<string> resourceIds)
+    {
+        if (!Authorization.CanReadLogs())
+        {
+            return new Dictionary<string, IReadOnlyList<LogDescriptor>>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var requested = resourceIds
+            .Append(Resource.Id)
+            .Where(resourceId => !string.IsNullOrWhiteSpace(resourceId))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (requested.Count == 0)
+        {
+            return new Dictionary<string, IReadOnlyList<LogDescriptor>>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var logs = await LogManager.ListLogsAsync();
+        return logs
+            .Where(log => !string.IsNullOrWhiteSpace(log.ResourceId) && requested.Contains(log.ResourceId))
+            .GroupBy(log => log.ResourceId!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyList<LogDescriptor>)group
+                    .OrderBy(log => log.Name, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(log => log.Id, StringComparer.OrdinalIgnoreCase)
+                    .ToArray(),
+                StringComparer.OrdinalIgnoreCase);
+    }
+
+    private IReadOnlyList<ResourceRelationshipNodeAction> GetRelationshipActions(Resource resource)
+    {
+        var actions = new List<ResourceRelationshipNodeAction>
+        {
+            new(L["Open"].Value, BuildResourceRoute(resource.Id)),
+            new(L["Activity"].Value, BuildActivityRoute(resource.Id))
+        };
+
+        if (RelatedLogsByResourceId.GetValueOrDefault(resource.Id) is { Count: > 0 } logs)
+        {
+            actions.Add(new ResourceRelationshipNodeAction(L["Logs"].Value, BuildLogRoute(resource.Id, logs)));
+        }
+
+        if (Authorization.CanReadTraces() && resource.EffectiveObservability.Traces)
+        {
+            actions.Add(new ResourceRelationshipNodeAction(L["Traces"].Value, BuildTraceRoute(resource.Id)));
+        }
+
+        return actions;
     }
 
     private IEnumerable<string?> GetMappingResourceIds(ResourceEndpointMappingDefinition mapping)
@@ -843,10 +900,33 @@
         return QueryHelpers.AddQueryString(ResourceManagerRoutes.ResourceDetails(Resource.Id), query);
     }
 
+    private string BuildLogRoute(string resourceId, IReadOnlyList<LogDescriptor> logs)
+    {
+        var query = new Dictionary<string, string?>
+        {
+            ["tab"] = ResourcePredefinedViewIds.Logs.Value
+        };
+
+        if (logs.Count == 1)
+        {
+            query["logId"] = logs[0].Id;
+        }
+
+        return QueryHelpers.AddQueryString(ResourceManagerRoutes.ResourceDetails(resourceId), query);
+    }
+
     private string BuildTraceRoute() =>
+        BuildTraceRoute(Resource.Id);
+
+    private static string BuildTraceRoute(string resourceId) =>
         QueryHelpers.AddQueryString(
-            ResourceManagerRoutes.ResourceDetails(Resource.Id),
+            ResourceManagerRoutes.ResourceDetails(resourceId),
             new Dictionary<string, string?> { ["tab"] = ResourcePredefinedViewIds.Traces.Value });
+
+    private static string BuildActivityRoute(string resourceId) =>
+        QueryHelpers.AddQueryString(
+            ResourceManagerRoutes.ResourceDetails(resourceId),
+            new Dictionary<string, string?> { ["tab"] = ResourcePredefinedViewIds.Activity.Value });
 
     private string BuildMetricRoute() =>
         QueryHelpers.AddQueryString(
