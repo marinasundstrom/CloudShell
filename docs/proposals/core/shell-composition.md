@@ -6,8 +6,10 @@ first consumer, but the shell composition model should be general enough for
 provider workspaces, settings, notifications, dashboards, and future product
 areas.
 
-The shell composition surface should be a layout/content engine, not a tab
-engine or a navigation-menu API. Extensions contribute stable layout nodes to a
+The shell composition surface should be a layout/content engine with
+CMS-like composition, not a tab engine or a navigation-menu API. It is built
+for composition and extensibility: the host, built-in capabilities, and
+installed extensions contribute stable layout and content nodes to a
 host-owned graph. Navigation hierarchy is separate from content hierarchy.
 Menu nodes describe how users navigate; content nodes describe pages,
 sub-pages, slots, section containers, and sections. A menu item can target a
@@ -78,6 +80,13 @@ itself a routable page. The layout/content engine can look up a content ID,
 resolve the nearest routable page, and construct a page link, selected-state
 link, fragment, focus target, or renderer-local anchor for the requested
 content node.
+
+Dynamic composition is the core reason for the graph. Menus, section
+containers, and other outlets do not hard-code their child components. They
+ask the layout/content engine for the nodes declared by the shell itself and by
+installed extensions, then render the matching components in order. A section
+outlet, for example, dynamically loads the sections registered for its
+container ID and current context.
 
 Menus are hierarchical presenters of navigation. Menu items and sub-menu items
 can point to the unique hierarchical ID of any addressable content node: a
@@ -154,6 +163,13 @@ registered route, query parameters, fragment, selected state, and
 disabled/not-found behavior. Adapters can keep domain-specific URL
 compatibility, such as Resource Manager's existing `tab=<group>:<view>` links,
 while still projecting from the generic graph.
+
+The content selected inside a page or view may be dictated by route values and
+query parameters. The route can establish the page context, while query
+parameters, fragments, or renderer-local state can select sub-pages, sections,
+or view variants. The composition engine should normalize that state back to
+content IDs where possible so links, menus, tabs, section outlets, and custom
+renderers all resolve the same target consistently.
 
 For example, a menu item targeting
 `section.resource-manager.resource.overview.summary` may resolve to the
@@ -284,54 +300,97 @@ During the extraction, Resource Manager behavior should not regress:
 
 ## Initial API sketch
 
-The generic contracts should be small and preview-marked at first. A possible
-shape:
+The generic contracts should be small and preview-marked at first. The
+examples below are conceptual; the final API names and overloads need design
+work. IDs should be value objects rather than plain strings at public
+boundaries so extension authors can target known layout nodes without relying
+on ad hoc string conventions.
+
+The host application or built-in shell capabilities define the initial
+navigation and content structure:
 
 ```csharp
-builder.Layout.AddPage<AcmeSettings>(
-    id: "page.settings.acme",
-    title: "Acme",
-    parentId: "page.settings",
-    route: "/settings/acme",
-    order: 10);
+var mainMenu = builder.AddMenu(PredefinedMenus.Main);
 
-builder.Layout.AddSlot(
-    id: "slot.settings.acme.main",
-    pageId: "page.settings.acme",
-    order: 10);
+var resourcesItem = mainMenu.AddItem(PredefinedMenuItems.Resources)
+    .Target(PredefinedPages.Resources);
 
-builder.Layout.AddSectionContainer(
-    id: "section-container.settings.acme.connection",
-    slotId: "slot.settings.acme.main",
-    title: "Connection",
-    order: 10);
+resourcesItem.AddItem(PredefinedMenuItems.ResourcesAll)
+    .Target(PredefinedPages.ResourcesAll);
 
-builder.Layout.AddSection<AcmeSettingsConnection>(
-    containerId: "section-container.settings.acme.connection",
-    id: "section.settings.acme.connection",
-    title: "Connection",
-    order: 10);
+var observabilitySection = mainMenu.AddSection(PredefinedMenuItemGroups.Observability);
 
-builder.Layout.AddMenuItem(
-    id: "menu-item.settings.acme",
-    groupId: "menu-item-group.settings.extensions",
-    targetContentId: "page.settings.acme",
-    order: 40);
+observabilitySection.AddItem(PredefinedMenuItems.Traces)
+    .Target(PredefinedPages.Traces);
+
+var settingsPage = builder.AddPage(PredefinedPages.Settings);
+
+var settingsSections = settingsPage.AddSections(
+    PredefinedSectionContainers.Settings,
+    allowExtending: true);
+
+settingsSections.AddSection(
+    PredefinedSections.SettingsGeneral,
+    component: typeof(GeneralSettingsSection));
 ```
 
-The examples above are intentionally about IDs and relationships. A settings
-renderer may show the page as a tab, a side-navigation item, or a section in a
-larger settings page without changing the contribution contract.
-
-Navigation can also target deeper content without becoming its parent:
+An extension can then tap into explicitly extendable nodes and add its own
+content without owning the surrounding layout:
 
 ```csharp
-builder.Layout.AddMenuItem(
-    id: "menu-item.settings.acme.connection",
-    groupId: "menu-item-group.settings.extensions",
-    targetContentId: "section.settings.acme.connection",
-    order: 41);
+var identitySettings = builder.GetSections(PredefinedSectionContainers.Settings);
+
+identitySettings.AddSection(
+    MySections.IdentityProviders,
+    component: typeof(IdentityProviderSettingsSection));
+
+builder.GetMenu(PredefinedMenus.Main)
+    .GetSection(PredefinedMenuItemGroups.Observability)
+    .AddItem(MyMenuItems.IdentityAudit)
+    .Target(MyPages.IdentityAudit);
 ```
+
+Navigation can target any addressable content node without becoming its
+parent. A menu item can point at a page, sub-page, section container, or
+section by ID:
+
+```csharp
+mainMenu.AddItem(MyMenuItems.IdentityProviderSettings)
+    .Target(MySections.IdentityProviders);
+```
+
+The content engine resolves the target content ID to the nearest routable page
+and renderer-specific selected state, fragment, or focus target.
+
+Razor components still declare routes through normal Razor routing. A page
+component binds itself to a content ID so the layout/content engine can attach
+metadata, cascade layout context, and render navigation or deep links by ID:
+
+```razor
+@page "/test/{title}"
+
+<Page Id="@MyPages.Test">
+    <Menu Id="@PredefinedMenus.Main" />
+
+    <SectionContainer Id="@MySectionContainers.TestMain">
+        <SectionOutlet />
+    </SectionContainer>
+</Page>
+
+@code {
+    [Parameter]
+    public string? Title { get; set; }
+}
+```
+
+The `Page` component is the bridge between Razor routing and the content
+engine. The implementation can inject the layout engine into the page and
+cascade the resolved content context to `Menu`, `SectionContainer`,
+`SectionOutlet`, and custom renderer components. A standard menu component can
+then render the hierarchical navigation tree and ask the content engine to
+construct links from target content IDs. A section outlet can render all
+sections registered for the current section container, including sections
+declared by extensions.
 
 Resource Manager can then keep its existing API while internally adapting to
 the shell primitives:
