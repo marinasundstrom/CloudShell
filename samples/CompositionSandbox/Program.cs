@@ -1,5 +1,6 @@
 using CloudShell.CompositionSandbox;
 using CloudShell.CompositionSandbox.Components;
+using CloudShell.CompositionSandbox.Components.Pages.Sections.Dashboard;
 using CloudShell.CompositionSandbox.Components.Pages.Sections;
 using CloudShell.CompositionSandbox.Components.Pages.Sections.Reports;
 using CloudShell.UI.Composition.Blazor;
@@ -18,6 +19,9 @@ builder.Services.AddCloudShellUiComposition(composition =>
     mainMenu
         .AddItem(CompositionIds.ReportsItem, "Reports", 20)
         .Target(CompositionIds.ReportsPage);
+    mainMenu
+        .AddItem(CompositionIds.DashboardItem, "Dashboard", 30)
+        .Target(CompositionIds.DashboardPage);
 
     var workspaceSection = mainMenu.AddSection(
         CompositionIds.WorkspaceMenuSection,
@@ -63,6 +67,25 @@ builder.Services.AddCloudShellUiComposition(composition =>
             CompositionIds.ReportsSummarySection,
             "Page navigation",
             10);
+
+    composition
+        .AddPage(
+            CompositionIds.DashboardPage,
+            "Composition dashboard",
+            "/dashboard")
+        .AddSections(CompositionIds.DashboardMainOutlet)
+        .AddSection<CompositionStatusSection>(
+            CompositionIds.DashboardStatusSection,
+            "Composition status",
+            10)
+        .AddSection<ActivitySummarySection>(
+            CompositionIds.DashboardActivitySection,
+            "Activity summary",
+            20)
+        .AddSection<LayoutPatternSection>(
+            CompositionIds.DashboardLayoutPatternSection,
+            "Layout pattern",
+            30);
 });
 
 var app = builder.Build();

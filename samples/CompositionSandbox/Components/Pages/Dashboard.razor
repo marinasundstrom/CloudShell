@@ -1,12 +1,13 @@
-@page "/reports"
+@page "/dashboard"
 
 <main class="container-fluid py-4 px-3 px-md-4">
     <header class="mb-4">
-        <span class="eyebrow text-secondary">Composition engine</span>
+        <span class="eyebrow text-secondary">Layout patterns</span>
         <h1 class="display-6 fw-semibold mb-2"><TitleOutlet /></h1>
         <p class="text-secondary mb-3">
-            This page is a separate Blazor route registered as a composition
-            page. The same layout resolves the page context from the route.
+            This page uses a sandbox-owned Bootstrap grid outlet over the same
+            composition registry. The engine provides graph data; the app owns
+            the layout pattern.
         </p>
         <div class="d-flex flex-wrap gap-2">
             <CompositionLink Page="@CompositionIds.WorkspacePage" />
@@ -17,7 +18,7 @@
         </div>
     </header>
 
-    <CompositionSectionContainer Id="@CompositionIds.ReportsMainOutlet">
-        <CompositionSectionOutlet />
+    <CompositionSectionContainer Id="@CompositionIds.DashboardMainOutlet">
+        <BootstrapSectionGridOutlet />
     </CompositionSectionContainer>
 </main>

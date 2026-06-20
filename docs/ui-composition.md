@@ -190,6 +190,10 @@ The sample includes two registered pages:
 - `/` renders the Workspace page and its registered sections.
 - `/reports` renders a separate Reports page through the same menu, title
   outlet, and section outlet components.
+- `/dashboard` renders the same registered section model through a
+  sample-owned Bootstrap grid outlet. This demonstrates how host apps can
+  explore layout patterns without adding a visual framework dependency to the
+  base composition libraries.
 
 ## Current Validation
 

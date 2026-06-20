@@ -83,6 +83,9 @@ on `git blame --follow`, and then by the broad type of change.
   composition libraries, typed IDs, registry registration, plain Blazor
   components, link resolution, the standalone Bootstrap sample, validation,
   and explicitly deferred extension/CMS behavior.
+- The Composition Sandbox now includes a dashboard route with a sample-owned
+  Bootstrap grid section outlet so layout renderer patterns can be explored
+  without changing the core composition libraries.
 - Moved the composition proof direction away from the UI Extension Host sample:
   CloudShell extension integration should adapt to the core composition graph
   only after the standalone app structure is credible.

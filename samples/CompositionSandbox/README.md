@@ -16,6 +16,10 @@ The sample proves the first boundary:
 - Page navigation uses normal Blazor routes. The menu and `CompositionLink`
   resolve registered page IDs to links, and `CompositionHost` resolves the
   active composition page from the current route.
+- Layout patterns are explored in the sample app itself. The `/dashboard`
+  route uses a sample-owned Bootstrap grid outlet over the same composition
+  registry, while the other pages use the plain stacked section outlet from
+  `CloudShell.UI.Composition.Blazor`.
 
 Future CloudShell extension integration should adapt extension contributions
 into the core composition model after this standalone API shape is proven.
@@ -32,4 +36,11 @@ Open:
 
 ```text
 http://localhost:5102
+```
+
+The sample also exposes:
+
+```text
+http://localhost:5102/reports
+http://localhost:5102/dashboard
 ```
