@@ -176,6 +176,63 @@ The graph should make these relationships explicit:
 - a slot or section container declares the context and ordering rules for
   contributed content
 
+## Concept Vocabulary
+
+The names below are working concepts for the sandbox and proposal. They are not
+all current API names, but they describe the primitives the composition engine
+should converge toward.
+
+### Core Primitives
+
+| Concept | Purpose | Notes |
+| --- | --- | --- |
+| Composition graph | The validated graph of registered navigation, content, metadata, and rendering relationships. | Built from programmatic registrations first; selected graph metadata may later be persisted. |
+| Composition module | The owner of a registration, such as the shell, Resource Manager, a built-in capability, or a third-party extension. | Needed for diagnostics, conflict handling, trust boundaries, extension disable/unload, and future persistence. |
+| Composition artifact | A registered thing in the graph. | Generic umbrella for pages, menu items, slots, section containers, sections, metadata, and future artifacts. |
+| Composition ID | A typed stable address for an artifact. | Examples: `PageId`, `MenuId`, `SectionId`. The value encodes hierarchy, but the type prevents accidental misuse. |
+| Composition target | A reference to an addressable artifact. | Used by menu items, links, commands, diagnostics, and sections. The resolver turns a target into a route, fragment, selected state, or not-found result. |
+| Composition context | Runtime context for the currently resolved content. | Starts with current page and route; should grow to include selected sub-page/section, route values, query state, ambient data, and caller/user state. |
+| Composition metadata | Non-rendered facts attached to artifacts. | Title, description, icon, order, localization key, permissions, visibility, and module ownership belong here. |
+
+### Navigation Primitives
+
+| Concept | Purpose | Notes |
+| --- | --- | --- |
+| Menu | A named navigation presenter. | A shell can render several menus, but menu hierarchy is not the content hierarchy. |
+| Menu group | An ordered group inside a menu. | Useful for sidebar sections such as Workspace, Observability, Platform, or Settings. |
+| Menu item | A navigation node targeting a composition target, command, route, or external link. | It should not directly own routed content. |
+| Navigation renderer | A component or service that turns menu artifacts into UI. | The default can be simple; hosts can build Bootstrap, Fluent, compact, or custom navigation renderers. |
+
+### Content Primitives
+
+| Concept | Purpose | Notes |
+| --- | --- | --- |
+| Page | Addressable content normally bound to a Blazor route. | Razor owns route matching; composition records the route-to-page relationship. |
+| Sub-page | Addressable content selected inside a page. | Can back tabs, local navigation, accordions, or query-parameter selected views. |
+| Slot | A named placement point declared by a page or renderer. | A slot describes where content can be placed and what context/content kinds it accepts. |
+| Section container | An ordered container for sections inside a slot or page. | Current implementation uses `SectionOutletId`; naming may settle on section container or outlet. |
+| Section | A contributed content component rendered inside a section container. | Sections are useful for extension-owned additions without replacing a whole page. |
+| Content outlet | Runtime component that renders content registered for the current context and target. | Current `CompositionSectionOutlet` is one concrete outlet. |
+
+### Rendering Primitives
+
+| Concept | Purpose | Notes |
+| --- | --- | --- |
+| Composition host | Bridges Blazor routing and composition context. | Usually lives in a layout and cascades the current `CompositionContext`. |
+| Layout pattern | A reusable way to present composed content. | Examples: section stack, dashboard grid, tabbed page, master-detail, settings page, wizard, split pane. |
+| Layout renderer | Component that implements a layout pattern over the composition graph. | Should be host-owned or package-owned; the core engine should not assume one visual metaphor. |
+| Section renderer | Component that decides how section metadata and section component content are framed. | A section stack might use article cards; a dashboard grid might use responsive tiles. |
+| Metadata outlet | Component that renders metadata for the current context. | `TitleOutlet` is the first small example. Future outlets may render breadcrumbs, descriptions, icons, actions, or document head metadata. |
+| Link resolver | Service that turns a composition target into a navigable address. | It should support page routes, sections/fragments, selected sub-pages, missing targets, disabled targets, and future deep links. |
+
+### Adapter Primitives
+
+| Concept | Purpose | Notes |
+| --- | --- | --- |
+| Product adapter | Maps a domain-specific contribution model into composition artifacts. | Resource Manager tabs and predefined sections should remain Resource Manager concepts, then adapt into the generic graph. |
+| Extension adapter | Maps CloudShell extension registrations into composition artifacts. | This comes after the standalone composition shape is credible. |
+| Persistence adapter | Loads and stores selected graph metadata. | Should not persist executable component types as arbitrary data. It should preserve module ownership and validate against installed code-owned capabilities. |
+
 The host validates the graph before rendering. It resolves IDs, detects
 duplicates, validates required hierarchical parents, target links, and slot
 targets, applies permission and visibility rules, and produces
