@@ -10,10 +10,10 @@ public sealed record CompositionMenuRegistration(
     MenuId Id,
     string Title,
     IReadOnlyList<CompositionMenuItemRegistration> Items,
-    IReadOnlyList<CompositionMenuSectionRegistration> Sections);
+    IReadOnlyList<CompositionMenuGroupRegistration> Groups);
 
-public sealed record CompositionMenuSectionRegistration(
-    MenuSectionId Id,
+public sealed record CompositionMenuGroupRegistration(
+    MenuGroupId Id,
     string Title,
     IReadOnlyList<CompositionMenuItemRegistration> Items,
     int Order);
@@ -22,7 +22,13 @@ public sealed record CompositionMenuItemRegistration(
     MenuItemId Id,
     string Title,
     CompositionTarget Target,
-    int Order);
+    int Order,
+    string? Icon = null,
+    MenuItemId? ParentId = null,
+    IReadOnlyList<string>? RequiredPermissions = null)
+{
+    public IReadOnlyList<string> PermissionsRequiredForNavigation => RequiredPermissions ?? [];
+}
 
 public sealed record CompositionSectionOutletRegistration(
     SectionOutletId Id,

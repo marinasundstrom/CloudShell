@@ -151,6 +151,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Composition section outlet extension now returns a limited extension builder,
   and the composition docs describe declaration builders, extension builders,
   and runtime projections as separate views over the same artifact model.
+- Composition menus now use `MenuGroup` terminology for named item groups,
+  support root menu items, grouped items, sub-items, icons, permission
+  metadata, and direct href targets, and the registry now maintains typed
+  lookup maps for composition artifacts.
 - Moved the composition proof direction away from the UI Extension Host sample:
   CloudShell extension integration should adapt to the core composition graph
   only after the standalone app structure is credible.

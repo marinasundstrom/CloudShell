@@ -192,7 +192,7 @@ public sealed class CompositionMenuBuilder
 {
     private readonly CompositionBuilder _builder;
     private readonly List<CompositionMenuItemRegistration> _items = [];
-    private readonly List<CompositionMenuSectionBuilder> _sections = [];
+    private readonly List<CompositionMenuGroupBuilder> _groups = [];
     private readonly MenuId _id;
     private readonly string _title;
 
@@ -219,15 +219,15 @@ public sealed class CompositionMenuBuilder
         return item;
     }
 
-    public CompositionMenuSectionBuilder AddSection(
-        MenuSectionId id,
+    public CompositionMenuGroupBuilder AddGroup(
+        MenuGroupId id,
         string title,
         int order)
     {
-        var section = new CompositionMenuSectionBuilder(this, id, title, order);
-        _sections.Add(section);
+        var group = new CompositionMenuGroupBuilder(this, id, title, order);
+        _groups.Add(group);
         ReplaceMenu();
-        return section;
+        return group;
     }
 
     internal void ReplaceMenu()
@@ -245,12 +245,12 @@ public sealed class CompositionMenuBuilder
             _id,
             _title,
             _items.OrderBy(item => item.Order).ToArray(),
-            _sections.Select(section => section.Build()).OrderBy(section => section.Order).ToArray());
+            _groups.Select(group => group.Build()).OrderBy(group => group.Order).ToArray());
 }
 
-public sealed class CompositionMenuSectionBuilder(
+public sealed class CompositionMenuGroupBuilder(
     CompositionMenuBuilder menu,
-    MenuSectionId id,
+    MenuGroupId id,
     string title,
     int order)
 {
@@ -269,7 +269,7 @@ public sealed class CompositionMenuSectionBuilder(
         return item;
     }
 
-    internal CompositionMenuSectionRegistration Build() =>
+    internal CompositionMenuGroupRegistration Build() =>
         new(
             id,
             title,
@@ -283,9 +283,56 @@ public sealed class CompositionMenuItemBuilder(
     string title,
     int order)
 {
+    private string? _icon;
+    private MenuItemId? _parentId;
+    private IReadOnlyList<string>? _requiredPermissions;
+
+    public CompositionMenuItemBuilder WithIcon(string? icon)
+    {
+        _icon = string.IsNullOrWhiteSpace(icon)
+            ? null
+            : icon.Trim();
+
+        return this;
+    }
+
+    public CompositionMenuItemBuilder WithParent(MenuItemId parentId)
+    {
+        CompositionRegistry.ValidateId(parentId.Value, nameof(parentId));
+        _parentId = parentId;
+        return this;
+    }
+
+    public CompositionMenuItemBuilder RequiresPermissions(params string[] permissions) =>
+        RequiresPermissions((IReadOnlyList<string>)permissions);
+
+    public CompositionMenuItemBuilder RequiresPermissions(IReadOnlyList<string>? permissions)
+    {
+        _requiredPermissions = permissions?
+            .Where(permission => !string.IsNullOrWhiteSpace(permission))
+            .Select(permission => permission.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return this;
+    }
+
     public void Target(PageId target) =>
-        add(new CompositionMenuItemRegistration(id, title, target, order));
+        Target(CompositionTarget.ForPage(target));
 
     public void Target(SectionId target) =>
-        add(new CompositionMenuItemRegistration(id, title, target, order));
+        Target(CompositionTarget.ForSection(target));
+
+    public void TargetHref(string href) =>
+        Target(CompositionTarget.ForHref(href));
+
+    public void Target(CompositionTarget target) =>
+        add(new CompositionMenuItemRegistration(
+            id,
+            title,
+            target,
+            order,
+            _icon,
+            _parentId,
+            _requiredPermissions));
 }

@@ -52,13 +52,21 @@ body {
     color: var(--bs-link-color);
 }
 
-.composition-menu-section {
+.composition-menu-subitems {
+    display: grid;
+    gap: .15rem;
+    margin-left: .75rem;
+    padding-left: .5rem;
+    border-left: var(--bs-border-width) solid var(--bs-border-color);
+}
+
+.composition-menu-group {
     display: grid;
     gap: .25rem;
     padding-top: .65rem;
 }
 
-.composition-menu-section > strong {
+.composition-menu-group > strong {
     color: var(--bs-secondary-color);
     font-size: .75rem;
     text-transform: uppercase;

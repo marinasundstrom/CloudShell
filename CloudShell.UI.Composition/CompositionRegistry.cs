@@ -9,6 +9,14 @@ public sealed class CompositionRegistry
     private readonly IReadOnlyList<CompositionMenuRegistration> _menus;
     private readonly IReadOnlyList<CompositionSectionOutletRegistration> _sectionOutlets;
     private readonly IReadOnlyList<CompositionSectionRegistration> _sections;
+    private readonly IReadOnlyDictionary<PageId, CompositionPageProjection> _pageProjectionsById;
+    private readonly IReadOnlyDictionary<string, CompositionPageRegistration> _pagesByRoute;
+    private readonly IReadOnlyDictionary<MenuId, CompositionMenuProjection> _menuProjectionsById;
+    private readonly IReadOnlyDictionary<SectionOutletId, CompositionSectionOutletProjection> _sectionOutletProjectionsById;
+    private readonly IReadOnlyDictionary<(PageId PageId, SectionOutletId OutletId), IReadOnlyList<CompositionSectionRegistration>> _sectionsByOutlet;
+    private readonly IReadOnlyDictionary<(PageId PageId, SectionOutletId OutletId), IReadOnlyList<CompositionSectionProjection>> _sectionProjectionsByOutlet;
+    private readonly IReadOnlyDictionary<string, CompositionPageRegistration> _pagesByTarget;
+    private readonly IReadOnlyDictionary<string, CompositionSectionRegistration> _sectionsByTarget;
 
     private CompositionRegistry(
         IReadOnlyList<CompositionModule> modules,
@@ -22,6 +30,35 @@ public sealed class CompositionRegistry
         _menus = menus;
         _sectionOutlets = sectionOutlets;
         _sections = sections;
+        _pageProjectionsById = modules
+            .SelectMany(module => module.Pages.Select(page => new CompositionPageProjection(module.Id, page)))
+            .ToDictionary(projection => projection.Page.Id);
+        _pagesByRoute = pages.ToDictionary(page => page.Route, StringComparer.OrdinalIgnoreCase);
+        _menuProjectionsById = modules
+            .SelectMany(module => module.Menus.Select(menu => new CompositionMenuProjection(module.Id, menu)))
+            .ToDictionary(projection => projection.Menu.Id);
+        _sectionOutletProjectionsById = modules
+            .SelectMany(module => module.SectionOutlets.Select(outlet => new CompositionSectionOutletProjection(module.Id, outlet)))
+            .ToDictionary(projection => projection.Outlet.Id);
+        _sectionsByOutlet = sections
+            .GroupBy(section => (section.PageId, section.OutletId))
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyList<CompositionSectionRegistration>)group
+                    .OrderBy(section => section.Order)
+                    .ThenBy(section => section.Title, StringComparer.OrdinalIgnoreCase)
+                    .ToArray());
+        _sectionProjectionsByOutlet = modules
+            .SelectMany(module => module.Sections.Select(section => new CompositionSectionProjection(module.Id, section)))
+            .GroupBy(projection => (projection.Section.PageId, projection.Section.OutletId))
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyList<CompositionSectionProjection>)group
+                    .OrderBy(projection => projection.Section.Order)
+                    .ThenBy(projection => projection.Section.Title, StringComparer.OrdinalIgnoreCase)
+                    .ToArray());
+        _pagesByTarget = pages.ToDictionary(page => page.Id.Value, StringComparer.OrdinalIgnoreCase);
+        _sectionsByTarget = sections.ToDictionary(section => section.Id.Value, StringComparer.OrdinalIgnoreCase);
     }
 
     public static CompositionRegistry Create(Action<CompositionBuilder> configure)
@@ -50,6 +87,7 @@ public sealed class CompositionRegistry
 
         ValidateUnique(pages.Select(page => page.Id.Value), "page");
         ValidateUnique(menus.Select(menu => menu.Id.Value), "menu");
+        ValidateMenuContributions(menus);
         ValidateUnique(sectionOutlets.Select(outlet => outlet.Id.Value), "section outlet");
         ValidateUnique(sections.Select(section => section.Id.Value), "section");
         ValidateSectionOutletContributions(materializedModules);
@@ -66,54 +104,38 @@ public sealed class CompositionRegistry
     public IReadOnlyList<CompositionModule> Modules => _modules;
 
     public CompositionPageRegistration? GetPage(PageId pageId) =>
-        _pages.FirstOrDefault(page => page.Id == pageId);
+        _pageProjectionsById.GetValueOrDefault(pageId)?.Page;
 
     public CompositionPageProjection? GetPageProjection(PageId pageId) =>
-        _modules
-            .SelectMany(module => module.Pages.Select(page => new CompositionPageProjection(module.Id, page)))
-            .FirstOrDefault(projection => projection.Page.Id == pageId);
+        _pageProjectionsById.GetValueOrDefault(pageId);
 
     public CompositionPageRegistration? GetPageByRoute(string route)
     {
         var normalizedRoute = NormalizeRoute(route);
-        return _pages.FirstOrDefault(page =>
-            string.Equals(page.Route, normalizedRoute, StringComparison.OrdinalIgnoreCase));
+        return _pagesByRoute.GetValueOrDefault(normalizedRoute);
     }
 
     public CompositionMenuRegistration? GetMenu(MenuId menuId) =>
-        _menus.FirstOrDefault(menu => menu.Id == menuId);
+        _menuProjectionsById.GetValueOrDefault(menuId)?.Menu;
 
     public CompositionMenuProjection? GetMenuProjection(MenuId menuId) =>
-        _modules
-            .SelectMany(module => module.Menus.Select(menu => new CompositionMenuProjection(module.Id, menu)))
-            .FirstOrDefault(projection => projection.Menu.Id == menuId);
+        _menuProjectionsById.GetValueOrDefault(menuId);
 
     public CompositionSectionOutletRegistration? GetSectionOutlet(SectionOutletId outletId) =>
-        _sectionOutlets.FirstOrDefault(outlet => outlet.Id == outletId);
+        _sectionOutletProjectionsById.GetValueOrDefault(outletId)?.Outlet;
 
     public CompositionSectionOutletProjection? GetSectionOutletProjection(SectionOutletId outletId) =>
-        _modules
-            .SelectMany(module => module.SectionOutlets.Select(outlet => new CompositionSectionOutletProjection(module.Id, outlet)))
-            .FirstOrDefault(projection => projection.Outlet.Id == outletId);
+        _sectionOutletProjectionsById.GetValueOrDefault(outletId);
 
     public IReadOnlyList<CompositionSectionRegistration> GetSections(
         PageId pageId,
         SectionOutletId outletId) =>
-        _sections
-            .Where(section => section.PageId == pageId && section.OutletId == outletId)
-            .OrderBy(section => section.Order)
-            .ThenBy(section => section.Title, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+        _sectionsByOutlet.GetValueOrDefault((pageId, outletId)) ?? [];
 
     public IReadOnlyList<CompositionSectionProjection> GetSectionProjections(
         PageId pageId,
         SectionOutletId outletId) =>
-        _modules
-            .SelectMany(module => module.Sections.Select(section => new CompositionSectionProjection(module.Id, section)))
-            .Where(projection => projection.Section.PageId == pageId && projection.Section.OutletId == outletId)
-            .OrderBy(projection => projection.Section.Order)
-            .ThenBy(projection => projection.Section.Title, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+        _sectionProjectionsByOutlet.GetValueOrDefault((pageId, outletId)) ?? [];
 
     public string ResolveHref(CompositionTarget target) =>
         ResolveHref(target, routeParams: null);
@@ -122,16 +144,12 @@ public sealed class CompositionRegistry
         CompositionTarget target,
         IReadOnlyDictionary<string, object?>? routeParams)
     {
-        var page = _pages.FirstOrDefault(page =>
-            string.Equals(page.Id.Value, target.Value, StringComparison.OrdinalIgnoreCase));
-        if (page is not null)
+        if (_pagesByTarget.TryGetValue(target.Value, out var page))
         {
             return AppendRouteParams(page.Route, routeParams);
         }
 
-        var section = _sections.FirstOrDefault(section =>
-            string.Equals(section.Id.Value, target.Value, StringComparison.OrdinalIgnoreCase));
-        if (section is not null)
+        if (_sectionsByTarget.TryGetValue(target.Value, out var section))
         {
             var sectionPage = GetPage(section.PageId);
             if (sectionPage is not null)
@@ -140,7 +158,9 @@ public sealed class CompositionRegistry
             }
         }
 
-        return "#";
+        return IsDirectHref(target.Value)
+            ? target.Value
+            : "#";
     }
 
     internal static void ValidateId(string value, string parameterName)
@@ -177,6 +197,31 @@ public sealed class CompositionRegistry
             throw new InvalidOperationException($"Duplicate composition {kind} ID '{duplicate.Key}'.");
         }
     }
+
+    private static void ValidateMenuContributions(IReadOnlyList<CompositionMenuRegistration> menus)
+    {
+        ValidateUnique(menus.SelectMany(menu => menu.Groups).Select(group => group.Id.Value), "menu group");
+        ValidateUnique(menus.SelectMany(GetMenuItems).Select(item => item.Id.Value), "menu item");
+
+        foreach (var menu in menus)
+        {
+            var itemIds = GetMenuItems(menu)
+                .Select(item => item.Id)
+                .ToHashSet();
+
+            foreach (var item in GetMenuItems(menu).Where(item => item.ParentId is not null))
+            {
+                if (!itemIds.Contains(item.ParentId!.Value))
+                {
+                    throw new InvalidOperationException(
+                        $"Composition menu item '{item.Id}' targets unknown parent menu item '{item.ParentId}'.");
+                }
+            }
+        }
+    }
+
+    private static IEnumerable<CompositionMenuItemRegistration> GetMenuItems(CompositionMenuRegistration menu) =>
+        menu.Items.Concat(menu.Groups.SelectMany(group => group.Items));
 
     private static void ValidateSectionOutletContributions(IReadOnlyList<CompositionModule> modules)
     {
@@ -259,4 +304,10 @@ public sealed class CompositionRegistry
             ? $"{route}&{query}"
             : $"{route}?{query}";
     }
+
+    private static bool IsDirectHref(string value) =>
+        value.StartsWith('/', StringComparison.Ordinal) ||
+        value.StartsWith('#', StringComparison.Ordinal) ||
+        value.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+        value.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
 }

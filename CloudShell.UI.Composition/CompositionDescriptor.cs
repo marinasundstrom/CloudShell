@@ -17,10 +17,10 @@ public sealed record CompositionMenuDescriptor(
     MenuId Id,
     string Title,
     IReadOnlyList<CompositionMenuItemDescriptor> Items,
-    IReadOnlyList<CompositionMenuSectionDescriptor> Sections);
+    IReadOnlyList<CompositionMenuGroupDescriptor> Groups);
 
-public sealed record CompositionMenuSectionDescriptor(
-    MenuSectionId Id,
+public sealed record CompositionMenuGroupDescriptor(
+    MenuGroupId Id,
     string Title,
     IReadOnlyList<CompositionMenuItemDescriptor> Items,
     int Order);
@@ -29,7 +29,10 @@ public sealed record CompositionMenuItemDescriptor(
     MenuItemId Id,
     string Title,
     CompositionTarget Target,
-    int Order);
+    int Order,
+    string? Icon = null,
+    MenuItemId? ParentId = null,
+    IReadOnlyList<string>? RequiredPermissions = null);
 
 public sealed record CompositionSectionOutletDescriptor(
     SectionOutletId Id,
@@ -62,17 +65,24 @@ public static class CompositionDescriptorExtensions
             menu.Id,
             menu.Title,
             menu.Items.Select(item => item.ToDescriptor()).ToArray(),
-            menu.Sections.Select(section => section.ToDescriptor()).ToArray());
+            menu.Groups.Select(group => group.ToDescriptor()).ToArray());
 
-    public static CompositionMenuSectionDescriptor ToDescriptor(this CompositionMenuSectionRegistration section) =>
+    public static CompositionMenuGroupDescriptor ToDescriptor(this CompositionMenuGroupRegistration group) =>
         new(
-            section.Id,
-            section.Title,
-            section.Items.Select(item => item.ToDescriptor()).ToArray(),
-            section.Order);
+            group.Id,
+            group.Title,
+            group.Items.Select(item => item.ToDescriptor()).ToArray(),
+            group.Order);
 
     public static CompositionMenuItemDescriptor ToDescriptor(this CompositionMenuItemRegistration item) =>
-        new(item.Id, item.Title, item.Target, item.Order);
+        new(
+            item.Id,
+            item.Title,
+            item.Target,
+            item.Order,
+            item.Icon,
+            item.ParentId,
+            item.RequiredPermissions);
 
     public static CompositionSectionOutletDescriptor ToDescriptor(this CompositionSectionOutletRegistration outlet) =>
         new(outlet.Id, outlet.PageId, outlet.IsExtendable);

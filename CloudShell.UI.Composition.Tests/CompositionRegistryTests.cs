@@ -5,9 +5,10 @@ namespace CloudShell.UI.Composition.Tests;
 public sealed class CompositionRegistryTests
 {
     private static readonly MenuId MainMenu = new("menu.main");
-    private static readonly MenuSectionId WorkspaceMenuSection = new("menu-section.main.workspace");
+    private static readonly MenuGroupId WorkspaceMenuGroup = new("menu-group.main.workspace");
     private static readonly MenuItemId WorkspaceMenuItem = new("menu-item.main.workspace");
     private static readonly MenuItemId SectionMenuItem = new("menu-item.main.workspace.section");
+    private static readonly MenuItemId ChildMenuItem = new("menu-item.main.workspace.child");
     private static readonly PageId WorkspacePage = new("page.workspace");
     private static readonly PageId ReportsPage = new("page.reports");
     private static readonly SectionOutletId MainOutlet = new("section-outlet.workspace.main");
@@ -73,6 +74,16 @@ public sealed class CompositionRegistryTests
     }
 
     [Fact]
+    public void ResolveHref_ReturnsDirectHrefTargets()
+    {
+        var registry = CreateRegistry();
+
+        var href = registry.ResolveHref(CompositionTarget.ForHref("/workspace/child"));
+
+        Assert.Equal("/workspace/child", href);
+    }
+
+    [Fact]
     public void GetSections_OrdersByOrderThenTitle()
     {
         var registry = CreateRegistry();
@@ -130,6 +141,52 @@ public sealed class CompositionRegistryTests
     }
 
     [Fact]
+    public void Create_RejectsDuplicateMenuGroupIds()
+    {
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            CompositionRegistry.Create(composition =>
+            {
+                var menu = composition.AddMenu(MainMenu, "Main");
+                menu.AddGroup(WorkspaceMenuGroup, "Workspace", 10);
+                menu.AddGroup(WorkspaceMenuGroup, "Workspace duplicate", 20);
+            }));
+
+        Assert.Contains("Duplicate composition menu group ID", exception.Message);
+    }
+
+    [Fact]
+    public void Create_RejectsDuplicateMenuItemIds()
+    {
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            CompositionRegistry.Create(composition =>
+            {
+                var menu = composition.AddMenu(MainMenu, "Main");
+                menu.AddItem(WorkspaceMenuItem, "Workspace", 10).Target(WorkspacePage);
+                menu.AddItem(WorkspaceMenuItem, "Workspace duplicate", 20).Target(WorkspacePage);
+            }));
+
+        Assert.Contains("Duplicate composition menu item ID", exception.Message);
+    }
+
+    [Fact]
+    public void Create_RejectsMenuItemsWithUnknownParents()
+    {
+        var missingParent = new MenuItemId("menu-item.main.missing");
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            CompositionRegistry.Create(composition =>
+            {
+                composition
+                    .AddMenu(MainMenu, "Main")
+                    .AddItem(ChildMenuItem, "Child", 10)
+                    .WithParent(missingParent)
+                    .TargetHref("/workspace/child");
+            }));
+
+        Assert.Contains("unknown parent menu item", exception.Message);
+        Assert.Contains(missingParent.Value, exception.Message);
+    }
+
+    [Fact]
     public void GetSections_RequiresExtendableOutlet()
     {
         var exception = Assert.Throws<InvalidOperationException>(() =>
@@ -145,7 +202,7 @@ public sealed class CompositionRegistryTests
     }
 
     [Fact]
-    public void AddMenu_RegistersItemsAndSections()
+    public void AddMenu_RegistersRootItemsGroupsAndSubItems()
     {
         var registry = CreateRegistry();
 
@@ -156,11 +213,25 @@ public sealed class CompositionRegistryTests
         var item = Assert.Single(menu.Items);
         Assert.Equal(WorkspaceMenuItem, item.Id);
         Assert.Equal(WorkspacePage.Value, item.Target.Value);
-        var section = Assert.Single(menu.Sections);
-        Assert.Equal(WorkspaceMenuSection, section.Id);
-        var sectionItem = Assert.Single(section.Items);
-        Assert.Equal(SectionMenuItem, sectionItem.Id);
-        Assert.Equal(DetailsSection.Value, sectionItem.Target.Value);
+        Assert.Equal("resources", item.Icon);
+        Assert.Equal(new[] { "resource.read" }, item.PermissionsRequiredForNavigation);
+        var group = Assert.Single(menu.Groups);
+        Assert.Equal(WorkspaceMenuGroup, group.Id);
+        Assert.Equal("Workspace sections", group.Title);
+        Assert.Collection(
+            group.Items,
+            groupItem =>
+            {
+                Assert.Equal(SectionMenuItem, groupItem.Id);
+                Assert.Equal(DetailsSection.Value, groupItem.Target.Value);
+                Assert.Null(groupItem.ParentId);
+            },
+            childItem =>
+            {
+                Assert.Equal(ChildMenuItem, childItem.Id);
+                Assert.Equal(SectionMenuItem, childItem.ParentId);
+                Assert.Equal("/workspace/child", childItem.Target.Value);
+            });
     }
 
     [Fact]
@@ -381,11 +452,17 @@ public sealed class CompositionRegistryTests
         var menu = composition.AddMenu(MainMenu, "Main");
         menu
             .AddItem(WorkspaceMenuItem, "Workspace", 10)
+            .WithIcon("resources")
+            .RequiresPermissions("resource.read")
             .Target(WorkspacePage);
-        menu
-            .AddSection(WorkspaceMenuSection, "Workspace sections", 20)
+        var group = menu.AddGroup(WorkspaceMenuGroup, "Workspace sections", 20);
+        group
             .AddItem(SectionMenuItem, "Details", 10)
             .Target(DetailsSection);
+        group
+            .AddItem(ChildMenuItem, "Child", 20)
+            .WithParent(SectionMenuItem)
+            .TargetHref("/workspace/child");
 
         var page = composition.AddPage(WorkspacePage, "Workspace", "/workspace", isExtendable: true);
         page
@@ -399,11 +476,17 @@ public sealed class CompositionRegistryTests
         var menu = composition.AddMenu(MainMenu, "Main");
         menu
             .AddItem(WorkspaceMenuItem, "Workspace", 10)
+            .WithIcon("resources")
+            .RequiresPermissions("resource.read")
             .Target(WorkspacePage);
-        menu
-            .AddSection(WorkspaceMenuSection, "Workspace sections", 20)
+        var group = menu.AddGroup(WorkspaceMenuGroup, "Workspace sections", 20);
+        group
             .AddItem(SectionMenuItem, "Details", 10)
             .Target(DetailsSection);
+        group
+            .AddItem(ChildMenuItem, "Child", 20)
+            .WithParent(SectionMenuItem)
+            .TargetHref("/workspace/child");
 
         var page = composition.AddPage(WorkspacePage, "Workspace", "/workspace", isExtendable: true);
         page

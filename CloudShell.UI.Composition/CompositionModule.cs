@@ -39,11 +39,11 @@ public sealed record CompositionModule(
                 menu.Id,
                 menu.Title,
                 menu.Items.Select(ToMenuItemRegistration).ToArray(),
-                menu.Sections.Select(section => new CompositionMenuSectionRegistration(
-                    section.Id,
-                    section.Title,
-                    section.Items.Select(ToMenuItemRegistration).ToArray(),
-                    section.Order)).ToArray())).ToArray(),
+                menu.Groups.Select(group => new CompositionMenuGroupRegistration(
+                    group.Id,
+                    group.Title,
+                    group.Items.Select(ToMenuItemRegistration).ToArray(),
+                    group.Order)).ToArray())).ToArray(),
             descriptor.SectionOutlets.Select(outlet => new CompositionSectionOutletRegistration(
                 outlet.Id,
                 outlet.PageId,
@@ -58,7 +58,14 @@ public sealed record CompositionModule(
     }
 
     private static CompositionMenuItemRegistration ToMenuItemRegistration(CompositionMenuItemDescriptor item) =>
-        new(item.Id, item.Title, item.Target, item.Order);
+        new(
+            item.Id,
+            item.Title,
+            item.Target,
+            item.Order,
+            item.Icon,
+            item.ParentId,
+            item.RequiredPermissions);
 }
 
 public interface ICompositionComponentTypeResolver

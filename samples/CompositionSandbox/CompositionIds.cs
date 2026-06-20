@@ -5,7 +5,7 @@ namespace CloudShell.CompositionSandbox;
 public static class CompositionIds
 {
     public static readonly MenuId MainMenu = new("menu.main");
-    public static readonly MenuSectionId WorkspaceMenuSection = new("menu-section.main.workspace");
+    public static readonly MenuGroupId WorkspaceMenuGroup = new("menu-group.main.workspace");
     public static readonly MenuItemId WorkspaceItem = new("menu-item.main.workspace");
     public static readonly MenuItemId ReportsItem = new("menu-item.main.reports");
     public static readonly MenuItemId DashboardItem = new("menu-item.main.dashboard");

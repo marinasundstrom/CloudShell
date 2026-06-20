@@ -71,8 +71,8 @@ The current graph supports:
 
 - composition modules
 - menus
-- menu sections
-- menu items
+- menu groups
+- menu items and sub-items
 - pages bound to normal Blazor routes
 - section outlets
 - named sections rendered into a section outlet
@@ -80,6 +80,12 @@ The current graph supports:
 
 Navigation hierarchy and content hierarchy are already separate. A menu item
 targets a page or section by ID; it does not own that content.
+
+Typed hierarchical IDs also let the registry keep kind-specific lookup maps.
+Page, menu, section outlet, and section queries use typed IDs, while target
+resolution uses the same stable ID values for case-insensitive page and
+section link lookup. This keeps renderers and future adapters from scanning
+all artifacts or inferring artifact kind from loose strings.
 
 Section outlets are explicit artifacts. A page can mark itself
 `IsExtendable`, which means other modules may add extension-owned section
@@ -92,8 +98,8 @@ without changing the registered content graph.
 
 The current registry stores runtime registrations directly, but modules and
 registrations can be projected into descriptor records. Descriptors are the
-first serializable shape for pages, menus, menu sections, menu items, and
-section outlets, and sections. Section descriptors store the component type
+first serializable shape for pages, menus, menu groups, menu items, section
+outlets, and sections. Section descriptors store the component type
 name rather than a runtime `Type`. A module descriptor can be rehydrated through
 `CompositionModule.FromDescriptor(...)` only when the caller supplies an
 `ICompositionComponentTypeResolver`, keeping component activation under host
@@ -266,14 +272,17 @@ composition consumer; the resource details page should move to the same layout
 pattern in a later slice. The standalone CompositionSandbox sample remains
 the place to explore layout patterns before the shell adopts them.
 
-The current CloudShell navigation model still carries data that the generic
-composition menu model does not yet expose: Fluent icon names, menu groups,
-parent/child item relationships, active-route matching, permission-driven
-visibility, and localized labels. The migration should close those projection
-gaps before replacing the rendered `NavMenu`. The plain `CompositionMenu`
-remains the standard non-framework-specific renderer; a future
-CloudShell-hosted Fluent presenter should consume the same composition
-projections while applying CloudShell navigation styling and behavior.
+The composition menu model represents named menu groups, menu items that can
+live inside or outside a group, one level of menu sub-items through parent
+item IDs, icons, permission metadata, and direct href targets. The current
+CloudShell navigation renderer still owns active-route matching,
+permission-driven visibility, localized labels, collapsed group state, and
+Fluent-specific presentation. The migration should adapt those behaviors onto
+composition menu projections before replacing the rendered `NavMenu`. The
+plain `CompositionMenu` remains the standard non-framework-specific renderer;
+a future CloudShell-hosted Fluent presenter should consume the same
+composition projections while applying CloudShell navigation styling and
+behavior.
 
 `CompositionEngineHost` is an in-memory host for mounted modules. It owns the
 currently mounted module list and rebuilds the active registry projection when
@@ -318,8 +327,8 @@ The Blazor library currently provides these components:
 | Component | Purpose |
 | --- | --- |
 | `CompositionHost` | Resolves the current route to a registered page and cascades `CompositionContext` to child content. It can also receive an explicit `PageId`. |
-| `CompositionMenu` | Renders a registered menu and menu sections. Menu items use composition targets rather than hard-coded routes. |
-| `CompositionLink` | Resolves a page or section target into an anchor `href`. Page targets resolve to the registered route. Section targets resolve to the nearest page route plus a fragment. |
+| `CompositionMenu` | Renders a registered menu, menu groups, root items, and sub-items. Menu items use composition targets rather than hard-coded routes. |
+| `CompositionLink` | Resolves a page, section, or direct href target into an anchor `href`. Page targets resolve to the registered route. Section targets resolve to the nearest page route plus a fragment. |
 | `TitleOutlet` | Renders visible text for the current composition page title from the cascaded context, an explicit `Page`, or the current route. |
 | `PageTitleOutlet` | Wraps Blazor `PageTitle` for the current composition page title from the cascaded context, an explicit `Page`, or the current route. Use this for the document title instead of mixing document-head behavior into visible page headers. |
 | `CompositionPageLayout` | Renders a plain page frame with document title, visible title, optional eyebrow, summary, actions, navigation, and child content. Text-heavy regions are render fragments so hosts can localize or customize them. |

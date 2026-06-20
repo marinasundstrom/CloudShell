@@ -18,10 +18,10 @@ public readonly record struct MenuId(string Value)
     public override string ToString() => Value;
 }
 
-public readonly record struct MenuSectionId(string Value)
+public readonly record struct MenuGroupId(string Value)
 {
-    public static MenuSectionId Create(MenuId parent, string identifier) =>
-        new(CompositionIdFormatting.CreateChild("menu-section", "menu", parent.Value, identifier));
+    public static MenuGroupId Create(MenuId parent, string identifier) =>
+        new(CompositionIdFormatting.CreateChild("menu-group", "menu", parent.Value, identifier));
 
     public override string ToString() => Value;
 }
@@ -31,8 +31,8 @@ public readonly record struct MenuItemId(string Value)
     public static MenuItemId Create(MenuId parent, string identifier) =>
         new(CompositionIdFormatting.CreateChild("menu-item", "menu", parent.Value, identifier));
 
-    public static MenuItemId Create(MenuSectionId parent, string identifier) =>
-        new(CompositionIdFormatting.CreateChild("menu-item", "menu-section", parent.Value, identifier));
+    public static MenuItemId Create(MenuGroupId parent, string identifier) =>
+        new(CompositionIdFormatting.CreateChild("menu-item", "menu-group", parent.Value, identifier));
 
     public override string ToString() => Value;
 }
@@ -89,6 +89,16 @@ public readonly record struct CompositionTarget(string Value)
 
     public static CompositionTarget ForSection(SectionId id) =>
         new(id.Value);
+
+    public static CompositionTarget ForHref(string href)
+    {
+        if (string.IsNullOrWhiteSpace(href))
+        {
+            throw new ArgumentException("Composition target hrefs cannot be empty.", nameof(href));
+        }
+
+        return new(href.Trim());
+    }
 }
 
 internal static class CompositionIdFormatting

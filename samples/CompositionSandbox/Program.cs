@@ -28,17 +28,18 @@ builder.Services.AddCloudShellUiCompositionModule(CompositionModuleId.Host, comp
         .AddItem(CompositionIds.SettingsItem, "Settings", 40)
         .Target(CompositionIds.SettingsPage);
 
-    var workspaceSection = mainMenu.AddSection(
-        CompositionIds.WorkspaceMenuSection,
+    var workspaceGroup = mainMenu.AddGroup(
+        CompositionIds.WorkspaceMenuGroup,
         "Workspace sections",
         20);
 
-    workspaceSection
+    workspaceGroup
         .AddItem(CompositionIds.OverviewSectionItem, "Overview section", 10)
         .Target(CompositionIds.OverviewSection);
 
-    workspaceSection
+    workspaceGroup
         .AddItem(CompositionIds.ExtensionSectionItem, "Extension section", 20)
+        .WithParent(CompositionIds.OverviewSectionItem)
         .Target(CompositionIds.ExtensionContributionSection);
 
     var workspacePage = composition.AddPage(

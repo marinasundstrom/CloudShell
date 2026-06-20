@@ -16,9 +16,9 @@ public sealed class CompositionIdTests
     public void Create_CreatesMenuChildIds()
     {
         var menu = MenuId.Create("main");
-        var group = MenuSectionId.Create(menu, "observability");
+        var group = MenuGroupId.Create(menu, "observability");
 
-        Assert.Equal("menu-section.main.observability", group.Value);
+        Assert.Equal("menu-group.main.observability", group.Value);
         Assert.Equal("menu-item.main.resources", MenuItemId.Create(menu, "resources").Value);
         Assert.Equal("menu-item.main.observability.traces", MenuItemId.Create(group, "traces").Value);
     }

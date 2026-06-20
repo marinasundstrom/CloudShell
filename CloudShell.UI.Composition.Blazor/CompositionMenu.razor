@@ -4,18 +4,40 @@
 {
     var menu = MenuProjection.Menu;
     <nav class="composition-menu" aria-label="@menu.Title" data-composition-module="@MenuProjection.ModuleId.Value">
-        @foreach (var item in menu.Items)
+        @foreach (var item in GetRootItems(menu.Items))
         {
-            <CompositionLink Target="@item.Target">@item.Title</CompositionLink>
+            <div class="composition-menu-item" data-composition-menu-item="@item.Id.Value">
+                <CompositionLink Target="@item.Target">@item.Title</CompositionLink>
+                @if (GetChildren(menu.Items, item).Count > 0)
+                {
+                    <div class="composition-menu-subitems">
+                        @foreach (var child in GetChildren(menu.Items, item))
+                        {
+                            <CompositionLink Target="@child.Target">@child.Title</CompositionLink>
+                        }
+                    </div>
+                }
+            </div>
         }
 
-        @foreach (var section in menu.Sections)
+        @foreach (var group in menu.Groups)
         {
-            <div class="composition-menu-section">
-                <strong>@section.Title</strong>
-                @foreach (var item in section.Items)
+            <div class="composition-menu-group" data-composition-menu-group="@group.Id.Value">
+                <strong>@group.Title</strong>
+                @foreach (var item in GetRootItems(group.Items))
                 {
-                    <CompositionLink Target="@item.Target">@item.Title</CompositionLink>
+                    <div class="composition-menu-item" data-composition-menu-item="@item.Id.Value">
+                        <CompositionLink Target="@item.Target">@item.Title</CompositionLink>
+                        @if (GetChildren(group.Items, item).Count > 0)
+                        {
+                            <div class="composition-menu-subitems">
+                                @foreach (var child in GetChildren(group.Items, item))
+                                {
+                                    <CompositionLink Target="@child.Target">@child.Title</CompositionLink>
+                                }
+                            </div>
+                        }
+                    </div>
                 }
             </div>
         }
@@ -27,4 +49,21 @@
     public MenuId Id { get; set; }
 
     private CompositionMenuProjection? MenuProjection => Composition.GetMenuProjection(Id);
+
+    private static IReadOnlyList<CompositionMenuItemRegistration> GetRootItems(
+        IReadOnlyList<CompositionMenuItemRegistration> items) =>
+        items
+            .Where(item => item.ParentId is null)
+            .OrderBy(item => item.Order)
+            .ThenBy(item => item.Title, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private static IReadOnlyList<CompositionMenuItemRegistration> GetChildren(
+        IReadOnlyList<CompositionMenuItemRegistration> items,
+        CompositionMenuItemRegistration parent) =>
+        items
+            .Where(item => item.ParentId == parent.Id)
+            .OrderBy(item => item.Order)
+            .ThenBy(item => item.Title, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
 }

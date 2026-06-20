@@ -172,7 +172,7 @@ ordering remain metadata on the node rather than inferred from the ID.
 IDs should be typed value objects rather than interchangeable strings. They
 are central to referencing artifacts and to describing hierarchy. The initial
 model should include value objects such as `PageId`, `MenuId`,
-`MenuSectionId`, `MenuItemId`, `SectionOutletId`, `SectionContainerId`, and
+`MenuGroupId`, `MenuItemId`, `SectionOutletId`, `SectionContainerId`, and
 `SectionId`, or close equivalents as the API names settle. These IDs encode
 the relevant navigation or content hierarchy in their value, while the type
 keeps a menu ID from accidentally being used as a page or section ID. The
@@ -186,6 +186,14 @@ This keeps hierarchy explicit in the type system and lets builders create
 stable child IDs from known parent artifacts. The string value remains useful
 as a serialized address, but callers should normally construct IDs through
 typed factories or builders instead of string concatenation.
+
+Typed IDs also give the composition host an efficient indexing strategy. The
+registry can keep separate maps for pages, menus, menu groups, menu items,
+section containers, sections, routes, and target links without guessing the
+artifact kind from an untyped string. The hierarchical value remains the
+durable serialized address, while the value-object type selects the relevant
+lookup map and prevents a renderer or extension from asking the wrong artifact
+collection for an ID.
 
 The graph should make these relationships explicit:
 
@@ -251,7 +259,7 @@ should converge toward.
 | Concept | Purpose | Notes |
 | --- | --- | --- |
 | Menu | A named navigation presenter. | A shell can render several menus, but menu hierarchy is not the content hierarchy. |
-| Menu group | An ordered group inside a menu. | Useful for sidebar sections such as Workspace, Observability, Platform, or Settings. |
+| Menu group | A named group of menu items inside a menu. | Useful for sidebar groups such as Workspace, Observability, Platform, or Settings. Menu items may also live directly under the menu when grouping is unnecessary. |
 | Menu item | A navigation node targeting a composition target, command, route, or external link. | It should not directly own routed content. |
 | Navigation renderer | A component or service that turns menu artifacts into UI. | The default can be simple; hosts can build Bootstrap, Fluent, compact, or custom navigation renderers. |
 

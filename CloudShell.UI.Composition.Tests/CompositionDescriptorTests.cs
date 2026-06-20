@@ -7,9 +7,9 @@ public sealed class CompositionDescriptorTests
 {
     private static readonly CompositionModuleId ModuleId = CompositionModuleId.Create("workspace");
     private static readonly MenuId MainMenu = MenuId.Create("main");
-    private static readonly MenuSectionId WorkspaceMenuSection = MenuSectionId.Create(MainMenu, "workspace");
+    private static readonly MenuGroupId WorkspaceMenuGroup = MenuGroupId.Create(MainMenu, "workspace");
     private static readonly MenuItemId WorkspaceMenuItem = MenuItemId.Create(MainMenu, "workspace");
-    private static readonly MenuItemId DetailsMenuItem = MenuItemId.Create(WorkspaceMenuSection, "details");
+    private static readonly MenuItemId DetailsMenuItem = MenuItemId.Create(WorkspaceMenuGroup, "details");
     private static readonly PageId WorkspacePage = PageId.Create("workspace");
     private static readonly SectionOutletId MainOutlet = SectionOutletId.Create(WorkspacePage, "main");
     private static readonly SectionId OverviewSection = SectionId.Create(MainOutlet, "overview");
@@ -32,7 +32,8 @@ public sealed class CompositionDescriptorTests
         var menu = Assert.Single(descriptor.Menus);
         Assert.Equal(MainMenu, menu.Id);
         Assert.Single(menu.Items);
-        Assert.Single(menu.Sections);
+        var group = Assert.Single(menu.Groups);
+        Assert.Equal(WorkspaceMenuGroup, group.Id);
 
         var outlet = Assert.Single(descriptor.SectionOutlets);
         Assert.Equal(MainOutlet, outlet.Id);
@@ -58,7 +59,7 @@ public sealed class CompositionDescriptorTests
         Assert.Equal(descriptor.Id, roundTrip.Id);
         Assert.Equal(descriptor.Pages[0].Id, roundTrip.Pages[0].Id);
         Assert.Equal(descriptor.Pages[0].IsExtendable, roundTrip.Pages[0].IsExtendable);
-        Assert.Equal(descriptor.Menus[0].Sections[0].Items[0].Target, roundTrip.Menus[0].Sections[0].Items[0].Target);
+        Assert.Equal(descriptor.Menus[0].Groups[0].Items[0].Target, roundTrip.Menus[0].Groups[0].Items[0].Target);
         Assert.Equal(descriptor.SectionOutlets[0].IsExtendable, roundTrip.SectionOutlets[0].IsExtendable);
         Assert.Equal(descriptor.Sections[0].ComponentTypeName, roundTrip.Sections[0].ComponentTypeName);
     }
@@ -99,7 +100,7 @@ public sealed class CompositionDescriptorTests
             var menu = module.AddMenu(MainMenu, "Main");
             menu.AddItem(WorkspaceMenuItem, "Workspace", 10).Target(WorkspacePage);
             menu
-                .AddSection(WorkspaceMenuSection, "Workspace", 20)
+                .AddGroup(WorkspaceMenuGroup, "Workspace", 20)
                 .AddItem(DetailsMenuItem, "Details", 10)
                 .Target(DetailsSection);
 
