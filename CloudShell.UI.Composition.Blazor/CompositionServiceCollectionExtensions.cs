@@ -67,4 +67,22 @@ public static class CompositionServiceCollectionExtensions
         return services.AddCloudShellUiCompositionModule(
             CompositionModule.Create(id, configure));
     }
+
+    public static IServiceCollection AddCloudShellUiCompositionModule<TContext>(
+        this IServiceCollection services,
+        CompositionModuleId id,
+        Action<TContext, CompositionModuleBuilder> configure)
+        where TContext : ICompositionHostContext
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        services.AddSingleton(serviceProvider =>
+        {
+            var context = serviceProvider.GetRequiredService<TContext>();
+            return CompositionModule.Create(id, module => configure(context, module));
+        });
+
+        return services;
+    }
 }

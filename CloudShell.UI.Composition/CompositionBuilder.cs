@@ -19,11 +19,21 @@ public sealed class CompositionBuilder
         return menu;
     }
 
-    public CompositionPageBuilder AddPage(PageId id, string title, string route)
+    public CompositionPageBuilder AddPage(
+        PageId id,
+        string title,
+        string route,
+        bool isExtendable = false)
     {
         CompositionRegistry.ValidateId(id.Value, nameof(id));
-        Pages.Add(new CompositionPageRegistration(id, title, NormalizeRoute(route)));
+        Pages.Add(new CompositionPageRegistration(id, title, NormalizeRoute(route), isExtendable));
         return new CompositionPageBuilder(this, id);
+    }
+
+    public CompositionPageExtensionBuilder Extend(PageId pageId)
+    {
+        CompositionRegistry.ValidateId(pageId.Value, nameof(pageId));
+        return new CompositionPageExtensionBuilder(this, pageId);
     }
 
     public CompositionSectionOutletBuilder GetSections(SectionOutletId outletId)
@@ -36,6 +46,10 @@ public sealed class CompositionBuilder
 
         return new CompositionSectionOutletBuilder(this, outlet.PageId, outletId);
     }
+
+    public CompositionSectionOutletExtensionBuilder Extend(
+        CompositionSectionOutletExtensionPoint outlet) =>
+        new(this, outlet.PageId, outlet.OutletId);
 
     internal CompositionSectionOutletBuilder GetSections(
         PageId pageId,
@@ -58,6 +72,25 @@ public sealed class CompositionBuilder
             SectionOutlets.ToArray(),
             Sections.ToArray());
 
+    internal void AddSection(
+        PageId pageId,
+        SectionOutletId outletId,
+        SectionId sectionId,
+        string title,
+        Type component,
+        int order)
+    {
+        CompositionRegistry.ValidateId(sectionId.Value, nameof(sectionId));
+
+        Sections.Add(new CompositionSectionRegistration(
+            sectionId,
+            pageId,
+            outletId,
+            title,
+            component,
+            order));
+    }
+
     private static string NormalizeRoute(string route)
     {
         CompositionRegistry.ValidateId(route, nameof(route));
@@ -66,6 +99,25 @@ public sealed class CompositionBuilder
 }
 
 public sealed class CompositionPageBuilder(
+    CompositionBuilder builder,
+    PageId pageId)
+{
+    public CompositionSectionOutletBuilder AddSections(
+        SectionOutletId outletId,
+        bool isExtendable = false)
+    {
+        CompositionRegistry.ValidateId(outletId.Value, nameof(outletId));
+
+        builder.SectionOutlets.Add(new CompositionSectionOutletRegistration(
+            outletId,
+            pageId,
+            isExtendable));
+
+        return new CompositionSectionOutletBuilder(builder, pageId, outletId);
+    }
+}
+
+public sealed class CompositionPageExtensionBuilder(
     CompositionBuilder builder,
     PageId pageId)
 {
@@ -104,15 +156,33 @@ public sealed class CompositionSectionOutletBuilder(
         Type component,
         int order)
     {
-        CompositionRegistry.ValidateId(id.Value, nameof(id));
+        builder.AddSection(pageId, outletId, id, title, component, order);
 
-        builder.Sections.Add(new CompositionSectionRegistration(
-            id,
-            pageId,
-            outletId,
-            title,
-            component,
-            order));
+        return this;
+    }
+}
+
+public sealed class CompositionSectionOutletExtensionBuilder(
+    CompositionBuilder builder,
+    PageId pageId,
+    SectionOutletId outletId)
+{
+    public CompositionSectionOutletExtensionBuilder AddSection<TComponent>(
+        SectionId id,
+        string title,
+        int order)
+    {
+        AddSection(id, title, typeof(TComponent), order);
+        return this;
+    }
+
+    public CompositionSectionOutletExtensionBuilder AddSection(
+        SectionId id,
+        string title,
+        Type component,
+        int order)
+    {
+        builder.AddSection(pageId, outletId, id, title, component, order);
 
         return this;
     }

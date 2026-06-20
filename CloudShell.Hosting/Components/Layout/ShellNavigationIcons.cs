@@ -18,6 +18,7 @@ public static class ShellNavigationIcons
             "traces" or "trace" => new Icons.Regular.Size20.GanttChart(),
             "metrics" or "metric" => new Icons.Regular.Size20.ChartMultiple(),
             "users" or "people" or "identity" => new Icons.Regular.Size20.People(),
+            "settings" or "configuration" => new Icons.Regular.Size20.SettingsCogMultiple(),
             "plug" or "extensions" or "extension" => new Icons.Regular.Size20.PuzzlePiece(),
             "docker" or "container" => new Icons.Regular.Size20.CubeTree(),
             "network" => new Icons.Regular.Size20.Connector(),

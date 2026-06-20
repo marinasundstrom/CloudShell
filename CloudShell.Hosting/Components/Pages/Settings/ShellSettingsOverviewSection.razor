@@ -1,0 +1,44 @@
+@inject IOptionsMonitor<CloudShellDisplayOptions> DisplayOptions
+@inject IOptions<CloudShellUserSettingsOptions> UserSettingsOptions
+@inject IStringLocalizer<SharedResource> L
+
+<div class="generated-resource-view">
+    <section class="generated-section">
+        <h3>@L["Shell"]</h3>
+        <dl class="detail-list">
+            <dt>@L["Application"]</dt>
+            <dd>@GetApplicationName()</dd>
+            <dt>@L["Environment"]</dt>
+            <dd>@GetEnvironmentName()</dd>
+            <dt>@L["User settings"]</dt>
+            <dd>@GetUserSettingsStorageLabel()</dd>
+        </dl>
+    </section>
+
+    <section class="generated-section">
+        <h3>@L["Composition"]</h3>
+        <ProcedureMessage>
+            <strong>@L["Settings composition"]</strong>
+            <span>@L["This page is backed by registered composition sections. CloudShell-specific Fluent UI presenters can reuse the same layout pattern as the resource details page."]</span>
+        </ProcedureMessage>
+    </section>
+</div>
+
+@code {
+    private string GetApplicationName() =>
+        string.IsNullOrWhiteSpace(DisplayOptions.CurrentValue.ApplicationName)
+            ? "CloudShell"
+            : DisplayOptions.CurrentValue.ApplicationName.Trim();
+
+    private string GetEnvironmentName() =>
+        string.IsNullOrWhiteSpace(DisplayOptions.CurrentValue.EnvironmentName)
+            ? L["Development"].Value
+            : DisplayOptions.CurrentValue.EnvironmentName.Trim();
+
+    private string GetUserSettingsStorageLabel() =>
+        UserSettingsOptions.Value.Storage switch
+        {
+            CloudShellUserSettingsStorage.ControlPlane => L["Control Plane"].Value,
+            _ => L["Local workspace"].Value
+        };
+}

@@ -11,10 +11,12 @@ public sealed class CompositionRegistryTests
     private static readonly PageId WorkspacePage = new("page.workspace");
     private static readonly PageId ReportsPage = new("page.reports");
     private static readonly SectionOutletId MainOutlet = new("section-outlet.workspace.main");
+    private static readonly SectionOutletId ExtensionOutlet = new("section-outlet.workspace.extension");
     private static readonly SectionOutletId ReportsOutlet = new("section-outlet.reports.main");
     private static readonly SectionId OverviewSection = new("section.workspace.main.overview");
     private static readonly SectionId DetailsSection = new("section.workspace.main.details");
     private static readonly SectionId ReportsSummarySection = new("section.reports.main.summary");
+    private static readonly SectionId ExtensionOwnedSection = new("section.workspace.extension.summary");
     private static readonly CompositionModuleId ReportsModule = new("composition-module.reports");
 
     [Fact]
@@ -293,6 +295,81 @@ public sealed class CompositionRegistryTests
         Assert.Equal(ReportsSummarySection, section.Section.Id);
     }
 
+    [Fact]
+    public void Extend_AddsSectionToExtendableOutletOwnedByAnotherModule()
+    {
+        var host = CreateHostModule();
+        var extension = CompositionModule.Create(ReportsModule, module =>
+        {
+            module
+                .Extend(new CompositionSectionOutletExtensionPoint(WorkspacePage, MainOutlet))
+                .AddSection<ReportsSectionComponent>(
+                    ReportsSummarySection,
+                    "Extension",
+                    30);
+        });
+
+        var registry = CompositionRegistry.FromModules(host, extension);
+
+        var section = registry
+            .GetSectionProjections(WorkspacePage, MainOutlet)
+            .Single(projection => projection.Section.Id == ReportsSummarySection);
+
+        Assert.Equal(ReportsModule, section.ModuleId);
+        Assert.Equal("Extension", section.Section.Title);
+    }
+
+    [Fact]
+    public void ExtendPage_AddsExtensionOwnedOutletToHostPage()
+    {
+        var host = CreateHostModule();
+        var extension = CompositionModule.Create(ReportsModule, module =>
+        {
+            module
+                .Extend(WorkspacePage)
+                .AddSections(ExtensionOutlet)
+                .AddSection<ReportsSectionComponent>(
+                    ExtensionOwnedSection,
+                    "Extension outlet",
+                    10);
+        });
+
+        var registry = CompositionRegistry.FromModules(host, extension);
+
+        var outlet = registry.GetSectionOutletProjection(ExtensionOutlet);
+        var section = Assert.Single(registry.GetSectionProjections(WorkspacePage, ExtensionOutlet));
+
+        Assert.NotNull(outlet);
+        Assert.Equal(ReportsModule, outlet.ModuleId);
+        Assert.Equal(ReportsModule, section.ModuleId);
+        Assert.Equal(ExtensionOwnedSection, section.Section.Id);
+    }
+
+    [Fact]
+    public void ExtendPage_ThrowsWhenPageIsNotExtendable()
+    {
+        var host = CompositionModule.Create(CompositionModuleId.Host, module =>
+        {
+            module.AddPage(WorkspacePage, "Workspace", "/workspace");
+        });
+        var extension = CompositionModule.Create(ReportsModule, module =>
+        {
+            module
+                .Extend(WorkspacePage)
+                .AddSections(ExtensionOutlet)
+                .AddSection<ReportsSectionComponent>(
+                    ExtensionOwnedSection,
+                    "Extension outlet",
+                    10);
+        });
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            CompositionRegistry.FromModules(host, extension));
+
+        Assert.Contains("is not extendable", exception.Message);
+        Assert.Contains(WorkspacePage.Value, exception.Message);
+    }
+
     private static CompositionRegistry CreateRegistry() =>
         CompositionRegistry.Create(ConfigureHostModule);
 
@@ -310,7 +387,7 @@ public sealed class CompositionRegistryTests
             .AddItem(SectionMenuItem, "Details", 10)
             .Target(DetailsSection);
 
-        var page = composition.AddPage(WorkspacePage, "Workspace", "/workspace");
+        var page = composition.AddPage(WorkspacePage, "Workspace", "/workspace", isExtendable: true);
         page
             .AddSections(MainOutlet, isExtendable: true)
             .AddSection<OverviewSectionComponent>(OverviewSection, "Overview", 10)
@@ -328,7 +405,7 @@ public sealed class CompositionRegistryTests
             .AddItem(SectionMenuItem, "Details", 10)
             .Target(DetailsSection);
 
-        var page = composition.AddPage(WorkspacePage, "Workspace", "/workspace");
+        var page = composition.AddPage(WorkspacePage, "Workspace", "/workspace", isExtendable: true);
         page
             .AddSections(MainOutlet, isExtendable: true)
             .AddSection<OverviewSectionComponent>(OverviewSection, "Overview", 10)

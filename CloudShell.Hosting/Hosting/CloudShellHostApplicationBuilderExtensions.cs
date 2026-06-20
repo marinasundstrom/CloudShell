@@ -70,6 +70,7 @@ public static class CloudShellHostApplicationBuilderExtensions
         builder.Services.AddRazorComponents()
             .AddInteractiveServerComponents();
         builder.Services.AddCloudShellUiComposition();
+        builder.Services.TryAddSingleton<ShellCompositionHostContext>();
 
         ConfigureLocalization(builder);
 

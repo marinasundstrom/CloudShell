@@ -52,6 +52,7 @@ public sealed class CompositionRegistry
         ValidateUnique(menus.Select(menu => menu.Id.Value), "menu");
         ValidateUnique(sectionOutlets.Select(outlet => outlet.Id.Value), "section outlet");
         ValidateUnique(sections.Select(section => section.Id.Value), "section");
+        ValidateSectionOutletContributions(materializedModules);
         ValidateSectionContributions(materializedModules);
 
         return new(
@@ -174,6 +175,31 @@ public sealed class CompositionRegistry
         if (duplicate is not null)
         {
             throw new InvalidOperationException($"Duplicate composition {kind} ID '{duplicate.Key}'.");
+        }
+    }
+
+    private static void ValidateSectionOutletContributions(IReadOnlyList<CompositionModule> modules)
+    {
+        var pageProjections = modules
+            .SelectMany(module => module.Pages.Select(page => new CompositionPageProjection(module.Id, page)))
+            .ToDictionary(projection => projection.Page.Id);
+
+        foreach (var module in modules)
+        {
+            foreach (var outlet in module.SectionOutlets)
+            {
+                if (!pageProjections.TryGetValue(outlet.PageId, out var pageProjection))
+                {
+                    throw new InvalidOperationException(
+                        $"Composition section outlet '{outlet.Id}' targets unknown page '{outlet.PageId}'.");
+                }
+
+                if (module.Id != pageProjection.ModuleId && !pageProjection.Page.IsExtendable)
+                {
+                    throw new InvalidOperationException(
+                        $"Composition page '{outlet.PageId}' is not extendable and cannot accept section outlet '{outlet.Id}' from module '{module.Id}'.");
+                }
+            }
         }
     }
 

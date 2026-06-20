@@ -27,6 +27,7 @@ public sealed class CompositionDescriptorTests
         Assert.Equal(WorkspacePage, page.Id);
         Assert.Equal("Workspace", page.Title);
         Assert.Equal("/workspace", page.Route);
+        Assert.True(page.IsExtendable);
 
         var menu = Assert.Single(descriptor.Menus);
         Assert.Equal(MainMenu, menu.Id);
@@ -56,6 +57,7 @@ public sealed class CompositionDescriptorTests
         Assert.NotNull(roundTrip);
         Assert.Equal(descriptor.Id, roundTrip.Id);
         Assert.Equal(descriptor.Pages[0].Id, roundTrip.Pages[0].Id);
+        Assert.Equal(descriptor.Pages[0].IsExtendable, roundTrip.Pages[0].IsExtendable);
         Assert.Equal(descriptor.Menus[0].Sections[0].Items[0].Target, roundTrip.Menus[0].Sections[0].Items[0].Target);
         Assert.Equal(descriptor.SectionOutlets[0].IsExtendable, roundTrip.SectionOutlets[0].IsExtendable);
         Assert.Equal(descriptor.Sections[0].ComponentTypeName, roundTrip.Sections[0].ComponentTypeName);
@@ -73,7 +75,7 @@ public sealed class CompositionDescriptorTests
         var registry = CompositionRegistry.FromModules(module);
 
         Assert.Equal(ModuleId, module.Id);
-        Assert.NotNull(registry.GetPage(WorkspacePage));
+        Assert.True(registry.GetPage(WorkspacePage)?.IsExtendable);
         var details = registry.GetSections(WorkspacePage, MainOutlet)
             .Single(section => section.Id == DetailsSection);
         Assert.Equal(typeof(DetailsSectionComponent), details.ComponentType);
@@ -102,7 +104,7 @@ public sealed class CompositionDescriptorTests
                 .Target(DetailsSection);
 
             module
-                .AddPage(WorkspacePage, "Workspace", "/workspace")
+                .AddPage(WorkspacePage, "Workspace", "/workspace", isExtendable: true)
                 .AddSections(MainOutlet)
                 .AddSection<OverviewSectionComponent>(OverviewSection, "Overview", 10)
                 .AddSection<DetailsSectionComponent>(DetailsSection, "Details", 20);

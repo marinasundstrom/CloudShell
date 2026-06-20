@@ -106,7 +106,7 @@ builder.Services.AddCloudShellUiCompositionModule(
     composition =>
     {
         composition
-            .GetSections(CompositionIds.WorkspacePage, CompositionIds.WorkspaceMainOutlet)
+            .Extend(CompositionIds.WorkspaceMainSections)
             .AddSection<ExtensionContributionSection>(
                 CompositionIds.ExtensionContributionSection,
                 "Contributed section",

@@ -9,6 +9,7 @@ public sealed class CompositionServiceCollectionExtensionsTests
     private static readonly CompositionModuleId ExtensionModule = CompositionModuleId.Create("extension");
     private static readonly PageId WorkspacePage = PageId.Create("workspace");
     private static readonly SectionOutletId WorkspaceOutlet = SectionOutletId.Create(WorkspacePage, "main");
+    private static readonly CompositionSectionOutletExtensionPoint WorkspaceSections = new(WorkspacePage, WorkspaceOutlet);
     private static readonly SectionId OverviewSection = SectionId.Create(WorkspaceOutlet, "overview");
     private static readonly SectionId ExtensionSection = SectionId.Create(WorkspaceOutlet, "extension");
 
@@ -17,6 +18,7 @@ public sealed class CompositionServiceCollectionExtensionsTests
     {
         var services = new ServiceCollection();
 
+        services.AddSingleton(new TestCompositionHostContext(WorkspaceSections));
         services.AddCloudShellUiCompositionModule(HostModule, module =>
         {
             module
@@ -27,10 +29,10 @@ public sealed class CompositionServiceCollectionExtensionsTests
                     "Overview",
                     10);
         });
-        services.AddCloudShellUiCompositionModule(ExtensionModule, module =>
+        services.AddCloudShellUiCompositionModule<TestCompositionHostContext>(ExtensionModule, (context, module) =>
         {
             module
-                .GetSections(WorkspacePage, WorkspaceOutlet)
+                .Extend(context.WorkspaceSections)
                 .AddSection<ExtensionSectionComponent>(
                     ExtensionSection,
                     "Extension",
@@ -91,12 +93,26 @@ public sealed class CompositionServiceCollectionExtensionsTests
 
     private sealed class ExtensionSectionComponent;
 
+    private sealed record TestCompositionHostContext(
+        CompositionSectionOutletExtensionPoint WorkspaceSections) : ICompositionHostContext;
+
     private static TestServiceProvider CreateProvider(IServiceCollection services)
     {
+        var provider = new TestServiceProvider();
+        foreach (var descriptor in services.Where(descriptor =>
+            descriptor.ServiceType != typeof(CompositionModule) &&
+            descriptor.ImplementationInstance is not null))
+        {
+            provider.Add(descriptor.ServiceType, descriptor.ImplementationInstance!);
+        }
+
         var modules = services
             .Where(descriptor => descriptor.ServiceType == typeof(CompositionModule))
-            .Select(descriptor => Assert.IsType<CompositionModule>(descriptor.ImplementationInstance))
+            .Select(descriptor => descriptor.ImplementationInstance ??
+                descriptor.ImplementationFactory?.Invoke(provider))
+            .Cast<CompositionModule>()
             .ToArray();
+
         var hostFactory = services.Single(descriptor => descriptor.ServiceType == typeof(CompositionEngineHost))
             .ImplementationFactory;
         var registryFactory = services.Single(descriptor => descriptor.ServiceType == typeof(CompositionRegistry))
@@ -105,7 +121,6 @@ public sealed class CompositionServiceCollectionExtensionsTests
         Assert.NotNull(hostFactory);
         Assert.NotNull(registryFactory);
 
-        var provider = new TestServiceProvider();
         provider.Add(typeof(IEnumerable<CompositionModule>), modules);
         provider.Add(typeof(CompositionEngineHost), hostFactory(provider));
         provider.Add(typeof(CompositionRegistry), registryFactory(provider));

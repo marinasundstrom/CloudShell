@@ -59,6 +59,10 @@ public readonly record struct SectionOutletId(string Value)
     public override string ToString() => Value;
 }
 
+public readonly record struct CompositionSectionOutletExtensionPoint(
+    PageId PageId,
+    SectionOutletId OutletId);
+
 public readonly record struct SectionId(string Value)
 {
     public static SectionId Create(PageId parent, string identifier) =>

@@ -17,6 +17,7 @@ public static class CompositionIds
     public static readonly PageId DashboardPage = new("page.dashboard");
     public static readonly PageId SettingsPage = new("page.settings");
     public static readonly SectionOutletId WorkspaceMainOutlet = new("section-outlet.workspace.main");
+    public static readonly CompositionSectionOutletExtensionPoint WorkspaceMainSections = new(WorkspacePage, WorkspaceMainOutlet);
     public static readonly SectionOutletId ReportsMainOutlet = new("section-outlet.reports.main");
     public static readonly SectionOutletId DashboardMainOutlet = new("section-outlet.dashboard.main");
     public static readonly SectionOutletId SettingsMainOutlet = new("section-outlet.settings.main");

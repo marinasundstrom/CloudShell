@@ -31,6 +31,14 @@ project the graph as menu navigation, pages, sections, tabs, settings layouts,
 dashboards, or custom extension-owned layouts. Resource Manager tabs are one
 adapter over this model, not the generic model itself.
 
+The composition model is analogous to the resource model at the shell/UI
+layer. The host owns a graph of stable artifacts and extension points.
+Modules contribute declarations against that graph, and the composition host
+validates ownership, target relationships, ordering, and extension rules
+before renderers project the graph into UI. This keeps composition artifacts
+separate from Blazor components in the same way resource model concepts stay
+separate from provider implementation details.
+
 The reusable Blazor integration should provide standard components that emit
 plain HTML and are styled through classes. Component-framework-specific
 presenters are host adapters over the same graph. CloudShell Hosting should
@@ -196,6 +204,26 @@ The graph should make these relationships explicit:
   preserving resource-specific context
 - a slot or section container declares the context and ordering rules for
   contributed content
+
+Extensibility and replaceability are separate artifact policies. An
+`IsExtendable` page, slot, or section container allows other modules to add
+new child artifacts through published extension points. A future
+`CanBeReplaced` policy would allow another module to replace an artifact,
+renderer, or projection. Replacement needs stronger ownership, precedence,
+diagnostic, and conflict rules, so it should not be treated as the same
+capability as extension.
+
+Each composition artifact should have separate API views for separate
+responsibilities:
+
+- declaration builders for the module that owns and first defines the artifact
+- extension builders for other modules that are allowed to contribute to the
+  artifact through a published extension point
+- runtime projections for renderers, diagnostics, and consumers that need a
+  mostly read-only view over the validated graph
+
+Those views may point at the same underlying artifact ID, but they should not
+expose the same mutation surface.
 
 ## Concept Vocabulary
 
@@ -515,20 +543,24 @@ The practical path should be incremental:
    sub-pages, slots, section containers, and sections. The initial settings
    experience can render as tabs, but the contract should remain layout-node
    based rather than tab based.
-9. Extract a generic ordered-section renderer from
+9. Move Resource Details to the same shell-owned tabbed layout pattern after
+   the settings page proves the layout component. Resource Manager tab
+   contributions should remain Resource Manager concepts until an adapter maps
+   them into composition artifacts.
+10. Extract a generic ordered-section renderer from
    `GeneratedResourceViewLayout` and `ResourcePredefinedViewSections`, keeping
    the current Resource Manager section contracts as adapters.
-10. Extract a generic grouped local-navigation renderer from the Resource
+11. Extract a generic grouped local-navigation renderer from the Resource
    Manager tab grouping and the shell-hosted view menu item model. Treat tab
    rendering as one renderer over child layout nodes.
-11. Let `CustomShellViewContribution`, the new Settings page, and Resource
+12. Let `CustomShellViewContribution`, the new Settings page, and Resource
    Manager detail pages render through the same hosted-page/layout graph
    infrastructure where their needs overlap.
-12. Add generic slot and section-container contributions and map
+13. Add generic slot and section-container contributions and map
    `ResourcePredefinedViewSectionContribution` into section contributions for
    predefined resource views.
-13. Add notification-center and dashboard adapters over the same primitives.
-14. Only after the generic renderer is proven, consider renaming or replacing
+14. Add notification-center and dashboard adapters over the same primitives.
+15. Only after the generic renderer is proven, consider renaming or replacing
    `CustomShellView` APIs with clearer shell composition names.
 
 During the extraction, Resource Manager behavior should not regress:
@@ -567,7 +599,7 @@ var observabilitySection = mainMenu.AddSection(PredefinedMenuItemGroups.Observab
 observabilitySection.AddItem(PredefinedMenuItems.Traces)
     .Target(PredefinedPages.Traces);
 
-var settingsPage = builder.AddPage(PredefinedPages.Settings);
+var settingsPage = builder.AddPage(PredefinedPages.Settings, isExtendable: true);
 
 var settingsSections = settingsPage.AddSections(
     PredefinedSectionContainers.Settings,
@@ -587,10 +619,10 @@ extension activation rules:
 ```csharp
 public sealed class IdentityExtension : ICloudShellExtension
 {
-    public void Compose(CompositionModuleBuilder module)
+    public void Compose(ShellCompositionHostContext context, CompositionModuleBuilder module)
     {
         module
-            .GetSections(PredefinedSectionContainers.Settings)
+            .Extend(context.Settings.MainSections)
             .AddSection(
                 MySections.IdentityProviders,
                 component: typeof(IdentityProviderSettingsSection));
@@ -608,7 +640,7 @@ An extension can then tap into explicitly extendable nodes and add its own
 content without owning the surrounding layout:
 
 ```csharp
-var identitySettings = builder.GetSections(PredefinedSectionContainers.Settings);
+var identitySettings = builder.Extend(context.Settings.MainSections);
 
 identitySettings.AddSection(
     MySections.IdentityProviders,
@@ -619,6 +651,22 @@ builder.GetMenu(PredefinedMenus.Main)
     .AddItem(MyMenuItems.IdentityAudit)
     .Target(MyPages.IdentityAudit);
 ```
+
+The module that owns a page, slot, or section container must publish strongly
+typed references for the elements that other modules are allowed to target.
+Cross-module contributors receive the relevant composition host context from
+the module registration API and use those references to request an extension
+builder for the known layout element. They do not redeclare the outlet. The
+composition host validates that the target exists and is marked extendable
+when mounted modules are assembled.
+
+`Extend(...)` should return builders constrained to the operations that make
+sense for the target artifact. Extending a page can return a page extension
+builder that adds extension-owned section containers or outlets, and the host
+must validate that the page is extendable. Extending a section should wait
+until section-owned child outlets and their parent page context are explicit in
+the model; a section ID alone is not enough information for a separate module
+to safely add child content.
 
 Navigation can target any addressable content node without becoming its
 parent. A menu item can point at a page, sub-page, section container, or

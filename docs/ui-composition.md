@@ -81,9 +81,11 @@ The current graph supports:
 Navigation hierarchy and content hierarchy are already separate. A menu item
 targets a page or section by ID; it does not own that content.
 
-Section outlets are explicit artifacts. A page can mark an outlet
-`IsExtendable`, which means other modules may contribute named sections to it.
-Named sections are the current content contribution primitive. A section has a
+Section outlets are explicit artifacts. A page can mark itself
+`IsExtendable`, which means other modules may add extension-owned section
+outlets to that page. A section outlet can also be marked `IsExtendable`,
+which means other modules may contribute named sections to that outlet. Named
+sections are the current content contribution primitive. A section has a
 stable `SectionId`, a display title, an order, and a component type. Renderers
 can show those same sections as a stack, grid, tabs, or another layout pattern
 without changing the registered content graph.
@@ -96,6 +98,16 @@ name rather than a runtime `Type`. A module descriptor can be rehydrated through
 `CompositionModule.FromDescriptor(...)` only when the caller supplies an
 `ICompositionComponentTypeResolver`, keeping component activation under host
 control.
+
+Composition artifacts have different API views depending on who is using
+them:
+
+- declaration builders are used by the owning module when it first defines the
+  artifact and can expose the full definition surface
+- extension builders are used by other modules through published extension
+  points and expose only the operations that are allowed for that target
+- runtime projections are consumed by renderers and diagnostics and are mostly
+  read-only views over validated registrations, ownership, and metadata
 
 ## Registration
 
@@ -187,7 +199,7 @@ builder.Services.AddCloudShellUiCompositionModule(
     module =>
     {
         module
-            .GetSections(CompositionIds.WorkspacePage, CompositionIds.WorkspaceMainOutlet)
+            .Extend(CompositionIds.WorkspaceMainSections)
             .AddSection<ExtensionContributionSection>(
                 CompositionIds.ExtensionContributionSection,
                 "Contributed section",
@@ -201,6 +213,41 @@ This is still startup composition, not CloudShell extension discovery. It gives
 hosts and packages a small integration point for contributing modules without
 introducing a CMS/editor layer.
 
+Cross-module extension depends on a shared composition host context. The module
+that owns a page or section outlet publishes strongly typed extension points,
+such as `CompositionSectionOutletExtensionPoint`, from that context. Every
+module registration can receive the same host context and call
+`Extend(extensionPoint)` with one of the published extension points. The
+registry validates that the target outlet exists and is marked `IsExtendable`
+when all modules are assembled.
+
+`Extend(...)` should overload on typed extension-point handles, not on loose
+ID values. A section outlet extension point returns a section-outlet builder
+that can add sections. Future menu, slot, page, or command extension points
+can add their own `Extend(...)` overloads that return builders appropriate for
+those artifact kinds.
+
+`Extend(PageId)` is available for page-level extension and returns a page
+extension builder that can add extension-owned section outlets. The registry
+only allows that when the target page is marked `IsExtendable`. `Extend(SectionId)`
+is intentionally deferred until section-owned outlets and their parent page
+context are first-class in the model; a section ID alone is not enough for a
+separate module to safely add child content.
+
+```csharp
+builder.Services.AddCloudShellUiCompositionModule<ShellCompositionHostContext>(
+    CompositionModuleId.Create("identity-settings"),
+    (context, module) =>
+    {
+        module
+            .Extend(context.Settings.MainSections)
+            .AddSection<IdentitySettingsSection>(
+                MySections.IdentitySettings,
+                "Identity",
+                10);
+    });
+```
+
 CloudShell Hosting now registers the composition services during
 `AddCloudShellUi()`. Existing CloudShell navigation and pages still render
 through the current shell catalog. Extensions that reference the composition
@@ -208,14 +255,16 @@ package can register modules through `builder.Services.AddCloudShellUiCompositio
 the UI-extension-host sample does this for its sample workspace page. This is
 the first integration seam, not a replacement renderer.
 
-The next CloudShell integration step is to add shell-owned layout components
-that consume the composition graph while keeping the current shell catalog in
-place. Once those layout components are proven, CloudShell can gradually move
-navigation over to composition-backed menus, identify missing metadata or
-projection APIs, and then introduce a common settings page built from the same
-page, menu, section, and outlet primitives. The standalone CompositionSandbox
-sample remains the place to explore layout patterns before the shell adopts
-them.
+CloudShell Hosting now also has a shell-owned tabbed layout component that
+matches the resource details information architecture: local navigation in a
+left panel and selected content in a right panel. The common `/settings` page
+uses this component and renders composition-backed settings sections. Its
+public `ShellCompositionIds.SettingsPage` and
+`ShellCompositionIds.SettingsMainOutlet` IDs are the initial CloudShell-owned
+targets for future settings contributors. This is the first shell-owned
+composition consumer; the resource details page should move to the same layout
+pattern in a later slice. The standalone CompositionSandbox sample remains
+the place to explore layout patterns before the shell adopts them.
 
 The current CloudShell navigation model still carries data that the generic
 composition menu model does not yet expose: Fluent icon names, menu groups,
@@ -252,11 +301,15 @@ Menu, stacked section, and tabbed section renderers add
 elements so diagnostics and future tooling can trace visible content back to
 the module that registered it.
 
-`isExtendable: true` marks a section outlet as an extension point. Other
-modules can add sections only to outlets that are marked extendable. This is a
-structural composition contract; future permissions and visibility rules can
-decide dynamically who may register, mount, visit, or see modules and
-sections that use the extension point.
+`isExtendable: true` marks a page or section outlet as an extension point.
+Other modules can add section outlets only to pages that are marked
+extendable, and can add sections only to outlets that are marked extendable.
+This is a structural composition contract; future permissions and visibility
+rules can decide dynamically who may register, mount, visit, or see modules
+and sections that use the extension point. `CanBeReplaced` is a separate
+future policy: replacement would allow another module to override an artifact
+or projection, and therefore needs explicit conflict and ownership rules
+instead of being implied by extensibility.
 
 ## Blazor Components
 

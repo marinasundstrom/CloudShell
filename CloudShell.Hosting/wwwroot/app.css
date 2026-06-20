@@ -1088,6 +1088,18 @@ h3 {
     margin-top: .2rem;
 }
 
+.selected-type-card fluent-anchor,
+.selected-type-card a {
+    justify-self: start;
+    margin-top: .45rem;
+}
+
+.settings-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: .75rem;
+}
+
 .resource-tab-list {
     display: grid;
     gap: .65rem;

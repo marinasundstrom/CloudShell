@@ -1,0 +1,159 @@
+@using Microsoft.FluentUI.AspNetCore.Components
+
+@if (SelectedItem is null)
+{
+    <section class="registration-layout @Class" @attributes="AdditionalAttributes">
+        <aside class="panel registration-options">
+            @SummaryContent
+        </aside>
+        <div class="panel registration-host">
+            @EmptyContent
+        </div>
+    </section>
+}
+else
+{
+    <section class="registration-layout @Class" @attributes="AdditionalAttributes">
+        <aside class="panel registration-options">
+            @SummaryContent
+
+            <div class="resource-tab-list" role="tablist" aria-label="@AriaLabel">
+                @foreach (var group in OrderedItems.GroupBy(GetGroupKey))
+                {
+                    var firstItem = group.First();
+                    <div class="resource-tab-group" role="group" aria-label="@GetGroupTitle(firstItem)">
+                        @if (!string.IsNullOrWhiteSpace(GetGroupTitle(firstItem)))
+                        {
+                            <span class="resource-tab-group-title">@GetGroupTitle(firstItem)</span>
+                        }
+                        @foreach (var item in group)
+                        {
+                            <button class="@GetTabButtonClass(item)"
+                                    type="button"
+                                    role="tab"
+                                    aria-selected="@(item.Id == SelectedItem.Id)"
+                                    @onclick="() => SelectItemAsync(item)">
+                                @if (!string.IsNullOrWhiteSpace(item.Icon))
+                                {
+                                    <FluentIcon Value="@ResolveIcon(item.Icon)" />
+                                }
+                                <span>@item.Title</span>
+                            </button>
+                        }
+                    </div>
+                }
+            </div>
+        </aside>
+
+        <div class="panel registration-host">
+            @if (HeaderContent is not null)
+            {
+                @HeaderContent(SelectedItem)
+            }
+            else
+            {
+                <div class="panel-header">
+                    <div>
+                        <h2>@SelectedItem.Title</h2>
+                        @if (PanelDescription is not null)
+                        {
+                            <p>@PanelDescription</p>
+                        }
+                    </div>
+                </div>
+            }
+
+            @if (ChildContent is not null)
+            {
+                @ChildContent(SelectedItem)
+            }
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter]
+    public IReadOnlyList<CloudShellTabbedLayoutItem> Items { get; set; } = [];
+
+    [Parameter]
+    public string? SelectedItemId { get; set; }
+
+    [Parameter]
+    public EventCallback<string> SelectedItemIdChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<CloudShellTabbedLayoutItem> SelectedItemChanged { get; set; }
+
+    [Parameter]
+    public string AriaLabel { get; set; } = "Sections";
+
+    [Parameter]
+    public string? PanelDescription { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    [Parameter]
+    public Func<string?, Icon> IconResolver { get; set; } = ResolveDefaultIcon;
+
+    [Parameter]
+    public RenderFragment? SummaryContent { get; set; }
+
+    [Parameter]
+    public RenderFragment? EmptyContent { get; set; }
+
+    [Parameter]
+    public RenderFragment<CloudShellTabbedLayoutItem>? HeaderContent { get; set; }
+
+    [Parameter]
+    public RenderFragment<CloudShellTabbedLayoutItem>? ChildContent { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private IReadOnlyList<CloudShellTabbedLayoutItem> OrderedItems =>
+        Items
+            .OrderBy(item => item.Order)
+            .ThenBy(item => item.Title, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private CloudShellTabbedLayoutItem? SelectedItem =>
+        OrderedItems.FirstOrDefault(item => string.Equals(item.Id, SelectedItemId, StringComparison.OrdinalIgnoreCase))
+        ?? OrderedItems.FirstOrDefault();
+
+    private async Task SelectItemAsync(CloudShellTabbedLayoutItem item)
+    {
+        if (SelectedItemIdChanged.HasDelegate)
+        {
+            await SelectedItemIdChanged.InvokeAsync(item.Id);
+        }
+
+        if (SelectedItemChanged.HasDelegate)
+        {
+            await SelectedItemChanged.InvokeAsync(item);
+        }
+    }
+
+    private string GetTabButtonClass(CloudShellTabbedLayoutItem item) =>
+        item.Id == SelectedItem?.Id
+            ? "resource-tab-button active"
+            : "resource-tab-button";
+
+    private Icon ResolveIcon(string? icon) =>
+        IconResolver(icon);
+
+    private static string GetGroupKey(CloudShellTabbedLayoutItem item) =>
+        string.IsNullOrWhiteSpace(item.Group)
+            ? string.Empty
+            : item.Group.Trim();
+
+    private static string GetGroupTitle(CloudShellTabbedLayoutItem item) =>
+        string.IsNullOrWhiteSpace(item.GroupTitle)
+            ? GetGroupKey(item)
+            : item.GroupTitle.Trim();
+
+    private static Icon ResolveDefaultIcon(string? icon) =>
+        string.IsNullOrWhiteSpace(icon)
+            ? new Icons.Regular.Size20.AppsListDetail()
+            : ShellNavigationIcons.FromName(icon);
+}

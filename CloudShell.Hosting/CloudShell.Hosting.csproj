@@ -16,6 +16,7 @@
   <ItemGroup>
     <ProjectReference Include="..\CloudShell.Abstractions\CloudShell.Abstractions.csproj" />
     <ProjectReference Include="..\CloudShell.Components\CloudShell.Components.csproj" />
+    <ProjectReference Include="..\CloudShell.UI.Composition\CloudShell.UI.Composition.csproj" />
     <ProjectReference Include="..\CloudShell.UI.Composition.Blazor\CloudShell.UI.Composition.Blazor.csproj" />
   </ItemGroup>
 

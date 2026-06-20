@@ -138,6 +138,19 @@ on `git blame --follow`, and then by the broad type of change.
 - The Blazor composition library now includes reusable page and tabbed-page
   layout components, and the standalone Composition Sandbox settings page uses
   the tabbed-page layout to prove the pattern before CloudShell adopts it.
+- CloudShell Hosting now includes a reusable resource-details-style tabbed
+  layout component and a common `/settings` page backed by composition
+  sections for the initial shell and platform settings surfaces.
+- Composition modules now have typed section-outlet extension points, typed host
+  context module registration, and an `Extend(...)` API for cross-module
+  contributions to published extendable section outlets.
+- Composition pages now track whether they are extendable, and the registry
+  validates that extension-owned section outlets can only target extendable
+  pages. The composition docs also distinguish future `CanBeReplaced`
+  artifact policy from extension.
+- Composition section outlet extension now returns a limited extension builder,
+  and the composition docs describe declaration builders, extension builders,
+  and runtime projections as separate views over the same artifact model.
 - Moved the composition proof direction away from the UI Extension Host sample:
   CloudShell extension integration should adapt to the core composition graph
   only after the standalone app structure is credible.

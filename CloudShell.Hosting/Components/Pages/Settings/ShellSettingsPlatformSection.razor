@@ -1,0 +1,57 @@
+@inject ShellCatalog ShellCatalog
+@inject IStringLocalizer<SharedResource> L
+
+<div class="generated-resource-view">
+    <section class="generated-section">
+        <h3>@L["Platform surfaces"]</h3>
+        <div class="settings-card-grid">
+            <div class="selected-type-card">
+                <span class="resource-kind-icon" aria-hidden="true">
+                    <FluentIcon Value="@(new Icons.Regular.Size20.People())" />
+                </span>
+                <div>
+                    <strong>@L["Users"]</strong>
+                    <p>@L["Manage built-in identity users for local development and testing."]</p>
+                    @if (GetUsersRoute() is { } usersRoute)
+                    {
+                        <FluentAnchor Appearance="Appearance.Neutral" Href="@usersRoute">
+                            @L["Open users"]
+                        </FluentAnchor>
+                    }
+                </div>
+            </div>
+
+            <div class="selected-type-card">
+                <span class="resource-kind-icon" aria-hidden="true">
+                    <FluentIcon Value="@(new Icons.Regular.Size20.PuzzlePiece())" />
+                </span>
+                <div>
+                    <strong>@L["Extensions"]</strong>
+                    <p>@L["Inspect installed extensions and activation state."]</p>
+                    @if (GetExtensionsRoute() is { } extensionsRoute)
+                    {
+                        <FluentAnchor Appearance="Appearance.Neutral" Href="@extensionsRoute">
+                            @L["Open extensions"]
+                        </FluentAnchor>
+                    }
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="generated-section">
+        <h3>@L["Next"]</h3>
+        <ProcedureMessage>
+            <strong>@L["Extension-owned settings"]</strong>
+            <span>@L["Future CloudShell extensions should contribute settings sections here instead of creating unrelated settings pages."]</span>
+        </ProcedureMessage>
+    </section>
+</div>
+
+@code {
+    private string? GetUsersRoute() =>
+        ShellCatalog.GetViewRoute(CoreShellViews.Users);
+
+    private string? GetExtensionsRoute() =>
+        ShellCatalog.GetViewRoute(CoreShellViews.Extensions);
+}

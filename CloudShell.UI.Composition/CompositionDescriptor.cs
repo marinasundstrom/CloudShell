@@ -10,7 +10,8 @@ public sealed record CompositionModuleDescriptor(
 public sealed record CompositionPageDescriptor(
     PageId Id,
     string Title,
-    string Route);
+    string Route,
+    bool IsExtendable = false);
 
 public sealed record CompositionMenuDescriptor(
     MenuId Id,
@@ -54,7 +55,7 @@ public static class CompositionDescriptorExtensions
             module.Sections.Select(section => section.ToDescriptor()).ToArray());
 
     public static CompositionPageDescriptor ToDescriptor(this CompositionPageRegistration page) =>
-        new(page.Id, page.Title, page.Route);
+        new(page.Id, page.Title, page.Route, page.IsExtendable);
 
     public static CompositionMenuDescriptor ToDescriptor(this CompositionMenuRegistration menu) =>
         new(

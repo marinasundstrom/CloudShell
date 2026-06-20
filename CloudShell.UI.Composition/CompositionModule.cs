@@ -33,7 +33,8 @@ public sealed record CompositionModule(
             descriptor.Pages.Select(page => new CompositionPageRegistration(
                 page.Id,
                 page.Title,
-                page.Route)).ToArray(),
+                page.Route,
+                page.IsExtendable)).ToArray(),
             descriptor.Menus.Select(menu => new CompositionMenuRegistration(
                 menu.Id,
                 menu.Title,
@@ -80,8 +81,15 @@ public sealed class CompositionModuleBuilder
     public CompositionMenuBuilder AddMenu(MenuId id, string title) =>
         _builder.AddMenu(id, title);
 
-    public CompositionPageBuilder AddPage(PageId id, string title, string route) =>
-        _builder.AddPage(id, title, route);
+    public CompositionPageBuilder AddPage(
+        PageId id,
+        string title,
+        string route,
+        bool isExtendable = false) =>
+        _builder.AddPage(id, title, route, isExtendable);
+
+    public CompositionPageExtensionBuilder Extend(PageId pageId) =>
+        _builder.Extend(pageId);
 
     public CompositionSectionOutletBuilder GetSections(SectionOutletId outletId) =>
         _builder.GetSections(outletId);
@@ -90,6 +98,10 @@ public sealed class CompositionModuleBuilder
         PageId pageId,
         SectionOutletId outletId) =>
         _builder.GetSections(pageId, outletId);
+
+    public CompositionSectionOutletExtensionBuilder Extend(
+        CompositionSectionOutletExtensionPoint outlet) =>
+        _builder.Extend(outlet);
 
     public CompositionModule Build() =>
         _builder.BuildModule(Id);

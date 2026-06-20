@@ -3,7 +3,8 @@ namespace CloudShell.UI.Composition;
 public sealed record CompositionPageRegistration(
     PageId Id,
     string Title,
-    string Route);
+    string Route,
+    bool IsExtendable = false);
 
 public sealed record CompositionMenuRegistration(
     MenuId Id,
