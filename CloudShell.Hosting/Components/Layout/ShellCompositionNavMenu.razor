@@ -19,39 +19,41 @@
         .GroupBy(projection => projection.Item.ParentId!.Value.Value, StringComparer.OrdinalIgnoreCase)
         .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.OrdinalIgnoreCase);
 
-    <FluentNavMenu Class="cloudshell-nav-menu"
-                   Title="@L[menu.Title]"
-                   Margin="0">
-        @foreach (var item in menu.Items.Where(item => item.ParentId is null && itemProjectionsById.ContainsKey(item.Id)))
-        {
-            var projection = itemProjectionsById[item.Id];
-            if (visibleItems.Contains(projection))
+    <div class="composition-nav-menu">
+        <FluentNavMenu Class="cloudshell-nav-menu"
+                       Title="@L[menu.Title]"
+                       Margin="0">
+            @foreach (var item in menu.Items.Where(item => item.ParentId is null && itemProjectionsById.ContainsKey(item.Id)))
             {
-                @RenderItem(projection, childItemsByParent)
-            }
-        }
-
-        @foreach (var group in menu.Groups)
-        {
-            var rootItems = group.Items
-                .Where(item => item.ParentId is null && itemProjectionsById.TryGetValue(item.Id, out var projection) && visibleItems.Contains(projection))
-                .ToArray();
-
-            if (rootItems.Length == 0)
-            {
-                continue;
-            }
-
-            <section class="nav-group" data-composition-menu-group="@group.Id.Value">
-                <div class="nav-group-title">@L[group.Title]</div>
-
-                @foreach (var item in rootItems)
+                var projection = itemProjectionsById[item.Id];
+                if (visibleItems.Contains(projection))
                 {
-                    @RenderItem(itemProjectionsById[item.Id], childItemsByParent)
+                    @RenderItem(projection, childItemsByParent)
                 }
-            </section>
-        }
-    </FluentNavMenu>
+            }
+
+            @foreach (var group in menu.Groups)
+            {
+                var rootItems = group.Items
+                    .Where(item => item.ParentId is null && itemProjectionsById.TryGetValue(item.Id, out var projection) && visibleItems.Contains(projection))
+                    .ToArray();
+
+                if (rootItems.Length == 0)
+                {
+                    continue;
+                }
+
+                <section class="nav-group" data-composition-menu-group="@group.Id.Value">
+                    <div class="nav-group-title">@L[group.Title]</div>
+
+                    @foreach (var item in rootItems)
+                    {
+                        @RenderItem(itemProjectionsById[item.Id], childItemsByParent)
+                    }
+                </section>
+            }
+        </FluentNavMenu>
+    </div>
 }
 
 @code {

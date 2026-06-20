@@ -69,6 +69,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The CloudShell Fluent navigation presenter now consumes composition menu item
   projections and renders module ownership metadata for root and child menu
   items.
+- Composition-backed sidebar menu styling now lives with the menu presenter so
+  parent items with sub-items keep their custom row, toggle, and child-list
+  layout under Blazor CSS isolation.
 - The legacy shell navigation bridge now targets the composition Settings page
   by page ID while leaving other legacy shell items on direct href targets.
 - The shell-owned Overview, Users, Extensions, and Settings pages are now
