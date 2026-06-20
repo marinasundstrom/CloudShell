@@ -63,7 +63,7 @@ public sealed record CompositionModule(
             item.Title,
             item.Target,
             item.Order,
-            item.Icon,
+            item.Attributes,
             item.ParentId,
             item.RequiredPermissions);
 }

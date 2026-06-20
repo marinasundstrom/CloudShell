@@ -283,15 +283,37 @@ public sealed class CompositionMenuItemBuilder(
     string title,
     int order)
 {
-    private string? _icon;
+    private readonly Dictionary<string, string> _attributes = new(StringComparer.OrdinalIgnoreCase);
     private MenuItemId? _parentId;
     private IReadOnlyList<string>? _requiredPermissions;
 
-    public CompositionMenuItemBuilder WithIcon(string? icon)
+    public CompositionMenuItemBuilder WithAttribute(string name, string? value)
     {
-        _icon = string.IsNullOrWhiteSpace(icon)
-            ? null
-            : icon.Trim();
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            _attributes.Remove(name.Trim());
+        }
+        else
+        {
+            _attributes[name.Trim()] = value.Trim();
+        }
+
+        return this;
+    }
+
+    public CompositionMenuItemBuilder WithAttributes(IReadOnlyDictionary<string, string>? attributes)
+    {
+        if (attributes is null)
+        {
+            return this;
+        }
+
+        foreach (var attribute in attributes)
+        {
+            WithAttribute(attribute.Key, attribute.Value);
+        }
 
         return this;
     }
@@ -332,7 +354,9 @@ public sealed class CompositionMenuItemBuilder(
             title,
             target,
             order,
-            _icon,
+            _attributes.Count == 0
+                ? null
+                : new Dictionary<string, string>(_attributes, StringComparer.OrdinalIgnoreCase),
             _parentId,
             _requiredPermissions));
 }

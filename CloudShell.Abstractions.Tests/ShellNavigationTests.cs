@@ -2,6 +2,7 @@ using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Shell;
 using CloudShell.Hosting.Shell;
+using CloudShell.UI.Composition;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -84,8 +85,46 @@ public sealed class ShellNavigationTests
         Assert.True(navigationManager.Options.ReplaceHistoryEntry);
     }
 
+    [Fact]
+    public void ShellNavigationCompositionProjector_ProjectsNavigationItemsIntoCompositionMenu()
+    {
+        var shellCatalog = CreateShellCatalog<NavigationCompositionExtension>();
+        var module = new ShellNavigationCompositionProjector(shellCatalog).CreateModule();
+        var registry = CompositionRegistry.FromModules(module);
+
+        var menu = registry.GetMenu(ShellCompositionIds.MainMenu);
+        Assert.NotNull(menu);
+        var workspaceGroup = Assert.Single(
+            menu.Groups,
+            group => group.Title == "Workspace");
+        var observabilityGroup = Assert.Single(
+            menu.Groups,
+            group => group.Title == "Observability");
+        var workspaceItem = Assert.Single(
+            workspaceGroup.Items,
+            item => item.Title == "Workspace");
+        var tracesItem = Assert.Single(
+            observabilityGroup.Items,
+            item => item.Title == "Traces");
+
+        Assert.Equal("grid", workspaceItem.Attributes[CompositionAttributeNames.Icon]);
+        Assert.Equal("/workspace", workspaceItem.Target.Value);
+        Assert.Equal("trace", tracesItem.Attributes[CompositionAttributeNames.Icon]);
+        Assert.Equal(workspaceItem.Id, tracesItem.ParentId);
+        Assert.Equal(["observability.read"], tracesItem.PermissionsRequiredForNavigation);
+        Assert.Equal("/observability/traces", registry.ResolveHref(tracesItem.Target));
+    }
+
     private static ICloudShellNavigator CreateNavigator<TExtension>(
         TestNavigationManager? navigationManager = null)
+        where TExtension : class, ICloudShellExtension, new()
+    {
+        return new CloudShellNavigator(
+            CreateShellCatalog<TExtension>(),
+            navigationManager ?? new TestNavigationManager());
+    }
+
+    private static ShellCatalog CreateShellCatalog<TExtension>()
         where TExtension : class, ICloudShellExtension, new()
     {
         var services = new ServiceCollection();
@@ -98,9 +137,7 @@ public sealed class ShellNavigationTests
                 .ImplementationInstance);
         registry.Validate();
 
-        return new CloudShellNavigator(
-            new ShellCatalog(registry, new InMemoryCloudShellExtensionActivationStore()),
-            navigationManager ?? new TestNavigationManager());
+        return new ShellCatalog(registry, new InMemoryCloudShellExtensionActivationStore());
     }
 
     private sealed class ParameterizedViewExtension : ICloudShellExtension
@@ -135,8 +172,41 @@ public sealed class ShellNavigationTests
         }
     }
 
+    private sealed class NavigationCompositionExtension : ICloudShellExtension
+    {
+        public CloudShellExtensionManifest Manifest => new(
+            "sample.navigation-composition",
+            "Sample navigation composition",
+            "Registers navigation items that can be projected into composition.",
+            "1.0.0",
+            [],
+            []);
+
+        public void Configure(ICloudShellExtensionBuilder builder)
+        {
+            builder
+                .RegisterView<WorkspacePage>("sample.workspace")
+                .AddNavigationItem<WorkspacePage>("workspace", "Workspace", "grid", 10)
+                .RegisterView<TracesPage>("sample.traces")
+                .AddNavigationItem<TracesPage>(
+                    "traces",
+                    "Traces",
+                    "trace",
+                    20,
+                    "Observability",
+                    parentId: "workspace",
+                    requiredPermissions: ["observability.read"]);
+        }
+    }
+
     [Route("/resources/{ResourceId}/edit")]
     private sealed class ParameterizedPage;
+
+    [Route("/workspace")]
+    private sealed class WorkspacePage;
+
+    [Route("/observability/traces")]
+    private sealed class TracesPage;
 
     private sealed class TestNavigationManager : NavigationManager
     {

@@ -35,6 +35,9 @@ public readonly record struct MenuItemId(string Value)
         new(CompositionIdFormatting.CreateChild("menu-item", "menu-group", parent.Value, identifier));
 
     public override string ToString() => Value;
+
+    public static implicit operator CompositionTarget(MenuItemId id) =>
+        CompositionTarget.ForMenuItem(id);
 }
 
 public readonly record struct PageId(string Value)
@@ -80,15 +83,26 @@ public readonly record struct SectionId(string Value)
         CompositionTarget.ForSection(id);
 }
 
-public readonly record struct CompositionTarget(string Value)
+public enum CompositionTargetKind
+{
+    Artifact = 0,
+    Href = 1
+}
+
+public readonly record struct CompositionTarget(
+    string Value,
+    CompositionTargetKind Kind = CompositionTargetKind.Artifact)
 {
     public override string ToString() => Value;
 
     public static CompositionTarget ForPage(PageId id) =>
-        new(id.Value);
+        new(id.Value, CompositionTargetKind.Artifact);
 
     public static CompositionTarget ForSection(SectionId id) =>
-        new(id.Value);
+        new(id.Value, CompositionTargetKind.Artifact);
+
+    public static CompositionTarget ForMenuItem(MenuItemId id) =>
+        new(id.Value, CompositionTargetKind.Artifact);
 
     public static CompositionTarget ForHref(string href)
     {
@@ -97,7 +111,7 @@ public readonly record struct CompositionTarget(string Value)
             throw new ArgumentException("Composition target hrefs cannot be empty.", nameof(href));
         }
 
-        return new(href.Trim());
+        return new(href.Trim(), CompositionTargetKind.Href);
     }
 }
 

@@ -32,7 +32,30 @@
     private string Href => Composition.ResolveHref(ResolvedTarget, RouteParams);
 
     private string ResolvedTitle =>
-        Page.HasValue
-            ? Composition.GetPageProjection(Page.Value)?.Page.Title ?? Page.Value.Value
-            : Target?.Value ?? string.Empty;
+        ResolveTitle(ResolvedTarget);
+
+    private string ResolveTitle(CompositionTarget target)
+    {
+        if (target.Kind == CompositionTargetKind.Href)
+        {
+            return target.Value;
+        }
+
+        if (Composition.GetMenuItemProjection(new MenuItemId(target.Value)) is { } menuItem)
+        {
+            return menuItem.Item.Title;
+        }
+
+        if (Composition.GetPageProjection(new PageId(target.Value)) is { } page)
+        {
+            return page.Page.Title;
+        }
+
+        if (Composition.GetSectionProjection(new SectionId(target.Value)) is { } section)
+        {
+            return section.Section.Title;
+        }
+
+        return target.Value;
+    }
 }

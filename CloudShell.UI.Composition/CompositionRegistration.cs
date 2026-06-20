@@ -23,10 +23,13 @@ public sealed record CompositionMenuItemRegistration(
     string Title,
     CompositionTarget Target,
     int Order,
-    string? Icon = null,
+    IReadOnlyDictionary<string, string>? Attributes = null,
     MenuItemId? ParentId = null,
     IReadOnlyList<string>? RequiredPermissions = null)
 {
+    public IReadOnlyDictionary<string, string> Attributes { get; init; } =
+        Attributes ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
     public IReadOnlyList<string> PermissionsRequiredForNavigation => RequiredPermissions ?? [];
 }
 

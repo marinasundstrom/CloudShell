@@ -50,6 +50,9 @@ on `git blame --follow`, and then by the broad type of change.
   hierarchies, content-ID link resolution, Razor-owned routing, slots, section
   containers, section outlets, and Resource Manager tabs as one
   renderer-specific adapter.
+- Composition menu targets now distinguish addressable artifact IDs from
+  direct href targets, and CloudShell Hosting can project legacy shell
+  navigation items into the composition main menu as a migration bridge.
 - CloudShell UI Extension Host now includes an isolated shell-composition
   sandbox with sample-local typed IDs, a registry, composition context host,
   menu renderer, section container, and section outlet so the layout/content
@@ -152,9 +155,9 @@ on `git blame --follow`, and then by the broad type of change.
   and the composition docs describe declaration builders, extension builders,
   and runtime projections as separate views over the same artifact model.
 - Composition menus now use `MenuGroup` terminology for named item groups,
-  support root menu items, grouped items, sub-items, icons, permission
-  metadata, and direct href targets, and the registry now maintains typed
-  lookup maps for composition artifacts.
+  support root menu items, grouped items, sub-items, permission metadata,
+  namespaced attributes such as icon, and direct href targets, and the registry
+  now maintains typed lookup maps for composition artifacts.
 - Moved the composition proof direction away from the UI Extension Host sample:
   CloudShell extension integration should adapt to the core composition graph
   only after the standalone app structure is credible.

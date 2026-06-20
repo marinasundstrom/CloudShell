@@ -79,7 +79,8 @@ The current graph supports:
 - page and section targets resolved into links
 
 Navigation hierarchy and content hierarchy are already separate. A menu item
-targets a page or section by ID; it does not own that content.
+targets either an addressable composition artifact by ID or a plain href. It
+does not own the content behind that target.
 
 Typed hierarchical IDs also let the registry keep kind-specific lookup maps.
 Page, menu, section outlet, and section queries use typed IDs, while target
@@ -274,7 +275,10 @@ the place to explore layout patterns before the shell adopts them.
 
 The composition menu model represents named menu groups, menu items that can
 live inside or outside a group, one level of menu sub-items through parent
-item IDs, icons, permission metadata, and direct href targets. The current
+item IDs, attributes, permission metadata, artifact-ID targets, and direct
+href targets. Icon data is stored as the namespaced
+`CompositionAttributeNames.Icon` attribute instead of a first-class
+`menuItem.Icon` property. The current
 CloudShell navigation renderer still owns active-route matching,
 permission-driven visibility, localized labels, collapsed group state, and
 Fluent-specific presentation. The migration should adapt those behaviors onto
@@ -283,6 +287,14 @@ plain `CompositionMenu` remains the standard non-framework-specific renderer;
 a future CloudShell-hosted Fluent presenter should consume the same
 composition projections while applying CloudShell navigation styling and
 behavior.
+
+CloudShell Hosting now includes a bridge that projects the legacy
+`ShellCatalog.NavigationItems` into the `ShellCompositionIds.MainMenu`
+composition menu. This bridge deliberately uses direct href targets because
+legacy navigation items are already resolved to routes or external links. New
+composition-native menus should prefer artifact-ID targets when they point at
+registered pages or sections, and href targets when they point outside the
+composition graph.
 
 `CompositionEngineHost` is an in-memory host for mounted modules. It owns the
 currently mounted module list and rebuilds the active registry projection when
@@ -328,7 +340,7 @@ The Blazor library currently provides these components:
 | --- | --- |
 | `CompositionHost` | Resolves the current route to a registered page and cascades `CompositionContext` to child content. It can also receive an explicit `PageId`. |
 | `CompositionMenu` | Renders a registered menu, menu groups, root items, and sub-items. Menu items use composition targets rather than hard-coded routes. |
-| `CompositionLink` | Resolves a page, section, or direct href target into an anchor `href`. Page targets resolve to the registered route. Section targets resolve to the nearest page route plus a fragment. |
+| `CompositionLink` | Resolves a composition target into an anchor `href`. Page targets resolve to registered routes, section targets resolve to the nearest page route plus a fragment, menu item targets resolve through the menu item's own target, and href targets are emitted directly. When child content is omitted, the link uses the target artifact title where one exists. |
 | `TitleOutlet` | Renders visible text for the current composition page title from the cascaded context, an explicit `Page`, or the current route. |
 | `PageTitleOutlet` | Wraps Blazor `PageTitle` for the current composition page title from the cascaded context, an explicit `Page`, or the current route. Use this for the document title instead of mixing document-head behavior into visible page headers. |
 | `CompositionPageLayout` | Renders a plain page frame with document title, visible title, optional eyebrow, summary, actions, navigation, and child content. Text-heavy regions are render fragments so hosts can localize or customize them. |
@@ -420,10 +432,10 @@ rendering.
 
 ## Link Resolution
 
-`CompositionLink` can target a page:
+`CompositionLink` can target a page or any other resolvable artifact ID:
 
 ```razor
-<CompositionLink Page="@CompositionIds.ReportsPage" />
+<CompositionLink Target="@CompositionIds.ReportsPage" />
 ```
 
 It can also target a section:
@@ -432,6 +444,13 @@ It can also target a section:
 <CompositionLink Target="@CompositionIds.ExtensionContributionSection">
     Open contributed section
 </CompositionLink>
+```
+
+It can also target a menu item and inherit the menu item's title when child
+content is omitted:
+
+```razor
+<CompositionLink Target="@CompositionIds.SettingsItem" />
 ```
 
 The core registry resolves:

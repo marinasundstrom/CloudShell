@@ -179,6 +179,32 @@ keeps a menu ID from accidentally being used as a page or section ID. The
 hierarchical value is the stable address; title, icon, ordering, permissions,
 and component metadata remain separate registration metadata.
 
+Presentation and policy attributes belong to artifact registrations,
+descriptors, and projections. A menu item artifact can carry a title,
+localization key, order, permission requirements, target, and an extensible
+attribute dictionary for specialized fields such as icon. Those
+attributes are not properties of the `MenuItemId` value type and are not
+declared on the Blazor component type. The ID addresses the artifact; the
+artifact metadata describes how that artifact should be presented, resolved,
+or guarded by a host.
+
+The durable descriptor shape should eventually include an extensible metadata
+bag for artifact-specific fields. That keeps each artifact descriptor in a
+standard envelope while allowing specialized renderers or modules to attach
+additional values without changing every core type. Common characteristics
+such as title, order, target, permission requirements, and localization
+metadata should still be projected as first-class properties so ordinary menu,
+link, settings, and section renderers can consume them without inspecting the
+extension bag. Optional presentation details such as icons can use namespaced
+attribute names such as `CompositionAttributeNames.Icon`.
+
+Icons are intentionally outside the base menu item model. Different hosts may
+represent an icon as a Fluent icon name, Bootstrap icon class, SVG asset,
+image URL, CSS class, or another framework-specific token. The composition
+framework should describe structure and layout: stable IDs, hierarchy,
+ordering, targets, extension points, and generic metadata. Integrating
+frameworks decide whether an attribute is meaningful and how to render it.
+
 Some IDs should be composed from parent IDs rather than assembled as unrelated
 strings. For example, a `SectionId` should be built from a section identifier
 and the parent page, sub-page, slot, or section-container ID it belongs to.
@@ -203,7 +229,7 @@ The graph should make these relationships explicit:
 - a section container belongs to a slot
 - a section belongs to a section container
 - a menu item or sub-menu item points to an addressable content node, command,
-  route, or external link by ID
+  route, external link, or another resolvable composition artifact
 - a section, action, diagnostic, or generated link can point to an addressable
   content node by ID
 - a settings section belongs to the standard settings page or to a settings
@@ -247,7 +273,7 @@ should converge toward.
 | Composition module | The owner of a registration, such as the shell, Resource Manager, a built-in capability, or a third-party extension. | Needed for diagnostics, conflict handling, trust boundaries, extension disable/unload, and future persistence. |
 | Composition artifact | A registered thing in the graph. | Generic umbrella for pages, menu items, slots, section containers, sections, metadata, and future artifacts. |
 | Composition ID | A typed stable address for an artifact. | Examples: `PageId`, `MenuId`, `SectionId`. The value encodes hierarchy, but the type prevents accidental misuse. |
-| Composition target | A reference to an addressable artifact. | Used by menu items, links, commands, diagnostics, and sections. The resolver turns a target into a route, fragment, selected state, or not-found result. |
+| Composition target | A reference to an addressable artifact ID or a direct href. | Used by menu items, links, commands, diagnostics, and sections. The resolver turns artifact targets into a route, fragment, selected state, or not-found result, while href targets are emitted as links. |
 | Composition context | Runtime context for the currently resolved content. | Starts with current page and route; should grow to include selected sub-page/section, route values, query state, ambient data, and caller/user state. |
 | Composition metadata | Non-rendered facts attached to artifacts. | Title, description, icon, order, localization key, permissions, visibility, and module ownership belong here. |
 | Composition descriptor | Serializable artifact data. | Descriptor objects should carry IDs, kind, ordering, owner/module, target relationships, route metadata, and serializable metadata for future dehydration and persistence. |
@@ -377,7 +403,7 @@ The target shell model should include these contribution categories:
 | Category | Purpose |
 | --- | --- |
 | Layout node | The base contribution unit with a stable ID, owner, kind, order, permissions, visibility rules, and relationships to other nodes. |
-| Menu | A stable top-level navigation presenter encoded by ID, title, icon, order, permissions, and optional visibility rules. |
+| Menu | A stable top-level navigation presenter encoded by ID, title, order, permissions, optional visibility rules, and namespaced attributes for specialized presentation metadata. |
 | Menu item group | A hierarchical navigation grouping inside a menu, encoded by ID, for related menu items or sub-menu items. |
 | Menu item | A navigation presenter targeting a registered content node, route, external link, or command. |
 | Sub-menu item | A nested navigation presenter encoded by ID for grouped experiences such as Observability, Resource Manager, settings, or provider workspaces. |

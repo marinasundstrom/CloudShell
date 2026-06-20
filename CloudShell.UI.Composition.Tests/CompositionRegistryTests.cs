@@ -78,9 +78,36 @@ public sealed class CompositionRegistryTests
     {
         var registry = CreateRegistry();
 
-        var href = registry.ResolveHref(CompositionTarget.ForHref("/workspace/child"));
+        var target = CompositionTarget.ForHref("/workspace/child");
+        var href = registry.ResolveHref(target);
 
+        Assert.Equal(CompositionTargetKind.Href, target.Kind);
         Assert.Equal("/workspace/child", href);
+    }
+
+    [Fact]
+    public void ResolveHref_ResolvesMenuItemTargetsThroughTheirRegisteredTargets()
+    {
+        var registry = CreateRegistry();
+
+        var pageHref = registry.ResolveHref(WorkspaceMenuItem);
+        var hrefHref = registry.ResolveHref(ChildMenuItem);
+
+        Assert.Equal("/workspace", pageHref);
+        Assert.Equal("/workspace/child", hrefHref);
+    }
+
+    [Fact]
+    public void GetMenuItemProjection_ReturnsMenuItemContext()
+    {
+        var registry = CreateRegistry();
+
+        var projection = registry.GetMenuItemProjection(ChildMenuItem);
+
+        Assert.NotNull(projection);
+        Assert.Equal(MainMenu, projection.Menu.Id);
+        Assert.Equal(WorkspaceMenuGroup, projection.Group?.Id);
+        Assert.Equal("Child", projection.Item.Title);
     }
 
     [Fact]
@@ -213,7 +240,7 @@ public sealed class CompositionRegistryTests
         var item = Assert.Single(menu.Items);
         Assert.Equal(WorkspaceMenuItem, item.Id);
         Assert.Equal(WorkspacePage.Value, item.Target.Value);
-        Assert.Equal("resources", item.Icon);
+        Assert.Equal("resources", item.Attributes[CompositionAttributeNames.Icon]);
         Assert.Equal(new[] { "resource.read" }, item.PermissionsRequiredForNavigation);
         var group = Assert.Single(menu.Groups);
         Assert.Equal(WorkspaceMenuGroup, group.Id);
@@ -452,7 +479,7 @@ public sealed class CompositionRegistryTests
         var menu = composition.AddMenu(MainMenu, "Main");
         menu
             .AddItem(WorkspaceMenuItem, "Workspace", 10)
-            .WithIcon("resources")
+            .WithAttribute(CompositionAttributeNames.Icon, "resources")
             .RequiresPermissions("resource.read")
             .Target(WorkspacePage);
         var group = menu.AddGroup(WorkspaceMenuGroup, "Workspace sections", 20);
@@ -476,7 +503,7 @@ public sealed class CompositionRegistryTests
         var menu = composition.AddMenu(MainMenu, "Main");
         menu
             .AddItem(WorkspaceMenuItem, "Workspace", 10)
-            .WithIcon("resources")
+            .WithAttribute(CompositionAttributeNames.Icon, "resources")
             .RequiresPermissions("resource.read")
             .Target(WorkspacePage);
         var group = menu.AddGroup(WorkspaceMenuGroup, "Workspace sections", 20);

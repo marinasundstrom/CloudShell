@@ -8,6 +8,12 @@ public sealed record CompositionMenuProjection(
     CompositionModuleId ModuleId,
     CompositionMenuRegistration Menu);
 
+public sealed record CompositionMenuItemProjection(
+    CompositionModuleId ModuleId,
+    CompositionMenuRegistration Menu,
+    CompositionMenuGroupRegistration? Group,
+    CompositionMenuItemRegistration Item);
+
 public sealed record CompositionSectionOutletProjection(
     CompositionModuleId ModuleId,
     CompositionSectionOutletRegistration Outlet);

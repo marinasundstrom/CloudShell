@@ -30,9 +30,13 @@ public sealed record CompositionMenuItemDescriptor(
     string Title,
     CompositionTarget Target,
     int Order,
-    string? Icon = null,
+    IReadOnlyDictionary<string, string>? Attributes = null,
     MenuItemId? ParentId = null,
-    IReadOnlyList<string>? RequiredPermissions = null);
+    IReadOnlyList<string>? RequiredPermissions = null)
+{
+    public IReadOnlyDictionary<string, string> Attributes { get; init; } =
+        Attributes ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+}
 
 public sealed record CompositionSectionOutletDescriptor(
     SectionOutletId Id,
@@ -80,7 +84,7 @@ public static class CompositionDescriptorExtensions
             item.Title,
             item.Target,
             item.Order,
-            item.Icon,
+            item.Attributes,
             item.ParentId,
             item.RequiredPermissions);
 

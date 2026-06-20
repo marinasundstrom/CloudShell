@@ -12,10 +12,13 @@ public sealed class CompositionRegistry
     private readonly IReadOnlyDictionary<PageId, CompositionPageProjection> _pageProjectionsById;
     private readonly IReadOnlyDictionary<string, CompositionPageRegistration> _pagesByRoute;
     private readonly IReadOnlyDictionary<MenuId, CompositionMenuProjection> _menuProjectionsById;
+    private readonly IReadOnlyDictionary<MenuItemId, CompositionMenuItemProjection> _menuItemProjectionsById;
     private readonly IReadOnlyDictionary<SectionOutletId, CompositionSectionOutletProjection> _sectionOutletProjectionsById;
     private readonly IReadOnlyDictionary<(PageId PageId, SectionOutletId OutletId), IReadOnlyList<CompositionSectionRegistration>> _sectionsByOutlet;
+    private readonly IReadOnlyDictionary<SectionId, CompositionSectionProjection> _sectionProjectionsById;
     private readonly IReadOnlyDictionary<(PageId PageId, SectionOutletId OutletId), IReadOnlyList<CompositionSectionProjection>> _sectionProjectionsByOutlet;
     private readonly IReadOnlyDictionary<string, CompositionPageRegistration> _pagesByTarget;
+    private readonly IReadOnlyDictionary<string, CompositionMenuItemProjection> _menuItemsByTarget;
     private readonly IReadOnlyDictionary<string, CompositionSectionRegistration> _sectionsByTarget;
 
     private CompositionRegistry(
@@ -37,6 +40,9 @@ public sealed class CompositionRegistry
         _menuProjectionsById = modules
             .SelectMany(module => module.Menus.Select(menu => new CompositionMenuProjection(module.Id, menu)))
             .ToDictionary(projection => projection.Menu.Id);
+        _menuItemProjectionsById = modules
+            .SelectMany(GetMenuItemProjections)
+            .ToDictionary(projection => projection.Item.Id);
         _sectionOutletProjectionsById = modules
             .SelectMany(module => module.SectionOutlets.Select(outlet => new CompositionSectionOutletProjection(module.Id, outlet)))
             .ToDictionary(projection => projection.Outlet.Id);
@@ -57,7 +63,13 @@ public sealed class CompositionRegistry
                     .OrderBy(projection => projection.Section.Order)
                     .ThenBy(projection => projection.Section.Title, StringComparer.OrdinalIgnoreCase)
                     .ToArray());
+        _sectionProjectionsById = modules
+            .SelectMany(module => module.Sections.Select(section => new CompositionSectionProjection(module.Id, section)))
+            .ToDictionary(projection => projection.Section.Id);
         _pagesByTarget = pages.ToDictionary(page => page.Id.Value, StringComparer.OrdinalIgnoreCase);
+        _menuItemsByTarget = _menuItemProjectionsById.Values.ToDictionary(
+            projection => projection.Item.Id.Value,
+            StringComparer.OrdinalIgnoreCase);
         _sectionsByTarget = sections.ToDictionary(section => section.Id.Value, StringComparer.OrdinalIgnoreCase);
     }
 
@@ -121,6 +133,12 @@ public sealed class CompositionRegistry
     public CompositionMenuProjection? GetMenuProjection(MenuId menuId) =>
         _menuProjectionsById.GetValueOrDefault(menuId);
 
+    public CompositionMenuItemRegistration? GetMenuItem(MenuItemId menuItemId) =>
+        _menuItemProjectionsById.GetValueOrDefault(menuItemId)?.Item;
+
+    public CompositionMenuItemProjection? GetMenuItemProjection(MenuItemId menuItemId) =>
+        _menuItemProjectionsById.GetValueOrDefault(menuItemId);
+
     public CompositionSectionOutletRegistration? GetSectionOutlet(SectionOutletId outletId) =>
         _sectionOutletProjectionsById.GetValueOrDefault(outletId)?.Outlet;
 
@@ -137,6 +155,9 @@ public sealed class CompositionRegistry
         SectionOutletId outletId) =>
         _sectionProjectionsByOutlet.GetValueOrDefault((pageId, outletId)) ?? [];
 
+    public CompositionSectionProjection? GetSectionProjection(SectionId sectionId) =>
+        _sectionProjectionsById.GetValueOrDefault(sectionId);
+
     public string ResolveHref(CompositionTarget target) =>
         ResolveHref(target, routeParams: null);
 
@@ -144,6 +165,16 @@ public sealed class CompositionRegistry
         CompositionTarget target,
         IReadOnlyDictionary<string, object?>? routeParams)
     {
+        if (target.Kind == CompositionTargetKind.Href)
+        {
+            return AppendRouteParams(target.Value, routeParams);
+        }
+
+        if (_menuItemsByTarget.TryGetValue(target.Value, out var menuItemProjection))
+        {
+            return ResolveHref(menuItemProjection.Item.Target, routeParams);
+        }
+
         if (_pagesByTarget.TryGetValue(target.Value, out var page))
         {
             return AppendRouteParams(page.Route, routeParams);
@@ -222,6 +253,25 @@ public sealed class CompositionRegistry
 
     private static IEnumerable<CompositionMenuItemRegistration> GetMenuItems(CompositionMenuRegistration menu) =>
         menu.Items.Concat(menu.Groups.SelectMany(group => group.Items));
+
+    private static IEnumerable<CompositionMenuItemProjection> GetMenuItemProjections(CompositionModule module)
+    {
+        foreach (var menu in module.Menus)
+        {
+            foreach (var item in menu.Items)
+            {
+                yield return new CompositionMenuItemProjection(module.Id, menu, Group: null, item);
+            }
+
+            foreach (var group in menu.Groups)
+            {
+                foreach (var item in group.Items)
+                {
+                    yield return new CompositionMenuItemProjection(module.Id, menu, group, item);
+                }
+            }
+        }
+    }
 
     private static void ValidateSectionOutletContributions(IReadOnlyList<CompositionModule> modules)
     {
