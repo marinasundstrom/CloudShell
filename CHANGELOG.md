@@ -47,6 +47,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Container host command helpers now dispose command processes through a
   common release path and log that release even when cancellation interrupts a
   Docker/Podman command.
+- Application providers now release tracked container process handles as soon
+  as an exited tracked process is observed instead of retaining them until
+  provider disposal.
 - Docker host client create/dispose diagnostics now use Debug level, matching
   the process-oriented container host command logs.
 - Re-aligned the local-development MVP queue around Application Topology

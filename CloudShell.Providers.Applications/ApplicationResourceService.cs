@@ -1404,7 +1404,7 @@ public sealed partial class ApplicationResourceService(
             {
             }
 
-            state.Process.Dispose();
+            ReleaseTrackedApplicationProcess(applicationId, state);
         }
     }
 
@@ -4030,6 +4030,10 @@ public sealed partial class ApplicationResourceService(
                 VolumeMounts: MarkVolumeMountsNotActive(
                     runtimeStates.Get(definition.Id)?.RuntimeVolumeMounts ?? [],
                     DateTimeOffset.UtcNow)));
+            if (_processes.TryRemove(definition.Id, out var removedState))
+            {
+                ReleaseTrackedApplicationProcess(definition.Id, removedState);
+            }
         }
 
         var runtimeState = runtimeStates.Get(definition.Id);
@@ -4045,6 +4049,7 @@ public sealed partial class ApplicationResourceService(
             if (candidate.HasExited ||
                 !ProcessStartMatches(candidate, runtimeState.LastKnownProcessStartedAt.Value))
             {
+                candidate.Dispose();
                 return false;
             }
 
@@ -4081,6 +4086,18 @@ public sealed partial class ApplicationResourceService(
         {
             return false;
         }
+    }
+
+    private void ReleaseTrackedApplicationProcess(
+        string applicationId,
+        ApplicationProcessState state)
+    {
+        dockerHostLogger.LogDebug(
+            "Application provider released tracked {ApplicationLifetime} process handle {ProcessId} for resource {ResourceName}.",
+            state.Lifetime,
+            state.Process.Id,
+            ResourceDisplayLabels.GetName(applicationId));
+        state.Process.Dispose();
     }
 
     private ApplicationProcessLog GetProcessLog(string applicationId)
