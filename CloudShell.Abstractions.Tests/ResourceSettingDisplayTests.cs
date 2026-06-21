@@ -168,6 +168,7 @@ public sealed class ResourceSettingDisplayTests
     public void ApplicationSettingReferenceDisplay_ShowsUnknownGrantStatusWhenEvaluatorIsUnavailable()
     {
         var vault = CreateResource("secrets-vault:app", "App Secrets", ResourceClass.SecretsVault);
+        var api = CreateResource("application:api", "API", ResourceClass.Project);
         var identity = new ResourceIdentityBinding("identity:development", Name: "api-service");
 
         var row = ApplicationSettingReferenceDisplay.Create(
@@ -176,21 +177,22 @@ public sealed class ResourceSettingDisplayTests
                 new SecretReference("secrets-vault:app", "sample-api-key", "v2")),
             "application:api",
             identity,
-            id => string.Equals(id, vault.Id, StringComparison.OrdinalIgnoreCase) ? vault : null);
+            id => ResolveResource(id, vault, api));
 
         Assert.Equal("Secret reference", row.Source);
         Assert.Equal("App Secrets / sample-api-key", row.Target);
         Assert.Equal("Grant status unknown", row.Status);
         Assert.Equal("info", row.StatusKind);
-        Assert.Contains("secrets-vault:app; version v2", row.Detail);
+        Assert.Contains("App Secrets; version v2", row.Detail);
         Assert.Contains(SecretsVaultResourceOperationPermissions.ReadSecrets, row.Detail);
-        Assert.Contains("application:api/api-service", row.Detail);
+        Assert.Contains("api-service (API)", row.Detail);
     }
 
     [Fact]
     public void ApplicationSettingReferenceDisplay_ShowsGrantRequirementForIdentityBoundSecret()
     {
         var vault = CreateResource("secrets-vault:app", "App Secrets", ResourceClass.SecretsVault);
+        var api = CreateResource("application:api", "API", ResourceClass.Project);
         var identity = new ResourceIdentityBinding("identity:development", Name: "api-service");
         var evaluator = new ResourcePermissionGrantEvaluator([]);
 
@@ -200,22 +202,23 @@ public sealed class ResourceSettingDisplayTests
                 new SecretReference("secrets-vault:app", "sample-api-key", "v2")),
             "application:api",
             identity,
-            id => string.Equals(id, vault.Id, StringComparison.OrdinalIgnoreCase) ? vault : null,
+            id => ResolveResource(id, vault, api),
             evaluator);
 
         Assert.Equal("Secret reference", row.Source);
         Assert.Equal("App Secrets / sample-api-key", row.Target);
         Assert.Equal("Grant required", row.Status);
         Assert.Equal("warning", row.StatusKind);
-        Assert.Contains("secrets-vault:app; version v2", row.Detail);
+        Assert.Contains("App Secrets; version v2", row.Detail);
         Assert.Contains(SecretsVaultResourceOperationPermissions.ReadSecrets, row.Detail);
-        Assert.Contains("application:api/api-service", row.Detail);
+        Assert.Contains("api-service (API)", row.Detail);
     }
 
     [Fact]
     public void ApplicationSettingReferenceDisplay_ShowsGrantedStatusForIdentityBoundSecret()
     {
         var vault = CreateResource("secrets-vault:app", "App Secrets", ResourceClass.SecretsVault);
+        var api = CreateResource("application:api", "API", ResourceClass.Project);
         var identity = new ResourceIdentityBinding("identity:development", Name: "api-service");
         var evaluator = new ResourcePermissionGrantEvaluator(
         [
@@ -231,17 +234,20 @@ public sealed class ResourceSettingDisplayTests
                 new SecretReference("secrets-vault:app", "sample-api-key", "v2")),
             "application:api",
             identity,
-            id => string.Equals(id, vault.Id, StringComparison.OrdinalIgnoreCase) ? vault : null,
+            id => ResolveResource(id, vault, api),
             evaluator);
 
         Assert.Equal("Secret reference", row.Source);
         Assert.Equal("App Secrets / sample-api-key", row.Target);
         Assert.Equal("Granted", row.Status);
         Assert.Equal("ok", row.StatusKind);
-        Assert.Contains("secrets-vault:app; version v2", row.Detail);
+        Assert.Contains("App Secrets; version v2", row.Detail);
         Assert.Contains(SecretsVaultResourceOperationPermissions.ReadSecrets, row.Detail);
-        Assert.Contains("application:api/api-service", row.Detail);
+        Assert.Contains("api-service (API)", row.Detail);
     }
+
+    private static Resource? ResolveResource(string id, params Resource[] resources) =>
+        resources.FirstOrDefault(resource => string.Equals(resource.Id, id, StringComparison.OrdinalIgnoreCase));
 
     private static Resource CreateResource(
         string id,

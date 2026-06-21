@@ -35,6 +35,9 @@ on `git blame --follow`, and then by the broad type of change.
   resource-scoped **Health** tab when the resource declares health checks.
 - Application overviews now link Logs and Traces diagnostics to the
   resource-scoped tabs instead of global observability filters.
+- Application overviews now describe configuration and secret reference
+  metadata with resource labels and friendly resource-identity labels instead
+  of leading with raw resource IDs.
 - Health views now share a resource health history chart backed by retained
   resource health snapshots, and the resource-scoped Health tab auto-refreshes
   while open.

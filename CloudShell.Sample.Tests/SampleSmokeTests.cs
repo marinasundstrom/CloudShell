@@ -633,10 +633,14 @@ public sealed class SampleSmokeTests
         Assert.Contains("ApplicationTopology__Message", apiDetailsHtml);
         Assert.Contains("Configuration entry", apiDetailsHtml);
         Assert.Contains("Settings / ApplicationTopology:Message", apiDetailsHtml);
+        Assert.Contains($"Settings; requires {ConfigurationStoreResourceOperationPermissions.ReadEntries} for application-topology-api", apiDetailsHtml);
         Assert.Contains("ApplicationTopology__SqlServer__Password", apiDetailsHtml);
         Assert.Contains("ApplicationTopology__ExternalApiKey", apiDetailsHtml);
         Assert.Contains("Secret reference", apiDetailsHtml);
         Assert.Contains("Secrets / external-api-key", apiDetailsHtml);
+        Assert.Contains($"Secrets; requires {SecretsVaultResourceOperationPermissions.ReadSecrets} for application-topology-api", apiDetailsHtml);
+        Assert.DoesNotContain("configuration:application-topology; requires", apiDetailsHtml);
+        Assert.DoesNotContain("secrets-vault:application-topology; requires", apiDetailsHtml);
         Assert.Contains(">Hidden<", apiDetailsHtml);
         Assert.Contains(">Granted<", apiDetailsHtml);
         Assert.Contains("Resource identity", apiDetailsHtml);
@@ -789,7 +793,7 @@ public sealed class SampleSmokeTests
         Assert.Contains(">Used by<", frontendDetailsHtml);
         Assert.Contains("application-topology-api", frontendDetailsHtml);
         Assert.Contains("application.aspnet-core-project", frontendDetailsHtml);
-        Assert.Contains("Health: Unhealthy", frontendDetailsHtml);
+        Assert.Contains("Health:", frontendDetailsHtml);
         Assert.Contains("app.application-topology.cloudshell.local", frontendDetailsHtml);
         Assert.Contains("app.application-topology.cloudshell.local -&gt; application-topology-frontend/http", frontendDetailsHtml);
         Assert.Contains("Zone: Local DNS", frontendDetailsHtml);

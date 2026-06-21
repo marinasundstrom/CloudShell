@@ -107,7 +107,8 @@ internal static class ApplicationSettingReferenceDisplay
             resource,
             identityBinding,
             applicationResourceId,
-            ConfigurationStoreResourceOperationPermissions.ReadEntries);
+            ConfigurationStoreResourceOperationPermissions.ReadEntries,
+            resolveResource);
         var status = GetReferenceStatus(
             resource,
             identityBinding,
@@ -139,7 +140,8 @@ internal static class ApplicationSettingReferenceDisplay
             resource,
             identityBinding,
             applicationResourceId,
-            SecretsVaultResourceOperationPermissions.ReadSecrets);
+            SecretsVaultResourceOperationPermissions.ReadSecrets,
+            resolveResource);
         var status = GetReferenceStatus(
             resource,
             identityBinding,
@@ -202,11 +204,12 @@ internal static class ApplicationSettingReferenceDisplay
         Resource? resource,
         ResourceIdentityBinding? identityBinding,
         string applicationResourceId,
-        string requiredPermission)
+        string requiredPermission,
+        Func<string, Resource?> resolveResource)
     {
         var detail = resource is null
             ? $"{resourceId} (unavailable)"
-            : resource.Id;
+            : ResourceDisplayLabels.GetLabel(resource, resourceId);
         if (!string.IsNullOrWhiteSpace(version))
         {
             detail = $"{detail}; version {version}";
@@ -214,7 +217,8 @@ internal static class ApplicationSettingReferenceDisplay
 
         if (resource is not null && identityBinding is not null)
         {
-            detail = $"{detail}; requires {requiredPermission} for {FormatIdentity(applicationResourceId, identityBinding)}";
+            var applicationResource = resolveResource(applicationResourceId);
+            detail = $"{detail}; requires {requiredPermission} for {FormatIdentity(applicationResourceId, identityBinding, applicationResource)}";
         }
 
         return detail;
@@ -222,10 +226,19 @@ internal static class ApplicationSettingReferenceDisplay
 
     private static string FormatIdentity(
         string applicationResourceId,
-        ResourceIdentityBinding identityBinding) =>
-        string.IsNullOrWhiteSpace(identityBinding.Name)
-            ? applicationResourceId
-            : $"{applicationResourceId}/{identityBinding.Name}";
+        ResourceIdentityBinding identityBinding,
+        Resource? applicationResource)
+    {
+        var applicationLabel = ResourceDisplayLabels.GetLabel(applicationResource, applicationResourceId);
+        if (string.IsNullOrWhiteSpace(identityBinding.Name) ||
+            string.Equals(identityBinding.Name, applicationResource?.Name, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(identityBinding.Name, applicationResource?.DisplayName, StringComparison.OrdinalIgnoreCase))
+        {
+            return applicationLabel;
+        }
+
+        return $"{identityBinding.Name} ({applicationLabel})";
+    }
 
 }
 
