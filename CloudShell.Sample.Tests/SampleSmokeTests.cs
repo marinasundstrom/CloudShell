@@ -704,8 +704,8 @@ public sealed class SampleSmokeTests
         Assert.Contains(">Overview<", settingsHtml);
         Assert.Contains(">Users<", settingsHtml);
         Assert.Contains(">Extensions<", settingsHtml);
-        Assert.Contains(">Resource Manager<", settingsHtml);
-        Assert.Contains(">Shell<", settingsHtml);
+        Assert.Contains(">General<", settingsHtml);
+        Assert.Contains(">Orchestration<", settingsHtml);
         Assert.Contains(">Resource Management<", settingsHtml);
         Assert.Contains("Settings composition", settingsHtml);
 
@@ -718,9 +718,15 @@ public sealed class SampleSmokeTests
         Assert.Contains("Shell extensions", extensionsSettingsHtml);
 
         var resourceManagerSettingsHtml = await host.GetStringAsync("/settings/resource-manager");
-        Assert.Contains("Resource orchestrator", resourceManagerSettingsHtml);
-        Assert.Contains("CloudShell modes", resourceManagerSettingsHtml);
+        Assert.Contains(">General<", resourceManagerSettingsHtml);
+        Assert.Contains("Resource labels", resourceManagerSettingsHtml);
         Assert.Contains("Inventory visibility", resourceManagerSettingsHtml);
+
+        var resourceManagerOrchestrationSettingsHtml = await host.GetStringAsync("/settings/resource-manager-orchestration");
+        Assert.Contains(">Orchestration<", resourceManagerOrchestrationSettingsHtml);
+        Assert.Contains(">Orchestrator<", resourceManagerOrchestrationSettingsHtml);
+        Assert.Contains("CloudShell modes", resourceManagerOrchestrationSettingsHtml);
+        Assert.Contains("Health check interval", resourceManagerOrchestrationSettingsHtml);
 
         var missingSettingsSectionHtml = await host.GetStringAsync("/settings/does-not-exist");
         Assert.Contains("Section not found", missingSettingsSectionHtml);

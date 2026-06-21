@@ -180,12 +180,16 @@ public sealed class ShellNavigationTests
             CompositionSectionAddressMode.Child,
             registry.GetSectionOutlet(ShellCompositionIds.SettingsMainOutlet)?.AddressMode);
         Assert.Equal(
-            "Shell",
+            "General",
             registry.GetSectionProjection(ShellCompositionIds.SettingsUsersSection)
                 ?.Section.Attributes[CompositionAttributeNames.Group]);
         Assert.Equal(
             "Resource Management",
-            registry.GetSectionProjection(ResourceManagerCompositionIds.SettingsSection)
+            registry.GetSectionProjection(ResourceManagerCompositionIds.SettingsGeneralSection)
+                ?.Section.Attributes[CompositionAttributeNames.Group]);
+        Assert.Equal(
+            "Resource Management",
+            registry.GetSectionProjection(ResourceManagerCompositionIds.SettingsOrchestrationSection)
                 ?.Section.Attributes[CompositionAttributeNames.Group]);
         Assert.Equal(
             "/settings/users",
@@ -195,7 +199,10 @@ public sealed class ShellNavigationTests
             registry.ResolveHref(ShellCompositionIds.SettingsExtensionsSection));
         Assert.Equal(
             "/settings/resource-manager",
-            registry.ResolveHref(ResourceManagerCompositionIds.SettingsSection));
+            registry.ResolveHref(ResourceManagerCompositionIds.SettingsGeneralSection));
+        Assert.Equal(
+            "/settings/resource-manager-orchestration",
+            registry.ResolveHref(ResourceManagerCompositionIds.SettingsOrchestrationSection));
     }
 
     [Fact]

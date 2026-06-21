@@ -184,10 +184,15 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                 {
                     composition
                         .Extend(context.Settings.MainSections)
-                        .AddSection<ResourceManagerSettingsSection>(
-                            ResourceManagerCompositionIds.SettingsSection,
-                            "Resource Manager",
+                        .AddSection<ResourceManagerSettingsGeneralSection>(
+                            ResourceManagerCompositionIds.SettingsGeneralSection,
+                            "General",
                             30,
+                            ResourceManagementSettingsGroup)
+                        .AddSection<ResourceManagerSettingsOrchestrationSection>(
+                            ResourceManagerCompositionIds.SettingsOrchestrationSection,
+                            "Orchestration",
+                            40,
                             ResourceManagementSettingsGroup);
                 });
 

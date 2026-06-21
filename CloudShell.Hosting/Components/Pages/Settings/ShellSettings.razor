@@ -63,7 +63,9 @@
             ? "users"
             : section.Section.Id == ShellCompositionIds.SettingsExtensionsSection
                 ? "extensions"
-            : section.Section.Id == ResourceManagerCompositionIds.SettingsSection
+            : section.Section.Id == ResourceManagerCompositionIds.SettingsGeneralSection
                 ? "resources"
+            : section.Section.Id == ResourceManagerCompositionIds.SettingsOrchestrationSection
+                ? "dependencies"
                 : "settings";
 }

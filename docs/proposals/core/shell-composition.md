@@ -943,6 +943,16 @@ contribute a settings page, sub-page, slot, section container, or section with
 stable IDs, state-boundary metadata, permissions, and component metadata. The
 settings renderer decides how the layout is presented.
 
+The composition model should not try to solve every CloudShell settings
+problem directly. CloudShell can build settings-specific abstractions on top of
+the generic graph when a contribution needs to register content and matching
+navigation projections together. Until that abstraction exists, the common
+Settings page can project the content hierarchy directly and use artifact
+metadata, such as grouping attributes, as renderer hints. For example, Resource
+Management settings can contribute separate General and Orchestration sections
+under one common settings outlet and let the CloudShell settings renderer group
+them without declaring a separate menu.
+
 ## Notifications
 
 CloudShell should provide a notification system with two presentation modes:

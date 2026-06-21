@@ -41,6 +41,11 @@ public static class ResourceManagerCompositionIds
     public static readonly MenuItemId HealthMenuItem =
         MenuItemId.Create(ShellCompositionIds.WorkspaceMenuGroup, "health");
 
-    public static readonly SectionId SettingsSection =
+    public static readonly SectionId SettingsGeneralSection =
         SectionId.Create(ShellCompositionIds.SettingsMainOutlet, "resource-manager");
+
+    public static readonly SectionId SettingsOrchestrationSection =
+        SectionId.Create(ShellCompositionIds.SettingsMainOutlet, "resource-manager-orchestration");
+
+    public static readonly SectionId SettingsSection = SettingsGeneralSection;
 }

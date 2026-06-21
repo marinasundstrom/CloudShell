@@ -31,65 +31,75 @@
     </section>
 }
 
-<section class="registration-layout">
-    <aside class="panel registration-options">
-        <h2>@L["Orchestration"]</h2>
-        <div class="selected-type-card">
-            <span class="resource-kind-icon" aria-hidden="true">
-                <FluentIcon Value="@(new Icons.Regular.Size20.SettingsCogMultiple())" />
-            </span>
-            <div>
-                <strong>@GetCurrentOrchestratorName()</strong>
-                <p>@L["Active orchestrator"]</p>
-            </div>
-        </div>
-        <div class="selected-type-card">
-            <span class="resource-kind-icon" aria-hidden="true">
-                <FluentIcon Value="@(new Icons.Regular.Size20.DataUsage())" />
-            </span>
-            <div>
-                <strong>@L["{0}s", GetEffectiveHealthCheckInterval().Seconds]</strong>
-                <p>@(GetEffectiveHealthCheckInterval().IsConfigured
-                    ? L["Health interval from appsettings"]
-                    : L["Health interval from settings"])</p>
-            </div>
-        </div>
-        <div class="selected-type-card">
-            <span class="resource-kind-icon" aria-hidden="true">
-                <FluentIcon Value="@(new Icons.Regular.Size20.Flowchart())" />
-            </span>
-            <div>
-                <strong>@GetDependencyFailureBehaviorLabel(GetEffectiveDependencyStartFailureBehavior().Behavior)</strong>
-                <p>@(GetEffectiveDependencyStartFailureBehavior().IsConfigured
-                    ? L["Dependency behavior from appsettings"]
-                    : L["Dependency behavior from settings"])</p>
-            </div>
-        </div>
-        <div class="selected-type-card">
-            <span class="resource-kind-icon" aria-hidden="true">
-                <FluentIcon Value="@(new Icons.Regular.Size20.SlideTextSparkle())" />
-            </span>
-            <div>
-                <strong>@GetLabelSummary()</strong>
-                <p>@L["Resource labels"]</p>
-            </div>
-        </div>
-        <div class="selected-type-card">
-            <span class="resource-kind-icon" aria-hidden="true">
-                <FluentIcon Value="@(new Icons.Regular.Size20.WindowApps())" />
-            </span>
-            <div>
-                <strong>@GetVisibilitySummary()</strong>
-                <p>@L["Inventory visibility"]</p>
-            </div>
-        </div>
-    </aside>
-
-    <div class="panel registration-host">
+<section class="@GetSettingsHostClass()">
+    @if (ShowGeneralSettings)
+    {
         <div class="panel-header">
             <div>
-                <h2>@L["Resource orchestrator"]</h2>
-                <p>@L["Changing orchestrators can alter how networking, public exposure, and lifecycle commands are applied."]</p>
+                <h2>@L["General"]</h2>
+                <p>@L["Configure Resource Manager display behavior and inventory visibility."]</p>
+            </div>
+        </div>
+
+        <div class="form-panel">
+            @if (IsReadOnly)
+            {
+                <ProcedureMessage>
+                    <strong>@L["Read-only mode"]</strong>
+                    <span>@L["Resource Manager settings can be inspected, but changes are disabled by host configuration."]</span>
+                </ProcedureMessage>
+            }
+
+            <fieldset class="form-fieldset">
+                <legend>@L["Resource labels"]</legend>
+                <div class="checkbox-stack">
+                    <FluentCheckbox @bind-Value="SelectedEnableDisplayNames"
+                                    Disabled="@IsReadOnly">
+                        @L["Use display names"]
+                    </FluentCheckbox>
+                    <small>
+                        @L["Shows resource display names in Resource Manager. When disabled, Resource Manager uses resource names as the primary labels. Default: {0}.", GetDefaultDisplayText(DisplaySelection.DefaultEnableDisplayNames)]
+                    </small>
+                </div>
+            </fieldset>
+
+            <fieldset class="form-fieldset">
+                <legend>@L["Inventory visibility"]</legend>
+                <div class="checkbox-stack">
+                    <FluentCheckbox @bind-Value="SelectedShowRuntimeManagedResources"
+                                    Disabled="@(IsReadOnly || !CanShowRuntimeManagedResources)">
+                        @L["Show runtime-managed resources"]
+                    </FluentCheckbox>
+                    <small>
+                        @if (!CanShowRuntimeManagedResources)
+                        {
+                            @L["You need permission to inspect runtime-managed resources."]
+                        }
+                        else
+                        {
+                            @L["Allows hidden runtime-managed artifacts to appear when hidden resources are shown. These resources are view-only. Default: {0}.", GetDefaultDisplayText(DisplaySelection.DefaultShowRuntimeManagedResources)]
+                        }
+                    </small>
+                </div>
+                <div class="checkbox-stack">
+                    <FluentCheckbox @bind-Value="SelectedShowHiddenResources"
+                                    Disabled="@IsReadOnly">
+                        @L["Show hidden resources"]
+                    </FluentCheckbox>
+                    <small>
+                        @L["Shows resources whose visibility is hidden. Hidden runtime-managed artifacts also require runtime-managed inspection. Default: {0}.", GetDefaultDisplayText(DisplaySelection.DefaultShowHiddenResources)]
+                    </small>
+                </div>
+            </fieldset>
+        </div>
+    }
+
+    @if (ShowOrchestrationSettings)
+    {
+        <div class="panel-header">
+            <div>
+                <h2>@L["Orchestration"]</h2>
+                <p>@L["Configure how Resource Manager applies lifecycle, dependency, and host orchestration."]</p>
             </div>
         </div>
 
@@ -182,78 +192,58 @@
                     @L["Controls whether Start and Restart stop when dependency auto-start fails, or continue after recording a warning."]
                 }
             </small>
-
-            <fieldset class="form-fieldset">
-                <legend>@L["Resource labels"]</legend>
-                <div class="checkbox-stack">
-                    <FluentCheckbox @bind-Value="SelectedEnableDisplayNames"
-                                    Disabled="@IsReadOnly">
-                        @L["Use display names"]
-                    </FluentCheckbox>
-                    <small>
-                        @L["Shows resource display names in Resource Manager. When disabled, Resource Manager uses resource names as the primary labels. Default: {0}.", GetDefaultDisplayText(DisplaySelection.DefaultEnableDisplayNames)]
-                    </small>
-                </div>
-            </fieldset>
-
-            <fieldset class="form-fieldset">
-                <legend>@L["Inventory visibility"]</legend>
-                <div class="checkbox-stack">
-                    <FluentCheckbox @bind-Value="SelectedShowRuntimeManagedResources"
-                                    Disabled="@(IsReadOnly || !CanShowRuntimeManagedResources)">
-                        @L["Show runtime-managed resources"]
-                    </FluentCheckbox>
-                    <small>
-                        @if (!CanShowRuntimeManagedResources)
-                        {
-                            @L["You need permission to inspect runtime-managed resources."]
-                        }
-                        else
-                        {
-                            @L["Allows hidden runtime-managed artifacts to appear when hidden resources are shown. These resources are view-only. Default: {0}.", GetDefaultDisplayText(DisplaySelection.DefaultShowRuntimeManagedResources)]
-                        }
-                    </small>
-                </div>
-                <div class="checkbox-stack">
-                    <FluentCheckbox @bind-Value="SelectedShowHiddenResources"
-                                    Disabled="@IsReadOnly">
-                        @L["Show hidden resources"]
-                    </FluentCheckbox>
-                    <small>
-                        @L["Shows resources whose visibility is hidden. Hidden runtime-managed artifacts also require runtime-managed inspection. Default: {0}.", GetDefaultDisplayText(DisplaySelection.DefaultShowHiddenResources)]
-                    </small>
-                </div>
-            </fieldset>
-
-            @if (PendingChange)
-            {
-                <div class="procedure-confirmation">
-                    <strong>@L["Apply resource settings?"]</strong>
-                    <span>@L["Existing resources are not migrated automatically when the orchestrator changes. The new settings apply to inventory display, future lifecycle actions, and health checks."]</span>
-                    <div class="form-actions">
-                        <FluentButton Appearance="Appearance.Neutral" OnClick="CancelChange">
-                            @L["Cancel"]
-                        </FluentButton>
-                        <FluentButton Appearance="Appearance.Accent" OnClick="ConfirmChange">
-                            @L["Apply settings"]
-                        </FluentButton>
-                    </div>
-                </div>
-            }
-            else
-            {
-                <FormPrimaryAction Text="@L["Apply"].Value"
-                                   IconStart="@(new Icons.Regular.Size20.Save())"
-                                   Disabled="@(!CanApply)"
-                                   OnClick="RequestChange" />
-            }
         </div>
+    }
+
+    <div class="form-panel">
+        @if (PendingChange)
+        {
+            <div class="procedure-confirmation">
+                <strong>@L["Apply resource settings?"]</strong>
+                <span>@L["Existing resources are not migrated automatically when the orchestrator changes. The new settings apply to inventory display, future lifecycle actions, and health checks."]</span>
+                <div class="form-actions">
+                    <FluentButton Appearance="Appearance.Neutral" OnClick="CancelChange">
+                        @L["Cancel"]
+                    </FluentButton>
+                    <FluentButton Appearance="Appearance.Accent" OnClick="ConfirmChange">
+                        @L["Apply settings"]
+                    </FluentButton>
+                </div>
+            </div>
+        }
+        else
+        {
+            <FormPrimaryAction Text="@L["Apply"].Value"
+                               IconStart="@(new Icons.Regular.Size20.Save())"
+                               Disabled="@(!CanApply)"
+                               OnClick="RequestChange" />
+        }
     </div>
 </section>
 
 @code {
+    private const string ViewAll = "all";
+    private const string ViewGeneral = "general";
+    private const string ViewOrchestration = "orchestration";
+
     [Parameter]
     public bool IsEmbedded { get; set; }
+
+    [Parameter]
+    public string View { get; set; } = ViewAll;
+
+    private bool ShowGeneralSettings =>
+        string.Equals(View, ViewAll, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(View, ViewGeneral, StringComparison.OrdinalIgnoreCase);
+
+    private bool ShowOrchestrationSettings =>
+        string.Equals(View, ViewAll, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(View, ViewOrchestration, StringComparison.OrdinalIgnoreCase);
+
+    private string GetSettingsHostClass() =>
+        IsEmbedded
+            ? "resource-manager-settings-stack"
+            : "panel registration-host resource-manager-settings-stack";
 
     private string SelectedOrchestratorId { get; set; } = "default";
     private string? SelectedContainerHostId { get; set; }
@@ -334,15 +324,6 @@
             .ThenBy(orchestrator => orchestrator.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-    private string GetCurrentOrchestratorName()
-    {
-        var current = OrchestrationSettings.Get().OrchestratorId;
-        return GetOrchestrators().FirstOrDefault(orchestrator =>
-                string.Equals(orchestrator.Id, current, StringComparison.OrdinalIgnoreCase))
-            ?.DisplayName
-            ?? current;
-    }
-
     private void RequestChange()
     {
         if (IsReadOnly)
@@ -391,9 +372,6 @@
 
     private void Cancel() => Navigation.NavigateTo("/resources");
 
-    private ResourceHealthCheckIntervalSettings GetEffectiveHealthCheckInterval() =>
-        OrchestrationSettings.GetHealthCheckIntervalSettings();
-
     private ResourceDependencyStartFailureSettings GetEffectiveDependencyStartFailureBehavior() =>
         OrchestrationSettings.GetDependencyStartFailureSettings();
 
@@ -404,29 +382,6 @@
         SelectedShowRuntimeManagedResources = DisplaySelection.ShowRuntimeManagedResources;
         SelectedShowHiddenResources = DisplaySelection.ShowHiddenResources;
     }
-
-    private string GetLabelSummary() =>
-        DisplaySelection.EnableDisplayNames
-            ? L["Display names"].Value
-            : L["Resource names"].Value;
-
-    private string GetVisibilitySummary()
-    {
-        return (DisplaySelection.ShowRuntimeManagedResources, DisplaySelection.ShowHiddenResources) switch
-        {
-            (true, true) => L["Runtime-managed and hidden"].Value,
-            (true, false) => L["Runtime-managed"].Value,
-            (false, true) => L["Hidden"].Value,
-            _ => L["Normal only"].Value
-        };
-    }
-
-    private string GetDependencyFailureBehaviorLabel(DependencyStartFailureBehavior behavior) =>
-        behavior switch
-        {
-            DependencyStartFailureBehavior.WarnAndContinue => L["Warn and continue"].Value,
-            _ => L["Stop requested action"].Value
-        };
 
     private DependencyStartFailureBehavior GetSelectedDependencyStartFailureBehavior() =>
         Enum.TryParse<DependencyStartFailureBehavior>(

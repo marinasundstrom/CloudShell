@@ -147,7 +147,9 @@ and the future router direction. That work is valuable platform direction, but
 it is no longer the most urgent MVP track. Further composition work should
 pause unless it fixes a regression in the current shell, directly supports the
 Resource Manager app-centric path, or removes duplication that is blocking a
-supported MVP workflow.
+supported MVP workflow. CloudShell-specific settings abstractions should layer
+on top of the generic composition graph when needed instead of pushing
+settings-menu concerns into the core composition model.
 
 The supported sample smoke suite is currently green. The remaining MVP work
 should therefore bias toward release-quality local-development behavior rather
