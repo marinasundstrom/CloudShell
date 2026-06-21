@@ -359,14 +359,19 @@ public sealed partial class LocalProcessRunner(
                 return true;
             }
 
+            var exitCode = TryGetExitCode(state.Process);
             runtimeStates.Save(new ApplicationRuntimeState(
                 definition.Id,
                 state.Process.Id,
                 null,
                 DateTimeOffset.UtcNow,
-                TryGetExitCode(state.Process),
+                exitCode,
                 state.LogPath));
-            LogProcessExitObserved(definition, state.Process.Id, TryGetExitCode(state.Process));
+            LogProcessExitObserved(definition, state.Process.Id, exitCode);
+            if (_processes.TryRemove(definition.Id, out var removedState))
+            {
+                removedState.Process.Dispose();
+            }
         }
 
         var runtimeState = runtimeStates.Get(definition.Id);

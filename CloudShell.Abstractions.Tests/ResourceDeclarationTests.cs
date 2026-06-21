@@ -19,6 +19,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
@@ -2542,6 +2544,53 @@ public sealed class ResourceDeclarationTests
                 }
             }
 
+            if (Directory.Exists(contentRoot))
+            {
+                Directory.Delete(contentRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task LocalProcessRunner_LogsTrackedProcessExitObservationOnce()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(contentRoot);
+        var options = new LocalProcessOptions
+        {
+            RuntimeStatePath = "application-runtime-state.json",
+            LogDirectory = "application-logs"
+        };
+        var environment = new TestHostEnvironment(contentRoot);
+        var runtimeStates = new ApplicationRuntimeStateStore(options, environment);
+        var definition = CreateShortLivedProcessDefinition();
+        using var logProvider = new CapturingLoggerProvider();
+        using var loggerFactory = LoggerFactory.Create(builder =>
+        {
+            builder.SetMinimumLevel(LogLevel.Debug);
+            builder.AddProvider(logProvider);
+        });
+
+        try
+        {
+            using var runner = new LocalProcessRunner(runtimeStates, options, environment, loggerFactory);
+            await runner.StartAsync(definition);
+            var runtimeState = runtimeStates.Get(definition.Id);
+            Assert.NotNull(runtimeState?.LastKnownProcessId);
+            using var process = Process.GetProcessById(runtimeState.LastKnownProcessId.Value);
+            Assert.True(await WaitForExitAsync(process, TimeSpan.FromSeconds(5)));
+
+            Assert.False(runner.IsRunning(definition));
+            Assert.False(runner.IsRunning(definition));
+
+            Assert.Equal(
+                1,
+                logProvider.Messages.Count(message =>
+                    message.Contains("Observed previously tracked local process", StringComparison.Ordinal)));
+        }
+        finally
+        {
             if (Directory.Exists(contentRoot))
             {
                 Directory.Delete(contentRoot, recursive: true);
@@ -9826,6 +9875,19 @@ public sealed class ResourceDeclarationTests
                 "-c \"sleep 30\"",
                 Lifetime: LocalProcessLifetime.ControlPlaneScoped);
 
+    private static LocalProcessDefinition CreateShortLivedProcessDefinition() =>
+        OperatingSystem.IsWindows()
+            ? new LocalProcessDefinition(
+                $"process:test:{Guid.NewGuid():N}",
+                Environment.GetEnvironmentVariable("COMSPEC") ?? "cmd.exe",
+                "/d /s /c \"timeout /t 1 /nobreak > nul\"",
+                Lifetime: LocalProcessLifetime.ControlPlaneScoped)
+            : new LocalProcessDefinition(
+                $"process:test:{Guid.NewGuid():N}",
+                "/bin/sh",
+                "-c \"sleep 1\"",
+                Lifetime: LocalProcessLifetime.ControlPlaneScoped);
+
     private static LocalProcessDefinition CreateProcessTreeDefinition(
         string workingDirectory,
         string childPidPath) =>
@@ -10402,6 +10464,38 @@ public sealed class ResourceDeclarationTests
         public TOptions Get(string? name) => CurrentValue;
 
         public IDisposable? OnChange(Action<TOptions, string?> listener) => null;
+    }
+
+    private sealed class CapturingLoggerProvider : ILoggerProvider
+    {
+        private readonly ConcurrentQueue<string> _messages = [];
+
+        public IReadOnlyCollection<string> Messages => _messages.ToArray();
+
+        public ILogger CreateLogger(string categoryName) => new CapturingLogger(_messages);
+
+        public void Dispose()
+        {
+        }
+
+        private sealed class CapturingLogger(ConcurrentQueue<string> messages) : ILogger
+        {
+            public IDisposable? BeginScope<TState>(TState state)
+                where TState : notnull =>
+                null;
+
+            public bool IsEnabled(LogLevel logLevel) => true;
+
+            public void Log<TState>(
+                LogLevel logLevel,
+                EventId eventId,
+                TState state,
+                Exception? exception,
+                Func<TState, Exception?, string> formatter)
+            {
+                messages.Enqueue(formatter(state, exception));
+            }
+        }
     }
 
     private sealed class EmptyResourceGroupStore : IResourceGroupStore
