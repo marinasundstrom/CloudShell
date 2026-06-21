@@ -5853,13 +5853,13 @@ public sealed partial class ApplicationResourceService(
         }
         catch (OperationCanceledException)
         {
-            logger?.LogInformation(
-                "Killing canceled container host command process {ProcessId} ({ContainerHostCommand}).",
+            logger?.LogDebug(
+                "Killing canceled process {ProcessId} for command {ProcessCommandLine}.",
                 process.Id,
                 command ?? "unknown");
             ProcessShutdown.KillProcessTreeAndWait(process);
-            logger?.LogInformation(
-                "Killed canceled container host command process {ProcessId} ({ContainerHostCommand}).",
+            logger?.LogDebug(
+                "Killed canceled process {ProcessId} for command {ProcessCommandLine}.",
                 process.Id,
                 command ?? "unknown");
             throw;
@@ -5884,13 +5884,13 @@ public sealed partial class ApplicationResourceService(
         }
         catch (OperationCanceledException)
         {
-            logger?.LogInformation(
+            logger?.LogDebug(
                 "Container host {ContainerHostId} cancellation requested for command {ContainerHostCommandLine} ({ContainerHostCommand}); terminating host interaction.",
                 engine.Id,
                 resolvedCommandLine,
                 resolvedCommand);
             ProcessShutdown.KillProcessTreeAndWait(process);
-            logger?.LogInformation(
+            logger?.LogDebug(
                 "Container host {ContainerHostId} canceled command {ContainerHostCommandLine} and released the host interaction ({ContainerHostCommand}).",
                 engine.Id,
                 resolvedCommandLine,
@@ -5927,11 +5927,12 @@ public sealed partial class ApplicationResourceService(
         ContainerHostDescriptor engine,
         string command,
         string commandLine) =>
-        logger.LogInformation(
-            "Container host {ContainerHostId} started command {ContainerHostCommandLine} ({ContainerHostCommand}).",
+        logger.LogDebug(
+            "Container host {ContainerHostId} started command {ContainerHostCommandLine} ({ContainerHostCommand}, process {ProcessId}).",
             engine.Id,
             commandLine,
-            command);
+            command,
+            process.Id);
 
     private static void LogContainerHostCommandExited(
         ILogger logger,
@@ -5939,12 +5940,13 @@ public sealed partial class ApplicationResourceService(
         ContainerHostDescriptor engine,
         string command,
         string commandLine) =>
-        logger.LogInformation(
-            "Container host {ContainerHostId} completed command {ContainerHostCommandLine} with exit code {ExitCode} ({ContainerHostCommand}).",
+        logger.LogDebug(
+            "Container host {ContainerHostId} completed command {ContainerHostCommandLine} with exit code {ExitCode} ({ContainerHostCommand}, process {ProcessId}).",
             engine.Id,
             commandLine,
             process.ExitCode,
-            command);
+            command,
+            process.Id);
 
     private static void LogContainerHostCommandReleased(
         ILogger logger,
@@ -5952,7 +5954,7 @@ public sealed partial class ApplicationResourceService(
         string command,
         string commandLine,
         int exitCode) =>
-        logger.LogInformation(
+        logger.LogDebug(
             "Container host {ContainerHostId} released command {ContainerHostCommandLine} after capturing command output ({ContainerHostCommand}, exit code {ExitCode}).",
             engine.Id,
             commandLine,

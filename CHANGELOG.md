@@ -134,10 +134,12 @@ on `git blame --follow`, and then by the broad type of change.
   Manager diagnostics now use resource names in human-facing messages instead
   of leading with canonical resource IDs.
 - Docker-backed application operations now log container-host command start,
-  completion, and release messages with the full command arguments.
+  completion, and release messages at debug level with the full command
+  arguments.
 - Local executable and project-backed application operations now log
-  process-level start, exit, stop, shutdown cleanup, and recovery details
-  underneath the resource events.
+  process-level start, exit, stop, shutdown cleanup, and recovery details at
+  debug level underneath the resource events, while failed or non-zero process
+  exits remain warnings.
 - The UI Extension Host sample now contributes its sample workspace sidebar
   item through the composition main menu instead of legacy shell navigation.
 - CloudShell Hosting now exposes `builder.AddCompositionModule(...)` for

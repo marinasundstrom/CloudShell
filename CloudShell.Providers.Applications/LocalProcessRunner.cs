@@ -574,7 +574,7 @@ public sealed partial class LocalProcessRunner(
         string workingDirectory)
     {
         using var scope = BeginResourceProcessScope(definition.Id);
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Starting local process for resource {ResourceName}: {ProcessCommandLine} in {WorkingDirectory} with {ProcessLifetime} lifetime.",
             ResourceDisplayLabels.GetName(definition.Id),
             commandLine,
@@ -589,7 +589,7 @@ public sealed partial class LocalProcessRunner(
         string workingDirectory)
     {
         using var scope = BeginResourceProcessScope(definition.Id, processId);
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Started local process {ProcessId} for resource {ResourceName}: {ProcessCommandLine} in {WorkingDirectory}.",
             processId,
             ResourceDisplayLabels.GetName(definition.Id),
@@ -604,7 +604,9 @@ public sealed partial class LocalProcessRunner(
         string commandLine)
     {
         using var scope = BeginResourceProcessScope(definition.Id, processId);
-        _logger.LogInformation(
+        var logLevel = exitCode == 0 ? LogLevel.Debug : LogLevel.Warning;
+        _logger.Log(
+            logLevel,
             "Local process {ProcessId} for resource {ResourceName} exited with code {ExitCode}: {ProcessCommandLine}.",
             processId,
             ResourceDisplayLabels.GetName(definition.Id),
@@ -618,7 +620,7 @@ public sealed partial class LocalProcessRunner(
         bool force)
     {
         using var scope = BeginResourceProcessScope(definition.Id, processId);
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Stopping local process {ProcessId} for resource {ResourceName}; force={Force}.",
             processId,
             ResourceDisplayLabels.GetName(definition.Id),
@@ -631,7 +633,7 @@ public sealed partial class LocalProcessRunner(
         int? exitCode)
     {
         using var scope = BeginResourceProcessScope(definition.Id, processId);
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Stopped local process {ProcessId} for resource {ResourceName}; exit code {ExitCode}.",
             processId,
             ResourceDisplayLabels.GetName(definition.Id),
@@ -641,7 +643,7 @@ public sealed partial class LocalProcessRunner(
     private void LogProcessStoppingDuringShutdown(string resourceId, int processId)
     {
         using var scope = BeginResourceProcessScope(resourceId, processId);
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Stopping control-plane-scoped local process {ProcessId} for resource {ResourceName} during Control Plane shutdown.",
             processId,
             ResourceDisplayLabels.GetName(resourceId));
@@ -653,7 +655,7 @@ public sealed partial class LocalProcessRunner(
         int? exitCode)
     {
         using var scope = BeginResourceProcessScope(resourceId, processId);
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Stopped control-plane-scoped local process {ProcessId} for resource {ResourceName} during Control Plane shutdown; exit code {ExitCode}.",
             processId,
             ResourceDisplayLabels.GetName(resourceId),
@@ -666,7 +668,9 @@ public sealed partial class LocalProcessRunner(
         int? exitCode)
     {
         using var scope = BeginResourceProcessScope(definition.Id, processId);
-        _logger.LogInformation(
+        var logLevel = exitCode == 0 ? LogLevel.Debug : LogLevel.Warning;
+        _logger.Log(
+            logLevel,
             "Observed previously tracked local process {ProcessId} for resource {ResourceName} has exited with code {ExitCode}.",
             processId,
             ResourceDisplayLabels.GetName(definition.Id),
@@ -679,7 +683,7 @@ public sealed partial class LocalProcessRunner(
         string logPath)
     {
         using var scope = BeginResourceProcessScope(definition.Id, processId);
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Recovered tracking for local process {ProcessId} under resource {ResourceName}; log path {LogPath}.",
             processId,
             ResourceDisplayLabels.GetName(definition.Id),
@@ -692,7 +696,7 @@ public sealed partial class LocalProcessRunner(
         string workingDirectory)
     {
         using var scope = BeginResourceProcessScope(resourceId);
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Starting pre-start process for resource {ResourceName}: {ProcessCommandLine} in {WorkingDirectory}.",
             ResourceDisplayLabels.GetName(resourceId),
             commandLine,
@@ -706,7 +710,7 @@ public sealed partial class LocalProcessRunner(
         string workingDirectory)
     {
         using var scope = BeginResourceProcessScope(resourceId, processId);
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Started pre-start process {ProcessId} for resource {ResourceName}: {ProcessCommandLine} in {WorkingDirectory}.",
             processId,
             ResourceDisplayLabels.GetName(resourceId),
@@ -721,7 +725,9 @@ public sealed partial class LocalProcessRunner(
         int exitCode)
     {
         using var scope = BeginResourceProcessScope(resourceId, processId);
-        _logger.LogInformation(
+        var logLevel = exitCode == 0 ? LogLevel.Debug : LogLevel.Warning;
+        _logger.Log(
+            logLevel,
             "Pre-start process {ProcessId} for resource {ResourceName} exited with code {ExitCode}: {ProcessCommandLine}.",
             processId,
             ResourceDisplayLabels.GetName(resourceId),
