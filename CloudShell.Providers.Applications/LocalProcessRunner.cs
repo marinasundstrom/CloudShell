@@ -340,7 +340,9 @@ public sealed partial class LocalProcessRunner(
             {
             }
 
+            var processHandleId = state.Process.Id;
             state.Process.Dispose();
+            LogProcessHandleReleased(processId, processHandleId);
         }
     }
 
@@ -373,7 +375,9 @@ public sealed partial class LocalProcessRunner(
             LogProcessExitObserved(definition, state.Process.Id, exitCode);
             if (_processes.TryRemove(definition.Id, out var removedState))
             {
+                var processId = removedState.Process.Id;
                 removedState.Process.Dispose();
+                LogProcessHandleReleased(definition, processId);
             }
         }
 
@@ -731,6 +735,26 @@ public sealed partial class LocalProcessRunner(
             processId,
             ResourceDisplayLabels.GetName(definition.Id),
             logPath ?? "memory");
+    }
+
+    private void LogProcessHandleReleased(
+        LocalProcessDefinition definition,
+        int processId)
+    {
+        using var scope = BeginResourceProcessScope(definition.Id, processId);
+        _logger.LogDebug(
+            "Released local process handle {ProcessId} for resource {ResourceName}.",
+            processId,
+            ResourceDisplayLabels.GetName(definition.Id));
+    }
+
+    private void LogProcessHandleReleased(string resourceId, int processId)
+    {
+        using var scope = BeginResourceProcessScope(resourceId, processId);
+        _logger.LogDebug(
+            "Released local process handle {ProcessId} for resource {ResourceName}.",
+            processId,
+            ResourceDisplayLabels.GetName(resourceId));
     }
 
     private void LogPreStartCommandStarting(

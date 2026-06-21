@@ -2588,6 +2588,10 @@ public sealed class ResourceDeclarationTests
                 1,
                 logProvider.Messages.Count(message =>
                     message.Contains("Observed previously tracked local process", StringComparison.Ordinal)));
+            Assert.Equal(
+                1,
+                logProvider.Messages.Count(message =>
+                    message.Contains("Released local process handle", StringComparison.Ordinal)));
         }
         finally
         {

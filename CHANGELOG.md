@@ -40,6 +40,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Host-scoped shutdown now performs defensive cleanup for control-plane-scoped
   container workloads even when their local runner process already exited, and
   control-plane-scoped container apps remove replicas directly with force.
+- Local process runner debug logs now include explicit process-handle release
+  messages after tracked process exit observation and runner disposal.
 - Re-aligned the local-development MVP queue around Application Topology
   repeatability, resource-name-first UI messages, exposure/name-mapping link
   clarity, host-scoped lifecycle cleanup, process/Docker diagnostics, guarded
