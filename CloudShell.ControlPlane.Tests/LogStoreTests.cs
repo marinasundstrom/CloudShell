@@ -76,7 +76,7 @@ public sealed class LogStoreTests
     }
 
     [Fact]
-    public async Task ReadLogAsync_UsesProjectedLogSourceSession()
+    public async Task ReadLogSourceAsync_UsesProjectedLogSourceSession()
     {
         var provider = new TestLogProvider(
             logs: [],
@@ -98,7 +98,7 @@ public sealed class LogStoreTests
             new CloudShellExtensionRegistry(),
             new InMemoryCloudShellExtensionActivationStore());
 
-        var entries = await store.ReadLogAsync("provider:diagnostics");
+        var entries = await store.ReadLogSourceAsync("provider:diagnostics");
 
         var entry = Assert.Single(entries);
         Assert.Equal(ProviderProjectedEntry.Message, entry.Message);

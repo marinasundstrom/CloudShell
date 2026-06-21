@@ -98,15 +98,26 @@ public sealed class LogStore(
     public LogDescriptor? GetLog(string logId) =>
         GetLogs().FirstOrDefault(log => string.Equals(log.Id, logId, StringComparison.OrdinalIgnoreCase));
 
+    public LogSource? GetLogSource(string logSourceId) =>
+        GetLogSources()
+            .FirstOrDefault(source => string.Equals(source.Id, logSourceId, StringComparison.OrdinalIgnoreCase));
+
     public async Task<IReadOnlyList<LogEntry>> ReadLogAsync(
         string logId,
+        int maxEntries = 200,
+        DateTimeOffset? before = null,
+        CancellationToken cancellationToken = default) =>
+        await ReadLogSourceAsync(logId, maxEntries, before, cancellationToken);
+
+    public async Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
+        string logSourceId,
         int maxEntries = 200,
         DateTimeOffset? before = null,
         CancellationToken cancellationToken = default)
     {
         foreach (var provider in Providers)
         {
-            await using var session = await OpenProviderLogSourceAsync(provider, logId, cancellationToken);
+            await using var session = await OpenProviderLogSourceAsync(provider, logSourceId, cancellationToken);
             if (session is not null)
             {
                 return await session.ReadAsync(maxEntries, before, cancellationToken);
@@ -121,9 +132,20 @@ public sealed class LogStore(
         int initialEntries = 50,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
+        await foreach (var entry in StreamLogSourceAsync(logId, initialEntries, cancellationToken))
+        {
+            yield return entry;
+        }
+    }
+
+    public async IAsyncEnumerable<LogEntry> StreamLogSourceAsync(
+        string logSourceId,
+        int initialEntries = 50,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
         foreach (var provider in Providers)
         {
-            var source = GetProviderLogSource(provider, logId);
+            var source = GetProviderLogSource(provider, logSourceId);
             if (source is null)
             {
                 continue;
@@ -134,7 +156,7 @@ public sealed class LogStore(
                 yield break;
             }
 
-            await using var session = await provider.OpenLogSourceAsync(logId, cancellationToken);
+            await using var session = await provider.OpenLogSourceAsync(logSourceId, cancellationToken);
             if (session is null)
             {
                 yield break;

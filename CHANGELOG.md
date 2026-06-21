@@ -66,6 +66,8 @@ on `git blame --follow`, and then by the broad type of change.
 - The Control Plane domain API, HTTP API, and remote client now expose
   source-addressed log metadata, read, and stream operations under
   `log-sources`.
+- `ILogStore` now exposes source-addressed log read and stream operations,
+  keeping descriptor-named methods as compatibility aliases.
 
 ### 2026-06-20
 

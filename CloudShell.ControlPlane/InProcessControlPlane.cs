@@ -890,7 +890,7 @@ public sealed class InProcessControlPlane(
             return Task.FromResult<IReadOnlyList<LogEntry>>([]);
         }
 
-        return logs.ReadLogAsync(
+        return logs.ReadLogSourceAsync(
             logSourceId,
             options?.MaxEntries ?? 200,
             options?.Before,
@@ -914,7 +914,7 @@ public sealed class InProcessControlPlane(
             return AsyncEnumerable.Empty<LogEntry>();
         }
 
-        return logs.StreamLogAsync(logSourceId, options?.InitialEntries ?? 50, cancellationToken);
+        return logs.StreamLogSourceAsync(logSourceId, options?.InitialEntries ?? 50, cancellationToken);
     }
 
     public Task<IReadOnlyList<TraceSpan>> ListTraceSpansAsync(

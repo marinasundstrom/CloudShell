@@ -742,7 +742,9 @@ type as metadata.
 In code:
 
 - `ILogManager` is the public domain abstraction.
-- `ILogStore` is the internal Control Plane implementation store.
+- `ILogStore` is the internal Control Plane implementation store. It exposes
+  source-addressed read and stream operations while retaining descriptor-based
+  compatibility methods during the migration.
 - `ILogProvider` is the provider contract for contributing and accessing log
   sources. Providers may contribute projected `LogSource` metadata directly,
   while descriptor-backed providers are bridged into sources during the

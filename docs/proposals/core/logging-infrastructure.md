@@ -118,6 +118,9 @@ for descriptor-based read and stream operations. The provider contract can
 also expose projected `LogSource` metadata directly, with descriptor-backed
 providers bridged into sources by default. This lets source discovery evolve
 without forcing every provider to rewrite read and stream operations at once.
+The internal `ILogStore` boundary should use source-addressed read and stream
+operations, with descriptor-named methods retained only as compatibility
+aliases while the UI migrates.
 Providers can also materialize a log-source session when a source is accessed,
 which keeps discovery metadata separate from runtime handles such as file
 readers, process or container streams, remote cursors, credentials, offsets, or
