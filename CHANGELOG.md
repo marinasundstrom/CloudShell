@@ -70,6 +70,9 @@ on `git blame --follow`, and then by the broad type of change.
   control-plane-scoped container apps remove replicas directly with force.
 - Local process runner debug logs now include explicit process-handle release
   messages after tracked process exit observation and runner disposal.
+- Local process runner recovery now treats persisted control-plane-scoped
+  processes as startup cleanup targets only, while detached processes remain
+  eligible for restart reattachment.
 - Local process runner pre-start commands now terminate their process tree when
   canceled and log the released process handle.
 - Container host command helpers now dispose command processes through a

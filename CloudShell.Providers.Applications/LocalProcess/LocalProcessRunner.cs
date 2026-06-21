@@ -284,12 +284,59 @@ public sealed partial class LocalProcessRunner(
         return Task.CompletedTask;
     }
 
-    public Task CleanupHostScopedProcessAsync(
+    public async Task CleanupHostScopedProcessAsync(
         LocalProcessDefinition definition,
-        CancellationToken cancellationToken = default) =>
-        definition.Lifetime == LocalProcessLifetime.ControlPlaneScoped
-            ? StopAsync(definition, force: false, cancellationToken)
-            : Task.CompletedTask;
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (definition.Lifetime != LocalProcessLifetime.ControlPlaneScoped)
+        {
+            return;
+        }
+
+        if (_processes.ContainsKey(definition.Id))
+        {
+            await StopAsync(definition, force: false, cancellationToken);
+            return;
+        }
+
+        var runtimeState = runtimeStates.Get(definition.Id);
+        if (runtimeState?.LastKnownProcessId is null ||
+            runtimeState.LastKnownProcessStartedAt is null)
+        {
+            return;
+        }
+
+        Process? process = null;
+        try
+        {
+            process = Process.GetProcessById(runtimeState.LastKnownProcessId.Value);
+            if (process.HasExited ||
+                !ProcessStartMatches(process, runtimeState.LastKnownProcessStartedAt.Value))
+            {
+                return;
+            }
+
+            LogRecoveredHostScopedProcessStopping(definition.Id, process.Id);
+            ProcessShutdown.KillProcessTreeAndWait(process);
+            var exitCode = TryGetExitCode(process);
+            runtimeStates.Save(new ApplicationRuntimeState(
+                definition.Id,
+                process.Id,
+                null,
+                DateTimeOffset.UtcNow,
+                exitCode,
+                runtimeState.LogPath));
+            LogRecoveredHostScopedProcessStopped(definition.Id, process.Id, exitCode);
+        }
+        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException)
+        {
+        }
+        finally
+        {
+            process?.Dispose();
+        }
+    }
 
     public void Remove(string processId)
     {
@@ -402,6 +449,11 @@ public sealed partial class LocalProcessRunner(
         var runtimeState = runtimeStates.Get(definition.Id);
         if (runtimeState?.LastKnownProcessId is null ||
             runtimeState.LastKnownProcessStartedAt is null)
+        {
+            return false;
+        }
+
+        if (definition.Lifetime == LocalProcessLifetime.ControlPlaneScoped)
         {
             return false;
         }
@@ -722,6 +774,28 @@ public sealed partial class LocalProcessRunner(
         using var scope = BeginResourceProcessScope(resourceId, processId);
         _logger.LogDebug(
             "Stopped control-plane-scoped local process {ProcessId} for resource {ResourceName} during Control Plane shutdown; exit code {ExitCode}.",
+            processId,
+            ResourceDisplayLabels.GetName(resourceId),
+            exitCode?.ToString() ?? "unknown");
+    }
+
+    private void LogRecoveredHostScopedProcessStopping(string resourceId, int processId)
+    {
+        using var scope = BeginResourceProcessScope(resourceId, processId);
+        _logger.LogInformation(
+            "Stopping recovered control-plane-scoped local process {ProcessId} for resource {ResourceName} during startup cleanup.",
+            processId,
+            ResourceDisplayLabels.GetName(resourceId));
+    }
+
+    private void LogRecoveredHostScopedProcessStopped(
+        string resourceId,
+        int processId,
+        int? exitCode)
+    {
+        using var scope = BeginResourceProcessScope(resourceId, processId);
+        _logger.LogInformation(
+            "Stopped recovered control-plane-scoped local process {ProcessId} for resource {ResourceName} during startup cleanup; exit code {ExitCode}.",
             processId,
             ResourceDisplayLabels.GetName(resourceId),
             exitCode?.ToString() ?? "unknown");

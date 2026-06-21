@@ -2946,6 +2946,66 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
+    public async Task LocalProcessRunner_DoesNotReportRecoveredHostScopedProcessAsRunning()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(contentRoot);
+        var options = new LocalProcessOptions
+        {
+            RuntimeStatePath = "application-runtime-state.json",
+            LogDirectory = "application-logs"
+        };
+        var environment = new TestHostEnvironment(contentRoot);
+        var runtimeStates = new ApplicationRuntimeStateStore(options, environment);
+        var definition = CreateLongRunningProcessDefinition();
+        LocalProcessRunner? firstRunner = null;
+        Process? process = null;
+
+        try
+        {
+            firstRunner = new LocalProcessRunner(runtimeStates, options, environment);
+            await firstRunner.StartAsync(definition);
+            var runtimeState = runtimeStates.Get(definition.Id);
+            Assert.NotNull(runtimeState?.LastKnownProcessId);
+            process = Process.GetProcessById(runtimeState.LastKnownProcessId.Value);
+            Assert.False(process.HasExited);
+
+            using var recoveredRunner = new LocalProcessRunner(runtimeStates, options, environment);
+
+            Assert.False(recoveredRunner.IsRunning(definition));
+            Assert.False(process.HasExited);
+        }
+        finally
+        {
+            firstRunner?.Dispose();
+
+            if (process is not null)
+            {
+                try
+                {
+                    if (!process.HasExited)
+                    {
+                        process.Kill(entireProcessTree: true);
+                    }
+                }
+                catch (InvalidOperationException)
+                {
+                }
+                finally
+                {
+                    process.Dispose();
+                }
+            }
+
+            if (Directory.Exists(contentRoot))
+            {
+                Directory.Delete(contentRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public void ProgrammaticApplicationResources_DefaultToControlPlaneScopedLifetime()
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
