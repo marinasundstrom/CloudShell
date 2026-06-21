@@ -186,7 +186,7 @@ public sealed class ContainerHostResolverTests
         Assert.False(result.IsResolved);
         Assert.Equal(ContainerHostResolutionFailureReason.DefaultHostMissing, result.FailureReason);
         Assert.Equal(
-            "Resource 'application:api' is container-backed but no default container host is registered. Use UseDocker(), UseContainerHost(...), or set an explicit container host.",
+            "Resource 'api' is container-backed but no default container host is registered. Use UseDocker(), UseContainerHost(...), or set an explicit container host.",
             result.ErrorMessage);
     }
 

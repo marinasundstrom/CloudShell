@@ -2227,6 +2227,61 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.Equal("visible", Assert.Single(points).ResourceId);
     }
 
+    [Fact]
+    public async Task LogSourceReads_FilterResourceScopedSourcesToReadableResources()
+    {
+        var logStore = new TestLogStore(
+            new LogDescriptor(
+                "visible-log",
+                "Visible",
+                "test",
+                "visible",
+                LogSourceKind.Resource,
+                "visible",
+                SupportsStreaming: true),
+            new LogDescriptor(
+                "hidden-log",
+                "Hidden",
+                "test",
+                "hidden",
+                LogSourceKind.Resource,
+                "hidden",
+                SupportsStreaming: true),
+            new LogDescriptor(
+                "provider-log",
+                "Provider",
+                "test",
+                "provider",
+                LogSourceKind.Provider,
+                SupportsStreaming: true));
+        var controlPlane = CreateControlPlane(
+            [
+                CreateResource("visible", ResourceState.Running),
+                CreateResource("hidden", ResourceState.Running)
+            ],
+            authorization: new PermissionAndResourceAuthorizationService(
+                [CloudShellPermissions.Observability.Logs.Read],
+                ("visible", CloudShellPermissions.Resources.Read)),
+            logStore: logStore);
+
+        var sources = await controlPlane.ListLogSourcesAsync();
+        var hiddenSource = await controlPlane.GetLogSourceAsync("hidden-log");
+        var visibleEntries = await controlPlane.ReadLogSourceAsync("visible-log");
+        var hiddenEntries = await controlPlane.ReadLogSourceAsync("hidden-log");
+        var providerEntries = await controlPlane.ReadLogSourceAsync("provider-log");
+        var hiddenStreamEntries = await ReadEntriesAsync(controlPlane.StreamLogSourceAsync("hidden-log"));
+
+        Assert.Collection(
+            sources.OrderBy(source => source.Id, StringComparer.OrdinalIgnoreCase),
+            source => Assert.Equal("provider-log", source.Id),
+            source => Assert.Equal("visible-log", source.Id));
+        Assert.Null(hiddenSource);
+        Assert.Equal("visible-log", Assert.Single(visibleEntries).Source);
+        Assert.Empty(hiddenEntries);
+        Assert.Equal("provider-log", Assert.Single(providerEntries).Source);
+        Assert.Empty(hiddenStreamEntries);
+    }
+
     private static IControlPlane CreateControlPlane(
         IReadOnlyList<Resource> resources,
         IResourceProvider? provider = null,
@@ -2382,6 +2437,18 @@ public sealed class InProcessControlPlaneResourceStateTests
             $"{resourceId}-service",
             1,
             DateTimeOffset.UtcNow);
+
+    private static async Task<IReadOnlyList<LogEntry>> ReadEntriesAsync(
+        IAsyncEnumerable<LogEntry> entries)
+    {
+        var results = new List<LogEntry>();
+        await foreach (var entry in entries)
+        {
+            results.Add(entry);
+        }
+
+        return results;
+    }
 
     private static Resource CreateIdentityResource(string id, string identityName) =>
         CreateResource(id, ResourceState.Running) with
@@ -3015,6 +3082,8 @@ public sealed class InProcessControlPlaneResourceStateTests
 
     private sealed class TestLogStore(params LogDescriptor[] logs) : ILogStore
     {
+        private readonly LogDescriptor[] logs = logs;
+
         public IReadOnlyList<ILogProvider> Providers => [];
 
         public IReadOnlyList<LogDescriptor> GetLogs() => logs;
@@ -3035,7 +3104,10 @@ public sealed class InProcessControlPlaneResourceStateTests
             int maxEntries = 200,
             DateTimeOffset? before = null,
             CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<LogEntry>>([]);
+            Task.FromResult<IReadOnlyList<LogEntry>>(
+                logs.Any(log => string.Equals(log.Id, logId, StringComparison.OrdinalIgnoreCase))
+                    ? [new LogEntry(DateTimeOffset.UtcNow, $"{logId} entry", Source: logId)]
+                    : []);
 
         public async IAsyncEnumerable<LogEntry> StreamLogAsync(
             string logId,
@@ -3043,7 +3115,10 @@ public sealed class InProcessControlPlaneResourceStateTests
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             await Task.CompletedTask;
-            yield break;
+            if (logs.Any(log => string.Equals(log.Id, logId, StringComparison.OrdinalIgnoreCase)))
+            {
+                yield return new LogEntry(DateTimeOffset.UtcNow, $"{logId} entry", Source: logId);
+            }
         }
     }
 

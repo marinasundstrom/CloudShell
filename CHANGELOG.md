@@ -79,6 +79,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The Logs explorer and resource detail surfaces now list projected log
   sources, including source-only declarations from resource kinds, and read
   through source-addressed log operations.
+- Resource-scoped log source discovery, reads, and streams now enforce both
+  the common logs permission and resource read access, while provider-owned
+  sources remain gated by the common logs permission.
 - Docker host/container resources and Configuration Store/Secrets Vault
   service resources now declare provider-owned default log sources.
 - Resource inventory, Observability landing, Docker container, and application

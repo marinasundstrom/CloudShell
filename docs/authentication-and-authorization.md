@@ -451,7 +451,11 @@ Service map, and the telemetry workspace. Signal-specific permissions can be
 granted independently with `observability.logs.read`,
 `observability.traces.read`, and `observability.metrics.read`. These
 permissions do not override resource access: telemetry rows are returned only
-for resources the caller can read.
+for resources the caller can read. Resource-scoped log source metadata, log
+reads, and log streams are subject to the same rule. A caller must be able to
+read the common logs feature and the owning resource; provider-owned or
+artifact-owned log sources without a resource owner are gated by the common
+logs permission.
 
 Resource operation permissions should be documented when they are added. The
 current resource-type and resource-class operation catalog is:
