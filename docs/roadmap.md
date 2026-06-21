@@ -365,9 +365,11 @@ listed here before pulling in broader proposal work.
    `telemetry:metrics` is now the standard predefined resource view ID for
    provider-owned application/runtime Metrics tabs. The first metrics slice
    adds in-memory metric points, Control Plane list/ingest APIs, remote-client
-   support, shared and inline Metrics views, and Project Reference request
-   count/duration ingestion; durable retention, aggregation, OpenTelemetry
-   metrics ingestion, and provider implementations remain separate work.
+   support, shared and inline Metrics views, Project Reference request
+   count/duration ingestion, and appsettings-configured resource metric panels
+   for live indicators and retained recent-history line charts; durable
+   retention, Control Plane aggregation, OpenTelemetry metrics ingestion, and
+   provider implementations remain separate work.
    Track provider-supported resource Monitoring separately under the resource
    Management group because resource monitoring is about provider-observed
    resource metrics such as process/container CPU and memory usage rather than

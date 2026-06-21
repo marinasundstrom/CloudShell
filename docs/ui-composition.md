@@ -363,6 +363,15 @@ legacy navigation bridge remains for unmigrated extension navigation items;
 migrated items should be removed from legacy `AddNavigationItem(...)`
 registration to avoid duplicate sidebar entries.
 
+Future dashboard customization should use the same composition model. The
+dashboard should expose section containers or slots that installed modules can
+extend with custom content areas, while still letting the dashboard renderer
+own layout. Extensions that need a full custom experience should be able to
+register their own page and map a navigation item to it through composition
+targets. That includes pages that embed a provider-owned tool such as Grafana;
+the shell should route and authorize the page, but the embedded experience
+remains extension-owned content rather than a built-in Metrics view.
+
 The CloudShell main layout hosts `CompositionHost` in pass-through mode. Pages
 that are registered in the composition graph receive a cascaded
 `CompositionContext`; legacy routes that are not composition-native continue

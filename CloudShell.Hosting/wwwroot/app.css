@@ -3392,6 +3392,158 @@ h3 {
     font-size: 1.25rem;
 }
 
+.metric-view-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem;
+    margin-bottom: .75rem;
+    border-bottom: 1px solid var(--cloudshell-divider);
+}
+
+.metric-view-tab {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.1rem;
+    padding: .35rem .7rem;
+    border: 1px solid transparent;
+    border-bottom: 0;
+    border-radius: 4px 4px 0 0;
+    color: var(--cloudshell-text-muted);
+    font-size: .82rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.metric-view-tab:hover,
+.metric-view-tab:focus-visible {
+    background: var(--cloudshell-hover);
+    color: var(--cloudshell-text);
+    text-decoration: none;
+}
+
+.metric-view-tab.active {
+    border-color: var(--cloudshell-divider);
+    background: var(--cloudshell-surface-muted);
+    color: var(--cloudshell-text);
+}
+
+.metric-panel-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+    gap: .65rem;
+    margin-bottom: .75rem;
+}
+
+.metric-panel {
+    display: grid;
+    align-content: start;
+    gap: .65rem;
+    min-width: 0;
+    min-height: 12rem;
+    padding: .75rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 4px;
+    background: var(--cloudshell-surface-muted);
+}
+
+.metric-panel.indicator {
+    min-height: 9rem;
+}
+
+.metric-panel header {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: .75rem;
+    min-width: 0;
+}
+
+.metric-panel header div {
+    display: grid;
+    gap: .16rem;
+    min-width: 0;
+}
+
+.metric-panel h3,
+.metric-panel p {
+    margin: 0;
+}
+
+.metric-panel h3 {
+    overflow: hidden;
+    color: var(--cloudshell-text);
+    font-size: .9rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.metric-panel p,
+.metric-panel header span,
+.metric-panel-stats,
+.metric-panel-empty span,
+.metric-indicator span {
+    color: var(--cloudshell-text-muted);
+    font-size: .72rem;
+}
+
+.metric-panel header span {
+    flex: 0 1 auto;
+    max-width: 45%;
+    overflow: hidden;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.metric-indicator {
+    display: grid;
+    align-self: end;
+    gap: .2rem;
+}
+
+.metric-indicator strong {
+    font-size: 2rem;
+    line-height: 1;
+}
+
+.cloudshell-line-chart {
+    min-height: 6rem;
+}
+
+.cloudshell-line-chart svg {
+    display: block;
+    width: 100%;
+    height: 6rem;
+    overflow: visible;
+}
+
+.cloudshell-line-chart line {
+    stroke: var(--cloudshell-divider);
+    stroke-width: 1;
+}
+
+.cloudshell-line-chart polyline {
+    fill: none;
+    stroke: var(--cloudshell-accent);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2.2;
+}
+
+.metric-panel-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .25rem .75rem;
+}
+
+.metric-panel-empty {
+    display: grid;
+    align-content: center;
+    gap: .2rem;
+    min-height: 6rem;
+    color: var(--cloudshell-text);
+}
+
 .metric-point-table-shell {
     border: 1px solid #202938;
     border-radius: 4px;

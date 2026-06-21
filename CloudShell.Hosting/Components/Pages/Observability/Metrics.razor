@@ -16,7 +16,8 @@
 else
 {
     <MetricExplorer ResourceId="@ResourceId"
-                    ScopeResourceId="@ScopeResourceId" />
+                    ScopeResourceId="@ScopeResourceId"
+                    View="@View" />
 }
 
 @code {
@@ -27,4 +28,8 @@ else
     [Parameter]
     [SupplyParameterFromQuery]
     public string? ScopeResourceId { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public string? View { get; set; }
 }

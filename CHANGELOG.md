@@ -20,6 +20,11 @@ on `git blame --follow`, and then by the broad type of change.
 - Metrics views now present recent metric points in a structured table with
   stable source, metric, value, and attribute columns instead of a compact
   log-style stream.
+- Metrics views can now render appsettings-configured resource metric panels
+  as live indicators or recent-history line charts, with the raw metric stream
+  available as a separate Metrics subview.
+- The Application Topology sample now configures basic request count and
+  request duration metric panels for its frontend and API resources.
 
 ### 2026-06-20
 

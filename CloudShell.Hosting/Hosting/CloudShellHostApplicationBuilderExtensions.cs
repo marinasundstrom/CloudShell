@@ -5,6 +5,7 @@ using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Abstractions.Shell;
 using CloudShell.Hosting.Authentication;
 using CloudShell.Hosting.Localization;
+using CloudShell.Hosting.Observability;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
 using CloudShell.UI.Composition;
@@ -68,6 +69,8 @@ public static class CloudShellHostApplicationBuilderExtensions
             builder.Configuration.GetSection(CloudShellDisplayOptions.SectionName));
         builder.Services.Configure<ResourceManagerUiOptions>(
             builder.Configuration.GetSection(ResourceManagerUiOptions.SectionName));
+        builder.Services.Configure<MetricVisualizationOptions>(
+            builder.Configuration.GetSection(MetricVisualizationOptions.SectionName));
         builder.Services.AddRazorComponents()
             .AddInteractiveServerComponents();
         builder.Services.AddCloudShellUiComposition();

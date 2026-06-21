@@ -1,0 +1,47 @@
+@using System.Globalization
+
+<div class="cloudshell-line-chart" role="img" aria-label="@AriaLabel">
+    <svg viewBox="0 0 100 42" preserveAspectRatio="none" focusable="false">
+        <line x1="0" y1="41" x2="100" y2="41"></line>
+        <polyline points="@LinePoints"></polyline>
+    </svg>
+</div>
+
+@code {
+    [Parameter]
+    public IReadOnlyList<double> Values { get; set; } = [];
+
+    [Parameter]
+    public string? AriaLabel { get; set; }
+
+    private string LinePoints => BuildLinePoints(Values);
+
+    private static string BuildLinePoints(IReadOnlyList<double> values)
+    {
+        if (values.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        if (values.Count == 1)
+        {
+            return "0,21 100,21";
+        }
+
+        var min = values.Min();
+        var max = values.Max();
+        var range = max - min;
+        return string.Join(
+            " ",
+            values.Select((value, index) =>
+            {
+                var x = index * 100d / (values.Count - 1);
+                var y = range <= 0
+                    ? 21d
+                    : 40d - ((value - min) / range * 38d);
+                return string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"{x:0.###},{y:0.###}");
+            }));
+    }
+}

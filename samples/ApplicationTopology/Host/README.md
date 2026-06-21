@@ -113,7 +113,10 @@ The frontend and API also emit `http.server.requests` and
 `CLOUDSHELL_METRIC_INGEST_ENDPOINT` is configured by the host. Open
 `/observability/metrics` or the frontend/API **Metrics** tabs after exercising
 `/upstream`, `/upstream/failure`, or `/upstream/fallback` to inspect the
-resource-scoped metric points.
+resource-scoped metric points. The host `appsettings.json` maps those standard
+request metrics onto basic **Graphs** panels for the frontend and API
+resources, while the **Stream** subview keeps the retained raw metric points
+available for inspection.
 
 The sample disables startup autostart for these three application resources so
 you can exercise the live dependency path deliberately from Resource Manager.

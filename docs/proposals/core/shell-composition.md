@@ -386,6 +386,16 @@ component type. Renderers such as stacked section outlets, dashboard grids, and
 tabs should consume that same section registration instead of inventing
 renderer-specific content registrations.
 
+Dashboard customization should be modeled as composed content, not as a
+dashboard-specific plugin API. A dashboard can declare slots or section
+containers for custom content areas, and installed modules can contribute
+sections into those containers while the dashboard renderer chooses the final
+grid or tile layout. If a module needs a whole custom surface, it should
+register a page and map a menu item to that page through a composition target.
+That is the extension point for embedded operational tools, including a
+provider-owned Grafana page, without making the built-in Metrics explorer own
+third-party dashboard behavior.
+
 ### Rendering Primitives
 
 | Concept | Purpose | Notes |
