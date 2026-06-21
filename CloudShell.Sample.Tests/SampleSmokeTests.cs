@@ -1160,6 +1160,61 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
+    [Trait("Category", "DockerIntegration")]
+    public async Task ApplicationTopologyHost_GracefulShutdownRemovesSqlServerContainer()
+    {
+        const string sqlContainerName = "cloudshell-application-application-topology-sql-server";
+        if (!await DockerComposeStack.IsAvailableAsync() ||
+            !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.DefaultSqlServerImage) ||
+            await DockerComposeStack.ContainerExistsAsync(sqlContainerName))
+        {
+            return;
+        }
+
+        var sqlPort = await GetFreePortAsync();
+        var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:application-topology");
+        var secretsServiceBasePort = await GetServiceBasePortAsync("secrets-vault:application-topology");
+        SampleProcess? host = null;
+        var shouldCleanupContainer = false;
+
+        try
+        {
+            host = await SampleProcess.StartAsync(
+                "samples/ApplicationTopology/Host/CloudShell.ApplicationTopologyHost.csproj",
+                await GetFreePortAsync(),
+                [
+                    ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
+                    ("ApplicationTopology__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
+                    ("ApplicationTopology__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture))
+                ]);
+
+            await host.WaitForHttpOkAsync("/", StartupTimeout);
+            shouldCleanupContainer = true;
+            await host.SendAsync(
+                HttpMethod.Post,
+                "/api/control-plane/v1/resources/application%3Aapplication-topology-sql-server/actions/start");
+            Assert.True(
+                await WaitForDockerContainerExistsAsync(sqlContainerName, StartupTimeout),
+                $"Expected Docker container '{sqlContainerName}' to be created.");
+
+            await host.StopAsync(TimeSpan.FromSeconds(30));
+
+            Assert.True(
+                await WaitForDockerContainerRemovedAsync(sqlContainerName, StartupTimeout),
+                $"Expected Docker container '{sqlContainerName}' to be removed during graceful host shutdown.");
+            shouldCleanupContainer = false;
+        }
+        finally
+        {
+            host?.Dispose();
+            if (shouldCleanupContainer)
+            {
+                await DockerComposeStack.RemoveContainerIfExistsAsync(sqlContainerName);
+            }
+        }
+    }
+
+    [Fact]
     public async Task SettingsAndSecretsSample_ProjectsReferenceBackedEnvironmentResources()
     {
         var apiPort = await GetFreePortAsync();
@@ -2223,6 +2278,38 @@ public sealed class SampleSmokeTests
             $"{Environment.NewLine}{lastBody ?? lastException?.Message}");
     }
 
+    private static async Task<bool> WaitForDockerContainerExistsAsync(string containerName, TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            if (await DockerComposeStack.ContainerExistsAsync(containerName))
+            {
+                return true;
+            }
+
+            await Task.Delay(250);
+        }
+
+        return false;
+    }
+
+    private static async Task<bool> WaitForDockerContainerRemovedAsync(string containerName, TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            if (!await DockerComposeStack.ContainerExistsAsync(containerName))
+            {
+                return true;
+            }
+
+            await Task.Delay(250);
+        }
+
+        return false;
+    }
+
     private static bool IsHttpMetricForPath(
         JsonElement point,
         string name,
@@ -2387,6 +2474,41 @@ public sealed class SampleSmokeTests
             catch
             {
                 return false;
+            }
+        }
+
+        public static async Task<bool> ContainerExistsAsync(string containerName)
+        {
+            try
+            {
+                var result = await RunDockerAsync(
+                    SampleProcess.FindRepositoryRoot(),
+                    ["container", "inspect", containerName],
+                    null,
+                    TimeSpan.FromSeconds(10),
+                    throwOnError: false);
+                return result.ExitCode == 0;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public static async Task RemoveContainerIfExistsAsync(string containerName)
+        {
+            try
+            {
+                await RunDockerAsync(
+                    SampleProcess.FindRepositoryRoot(),
+                    ["rm", "-f", containerName],
+                    null,
+                    TimeSpan.FromSeconds(30),
+                    throwOnError: false);
+            }
+            catch
+            {
+                // Test cleanup should not hide the original test failure.
             }
         }
 
@@ -2867,6 +2989,60 @@ public sealed class SampleSmokeTests
             }
 
             process.Dispose();
+        }
+
+        public async Task StopAsync(TimeSpan timeout)
+        {
+            if (process.HasExited)
+            {
+                return;
+            }
+
+            await RequestGracefulShutdownAsync();
+            try
+            {
+                await process.WaitForExitAsync().WaitAsync(timeout);
+            }
+            catch (TimeoutException)
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                }
+
+                throw;
+            }
+        }
+
+        private async Task RequestGracefulShutdownAsync()
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                if (process.CloseMainWindow())
+                {
+                    return;
+                }
+
+                process.Kill(entireProcessTree: true);
+                return;
+            }
+
+            using var signal = Process.Start(new ProcessStartInfo("kill")
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                ArgumentList =
+                {
+                    "-TERM",
+                    process.Id.ToString(CultureInfo.InvariantCulture)
+                }
+            }) ?? throw new InvalidOperationException("Could not signal sample process shutdown.");
+            await signal.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            if (signal.ExitCode != 0 && !process.HasExited)
+            {
+                throw new InvalidOperationException($"Could not signal sample process shutdown.{Environment.NewLine}{GetOutput()}");
+            }
         }
 
         private void Capture(StreamReader reader)

@@ -55,6 +55,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Docker provider shutdown now cancels active discovery refreshes before
   disposing cached host clients, waits for refresh quiescence, and logs when a
   Docker refresh does not stop within the configured request timeout.
+- Docker integration smoke coverage now exercises graceful Application
+  Topology host shutdown and verifies the SQL Server container is removed.
 - Observability and log views now use resource-name fallbacks instead of raw
   resource IDs when a telemetry/log source references a resource that is not
   present in the current resource snapshot.
