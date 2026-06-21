@@ -8,6 +8,12 @@ namespace CloudShell.Hosting.ResourceManager;
 
 public sealed class ResourceManagerExtension(bool includeSettings = true) : ICloudShellExtension
 {
+    private static readonly IReadOnlyDictionary<string, string> ResourceManagementSettingsGroup =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [CompositionAttributeNames.Group] = "Resource Management"
+        };
+
     public ResourceManagerExtension()
         : this(includeSettings: true)
     {
@@ -181,7 +187,8 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                         .AddSection<ResourceManagerSettingsSection>(
                             ResourceManagerCompositionIds.SettingsSection,
                             "Resource Manager",
-                            30);
+                            30,
+                            ResourceManagementSettingsGroup);
                 });
 
             builder.RegisterView<ResourceManagerSettings>(ResourceManagerViews.ResourceSettings);

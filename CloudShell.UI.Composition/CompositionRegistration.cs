@@ -83,10 +83,14 @@ public sealed record CompositionSectionRegistration(
     string Title,
     Type ComponentType,
     int Order,
-    CompositionAuthorizationRequirements? Authorization = null)
+    CompositionAuthorizationRequirements? Authorization = null,
+    IReadOnlyDictionary<string, string>? Attributes = null)
 {
     public CompositionAuthorizationRequirements Authorization { get; init; } =
         Authorization ?? CompositionAuthorizationRequirements.None;
+
+    public IReadOnlyDictionary<string, string> Attributes { get; init; } =
+        Attributes ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 }
 
 public sealed record CompositionContext(

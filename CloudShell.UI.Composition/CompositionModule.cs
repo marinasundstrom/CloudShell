@@ -61,7 +61,8 @@ public sealed record CompositionModule(
                 section.Title,
                 componentTypes.ResolveComponentType(section.ComponentTypeName),
                 section.Order,
-                section.Authorization)).ToArray());
+                section.Authorization,
+                section.Attributes)).ToArray());
     }
 
     private static CompositionMenuItemRegistration ToMenuItemRegistration(CompositionMenuItemDescriptor item) =>

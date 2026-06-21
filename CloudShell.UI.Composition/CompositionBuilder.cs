@@ -92,7 +92,8 @@ public sealed class CompositionBuilder
         string title,
         Type component,
         int order,
-        CompositionAuthorizationRequirements? authorization = null)
+        CompositionAuthorizationRequirements? authorization = null,
+        IReadOnlyDictionary<string, string>? attributes = null)
     {
         CompositionRegistry.ValidateId(sectionId.Value, nameof(sectionId));
 
@@ -103,7 +104,8 @@ public sealed class CompositionBuilder
             title,
             component,
             order,
-            authorization));
+            authorization,
+            attributes));
     }
 
     internal void ReplacePageAuthorization(
@@ -233,9 +235,10 @@ public sealed class CompositionSectionOutletBuilder(
     public CompositionSectionOutletBuilder AddSection<TComponent>(
         SectionId id,
         string title,
-        int order)
+        int order,
+        IReadOnlyDictionary<string, string>? attributes = null)
     {
-        AddSection(id, title, typeof(TComponent), order);
+        AddSection(id, title, typeof(TComponent), order, attributes: attributes);
         return this;
     }
 
@@ -244,9 +247,10 @@ public sealed class CompositionSectionOutletBuilder(
         string title,
         Type component,
         int order,
-        CompositionAuthorizationRequirements? authorization = null)
+        CompositionAuthorizationRequirements? authorization = null,
+        IReadOnlyDictionary<string, string>? attributes = null)
     {
-        builder.AddSection(pageId, outletId, id, title, component, order, authorization);
+        builder.AddSection(pageId, outletId, id, title, component, order, authorization, attributes);
 
         return this;
     }
@@ -260,9 +264,10 @@ public sealed class CompositionSectionOutletExtensionBuilder(
     public CompositionSectionOutletExtensionBuilder AddSection<TComponent>(
         SectionId id,
         string title,
-        int order)
+        int order,
+        IReadOnlyDictionary<string, string>? attributes = null)
     {
-        AddSection(id, title, typeof(TComponent), order);
+        AddSection(id, title, typeof(TComponent), order, attributes: attributes);
         return this;
     }
 
@@ -271,9 +276,10 @@ public sealed class CompositionSectionOutletExtensionBuilder(
         string title,
         Type component,
         int order,
-        CompositionAuthorizationRequirements? authorization = null)
+        CompositionAuthorizationRequirements? authorization = null,
+        IReadOnlyDictionary<string, string>? attributes = null)
     {
-        builder.AddSection(pageId, outletId, id, title, component, order, authorization);
+        builder.AddSection(pageId, outletId, id, title, component, order, authorization, attributes);
 
         return this;
     }

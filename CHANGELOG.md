@@ -31,6 +31,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Users and Extensions now live as common Settings sections, with the shell
   topbar settings cog as the primary entry point instead of a Platform
   navigation group.
+- Composition section registrations now carry grouping attributes, and the
+  common Settings page uses them to separate shell settings from Resource
+  Manager settings without adopting sidebar-style collapse behavior.
 - Mapped-resource DNS surfaces now render name mappings as endpoint anchors
   only when CloudShell can resolve the mapped target endpoint as HTTP/HTTPS,
   while name-mapping and DNS-zone overviews keep the name mapping itself

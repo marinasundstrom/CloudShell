@@ -56,7 +56,12 @@ public sealed record CompositionSectionDescriptor(
     string Title,
     string ComponentTypeName,
     int Order,
-    CompositionAuthorizationRequirements? Authorization = null);
+    CompositionAuthorizationRequirements? Authorization = null,
+    IReadOnlyDictionary<string, string>? Attributes = null)
+{
+    public IReadOnlyDictionary<string, string> Attributes { get; init; } =
+        Attributes ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+}
 
 public static class CompositionDescriptorExtensions
 {
@@ -114,5 +119,6 @@ public static class CompositionDescriptorExtensions
             section.Title,
             section.ComponentType.AssemblyQualifiedName ?? section.ComponentType.FullName ?? section.ComponentType.Name,
             section.Order,
-            section.Authorization);
+            section.Authorization,
+            section.Attributes);
 }

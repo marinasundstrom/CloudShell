@@ -190,13 +190,33 @@
                 section.Section.Id.Value,
                 L[section.Section.Title].Value,
                 section.Section.Order,
-                Group: L[Group].Value,
-                GroupTitle: GroupTitle is null ? null : L[GroupTitle].Value,
+                Group: GetGroup(section),
+                GroupTitle: GetGroupTitle(section),
                 Icon: IconSelector?.Invoke(section),
                 Description: DescriptionSelector?.Invoke(section),
                 ModuleId: section.ModuleId.Value,
                 Href: BuildSectionHref(section.Section.Id.Value)))
             .ToArray();
+
+    private string GetGroup(CompositionSectionProjection section)
+    {
+        var group = GetAttribute(section, CompositionAttributeNames.Group) ?? Group;
+        return L[group].Value;
+    }
+
+    private string? GetGroupTitle(CompositionSectionProjection section)
+    {
+        var groupTitle = GetAttribute(section, CompositionAttributeNames.GroupTitle) ?? GroupTitle;
+        return groupTitle is null ? null : L[groupTitle].Value;
+    }
+
+    private static string? GetAttribute(
+        CompositionSectionProjection section,
+        string name) =>
+        section.Section.Attributes.TryGetValue(name, out var value) &&
+        !string.IsNullOrWhiteSpace(value)
+            ? value
+            : null;
 
     private void SelectSection(CloudShellTabbedLayoutItem item)
     {

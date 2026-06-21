@@ -53,6 +53,7 @@ public sealed class CompositionDescriptorTests
         Assert.Equal("Details", section.Title);
         Assert.Contains(nameof(DetailsSectionComponent), section.ComponentTypeName);
         Assert.Equal(["workspace.details.read"], section.Authorization?.AnyPermissions);
+        Assert.Equal("Workspace", section.Attributes[CompositionAttributeNames.Group]);
     }
 
     [Fact]
@@ -80,6 +81,9 @@ public sealed class CompositionDescriptorTests
             roundTrip.SectionOutlets[0].Authorization?.AnyPermissions);
         Assert.Equal(descriptor.Sections[0].ComponentTypeName, roundTrip.Sections[0].ComponentTypeName);
         Assert.Equal(descriptor.Sections[0].Authorization?.AnyPermissions, roundTrip.Sections[0].Authorization?.AnyPermissions);
+        Assert.Equal(
+            descriptor.Sections[1].Attributes[CompositionAttributeNames.Group],
+            roundTrip.Sections[1].Attributes[CompositionAttributeNames.Group]);
     }
 
     [Fact]
@@ -100,6 +104,7 @@ public sealed class CompositionDescriptorTests
             .Single(section => section.Id == DetailsSection);
         Assert.Equal(typeof(DetailsSectionComponent), details.ComponentType);
         Assert.Equal(["workspace.details.read"], details.Authorization.AnyPermissions);
+        Assert.Equal("Workspace", details.Attributes[CompositionAttributeNames.Group]);
     }
 
     [Fact]
@@ -142,7 +147,11 @@ public sealed class CompositionDescriptorTests
                     "Details",
                     typeof(DetailsSectionComponent),
                     20,
-                    CompositionAuthorizationRequirements.FromAnyPermissions(["workspace.details.read"]));
+                    CompositionAuthorizationRequirements.FromAnyPermissions(["workspace.details.read"]),
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        [CompositionAttributeNames.Group] = "Workspace"
+                    });
         });
 
     private sealed class OverviewSectionComponent;

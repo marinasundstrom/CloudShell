@@ -705,6 +705,8 @@ public sealed class SampleSmokeTests
         Assert.Contains(">Users<", settingsHtml);
         Assert.Contains(">Extensions<", settingsHtml);
         Assert.Contains(">Resource Manager<", settingsHtml);
+        Assert.Contains(">Shell<", settingsHtml);
+        Assert.Contains(">Resource Management<", settingsHtml);
         Assert.Contains("Settings composition", settingsHtml);
 
         var usersSettingsHtml = await host.GetStringAsync("/settings/users");

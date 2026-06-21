@@ -7,6 +7,12 @@ namespace CloudShell.Hosting.Shell;
 
 public sealed class CoreShellExtension : ICloudShellExtension
 {
+    private static readonly IReadOnlyDictionary<string, string> ShellSettingsGroup =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [CompositionAttributeNames.Group] = "Shell"
+        };
+
     public CloudShellExtensionManifest Manifest => new(
         "cloudshell.core",
         "CloudShell Core",
@@ -30,15 +36,18 @@ public sealed class CoreShellExtension : ICloudShellExtension
                     .AddSection<ShellSettingsOverviewSection>(
                         ShellCompositionIds.SettingsOverviewSection,
                         "Overview",
-                        10)
+                        10,
+                        ShellSettingsGroup)
                     .AddSection<Components.Pages.Account.Users>(
                         ShellCompositionIds.SettingsUsersSection,
                         "Users",
-                        20)
+                        20,
+                        ShellSettingsGroup)
                     .AddSection<Components.Pages.Extensions.Extensions>(
                         ShellCompositionIds.SettingsExtensionsSection,
                         "Extensions",
-                        30);
+                        30,
+                        ShellSettingsGroup);
 
                 var mainMenu = module.AddMenu(ShellCompositionIds.MainMenu, "Main");
 

@@ -180,6 +180,14 @@ public sealed class ShellNavigationTests
             CompositionSectionAddressMode.Child,
             registry.GetSectionOutlet(ShellCompositionIds.SettingsMainOutlet)?.AddressMode);
         Assert.Equal(
+            "Shell",
+            registry.GetSectionProjection(ShellCompositionIds.SettingsUsersSection)
+                ?.Section.Attributes[CompositionAttributeNames.Group]);
+        Assert.Equal(
+            "Resource Management",
+            registry.GetSectionProjection(ResourceManagerCompositionIds.SettingsSection)
+                ?.Section.Attributes[CompositionAttributeNames.Group]);
+        Assert.Equal(
             "/settings/users",
             registry.ResolveHref(ShellCompositionIds.SettingsUsersSection));
         Assert.Equal(
