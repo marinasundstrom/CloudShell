@@ -620,7 +620,7 @@ else
             }
 
             var subtitle = resource is null
-                ? span.ResourceId
+                ? ResourceDisplayLabels.GetName(span.ResourceId)
                 : $"{GetResourceLabel(resource, displaySelection)} / {GetResourceTypeLabel(resource)}";
 
             var node = new DependencyNode(
@@ -675,7 +675,8 @@ else
                 return existing;
             }
 
-            var node = new DependencyNode(nodeId, resourceId, resourceId, null, "No resource", "unknown");
+            var label = ResourceDisplayLabels.GetName(resourceId);
+            var node = new DependencyNode(nodeId, label, label, null, "No resource", "unknown");
             nodes[nodeId] = node;
             return node;
         }

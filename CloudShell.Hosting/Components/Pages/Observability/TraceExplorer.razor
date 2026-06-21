@@ -696,7 +696,7 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
     private string GetResourceLabel(string resourceId) =>
         ResourcesById.TryGetValue(resourceId, out var resource)
             ? GetResourceLabel(resource)
-            : resourceId;
+            : ResourceDisplayLabels.GetName(resourceId);
 
     private string GetSpanSummary(int spanCount) =>
         string.IsNullOrWhiteSpace(TraceId)

@@ -925,7 +925,7 @@ else if (ShowHeading)
     private string GetResourceLabel(string resourceId) =>
         LogResourcesById.TryGetValue(resourceId, out var resource)
             ? GetResourceLabel(resource)
-            : resourceId;
+            : ResourceDisplayLabels.GetName(resourceId);
 
     private void ClearTraceFilter()
     {

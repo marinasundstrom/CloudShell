@@ -52,6 +52,9 @@ on `git blame --follow`, and then by the broad type of change.
   provider disposal.
 - Docker host client create/dispose diagnostics now use Debug level, matching
   the process-oriented container host command logs.
+- Observability and log views now use resource-name fallbacks instead of raw
+  resource IDs when a telemetry/log source references a resource that is not
+  present in the current resource snapshot.
 - Re-aligned the local-development MVP queue around Application Topology
   repeatability, resource-name-first UI messages, exposure/name-mapping link
   clarity, host-scoped lifecycle cleanup, process/Docker diagnostics, guarded

@@ -574,7 +574,7 @@ else if (ShowHeading)
     private string GetResourceLabel(string resourceId) =>
         ResourcesById.TryGetValue(resourceId, out var resource)
             ? GetResourceLabel(resource)
-            : resourceId;
+            : ResourceDisplayLabels.GetName(resourceId);
 
     private string GetPointSummary(int pointCount) =>
         L["{0} points retained in memory", pointCount].Value;
