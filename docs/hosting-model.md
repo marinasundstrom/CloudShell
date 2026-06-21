@@ -8,6 +8,16 @@ cloud-like environment that users inspect and operate. It is anchored by
 Control Plane resource state and installed capability packages, and it can be
 served by one combined host or by separate Control Plane and UI hosts.
 
+CloudShell is intended to be the same platform in both roles. In local
+development it can run as a combined host that gives developers a resource
+manager, lifecycle control, diagnostics, observability, identity, storage,
+networking, and endpoint/name mapping while they are still declaring resources
+in code. In on-premise hosting it can run as a standing environment with
+durable Control Plane state, installed providers, shared runtime placement,
+and operator-facing Resource Manager workflows. The local development shape is
+therefore not a separate dashboard product; it is the hosting platform running
+close to the developer.
+
 An on-premise CloudShell environment is a CloudShell instance running as its own
 cloud environment, potentially for shared hosting. It owns its Control Plane
 state, installed capabilities, provider integrations, and runtime placement

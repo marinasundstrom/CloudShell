@@ -27,6 +27,16 @@ The product should make it possible to:
 - Keep provider-owned configuration and platform-owned registration state
   clearly separated.
 
+CloudShell should use established cloud-native concepts as its product
+language instead of exposing any one provider's product taxonomy as the
+platform model. Resource Manager should group and present capabilities by
+intent and concern, such as applications, endpoints, endpoint mappings,
+networks, DNS/name mappings, storage, identity, health, telemetry, lifecycle,
+and diagnostics. Provider-specific objects and terms can appear where they
+explain a resource or a provider-owned failure, but they should not become the
+default navigation model solely because a backing platform exposes them that
+way.
+
 ## Boundaries
 
 The WebUI is the shell surface. The Control Plane owns resource inventory,
@@ -123,6 +133,14 @@ fit CloudShell's domain model: third-party packages and containers can
 implement providers or services, but they should not leak provider-native
 configuration, credentials, or incidental runtime shapes into projected
 resources unless those facts are stable CloudShell concepts.
+
+Do not copy a cloud provider's legacy product boundaries as CloudShell
+abstractions. Existing products are useful references for user expectations,
+common affordances, and operational vocabulary, but CloudShell does not need to
+preserve their backward-compatible categories. Prefer a portable abstraction
+when the same concept spans several runtimes or providers, then expose the
+provider-native shape as detail on provider or diagnostic surfaces when it is
+material to understanding behavior.
 
 It is acceptable to develop a capability internally first while the model is
 still uncertain. When that internal surface becomes generally useful for

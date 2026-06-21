@@ -45,12 +45,24 @@ Resource Manager workflows, provider integrations, and API-driven automation.
   It should avoid hiding provider behavior or copying one provider's accidental
   model. Provider-specific details should still be inspectable when they are
   useful for diagnostics or operations.
+- CloudShell should organize infrastructure by current cloud-native domain
+  concepts and user intent, not by a provider's historical product taxonomy.
+  Users should be able to understand applications, endpoints, endpoint
+  mappings, networks, DNS/name mappings, storage, identity, deployments,
+  health, and telemetry without first learning the vocabulary of Docker,
+  Kubernetes, Azure, AWS, or any other backing implementation. Provider-native
+  details remain available when inspecting or diagnosing a specific provider
+  resource, but they are not the primary CloudShell model.
 
 ## Platform Direction
 
 CloudShell should provide cloud-like management primitives without requiring a
 public cloud account. The platform should support local development first, then
 scale toward team-owned and on-premise environments with the same model.
+CloudShell is a hosting platform that also works as a development tool: the
+same Control Plane, Resource Manager, resource model, and provider extension
+patterns can run in a developer's local combined host or in a standalone
+on-premise CloudShell environment.
 
 The important platform path is:
 
@@ -65,6 +77,12 @@ CloudShell is not trying to replace public cloud platforms. It should make
 cloud-inspired architecture understandable, manageable, and testable in local
 or self-hosted environments, while keeping a path to provider-backed
 implementations.
+
+The platform can learn from existing cloud portals without inheriting their
+legacy boundaries. Familiar placement and affordances are useful, but
+CloudShell's default model should stay resource-centered and portable:
+providers and orchestrators materialize resources, while users operate the
+resource graph through CloudShell concepts.
 
 ## Local Development MVP Goal
 

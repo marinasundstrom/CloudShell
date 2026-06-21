@@ -47,6 +47,14 @@ Control Plane's resource state and installed capability packages. It may be
 served by a combined host application or by separate Control Plane and UI host
 applications.
 
+The environment model is deliberately shared between local development and
+on-premise hosting. A developer can run the platform locally as a combined
+Resource Manager and Control Plane while resources are still code-first, then
+the same resource model can be persisted into durable Control Plane state and
+operated by a standing CloudShell environment. This makes CloudShell a hosting
+platform that doubles as a development tool, rather than a development
+dashboard that must later be replaced by a different operational model.
+
 A CloudShell host application is the ASP.NET Core application owned by a
 product integrator or sample. It chooses the deployment shape, configuration,
 authentication, persistence, and installed capabilities. The host can run the
@@ -120,6 +128,15 @@ A resource is the central CloudShell artifact. It represents something the
 platform can inspect or operate, such as a Docker Engine, container, executable
 application, configuration service, database, queue, or internal service.
 
+The resource model is the portability boundary. CloudShell should not require
+users to learn a provider-specific vocabulary, such as pods, container groups,
+app-service products, or vendor-specific deployment units, before they can
+understand a resource. Providers and orchestrators may materialize a resource
+through those native objects, and CloudShell may expose them as runtime
+children, provider resources, or diagnostics when they matter, but the primary
+model remains resources, endpoints, endpoint mappings, dependencies,
+identity, storage, health, telemetry, lifecycle, and deployment state.
+
 In code, a resource is projected as `Resource`.
 
 Important properties:
@@ -153,6 +170,14 @@ attributes such as class, type, endpoints, actions, health checks,
 observability, and structural metadata; providers own the configuration and
 runtime behavior behind those attributes. `Resource` does not imply CloudShell
 owns all underlying provider configuration or runtime state.
+
+This means an application resource can represent a single local process, one
+container, several containers, a provider-managed service, or a future
+orchestrated workload without making Docker, Kubernetes, Azure, or another
+provider's native object model the CloudShell object model. Provider-native
+terms are still appropriate inside provider-specific resource pages and
+diagnostic views when they explain placement, materialization, health, or
+failure.
 
 `Id` is the canonical resource identity and should be visible wherever users
 inspect resource details. Activity logs should use the resource ID as the

@@ -17,6 +17,14 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Documented the resource-centered product principle that CloudShell should
+  expose established cloud-native concepts and user intent instead of copying
+  provider legacy taxonomies, while keeping provider-native details available
+  for resource-specific inspection and diagnostics.
+- Documented that CloudShell is a hosting platform that doubles as a local
+  development tool, with the same Control Plane, Resource Manager, resource
+  model, and provider extension patterns running locally or in an on-premise
+  environment.
 - Resource overview now summarizes concrete endpoint mappings and resolvable
   HTTP/HTTPS DNS name mappings, and the common Resources list prefers a
   resolvable DNS name mapping before falling back to the primary endpoint.
