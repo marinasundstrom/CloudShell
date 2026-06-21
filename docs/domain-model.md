@@ -746,7 +746,11 @@ In code:
 - `ILogProvider` is the provider contract for contributing and accessing log
   sources.
 - `ResourceLogSource` is the resource-model discovery declaration for a log
-  source, including whether it is a provider default or custom source.
+  source, similar to `ResourceHealthCheck` for health checks. It records
+  whether the source is provider default or custom, and can point at runtime
+  sources such as stdout/stderr, provider streams, or files on an attached
+  storage volume. It also announces source availability, because some sources
+  can only be read while the resource or producer process is running.
 - `LogSource` is the Control Plane projection used for listing, authorization,
   reading, querying, streaming, parsing, and rendering.
 - `ResourceCapabilityIds.LogSources` advertises that a resource exposes or can

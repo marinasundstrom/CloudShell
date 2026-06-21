@@ -3224,8 +3224,25 @@ public sealed partial class ApplicationResourceService(
             Attributes: CreateAttributes(application, state, projection),
             Capabilities: CreateCapabilities(application, endpoints),
             EndpointNetworkMappings: CreateEndpointNetworkMappings(application),
-            DisplayName: application.Name);
+            DisplayName: application.Name,
+            LogSources: CreateDefaultResourceLogSources());
     }
+
+    private static IReadOnlyList<ResourceLogSource> CreateDefaultResourceLogSources() =>
+        [
+            new ResourceLogSource(
+                "console",
+                "Console logs",
+                ResourceLogSourceKind.ProcessOutput,
+                Format: LogFormat.JsonConsole,
+                Capabilities: LogSourceCapabilities.Read |
+                    LogSourceCapabilities.Stream |
+                    LogSourceCapabilities.StructuredFields,
+                Description: "Container app or process stdout and stderr.",
+                Origin: ResourceLogSourceOrigin.ProviderDefault,
+                Purpose: ResourceLogSourcePurpose.Default,
+                Availability: LogSourceAvailability.ResourceRunning)
+        ];
 
     private static ApplicationResourceProjection CreateInfrastructureProjection(
         ApplicationResourceDefinition application)

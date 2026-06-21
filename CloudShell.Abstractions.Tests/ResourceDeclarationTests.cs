@@ -3412,6 +3412,9 @@ public sealed class ResourceDeclarationTests
         Assert.True(worker.SupportsLogSources);
         Assert.True(api.SupportsLogSources);
         Assert.True(redis.SupportsLogSources);
+        AssertDefaultApplicationLogSource(worker);
+        AssertDefaultApplicationLogSource(api);
+        AssertDefaultApplicationLogSource(redis);
         Assert.True(worker.HasCapability(ResourceCapabilityIds.Monitoring));
         Assert.True(api.HasCapability(ResourceCapabilityIds.Monitoring));
         Assert.True(redis.HasCapability(ResourceCapabilityIds.Monitoring));
@@ -3479,6 +3482,7 @@ public sealed class ResourceDeclarationTests
 
         Assert.True(provider.CanMonitor(resource));
         Assert.True(resource.HasCapability(ResourceCapabilityIds.LogSources));
+        AssertDefaultApplicationLogSource(resource);
         Assert.True(resource.HasCapability(ResourceCapabilityIds.Monitoring));
 
         var snapshot = await provider.GetMonitoringSnapshotAsync(resource);
@@ -10448,6 +10452,22 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(endpointName, mapping.Name);
         Assert.Equal(new ResourceEndpointReference(resource.Id, endpointName), mapping.Target);
         Assert.StartsWith("http://localhost:", mapping.Address, StringComparison.Ordinal);
+    }
+
+    private static void AssertDefaultApplicationLogSource(Resource resource)
+    {
+        var source = Assert.Single(resource.ResourceLogSources);
+        Assert.Equal("console", source.Id);
+        Assert.Equal("Console logs", source.Name);
+        Assert.Equal(ResourceLogSourceKind.ProcessOutput, source.Kind);
+        Assert.Equal(LogFormat.JsonConsole, source.Format);
+        Assert.Equal(LogStorageKind.InMemory, source.Storage.Kind);
+        Assert.Equal(ResourceLogSourceOrigin.ProviderDefault, source.Origin);
+        Assert.Equal(ResourceLogSourcePurpose.Default, source.Purpose);
+        Assert.Equal(LogSourceAvailability.ResourceRunning, source.Availability);
+        Assert.True(source.Capabilities.HasFlag(LogSourceCapabilities.Read));
+        Assert.True(source.Capabilities.HasFlag(LogSourceCapabilities.Stream));
+        Assert.True(source.Capabilities.HasFlag(LogSourceCapabilities.StructuredFields));
     }
 
     private static void WriteLaunchSettings(

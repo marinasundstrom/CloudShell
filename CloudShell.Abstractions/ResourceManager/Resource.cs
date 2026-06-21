@@ -1,3 +1,5 @@
+using CloudShell.Abstractions.Logs;
+
 namespace CloudShell.Abstractions.ResourceManager;
 
 public sealed record Resource(
@@ -29,7 +31,8 @@ public sealed record Resource(
     ResourceVisibility Visibility = ResourceVisibility.Normal,
     string? OwnerResourceId = null,
     ResourceCleanupBehavior CleanupBehavior = ResourceCleanupBehavior.None,
-    string? DisplayName = null)
+    string? DisplayName = null,
+    IReadOnlyList<ResourceLogSource>? LogSources = null)
 {
     private static readonly IReadOnlyDictionary<string, string> EmptyAttributes =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -59,6 +62,8 @@ public sealed record Resource(
     public ResourceAction? RestartAction => GetAction(ResourceActionIds.Restart);
 
     public IReadOnlyList<ResourceHealthCheck> ResourceHealthChecks => HealthChecks ?? [];
+
+    public IReadOnlyList<ResourceLogSource> ResourceLogSources => LogSources ?? [];
 
     public ResourceObservability EffectiveObservability => Observability ?? ResourceObservability.None;
 
@@ -139,7 +144,9 @@ public sealed record Resource(
         ResourceCapabilities.Any(capability =>
             string.Equals(capability.Id, capabilityId, StringComparison.OrdinalIgnoreCase));
 
-    public bool SupportsLogSources => HasCapability(ResourceCapabilityIds.LogSources);
+    public bool SupportsLogSources =>
+        ResourceLogSources.Count > 0 ||
+        HasCapability(ResourceCapabilityIds.LogSources);
 
 }
 

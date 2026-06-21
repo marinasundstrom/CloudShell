@@ -18,7 +18,8 @@ public sealed record LogDescriptor(
     string? ProducerResourceId = null,
     ResourceLogSourceOrigin Origin = ResourceLogSourceOrigin.ProviderDefault,
     LogSourceConfiguration Configuration = default,
-    ResourceLogSourcePurpose Purpose = ResourceLogSourcePurpose.Discovery)
+    ResourceLogSourcePurpose Purpose = ResourceLogSourcePurpose.Discovery,
+    LogSourceAvailability Availability = LogSourceAvailability.Unknown)
 {
     public LogSource ToLogSource() =>
         new(
@@ -40,7 +41,8 @@ public sealed record LogDescriptor(
             Description,
             Origin,
             Configuration,
-            Purpose);
+            Purpose,
+            Availability);
 }
 
 public enum LogSourceKind

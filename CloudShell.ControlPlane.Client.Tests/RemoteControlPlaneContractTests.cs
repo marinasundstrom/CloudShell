@@ -566,6 +566,18 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(["api.read"], api.IdentityBinding.IdentityScopes);
         Assert.True(api.EffectiveObservability.Traces);
         Assert.True(api.EffectiveObservability.Metrics);
+        var logSource = Assert.Single(api.ResourceLogSources);
+        Assert.Equal("console", logSource.Id);
+        Assert.Equal("Console logs", logSource.Name);
+        Assert.Equal(ResourceLogSourceKind.ProcessOutput, logSource.Kind);
+        Assert.Equal(LogFormat.JsonConsole, logSource.Format);
+        Assert.Equal(LogStorageKind.InMemory, logSource.Storage.Kind);
+        Assert.True(logSource.Capabilities.HasFlag(LogSourceCapabilities.Read));
+        Assert.True(logSource.Capabilities.HasFlag(LogSourceCapabilities.Stream));
+        Assert.True(logSource.Capabilities.HasFlag(LogSourceCapabilities.StructuredFields));
+        Assert.Equal(ResourceLogSourceOrigin.ProviderDefault, logSource.Origin);
+        Assert.Equal(ResourceLogSourcePurpose.Default, logSource.Purpose);
+        Assert.Equal(LogSourceAvailability.ResourceRunning, logSource.Availability);
         var source = Assert.Single(api.EffectiveObservability.TelemetrySources);
         Assert.Equal("contract-api-otlp", source.Id);
         Assert.Equal(TelemetrySourceKind.Exporter, source.Kind);
@@ -801,6 +813,7 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(
             "string",
             attributes.GetProperty("additionalProperties").GetProperty("type").GetString());
+        Assert.True(resourceProperties.TryGetProperty("logSources", out _));
 
         var resourceActions = resourceProperties.GetProperty("resourceActions");
         Assert.Equal("object", resourceActions.GetProperty("type").GetString());
@@ -1513,7 +1526,21 @@ public sealed class RemoteControlPlaneContractTests
                                     "containerReplica")
                             ])
                     ]),
-                Capabilities: [new(ResourceCapabilityIds.EndpointSource)]),
+                Capabilities: [new(ResourceCapabilityIds.EndpointSource)],
+                LogSources:
+                [
+                    new ResourceLogSource(
+                        "console",
+                        "Console logs",
+                        ResourceLogSourceKind.ProcessOutput,
+                        Format: LogFormat.JsonConsole,
+                        Capabilities: LogSourceCapabilities.Read |
+                            LogSourceCapabilities.Stream |
+                            LogSourceCapabilities.StructuredFields,
+                        Origin: ResourceLogSourceOrigin.ProviderDefault,
+                        Purpose: ResourceLogSourcePurpose.Default,
+                        Availability: LogSourceAvailability.ResourceRunning)
+                ]),
             new(
                 ProxyResourceId,
                 "Contract Proxy",

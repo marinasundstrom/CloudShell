@@ -43,6 +43,13 @@ on `git blame --follow`, and then by the broad type of change.
   capability-driven log source configuration.
 - Log sources now distinguish discovery/default/custom purpose, and resources
   expose a `SupportsLogSources` helper for the `logs.sources` capability.
+- Resources now carry `ResourceLogSource` declarations, and application
+  resources declare their default console log source for Control Plane and
+  CloudShell discovery.
+- The logging proposal now treats volume-backed file logs as source access
+  metadata, separate from universal log persistence.
+- Log source declarations now announce availability so live-only sources can be
+  distinguished from persisted or provider-backed sources.
 
 ### 2026-06-20
 

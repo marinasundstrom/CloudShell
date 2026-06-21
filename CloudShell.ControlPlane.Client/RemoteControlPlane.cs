@@ -890,6 +890,7 @@ file sealed record ResourceResponse(
     ResourceGroupResponse? ResourceGroup,
     bool IsRegistered,
     IReadOnlyDictionary<string, string>? Attributes,
+    IReadOnlyList<ResourceLogSourceResponse>? LogSources,
     IReadOnlyList<ResourceCapabilityResponse>? Capabilities,
     IReadOnlyList<ResourceEndpointMappingResponse>? EndpointMappings,
     IReadOnlyList<ResourceEndpointNetworkMappingResponse>? EndpointNetworkMappings,
@@ -944,6 +945,27 @@ file sealed record ResourceEndpointResponse(
 file sealed record ResourceCapabilityResponse(
     string Id,
     IReadOnlyDictionary<string, string>? Metadata);
+
+file sealed record ResourceLogSourceResponse(
+    string Id,
+    string Name,
+    ResourceLogSourceKind Kind,
+    LogFormat Format,
+    LogStorageResponse Storage,
+    LogSourceCapabilities Capabilities,
+    string? Location,
+    string? ProducerResourceId,
+    string? Description,
+    ResourceLogSourceOrigin Origin,
+    LogSourceConfigurationResponse Configuration,
+    ResourceLogSourcePurpose Purpose,
+    LogSourceAvailability Availability);
+
+file sealed record LogStorageResponse(LogStorageKind Kind);
+
+file sealed record LogSourceConfigurationResponse(
+    bool IsConfigurable,
+    string? SchemaId);
 
 file sealed record ResourceEndpointReferenceResponse(
     string ResourceId,
@@ -1240,7 +1262,39 @@ file static class RemoteControlPlaneMapper
             OwnerResourceId: response.OwnerResourceId,
             CleanupBehavior: response.CleanupBehavior,
             DisplayName: response.DisplayName,
-            Observability: response.Observability?.ToResourceObservability());
+            Observability: response.Observability?.ToResourceObservability(),
+            LogSources: response.GetLogSourceResponses()
+                .Select(source => source.ToResourceLogSource())
+                .ToArray());
+
+    private static IReadOnlyList<ResourceLogSourceResponse> GetLogSourceResponses(
+        this ResourceResponse response) =>
+        response.LogSources ?? [];
+
+    public static ResourceLogSource ToResourceLogSource(this ResourceLogSourceResponse response) =>
+        new(
+            response.Id,
+            response.Name,
+            response.Kind,
+            response.Format,
+            response.Storage.ToLogStorage(),
+            response.Capabilities,
+            response.Location,
+            response.ProducerResourceId,
+            response.Description,
+            response.Origin,
+            response.Configuration.ToLogSourceConfiguration(),
+            response.Purpose,
+            response.Availability);
+
+    public static LogStorage ToLogStorage(this LogStorageResponse? response) =>
+        response is null ? default : new LogStorage(response.Kind);
+
+    public static LogSourceConfiguration ToLogSourceConfiguration(
+        this LogSourceConfigurationResponse? response) =>
+        response is null
+            ? default
+            : new LogSourceConfiguration(response.IsConfigurable, response.SchemaId);
 
     public static ResourceObservability ToResourceObservability(
         this ResourceObservabilityResponse response) =>

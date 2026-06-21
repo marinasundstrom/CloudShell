@@ -101,19 +101,33 @@ domain shape is:
   interpret records from a source when a provider does not return fully shaped
   entries.
 
-`ResourceLogSource` belongs to the resource model. It is a discovery contract:
-CloudShell and the Control Plane use it to discover which logs a resource
-produces, which are provider defaults, which are custom, where they come from,
-and how they can be accessed. It describes source kind, format, display name,
-capabilities, origin, purpose, configuration metadata, and the provider-owned
-source location or capture target, such as stdout, stderr, a file path, file
-pattern, container runtime stream, sidecar, hidden sub-resource, or external
-provider API. A process-backed application can get implicit stdout/stderr
-sources, while the resource can declare additional sources such as ASP.NET
-Core file-sink logs. A visible resource can also declare sources physically
-produced by multiple background processes, containers, or hidden sub-resources
-without exposing those implementation details as primary Resource Manager
-items.
+`ResourceLogSource` belongs to the resource model, like `ResourceHealthCheck`.
+It is a discovery contract: CloudShell and the Control Plane use it to discover
+which logs a resource produces, which are provider defaults, which are custom,
+where they come from, and how they can be accessed. It describes source kind,
+format, display name, capabilities, availability, origin, purpose,
+configuration metadata, and the provider-owned source location or capture
+target, such as stdout, stderr, a file path, file pattern, container runtime
+stream, sidecar, hidden sub-resource, or external provider API. A
+process-backed application can get
+implicit stdout/stderr sources, while the resource can declare additional
+sources such as ASP.NET Core file-sink logs. A visible resource can also
+declare sources physically produced by multiple background processes,
+containers, or hidden sub-resources without exposing those implementation
+details as primary Resource Manager items.
+
+File-based sources can also point at files or file patterns located on an
+attached storage volume when a resource type supports persisted volumes. That
+is a source access/runtime storage choice, not universal CloudShell log
+persistence. The source should still describe how the Control Plane can read or
+tail the file for streaming and history, while log persistence policy remains a
+separate opt-in concern.
+
+Availability is source-specific. Process stdout/stderr may only be readable
+while the resource or producer process is running, while persisted, file-backed,
+remote, or provider-backed sources may remain readable after the resource stops.
+The declaration should announce this so the UI can explain unavailable sources
+and avoid implying that every source has historical data.
 
 Resource log source configuration is capability driven. A resource or resource
 type that supports log source declaration/configuration should advertise

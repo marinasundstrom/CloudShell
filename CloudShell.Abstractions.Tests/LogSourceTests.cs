@@ -25,7 +25,8 @@ public sealed class LogSourceTests
             Configuration: new LogSourceConfiguration(
                 IsConfigurable: true,
                 SchemaId: "application.processOutput"),
-            Purpose: ResourceLogSourcePurpose.Custom);
+            Purpose: ResourceLogSourcePurpose.Custom,
+            Availability: LogSourceAvailability.ProducerRunning);
 
         var source = descriptor.ToLogSource();
 
@@ -41,5 +42,6 @@ public sealed class LogSourceTests
         Assert.True(source.Configuration.IsConfigurable);
         Assert.Equal("application.processOutput", source.Configuration.SchemaId);
         Assert.Equal(ResourceLogSourcePurpose.Custom, source.Purpose);
+        Assert.Equal(LogSourceAvailability.ProducerRunning, source.Availability);
     }
 }

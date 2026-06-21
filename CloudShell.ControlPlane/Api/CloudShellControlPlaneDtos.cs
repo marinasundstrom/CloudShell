@@ -27,6 +27,7 @@ public sealed record ResourceResponse(
     ResourceGroupResponse? ResourceGroup,
     bool IsRegistered,
     IReadOnlyDictionary<string, string> Attributes,
+    IReadOnlyList<ResourceLogSourceResponse> LogSources,
     IReadOnlyList<ResourceCapabilityResponse> Capabilities,
     IReadOnlyList<ResourceEndpointMappingResponse> EndpointMappings,
     IReadOnlyList<ResourceEndpointNetworkMappingResponse> EndpointNetworkMappings,
@@ -81,6 +82,27 @@ public sealed record ResourceEndpointResponse(
 public sealed record ResourceCapabilityResponse(
     string Id,
     IReadOnlyDictionary<string, string>? Metadata);
+
+public sealed record ResourceLogSourceResponse(
+    string Id,
+    string Name,
+    ResourceLogSourceKind Kind,
+    LogFormat Format,
+    LogStorageResponse Storage,
+    LogSourceCapabilities Capabilities,
+    string? Location,
+    string? ProducerResourceId,
+    string? Description,
+    ResourceLogSourceOrigin Origin,
+    LogSourceConfigurationResponse Configuration,
+    ResourceLogSourcePurpose Purpose,
+    LogSourceAvailability Availability);
+
+public sealed record LogStorageResponse(LogStorageKind Kind);
+
+public sealed record LogSourceConfigurationResponse(
+    bool IsConfigurable,
+    string? SchemaId);
 
 public sealed record ResourceEndpointReferenceResponse(
     string ResourceId,
@@ -363,6 +385,7 @@ internal static class CloudShellControlPlaneDtoMapper
             group?.ToResponse(),
             isRegistered,
             resource.ResourceAttributes,
+            resource.ResourceLogSources.Select(ToResponse).ToArray(),
             resource.ResourceCapabilities.Select(ToResponse).ToArray(),
             resource.ResourceEndpointMappings.Select(ToResponse).ToArray(),
             resource.ResourceEndpointNetworkMappings.Select(ToResponse).ToArray(),
@@ -429,6 +452,28 @@ internal static class CloudShellControlPlaneDtoMapper
 
     public static ResourceCapabilityResponse ToResponse(this ResourceCapability capability) =>
         new(capability.Id, capability.Metadata);
+
+    public static ResourceLogSourceResponse ToResponse(this ResourceLogSource source) =>
+        new(
+            source.Id,
+            source.Name,
+            source.Kind,
+            source.Format,
+            source.Storage.ToResponse(),
+            source.Capabilities,
+            source.Location,
+            source.ProducerResourceId,
+            source.Description,
+            source.Origin,
+            source.Configuration.ToResponse(),
+            source.Purpose,
+            source.Availability);
+
+    public static LogStorageResponse ToResponse(this LogStorage storage) =>
+        new(storage.Kind);
+
+    public static LogSourceConfigurationResponse ToResponse(this LogSourceConfiguration configuration) =>
+        new(configuration.IsConfigurable, configuration.SchemaId);
 
     public static ResourceEndpointReferenceResponse ToResponse(this ResourceEndpointReference reference) =>
         new(reference.ResourceId, reference.EndpointName);
