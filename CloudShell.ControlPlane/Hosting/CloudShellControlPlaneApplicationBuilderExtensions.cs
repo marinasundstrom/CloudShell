@@ -42,6 +42,8 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
             builder.Configuration.GetSection(ResourceHealthOptions.SectionName));
         builder.Services.Configure<ResourceIdentityOptions>(
             builder.Configuration.GetSection(ResourceIdentityOptions.SectionName));
+        builder.Services.Configure<TelemetryOptions>(
+            builder.Configuration.GetSection(TelemetryOptions.SectionName));
 
         ConfigurePersistence(builder);
         builder.Services.AddCloudShellAuthentication(builder.Configuration);
@@ -64,8 +66,28 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
             serviceProvider => serviceProvider.GetRequiredService<InMemoryResourceEventStore>());
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<ILogProvider, ResourceEventLogProvider>());
-        builder.Services.AddSingleton<ITraceStore, InMemoryTraceStore>();
-        builder.Services.AddSingleton<IMetricStore, InMemoryMetricStore>();
+        builder.Services.AddSingleton<InMemoryTraceStore>();
+        builder.Services.AddSingleton<InMemoryMetricStore>();
+        builder.Services.AddSingleton<ITraceStore>(serviceProvider =>
+        {
+            var options = serviceProvider.GetRequiredService<IOptions<TelemetryOptions>>().Value;
+            return string.Equals(
+                options.Store,
+                TelemetryStores.Database,
+                StringComparison.OrdinalIgnoreCase)
+                ? serviceProvider.GetRequiredService<EfCoreTelemetryTraceStore>()
+                : serviceProvider.GetRequiredService<InMemoryTraceStore>();
+        });
+        builder.Services.AddSingleton<IMetricStore>(serviceProvider =>
+        {
+            var options = serviceProvider.GetRequiredService<IOptions<TelemetryOptions>>().Value;
+            return string.Equals(
+                options.Store,
+                TelemetryStores.Database,
+                StringComparison.OrdinalIgnoreCase)
+                ? serviceProvider.GetRequiredService<EfCoreTelemetryMetricStore>()
+                : serviceProvider.GetRequiredService<InMemoryMetricStore>();
+        });
         builder.Services.TryAddSingleton<ResourceHealthRefreshCoordinator>();
         builder.Services.TryAddSingleton<InMemoryResourceHealthStore>();
         builder.Services.AddSingleton<IResourceHealthStore>(serviceProvider =>

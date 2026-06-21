@@ -367,8 +367,10 @@ listed here before pulling in broader proposal work.
    adds in-memory metric points, Control Plane list/ingest APIs, remote-client
    support, shared and inline Metrics views, Project Reference request
    count/duration ingestion, and appsettings-configured resource metric panels
-   for live indicators and retained recent-history line charts; durable
-   retention, Control Plane aggregation, OpenTelemetry metrics ingestion, and
+   for live indicators and retained recent-history line charts. Traces and
+   telemetry metric points can now opt into database-backed history with
+   per-resource retention limits through appsettings; Control Plane
+   aggregation, OpenTelemetry metrics ingestion, source-log retention, and
    provider implementations remain separate work.
    Track provider-supported resource Monitoring separately under the resource
    Management group because resource monitoring is about provider-observed

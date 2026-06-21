@@ -83,6 +83,30 @@ created by the previous `EnsureCreated` startup path are baselined to the
 initial migration when their expected tables already exist. The Identity
 database is only migrated when `Authentication:Mode` is `Identity`.
 
+## Telemetry
+
+Application/runtime telemetry traces and metric points are retained in memory
+by default. Hosts can opt into database-backed telemetry history through
+appsettings:
+
+```json
+{
+  "Observability": {
+    "Telemetry": {
+      "Store": "Database",
+      "RetainedSpansPerResource": 5000,
+      "RetainedMetricPointsPerResource": 10000
+    }
+  }
+}
+```
+
+`Store` defaults to `InMemory`. Use `Database` when a local development or
+team-owned environment should preserve traces and metrics across CloudShell
+host restarts. Retention limits are per resource and prevent persisted
+telemetry from growing without bound. Source logs are provider-owned streams
+and are not controlled by this telemetry store switch.
+
 ## SQL Server
 
 Use `SqlServer` (or `Mssql`) and ordinary EF Core SQL Server connection

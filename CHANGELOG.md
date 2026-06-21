@@ -25,6 +25,9 @@ on `git blame --follow`, and then by the broad type of change.
   available as a separate Metrics subview.
 - The Application Topology sample now configures basic request count and
   request duration metric panels for its frontend and API resources.
+- Traces and telemetry metric points now support an appsettings opt-in
+  database store with per-resource retention limits, and Application Topology
+  enables it for persisted debugging history.
 
 ### 2026-06-20
 

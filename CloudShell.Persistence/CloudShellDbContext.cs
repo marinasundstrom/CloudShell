@@ -15,6 +15,10 @@ public sealed class CloudShellDbContext(DbContextOptions<CloudShellDbContext> op
 
     internal DbSet<ResourceHealthSnapshotEntity> ResourceHealthSnapshots => Set<ResourceHealthSnapshotEntity>();
 
+    internal DbSet<TelemetryTraceSpanEntity> TelemetryTraceSpans => Set<TelemetryTraceSpanEntity>();
+
+    internal DbSet<TelemetryMetricPointEntity> TelemetryMetricPoints => Set<TelemetryMetricPointEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<ResourceGroupEntity>(entity =>
@@ -84,6 +88,42 @@ public sealed class CloudShellDbContext(DbContextOptions<CloudShellDbContext> op
             entity.Property(snapshot => snapshot.ChecksJson).IsRequired();
             entity.HasIndex(snapshot => snapshot.ResourceId);
             entity.HasIndex(snapshot => snapshot.CheckedAt);
+        });
+
+        modelBuilder.Entity<TelemetryTraceSpanEntity>(entity =>
+        {
+            entity.ToTable("TelemetryTraceSpans");
+            entity.HasKey(span => span.Id);
+            entity.Property(span => span.TraceId).HasMaxLength(100).IsRequired();
+            entity.Property(span => span.SpanId).HasMaxLength(100).IsRequired();
+            entity.Property(span => span.ParentSpanId).HasMaxLength(100);
+            entity.Property(span => span.Name).HasMaxLength(500).IsRequired();
+            entity.Property(span => span.ResourceId).HasMaxLength(500).IsRequired();
+            entity.Property(span => span.ServiceName).HasMaxLength(300).IsRequired();
+            entity.Property(span => span.Kind).HasMaxLength(100).IsRequired();
+            entity.Property(span => span.Status).HasMaxLength(100).IsRequired();
+            entity.Property(span => span.StartTime)
+                .HasConversion(new DateTimeOffsetToBinaryConverter());
+            entity.Property(span => span.AttributesJson).IsRequired();
+            entity.HasIndex(span => span.ResourceId);
+            entity.HasIndex(span => span.TraceId);
+            entity.HasIndex(span => span.StartTime);
+        });
+
+        modelBuilder.Entity<TelemetryMetricPointEntity>(entity =>
+        {
+            entity.ToTable("TelemetryMetricPoints");
+            entity.HasKey(point => point.Id);
+            entity.Property(point => point.Name).HasMaxLength(300).IsRequired();
+            entity.Property(point => point.ResourceId).HasMaxLength(500).IsRequired();
+            entity.Property(point => point.ServiceName).HasMaxLength(300).IsRequired();
+            entity.Property(point => point.Unit).HasMaxLength(100);
+            entity.Property(point => point.Timestamp)
+                .HasConversion(new DateTimeOffsetToBinaryConverter());
+            entity.Property(point => point.AttributesJson).IsRequired();
+            entity.HasIndex(point => point.ResourceId);
+            entity.HasIndex(point => point.Name);
+            entity.HasIndex(point => point.Timestamp);
         });
     }
 }

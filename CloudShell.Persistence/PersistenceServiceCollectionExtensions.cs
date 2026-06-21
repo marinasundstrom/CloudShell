@@ -48,6 +48,8 @@ public static class PersistenceServiceCollectionExtensions
         services.AddSingleton<EfCoreResourceStore>();
         services.AddSingleton<EfCoreExtensionActivationStore>();
         services.AddSingleton<EfCoreResourceHealthStore>();
+        services.AddSingleton<EfCoreTelemetryTraceStore>();
+        services.AddSingleton<EfCoreTelemetryMetricStore>();
         services.TryAddSingleton<IResourceEventStore, EfCoreResourceEventStore>();
         services.TryAddSingleton<IResourceEventSink>(
             serviceProvider => serviceProvider.GetRequiredService<IResourceEventStore>());

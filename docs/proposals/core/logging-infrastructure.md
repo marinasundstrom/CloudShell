@@ -383,11 +383,12 @@ CloudShell should keep the signal taxonomy explicit:
 Telemetry metrics have a standard predefined resource view ID,
 `telemetry:metrics`, so providers can contribute a consistent application
 metrics tab when application/runtime metric data is available. CloudShell now
-has an in-memory metrics manager, list/ingest API, remote-client projection,
-shared/resource-scoped Metrics views, and appsettings-configured resource
-metric panels for live indicators and retained recent-history line charts.
-Durable metrics retention, Control Plane aggregation, OpenTelemetry metrics
-ingestion, and provider-owned metrics views remain separate work.
+has trace and metric list/ingest APIs, remote-client projection,
+shared/resource-scoped Metrics views, appsettings-configured resource metric
+panels for live indicators and retained recent-history line charts, and an
+opt-in database telemetry store for traces and metric points with per-resource
+retention limits. Control Plane aggregation, OpenTelemetry metrics ingestion,
+source-log retention, and provider-owned metrics views remain separate work.
 
 Telemetry is application/runtime signal investigation, not the same concept as
 resource monitoring. Resource monitoring should have a separate

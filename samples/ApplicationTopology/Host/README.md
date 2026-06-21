@@ -116,7 +116,12 @@ The frontend and API also emit `http.server.requests` and
 resource-scoped metric points. The host `appsettings.json` maps those standard
 request metrics onto basic **Graphs** panels for the frontend and API
 resources, while the **Stream** subview keeps the retained raw metric points
-available for inspection.
+available for inspection. The sample also opts into database-backed telemetry
+history under `Observability:Telemetry` so traces and metric points remain
+available after restarting the CloudShell host. Its appsettings set
+`Observability:Telemetry:Store` to `Database`,
+`Observability:Telemetry:RetainedSpansPerResource` to `5000`, and
+`Observability:Telemetry:RetainedMetricPointsPerResource` to `10000`.
 
 The sample disables startup autostart for these three application resources so
 you can exercise the live dependency path deliberately from Resource Manager.

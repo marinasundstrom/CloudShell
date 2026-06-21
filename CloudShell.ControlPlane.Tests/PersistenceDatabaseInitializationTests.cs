@@ -1,6 +1,7 @@
 using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Logs;
+using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.Persistence;
@@ -78,6 +79,57 @@ public sealed class PersistenceDatabaseInitializationTests
     }
 
     [Fact]
+    public void EfCoreTelemetryStores_RetainPersistedTraceAndMetricHistory()
+    {
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            "cloudshell-persistence-tests",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var resourceStore = Path.Combine(directory, "cloudshell.db");
+        var identityStore = Path.Combine(directory, "identity.db");
+        try
+        {
+            using (var provider = BuildTelemetryPersistenceProvider(resourceStore, identityStore))
+            {
+                provider.InitializeCloudShellDatabase(initializeIdentityStore: false);
+                var traces = provider.GetRequiredService<EfCoreTelemetryTraceStore>();
+                var metrics = provider.GetRequiredService<EfCoreTelemetryMetricStore>();
+
+                traces.AddSpans(
+                [
+                    CreateSpan("trace-1", "span-1", DateTimeOffset.UtcNow.AddSeconds(-30)),
+                    CreateSpan("trace-2", "span-2", DateTimeOffset.UtcNow.AddSeconds(-20)),
+                    CreateSpan("trace-3", "span-3", DateTimeOffset.UtcNow.AddSeconds(-10))
+                ]);
+                metrics.AddPoints(
+                [
+                    CreateMetricPoint("http.server.requests", 1, DateTimeOffset.UtcNow.AddSeconds(-30)),
+                    CreateMetricPoint("http.server.requests", 2, DateTimeOffset.UtcNow.AddSeconds(-20)),
+                    CreateMetricPoint("http.server.requests", 3, DateTimeOffset.UtcNow.AddSeconds(-10))
+                ]);
+            }
+
+            using (var provider = BuildTelemetryPersistenceProvider(resourceStore, identityStore))
+            {
+                provider.InitializeCloudShellDatabase(initializeIdentityStore: false);
+                var traces = provider.GetRequiredService<EfCoreTelemetryTraceStore>();
+                var metrics = provider.GetRequiredService<EfCoreTelemetryMetricStore>();
+
+                var spans = traces.GetSpans("application:test-api", maxSpans: 10);
+                var points = metrics.GetPoints("application:test-api", maxPoints: 10);
+
+                Assert.Equal(["trace-3", "trace-2"], spans.Select(span => span.TraceId));
+                Assert.Equal([3, 2], points.Select(point => point.Value));
+            }
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task EfCoreResourceStore_RoundTripsRegistrationIdentityBinding()
     {
         var directory = Path.Combine(
@@ -130,6 +182,68 @@ public sealed class PersistenceDatabaseInitializationTests
             Directory.Delete(directory, recursive: true);
         }
     }
+
+    private static ServiceProvider BuildTelemetryPersistenceProvider(
+        string resourceStore,
+        string identityStore)
+    {
+        var services = new ServiceCollection();
+        services.AddOptions();
+        services.Configure<TelemetryOptions>(options =>
+        {
+            options.Store = TelemetryStores.Database;
+            options.RetainedSpansPerResource = 2;
+            options.RetainedMetricPointsPerResource = 2;
+        });
+        services.AddCloudShellPersistence(new CloudShellPersistenceOptions
+        {
+            Provider = "Sqlite",
+            ConnectionString = $"Data Source={resourceStore}"
+        },
+        new BuiltInIdentityPersistenceOptions
+        {
+            Provider = "Sqlite",
+            ConnectionString = $"Data Source={identityStore}"
+        });
+
+        return services.BuildServiceProvider();
+    }
+
+    private static TraceSpan CreateSpan(
+        string traceId,
+        string spanId,
+        DateTimeOffset startTime) =>
+        new(
+            traceId,
+            spanId,
+            ParentSpanId: null,
+            "GET /alive",
+            "application:test-api",
+            "test-api",
+            "server",
+            "ok",
+            startTime,
+            TimeSpan.FromMilliseconds(10),
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["http.route"] = "GET /alive"
+            });
+
+    private static MetricPoint CreateMetricPoint(
+        string name,
+        double value,
+        DateTimeOffset timestamp) =>
+        new(
+            name,
+            "application:test-api",
+            "test-api",
+            value,
+            timestamp,
+            "count",
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["http.route"] = "GET /alive"
+            });
 
     [Fact]
     public async Task InitializeCloudShellDatabase_RepairsMissingRuntimeTablesInExistingDatabase()
