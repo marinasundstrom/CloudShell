@@ -118,29 +118,37 @@ Logs are first-class services registered independently of resources. Implement
 `ILogProvider` when an extension can expose logs for resources, providers, or
 extension-owned artifacts, then register it with `AddLogProvider<TProvider>()`.
 
-Each provider returns `LogDescriptor` values. A descriptor can point at a
-resource through `ResourceId`, an extension artifact through `ArtifactId`, or a
-provider-owned source through `SourceKind`. Descriptors now carry early
-`LogSource` metadata for source kind, format, storage, capabilities, origin,
-purpose, configuration, location, and physical producer. This keeps the current
-API compatible while CloudShell evolves toward resource-owned
-`ResourceLogSource` discovery declarations projected into Control Plane
-`LogSource` records. A single resource can have multiple logs, and multiple
-providers can expose logs for the same resource. Resources that expose or allow
-configuration of log sources should advertise `ResourceCapabilityIds.LogSources`;
-future UI configuration should be driven by that capability and the source
-configuration metadata. The Resource Manager shows a log shortcut for
-resources with matching descriptors, and the Logs view opens resource-scoped
-log lists through `/logs?resourceId=...`.
+Resource providers should declare stable, provider-owned defaults on resources
+with `ResourceLogSource`. A source declaration records the kind, format,
+storage, capabilities, availability, origin, purpose, configuration metadata,
+location, and physical producer. The Control Plane projects those declarations,
+plus provider-owned source projections and descriptor compatibility data, into
+`LogSource` records. A single resource can have multiple log sources, and
+multiple providers can expose log sources for the same resource. Resources that
+expose or allow configuration of log sources should advertise
+`ResourceCapabilityIds.LogSources`; future UI configuration should be driven by
+that capability and the source configuration metadata. Resource Manager,
+Observability, provider pages, and the Logs view use projected `LogSource`
+records for listing, counts, and navigation.
 
-Use `SupportsStreaming = true` only when the provider can support live tail
-semantics. Streaming-capable logs are tailed automatically in the Logs view
-when selected, and users can pause or resume streaming from the log header. The
-viewer keeps a bounded entry window: it loads the newest page first, appends
-streamed entries into that window, and fetches older pages only when requested.
-It follows the latest entry only while the user is already at the latest
-content; if they scroll back, new entries continue to append without moving
-their position.
+`LogDescriptor` remains as a compatibility bridge for providers that already
+implement descriptor-based read and stream operations. Descriptors can point at
+a resource through `ResourceId`, an extension artifact through `ArtifactId`, or
+a provider-owned source through `SourceKind`, and they carry compatible source
+metadata so the Control Plane can project them into `LogSource`. New resource
+types should prefer declaring `ResourceLogSource` on the resource model and use
+descriptor compatibility only for existing provider read/stream integration.
+The Logs view opens resource-scoped log lists through `/logs?resourceId=...`.
+
+Declare `LogSourceCapabilities.Stream` only when the provider can support live
+tail semantics. For descriptor compatibility, set `SupportsStreaming = true`
+for the same case. Streaming-capable logs are tailed automatically in the Logs
+view when selected, and users can pause or resume streaming from the log
+header. The viewer keeps a bounded entry window: it loads the newest page
+first, appends streamed entries into that window, and fetches older pages only
+when requested. It follows the latest entry only while the user is already at
+the latest content; if they scroll back, new entries continue to append without
+moving their position.
 
 ```csharp
 public sealed class AcmeLogProvider : ILogProvider
@@ -192,6 +200,37 @@ public sealed class AcmeLogProvider : ILogProvider
         }
     }
 }
+```
+
+When projecting a resource, include a default declaration for the same source:
+
+```csharp
+new Resource(
+    Id: "acme:worker:orders",
+    Name: "orders",
+    Kind: "Worker",
+    Provider: "Acme",
+    Region: "local",
+    State: ResourceState.Running,
+    Endpoints: [],
+    Version: "1.0",
+    LastUpdated: DateTimeOffset.UtcNow,
+    DependsOn: [],
+    Capabilities: [new(ResourceCapabilityIds.LogSources)],
+    LogSources:
+    [
+        new ResourceLogSource(
+            Id: "stdout",
+            Name: "stdout",
+            Kind: ResourceLogSourceKind.ProcessStdout,
+            Format: LogFormat.JsonConsole,
+            Capabilities: LogSourceCapabilities.Read |
+                LogSourceCapabilities.Stream |
+                LogSourceCapabilities.StructuredFields,
+            Origin: ResourceLogSourceOrigin.ProviderDefault,
+            Purpose: ResourceLogSourcePurpose.Default,
+            Availability: LogSourceAvailability.ResourceRunning)
+    ]);
 ```
 
 Streaming implementation guidance:

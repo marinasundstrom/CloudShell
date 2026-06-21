@@ -768,8 +768,10 @@ In code:
   can only be read while the resource or producer process is running.
 - `LogSource` is the Control Plane projection used for listing, authorization,
   reading, querying, streaming, parsing, and rendering. The Control Plane can
-  list projected log sources independently while existing descriptor-based
-  read and stream APIs remain available during the transition.
+  list projected log sources independently. Resource Manager, Observability,
+  provider-specific overview pages, and the Logs view use projected sources
+  for availability, counts, and navigation while descriptor-based APIs remain
+  available as compatibility aliases during the transition.
 - `ResourceCapabilityIds.LogSources` advertises that a resource exposes or can
   configure log sources. Future UI configuration should be driven by that
   capability and `ResourceLogSource` configuration metadata.

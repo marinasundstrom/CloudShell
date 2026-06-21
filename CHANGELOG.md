@@ -84,6 +84,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource inventory, Observability landing, Docker container, and application
   overview surfaces now use projected log sources for log availability and
   navigation.
+- Logging documentation now describes `ResourceLogSource` declarations and
+  projected `LogSource` records as the current listing model, with
+  `LogDescriptor` retained as compatibility.
 
 ### 2026-06-20
 

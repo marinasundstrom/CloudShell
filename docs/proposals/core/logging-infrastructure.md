@@ -86,7 +86,7 @@ still expose those sources through the same domain managers and shell views;
 the collection and storage responsibility should be replaceable behind the
 Control Plane boundary.
 
-The current contracts are:
+The original contracts were:
 
 - `ILogProvider`: provider source contribution
 - `ILogStore`: internal aggregation
@@ -95,11 +95,9 @@ The current contracts are:
 - `LogEntry`: text-compatible entry projection with optional structured
   logging metadata
 
-This surface is useful for Resource Manager log views and provider-specific
-operational detail.
-
-The current model is missing an explicit source concept. The intended next
-domain shape is:
+This surface remains useful as compatibility for provider-specific operational
+detail and existing read/stream implementations, but the MVP now has an
+explicit source concept:
 
 - `ResourceLogSource`: resource-model discovery metadata that declares a log
   produced by or on behalf of a resource.
@@ -118,10 +116,9 @@ for descriptor-based read and stream operations. The provider contract can
 also expose projected `LogSource` metadata directly, with descriptor-backed
 providers bridged into sources by default. This lets source discovery evolve
 without forcing every provider to rewrite read and stream operations at once.
-The internal `ILogStore` boundary should use source-addressed read and stream
+The internal `ILogStore` boundary uses source-addressed read and stream
 operations, with descriptor-named methods retained only as compatibility
-aliases while the UI migrates.
-It should also expose session materialization as an explicit operation so
+aliases. It also exposes session materialization as an explicit operation so
 Control Plane services can open a resolved source session, consume it through
 read, polling, streaming, or future transports, and dispose it deterministically.
 Providers can also materialize a log-source session when a source is accessed,
@@ -206,9 +203,10 @@ listing, read, query, and stream APIs should address. The initial abstraction
 skeleton is in `CloudShell.Abstractions.Logs`; current `LogDescriptor` values
 can carry compatible source metadata and project to `LogSource`. The Control
 Plane exposes log-source discovery separately from the existing descriptor-based
-read/stream APIs while the Logs UI continues to use descriptors. This
-lets the Logs UI group by resource while still supporting future provider pages
-or global log views that are not strictly resource-scoped.
+read/stream APIs. Resource Manager, Observability, provider-specific overview
+pages, and the Logs view now use projected sources for listing, counts, and
+navigation. The Logs UI still keeps a descriptor-shaped internal view model
+while source-addressed read and stream operations are used for access.
 
 Reading or streaming a source should go through a materialized
 `ILogSourceSession`. The session is not a persisted domain object; it is the
