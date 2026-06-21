@@ -3,6 +3,11 @@ using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using AspNetCoreProjectPages = CloudShell.Providers.Applications.AspNetCoreProject.Pages;
+using ContainerAppPages = CloudShell.Providers.Applications.ContainerApp.Pages;
+using ExecutableAppPages = CloudShell.Providers.Applications.ExecutableApp.Pages;
+using SharedPages = CloudShell.Providers.Applications.Shared.Pages;
+using SqlServerPages = CloudShell.Providers.Applications.SqlServer.Pages;
 
 namespace CloudShell.Providers.Applications;
 
@@ -66,14 +71,14 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
             .AddResourceProvider<ContainerApplicationResourceProvider>()
             .AddResourceProvider<SqlServerApplicationResourceProvider>()
             .AddLogProvider<ApplicationResourceService>()
-            .AddResourceType<Pages.RegisterApplicationResource>(
+            .AddResourceType<ExecutableAppPages.RegisterApplicationResource>(
                 ApplicationResourceTypes.ExecutableApplication,
                 "Executable application",
                 "Register an executable, configure arguments and environment variables, then launch it from CloudShell.",
                 "application",
                 20,
                 resourceClass: ResourceClass.Executable)
-            .AddResourceType<Pages.RegisterAspNetCoreProjectResource>(
+            .AddResourceType<AspNetCoreProjectPages.RegisterAspNetCoreProjectResource>(
                 ApplicationResourceTypes.AspNetCoreProject,
                 "ASP.NET Core project",
                 "Register an ASP.NET Core project and run it through dotnet run with endpoints, references, and service discovery.",
@@ -92,14 +97,14 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                             "liveness")
                     ]),
                 resourceClass: ResourceClass.Project)
-            .AddResourceType<Pages.RegisterContainerImageResource>(
+            .AddResourceType<ContainerAppPages.RegisterContainerImageResource>(
                 ApplicationResourceTypes.ContainerApp,
                 "Container app",
                 "Register a top-level containerized application that runs through the selected or default container host.",
                 "container",
                 22,
                 resourceClass: ResourceClass.Container)
-            .AddResourceType<Pages.RegisterSqlServerResource>(
+            .AddResourceType<SqlServerPages.RegisterSqlServerResource>(
                 ApplicationResourceTypes.SqlServer,
                 "SQL Server",
                 "Register a local SQL Server service with a TDS endpoint for direct access and service discovery.",
@@ -115,58 +120,58 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
             .AddResourceTypeEndpoint(
                 ApplicationResourceTypes.SqlServer,
                 ResourceEndpointDescriptor.Tcp("tds", 1433))
-            .AddResourceTab<Pages.ApplicationOverview>(
+            .AddResourceTab<SharedPages.ApplicationOverview>(
                 ApplicationResourceTypes.ExecutableApplication,
                 ResourcePredefinedViewIds.Overview,
                 "Overview",
                 10,
                 groupTitle: ResourceTabGroupTitles.General)
-            .AddResourceTab<Pages.UpdateApplicationResource>(
+            .AddResourceTab<SharedPages.UpdateApplicationResource>(
                 ApplicationResourceTypes.ExecutableApplication,
                 ResourcePredefinedViewIds.Configuration,
                 "Configuration",
                 20,
                 showsApplyButton: true,
                 groupTitle: ResourceTabGroupTitles.General)
-            .AddResourcePredefinedViewSection<Pages.ApplicationEndpointActions>(
+            .AddResourcePredefinedViewSection<SharedPages.ApplicationEndpointActions>(
                 ApplicationResourceTypes.ExecutableApplication,
                 ResourcePredefinedViewIds.Endpoints,
                 "application.exposure-actions",
                 "Application exposure",
                 10)
-            .AddResourceTab<Pages.ApplicationOverview>(
+            .AddResourceTab<SharedPages.ApplicationOverview>(
                 ApplicationResourceTypes.AspNetCoreProject,
                 ResourcePredefinedViewIds.Overview,
                 "Overview",
                 10,
                 groupTitle: ResourceTabGroupTitles.General)
-            .AddResourceTab<Pages.UpdateApplicationResource>(
+            .AddResourceTab<SharedPages.UpdateApplicationResource>(
                 ApplicationResourceTypes.AspNetCoreProject,
                 ResourcePredefinedViewIds.Configuration,
                 "Configuration",
                 20,
                 showsApplyButton: true,
                 groupTitle: ResourceTabGroupTitles.General)
-            .AddResourcePredefinedViewSection<Pages.ApplicationEndpointActions>(
+            .AddResourcePredefinedViewSection<SharedPages.ApplicationEndpointActions>(
                 ApplicationResourceTypes.AspNetCoreProject,
                 ResourcePredefinedViewIds.Endpoints,
                 "application.exposure-actions",
                 "Application exposure",
                 10)
-            .AddResourceTab<Pages.ApplicationOverview>(
+            .AddResourceTab<SharedPages.ApplicationOverview>(
                 ApplicationResourceTypes.ContainerApp,
                 ResourcePredefinedViewIds.Overview,
                 "Overview",
                 10,
                 groupTitle: ResourceTabGroupTitles.General)
-            .AddResourceTab<Pages.ApplicationDeployment>(
+            .AddResourceTab<ContainerAppPages.ApplicationDeployment>(
                 ApplicationResourceTypes.ContainerApp,
                 new ResourceViewId(ResourceTabGroupIds.Application, "deployment"),
                 "Deployment",
                 20,
                 groupTitle: ResourceTabGroupTitles.Application,
                 icon: "deployment")
-            .AddResourceTab<Pages.ApplicationScaling>(
+            .AddResourceTab<ContainerAppPages.ApplicationScaling>(
                 ApplicationResourceTypes.ContainerApp,
                 new ResourceViewId(ResourceTabGroupIds.Application, "scale-replicas"),
                 "Scale and replicas",
@@ -174,20 +179,20 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 showsApplyButton: true,
                 groupTitle: ResourceTabGroupTitles.Application,
                 icon: "scale")
-            .AddResourceTab<Pages.ApplicationMonitoring>(
+            .AddResourceTab<ContainerAppPages.ApplicationMonitoring>(
                 ApplicationResourceTypes.ContainerApp,
                 ResourcePredefinedViewIds.Monitoring,
                 "Monitoring",
                 45,
                 groupTitle: ResourceTabGroupTitles.Management)
-            .AddResourceTab<Pages.UpdateApplicationResource>(
+            .AddResourceTab<SharedPages.UpdateApplicationResource>(
                 ApplicationResourceTypes.ContainerApp,
                 ResourcePredefinedViewIds.Configuration,
                 "Configuration",
                 50,
                 showsApplyButton: true,
                 groupTitle: ResourceTabGroupTitles.General)
-            .AddResourceTab<Pages.ApplicationStorage>(
+            .AddResourceTab<SharedPages.ApplicationStorage>(
                 ApplicationResourceTypes.ContainerApp,
                 new ResourceViewId(ResourceTabGroupIds.Application, "storage"),
                 "Storage",
@@ -195,40 +200,40 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 showsApplyButton: true,
                 groupTitle: ResourceTabGroupTitles.Application,
                 icon: "storage")
-            .AddResourcePredefinedViewSection<Pages.ApplicationEndpointActions>(
+            .AddResourcePredefinedViewSection<SharedPages.ApplicationEndpointActions>(
                 ApplicationResourceTypes.ContainerApp,
                 ResourcePredefinedViewIds.Endpoints,
                 "application.exposure-actions",
                 "Application exposure",
                 10)
-            .AddResourceTab<Pages.ApplicationOverview>(
+            .AddResourceTab<SharedPages.ApplicationOverview>(
                 ApplicationResourceTypes.SqlServer,
                 ResourcePredefinedViewIds.Overview,
                 "Overview",
                 10,
                 groupTitle: ResourceTabGroupTitles.General)
-            .AddResourceTab<Pages.UpdateSqlServerResource>(
+            .AddResourceTab<SqlServerPages.UpdateSqlServerResource>(
                 ApplicationResourceTypes.SqlServer,
                 ResourcePredefinedViewIds.Configuration,
                 "Configuration",
                 20,
                 showsApplyButton: true,
                 groupTitle: ResourceTabGroupTitles.General)
-            .AddResourceTab<Pages.ApplicationStorage>(
+            .AddResourceTab<SharedPages.ApplicationStorage>(
                 ApplicationResourceTypes.SqlServer,
                 ResourcePredefinedViewIds.Storage,
                 "Storage",
                 30,
                 showsApplyButton: true,
                 groupTitle: ResourceTabGroupTitles.Storage)
-            .AddResourceTab<Pages.SqlServerDatabases>(
+            .AddResourceTab<SqlServerPages.SqlServerDatabases>(
                 ApplicationResourceTypes.SqlServer,
                 new ResourceViewId(ResourceTabGroupIds.Application, "databases"),
                 "Databases",
                 35,
                 groupTitle: "Data",
                 icon: "database-item")
-            .AddResourcePredefinedViewSection<Pages.ApplicationEndpointActions>(
+            .AddResourcePredefinedViewSection<SharedPages.ApplicationEndpointActions>(
                 ApplicationResourceTypes.SqlServer,
                 ResourcePredefinedViewIds.Endpoints,
                 "application.exposure-actions",

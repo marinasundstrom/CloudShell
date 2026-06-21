@@ -1494,7 +1494,7 @@ public sealed class ResourceDeclarationTests
 
         Assert.Equal("Storage", storageTab.Title);
         Assert.True(storageTab.ShowsApplyButton);
-        Assert.Equal(typeof(CloudShell.Providers.Applications.Pages.ApplicationStorage), storageTab.ComponentType);
+        Assert.Equal(typeof(CloudShell.Providers.Applications.Shared.Pages.ApplicationStorage), storageTab.ComponentType);
     }
 
     private static void AssertContainerAppStorageTab(ResourceTypeContribution resourceType)
@@ -1507,7 +1507,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(ResourceTabGroupTitles.Application, storageTab.GroupTitle);
         Assert.True(storageTab.ShowsApplyButton);
         Assert.Equal("storage", storageTab.Icon);
-        Assert.Equal(typeof(CloudShell.Providers.Applications.Pages.ApplicationStorage), storageTab.ComponentType);
+        Assert.Equal(typeof(CloudShell.Providers.Applications.Shared.Pages.ApplicationStorage), storageTab.ComponentType);
     }
 
     private static void AssertApplicationExposureSection(ResourceTypeContribution resourceType)
@@ -1519,7 +1519,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(ResourcePredefinedViewIds.Endpoints, section.ViewId);
         Assert.Equal("Application exposure", section.Title);
         Assert.Equal(10, section.Order);
-        Assert.Equal(typeof(CloudShell.Providers.Applications.Pages.ApplicationEndpointActions), section.ComponentType);
+        Assert.Equal(typeof(CloudShell.Providers.Applications.Shared.Pages.ApplicationEndpointActions), section.ComponentType);
     }
 
     private static void AssertDeploymentTab(ResourceTypeContribution resourceType)
@@ -1533,7 +1533,7 @@ public sealed class ResourceDeclarationTests
         Assert.False(deploymentTab.ShowsApplyButton);
         Assert.Equal(20, deploymentTab.Order);
         Assert.Equal("deployment", deploymentTab.Icon);
-        Assert.Equal(typeof(CloudShell.Providers.Applications.Pages.ApplicationDeployment), deploymentTab.ComponentType);
+        Assert.Equal(typeof(CloudShell.Providers.Applications.ContainerApp.Pages.ApplicationDeployment), deploymentTab.ComponentType);
     }
 
     private static void AssertNoStandaloneReplicaTab(ResourceTypeContribution resourceType)
@@ -1552,7 +1552,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("Monitoring", monitoringTab.Title);
         Assert.False(monitoringTab.ShowsApplyButton);
         Assert.Equal(45, monitoringTab.Order);
-        Assert.Equal(typeof(CloudShell.Providers.Applications.Pages.ApplicationMonitoring), monitoringTab.ComponentType);
+        Assert.Equal(typeof(CloudShell.Providers.Applications.ContainerApp.Pages.ApplicationMonitoring), monitoringTab.ComponentType);
     }
 
     private static void AssertScalingTab(ResourceTypeContribution resourceType)
@@ -1566,7 +1566,7 @@ public sealed class ResourceDeclarationTests
         Assert.True(scalingTab.ShowsApplyButton);
         Assert.Equal(30, scalingTab.Order);
         Assert.Equal("scale", scalingTab.Icon);
-        Assert.Equal(typeof(CloudShell.Providers.Applications.Pages.ApplicationScaling), scalingTab.ComponentType);
+        Assert.Equal(typeof(CloudShell.Providers.Applications.ContainerApp.Pages.ApplicationScaling), scalingTab.ComponentType);
     }
 
     [Fact]
