@@ -132,6 +132,11 @@ The provider should receive the resolved `LogSource` when opening a session so
 it can use source kind, storage, location, availability, and provider-owned
 configuration without requiring callers to understand provider-specific
 details.
+Provider resolution should be explicit: given a resolved source, the Control
+Plane asks each active provider whether it can open that source, then requests
+a session from the selected provider. That allows resource-declared sources to
+be opened by providers that understand the source kind and configuration even
+when the provider did not list the source itself.
 
 `ResourceLogSource` belongs to the resource model, like `ResourceHealthCheck`.
 It is a discovery contract: CloudShell and the Control Plane use it to discover

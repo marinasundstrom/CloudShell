@@ -71,6 +71,9 @@ on `git blame --follow`, and then by the broad type of change.
 - `ILogProvider` can now open log sessions from a resolved `LogSource`, so
   providers can use source metadata and configuration when materializing
   sessions.
+- Log provider resolution now asks active providers whether they can open a
+  resolved source before requesting a session, enabling resource-declared
+  sources to be handled by provider capability.
 
 ### 2026-06-20
 

@@ -108,6 +108,37 @@ public sealed class LogStoreTests
         Assert.Equal("provider://diagnostics", provider.OpenedSource.Location);
     }
 
+    [Fact]
+    public async Task ReadLogSourceAsync_ResolvesProviderForResourceDeclaredSource()
+    {
+        var resource = CreateResource(
+            "application:api",
+            "api",
+            logSources:
+            [
+                new ResourceLogSource(
+                    "file",
+                    "Application file",
+                    ResourceLogSourceKind.File,
+                    Location: "logs/api.log",
+                    Origin: ResourceLogSourceOrigin.UserConfigured)
+            ]);
+        var provider = new ResourceDeclaredLogProvider();
+        var store = new LogStore(
+            [provider],
+            new TestResourceManagerStore([resource]),
+            new CloudShellExtensionRegistry(),
+            new InMemoryCloudShellExtensionActivationStore());
+
+        var entries = await store.ReadLogSourceAsync("application:api:log-source:file");
+
+        Assert.Equal(ProviderProjectedEntry.Message, Assert.Single(entries).Message);
+        Assert.NotNull(provider.OpenedSource);
+        Assert.Equal("application:api", provider.OpenedSource.ResourceId);
+        Assert.Equal(ResourceLogSourceKind.File, provider.OpenedSource.Kind);
+        Assert.Equal("logs/api.log", provider.OpenedSource.Location);
+    }
+
     private static Resource CreateResource(
         string id,
         string name,
@@ -200,6 +231,38 @@ public sealed class LogStoreTests
             Status = LogSourceSessionStatus.Closed;
             return ValueTask.CompletedTask;
         }
+    }
+
+    private sealed class ResourceDeclaredLogProvider : ILogProvider
+    {
+        public string Id => "resource-declared";
+
+        public string DisplayName => "Resource Declared";
+
+        public LogSource? OpenedSource { get; private set; }
+
+        public IReadOnlyList<LogDescriptor> GetLogs() => [];
+
+        public IReadOnlyList<LogSource> GetLogSources() => [];
+
+        public bool CanOpenLogSource(LogSource source) =>
+            string.Equals(source.ResourceId, "application:api", StringComparison.OrdinalIgnoreCase) &&
+            source.Kind == ResourceLogSourceKind.File;
+
+        public ValueTask<ILogSourceSession?> OpenLogSourceAsync(
+            LogSource source,
+            CancellationToken cancellationToken = default)
+        {
+            OpenedSource = source;
+            return ValueTask.FromResult<ILogSourceSession?>(new TestLogSourceSession(source.Id));
+        }
+
+        public Task<IReadOnlyList<LogEntry>> ReadLogAsync(
+            string logId,
+            int maxEntries = 200,
+            DateTimeOffset? before = null,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<LogEntry>>([]);
     }
 
     private sealed class TestResourceManagerStore(IReadOnlyList<Resource> resources) : IResourceManagerStore

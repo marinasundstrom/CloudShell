@@ -13,6 +13,10 @@ public interface ILogProvider
             .Select(log => log.ToLogSource())
             .ToArray();
 
+    bool CanOpenLogSource(LogSource source) =>
+        GetLogSources()
+            .Any(candidate => string.Equals(candidate.Id, source.Id, StringComparison.OrdinalIgnoreCase));
+
     ValueTask<ILogSourceSession?> OpenLogSourceAsync(
         LogSource source,
         CancellationToken cancellationToken = default)

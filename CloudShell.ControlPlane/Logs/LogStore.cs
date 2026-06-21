@@ -115,9 +115,20 @@ public sealed class LogStore(
         DateTimeOffset? before = null,
         CancellationToken cancellationToken = default)
     {
+        var source = GetLogSource(logSourceId);
+        if (source is null)
+        {
+            return [];
+        }
+
         foreach (var provider in Providers)
         {
-            await using var session = await OpenProviderLogSourceAsync(provider, logSourceId, cancellationToken);
+            if (!provider.CanOpenLogSource(source))
+            {
+                continue;
+            }
+
+            await using var session = await provider.OpenLogSourceAsync(source, cancellationToken);
             if (session is not null)
             {
                 return await session.ReadAsync(maxEntries, before, cancellationToken);
@@ -143,17 +154,22 @@ public sealed class LogStore(
         int initialEntries = 50,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
+        var source = GetLogSource(logSourceId);
+        if (source is null)
+        {
+            yield break;
+        }
+
+        if (!source.SupportsStreaming)
+        {
+            yield break;
+        }
+
         foreach (var provider in Providers)
         {
-            var source = GetProviderLogSource(provider, logSourceId);
-            if (source is null)
+            if (!provider.CanOpenLogSource(source))
             {
                 continue;
-            }
-
-            if (!source.SupportsStreaming)
-            {
-                yield break;
             }
 
             await using var session = await provider.OpenLogSourceAsync(source, cancellationToken);
@@ -189,26 +205,6 @@ public sealed class LogStore(
             .SelectMany(extension => extension.LogProviderTypes)
             .Any(type => type.IsAssignableFrom(providerType));
     }
-
-    private static async ValueTask<ILogSourceSession?> OpenProviderLogSourceAsync(
-        ILogProvider provider,
-        string logSourceId,
-        CancellationToken cancellationToken)
-    {
-        var source = GetProviderLogSource(provider, logSourceId);
-        if (source is null)
-        {
-            return null;
-        }
-
-        return await provider.OpenLogSourceAsync(source, cancellationToken);
-    }
-
-    private static LogSource? GetProviderLogSource(
-        ILogProvider provider,
-        string logSourceId) =>
-        provider.GetLogSources().FirstOrDefault(source =>
-            string.Equals(source.Id, logSourceId, StringComparison.OrdinalIgnoreCase));
 
     private static LogSource ToLogSource(
         Resource resource,

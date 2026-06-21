@@ -750,7 +750,9 @@ In code:
   while descriptor-backed providers are bridged into sources during the
   transition. When opening a session, providers receive the resolved
   `LogSource` so source kind, storage, location, and configuration stay behind
-  the provider boundary.
+  the provider boundary. Providers can also declare whether they can open a
+  resolved source, allowing resource-declared sources to be routed by kind and
+  configuration instead of only by provider-listed source IDs.
 - `ILogSourceSession` is the provider-owned runtime access context materialized
   when a source is read or streamed. It keeps source discovery separate from
   access status, file handles, process or container streams, remote cursors,
