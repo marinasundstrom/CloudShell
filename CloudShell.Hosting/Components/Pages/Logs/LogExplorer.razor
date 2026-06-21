@@ -134,6 +134,62 @@ else if (ShowHeading)
                 <p class="log-description">@selected.Description</p>
             }
 
+            @if (ShowSourceInventory && GetInventoryLogSources().Count > 0)
+            {
+                var inventorySources = GetInventoryLogSources();
+
+                <div class="log-source-inventory-shell">
+                    <table class="log-source-inventory" aria-label="@L["Log sources"]">
+                        <thead>
+                            <tr>
+                                <th class="log-source-inventory-source" scope="col">@L["Source"]</th>
+                                <th class="log-source-inventory-log" scope="col">@L["Log"]</th>
+                                <th scope="col">@L["Kind"]</th>
+                                <th scope="col">@L["Format"]</th>
+                                <th scope="col">@L["Availability"]</th>
+                                <th scope="col">@L["Capabilities"]</th>
+                                <th class="log-source-inventory-action" scope="col">@L["Action"]</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var source in inventorySources)
+                            {
+                                var isSelected = string.Equals(source.Id, selected.Id, StringComparison.OrdinalIgnoreCase);
+                                <tr class="@(isSelected ? "selected" : null)">
+                                    <td class="log-source-inventory-source">
+                                        <span title="@GetLogSourceLabel(source)">@GetLogSourceLabel(source)</span>
+                                    </td>
+                                    <td class="log-source-inventory-log">
+                                        <span title="@source.Name">@source.Name</span>
+                                        @if (!string.IsNullOrWhiteSpace(source.Description))
+                                        {
+                                            <small>@source.Description</small>
+                                        }
+                                    </td>
+                                    <td>@FormatLogSourceKind(source.Kind)</td>
+                                    <td>@FormatLogFormat(source.Format)</td>
+                                    <td>@FormatAvailability(source.Availability)</td>
+                                    <td>@FormatCapabilities(source.Capabilities)</td>
+                                    <td class="log-source-inventory-action">
+                                        @if (isSelected)
+                                        {
+                                            <span>@L["Selected"]</span>
+                                        }
+                                        else
+                                        {
+                                            <FluentAnchor Appearance="Appearance.Neutral"
+                                                          Href="@BuildLogSourceRoute(source, TraceId)">
+                                                @L["Open"]
+                                            </FluentAnchor>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+
             @if (!string.IsNullOrWhiteSpace(TraceId))
             {
                 <p class="log-description">@L["Showing entries correlated with trace {0}.", FormatTraceId(TraceId)]</p>
@@ -215,6 +271,9 @@ else if (ShowHeading)
 
     [Parameter]
     public bool UsePanel { get; set; } = true;
+
+    [Parameter]
+    public bool ShowSourceInventory { get; set; } = true;
 
     private IReadOnlyList<LogEntry> Entries { get; set; } = [];
     private string? LoadedLogId { get; set; }
@@ -332,6 +391,13 @@ else if (ShowHeading)
     private IReadOnlyList<LogSource> GetOperationalLogSources(IReadOnlyList<LogSource> logs) =>
         logs
             .Where(log => !IsCombinedLog(log) && !IsActivityLog(log))
+            .ToArray();
+
+    private IReadOnlyList<LogSource> GetInventoryLogSources() =>
+        VisibleLogSources
+            .Where(log => !IsCombinedLog(log))
+            .OrderBy(log => GetLogSourceLabel(log), StringComparer.OrdinalIgnoreCase)
+            .ThenBy(log => log.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private LogSource CreateCombinedLogSource(IReadOnlyList<LogSource> logs)
@@ -603,6 +669,35 @@ else if (ShowHeading)
             LogSourceAvailability.ProviderDefined => L["Provider defined"].Value,
             _ => L["Availability unknown"].Value
         };
+
+    private string FormatCapabilities(LogSourceCapabilities capabilities)
+    {
+        if (capabilities == LogSourceCapabilities.None)
+        {
+            return L["None"].Value;
+        }
+
+        var labels = new List<string>();
+        AddCapabilityLabel(labels, capabilities, LogSourceCapabilities.Read, L["Read"].Value);
+        AddCapabilityLabel(labels, capabilities, LogSourceCapabilities.Stream, L["Stream"].Value);
+        AddCapabilityLabel(labels, capabilities, LogSourceCapabilities.Query, L["Query"].Value);
+        AddCapabilityLabel(labels, capabilities, LogSourceCapabilities.Search, L["Search"].Value);
+        AddCapabilityLabel(labels, capabilities, LogSourceCapabilities.StructuredFields, L["Structured"].Value);
+
+        return string.Join(", ", labels);
+    }
+
+    private static void AddCapabilityLabel(
+        List<string> labels,
+        LogSourceCapabilities capabilities,
+        LogSourceCapabilities capability,
+        string label)
+    {
+        if (capabilities.HasFlag(capability))
+        {
+            labels.Add(label);
+        }
+    }
 
     private string GetResourceLabel(Resource resource) =>
         DisplaySelection.GetResourceLabel(resource);

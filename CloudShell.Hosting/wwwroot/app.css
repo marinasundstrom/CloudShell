@@ -3146,6 +3146,77 @@ h3 {
     font-size: .84rem;
 }
 
+.log-source-inventory-shell {
+    max-height: 11rem;
+    margin-bottom: .75rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 4px;
+    overflow: auto;
+    background: var(--cloudshell-surface-muted);
+}
+
+.log-source-inventory {
+    width: 100%;
+    min-width: 66rem;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: .76rem;
+}
+
+.log-source-inventory th,
+.log-source-inventory td {
+    padding: .38rem .55rem;
+    border-bottom: 1px solid var(--cloudshell-divider);
+    text-align: left;
+    vertical-align: top;
+}
+
+.log-source-inventory th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--cloudshell-surface);
+    color: var(--cloudshell-text-muted);
+    font-weight: 700;
+}
+
+.log-source-inventory tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.log-source-inventory tbody tr:hover,
+.log-source-inventory tbody tr.selected {
+    background: var(--cloudshell-hover);
+}
+
+.log-source-inventory-source {
+    width: 18rem;
+}
+
+.log-source-inventory-log {
+    width: 17rem;
+}
+
+.log-source-inventory-action {
+    width: 6rem;
+    text-align: right;
+}
+
+.log-source-inventory-source span,
+.log-source-inventory-log span,
+.log-source-inventory-log small {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.log-source-inventory-log small {
+    color: var(--cloudshell-text-muted);
+    font-size: .7rem;
+}
+
 .log-history-bar {
     display: flex;
     align-items: center;

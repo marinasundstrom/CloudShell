@@ -79,6 +79,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The Logs explorer and resource detail surfaces now list projected log
   sources, including source-only declarations from resource kinds, and read
   through source-addressed log operations.
+- The Logs explorer now shows a compact log-source inventory with source,
+  kind, format, availability, capabilities, and open actions before the
+  selected source stream.
 - Resource-scoped log source discovery, reads, and streams now enforce both
   the common logs permission and resource read access, while provider-owned
   sources remain gated by the common logs permission.
