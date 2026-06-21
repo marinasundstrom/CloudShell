@@ -68,10 +68,10 @@ public sealed class ShellNavigationCompositionProjector(ShellCatalog shellCatalo
         NavItemContribution item,
         out CompositionTarget target)
     {
-        var pageId = GetShellPageId(item.Target.ViewId, item.Href);
-        if (pageId is not null)
+        var shellTarget = GetShellTarget(item.Target.ViewId, item.Href);
+        if (shellTarget is not null)
         {
-            target = pageId.Value;
+            target = shellTarget.Value;
             return true;
         }
 
@@ -79,7 +79,7 @@ public sealed class ShellNavigationCompositionProjector(ShellCatalog shellCatalo
         return false;
     }
 
-    private static PageId? GetShellPageId(string? viewId, string href)
+    private static CompositionTarget? GetShellTarget(string? viewId, string href)
     {
         if (Matches(viewId, href, CoreShellViews.Overview, "/"))
         {
@@ -93,12 +93,12 @@ public sealed class ShellNavigationCompositionProjector(ShellCatalog shellCatalo
 
         if (Matches(viewId, href, CoreShellViews.Users, "/account/users"))
         {
-            return ShellCompositionIds.UsersPage;
+            return ShellCompositionIds.SettingsUsersSection;
         }
 
         if (Matches(viewId, href, CoreShellViews.Extensions, "/extensions"))
         {
-            return ShellCompositionIds.ExtensionsPage;
+            return ShellCompositionIds.SettingsExtensionsSection;
         }
 
         return null;

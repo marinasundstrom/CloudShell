@@ -28,6 +28,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource overview now summarizes concrete endpoint mappings and resolvable
   HTTP/HTTPS DNS name mappings, and the common Resources list prefers a
   resolvable DNS name mapping before falling back to the primary endpoint.
+- Users and Extensions now live as common Settings sections, with the shell
+  topbar settings cog as the primary entry point instead of a Platform
+  navigation group.
 - Mapped-resource DNS surfaces now render name mappings as endpoint anchors
   only when CloudShell can resolve the mapped target endpoint as HTTP/HTTPS,
   while name-mapping and DNS-zone overviews keep the name mapping itself

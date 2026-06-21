@@ -22,8 +22,6 @@ public sealed class CoreShellExtension : ICloudShellExtension
             module =>
             {
                 module.AddPage(ShellCompositionIds.OverviewPage, "Overview", "/");
-                module.AddPage(ShellCompositionIds.UsersPage, "Users", "/account/users");
-                module.AddPage(ShellCompositionIds.ExtensionsPage, "Extensions", "/extensions");
 
                 module
                     .AddPage(ShellCompositionIds.SettingsPage, "Settings", "/settings/{section?}", isExtendable: true)
@@ -33,10 +31,14 @@ public sealed class CoreShellExtension : ICloudShellExtension
                         ShellCompositionIds.SettingsOverviewSection,
                         "Overview",
                         10)
-                    .AddSection<ShellSettingsPlatformSection>(
-                        ShellCompositionIds.SettingsPlatformSection,
-                        "Platform",
-                        20);
+                    .AddSection<Components.Pages.Account.Users>(
+                        ShellCompositionIds.SettingsUsersSection,
+                        "Users",
+                        20)
+                    .AddSection<Components.Pages.Extensions.Extensions>(
+                        ShellCompositionIds.SettingsExtensionsSection,
+                        "Extensions",
+                        30);
 
                 var mainMenu = module.AddMenu(ShellCompositionIds.MainMenu, "Main");
 
@@ -45,22 +47,6 @@ public sealed class CoreShellExtension : ICloudShellExtension
                     .AddItem(ShellCompositionIds.OverviewMenuItem, "Overview", 0)
                     .WithAttribute(CompositionAttributeNames.Icon, "grid")
                     .Target(ShellCompositionIds.OverviewPage);
-
-                var platformMenu = mainMenu
-                    .AddGroup(ShellCompositionIds.PlatformMenuGroup, "Platform", 70);
-
-                platformMenu
-                    .AddItem(ShellCompositionIds.SettingsMenuItem, "Settings", 75)
-                    .WithAttribute(CompositionAttributeNames.Icon, "settings")
-                    .Target(ShellCompositionIds.SettingsPage);
-                platformMenu
-                    .AddItem(ShellCompositionIds.UsersMenuItem, "Users", 80)
-                    .WithAttribute(CompositionAttributeNames.Icon, "users")
-                    .Target(ShellCompositionIds.UsersPage);
-                platformMenu
-                    .AddItem(ShellCompositionIds.ExtensionsMenuItem, "Extensions", 90)
-                    .WithAttribute(CompositionAttributeNames.Icon, "plug")
-                    .Target(ShellCompositionIds.ExtensionsPage);
             });
 
         builder

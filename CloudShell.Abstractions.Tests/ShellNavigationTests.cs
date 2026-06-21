@@ -143,27 +143,6 @@ public sealed class ShellNavigationTests
                 var overview = Assert.Single(workspace.Items);
                 Assert.Equal(ShellCompositionIds.OverviewMenuItem, overview.Id);
                 Assert.Equal(ShellCompositionIds.OverviewPage.Value, overview.Target.Value);
-            },
-            platform =>
-            {
-                Assert.Equal(ShellCompositionIds.PlatformMenuGroup, platform.Id);
-                Assert.Collection(
-                    platform.Items,
-                    settings =>
-                    {
-                        Assert.Equal(ShellCompositionIds.SettingsMenuItem, settings.Id);
-                        Assert.Equal(ShellCompositionIds.SettingsPage.Value, settings.Target.Value);
-                    },
-                    users =>
-                    {
-                        Assert.Equal(ShellCompositionIds.UsersMenuItem, users.Id);
-                        Assert.Equal(ShellCompositionIds.UsersPage.Value, users.Target.Value);
-                    },
-                    extensions =>
-                    {
-                        Assert.Equal(ShellCompositionIds.ExtensionsMenuItem, extensions.Id);
-                        Assert.Equal(ShellCompositionIds.ExtensionsPage.Value, extensions.Target.Value);
-                    });
             });
     }
 
@@ -182,12 +161,12 @@ public sealed class ShellNavigationTests
 
         Assert.Equal("/settings", registry.ResolveHref(ShellCompositionIds.SettingsPage));
         Assert.Equal(
-            "/settings/platform",
+            "/settings/users",
             registry.ResolveHref(
                 ShellCompositionIds.SettingsPage,
                 new Dictionary<string, object?>
                 {
-                    ["section"] = "platform"
+                    ["section"] = "users"
                 }));
         Assert.Equal(
             "/settings/resource-manager",
@@ -201,8 +180,11 @@ public sealed class ShellNavigationTests
             CompositionSectionAddressMode.Child,
             registry.GetSectionOutlet(ShellCompositionIds.SettingsMainOutlet)?.AddressMode);
         Assert.Equal(
-            "/settings/platform",
-            registry.ResolveHref(ShellCompositionIds.SettingsPlatformSection));
+            "/settings/users",
+            registry.ResolveHref(ShellCompositionIds.SettingsUsersSection));
+        Assert.Equal(
+            "/settings/extensions",
+            registry.ResolveHref(ShellCompositionIds.SettingsExtensionsSection));
         Assert.Equal(
             "/settings/resource-manager",
             registry.ResolveHref(ResourceManagerCompositionIds.SettingsSection));

@@ -702,16 +702,18 @@ public sealed class SampleSmokeTests
         var settingsHtml = await host.GetStringAsync("/settings");
         Assert.Contains(">Settings<", settingsHtml);
         Assert.Contains(">Overview<", settingsHtml);
-        Assert.Contains(">Platform<", settingsHtml);
+        Assert.Contains(">Users<", settingsHtml);
+        Assert.Contains(">Extensions<", settingsHtml);
         Assert.Contains(">Resource Manager<", settingsHtml);
         Assert.Contains("Settings composition", settingsHtml);
 
-        var platformSettingsHtml = await host.GetStringAsync("/settings/platform");
-        Assert.Contains("Platform surfaces", platformSettingsHtml);
-        Assert.Contains("Open users", platformSettingsHtml);
-        Assert.Contains("href=\"/account/users\"", platformSettingsHtml);
-        Assert.Contains("Open extensions", platformSettingsHtml);
-        Assert.Contains("href=\"/extensions\"", platformSettingsHtml);
+        var usersSettingsHtml = await host.GetStringAsync("/settings/users");
+        Assert.Contains(">Users<", usersSettingsHtml);
+        Assert.Contains("Settings section", usersSettingsHtml);
+
+        var extensionsSettingsHtml = await host.GetStringAsync("/settings/extensions");
+        Assert.Contains(">Extensions<", extensionsSettingsHtml);
+        Assert.Contains("Shell extensions", extensionsSettingsHtml);
 
         var resourceManagerSettingsHtml = await host.GetStringAsync("/settings/resource-manager");
         Assert.Contains("Resource orchestrator", resourceManagerSettingsHtml);

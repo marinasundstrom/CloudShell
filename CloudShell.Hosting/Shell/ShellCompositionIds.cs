@@ -8,16 +8,11 @@ public static class ShellCompositionIds
     public static readonly CompositionModuleId NavigationModule = CompositionModuleId.Create("cloudshell.navigation");
     public static readonly MenuId MainMenu = MenuId.Create("cloudshell.main");
     public static readonly MenuGroupId WorkspaceMenuGroup = MenuGroupId.Create(MainMenu, "workspace");
-    public static readonly MenuGroupId PlatformMenuGroup = MenuGroupId.Create(MainMenu, "platform");
     public static readonly MenuItemId OverviewMenuItem = MenuItemId.Create(WorkspaceMenuGroup, "overview");
-    public static readonly MenuItemId SettingsMenuItem = MenuItemId.Create(PlatformMenuGroup, "settings");
-    public static readonly MenuItemId UsersMenuItem = MenuItemId.Create(PlatformMenuGroup, "users");
-    public static readonly MenuItemId ExtensionsMenuItem = MenuItemId.Create(PlatformMenuGroup, "extensions");
     public static readonly PageId OverviewPage = PageId.Create("cloudshell.overview");
-    public static readonly PageId UsersPage = PageId.Create("cloudshell.users");
-    public static readonly PageId ExtensionsPage = PageId.Create("cloudshell.extensions");
     public static readonly PageId SettingsPage = PageId.Create("cloudshell.settings");
     public static readonly SectionOutletId SettingsMainOutlet = SectionOutletId.Create(SettingsPage, "main");
     public static readonly SectionId SettingsOverviewSection = SectionId.Create(SettingsMainOutlet, "overview");
-    public static readonly SectionId SettingsPlatformSection = SectionId.Create(SettingsMainOutlet, "platform");
+    public static readonly SectionId SettingsUsersSection = SectionId.Create(SettingsMainOutlet, "users");
+    public static readonly SectionId SettingsExtensionsSection = SectionId.Create(SettingsMainOutlet, "extensions");
 }

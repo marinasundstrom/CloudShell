@@ -59,8 +59,10 @@
     public string? Section { get; set; }
 
     private static string GetIcon(CompositionSectionProjection section) =>
-        section.Section.Id == ShellCompositionIds.SettingsPlatformSection
-            ? "extensions"
+        section.Section.Id == ShellCompositionIds.SettingsUsersSection
+            ? "users"
+            : section.Section.Id == ShellCompositionIds.SettingsExtensionsSection
+                ? "extensions"
             : section.Section.Id == ResourceManagerCompositionIds.SettingsSection
                 ? "resources"
                 : "settings";
