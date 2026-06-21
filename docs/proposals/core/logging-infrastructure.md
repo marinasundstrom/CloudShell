@@ -193,6 +193,13 @@ contract. More specific sources, such as ASP.NET Core file-sink logs, should be
 declared by the provider or configured by the user when that capability is
 available.
 
+If CloudShell later supports automatic log-source discovery, it should be a
+separate layer on top of declarations. Discovered sources are not equivalent to
+declared sources: they may be unstable, environment-specific, or dependent on a
+running resource. The model should preserve that distinction and allow a user
+or provider to promote a discovered source into a declared source when it
+should become stable configuration.
+
 `LogSource` is the Control Plane abstraction projected from resource-owned
 sources and any provider-owned non-resource sources. It is the object that log
 listing, read, query, and stream APIs should address. The initial abstraction
