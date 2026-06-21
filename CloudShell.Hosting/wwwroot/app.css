@@ -244,6 +244,12 @@ h3 {
     background: var(--cloudshell-surface-muted);
 }
 
+.activity-row,
+.activity-row:hover,
+.activity-row:focus-visible {
+    text-decoration: none;
+}
+
 .activity-row span:last-child {
     margin-left: auto;
 }
@@ -1902,6 +1908,11 @@ h3 {
     text-decoration: none;
 }
 
+.generated-pill-link:hover,
+.generated-pill-link:focus-visible {
+    text-decoration: none;
+}
+
 .generated-pill-link small {
     color: var(--cloudshell-text-muted);
     font-size: .68rem;
@@ -2864,6 +2875,11 @@ h3 {
 
 .dependency-map-node:hover {
     border-color: var(--cloudshell-accent);
+    text-decoration: none;
+}
+
+.dependency-map-node:focus-visible {
+    text-decoration: none;
 }
 
 .dependency-map-node.missing {
@@ -3393,6 +3409,11 @@ h3 {
 .recent-trace-item:hover {
     border-color: var(--cloudshell-accent);
     background: var(--cloudshell-hover);
+    text-decoration: none;
+}
+
+.recent-trace-item:focus-visible {
+    text-decoration: none;
 }
 
 .recent-trace-item.error {

@@ -82,6 +82,11 @@
     text-decoration: none;
 }
 
+::deep .fluent-nav-link:hover,
+::deep .fluent-nav-link:focus-visible {
+    text-decoration: none;
+}
+
 ::deep .fluent-nav-link .positioning-region {
     display: flex;
     align-items: center;

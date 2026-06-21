@@ -118,6 +118,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Observability navigation now contributes its Overview parent item and Logs,
   Dependencies, Service map, Traces, and Metrics child items directly into the
   composition main menu with graph-encoded permission requirements.
+- Custom card-like and tab-like navigation links now suppress hover underlines
+  when their own border or background state already communicates hover.
 - The UI Extension Host sample now contributes its sample workspace sidebar
   item through the composition main menu instead of legacy shell navigation.
 - CloudShell Hosting now exposes `builder.AddCompositionModule(...)` for
