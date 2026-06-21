@@ -3001,9 +3001,10 @@ public sealed partial class ApplicationResourceService(
             startInfo.ArgumentList.Add(argument);
         }
 
+        Process? process = null;
         try
         {
-            using var process = Process.Start(startInfo);
+            process = Process.Start(startInfo);
             if (process is null)
             {
                 logger.LogWarning(
@@ -3033,7 +3034,6 @@ public sealed partial class ApplicationResourceService(
                 log.Append(error.Trim(), "process", process.ExitCode == 0 ? "Information" : "Warning");
             }
 
-            LogContainerHostCommandReleased(logger, engine, command, commandLine, process.ExitCode);
             return process.ExitCode;
         }
         catch (OperationCanceledException)
@@ -3050,6 +3050,14 @@ public sealed partial class ApplicationResourceService(
                 command);
             log.Append(exception.Message, "process", "Warning");
             return -1;
+        }
+        finally
+        {
+            if (process is not null)
+            {
+                LogContainerHostCommandReleased(logger, process, engine, command, commandLine);
+                process.Dispose();
+            }
         }
     }
 
@@ -3075,9 +3083,10 @@ public sealed partial class ApplicationResourceService(
             startInfo.ArgumentList.Add(argument);
         }
 
+        Process? process = null;
         try
         {
-            using var process = Process.Start(startInfo);
+            process = Process.Start(startInfo);
             if (process is null)
             {
                 logger.LogWarning(
@@ -3097,7 +3106,6 @@ public sealed partial class ApplicationResourceService(
                 process.ExitCode,
                 await outputTask,
                 await errorTask);
-            LogContainerHostCommandReleased(logger, engine, command, commandLine, process.ExitCode);
             return result;
         }
         catch (OperationCanceledException)
@@ -3113,6 +3121,14 @@ public sealed partial class ApplicationResourceService(
                 commandLine,
                 command);
             return new ContainerHostCommandResult(-1, string.Empty, exception.Message);
+        }
+        finally
+        {
+            if (process is not null)
+            {
+                LogContainerHostCommandReleased(logger, process, engine, command, commandLine);
+                process.Dispose();
+            }
         }
     }
 
@@ -5861,7 +5877,7 @@ public sealed partial class ApplicationResourceService(
         var commandLine = FormatContainerHostCommandLine(
             startInfo.ArgumentList.Select(argument => argument).ToArray());
 
-        using var process = Process.Start(startInfo)
+        Process? process = Process.Start(startInfo)
             ?? throw new InvalidOperationException("Container registry login could not be started.");
         try
         {
@@ -5891,13 +5907,16 @@ public sealed partial class ApplicationResourceService(
                 throw new InvalidOperationException(
                     $"Container registry login failed for '{registryAddress}'.");
             }
-
-            LogContainerHostCommandReleased(logger, engine, command, commandLine, process.ExitCode);
         }
         catch (OperationCanceledException)
         {
-            ProcessShutdown.KillProcessTreeAndWait(process);
+            KillContainerHostCommandIfRunning(logger, process, engine, command, commandLine);
             throw;
+        }
+        finally
+        {
+            LogContainerHostCommandReleased(logger, process, engine, command, commandLine);
+            process.Dispose();
         }
     }
 
@@ -5949,7 +5968,7 @@ public sealed partial class ApplicationResourceService(
                 engine.Id,
                 resolvedCommandLine,
                 resolvedCommand);
-            ProcessShutdown.KillProcessTreeAndWait(process);
+            KillContainerHostCommandIfRunning(logger, process, engine, resolvedCommand, resolvedCommandLine);
             logger?.LogDebug(
                 "Container host {ContainerHostId} canceled command {ContainerHostCommandLine} and released the host interaction ({ContainerHostCommand}).",
                 engine.Id,
@@ -5957,6 +5976,27 @@ public sealed partial class ApplicationResourceService(
                 resolvedCommand);
             throw;
         }
+    }
+
+    private static void KillContainerHostCommandIfRunning(
+        ILogger? logger,
+        Process process,
+        ContainerHostDescriptor engine,
+        string command,
+        string commandLine)
+    {
+        if (process.HasExited)
+        {
+            return;
+        }
+
+        logger?.LogDebug(
+            "Container host {ContainerHostId} killing canceled command {ContainerHostCommandLine} ({ContainerHostCommand}, process {ProcessId}).",
+            engine.Id,
+            commandLine,
+            command,
+            process.Id);
+        ProcessShutdown.KillProcessTreeAndWait(process);
     }
 
     private static string GetContainerHostCommandName(IReadOnlyList<string> arguments) =>
@@ -6010,16 +6050,17 @@ public sealed partial class ApplicationResourceService(
 
     private static void LogContainerHostCommandReleased(
         ILogger logger,
+        Process process,
         ContainerHostDescriptor engine,
         string command,
-        string commandLine,
-        int exitCode) =>
+        string commandLine) =>
         logger.LogDebug(
-            "Container host {ContainerHostId} released command {ContainerHostCommandLine} after capturing command output ({ContainerHostCommand}, exit code {ExitCode}).",
+            "Container host {ContainerHostId} released command {ContainerHostCommandLine} after process termination ({ContainerHostCommand}, process {ProcessId}, exit code {ExitCode}).",
             engine.Id,
             commandLine,
             command,
-            exitCode);
+            process.Id,
+            TryGetExitCode(process));
 
     private static string CreateContainerRevision() =>
         $"rev-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..27];

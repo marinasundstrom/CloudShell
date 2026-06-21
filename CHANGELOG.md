@@ -44,6 +44,9 @@ on `git blame --follow`, and then by the broad type of change.
   messages after tracked process exit observation and runner disposal.
 - Local process runner pre-start commands now terminate their process tree when
   canceled and log the released process handle.
+- Container host command helpers now dispose command processes through a
+  common release path and log that release even when cancellation interrupts a
+  Docker/Podman command.
 - Docker host client create/dispose diagnostics now use Debug level, matching
   the process-oriented container host command logs.
 - Re-aligned the local-development MVP queue around Application Topology

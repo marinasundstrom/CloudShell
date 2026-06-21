@@ -3386,6 +3386,12 @@ public sealed class ResourceDeclarationTests
 
         Assert.NotNull(method);
 
+        using var logProvider = new CapturingLoggerProvider();
+        using var loggerFactory = LoggerFactory.Create(builder =>
+        {
+            builder.SetMinimumLevel(LogLevel.Debug);
+            builder.AddProvider(logProvider);
+        });
         using var cancellation = new CancellationTokenSource();
         var task = Assert.IsAssignableFrom<Task<int>>(method.Invoke(
             null,
@@ -3394,7 +3400,7 @@ public sealed class ResourceDeclarationTests
                 new[] { "version" },
                 new ApplicationProcessLog(),
                 cancellation.Token,
-                null
+                loggerFactory.CreateLogger("test")
             ]));
         var processId = await WaitForProcessIdFileAsync(pidPath, TimeSpan.FromSeconds(5));
         using var process = Process.GetProcessById(processId);
@@ -3403,6 +3409,12 @@ public sealed class ResourceDeclarationTests
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => task);
         Assert.True(await WaitForExitAsync(process, TimeSpan.FromSeconds(5)));
+        Assert.Contains(
+            logProvider.Messages,
+            message => message.Contains("killing canceled command version", StringComparison.Ordinal));
+        Assert.Contains(
+            logProvider.Messages,
+            message => message.Contains("released command version", StringComparison.Ordinal));
     }
 
     [Fact]
