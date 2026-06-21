@@ -31,14 +31,6 @@ internal sealed class SqlServerApplicationResourceProvider(
 
     public Task<ResourcePermissionGrantStatus> GetStatusAsync(
         ResourcePermissionGrantStatusRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(new ResourcePermissionGrantStatus(
-            request.Grant,
-            ResourcePermissionGrantEffectivenessState.NotApplied,
-            "SQL Server provider has not created SQL users or roles for this grant yet.",
-            ProviderId,
-            DateTimeOffset.UtcNow));
-    }
+        CancellationToken cancellationToken = default) =>
+        Applications.GetSqlServerPermissionGrantStatusAsync(request, cancellationToken);
 }

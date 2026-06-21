@@ -82,9 +82,14 @@ Implemented today:
 * Database read/write grant intent can be assigned to SQL Server resources
   through the existing Access control model.
 * Resource Manager can show requested-versus-effective grant status from the
-  SQL Server provider. The current provider reports database read/write grants
-  as not yet applied and includes a provider diagnostic explaining that SQL
-  users and roles have not been created.
+  SQL Server provider. The local provider can reconcile read/write grants for
+  resource-identity principals by creating provider-owned contained database
+  users and `db_datareader`/`db_datawriter` role memberships for declared
+  databases, then inspect SQL-side state and report applied, pending, failed,
+  or drifted status.
+* SQL Server resources expose a **Reconcile database access** action that
+  reapplies CloudShell database grants to declared SQL databases while the
+  instance is running.
 * Programmatic declarations can add declared databases with `WithDatabase(...)`;
   those project as provider-managed `application.sql-database` child resources
   and display in a SQL Server **Databases** tab.
@@ -338,9 +343,11 @@ or exposing connection-string credentials. Resource Manager now has an
 effective-access observation from the SQL Server provider, so the UI can show a
 requested grant, whether it has been applied, and any provider diagnostic
 explaining why it is still pending or failed. The next SQL-specific access
-slice is for the local provider to materialize SQL logins, contained users, or
-role membership behind the provider boundary, then report applied, pending,
-failed, or drifted status from the actual SQL-side state.
+slice after the local SQL-side reconciliation work is workload credential
+delivery: a local broker or provider-owned credential path that lets a
+resource identity use the reconciled SQL-side authorization without exposing
+administrator credentials or long-lived generated SQL passwords in resource
+metadata.
 
 ## Programmatic API Direction
 
@@ -412,11 +419,12 @@ MVP container app, storage, networking, and identity primitives are stable.
   database metadata.
 * Decide the lifecycle policy for declared databases beyond local-startup
   create-if-missing reconciliation, including drop behavior and drift handling.
-* Add identity-backed SQL login/database user provisioning.
+* Expand identity-backed SQL login/database user provisioning beyond the first
+  local contained-user and role-membership reconciliation slice.
 * Define stable database permission names and map them to SQL Server logins,
   database users, roles, and provider-specific identity integration.
-* Replace the current static "not applied" SQL grant status with provider
-  inspection of actual SQL-side login, user, role, or external mapping state.
+* Add workload credential delivery or a broker path so resource identities can
+  use reconciled SQL-side authorization without configured SQL credentials.
 * Define provider-owned backup/restore and maintenance operations.
 * Split runtime container diagnostics from the SQL Server managed resource
   surface.

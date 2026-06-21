@@ -55,6 +55,7 @@
         new("Load balancer configuration apply", LoadBalancerResourceOperationPermissions.ApplyConfiguration, PermissionOptionTarget.LoadBalancer),
         new("Identity provisioning", ResourceIdentityProvisioningOperationPermissions.ProvisionIdentities, PermissionOptionTarget.IdentityProvisioning),
         new("Database: read/write", DatabaseResourceOperationPermissions.ReadWrite, PermissionOptionTarget.Database),
+        new("Database access: reconcile", DatabaseResourceOperationPermissions.ReconcileAccess, PermissionOptionTarget.Database),
         new("All permissions", CloudShellPermissions.All, PermissionOptionTarget.Always),
         new("Custom permission", CustomPermissionValue, PermissionOptionTarget.Always)
     ];
@@ -147,7 +148,7 @@
         @if (ShouldShowSqlGrantMaterializationNotice())
         {
             <ProcedureMessage Severity="ResourceSignalSeverity.Warning" Role="status">
-                @L["Database grants are saved in CloudShell. The SQL Server provider does not create users or roles yet, so workloads must use configured SQL credentials."]
+                @L["Database grants are saved in CloudShell. Reconcile access to create SQL-side users and roles. Workload credential delivery remains provider-owned future work."]
             </ProcedureMessage>
         }
         <p class="muted">@L["CloudShell records that the selected principal can access this resource. Identity and access providers apply or reconcile the grant when provisioning runs."]</p>

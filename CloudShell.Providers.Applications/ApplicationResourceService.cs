@@ -18,6 +18,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using System.Security.Cryptography;
 
 namespace CloudShell.Providers.Applications;
 
@@ -43,6 +44,8 @@ public sealed partial class ApplicationResourceService(
     IHostScopedResourceCleanupProvider,
     IDisposable
 {
+    public const string ReconcileSqlServerAccessActionId = "application.sql-server.reconcile-access";
+    private const string SqlServerManagedUserPrefix = "cloudshell_";
     private static readonly JsonSerializerOptions TemplateSerializerOptions = new(JsonSerializerDefaults.Web);
     private static readonly TimeSpan StartingStateTimeout = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan SqlServerDatabaseReconciliationTimeout = TimeSpan.FromSeconds(90);
@@ -486,6 +489,18 @@ public sealed partial class ApplicationResourceService(
 
         switch (action.Kind)
         {
+            case ResourceActionKind.Custom when string.Equals(
+                action.Id,
+                ReconcileSqlServerAccessActionId,
+                StringComparison.OrdinalIgnoreCase):
+                var count = await ReconcileSqlServerAccessGrantsAsync(
+                    context.Resource.Id,
+                    cancellationToken,
+                    context);
+                return ResourceProcedureResult.Completed(
+                    count == 0
+                        ? "No SQL Server database grants are currently declared. Provider-owned SQL access artifacts were reconciled."
+                        : $"Reconciled {count.ToString(CultureInfo.InvariantCulture)} SQL Server database grant{Pluralize(count)}.");
             case ResourceActionKind.Start:
                 await StartApplicationAsync(
                     context.Resource.Id,
@@ -549,7 +564,8 @@ public sealed partial class ApplicationResourceService(
     public bool CanEvaluateAction(Resource resource, ResourceAction action) =>
         ApplicationResourceTypes.IsApplication(resource.EffectiveTypeId) &&
         store.GetApplication(resource.Id) is not null &&
-        action.Kind is ResourceActionKind.Start or ResourceActionKind.Restart;
+        (action.Kind is ResourceActionKind.Start or ResourceActionKind.Restart ||
+         string.Equals(action.Id, ReconcileSqlServerAccessActionId, StringComparison.OrdinalIgnoreCase));
 
     public async Task<string?> GetActionUnavailableReasonAsync(
         ResourceProcedureContext context,
@@ -557,6 +573,25 @@ public sealed partial class ApplicationResourceService(
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        if (string.Equals(action.Id, ReconcileSqlServerAccessActionId, StringComparison.OrdinalIgnoreCase))
+        {
+            var sqlServer = store.GetApplication(context.Resource.Id);
+            if (sqlServer is null ||
+                !string.Equals(sqlServer.ResourceType, ApplicationResourceTypes.SqlServer, StringComparison.OrdinalIgnoreCase))
+            {
+                return "Only SQL Server resources can reconcile database access.";
+            }
+
+            if (!IsRunning(sqlServer.Id))
+            {
+                return $"SQL Server resource '{FormatApplicationResourceName(sqlServer)}' must be running before database access can be reconciled.";
+            }
+
+            return sqlServer.SqlDatabases.Count == 0
+                ? $"SQL Server resource '{FormatApplicationResourceName(sqlServer)}' has no declared databases to reconcile access for."
+                : null;
+        }
+
         if (action.Kind is not (ResourceActionKind.Start or ResourceActionKind.Restart))
         {
             return null;
@@ -2157,6 +2192,7 @@ public sealed partial class ApplicationResourceService(
         }
 
         await ReconcileSqlServerDatabasesAsync(runtimeDefinition, cancellationToken, procedureContext);
+        await ReconcileSqlServerAccessGrantsAsync(runtimeDefinition.Id, cancellationToken, procedureContext);
     }
 
     private async Task ReconcileSqlServerDatabasesAsync(
@@ -2217,6 +2253,317 @@ public sealed partial class ApplicationResourceService(
             "application.sql.databases.reconciled",
             $"Application provider reconciled declared SQL databases for '{definition.Name}'.");
     }
+
+    public async Task<ResourcePermissionGrantStatus> GetSqlServerPermissionGrantStatusAsync(
+        ResourcePermissionGrantStatusRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var observedAt = DateTimeOffset.UtcNow;
+        var application = store.GetApplication(request.TargetResource.Id);
+        if (application is null ||
+            !string.Equals(application.ResourceType, ApplicationResourceTypes.SqlServer, StringComparison.OrdinalIgnoreCase))
+        {
+            return new ResourcePermissionGrantStatus(
+                request.Grant,
+                ResourcePermissionGrantEffectivenessState.Unknown,
+                "The SQL Server resource is not configured.",
+                ApplicationResourceProviderIds.SqlServer,
+                observedAt);
+        }
+
+        if (request.Grant.ResourceIdentity is null)
+        {
+            return new ResourcePermissionGrantStatus(
+                request.Grant,
+                ResourcePermissionGrantEffectivenessState.NotApplied,
+                "The local SQL Server provider can currently materialize database grants only for resource identity principals.",
+                ApplicationResourceProviderIds.SqlServer,
+                observedAt);
+        }
+
+        if (application.SqlDatabases.Count == 0)
+        {
+            return new ResourcePermissionGrantStatus(
+                request.Grant,
+                ResourcePermissionGrantEffectivenessState.NotApplied,
+                "The SQL Server resource has no declared databases to apply this grant to.",
+                ApplicationResourceProviderIds.SqlServer,
+                observedAt);
+        }
+
+        if (!IsRunning(application.Id))
+        {
+            return new ResourcePermissionGrantStatus(
+                request.Grant,
+                ResourcePermissionGrantEffectivenessState.Pending,
+                "Start SQL Server to inspect or reconcile database users and roles.",
+                ApplicationResourceProviderIds.SqlServer,
+                observedAt);
+        }
+
+        var serverResource = GetResources().FirstOrDefault(resource =>
+            string.Equals(resource.Id, application.Id, StringComparison.OrdinalIgnoreCase));
+        if (serverResource is null ||
+            !TryCreateSqlServerConnectionString(application, serverResource, "master", out _))
+        {
+            return new ResourcePermissionGrantStatus(
+                request.Grant,
+                ResourcePermissionGrantEffectivenessState.Pending,
+                "The SQL Server TDS endpoint or administrator password is not available.",
+                ApplicationResourceProviderIds.SqlServer,
+                observedAt);
+        }
+
+        try
+        {
+            var userName = CreateSqlServerManagedUserName(request.Grant);
+            var missingDatabases = new List<string>();
+            foreach (var database in application.SqlDatabases)
+            {
+                var materialized = await IsSqlServerDatabaseGrantMaterializedAsync(
+                    application,
+                    serverResource,
+                    database.Name,
+                    userName,
+                    cancellationToken);
+                if (!materialized)
+                {
+                    missingDatabases.Add(database.Name);
+                }
+            }
+
+            return missingDatabases.Count == 0
+                ? new ResourcePermissionGrantStatus(
+                    request.Grant,
+                    ResourcePermissionGrantEffectivenessState.Applied,
+                    "SQL Server database users and read/write role memberships are present for declared databases. Workload credential delivery remains provider-owned future work.",
+                    ApplicationResourceProviderIds.SqlServer,
+                    observedAt)
+                : new ResourcePermissionGrantStatus(
+                    request.Grant,
+                    ResourcePermissionGrantEffectivenessState.Drifted,
+                    $"SQL Server database access is missing for {FormatSqlDatabaseList(missingDatabases)}.",
+                    ApplicationResourceProviderIds.SqlServer,
+                    observedAt);
+        }
+        catch (Exception exception) when (exception is SqlException or InvalidOperationException)
+        {
+            return new ResourcePermissionGrantStatus(
+                request.Grant,
+                ResourcePermissionGrantEffectivenessState.Failed,
+                exception.Message,
+                ApplicationResourceProviderIds.SqlServer,
+                observedAt);
+        }
+    }
+
+    private async Task<int> ReconcileSqlServerAccessGrantsAsync(
+        string sqlServerResourceId,
+        CancellationToken cancellationToken,
+        ResourceProcedureContext? procedureContext)
+    {
+        var definition = store.GetApplication(sqlServerResourceId);
+        if (definition is null ||
+            !string.Equals(definition.ResourceType, ApplicationResourceTypes.SqlServer, StringComparison.OrdinalIgnoreCase))
+        {
+            return 0;
+        }
+
+        if (definition.SqlDatabases.Count == 0)
+        {
+            return 0;
+        }
+
+        var grants = declarations
+            .GetPermissionGrants()
+            .Where(grant =>
+                string.Equals(grant.TargetResourceId, definition.Id, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(grant.Permission, DatabaseResourceOperationPermissions.ReadWrite, StringComparison.OrdinalIgnoreCase) &&
+                grant.ResourceIdentity is not null)
+            .ToArray();
+
+        var serverResource = GetResources().FirstOrDefault(resource =>
+            string.Equals(resource.Id, definition.Id, StringComparison.OrdinalIgnoreCase));
+        if (serverResource is null ||
+            !TryCreateSqlServerConnectionString(definition, serverResource, "master", out _))
+        {
+            throw new InvalidOperationException(
+                $"SQL Server resource '{definition.Name}' cannot reconcile database access because its TDS endpoint or administrator password is not available.");
+        }
+
+        procedureContext?.AppendProviderEvent(
+            Id,
+            "application.sql.access.reconciling",
+            $"Application provider is reconciling {grants.Length.ToString(CultureInfo.InvariantCulture)} SQL Server database access grant{Pluralize(grants.Length)} for '{definition.Name}'.");
+
+        var managedUsers = grants
+            .Select(CreateSqlServerManagedUserName)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        foreach (var database in definition.SqlDatabases)
+        {
+            await ReconcileSqlServerDatabaseAccessAsync(
+                definition,
+                serverResource,
+                database.Name,
+                managedUsers,
+                cancellationToken);
+        }
+
+        procedureContext?.AppendProviderEvent(
+            Id,
+            "application.sql.access.reconciled",
+            $"Application provider reconciled SQL Server database access grants for '{definition.Name}'.");
+
+        return grants.Length;
+    }
+
+    private async Task ReconcileSqlServerDatabaseAccessAsync(
+        ApplicationResourceDefinition server,
+        Resource serverResource,
+        string databaseName,
+        IReadOnlyCollection<string> managedUsers,
+        CancellationToken cancellationToken)
+    {
+        if (!TryCreateSqlServerConnectionString(server, serverResource, databaseName, out var connectionString))
+        {
+            throw new InvalidOperationException(
+                $"SQL Server resource '{server.Name}' cannot reconcile database access for '{databaseName}' because its TDS endpoint or administrator password is not available.");
+        }
+
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        foreach (var userName in managedUsers)
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+                IF USER_ID(@userName) IS NULL
+                BEGIN
+                    DECLARE @createUserSql nvarchar(max) = N'CREATE USER ' + QUOTENAME(@userName) + N' WITHOUT LOGIN';
+                    EXEC sp_executesql @createUserSql;
+                END
+
+                IF ISNULL(IS_ROLEMEMBER(N'db_datareader', @userName), 0) <> 1
+                BEGIN
+                    DECLARE @readerSql nvarchar(max) = N'ALTER ROLE [db_datareader] ADD MEMBER ' + QUOTENAME(@userName);
+                    EXEC sp_executesql @readerSql;
+                END
+
+                IF ISNULL(IS_ROLEMEMBER(N'db_datawriter', @userName), 0) <> 1
+                BEGIN
+                    DECLARE @writerSql nvarchar(max) = N'ALTER ROLE [db_datawriter] ADD MEMBER ' + QUOTENAME(@userName);
+                    EXEC sp_executesql @writerSql;
+                END
+                """;
+            command.Parameters.AddWithValue("@userName", userName);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await RemoveOrphanedSqlServerManagedUsersAsync(
+            connection,
+            managedUsers,
+            cancellationToken);
+    }
+
+    private static async Task RemoveOrphanedSqlServerManagedUsersAsync(
+        SqlConnection connection,
+        IReadOnlyCollection<string> currentManagedUsers,
+        CancellationToken cancellationToken)
+    {
+        var existingUsers = new List<string>();
+        await using (var listCommand = connection.CreateCommand())
+        {
+            listCommand.CommandText = """
+                SELECT [name]
+                FROM sys.database_principals
+                WHERE [type] = 'S'
+                    AND [authentication_type_desc] = 'NONE'
+                    AND [name] LIKE @prefix
+                """;
+            listCommand.Parameters.AddWithValue("@prefix", "cloudshell[_]%");
+            await using var reader = await listCommand.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                existingUsers.Add(reader.GetString(0));
+            }
+        }
+
+        foreach (var userName in existingUsers)
+        {
+            if (currentManagedUsers.Contains(userName, StringComparer.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+                IF ISNULL(IS_ROLEMEMBER(N'db_datareader', @userName), 0) = 1
+                BEGIN
+                    DECLARE @readerSql nvarchar(max) = N'ALTER ROLE [db_datareader] DROP MEMBER ' + QUOTENAME(@userName);
+                    EXEC sp_executesql @readerSql;
+                END
+
+                IF ISNULL(IS_ROLEMEMBER(N'db_datawriter', @userName), 0) = 1
+                BEGIN
+                    DECLARE @writerSql nvarchar(max) = N'ALTER ROLE [db_datawriter] DROP MEMBER ' + QUOTENAME(@userName);
+                    EXEC sp_executesql @writerSql;
+                END
+
+                IF USER_ID(@userName) IS NOT NULL
+                BEGIN
+                    DECLARE @dropUserSql nvarchar(max) = N'DROP USER ' + QUOTENAME(@userName);
+                    EXEC sp_executesql @dropUserSql;
+                END
+                """;
+            command.Parameters.AddWithValue("@userName", userName);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+    }
+
+    private static async Task<bool> IsSqlServerDatabaseGrantMaterializedAsync(
+        ApplicationResourceDefinition server,
+        Resource serverResource,
+        string databaseName,
+        string userName,
+        CancellationToken cancellationToken)
+    {
+        if (!TryCreateSqlServerConnectionString(server, serverResource, databaseName, out var connectionString))
+        {
+            return false;
+        }
+
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT
+                CAST(CASE WHEN USER_ID(@userName) IS NULL THEN 0 ELSE 1 END AS bit),
+                CAST(CASE WHEN ISNULL(IS_ROLEMEMBER(N'db_datareader', @userName), 0) = 1 THEN 1 ELSE 0 END AS bit),
+                CAST(CASE WHEN ISNULL(IS_ROLEMEMBER(N'db_datawriter', @userName), 0) = 1 THEN 1 ELSE 0 END AS bit)
+            """;
+        command.Parameters.AddWithValue("@userName", userName);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        return await reader.ReadAsync(cancellationToken) &&
+            reader.GetBoolean(0) &&
+            reader.GetBoolean(1) &&
+            reader.GetBoolean(2);
+    }
+
+    private static string CreateSqlServerManagedUserName(ResourcePermissionGrant grant)
+    {
+        var identity = grant.ResourceIdentity
+            ?? throw new InvalidOperationException("SQL Server managed user names require a resource identity grant.");
+        var key = $"{identity.ResourceId}\u001f{identity.Name}\u001f{grant.TargetResourceId}\u001f{grant.Permission}";
+        Span<byte> hash = stackalloc byte[32];
+        SHA256.HashData(Encoding.UTF8.GetBytes(key), hash);
+        return $"{SqlServerManagedUserPrefix}{Convert.ToHexString(hash[..10]).ToLowerInvariant()}";
+    }
+
+    private static string FormatSqlDatabaseList(IReadOnlyList<string> databases) =>
+        databases.Count == 1
+            ? $"database '{databases[0]}'"
+            : $"{databases.Count.ToString(CultureInfo.InvariantCulture)} databases: {string.Join(", ", databases.Select(database => $"'{database}'"))}";
 
     private static async Task<SqlConnection> OpenSqlServerConnectionWithRetryAsync(
         ApplicationResourceDefinition definition,
@@ -3237,7 +3584,7 @@ public sealed partial class ApplicationResourceService(
             DateTimeOffset.UtcNow,
             application.DependsOn,
             TypeId: application.ResourceType,
-            Actions: CreateActions(state),
+            Actions: CreateActions(application, state),
             HealthChecks: application.HealthChecks,
             Observability: GetEffectiveObservability(application),
             ResourceClass: projection.GetResourceClass(application),
@@ -3650,10 +3997,27 @@ public sealed partial class ApplicationResourceService(
             : ResourceState.Stopped;
     }
 
-    private static IReadOnlyList<ResourceAction> CreateActions(ResourceState state) =>
-        state is ResourceState.Running or ResourceState.Starting or ResourceState.Stopping
-            ? [ResourceAction.Stop, ResourceAction.Restart]
+    private static IReadOnlyList<ResourceAction> CreateActions(
+        ApplicationResourceDefinition application,
+        ResourceState state)
+    {
+        var lifecycleActions = state is ResourceState.Running or ResourceState.Starting or ResourceState.Stopping
+            ? new[] { ResourceAction.Stop, ResourceAction.Restart }
             : [ResourceAction.Start];
+
+        if (!string.Equals(application.ResourceType, ApplicationResourceTypes.SqlServer, StringComparison.OrdinalIgnoreCase))
+        {
+            return lifecycleActions;
+        }
+
+        return lifecycleActions
+            .Append(new ResourceAction(
+                ReconcileSqlServerAccessActionId,
+                "Reconcile database access",
+                Description: "Create or update SQL Server database users and roles for CloudShell database grants.",
+                RequiredPermission: DatabaseResourceOperationPermissions.ReconcileAccess))
+            .ToArray();
+    }
 
     private void MarkStarting(string applicationId)
     {

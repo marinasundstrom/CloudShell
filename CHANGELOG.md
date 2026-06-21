@@ -28,6 +28,11 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource overview now summarizes concrete endpoint mappings and resolvable
   HTTP/HTTPS DNS name mappings, and the common Resources list prefers a
   resolvable DNS name mapping before falling back to the primary endpoint.
+- SQL Server resources now expose a reconcile-database-access action, and the
+  local SQL Server provider can apply CloudShell read/write database grants for
+  resource identities by creating provider-owned contained database users and
+  read/write role memberships for declared databases before reporting
+  provider-side grant effectiveness.
 - Users and Extensions now live as common Settings sections, with the shell
   topbar settings cog as the primary entry point instead of a Platform
   navigation group.

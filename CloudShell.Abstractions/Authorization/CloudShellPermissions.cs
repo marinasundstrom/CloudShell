@@ -58,6 +58,9 @@ public static class DatabaseResourceOperationPermissions
 {
     public const string ReadWrite =
         "CloudShell.Database/databases/readWrite/action";
+
+    public const string ReconcileAccess =
+        "CloudShell.Database/databases/access/reconcile/action";
 }
 
 public static class ResourceIdentityProvisioningOperationPermissions

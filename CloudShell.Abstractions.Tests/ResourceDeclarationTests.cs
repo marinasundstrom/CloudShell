@@ -8815,6 +8815,22 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("appdb", database.ResourceAttributes[ResourceAttributeNames.DatabaseName]);
         Assert.Equal("application:sql", database.ResourceAttributes[ResourceAttributeNames.DatabaseServerResourceId]);
         Assert.Equal("declared", database.ResourceAttributes[ResourceAttributeNames.DatabaseSource]);
+
+        var reconcileAction = Assert.Single(
+            resource.ResourceActions,
+            action => string.Equals(
+                action.Id,
+                ApplicationResourceService.ReconcileSqlServerAccessActionId,
+                StringComparison.OrdinalIgnoreCase));
+        Assert.Equal("Reconcile database access", reconcileAction.DisplayName);
+        Assert.Equal(DatabaseResourceOperationPermissions.ReconcileAccess, reconcileAction.RequiredPermission);
+
+        var statusProvider = serviceProvider.GetRequiredService<SqlServerApplicationResourceProvider>();
+        var grantStatus = await statusProvider.GetStatusAsync(
+            new ResourcePermissionGrantStatusRequest(resource, grant));
+        Assert.Equal(ResourcePermissionGrantEffectivenessState.Pending, grantStatus.State);
+        Assert.Equal(ApplicationResourceProviderIds.SqlServer, grantStatus.ProviderId);
+        Assert.Contains("Start SQL Server", grantStatus.Detail, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

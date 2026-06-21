@@ -925,7 +925,7 @@ public sealed class SampleSmokeTests
         Assert.Contains("/var/opt/mssql", sqlDetailsHtml);
         Assert.Contains("Read/write", sqlDetailsHtml);
         Assert.Contains("Database grants are recorded in CloudShell.", sqlDetailsHtml);
-        Assert.Contains("SQL Server users and roles are not created yet", sqlDetailsHtml);
+        Assert.Contains("Reconcile access to create SQL-side users and roles", sqlDetailsHtml);
         Assert.Contains("procedure-message warning", sqlDetailsHtml);
         Assert.DoesNotContain("<dt>Image</dt>", sqlDetailsHtml);
         Assert.DoesNotContain("<h3>Container host</h3>", sqlDetailsHtml);
@@ -966,13 +966,15 @@ public sealed class SampleSmokeTests
         Assert.Contains("Search principals", sqlAccessControlHtml);
         Assert.Contains("Assigned principals", sqlAccessControlHtml);
         Assert.Contains("Database grants are saved in CloudShell.", sqlAccessControlHtml);
-        Assert.Contains("The SQL Server provider does not create users or roles yet", sqlAccessControlHtml);
+        Assert.Contains("Reconcile access to create SQL-side users and roles", sqlAccessControlHtml);
         Assert.Contains("procedure-message warning", sqlAccessControlHtml);
         Assert.Contains("Database: read/write", sqlAccessControlHtml);
-        Assert.Contains("Effective access: not applied by provider yet", sqlAccessControlHtml);
-        Assert.Contains("SQL Server provider has not created SQL users or roles for this grant yet", sqlAccessControlHtml);
+        Assert.Contains("Database access: reconcile", sqlAccessControlHtml);
+        Assert.Contains("Effective access: pending", sqlAccessControlHtml);
+        Assert.Contains("Start SQL Server to inspect or reconcile database users and roles.", sqlAccessControlHtml);
         Assert.Contains("application-topology-api", sqlAccessControlHtml);
         Assert.Contains(DatabaseResourceOperationPermissions.ReadWrite, sqlAccessControlHtml);
+        Assert.Contains(DatabaseResourceOperationPermissions.ReconcileAccess, sqlAccessControlHtml);
         Assert.DoesNotContain("Deploy image", sqlAccessControlHtml);
     }
 
