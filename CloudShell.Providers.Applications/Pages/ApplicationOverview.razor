@@ -462,9 +462,9 @@ else
     private IReadOnlyList<NameMappingView> InboundNameMappings { get; set; } = [];
     private IReadOnlyList<VolumeMountView> VolumeMounts { get; set; } = [];
     private IReadOnlyList<ServiceDiscoveryReferenceView> ServiceDiscoveryReferences { get; set; } = [];
-    private IReadOnlyList<LogDescriptor> Logs { get; set; } = [];
-    private IReadOnlyDictionary<string, IReadOnlyList<LogDescriptor>> RelatedLogsByResourceId { get; set; } =
-        new Dictionary<string, IReadOnlyList<LogDescriptor>>(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyList<LogSource> Logs { get; set; } = [];
+    private IReadOnlyDictionary<string, IReadOnlyList<LogSource>> RelatedLogsByResourceId { get; set; } =
+        new Dictionary<string, IReadOnlyList<LogSource>>(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyDictionary<string, ResourceHealthSummary> RelatedHealthByResourceId { get; set; } =
         new Dictionary<string, ResourceHealthSummary>(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyDictionary<string, ResourceOperationCapabilities> RelatedCapabilitiesByResourceId { get; set; } =
@@ -514,7 +514,7 @@ else
             ? []
             : await GetLogsAsync(Application.Id);
         RelatedLogsByResourceId = Application is null
-            ? new Dictionary<string, IReadOnlyList<LogDescriptor>>(StringComparer.OrdinalIgnoreCase)
+            ? new Dictionary<string, IReadOnlyList<LogSource>>(StringComparer.OrdinalIgnoreCase)
             : await LoadRelatedLogsAsync(GetRelationshipResourceIds());
         RelatedHealthByResourceId = Application is null
             ? new Dictionary<string, ResourceHealthSummary>(StringComparer.OrdinalIgnoreCase)
@@ -1289,7 +1289,7 @@ else
             .Where(resourceId => !string.IsNullOrWhiteSpace(resourceId))
             .Distinct(StringComparer.OrdinalIgnoreCase);
 
-    private async Task<IReadOnlyDictionary<string, IReadOnlyList<LogDescriptor>>> LoadRelatedLogsAsync(
+    private async Task<IReadOnlyDictionary<string, IReadOnlyList<LogSource>>> LoadRelatedLogsAsync(
         IEnumerable<string> resourceIds)
     {
         var requested = resourceIds
@@ -1299,16 +1299,16 @@ else
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (requested.Count == 0)
         {
-            return new Dictionary<string, IReadOnlyList<LogDescriptor>>(StringComparer.OrdinalIgnoreCase);
+            return new Dictionary<string, IReadOnlyList<LogSource>>(StringComparer.OrdinalIgnoreCase);
         }
 
-        var logs = await LogManager.ListLogsAsync();
+        var logs = await LogManager.ListLogSourcesAsync();
         return logs
             .Where(log => !string.IsNullOrWhiteSpace(log.ResourceId) && requested.Contains(log.ResourceId))
             .GroupBy(log => log.ResourceId!, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(
                 group => group.Key,
-                group => (IReadOnlyList<LogDescriptor>)group
+                group => (IReadOnlyList<LogSource>)group
                     .OrderBy(log => log.Name, StringComparer.OrdinalIgnoreCase)
                     .ThenBy(log => log.Id, StringComparer.OrdinalIgnoreCase)
                     .ToArray(),
@@ -1620,9 +1620,9 @@ else
     private static string GetProtocol(string address) =>
         Uri.TryCreate(address, UriKind.Absolute, out var uri) ? uri.Scheme : "tcp";
 
-    private async Task<IReadOnlyList<LogDescriptor>> GetLogsAsync(string resourceId)
+    private async Task<IReadOnlyList<LogSource>> GetLogsAsync(string resourceId)
     {
-        var logs = await LogManager.ListLogsAsync(new LogQuery(ResourceId: resourceId));
+        var logs = await LogManager.ListLogSourcesAsync(new LogQuery(ResourceId: resourceId));
 
         return logs
             .OrderBy(log => log.Name, StringComparer.OrdinalIgnoreCase)
@@ -1633,12 +1633,12 @@ else
     private static bool HasTraceObservability(ApplicationResourceDefinition application) =>
         (application.Observability ?? ResourceObservability.Default).Traces;
 
-    private static string GetLogsSummary(IReadOnlyList<LogDescriptor> logs) =>
+    private static string GetLogsSummary(IReadOnlyList<LogSource> logs) =>
         logs.Count == 1
             ? "1 log source is available for this application."
             : $"{logs.Count} log sources are available for this application.";
 
-    private static string GetLogSourcesSummary(IReadOnlyList<LogDescriptor> logs)
+    private static string GetLogSourcesSummary(IReadOnlyList<LogSource> logs)
     {
         var sourceKinds = logs
             .Select(log => log.SourceKind.ToString())
@@ -1651,7 +1651,7 @@ else
             : $"Sources: {string.Join(", ", sourceKinds)}";
     }
 
-    private static string BuildResourceLogsRoute(string resourceId, IReadOnlyList<LogDescriptor> logs)
+    private static string BuildResourceLogsRoute(string resourceId, IReadOnlyList<LogSource> logs)
     {
         var query = new Dictionary<string, string?>();
 

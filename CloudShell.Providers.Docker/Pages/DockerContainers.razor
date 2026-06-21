@@ -163,8 +163,8 @@ else
     private PendingResourceAction? PendingAction { get; set; }
     private Resource? Host { get; set; }
     private IReadOnlyList<Resource> Containers { get; set; } = [];
-    private IReadOnlyDictionary<string, IReadOnlyList<LogDescriptor>> LogsByResourceId { get; set; } =
-        new Dictionary<string, IReadOnlyList<LogDescriptor>>(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyDictionary<string, IReadOnlyList<LogSource>> LogsByResourceId { get; set; } =
+        new Dictionary<string, IReadOnlyList<LogSource>>(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyDictionary<string, ResourceOperationCapabilities> CapabilitiesByResourceId { get; set; } =
         new Dictionary<string, ResourceOperationCapabilities>(StringComparer.OrdinalIgnoreCase);
 
@@ -193,7 +193,7 @@ else
             !string.Equals(Host.EffectiveTypeId, DockerContainerResourceProvider.HostResourceType, StringComparison.OrdinalIgnoreCase))
         {
             Containers = [];
-            LogsByResourceId = new Dictionary<string, IReadOnlyList<LogDescriptor>>(StringComparer.OrdinalIgnoreCase);
+            LogsByResourceId = new Dictionary<string, IReadOnlyList<LogSource>>(StringComparer.OrdinalIgnoreCase);
             CapabilitiesByResourceId = new Dictionary<string, ResourceOperationCapabilities>(StringComparer.OrdinalIgnoreCase);
             return;
         }
@@ -202,13 +202,13 @@ else
         var containerIds = Containers
             .Select(container => container.Id)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var logs = await LogManager.ListLogsAsync();
+        var logs = await LogManager.ListLogSourcesAsync();
         LogsByResourceId = logs
             .Where(log => log.ResourceId is not null && containerIds.Contains(log.ResourceId))
             .GroupBy(log => log.ResourceId!, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(
                 group => group.Key,
-                group => (IReadOnlyList<LogDescriptor>)group.ToArray(),
+                group => (IReadOnlyList<LogSource>)group.ToArray(),
                 StringComparer.OrdinalIgnoreCase);
         CapabilitiesByResourceId = await ResourceManager.GetResourceOperationCapabilitiesAsync(containerIds.ToArray());
     }

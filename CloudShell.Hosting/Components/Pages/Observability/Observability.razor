@@ -131,7 +131,7 @@ else
 
 @code {
     private IReadOnlyList<Resource> Resources { get; set; } = [];
-    private IReadOnlyList<LogDescriptor> Logs { get; set; } = [];
+    private IReadOnlyList<LogSource> Logs { get; set; } = [];
     private IReadOnlyList<TraceSpan> TraceSpans { get; set; } = [];
     private IReadOnlyList<MetricPoint> MetricPoints { get; set; } = [];
     private IReadOnlyList<ObservedServiceSummary> ObservedServices { get; set; } = [];
@@ -157,8 +157,8 @@ else
 
         var resourcesTask = ResourceManager.ListResourcesAsync();
         var logsTask = Authorization.CanReadLogs()
-            ? LogManager.ListLogsAsync()
-            : Task.FromResult<IReadOnlyList<LogDescriptor>>([]);
+            ? LogManager.ListLogSourcesAsync()
+            : Task.FromResult<IReadOnlyList<LogSource>>([]);
         var spansTask = Authorization.CanReadTraces()
             ? TraceManager.ListTraceSpansAsync(new TraceQuery(MaxSpans: 1000))
             : Task.FromResult<IReadOnlyList<TraceSpan>>([]);

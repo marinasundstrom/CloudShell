@@ -81,6 +81,9 @@ on `git blame --follow`, and then by the broad type of change.
   through source-addressed log operations.
 - Docker host/container resources and Configuration Store/Secrets Vault
   service resources now declare provider-owned default log sources.
+- Resource inventory, Observability landing, Docker container, and application
+  overview surfaces now use projected log sources for log availability and
+  navigation.
 
 ### 2026-06-20
 
