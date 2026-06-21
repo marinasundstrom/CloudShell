@@ -1,5 +1,6 @@
 using System.Globalization;
 using CloudShell.Abstractions.ControlPlane;
+using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.Hosting.ResourceManager;
@@ -166,6 +167,71 @@ public sealed class ResourceDiagnosticDisplayTests
             []);
 
         Assert.False(ResourceLifecycleDisplay.HasStateHealthIncongruity(resource, health));
+    }
+
+    [Fact]
+    public void GetActiveTransitions_ReturnsLatestStartedLifecycleAction()
+    {
+        var events = new[]
+        {
+            CreateResourceEvent(
+                "application:api",
+                ResourceEventTypes.Events.Lifecycle.Starting,
+                DateTimeOffset.UtcNow)
+        };
+
+        var transition = Assert.Single(ResourceLifecycleTransitionResolver.GetActiveTransitions(events));
+        Assert.Equal("application:api", transition.ResourceId);
+        Assert.Equal(ResourceActionIds.Start, transition.ActionId);
+    }
+
+    [Fact]
+    public void GetActiveTransitions_IgnoresLifecycleActionAfterCompletion()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var events = new[]
+        {
+            CreateResourceEvent(
+                "application:api",
+                ResourceEventTypes.Events.Lifecycle.Started,
+                now),
+            CreateResourceEvent(
+                "application:api",
+                ResourceEventTypes.Events.Lifecycle.Starting,
+                now.AddSeconds(-1))
+        };
+
+        Assert.Empty(ResourceLifecycleTransitionResolver.GetActiveTransitions(events));
+    }
+
+    [Fact]
+    public void GetActiveTransitions_UsesMostRecentLifecycleTransitionPerResource()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var events = new[]
+        {
+            CreateResourceEvent(
+                "application:api",
+                ResourceEventTypes.Events.Lifecycle.Stopping,
+                now),
+            CreateResourceEvent(
+                "application:api",
+                ResourceEventTypes.Events.Lifecycle.Started,
+                now.AddSeconds(-1)),
+            CreateResourceEvent(
+                "application:worker",
+                ResourceEventTypes.Events.Lifecycle.Restarting,
+                now.AddSeconds(-2))
+        };
+
+        var transitions = ResourceLifecycleTransitionResolver.GetActiveTransitions(events);
+
+        Assert.Contains(transitions, transition =>
+            transition.ResourceId == "application:api" &&
+            transition.ActionId == ResourceActionIds.Stop);
+        Assert.Contains(transitions, transition =>
+            transition.ResourceId == "application:worker" &&
+            transition.ActionId == ResourceActionIds.Restart);
     }
 
     [Fact]
@@ -765,6 +831,16 @@ public sealed class ResourceDiagnosticDisplayTests
             ],
             HealthChecks: healthChecks,
             DisplayName: displayName);
+
+    private static ResourceEvent CreateResourceEvent(
+        string resourceId,
+        string eventType,
+        DateTimeOffset timestamp) =>
+        new(
+            resourceId,
+            eventType,
+            "Test event.",
+            timestamp);
 
     private static Dictionary<string, Resource> CreateNameMappingRelatedResources(params Resource[] resources)
     {

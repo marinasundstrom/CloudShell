@@ -11,14 +11,17 @@
 @inject ICloudShellAuthorizationService Authorization
 @inject IJSRuntime JS
 @inject IResourceHealthManager HealthChecks
+@inject IResourceEventManager ResourceEvents
 @inject IResourceOrchestrationSettings OrchestrationSettings
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject ResourceManagerDisplaySettings DisplaySettings
 @inject IStringLocalizer<SharedResource> L
 @inject IServiceProvider Services
 @inject CloudShell.UI.Composition.CompositionRegistry Composition
+@inject ILogger<UpdateResource> Logger
 @implements IDisposable
 @using CloudShell.Abstractions.Authorization
+@using Microsoft.Extensions.Logging
 
 <PageTitle>@L["Resource details"]</PageTitle>
 <FluentMenuProvider />
@@ -739,7 +742,33 @@
         HasResourceMonitoring = resource.HasCapability(ResourceCapabilityIds.Monitoring) &&
             await MonitoringManager.HasResourceMonitoringAsync(resource.Id);
         OperationCapabilities = await ResourceManager.GetResourceOperationCapabilitiesAsync(resource);
+        await RestoreActiveLifecycleTransitionAsync(resource);
         await RefreshResourceHealthAsync(resource);
+    }
+
+    private async Task RestoreActiveLifecycleTransitionAsync(Resource resource)
+    {
+        try
+        {
+            foreach (var action in resource.ResourceActions.Where(action =>
+                ResourceLifecycleTransitionResolver.IsLifecycleAction(action.Id)))
+            {
+                ExecutingActionIds.Remove(action.Id);
+            }
+
+            var events = await ResourceEvents.ListResourceEventsAsync(new ResourceEventQuery(
+                ResourceId: resource.Id,
+                MaxEvents: 20));
+            var transition = ResourceLifecycleTransitionResolver.GetActiveTransitions(events).FirstOrDefault();
+            if (transition is not null)
+            {
+                ExecutingActionIds.Add(transition.ActionId);
+            }
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Failed to restore active resource lifecycle transition.");
+        }
     }
 
     private async Task RefreshResourceHealthAsync(Resource resource)

@@ -922,6 +922,7 @@ StringComparer.OrdinalIgnoreCase);
         ResourceCapabilities = await ResourceManager.GetResourceOperationCapabilitiesAsync(
             ResourceInventory.Select(resource => resource.Id).ToArray());
         ResourceFailureSignals = await LoadResourceFailureSignalsAsync(ResourceInventory);
+        await RestoreActiveLifecycleTransitionsAsync(ResourceInventory);
 
         var logs = Authorization.CanReadLogs()
             ? await LogManager.ListLogSourcesAsync()
@@ -978,6 +979,35 @@ StringComparer.OrdinalIgnoreCase);
         {
             Logger.LogWarning(exception, "Failed to load resource activity failure signals.");
             return new Dictionary<string, ResourceFailureSignal>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    private async Task RestoreActiveLifecycleTransitionsAsync(IReadOnlyList<Resource> resources)
+    {
+        if (resources.Count == 0)
+        {
+            return;
+        }
+
+        var resourceIds = resources
+            .Select(resource => resource.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var maxEvents = Math.Clamp(resources.Count * 20, 100, 1000);
+
+        try
+        {
+            var events = await ResourceEvents.ListResourceEventsAsync(new ResourceEventQuery(MaxEvents: maxEvents));
+            foreach (var transition in ResourceLifecycleTransitionResolver.GetActiveTransitions(events))
+            {
+                if (resourceIds.Contains(transition.ResourceId))
+                {
+                    ExecutingActionKeys.Add(GetActionKey(transition.ResourceId, transition.ActionId));
+                }
+            }
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Failed to restore active resource lifecycle transitions.");
         }
     }
 
