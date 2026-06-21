@@ -207,7 +207,7 @@ else
                     <GeneratedListItem Title="Can access"
                                        Metadata="@grant.Permission">
                         <SummaryContent>
-                            <ResourcePillLink Label="@(target is null ? grant.TargetResourceId : GetResourceLabel(target))"
+                            <ResourcePillLink Label="@(target is null ? GetFallbackResourceLabel(grant.TargetResourceId) : GetResourceLabel(target))"
                                               Href="@BuildResourceRoute(grant.TargetResourceId)"
                                               Metadata="@target?.EffectiveTypeId" />
                         </SummaryContent>
@@ -656,7 +656,7 @@ else
                 string.Equals(grantIdentity.Name, identity.Name, StringComparison.OrdinalIgnoreCase))
             .OrderBy(grant => ResolveMappingResource(grant.TargetResourceId) is { } target
                 ? GetResourceLabel(target)
-                : grant.TargetResourceId, StringComparer.OrdinalIgnoreCase)
+                : GetFallbackResourceLabel(grant.TargetResourceId), StringComparer.OrdinalIgnoreCase)
             .ThenBy(grant => grant.Permission, StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
@@ -709,7 +709,7 @@ else
         {
             return string.IsNullOrWhiteSpace(Application.ContainerHostId)
                 ? "default host unavailable"
-                : $"{Application.ContainerHostId} (unavailable)";
+                : $"{GetFallbackResourceLabel(Application.ContainerHostId)} (unavailable)";
         }
 
         var label = ContainerHostPlacement.HostResource is null
@@ -924,7 +924,7 @@ else
                         : []);
             })
             .OrderBy(reference => reference.Resource is null
-                ? reference.ResourceId
+                ? GetFallbackResourceLabel(reference.ResourceId)
                 : GetResourceLabel(reference.Resource), StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
@@ -1030,7 +1030,7 @@ else
         var summary = endpoint is null
             ? null
             : $" ({FormatEndpointSummary(endpoint)})";
-        return $"{(resource is null ? reference.ResourceId : GetResourceLabel(resource))}/{reference.EndpointName}{summary}";
+        return $"{(resource is null ? GetFallbackResourceLabel(reference.ResourceId) : GetResourceLabel(resource))}/{reference.EndpointName}{summary}";
     }
 
     private string FormatEndpointReference(
@@ -1042,7 +1042,7 @@ else
             string.Equals(endpoint.Name, reference.EndpointName, StringComparison.OrdinalIgnoreCase));
         var label = string.Equals(reference.ResourceId, targetResourceId, StringComparison.OrdinalIgnoreCase)
             ? GetCurrentResourceLabel(reference.ResourceId)
-            : resource is null ? reference.ResourceId : GetResourceLabel(resource);
+            : resource is null ? GetFallbackResourceLabel(reference.ResourceId) : GetResourceLabel(resource);
         var summary = endpoint is null
             ? null
             : $" ({FormatEndpointSummary(endpoint)})";
@@ -1069,7 +1069,7 @@ else
 
         var provider = ResolveMappingResource(providerId);
         return provider is null
-            ? $"Provider: {providerId}"
+            ? $"Provider: {GetFallbackResourceLabel(providerId)}"
             : $"Provider: {GetResourceLabel(provider)}";
     }
 
@@ -1096,7 +1096,7 @@ else
         var resource = ResolveMappingResource(target.ResourceId);
         var label = string.Equals(target.ResourceId, Application?.Id, StringComparison.OrdinalIgnoreCase)
             ? GetCurrentResourceLabel(target.ResourceId)
-            : resource is null ? target.ResourceId : GetResourceLabel(resource);
+            : resource is null ? GetFallbackResourceLabel(target.ResourceId) : GetResourceLabel(resource);
         if (!string.IsNullOrWhiteSpace(target.EndpointName))
         {
             return $"{label}/{target.EndpointName}";
@@ -1131,7 +1131,7 @@ else
         {
             var provider = ResolveMappingResource(providerResourceId);
             return provider is null
-                ? $"Provider: {providerResourceId}"
+                ? $"Provider: {GetFallbackResourceLabel(providerResourceId)}"
                 : $"Provider: {GetResourceLabel(provider)}";
         }
 
@@ -1179,6 +1179,9 @@ else
 
     private static string GetResourceLabel(Resource resource) =>
         ResourceDisplayLabels.GetLabel(resource);
+
+    private static string GetFallbackResourceLabel(string resourceId) =>
+        ResourceDisplayLabels.GetName(resourceId);
 
     private string GetCurrentResourceLabel(string? fallbackResourceId = null) =>
         ProjectedResource is null
@@ -1249,7 +1252,7 @@ else
             {
                 var dependency = ResolveMappingResource(dependencyId);
                 return new ResourceRelationshipNode(
-                    dependency is null ? dependencyId : GetResourceLabel(dependency),
+                    dependency is null ? GetFallbackResourceLabel(dependencyId) : GetResourceLabel(dependency),
                     dependency is null ? null : BuildResourceRoute(dependency.Id),
                     FormatDependencySummary(dependency, dependencyId),
                     FormatDependencyMetadata(dependency),

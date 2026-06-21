@@ -122,6 +122,8 @@ on `git blame --follow`, and then by the broad type of change.
   when their own border or background state already communicates hover.
 - Missing configuration and secret references now fall back to resource names
   instead of full resource IDs in app environment summaries and selectors.
+- Application overview, generated overview, and generated endpoint summaries
+  now use resource-name fallbacks for unresolved related resources.
 - The UI Extension Host sample now contributes its sample workspace sidebar
   item through the composition main menu instead of legacy shell navigation.
 - CloudShell Hosting now exposes `builder.AddCompositionModule(...)` for
