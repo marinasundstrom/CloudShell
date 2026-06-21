@@ -233,9 +233,7 @@ else if (ShowHeading)
     private int ScrollToLatestAttemptCount { get; set; }
     private double? PreservePrependedScrollHeight { get; set; }
     private bool IsDisposed { get; set; }
-    private IReadOnlyList<LogDescriptor> VisibleLogs { get; set; } = [];
-    private IReadOnlyDictionary<string, LogSource> VisibleLogSourcesById { get; set; } =
-        new Dictionary<string, LogSource>(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyList<LogSource> VisibleLogSources { get; set; } = [];
     private IReadOnlyList<ResourceSourceSelectOption> LogResourceFilters { get; set; } = [];
     private IReadOnlyDictionary<string, Resource> LogResourcesById { get; set; } =
         new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
@@ -314,10 +312,10 @@ else if (ShowHeading)
         }
     }
 
-    private IReadOnlyList<LogDescriptor> GetVisibleLogs() =>
-        VisibleLogs;
+    private IReadOnlyList<LogSource> GetVisibleLogs() =>
+        VisibleLogSources;
 
-    private IReadOnlyList<LogDescriptor> GetSelectableLogs()
+    private IReadOnlyList<LogSource> GetSelectableLogs()
     {
         var logs = GetVisibleLogs();
         var operationalLogs = GetOperationalLogSources(logs);
@@ -328,15 +326,15 @@ else if (ShowHeading)
 
         return operationalLogs.Count == 1
             ? operationalLogs
-            : [CreateCombinedLogDescriptor(operationalLogs), .. operationalLogs];
+            : [CreateCombinedLogSource(operationalLogs), .. operationalLogs];
     }
 
-    private IReadOnlyList<LogDescriptor> GetOperationalLogSources(IReadOnlyList<LogDescriptor> logs) =>
+    private IReadOnlyList<LogSource> GetOperationalLogSources(IReadOnlyList<LogSource> logs) =>
         logs
             .Where(log => !IsCombinedLog(log) && !IsActivityLog(log))
             .ToArray();
 
-    private LogDescriptor CreateCombinedLogDescriptor(IReadOnlyList<LogDescriptor> logs)
+    private LogSource CreateCombinedLogSource(IReadOnlyList<LogSource> logs)
     {
         var selectedResourceFilterId = GetSelectedResourceFilterId();
         var resourceId = Inline
@@ -351,7 +349,7 @@ else if (ShowHeading)
                 : LogResourceFilters.FirstOrDefault(option =>
                     string.Equals(option.ResourceId, selectedResourceFilterId, StringComparison.OrdinalIgnoreCase))?.Name
                     ?? selectedResourceFilterId;
-        return new LogDescriptor(
+        return new LogSource(
             AllLogsId,
             L["All logs"].Value,
             L["Telemetry"].Value,
@@ -398,10 +396,8 @@ else if (ShowHeading)
             var query = string.IsNullOrWhiteSpace(ResourceId)
                 ? null
                 : new LogQuery(ResourceId: ResourceId);
-            var inlineDescriptors = await LogManager.ListLogsAsync(query);
             var inlineLogSources = await LogManager.ListLogSourcesAsync(query);
-            VisibleLogSourcesById = CreateLogSourceLookup(inlineLogSources);
-            VisibleLogs = MergeLogDescriptorsWithSources(inlineDescriptors, inlineLogSources);
+            VisibleLogSources = inlineLogSources;
             LogResourceFilters = [];
             LogResourcesById = new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
             SelectedResource = string.IsNullOrWhiteSpace(ResourceId)
@@ -417,11 +413,8 @@ else if (ShowHeading)
             return;
         }
 
-        var allDescriptors = await LogManager.ListLogsAsync();
         var allLogSources = await LogManager.ListLogSourcesAsync();
-        VisibleLogSourcesById = CreateLogSourceLookup(allLogSources);
-        var visibleLogs = MergeLogDescriptorsWithSources(allDescriptors, allLogSources);
-        var resourceIds = visibleLogs
+        var resourceIds = allLogSources
             .Select(log => log.ResourceId)
             .Where(resourceId => !string.IsNullOrWhiteSpace(resourceId))
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -438,7 +431,7 @@ else if (ShowHeading)
                 resourceId!,
                 resourcesById.TryGetValue(resourceId!, out var resource)
                     ? GetResourceLabel(resource)
-                    : visibleLogs.First(log => string.Equals(log.ResourceId, resourceId, StringComparison.OrdinalIgnoreCase)).SourceName))
+                    : allLogSources.First(log => string.Equals(log.ResourceId, resourceId, StringComparison.OrdinalIgnoreCase)).SourceName))
             .OrderBy(option => option.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
@@ -447,63 +440,14 @@ else if (ShowHeading)
             resourcesById.TryGetValue(selectedResourceFilterId, out var selectedResource)
                 ? selectedResource
                 : null;
-        VisibleLogs = selectedResourceFilterId is null
-            ? visibleLogs
-            : visibleLogs
+        VisibleLogSources = selectedResourceFilterId is null
+            ? allLogSources
+            : allLogSources
                 .Where(log => string.Equals(log.ResourceId, selectedResourceFilterId, StringComparison.OrdinalIgnoreCase))
                 .ToArray();
     }
 
-    private static IReadOnlyList<LogDescriptor> MergeLogDescriptorsWithSources(
-        IReadOnlyList<LogDescriptor> logs,
-        IReadOnlyList<LogSource> sources)
-    {
-        if (sources.Count == 0)
-        {
-            return logs;
-        }
-
-        var logIds = logs
-            .Select(log => log.Id)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        return logs
-            .Concat(sources
-                .Where(source => !logIds.Contains(source.Id))
-                .Select(CreateDescriptorFromSource))
-            .ToArray();
-    }
-
-    private static LogDescriptor CreateDescriptorFromSource(LogSource source) =>
-        new(
-            source.Id,
-            source.Name,
-            source.Provider,
-            source.SourceName,
-            source.SourceKind,
-            source.ResourceId,
-            source.ArtifactId,
-            source.SupportsStreaming,
-            source.Description,
-            source.Kind,
-            source.Format,
-            source.Storage,
-            source.Capabilities,
-            source.Location,
-            source.ProducerResourceId,
-            source.Origin,
-            source.Configuration,
-            source.Purpose,
-            source.Availability);
-
-    private static IReadOnlyDictionary<string, LogSource> CreateLogSourceLookup(IReadOnlyList<LogSource> sources) =>
-        sources
-            .GroupBy(source => source.Id, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(
-                group => group.Key,
-                group => group.First(),
-                StringComparer.OrdinalIgnoreCase);
-
-    private LogDescriptor? GetSelectedLog(IReadOnlyList<LogDescriptor> logs)
+    private LogSource? GetSelectedLog(IReadOnlyList<LogSource> logs)
     {
         if (GetSelectionIssue(logs) is not null)
         {
@@ -523,7 +467,7 @@ else if (ShowHeading)
         return GetDefaultLog(logs);
     }
 
-    private LogSelectionIssue? GetSelectionIssue(IReadOnlyList<LogDescriptor> logs)
+    private LogSelectionIssue? GetSelectionIssue(IReadOnlyList<LogSource> logs)
     {
         if (IsRequestedResourceFilterUnavailable())
         {
@@ -551,18 +495,19 @@ else if (ShowHeading)
         return null;
     }
 
-    private static LogDescriptor? GetDefaultLog(IReadOnlyList<LogDescriptor> logs) =>
+    private static LogSource? GetDefaultLog(IReadOnlyList<LogSource> logs) =>
         logs.FirstOrDefault(IsCombinedLog)
         ?? logs.FirstOrDefault(log => log.SupportsStreaming)
         ?? logs.FirstOrDefault(log => !IsActivityLog(log))
         ?? logs.FirstOrDefault();
 
-    private static bool IsCombinedLog(LogDescriptor log) =>
+    private static bool IsCombinedLog(LogSource log) =>
         string.Equals(log.Id, AllLogsId, StringComparison.OrdinalIgnoreCase);
 
-    private static bool IsActivityLog(LogDescriptor log) =>
-        string.Equals(log.Provider, "Activity", StringComparison.OrdinalIgnoreCase) &&
-        string.Equals(log.Name, "Activity", StringComparison.OrdinalIgnoreCase);
+    private static bool IsActivityLog(LogSource log) =>
+        log.Kind == ResourceLogSourceKind.Activity ||
+        (string.Equals(log.Provider, "Activity", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(log.Name, "Activity", StringComparison.OrdinalIgnoreCase));
 
     private void SelectLog(ChangeEventArgs args) =>
         SelectLog(args.Value?.ToString());
@@ -599,27 +544,22 @@ else if (ShowHeading)
         }
     }
 
-    private string GetLogOptionLabel(LogDescriptor log) =>
+    private string GetLogOptionLabel(LogSource log) =>
         IsCombinedLog(log)
             ? log.Name
             : $"{GetLogSourceLabel(log)} / {log.Name}";
 
-    private string GetLogMetadataLabel(LogDescriptor log)
+    private string GetLogMetadataLabel(LogSource log)
     {
         if (IsCombinedLog(log))
         {
             return $"{log.Name} / {log.Provider} / {log.SourceKind}";
         }
 
-        if (VisibleLogSourcesById.TryGetValue(log.Id, out var source))
-        {
-            return $"{source.Name} / {source.Provider} / {FormatLogSourceKind(source.Kind)} / {FormatLogFormat(source.Format)} / {FormatAvailability(source.Availability)}";
-        }
-
-        return $"{log.Name} / {log.Provider} / {log.SourceKind}";
+        return $"{log.Name} / {log.Provider} / {FormatLogSourceKind(log.Kind)} / {FormatLogFormat(log.Format)} / {FormatAvailability(log.Availability)}";
     }
 
-    private string GetLogSourceLabel(LogDescriptor log) =>
+    private string GetLogSourceLabel(LogSource log) =>
         !string.IsNullOrWhiteSpace(log.ResourceId) &&
         LogResourcesById.TryGetValue(log.ResourceId, out var resource)
             ? GetResourceLabel(resource)
@@ -710,7 +650,7 @@ else if (ShowHeading)
         }
     }
 
-    private async Task LoadLogAsync(LogDescriptor log)
+    private async Task LoadLogAsync(LogSource log)
     {
         IsLoading = true;
         ReadError = null;
@@ -746,7 +686,7 @@ else if (ShowHeading)
         int maxEntries,
         DateTimeOffset? before = null)
     {
-        var sources = GetOperationalLogSources(VisibleLogs);
+        var sources = GetOperationalLogSources(VisibleLogSources);
         if (sources.Count == 0)
         {
             return [];
@@ -813,7 +753,7 @@ else if (ShowHeading)
         }
     }
 
-    private async Task SetStreamingEnabled(LogDescriptor log, bool enabled)
+    private async Task SetStreamingEnabled(LogSource log, bool enabled)
     {
         if (enabled)
         {
@@ -826,7 +766,7 @@ else if (ShowHeading)
         await StopStreamingAsync();
     }
 
-    private async Task StartStreamingByDefaultAsync(LogDescriptor log)
+    private async Task StartStreamingByDefaultAsync(LogSource log)
     {
         if (log.SupportsStreaming && !DisabledStreamingLogIds.Contains(log.Id))
         {
@@ -834,7 +774,7 @@ else if (ShowHeading)
         }
     }
 
-    private async Task StartStreamingAsync(LogDescriptor log)
+    private async Task StartStreamingAsync(LogSource log)
     {
         if (!log.SupportsStreaming ||
             IsSelectedLogStreaming(log))
@@ -872,7 +812,7 @@ else if (ShowHeading)
         await Task.CompletedTask;
     }
 
-    private async Task StreamEntriesAsync(LogDescriptor log, CancellationTokenSource cancellation)
+    private async Task StreamEntriesAsync(LogSource log, CancellationTokenSource cancellation)
     {
         try
         {
@@ -941,7 +881,7 @@ else if (ShowHeading)
         }
     }
 
-    private bool IsSelectedLogStreaming(LogDescriptor log) =>
+    private bool IsSelectedLogStreaming(LogSource log) =>
         IsStreaming &&
         string.Equals(StreamingLogId, log.Id, StringComparison.OrdinalIgnoreCase);
 
@@ -997,7 +937,7 @@ else if (ShowHeading)
             entry.TraceId,
             entry.SpanId);
 
-    private string BuildLogRoute(LogDescriptor log, string? traceId = null)
+    private string BuildLogRoute(LogSource log, string? traceId = null)
     {
         var query = new Dictionary<string, string?>();
         if (!IsCombinedLog(log))
@@ -1030,7 +970,7 @@ else if (ShowHeading)
         return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("/logs", query);
     }
 
-    private string BuildLogSourceRoute(LogDescriptor log, string? traceId = null)
+    private string BuildLogSourceRoute(LogSource log, string? traceId = null)
     {
         if (Inline || IsCombinedLog(log))
         {

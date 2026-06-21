@@ -205,8 +205,8 @@ can carry compatible source metadata and project to `LogSource`. The Control
 Plane exposes log-source discovery separately from the existing descriptor-based
 read/stream APIs. Resource Manager, Observability, provider-specific overview
 pages, and the Logs view now use projected sources for listing, counts, and
-navigation. The Logs UI still keeps a descriptor-shaped internal view model
-while source-addressed read and stream operations are used for access.
+navigation. The Logs UI uses source-addressed read and stream operations for
+access.
 
 Reading or streaming a source should go through a materialized
 `ILogSourceSession`. The session is not a persisted domain object; it is the

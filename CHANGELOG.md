@@ -87,6 +87,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Logging documentation now describes `ResourceLogSource` declarations and
   projected `LogSource` records as the current listing model, with
   `LogDescriptor` retained as compatibility.
+- The Logs explorer now uses projected `LogSource` records directly instead of
+  a descriptor-shaped compatibility view model.
 
 ### 2026-06-20
 
