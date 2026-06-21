@@ -406,7 +406,7 @@ else if (ShowHeading)
             var scopeResourceId = ScopeResourceId.Trim();
             return new TelemetrySelectionIssue(
                 L["Metric scope not found"].Value,
-                L["Telemetry scope '{0}' is not available for {1}.", scopeResourceId, GetResourceLabel(selected)].Value,
+                L["Telemetry scope '{0}' is not available for {1}.", GetResourceLabel(scopeResourceId), GetResourceLabel(selected)].Value,
                 L["Show all scopes"].Value,
                 BuildMetricRoute(selected.Id));
         }

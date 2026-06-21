@@ -283,13 +283,15 @@ public sealed class SampleSmokeTests
         var missingTraceResourceHtml = await host.GetStringAsync(
             "/observability/traces?resourceId=application%3Aproject-reference-missing");
         Assert.Contains("Trace resource not found", missingTraceResourceHtml);
-        Assert.Contains("application:project-reference-missing", missingTraceResourceHtml);
+        Assert.Contains("project-reference-missing", missingTraceResourceHtml);
+        Assert.DoesNotContain("application:project-reference-missing", missingTraceResourceHtml);
         Assert.Contains("All trace resources", missingTraceResourceHtml);
 
         var missingTraceScopeHtml = await host.GetStringAsync(
             "/observability/traces?resourceId=application%3Aproject-reference-frontend&scopeResourceId=application%3Aproject-reference-missing-scope");
         Assert.Contains("Trace scope not found", missingTraceScopeHtml);
-        Assert.Contains("application:project-reference-missing-scope", missingTraceScopeHtml);
+        Assert.Contains("project-reference-missing-scope", missingTraceScopeHtml);
+        Assert.DoesNotContain("application:project-reference-missing-scope", missingTraceScopeHtml);
         Assert.Contains("Show all scopes", missingTraceScopeHtml);
 
         var relatedLogsHtml = await host.GetStringAsync(
@@ -320,7 +322,8 @@ public sealed class SampleSmokeTests
         var missingInlineTraceScopeHtml = await host.GetStringAsync(
             $"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Traces.Value)}&scopeResourceId=application%3Aproject-reference-missing-scope");
         Assert.Contains("Trace scope not found", missingInlineTraceScopeHtml);
-        Assert.Contains("application:project-reference-missing-scope", missingInlineTraceScopeHtml);
+        Assert.Contains("project-reference-missing-scope", missingInlineTraceScopeHtml);
+        Assert.DoesNotContain("application:project-reference-missing-scope", missingInlineTraceScopeHtml);
 
         var relatedMetricsHtml = await host.GetStringAsync(
             $"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Metrics.Value)}");
@@ -335,20 +338,23 @@ public sealed class SampleSmokeTests
         var missingMetricResourceHtml = await host.GetStringAsync(
             "/observability/metrics?resourceId=application%3Aproject-reference-missing");
         Assert.Contains("Metric resource not found", missingMetricResourceHtml);
-        Assert.Contains("application:project-reference-missing", missingMetricResourceHtml);
+        Assert.Contains("project-reference-missing", missingMetricResourceHtml);
+        Assert.DoesNotContain("application:project-reference-missing", missingMetricResourceHtml);
         Assert.Contains("All metric resources", missingMetricResourceHtml);
 
         var missingMetricScopeHtml = await host.GetStringAsync(
             "/observability/metrics?resourceId=application%3Aproject-reference-frontend&scopeResourceId=application%3Aproject-reference-missing-scope");
         Assert.Contains("Metric scope not found", missingMetricScopeHtml);
-        Assert.Contains("application:project-reference-missing-scope", missingMetricScopeHtml);
+        Assert.Contains("project-reference-missing-scope", missingMetricScopeHtml);
+        Assert.DoesNotContain("application:project-reference-missing-scope", missingMetricScopeHtml);
         Assert.Contains("Project Reference Frontend", missingMetricScopeHtml);
         Assert.Contains("Show all scopes", missingMetricScopeHtml);
 
         var missingInlineMetricScopeHtml = await host.GetStringAsync(
             $"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Metrics.Value)}&scopeResourceId=application%3Aproject-reference-missing-scope");
         Assert.Contains("Metric scope not found", missingInlineMetricScopeHtml);
-        Assert.Contains("application:project-reference-missing-scope", missingInlineMetricScopeHtml);
+        Assert.Contains("project-reference-missing-scope", missingInlineMetricScopeHtml);
+        Assert.DoesNotContain("application:project-reference-missing-scope", missingInlineMetricScopeHtml);
 
         var relatedActivityHtml = await host.GetStringAsync(
             $"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Activity.Value)}&traceId={traceId}&spanId=00f067aa0ba902b7");

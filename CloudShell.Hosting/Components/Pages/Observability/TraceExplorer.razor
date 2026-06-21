@@ -574,7 +574,7 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
             var scopeResourceId = ScopeResourceId.Trim();
             return new TelemetrySelectionIssue(
                 L["Trace scope not found"].Value,
-                L["Telemetry scope '{0}' is not available for {1}.", scopeResourceId, GetResourceLabel(selected)].Value,
+                L["Telemetry scope '{0}' is not available for {1}.", GetResourceLabel(scopeResourceId), GetResourceLabel(selected)].Value,
                 L["Show all scopes"].Value,
                 BuildTraceRoute(selected.Id, TraceId));
         }
