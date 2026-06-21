@@ -74,6 +74,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Log provider resolution now asks active providers whether they can open a
   resolved source before requesting a session, enabling resource-declared
   sources to be handled by provider capability.
+- `ILogStore` can now explicitly materialize disposable log-source sessions for
+  Control Plane read, polling, streaming, and future transport lifecycles.
 
 ### 2026-06-20
 

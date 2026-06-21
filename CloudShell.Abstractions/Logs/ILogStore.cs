@@ -23,6 +23,11 @@ public interface ILogStore
         CancellationToken cancellationToken = default) =>
         ReadLogAsync(logSourceId, maxEntries, before, cancellationToken);
 
+    ValueTask<ILogSourceSession?> OpenLogSourceSessionAsync(
+        string logSourceId,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<ILogSourceSession?>(null);
+
     Task<IReadOnlyList<LogEntry>> ReadLogAsync(
         string logId,
         int maxEntries = 200,

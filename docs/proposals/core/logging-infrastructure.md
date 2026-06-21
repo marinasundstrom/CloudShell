@@ -121,6 +121,9 @@ without forcing every provider to rewrite read and stream operations at once.
 The internal `ILogStore` boundary should use source-addressed read and stream
 operations, with descriptor-named methods retained only as compatibility
 aliases while the UI migrates.
+It should also expose session materialization as an explicit operation so
+Control Plane services can open a resolved source session, consume it through
+read, polling, streaming, or future transports, and dispose it deterministically.
 Providers can also materialize a log-source session when a source is accessed,
 which keeps discovery metadata separate from runtime handles such as file
 readers, process or container streams, remote cursors, credentials, offsets, or
@@ -206,6 +209,9 @@ sessions during migration. API clients should continue to address stable source
 IDs; the Control Plane can project the same session-backed access through
 polling endpoints, server-sent events, or WebSocket streams without exposing
 provider-specific handles.
+Session disposal is part of the contract through `IAsyncDisposable`; callers
+that request a session are responsible for disposing it when their read,
+polling, or stream operation ends.
 
 For example, a future `LogFileProvider` could keep one tracked reader per
 physical log file, maintain the file offset and tail status internally, and

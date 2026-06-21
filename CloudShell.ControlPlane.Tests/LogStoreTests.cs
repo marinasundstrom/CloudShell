@@ -139,6 +139,38 @@ public sealed class LogStoreTests
         Assert.Equal("logs/api.log", provider.OpenedSource.Location);
     }
 
+    [Fact]
+    public async Task OpenLogSourceSessionAsync_ReturnsDisposableResolvedSession()
+    {
+        var resource = CreateResource(
+            "application:api",
+            "api",
+            logSources:
+            [
+                new ResourceLogSource(
+                    "file",
+                    "Application file",
+                    ResourceLogSourceKind.File,
+                    Location: "logs/api.log",
+                    Origin: ResourceLogSourceOrigin.UserConfigured)
+            ]);
+        var provider = new ResourceDeclaredLogProvider();
+        var store = new LogStore(
+            [provider],
+            new TestResourceManagerStore([resource]),
+            new CloudShellExtensionRegistry(),
+            new InMemoryCloudShellExtensionActivationStore());
+
+        var session = await store.OpenLogSourceSessionAsync("application:api:log-source:file");
+
+        Assert.NotNull(session);
+        Assert.Equal("application:api:log-source:file", session.SourceId);
+        Assert.Equal(LogSourceSessionStatus.Active, session.Status);
+        Assert.Equal(ProviderProjectedEntry.Message, Assert.Single(await session.ReadAsync()).Message);
+        await session.DisposeAsync();
+        Assert.Equal(LogSourceSessionStatus.Closed, session.Status);
+    }
+
     private static Resource CreateResource(
         string id,
         string name,
