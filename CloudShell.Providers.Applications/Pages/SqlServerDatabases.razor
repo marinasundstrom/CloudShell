@@ -47,15 +47,7 @@ else
     {
         @if (DatabaseRows.Count > 0)
         {
-            <div class="generated-list">
-                @foreach (var database in DatabaseRows)
-                {
-                    <GeneratedListItem Title="@database.Label"
-                                       Summary="@FormatDatabaseSummary(database)"
-                                       Metadata="@FormatDatabaseMetadata(database)"
-                                       SecondaryMetadata="@FormatDatabaseVerification(database)" />
-                }
-            </div>
+            @RenderDatabaseTable(DatabaseRows, "SQL Server databases")
         }
 
         @if (MissingDeclaredDatabaseRows.Count > 0)
@@ -66,15 +58,7 @@ else
                     <p>These declarations were not returned by the live SQL Server instance.</p>
                 </div>
             </div>
-            <div class="generated-list">
-                @foreach (var database in MissingDeclaredDatabaseRows)
-                {
-                    <GeneratedListItem Title="@database.Label"
-                                       Summary="@FormatDatabaseSummary(database)"
-                                       Metadata="@FormatDatabaseMetadata(database)"
-                                       SecondaryMetadata="@FormatDatabaseVerification(database)" />
-                }
-            </div>
+            @RenderDatabaseTable(MissingDeclaredDatabaseRows, "Declared SQL Server databases not found")
         }
     }
 }
@@ -173,11 +157,6 @@ else
             _ => "Existing database"
         };
 
-    private static string FormatDatabaseMetadata(SqlServerDatabaseRow database) =>
-        string.IsNullOrWhiteSpace(database.State)
-            ? $"Database: {database.Name}"
-            : $"Database: {database.Name}; State: {database.State}";
-
     private static string FormatDatabaseVerification(SqlServerDatabaseRow database) =>
         database switch
         {
@@ -185,4 +164,45 @@ else
             { WasLiveQueryAttempted: true } => "Not found in live SQL Server",
             _ => "Existence not verified"
         };
+
+    private static string FormatDatabaseState(SqlServerDatabaseRow database) =>
+        string.IsNullOrWhiteSpace(database.State)
+            ? "not reported"
+            : database.State;
+
+    private static RenderFragment RenderDatabaseTable(
+        IReadOnlyList<SqlServerDatabaseRow> databases,
+        string label) => @<div class="table-wrap">
+            <table class="resource-table" aria-label="@label">
+                <thead>
+                    <tr>
+                        <th>Database</th>
+                        <th>Type</th>
+                        <th>State</th>
+                        <th>Verification</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var database in databases)
+                    {
+                        <tr>
+                            <td>
+                                <div class="resource-table-identity">
+                                    <span class="resource-kind-icon">
+                                        <FluentIcon Value="@(new Icons.Regular.Size20.Database())" />
+                                    </span>
+                                    <span>
+                                        <strong>@database.Label</strong>
+                                        <span>@database.Name</span>
+                                    </span>
+                                </div>
+                            </td>
+                            <td>@FormatDatabaseSummary(database)</td>
+                            <td>@FormatDatabaseState(database)</td>
+                            <td>@FormatDatabaseVerification(database)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>;
 }
