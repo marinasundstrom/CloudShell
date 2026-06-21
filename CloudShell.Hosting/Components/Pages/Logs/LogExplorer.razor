@@ -398,8 +398,10 @@ else if (ShowHeading)
             var query = string.IsNullOrWhiteSpace(ResourceId)
                 ? null
                 : new LogQuery(ResourceId: ResourceId);
-            VisibleLogs = await LogManager.ListLogsAsync(query);
-            VisibleLogSourcesById = CreateLogSourceLookup(await LogManager.ListLogSourcesAsync(query));
+            var inlineDescriptors = await LogManager.ListLogsAsync(query);
+            var inlineLogSources = await LogManager.ListLogSourcesAsync(query);
+            VisibleLogSourcesById = CreateLogSourceLookup(inlineLogSources);
+            VisibleLogs = MergeLogDescriptorsWithSources(inlineDescriptors, inlineLogSources);
             LogResourceFilters = [];
             LogResourcesById = new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
             SelectedResource = string.IsNullOrWhiteSpace(ResourceId)
@@ -415,9 +417,11 @@ else if (ShowHeading)
             return;
         }
 
-        var logs = await LogManager.ListLogsAsync();
-        VisibleLogSourcesById = CreateLogSourceLookup(await LogManager.ListLogSourcesAsync());
-        var resourceIds = logs
+        var allDescriptors = await LogManager.ListLogsAsync();
+        var allLogSources = await LogManager.ListLogSourcesAsync();
+        VisibleLogSourcesById = CreateLogSourceLookup(allLogSources);
+        var visibleLogs = MergeLogDescriptorsWithSources(allDescriptors, allLogSources);
+        var resourceIds = visibleLogs
             .Select(log => log.ResourceId)
             .Where(resourceId => !string.IsNullOrWhiteSpace(resourceId))
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -434,7 +438,7 @@ else if (ShowHeading)
                 resourceId!,
                 resourcesById.TryGetValue(resourceId!, out var resource)
                     ? GetResourceLabel(resource)
-                    : logs.First(log => string.Equals(log.ResourceId, resourceId, StringComparison.OrdinalIgnoreCase)).SourceName))
+                    : visibleLogs.First(log => string.Equals(log.ResourceId, resourceId, StringComparison.OrdinalIgnoreCase)).SourceName))
             .OrderBy(option => option.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
@@ -444,11 +448,52 @@ else if (ShowHeading)
                 ? selectedResource
                 : null;
         VisibleLogs = selectedResourceFilterId is null
-            ? logs
-            : logs
+            ? visibleLogs
+            : visibleLogs
                 .Where(log => string.Equals(log.ResourceId, selectedResourceFilterId, StringComparison.OrdinalIgnoreCase))
                 .ToArray();
     }
+
+    private static IReadOnlyList<LogDescriptor> MergeLogDescriptorsWithSources(
+        IReadOnlyList<LogDescriptor> logs,
+        IReadOnlyList<LogSource> sources)
+    {
+        if (sources.Count == 0)
+        {
+            return logs;
+        }
+
+        var logIds = logs
+            .Select(log => log.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return logs
+            .Concat(sources
+                .Where(source => !logIds.Contains(source.Id))
+                .Select(CreateDescriptorFromSource))
+            .ToArray();
+    }
+
+    private static LogDescriptor CreateDescriptorFromSource(LogSource source) =>
+        new(
+            source.Id,
+            source.Name,
+            source.Provider,
+            source.SourceName,
+            source.SourceKind,
+            source.ResourceId,
+            source.ArtifactId,
+            source.SupportsStreaming,
+            source.Description,
+            source.Kind,
+            source.Format,
+            source.Storage,
+            source.Capabilities,
+            source.Location,
+            source.ProducerResourceId,
+            source.Origin,
+            source.Configuration,
+            source.Purpose,
+            source.Availability);
 
     private static IReadOnlyDictionary<string, LogSource> CreateLogSourceLookup(IReadOnlyList<LogSource> sources) =>
         sources
@@ -673,7 +718,7 @@ else if (ShowHeading)
         {
             Entries = IsCombinedLog(log)
                 ? await ReadCombinedLogAsync(InitialWindowEntries)
-                : await LogManager.ReadLogAsync(
+                : await LogManager.ReadLogSourceAsync(
                     log.Id,
                     new ReadLogOptions(MaxEntries: InitialWindowEntries));
             CanLoadOlderEntries = Entries.Count >= InitialWindowEntries;
@@ -709,7 +754,7 @@ else if (ShowHeading)
 
         var reads = await Task.WhenAll(
             sources.Select(log =>
-                LogManager.ReadLogAsync(
+                LogManager.ReadLogSourceAsync(
                     log.Id,
                     new ReadLogOptions(
                         MaxEntries: maxEntries,
@@ -742,7 +787,7 @@ else if (ShowHeading)
             var before = Entries.Min(entry => entry.Timestamp);
             var olderEntries = IsCombinedLog(selected)
                 ? await ReadCombinedLogAsync(HistoryPageEntries, before)
-                : await LogManager.ReadLogAsync(
+                : await LogManager.ReadLogSourceAsync(
                     selected.Id,
                     new ReadLogOptions(
                         MaxEntries: HistoryPageEntries,
@@ -831,7 +876,7 @@ else if (ShowHeading)
     {
         try
         {
-            await foreach (var entry in LogManager.StreamLogAsync(
+            await foreach (var entry in LogManager.StreamLogSourceAsync(
                 log.Id,
                 new StreamLogOptions(InitialEntries: 0),
                 cancellation.Token))

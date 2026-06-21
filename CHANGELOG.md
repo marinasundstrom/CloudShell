@@ -76,6 +76,9 @@ on `git blame --follow`, and then by the broad type of change.
   sources to be handled by provider capability.
 - `ILogStore` can now explicitly materialize disposable log-source sessions for
   Control Plane read, polling, streaming, and future transport lifecycles.
+- The Logs explorer and resource detail surfaces now list projected log
+  sources, including source-only declarations from resource kinds, and read
+  through source-addressed log operations.
 
 ### 2026-06-20
 

@@ -206,9 +206,13 @@ process or container streams, acquire remote cursors, bind collector query
 windows, fan out one background reader to many consumers, and release those
 resources when the operation ends. Descriptor-backed providers are bridged into
 sessions during migration. API clients should continue to address stable source
-IDs; the Control Plane can project the same session-backed access through
-polling endpoints, server-sent events, or WebSocket streams without exposing
-provider-specific handles.
+IDs. A future API can make session startup explicit and return read
+affordances for that session, such as a polling address, server-sent event
+stream, or WebSocket address, without exposing provider-specific handles.
+Client libraries, including the remote Control Plane client, should hide that
+transport choice and expose a `LogSession` abstraction with a method for
+querying a recent log span and an event or observable update stream for new
+entries.
 Session disposal is part of the contract through `IAsyncDisposable`; callers
 that request a session are responsible for disposing it when their read,
 polling, or stream operation ends.

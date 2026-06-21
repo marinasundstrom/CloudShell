@@ -48,14 +48,14 @@
     private IReadOnlyList<Resource> DependentResources { get; set; } = [];
     private ResourceManagerDisplaySelection DisplaySelection { get; set; } =
         ResourceManagerDisplaySelection.Default;
-    private IReadOnlyList<LogDescriptor> Logs { get; set; } = [];
+    private IReadOnlyList<LogSource> LogSources { get; set; } = [];
     private IReadOnlyList<NetworkEndpointMappingView> InboundNetworkMappings { get; set; } = [];
     private IReadOnlyList<LoadBalancerRouteView> InboundLoadBalancerRoutes { get; set; } = [];
     private IReadOnlyList<NameMappingView> InboundNameMappings { get; set; } = [];
     private IReadOnlyDictionary<string, Resource> RelatedResources { get; set; } =
         new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
-    private IReadOnlyDictionary<string, IReadOnlyList<LogDescriptor>> RelatedLogsByResourceId { get; set; } =
-        new Dictionary<string, IReadOnlyList<LogDescriptor>>(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyDictionary<string, IReadOnlyList<LogSource>> RelatedLogsByResourceId { get; set; } =
+        new Dictionary<string, IReadOnlyList<LogSource>>(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyDictionary<string, ResourceHealthSummary> RelatedHealthByResourceId { get; set; } =
         new Dictionary<string, ResourceHealthSummary>(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyDictionary<string, ResourceOperationCapabilities> RelatedCapabilitiesByResourceId { get; set; } =
@@ -79,8 +79,8 @@
             .Where(DisplaySelection.ShowsResource)
             .ToArray();
         DependentResources = await LoadDependentResourcesAsync();
-        Logs = Authorization.CanReadLogs()
-            ? await LogManager.ListLogsAsync(new LogQuery(ResourceId: Resource.Id))
+        LogSources = Authorization.CanReadLogs()
+            ? await LogManager.ListLogSourcesAsync(new LogQuery(ResourceId: Resource.Id))
             : [];
         Capabilities = await ResourceManager.GetResourceOperationCapabilitiesAsync(Resource);
         InboundNetworkMappings = await LoadInboundNetworkMappingsAsync();
@@ -132,7 +132,7 @@
         IsLoadBalancerResource;
 
     private bool HasVisibleObservability =>
-        Logs.Count > 0 ||
+        LogSources.Count > 0 ||
         ResourcePredefinedViewVisibility.HasHealthView(Resource, ResourceType) ||
         Authorization.CanReadLogs() && Resource.EffectiveObservability.Logs ||
         Authorization.CanReadTraces() && Resource.EffectiveObservability.Traces ||
@@ -272,11 +272,11 @@
                     </a>
                 </dd>
             }
-            @if (Logs.Count > 0)
+            @if (LogSources.Count > 0)
             {
                 <dt>@L["Logs"]</dt>
                 <dd>
-                    <a class="resource-link" href="@BuildLogRoute(Logs[0])">
+                    <a class="resource-link" href="@BuildLogRoute(LogSources[0])">
                         @L["Open logs"]
                     </a>
                 </dd>
@@ -777,12 +777,12 @@
         return resources;
     }
 
-    private async Task<IReadOnlyDictionary<string, IReadOnlyList<LogDescriptor>>> LoadRelatedLogsAsync(
+    private async Task<IReadOnlyDictionary<string, IReadOnlyList<LogSource>>> LoadRelatedLogsAsync(
         IEnumerable<string> resourceIds)
     {
         if (!Authorization.CanReadLogs())
         {
-            return new Dictionary<string, IReadOnlyList<LogDescriptor>>(StringComparer.OrdinalIgnoreCase);
+            return new Dictionary<string, IReadOnlyList<LogSource>>(StringComparer.OrdinalIgnoreCase);
         }
 
         var requested = resourceIds
@@ -792,16 +792,16 @@
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (requested.Count == 0)
         {
-            return new Dictionary<string, IReadOnlyList<LogDescriptor>>(StringComparer.OrdinalIgnoreCase);
+            return new Dictionary<string, IReadOnlyList<LogSource>>(StringComparer.OrdinalIgnoreCase);
         }
 
-        var logs = await LogManager.ListLogsAsync();
+        var logs = await LogManager.ListLogSourcesAsync();
         return logs
             .Where(log => !string.IsNullOrWhiteSpace(log.ResourceId) && requested.Contains(log.ResourceId))
             .GroupBy(log => log.ResourceId!, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(
                 group => group.Key,
-                group => (IReadOnlyList<LogDescriptor>)group
+                group => (IReadOnlyList<LogSource>)group
                     .OrderBy(log => log.Name, StringComparer.OrdinalIgnoreCase)
                     .ThenBy(log => log.Id, StringComparer.OrdinalIgnoreCase)
                     .ToArray(),
@@ -999,7 +999,7 @@
         this.ShellCatalog.ResourceTypes.FirstOrDefault(type =>
             string.Equals(type.Id, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase));
 
-    private string BuildLogRoute(LogDescriptor log)
+    private string BuildLogRoute(LogSource log)
     {
         var query = new Dictionary<string, string?>
         {
@@ -1011,7 +1011,7 @@
             query);
     }
 
-    private string BuildLogRoute(string resourceId, IReadOnlyList<LogDescriptor> logs)
+    private string BuildLogRoute(string resourceId, IReadOnlyList<LogSource> logs)
     {
         var query = new Dictionary<string, string?>();
 
