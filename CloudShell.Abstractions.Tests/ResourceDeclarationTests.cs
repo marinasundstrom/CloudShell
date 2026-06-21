@@ -3409,6 +3409,9 @@ public sealed class ResourceDeclarationTests
         Assert.True(worker.HasCapability(ResourceCapabilityIds.LogSources));
         Assert.True(api.HasCapability(ResourceCapabilityIds.LogSources));
         Assert.True(redis.HasCapability(ResourceCapabilityIds.LogSources));
+        Assert.True(worker.SupportsLogSources);
+        Assert.True(api.SupportsLogSources);
+        Assert.True(redis.SupportsLogSources);
         Assert.True(worker.HasCapability(ResourceCapabilityIds.Monitoring));
         Assert.True(api.HasCapability(ResourceCapabilityIds.Monitoring));
         Assert.True(redis.HasCapability(ResourceCapabilityIds.Monitoring));

@@ -1011,7 +1011,8 @@ public sealed partial class DockerContainerResourceProvider :
                     Description: "Combined stdout and stderr from the Docker container.",
                     Kind: ResourceLogSourceKind.Container,
                     Format: LogFormat.PlainText,
-                    Capabilities: LogSourceCapabilities.Read | LogSourceCapabilities.Stream)
+                    Capabilities: LogSourceCapabilities.Read | LogSourceCapabilities.Stream,
+                    Purpose: ResourceLogSourcePurpose.Default)
             ],
             _ => []
         };

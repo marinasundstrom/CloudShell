@@ -139,6 +139,8 @@ public sealed record Resource(
         ResourceCapabilities.Any(capability =>
             string.Equals(capability.Id, capabilityId, StringComparison.OrdinalIgnoreCase));
 
+    public bool SupportsLogSources => HasCapability(ResourceCapabilityIds.LogSources);
+
 }
 
 public enum ResourceSource

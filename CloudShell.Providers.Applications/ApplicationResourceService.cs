@@ -176,7 +176,8 @@ public sealed partial class ApplicationResourceService(
                 Format: LogFormat.JsonConsole,
                 Capabilities: LogSourceCapabilities.Read |
                     LogSourceCapabilities.Stream |
-                    LogSourceCapabilities.StructuredFields)
+                    LogSourceCapabilities.StructuredFields,
+                Purpose: ResourceLogSourcePurpose.Default)
         ];
     }
 

@@ -91,8 +91,8 @@ operational detail.
 The current model is missing an explicit source concept. The intended next
 domain shape is:
 
-- `ResourceLogSource`: resource-model metadata that declares a log produced by
-  or on behalf of a resource.
+- `ResourceLogSource`: resource-model discovery metadata that declares a log
+  produced by or on behalf of a resource.
 - `LogSource`: Control Plane projection of a log source that can be listed,
   authorized, queried, read, streamed, and rendered.
 - `ILogProvider`: integration point that contributes and accesses projected
@@ -101,16 +101,19 @@ domain shape is:
   interpret records from a source when a provider does not return fully shaped
   entries.
 
-`ResourceLogSource` belongs to the resource model. It describes what the
-resource exposes: source kind, format, display name, capabilities, origin,
-configuration metadata, and the provider-owned source location or capture
-target, such as stdout, stderr, a file path, file pattern, container runtime
-stream, sidecar, hidden sub-resource, or external provider API. A
-process-backed application can get implicit stdout/stderr sources, while the
-resource can declare additional sources such as ASP.NET Core file-sink logs. A
-visible resource can also declare sources physically produced by multiple
-background processes, containers, or hidden sub-resources without exposing
-those implementation details as primary Resource Manager items.
+`ResourceLogSource` belongs to the resource model. It is a discovery contract:
+CloudShell and the Control Plane use it to discover which logs a resource
+produces, which are provider defaults, which are custom, where they come from,
+and how they can be accessed. It describes source kind, format, display name,
+capabilities, origin, purpose, configuration metadata, and the provider-owned
+source location or capture target, such as stdout, stderr, a file path, file
+pattern, container runtime stream, sidecar, hidden sub-resource, or external
+provider API. A process-backed application can get implicit stdout/stderr
+sources, while the resource can declare additional sources such as ASP.NET
+Core file-sink logs. A visible resource can also declare sources physically
+produced by multiple background processes, containers, or hidden sub-resources
+without exposing those implementation details as primary Resource Manager
+items.
 
 Resource log source configuration is capability driven. A resource or resource
 type that supports log source declaration/configuration should advertise

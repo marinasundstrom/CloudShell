@@ -41,6 +41,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Log source declarations now track source origin and configuration metadata,
   and application resources advertise the `logs.sources` capability for future
   capability-driven log source configuration.
+- Log sources now distinguish discovery/default/custom purpose, and resources
+  expose a `SupportsLogSources` helper for the `logs.sources` capability.
 
 ### 2026-06-20
 

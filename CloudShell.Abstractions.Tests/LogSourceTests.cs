@@ -24,7 +24,8 @@ public sealed class LogSourceTests
             Origin: ResourceLogSourceOrigin.Programmatic,
             Configuration: new LogSourceConfiguration(
                 IsConfigurable: true,
-                SchemaId: "application.processOutput"));
+                SchemaId: "application.processOutput"),
+            Purpose: ResourceLogSourcePurpose.Custom);
 
         var source = descriptor.ToLogSource();
 
@@ -39,5 +40,6 @@ public sealed class LogSourceTests
         Assert.Equal(ResourceLogSourceOrigin.Programmatic, source.Origin);
         Assert.True(source.Configuration.IsConfigurable);
         Assert.Equal("application.processOutput", source.Configuration.SchemaId);
+        Assert.Equal(ResourceLogSourcePurpose.Custom, source.Purpose);
     }
 }

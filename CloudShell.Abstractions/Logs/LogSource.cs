@@ -11,7 +11,8 @@ public sealed record ResourceLogSource(
     string? ProducerResourceId = null,
     string? Description = null,
     ResourceLogSourceOrigin Origin = ResourceLogSourceOrigin.ProviderDefault,
-    LogSourceConfiguration Configuration = default);
+    LogSourceConfiguration Configuration = default,
+    ResourceLogSourcePurpose Purpose = ResourceLogSourcePurpose.Discovery);
 
 public sealed record LogSource(
     string Id,
@@ -29,7 +30,8 @@ public sealed record LogSource(
     string? ProducerResourceId = null,
     string? Description = null,
     ResourceLogSourceOrigin Origin = ResourceLogSourceOrigin.ProviderDefault,
-    LogSourceConfiguration Configuration = default)
+    LogSourceConfiguration Configuration = default,
+    ResourceLogSourcePurpose Purpose = ResourceLogSourcePurpose.Discovery)
 {
     public bool SupportsStreaming => Capabilities.HasFlag(LogSourceCapabilities.Stream);
 
@@ -49,6 +51,13 @@ public enum ResourceLogSourceOrigin
 public readonly record struct LogSourceConfiguration(
     bool IsConfigurable,
     string? SchemaId = null);
+
+public enum ResourceLogSourcePurpose
+{
+    Discovery,
+    Default,
+    Custom
+}
 
 public enum ResourceLogSourceKind
 {
