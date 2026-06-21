@@ -81,7 +81,13 @@ on `git blame --follow`, and then by the broad type of change.
   through source-addressed log operations.
 - The Logs explorer now shows a compact log-source inventory with source,
   kind, format, availability, capabilities, and open actions before the
-  selected source stream.
+  selected source stream, routing Activity sources to the resource Activity
+  view instead of a non-selectable log stream.
+- The Logs explorer no longer crashes the Blazor circuit when log scrolling
+  interop races with disposal during source changes or live updates.
+- The Logs explorer now separates Stream and Sources views, keeps source
+  inventory out of the live stream, labels merged log entries with their
+  source/resource, and keeps wrapped log rows following the latest entries.
 - Resource-scoped log source discovery, reads, and streams now enforce both
   the common logs permission and resource read access, while provider-owned
   sources remain gated by the common logs permission.
