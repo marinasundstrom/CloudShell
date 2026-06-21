@@ -238,10 +238,18 @@
                     </span>
                     <span>@HealthIndicator(resource)</span>
                     <span class="endpoint">
-                        <EndpointLink Address="@resource.PrimaryEndpoint"
+                        @{
+                            var preferredEndpoint = GetPreferredEndpointDisplay(resource);
+                        }
+                        <EndpointLink Address="@preferredEndpoint.Address"
+                                      Text="@preferredEndpoint.Text"
                                       EmptyText="@L["n/a"].Value"
                                       EmptyClass="muted"
                                       StopClickPropagation="true" />
+                        @if (!string.IsNullOrWhiteSpace(preferredEndpoint.Source))
+                        {
+                            <small>@preferredEndpoint.Source</small>
+                        }
                     </span>
                     <span class="resource-row-actions" @onclick:stopPropagation="true">
                         @ResourceActionControls(resource, includeDetailsAction: true)
@@ -1840,6 +1848,28 @@ resourceGroups) =>
         return ResourceNameMappingDisplay.GetMappedEndpointAddress(mapping, target);
     }
 
+    private EndpointDisplay GetPreferredEndpointDisplay(Resource resource)
+    {
+        var nameMapping = GetInboundNameMappings(resource)
+            .Select(mapping => new
+            {
+                Mapping = mapping.Mapping,
+                Address = GetNameMappingEndpointAddress(mapping.Mapping)
+            })
+            .FirstOrDefault(mapping => !string.IsNullOrWhiteSpace(mapping.Address));
+        if (nameMapping is not null)
+        {
+            return new EndpointDisplay(
+                nameMapping.Address,
+                ResourceNameMappingDisplay.GetHostName(nameMapping.Mapping),
+                L["DNS name"].Value);
+        }
+
+        return string.Equals(resource.PrimaryEndpoint, "none", StringComparison.OrdinalIgnoreCase)
+            ? new EndpointDisplay(null, null, null)
+            : new EndpointDisplay(resource.PrimaryEndpoint, null, null);
+    }
+
     private string FormatNameMappingMetadata(Resource mapping)
     {
         var parts = new List<string>
@@ -2240,6 +2270,11 @@ resourceGroups) =>
         LoadBalancerRoute Route);
 
     private sealed record NameMappingView(Resource Mapping);
+
+    private sealed record EndpointDisplay(
+        string? Address,
+        string? Text,
+        string? Source);
 
     private sealed record ResourceClassFilterOption(string Id, string DisplayName);
 

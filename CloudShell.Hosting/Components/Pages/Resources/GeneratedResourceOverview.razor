@@ -232,6 +232,27 @@
                 </a>
             </dd>
         }
+        @{
+            var endpointMappings = GetOverviewEndpointMappings();
+        }
+        @if (endpointMappings.Count > 0)
+        {
+            <dt>@L["Endpoint mappings"]</dt>
+            <dd>
+                <div class="endpoint-list compact-endpoint-list">
+                    @foreach (var mapping in endpointMappings)
+                    {
+                        <div>
+                            <strong>@mapping.Name</strong>
+                            <EndpointLink Address="@mapping.Address"
+                                          Text="@mapping.Text"
+                                          EmptyText="@L["none"].Value" />
+                            <small>@mapping.Metadata</small>
+                        </div>
+                    }
+                </div>
+            </dd>
+        }
         @if (InboundNetworkMappings.Count > 0 || InboundLoadBalancerRoutes.Count > 0)
         {
             <dt>@L["Exposure"]</dt>
@@ -393,6 +414,52 @@
         return InboundNameMappings.Count == 1 && !string.IsNullOrWhiteSpace(firstHost)
             ? firstHost
             : L["{0} name mapping(s)", InboundNameMappings.Count].Value;
+    }
+
+    private string FormatExposure(ResourceExposureScope exposure) =>
+        exposure switch
+        {
+            ResourceExposureScope.Private => L["private"].Value,
+            ResourceExposureScope.Local => L["local"].Value,
+            ResourceExposureScope.Network => L["network"].Value,
+            ResourceExposureScope.Public => L["public"].Value,
+            _ => exposure.ToString()
+        };
+
+    private IReadOnlyList<EndpointMappingDisplay> GetOverviewEndpointMappings()
+    {
+        var mappings = new List<EndpointMappingDisplay>();
+        foreach (var mapping in Resource.ResourceEndpointNetworkMappings
+            .OrderBy(mapping => mapping.Target.EndpointName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(mapping => mapping.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            mappings.Add(new EndpointMappingDisplay(
+                mapping.Name,
+                mapping.Address,
+                null,
+                L["{0} endpoint | {1}", mapping.Target.EndpointName, FormatExposure(mapping.Exposure)].Value));
+        }
+
+        foreach (var nameMapping in InboundNameMappings
+            .Select(view => view.Mapping)
+            .OrderBy(ResourceNameMappingDisplay.GetHostName, StringComparer.OrdinalIgnoreCase))
+        {
+            var address = GetNameMappingEndpointAddress(nameMapping);
+            if (string.IsNullOrWhiteSpace(address))
+            {
+                continue;
+            }
+
+            mappings.Add(new EndpointMappingDisplay(
+                ResourceNameMappingDisplay.GetHostName(nameMapping),
+                address,
+                ResourceNameMappingDisplay.GetHostName(nameMapping),
+                L["{0} endpoint | {1} DNS name",
+                    ResourceNameMappingDisplay.GetTargetEndpointName(nameMapping),
+                    ResourceNameMappingDisplay.GetExposureLabel(nameMapping)].Value));
+        }
+
+        return mappings;
     }
 
     private string FormatObservabilitySummary()
@@ -1134,5 +1201,11 @@
         LoadBalancerRoute Route);
 
     private sealed record NameMappingView(Resource Mapping);
+
+    private sealed record EndpointMappingDisplay(
+        string Name,
+        string? Address,
+        string? Text,
+        string Metadata);
 
 }

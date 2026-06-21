@@ -2580,6 +2580,14 @@ h3 {
     background: var(--cloudshell-surface-muted);
 }
 
+.compact-endpoint-list {
+    margin-top: 0;
+}
+
+.compact-endpoint-list>div {
+    padding: .45rem;
+}
+
 .endpoint-list span,
 .endpoint-list a,
 .endpoint-list small {
