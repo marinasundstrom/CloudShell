@@ -126,6 +126,8 @@ on `git blame --follow`, and then by the broad type of change.
   now use resource-name fallbacks for unresolved related resources.
 - The Traces resource detail panel now leads with the readable resource name
   while keeping the canonical resource ID as a secondary field.
+- The Resources list details blade now uses resource-name fallbacks for
+  unresolved endpoint mappings, load-balancer targets, and name providers.
 - The UI Extension Host sample now contributes its sample workspace sidebar
   item through the composition main menu instead of legacy shell navigation.
 - CloudShell Hosting now exposes `builder.AddCompositionModule(...)` for
