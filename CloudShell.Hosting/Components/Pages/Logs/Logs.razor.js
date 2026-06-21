@@ -1,4 +1,4 @@
-const latestThreshold = 8;
+const latestThreshold = 24;
 
 export function isAtLatest(element) {
     if (!element) {
@@ -14,9 +14,9 @@ export async function scrollToLatest(element) {
         return false;
     }
 
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < 6; attempt++) {
         await nextFrame();
-        element.scrollTop = element.scrollHeight;
+        element.scrollTop = element.scrollHeight - element.clientHeight;
     }
 
     return isAtLatest(element);
