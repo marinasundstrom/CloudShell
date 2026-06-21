@@ -37,6 +37,14 @@ ingestion settings so `/observability/traces`, `/observability/metrics`, and
 each application resource's **Metrics** tab can show spans and request metrics
 from both services.
 
+The sample also opts into persisted application log files under
+`Observability:ApplicationLogs`. Application logs are stdout/stderr-style
+source logs from the application provider; they are separate from resource
+event logs. The sample sets `Store` to `File`, writes under
+`Data/application-logs`, retains seven days or 5000 entries per log, and leaves
+daily file splitting disabled so the current log viewer reads one bounded file
+per application log.
+
 The SQL Server resource uses the provider-owned `AddSqlServer(...)` builder.
 It is still materialized locally with the SQL Server Linux container image
 through `UseLocalDevelopmentDefaults()`, but it projects as an

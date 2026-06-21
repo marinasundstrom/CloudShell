@@ -39,10 +39,10 @@ public sealed class ApplicationProcessLogTests
 
         try
         {
-            var writer = new ApplicationProcessLog(logPath);
+            var writer = new ApplicationProcessLog(logPath, retentionDays: 30);
             writer.Append(line, "stdout");
 
-            var reader = new ApplicationProcessLog(logPath);
+            var reader = new ApplicationProcessLog(logPath, retentionDays: 30);
             var entry = Assert.Single(reader.Read(10, before: null));
 
             Assert.Equal("API returned a warning", entry.Message);
@@ -70,5 +70,93 @@ public sealed class ApplicationProcessLogTests
         Assert.Equal("{not-json", entry.Message);
         Assert.Equal("stdout", entry.Source);
         Assert.Null(entry.Attributes);
+    }
+
+    [Fact]
+    public void Append_TrimsPersistedLogFileByEntryLimit()
+    {
+        var logPath = Path.Combine(
+            Path.GetTempPath(),
+            "cloudshell-tests",
+            $"{Guid.NewGuid():N}.log");
+
+        try
+        {
+            var writer = new ApplicationProcessLog(logPath, retentionDays: 30, maxEntries: 2);
+            writer.Append("first", "stdout");
+            writer.Append("second", "stdout");
+            writer.Append("third", "stdout");
+
+            var reader = new ApplicationProcessLog(logPath, retentionDays: 30, maxEntries: 2);
+            var entries = reader.Read(10, before: null);
+
+            Assert.Collection(
+                entries,
+                entry => Assert.Equal("second", entry.Message),
+                entry => Assert.Equal("third", entry.Message));
+            Assert.Equal(2, File.ReadAllLines(logPath).Length);
+        }
+        finally
+        {
+            File.Delete(logPath);
+        }
+    }
+
+    [Fact]
+    public void Append_CanSplitPersistedLogFilesByDay()
+    {
+        var logPath = Path.Combine(
+            Path.GetTempPath(),
+            "cloudshell-tests",
+            $"{Guid.NewGuid():N}.log");
+        var first = """
+            {"timestamp":"2026-06-20T10:00:00+00:00","message":"first day"}
+            """;
+        var second = """
+            {"timestamp":"2026-06-21T10:00:00+00:00","message":"second day"}
+            """;
+
+        try
+        {
+            var writer = new ApplicationProcessLog(
+                logPath,
+                retentionDays: 30,
+                maxEntries: 10,
+                splitFilesByDay: true);
+            writer.Append(first, "stdout");
+            writer.Append(second, "stdout");
+
+            Assert.False(File.Exists(logPath));
+            Assert.True(File.Exists(Path.Combine(
+                Path.GetDirectoryName(logPath)!,
+                $"{Path.GetFileNameWithoutExtension(logPath)}-2026-06-20.log")));
+            Assert.True(File.Exists(Path.Combine(
+                Path.GetDirectoryName(logPath)!,
+                $"{Path.GetFileNameWithoutExtension(logPath)}-2026-06-21.log")));
+
+            var reader = new ApplicationProcessLog(
+                logPath,
+                retentionDays: 30,
+                maxEntries: 10,
+                splitFilesByDay: true);
+            var entries = reader.Read(10, before: null);
+
+            Assert.Collection(
+                entries,
+                entry => Assert.Equal("first day", entry.Message),
+                entry => Assert.Equal("second day", entry.Message));
+        }
+        finally
+        {
+            var directory = Path.GetDirectoryName(logPath);
+            var baseName = Path.GetFileNameWithoutExtension(logPath);
+            if (!string.IsNullOrWhiteSpace(directory) && Directory.Exists(directory))
+            {
+                foreach (var file in Directory.EnumerateFiles(directory, $"{baseName}*.log"))
+                {
+                    File.Delete(file);
+                }
+            }
+        }
     }
 }

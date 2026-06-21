@@ -370,8 +370,10 @@ listed here before pulling in broader proposal work.
    for live indicators and retained recent-history line charts. Traces and
    telemetry metric points can now opt into database-backed history with
    per-resource retention limits through appsettings; Control Plane
-   aggregation, OpenTelemetry metrics ingestion, source-log retention, and
-   provider implementations remain separate work.
+   aggregation, OpenTelemetry metrics ingestion, and provider implementations
+   remain separate work. Application provider source logs are memory-only by
+   default and can opt into bounded plain-file persistence with optional
+   per-day splitting; resource event log retention remains a separate design.
    Track provider-supported resource Monitoring separately under the resource
    Management group because resource monitoring is about provider-observed
    resource metrics such as process/container CPU and memory usage rather than

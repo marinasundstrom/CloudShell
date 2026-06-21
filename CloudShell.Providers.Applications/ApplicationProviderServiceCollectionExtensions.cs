@@ -40,7 +40,11 @@ public static class ApplicationProviderServiceCollectionExtensions
         builder.Services.AddLocalProcessRunner(processes =>
         {
             processes.RuntimeStatePath = options.RuntimeStatePath;
+            processes.LogStore = options.LogStore;
             processes.LogDirectory = options.LogDirectory;
+            processes.LogRetentionDays = options.LogRetentionDays;
+            processes.RetainedLogEntries = options.RetainedLogEntries;
+            processes.SplitLogFilesByDay = options.SplitLogFilesByDay;
         });
     }
 

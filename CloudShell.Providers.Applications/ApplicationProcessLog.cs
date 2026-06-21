@@ -1,18 +1,29 @@
 using CloudShell.Abstractions.Logs;
+using System.Globalization;
 using System.Text.Json;
 
 namespace CloudShell.Providers.Applications;
 
 internal sealed class ApplicationProcessLog
 {
-    private const int MaxEntries = 1_000;
+    private const int DefaultMaxEntries = 1_000;
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
     private readonly Queue<LogEntry> _entries = new();
     private readonly string? _logPath;
+    private readonly int _retentionDays;
+    private readonly int _maxEntries;
+    private readonly bool _splitFilesByDay;
 
-    public ApplicationProcessLog(string? logPath = null)
+    public ApplicationProcessLog(
+        string? logPath = null,
+        int retentionDays = 7,
+        int maxEntries = DefaultMaxEntries,
+        bool splitFilesByDay = false)
     {
         _logPath = logPath;
+        _retentionDays = Math.Max(1, retentionDays);
+        _maxEntries = Math.Max(1, maxEntries);
+        _splitFilesByDay = splitFilesByDay;
     }
 
     public void Append(string message, string source, string? severity = null)
@@ -26,7 +37,7 @@ internal sealed class ApplicationProcessLog
         lock (_entries)
         {
             _entries.Enqueue(entry);
-            while (_entries.Count > MaxEntries)
+            while (_entries.Count > _maxEntries)
             {
                 _entries.Dequeue();
             }
@@ -37,9 +48,9 @@ internal sealed class ApplicationProcessLog
 
     public IReadOnlyList<LogEntry> Read(int maxEntries, DateTimeOffset? before)
     {
-        if (!string.IsNullOrWhiteSpace(_logPath) && File.Exists(_logPath))
+        if (!string.IsNullOrWhiteSpace(_logPath))
         {
-            return ReadFromFile(_logPath, maxEntries, before);
+            return ReadFromFiles(_logPath, _splitFilesByDay, maxEntries, before);
         }
 
         lock (_entries)
@@ -58,9 +69,9 @@ internal sealed class ApplicationProcessLog
 
     public int CountEntries()
     {
-        if (!string.IsNullOrWhiteSpace(_logPath) && File.Exists(_logPath))
+        if (!string.IsNullOrWhiteSpace(_logPath))
         {
-            return ReadAllLines(_logPath).Count;
+            return ReadAllLines(GetLogFiles(_logPath, _splitFilesByDay)).Count;
         }
 
         lock (_entries)
@@ -71,9 +82,9 @@ internal sealed class ApplicationProcessLog
 
     public IReadOnlyList<LogEntry> ReadAfter(int entryIndex)
     {
-        if (!string.IsNullOrWhiteSpace(_logPath) && File.Exists(_logPath))
+        if (!string.IsNullOrWhiteSpace(_logPath))
         {
-            return ReadAllLines(_logPath)
+            return ReadAllLines(GetLogFiles(_logPath, _splitFilesByDay))
                 .Skip(Math.Max(0, entryIndex))
                 .Select(ParseLine)
                 .ToArray();
@@ -94,30 +105,34 @@ internal sealed class ApplicationProcessLog
             return;
         }
 
-        Directory.CreateDirectory(Path.GetDirectoryName(_logPath)!);
+        DeleteExpiredSplitLogFiles(_logPath, _retentionDays, _splitFilesByDay);
+        var logPath = _splitFilesByDay ? GetDailyLogPath(_logPath, entry.Timestamp) : _logPath;
+        Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
         var severity = string.IsNullOrWhiteSpace(entry.Severity) ? "Information" : entry.Severity;
         var source = string.IsNullOrWhiteSpace(entry.Source) ? "process" : entry.Source;
-        using var stream = new FileStream(
-            _logPath,
-            FileMode.Append,
-            FileAccess.Write,
-            FileShare.ReadWrite);
-        using var writer = new StreamWriter(stream);
-        if (HasStructuredMetadata(entry))
+        var line = HasStructuredMetadata(entry)
+            ? JsonSerializer.Serialize(CreateStructuredLogLine(entry, severity, source), SerializerOptions)
+            : $"[{entry.Timestamp:O}] [{severity}] [{source}] {entry.Message}";
+        using (var stream = new FileStream(
+                   logPath,
+                   FileMode.Append,
+                   FileAccess.Write,
+                   FileShare.ReadWrite))
+        using (var writer = new StreamWriter(stream))
         {
-            writer.WriteLine(JsonSerializer.Serialize(CreateStructuredLogLine(entry, severity, source), SerializerOptions));
-            return;
+            writer.WriteLine(line);
         }
 
-        writer.WriteLine($"[{entry.Timestamp:O}] [{severity}] [{source}] {entry.Message}");
+        TrimLogFile(logPath, _retentionDays, _maxEntries);
     }
 
-    private static IReadOnlyList<LogEntry> ReadFromFile(
+    private static IReadOnlyList<LogEntry> ReadFromFiles(
         string logPath,
+        bool splitFilesByDay,
         int maxEntries,
         DateTimeOffset? before)
     {
-        var entries = ReadAllLines(logPath)
+        var entries = ReadAllLines(GetLogFiles(logPath, splitFilesByDay))
             .Select(ParseLine)
             .Where(entry => before is null || entry.Timestamp < before.Value)
             .TakeLast(Math.Max(1, maxEntries))
@@ -141,6 +156,116 @@ internal sealed class ApplicationProcessLog
         }
 
         return lines;
+    }
+
+    private static IReadOnlyList<string> ReadAllLines(IEnumerable<string> logPaths)
+    {
+        var lines = new List<string>();
+        foreach (var logPath in logPaths)
+        {
+            lines.AddRange(ReadAllLines(logPath));
+        }
+
+        return lines;
+    }
+
+    private static void TrimLogFile(
+        string logPath,
+        int retentionDays,
+        int maxEntries)
+    {
+        var cutoff = DateTimeOffset.UtcNow.AddDays(-retentionDays);
+        var retainedLines = ReadAllLines(logPath)
+            .Select(line => new { Line = line, Entry = ParseLine(line) })
+            .Where(item => item.Entry.Timestamp >= cutoff)
+            .TakeLast(maxEntries)
+            .Select(item => item.Line)
+            .ToArray();
+
+        File.WriteAllLines(logPath, retainedLines);
+    }
+
+    private static IReadOnlyList<string> GetLogFiles(
+        string logPath,
+        bool splitFilesByDay)
+    {
+        var files = new List<string>();
+        if (File.Exists(logPath))
+        {
+            files.Add(logPath);
+        }
+
+        if (!splitFilesByDay)
+        {
+            return files;
+        }
+
+        var directory = Path.GetDirectoryName(logPath);
+        if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
+        {
+            return files;
+        }
+
+        var baseName = Path.GetFileNameWithoutExtension(logPath);
+        var extension = Path.GetExtension(logPath);
+        files.AddRange(Directory
+            .EnumerateFiles(directory, $"{baseName}-????-??-??{extension}")
+            .Order(StringComparer.OrdinalIgnoreCase));
+        return files;
+    }
+
+    private static string GetDailyLogPath(
+        string logPath,
+        DateTimeOffset timestamp)
+    {
+        var directory = Path.GetDirectoryName(logPath)!;
+        var baseName = Path.GetFileNameWithoutExtension(logPath);
+        var extension = Path.GetExtension(logPath);
+        return Path.Combine(directory, $"{baseName}-{timestamp:yyyy-MM-dd}{extension}");
+    }
+
+    private static void DeleteExpiredSplitLogFiles(
+        string logPath,
+        int retentionDays,
+        bool splitFilesByDay)
+    {
+        if (!splitFilesByDay)
+        {
+            return;
+        }
+
+        var cutoff = DateTimeOffset.UtcNow.Date.AddDays(-(retentionDays - 1));
+        foreach (var file in GetLogFiles(logPath, splitFilesByDay))
+        {
+            if (TryGetLogFileDate(logPath, file, out var fileDate) &&
+                fileDate < cutoff)
+            {
+                File.Delete(file);
+            }
+        }
+    }
+
+    private static bool TryGetLogFileDate(
+        string logPath,
+        string file,
+        out DateTime fileDate)
+    {
+        var baseName = Path.GetFileNameWithoutExtension(logPath);
+        var fileName = Path.GetFileNameWithoutExtension(file);
+        var prefix = $"{baseName}-";
+        if (fileName.Length != prefix.Length + "yyyy-MM-dd".Length ||
+            !fileName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            fileDate = default;
+            return false;
+        }
+
+        return DateTime.TryParseExact(
+            fileName[prefix.Length..],
+            "yyyy-MM-dd",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeUniversal,
+            out fileDate);
     }
 
     private static LogEntry ParseLine(string line)

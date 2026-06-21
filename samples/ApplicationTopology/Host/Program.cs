@@ -60,6 +60,15 @@ cloudShell
     .AddExtension<ObservabilityExtension>()
     .AddApplicationProvider(options =>
     {
+        options.LogStore = builder.Configuration["Observability:ApplicationLogs:Store"] ?? options.LogStore;
+        options.LogDirectory = builder.Configuration["Observability:ApplicationLogs:LogDirectory"] ??
+            options.LogDirectory;
+        options.LogRetentionDays = builder.Configuration.GetValue<int?>(
+            "Observability:ApplicationLogs:LogRetentionDays") ?? options.LogRetentionDays;
+        options.RetainedLogEntries = builder.Configuration.GetValue<int?>(
+            "Observability:ApplicationLogs:RetainedLogEntries") ?? options.RetainedLogEntries;
+        options.SplitLogFilesByDay = builder.Configuration.GetValue<bool?>(
+            "Observability:ApplicationLogs:SplitLogFilesByDay") ?? options.SplitLogFilesByDay;
         options.OtlpEndpoint = otlpEndpoint;
         options.OtlpProtocol = otlpProtocol;
         options.ResourceIdentityTokenEndpoint = identityTokenEndpoint;

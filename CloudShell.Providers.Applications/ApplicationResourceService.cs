@@ -2347,8 +2347,8 @@ public sealed partial class ApplicationResourceService(
             "application.container.host.resolved",
             $"Application provider resolved container host '{engine.Name}' for '{definition.Name}'.");
         var logPath = GetLogPath(definition.Id);
-        Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
-        var processLog = new ApplicationProcessLog(logPath);
+        EnsureLogDirectory(logPath);
+        var processLog = CreateProcessLog(logPath);
         if (definition.Lifetime == ApplicationLifetime.ControlPlaneScoped)
         {
             procedureContext?.AppendProviderEvent(
@@ -2627,13 +2627,16 @@ public sealed partial class ApplicationResourceService(
             $"Application provider is stopping tracked process for '{application?.Name ?? applicationId}'.");
         log.Append(force ? "Stopping process." : "Stopping control-plane-scoped process.", "process", "Information");
         ProcessShutdown.KillProcessTreeAndWait(process);
+        var logPath = _processes.TryGetValue(applicationId, out var state)
+            ? state.LogPath
+            : runtimeStates.Get(applicationId)?.LogPath ?? GetLogPath(applicationId);
         runtimeStates.Save(new ApplicationRuntimeState(
             applicationId,
             process.Id,
             null,
             DateTimeOffset.UtcNow,
             TryGetExitCode(process),
-            GetLogPath(applicationId),
+            logPath,
             VolumeMounts: MarkVolumeMountsNotActive(
                 runtimeStates.Get(applicationId)?.RuntimeVolumeMounts ?? [],
                 DateTimeOffset.UtcNow)));
@@ -4002,7 +4005,7 @@ public sealed partial class ApplicationResourceService(
             }
 
             var logPath = runtimeState.LogPath ?? GetLogPath(definition.Id);
-            var log = new ApplicationProcessLog(logPath);
+            var log = CreateProcessLog(logPath);
             candidate.EnableRaisingEvents = true;
             candidate.Exited += (_, _) =>
             {
@@ -4043,11 +4046,27 @@ public sealed partial class ApplicationResourceService(
             return state.Log;
         }
 
-        return new ApplicationProcessLog(
-            runtimeStates.Get(applicationId)?.LogPath ?? GetLogPath(applicationId));
+        return CreateProcessLog(runtimeStates.Get(applicationId)?.LogPath ?? GetLogPath(applicationId));
     }
 
-    private string GetLogPath(string applicationId)
+    private ApplicationProcessLog CreateProcessLog(string? logPath) =>
+        new(
+            logPath,
+            options.LogRetentionDays,
+            options.RetainedLogEntries,
+            options.SplitLogFilesByDay);
+
+    private string? GetLogPath(string applicationId)
+    {
+        if (!IsFileLogStore())
+        {
+            return null;
+        }
+
+        return GetPersistedLogPath(applicationId);
+    }
+
+    private string GetPersistedLogPath(string applicationId)
     {
         var logDirectory = Path.IsPathRooted(options.LogDirectory)
             ? options.LogDirectory
@@ -4057,6 +4076,19 @@ public sealed partial class ApplicationResourceService(
             .Trim('-');
 
         return Path.Combine(logDirectory, $"{logFileName}.log");
+    }
+
+    private bool IsFileLogStore() =>
+        string.Equals(options.LogStore, ApplicationLogStores.File, StringComparison.OrdinalIgnoreCase);
+
+    private static void EnsureLogDirectory(string? logPath)
+    {
+        if (string.IsNullOrWhiteSpace(logPath))
+        {
+            return;
+        }
+
+        Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
     }
 
     private static bool ProcessStartMatches(
@@ -6134,7 +6166,7 @@ public sealed partial class ApplicationResourceService(
         Process Process,
         ApplicationProcessLog Log,
         ApplicationLifetime Lifetime,
-        string LogPath);
+        string? LogPath);
 
     private sealed record LocalContainerVolumeMaterialization(
         string Argument,

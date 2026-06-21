@@ -81,8 +81,8 @@ public sealed partial class LocalProcessRunner(
         }
 
         var logPath = GetLogPath(definition.Id);
-        Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
-        var processLog = new ApplicationProcessLog(logPath);
+        EnsureLogDirectory(logPath);
+        var processLog = CreateProcessLog(logPath);
         var startInfo = definition.Lifetime == LocalProcessLifetime.Detached
             ? CreateDetachedStartInfo(definition, logPath)
             : CreateScopedStartInfo(definition);
@@ -168,8 +168,8 @@ public sealed partial class LocalProcessRunner(
         CancellationToken cancellationToken = default)
     {
         var logPath = GetLogPath(resourceId);
-        Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
-        var processLog = new ApplicationProcessLog(logPath);
+        EnsureLogDirectory(logPath);
+        var processLog = CreateProcessLog(logPath);
         var startInfo = new ProcessStartInfo
         {
             FileName = ResolveExecutablePath(executablePath),
@@ -252,13 +252,16 @@ public sealed partial class LocalProcessRunner(
         log.Append(force ? "Stopping process." : "Stopping control-plane-scoped process.", "process", "Information");
         ProcessShutdown.KillProcessTreeAndWait(process);
         var exitCode = TryGetExitCode(process);
+        var logPath = _processes.TryGetValue(definition.Id, out var state)
+            ? state.LogPath
+            : runtimeStates.Get(definition.Id)?.LogPath ?? GetLogPath(definition.Id);
         runtimeStates.Save(new ApplicationRuntimeState(
             definition.Id,
             process.Id,
             null,
             DateTimeOffset.UtcNow,
             exitCode,
-            GetLogPath(definition.Id)));
+            logPath));
         LogProcessStopped(definition, process.Id, exitCode);
         return Task.CompletedTask;
     }
@@ -391,7 +394,7 @@ public sealed partial class LocalProcessRunner(
             }
 
             var logPath = runtimeState.LogPath ?? GetLogPath(definition.Id);
-            var log = new ApplicationProcessLog(logPath);
+            var log = CreateProcessLog(logPath);
             candidate.EnableRaisingEvents = true;
             candidate.Exited += (_, _) =>
             {
@@ -436,11 +439,27 @@ public sealed partial class LocalProcessRunner(
             return state.Log;
         }
 
-        return new ApplicationProcessLog(
-            runtimeStates.Get(processId)?.LogPath ?? GetLogPath(processId));
+        return CreateProcessLog(runtimeStates.Get(processId)?.LogPath ?? GetLogPath(processId));
     }
 
-    private string GetLogPath(string processId)
+    private ApplicationProcessLog CreateProcessLog(string? logPath) =>
+        new(
+            logPath,
+            options.LogRetentionDays,
+            options.RetainedLogEntries,
+            options.SplitLogFilesByDay);
+
+    private string? GetLogPath(string processId)
+    {
+        if (!IsFileLogStore())
+        {
+            return null;
+        }
+
+        return GetPersistedLogPath(processId);
+    }
+
+    private string GetPersistedLogPath(string processId)
     {
         var logDirectory = Path.IsPathRooted(options.LogDirectory)
             ? options.LogDirectory
@@ -450,6 +469,19 @@ public sealed partial class LocalProcessRunner(
             .Trim('-');
 
         return Path.Combine(logDirectory, $"{logFileName}.log");
+    }
+
+    private bool IsFileLogStore() =>
+        string.Equals(options.LogStore, ApplicationLogStores.File, StringComparison.OrdinalIgnoreCase);
+
+    private static void EnsureLogDirectory(string? logPath)
+    {
+        if (string.IsNullOrWhiteSpace(logPath))
+        {
+            return;
+        }
+
+        Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
     }
 
     private ProcessStartInfo CreateScopedStartInfo(LocalProcessDefinition definition) =>
@@ -465,15 +497,16 @@ public sealed partial class LocalProcessRunner(
 
     private ProcessStartInfo CreateDetachedStartInfo(
         LocalProcessDefinition definition,
-        string logPath)
+        string? logPath)
     {
         var workingDirectory = ResolveWorkingDirectory(definition.WorkingDirectory);
         var executablePath = ResolveExecutablePath(definition.ExecutablePath);
         var arguments = definition.Arguments ?? string.Empty;
+        var outputPath = GetDetachedOutputPath(logPath);
 
         if (OperatingSystem.IsWindows())
         {
-            var command = $"\"{EscapeWindowsCommandArgument(executablePath)}\" {arguments} >> \"{EscapeWindowsCommandArgument(logPath)}\" 2>&1";
+            var command = $"\"{EscapeWindowsCommandArgument(executablePath)}\" {arguments} >> \"{EscapeWindowsCommandArgument(outputPath)}\" 2>&1";
             var startInfo = new ProcessStartInfo
             {
                 FileName = Environment.GetEnvironmentVariable("COMSPEC") ?? "cmd.exe",
@@ -488,7 +521,7 @@ public sealed partial class LocalProcessRunner(
             return startInfo;
         }
 
-        var shellCommand = $"exec {QuoteUnixShellArgument(executablePath)} {arguments} >> {QuoteUnixShellArgument(logPath)} 2>&1";
+        var shellCommand = $"exec {QuoteUnixShellArgument(executablePath)} {arguments} >> {QuoteUnixShellArgument(outputPath)} 2>&1";
         var unixStartInfo = new ProcessStartInfo
         {
             FileName = "/bin/sh",
@@ -500,6 +533,11 @@ public sealed partial class LocalProcessRunner(
         unixStartInfo.ArgumentList.Add(shellCommand);
         return unixStartInfo;
     }
+
+    private static string GetDetachedOutputPath(string? logPath) =>
+        string.IsNullOrWhiteSpace(logPath)
+            ? OperatingSystem.IsWindows() ? "NUL" : "/dev/null"
+            : logPath;
 
     private string ResolveWorkingDirectory(string? workingDirectory) =>
         string.IsNullOrWhiteSpace(workingDirectory)
@@ -685,14 +723,14 @@ public sealed partial class LocalProcessRunner(
     private void LogRecoveredProcessTracking(
         LocalProcessDefinition definition,
         int processId,
-        string logPath)
+        string? logPath)
     {
         using var scope = BeginResourceProcessScope(definition.Id, processId);
         _logger.LogDebug(
             "Recovered tracking for local process {ProcessId} under resource {ResourceName}; log path {LogPath}.",
             processId,
             ResourceDisplayLabels.GetName(definition.Id),
-            logPath);
+            logPath ?? "memory");
     }
 
     private void LogPreStartCommandStarting(
@@ -839,7 +877,7 @@ public sealed partial class LocalProcessRunner(
         Process Process,
         ApplicationProcessLog Log,
         LocalProcessLifetime Lifetime,
-        string LogPath);
+        string? LogPath);
 }
 
 public sealed record LocalProcessMonitoringSnapshot(

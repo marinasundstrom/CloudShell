@@ -28,6 +28,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Traces and telemetry metric points now support an appsettings opt-in
   database store with per-resource retention limits, and Application Topology
   enables it for persisted debugging history.
+- Application provider logs now default to session-only memory storage and can
+  opt into bounded plain-file persistence with retention limits and optional
+  per-day file splitting; Application Topology enables file-backed application
+  logs explicitly.
 
 ### 2026-06-20
 

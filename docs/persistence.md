@@ -107,6 +107,37 @@ host restarts. Retention limits are per resource and prevent persisted
 telemetry from growing without bound. Source logs are provider-owned streams
 and are not controlled by this telemetry store switch.
 
+## Application Logs
+
+Application provider stdout/stderr logs are memory-only by default. Hosts can
+opt into separate plain log files for application logs by configuring the
+application provider from appsettings, for example:
+
+```json
+{
+  "Observability": {
+    "ApplicationLogs": {
+      "Store": "File",
+      "LogDirectory": "Data/application-logs",
+      "LogRetentionDays": 7,
+      "RetainedLogEntries": 5000,
+      "SplitLogFilesByDay": false
+    }
+  }
+}
+```
+
+`Store` defaults to `InMemory`; use `File` when application logs should survive
+the current CloudShell session. Persisted application logs remain provider-owned
+plain files, not resource snapshot data. `LogRetentionDays` and
+`RetainedLogEntries` bound how much is kept. `SplitLogFilesByDay` can be
+enabled when an environment wants a separate file per day; the current log
+provider can still read across those files, and a future UI can expose a
+day picker when that becomes useful.
+
+Resource event logs are a separate platform activity stream and are not
+controlled by the application log file settings.
+
 ## SQL Server
 
 Use `SqlServer` (or `Mssql`) and ordinary EF Core SQL Server connection

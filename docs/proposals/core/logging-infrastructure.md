@@ -69,6 +69,13 @@ Operational logs are provider-owned source streams. Examples include
 application stdout/stderr, container logs, provider lifecycle output, and
 runtime logs.
 
+Application provider process logs are memory-only by default. Hosts can opt
+into provider-owned plain files through `Observability:ApplicationLogs`,
+including retention by age, retention by entry count, and an optional
+per-day file split. The file split remains a storage choice; resource event
+logs are a separate platform activity stream and should not be controlled by
+application log file settings.
+
 The current contracts are:
 
 - `ILogProvider`: provider source contribution
@@ -388,7 +395,8 @@ shared/resource-scoped Metrics views, appsettings-configured resource metric
 panels for live indicators and retained recent-history line charts, and an
 opt-in database telemetry store for traces and metric points with per-resource
 retention limits. Control Plane aggregation, OpenTelemetry metrics ingestion,
-source-log retention, and provider-owned metrics views remain separate work.
+and provider-owned metrics views remain separate work. Application source-log
+file persistence is now provider-owned and opt-in, with bounded retention.
 
 Telemetry is application/runtime signal investigation, not the same concept as
 resource monitoring. Resource monitoring should have a separate
