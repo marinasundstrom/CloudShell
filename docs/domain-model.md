@@ -761,16 +761,20 @@ In code:
   collector query contexts, and provider-owned fan-out or shared-reader
   optimizations. Sessions are disposed through `IAsyncDisposable`.
 - `ResourceLogSource` is the resource-model discovery declaration for a log
-  source, similar to `ResourceHealthCheck` for health checks. It records
-  whether the source is provider default or custom, and can point at runtime
-  sources such as stdout/stderr, provider streams, or files on an attached
-  storage volume. It also announces source availability, because some sources
-  can only be read while the resource or producer process is running.
+  source, similar to `ResourceHealthCheck` for health checks. Its primary
+  purpose is to let the Control Plane discover logs that a resource produces
+  or can expose, then layer platform services such as controlled access,
+  persistence, query, and streaming over those sources. It records whether the
+  source is provider default or custom, and can point at runtime sources such
+  as stdout/stderr, provider streams, or files on an attached storage volume.
+  It also announces source availability, because some sources can only be read
+  while the resource or producer process is running.
 - `LogSource` is the Control Plane projection used for listing, authorization,
   reading, querying, streaming, parsing, and rendering. The Control Plane can
-  list projected log sources independently. Resource Manager, Observability,
-  provider-specific overview pages, and the Logs view use projected sources
-  for availability, counts, and navigation while descriptor-based APIs remain
+  list projected log sources independently and decide which access,
+  persistence, and query services apply. Resource Manager, Observability,
+  provider-specific overview pages, and the Logs view use projected sources for
+  availability, counts, and navigation while descriptor-based APIs remain
   available as compatibility aliases during the transition.
 - `ResourceCapabilityIds.LogSources` advertises that a resource exposes or can
   configure log sources. Future UI configuration should be driven by that

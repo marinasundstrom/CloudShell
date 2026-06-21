@@ -100,9 +100,11 @@ detail and existing read/stream implementations, but the MVP now has an
 explicit source concept:
 
 - `ResourceLogSource`: resource-model discovery metadata that declares a log
-  produced by or on behalf of a resource.
+  produced by or on behalf of a resource so the Control Plane can discover it
+  and provide platform services such as controlled access, persistence, query,
+  and streaming.
 - `LogSource`: Control Plane projection of a log source that can be listed,
-  authorized, queried, read, streamed, and rendered.
+  authorized, persisted, queried, read, streamed, and rendered.
 - `ILogProvider`: integration point that contributes and accesses projected
   log sources, rather than being conceptually "the log" itself.
 - `ILogSourceSession`: provider-owned runtime access context materialized when

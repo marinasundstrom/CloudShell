@@ -119,7 +119,10 @@ Logs are first-class services registered independently of resources. Implement
 extension-owned artifacts, then register it with `AddLogProvider<TProvider>()`.
 
 Resource providers should declare stable, provider-owned defaults on resources
-with `ResourceLogSource`. A source declaration records the kind, format,
+with `ResourceLogSource`. A source declaration is primarily a discovery
+contract: it tells the Control Plane which logs a resource produces or can
+expose so the platform can provide controlled access, persistence, query, and
+streaming services around them. The declaration records the kind, format,
 storage, capabilities, availability, origin, purpose, configuration metadata,
 location, and physical producer. The Control Plane projects those declarations,
 plus provider-owned source projections and descriptor compatibility data, into

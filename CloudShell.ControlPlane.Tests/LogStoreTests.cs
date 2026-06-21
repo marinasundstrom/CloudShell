@@ -171,6 +171,45 @@ public sealed class LogStoreTests
         Assert.Equal(LogSourceSessionStatus.Closed, session.Status);
     }
 
+    [Fact]
+    public async Task ResourceEventLogProvider_ExposesActivityAsProjectedLogSource()
+    {
+        var resource = CreateResource("application:api", "api");
+        var events = new InMemoryResourceEventStore();
+        var provider = new ResourceEventLogProvider(
+            events,
+            new TestResourceManagerStore([resource]));
+        events.Append(new ResourceEvent(
+            resource.Id,
+            "resource.updated",
+            "Resource was updated.",
+            DateTimeOffset.Parse("2026-06-21T12:00:00Z"),
+            "operator"));
+
+        var source = Assert.Single(provider.GetLogSources());
+        var descriptor = Assert.Single(provider.GetLogs());
+        var entries = await provider.ReadLogAsync(source.Id);
+
+        Assert.Equal(ResourceEventLogProvider.GetLogId(resource.Id), source.Id);
+        Assert.Equal("Activity", source.Name);
+        Assert.Equal(resource.Id, source.ResourceId);
+        Assert.Equal(LogSourceKind.Resource, source.SourceKind);
+        Assert.Equal(ResourceLogSourceKind.Activity, source.Kind);
+        Assert.Equal(LogFormat.ResourceEvent, source.Format);
+        Assert.True(source.Capabilities.HasFlag(LogSourceCapabilities.Read));
+        Assert.True(source.Capabilities.HasFlag(LogSourceCapabilities.Query));
+        Assert.True(source.Capabilities.HasFlag(LogSourceCapabilities.StructuredFields));
+        Assert.Equal(ResourceLogSourceOrigin.ProviderProjected, source.Origin);
+        Assert.Equal(source.Id, descriptor.Id);
+        Assert.Equal(source.ResourceId, descriptor.ResourceId);
+        Assert.Equal(source.Kind, descriptor.Kind);
+        Assert.Equal(source.Format, descriptor.Format);
+        var entry = Assert.Single(entries);
+        Assert.Equal("event", entry.Source);
+        Assert.Equal("resource.updated", entry.EventId);
+        Assert.Equal("operator", entry.Attributes?["triggeredBy"]);
+    }
+
     private static Resource CreateResource(
         string id,
         string name,

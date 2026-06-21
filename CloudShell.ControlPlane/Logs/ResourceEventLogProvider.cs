@@ -14,21 +14,26 @@ public sealed class ResourceEventLogProvider(
     public string DisplayName => "Activity";
 
     public IReadOnlyList<LogDescriptor> GetLogs() =>
+        GetLogSources()
+            .Select(ToDescriptor)
+            .ToArray();
+
+    public IReadOnlyList<LogSource> GetLogSources() =>
         resourceManager
             .GetResources()
-            .Select(resource => new LogDescriptor(
+            .Select(resource => new LogSource(
                 GetLogId(resource.Id),
                 "Activity",
                 DisplayName,
                 resource.Name,
                 LogSourceKind.Resource,
-                ResourceId: resource.Id,
-                Description: "Actor-attributed platform activity recorded for this resource.",
                 Kind: ResourceLogSourceKind.Activity,
                 Format: LogFormat.ResourceEvent,
                 Capabilities: LogSourceCapabilities.Read |
                     LogSourceCapabilities.Query |
                     LogSourceCapabilities.StructuredFields,
+                ResourceId: resource.Id,
+                Description: "Actor-attributed platform activity recorded for this resource.",
                 Origin: ResourceLogSourceOrigin.ProviderProjected))
             .ToArray();
 
@@ -55,6 +60,28 @@ public sealed class ResourceEventLogProvider(
     }
 
     public static string GetLogId(string resourceId) => $"{resourceId}{LogIdSuffix}";
+
+    private static LogDescriptor ToDescriptor(LogSource source) =>
+        new(
+            source.Id,
+            source.Name,
+            source.Provider,
+            source.SourceName,
+            source.SourceKind,
+            source.ResourceId,
+            source.ArtifactId,
+            source.SupportsStreaming,
+            source.Description,
+            source.Kind,
+            source.Format,
+            source.Storage,
+            source.Capabilities,
+            source.Location,
+            source.ProducerResourceId,
+            source.Origin,
+            source.Configuration,
+            source.Purpose,
+            source.Availability);
 
     private static bool TryGetResourceId(
         string logId,

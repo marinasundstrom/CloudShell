@@ -560,8 +560,8 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(ResourceChangeKind.ResourceActionExecuted, notification.Kind);
         Assert.Equal("network:contract", notification.ResourceId);
         Assert.Equal(PlatformResourceProvider.ReconcileEndpointMappingsActionId, notification.ActionId);
-        var networkLogs = await controlPlane.ListLogsAsync(new LogQuery(ResourceId: "network:contract"));
-        var activityLog = Assert.Single(networkLogs, log => log.Name == "Activity");
+        var networkLogSources = await controlPlane.ListLogSourcesAsync(new LogQuery(ResourceId: "network:contract"));
+        var activityLog = Assert.Single(networkLogSources, log => log.Name == "Activity");
         Assert.Equal(ResourceLogSourceKind.Activity, activityLog.Kind);
         Assert.Equal(LogFormat.ResourceEvent, activityLog.Format);
         Assert.True(activityLog.Capabilities.HasFlag(LogSourceCapabilities.Read));
@@ -733,10 +733,10 @@ public sealed class RemoteControlPlaneContractTests
             "example/api:20260608",
             restartIfRunning: false,
             triggeredBy: "build-server");
-        var eventLogs = await controlPlane.ListLogsAsync(
+        var eventLogs = await controlPlane.ListLogSourcesAsync(
             new LogQuery(ResourceId: ContractImageResourceProvider.ResourceId));
         var eventLog = Assert.Single(eventLogs, log => log.Name == "Activity");
-        var events = await controlPlane.ReadLogAsync(eventLog.Id);
+        var events = await controlPlane.ReadLogSourceAsync(eventLog.Id);
         var resourceEvents = await controlPlane.ListResourceEventsAsync(
             new ResourceEventQuery(
                 ResourceId: ContractImageResourceProvider.ResourceId,
@@ -823,10 +823,10 @@ public sealed class RemoteControlPlaneContractTests
             3,
             restartIfRunning: false,
             triggeredBy: "load-balancer");
-        var eventLogs = await controlPlane.ListLogsAsync(
+        var eventLogs = await controlPlane.ListLogSourcesAsync(
             new LogQuery(ResourceId: ContractImageResourceProvider.ResourceId));
         var eventLog = Assert.Single(eventLogs, log => log.Name == "Activity");
-        var events = await controlPlane.ReadLogAsync(eventLog.Id);
+        var events = await controlPlane.ReadLogSourceAsync(eventLog.Id);
 
         Assert.Equal("Updated contract:container-app to 3 replicas.", result.Message);
         var provider = app.Services.GetRequiredService<ContractImageResourceProvider>();
@@ -981,7 +981,7 @@ public sealed class RemoteControlPlaneContractTests
         await using var app = await CreateAppAsync();
         var controlPlane = CreateClient(app);
 
-        var logs = await controlPlane.ListLogsAsync(new LogQuery(ResourceId: "network:contract"));
+        var logs = await controlPlane.ListLogSourcesAsync(new LogQuery(ResourceId: "network:contract"));
         var resourceEvents = Assert.Single(logs);
         Assert.Equal("Activity", resourceEvents.Name);
         Assert.Equal("network:contract", resourceEvents.ResourceId);
