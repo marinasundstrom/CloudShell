@@ -135,6 +135,9 @@ on `git blame --follow`, and then by the broad type of change.
   of leading with canonical resource IDs.
 - Docker-backed application operations now log container-host command start,
   completion, and release messages with the full command arguments.
+- Local executable and project-backed application operations now log
+  process-level start, exit, stop, shutdown cleanup, and recovery details
+  underneath the resource events.
 - The UI Extension Host sample now contributes its sample workspace sidebar
   item through the composition main menu instead of legacy shell navigation.
 - CloudShell Hosting now exposes `builder.AddCompositionModule(...)` for

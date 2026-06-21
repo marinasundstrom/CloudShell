@@ -86,6 +86,7 @@ public sealed partial class LocalProcessRunner(
         var startInfo = definition.Lifetime == LocalProcessLifetime.Detached
             ? CreateDetachedStartInfo(definition, logPath)
             : CreateScopedStartInfo(definition);
+        var commandLine = FormatLocalProcessCommandLine(definition.ExecutablePath, definition.Arguments);
 
         foreach (var variable in definition.EnvironmentVariables ?? [])
         {
@@ -113,20 +114,23 @@ public sealed partial class LocalProcessRunner(
 
         process.Exited += (_, _) =>
         {
+            var exitCode = process.ExitCode;
             processLog.Append(
-                $"Process exited with code {process.ExitCode}.",
+                $"Process exited with code {exitCode}.",
                 "process",
-                process.ExitCode == 0 ? "Information" : "Error");
+                exitCode == 0 ? "Information" : "Error");
             runtimeStates.Save(new ApplicationRuntimeState(
                 definition.Id,
                 process.Id,
                 null,
                 DateTimeOffset.UtcNow,
-                process.ExitCode,
+                exitCode,
                 logPath));
+            LogProcessExited(definition, process.Id, exitCode, commandLine);
         };
 
         cancellationToken.ThrowIfCancellationRequested();
+        LogProcessStarting(definition, commandLine, startInfo.WorkingDirectory);
         process.Start();
 
         if (definition.Lifetime == LocalProcessLifetime.ControlPlaneScoped)
@@ -136,6 +140,7 @@ public sealed partial class LocalProcessRunner(
         }
 
         var startedAt = TryGetStartTime(process);
+        LogProcessStarted(definition, process.Id, commandLine, startInfo.WorkingDirectory);
         runtimeStates.Save(new ApplicationRuntimeState(
             definition.Id,
             process.Id,
@@ -144,7 +149,7 @@ public sealed partial class LocalProcessRunner(
             LogPath: logPath));
 
         processLog.Append(
-            $"Started '{definition.ExecutablePath}' with process id {process.Id} using {definition.Lifetime} lifetime.",
+            $"Started {commandLine} with process id {process.Id} using {definition.Lifetime} lifetime.",
             "process",
             "Information");
 
@@ -179,10 +184,12 @@ public sealed partial class LocalProcessRunner(
             startInfo.ArgumentList.Add(argument);
         }
 
+        var commandLine = FormatLocalProcessCommandLine(executablePath, arguments);
         processLog.Append(
-            $"Running '{executablePath} {string.Join(' ', arguments)}' before starting the resource.",
+            $"Running {commandLine} before starting the resource.",
             "process",
             "Information");
+        LogPreStartCommandStarting(resourceId, commandLine, startInfo.WorkingDirectory);
 
         try
         {
@@ -193,9 +200,11 @@ public sealed partial class LocalProcessRunner(
                     "Pre-start command could not be started.",
                     "process",
                     "Error");
+                LogPreStartCommandCouldNotStart(resourceId, commandLine);
                 return -1;
             }
 
+            LogPreStartCommandStarted(resourceId, process.Id, commandLine, startInfo.WorkingDirectory);
             var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
             var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
             await process.WaitForExitAsync(cancellationToken);
@@ -216,11 +225,13 @@ public sealed partial class LocalProcessRunner(
                 $"Pre-start command exited with code {process.ExitCode}.",
                 "process",
                 process.ExitCode == 0 ? "Information" : "Error");
+            LogPreStartCommandExited(resourceId, process.Id, commandLine, process.ExitCode);
             return process.ExitCode;
         }
         catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
         {
             processLog.Append(exception.Message, "process", "Error");
+            LogPreStartCommandFailedToStart(resourceId, commandLine, exception);
             return -1;
         }
     }
@@ -237,15 +248,18 @@ public sealed partial class LocalProcessRunner(
             return Task.CompletedTask;
         }
 
+        LogProcessStopping(definition, process.Id, force);
         log.Append(force ? "Stopping process." : "Stopping control-plane-scoped process.", "process", "Information");
         ProcessShutdown.KillProcessTreeAndWait(process);
+        var exitCode = TryGetExitCode(process);
         runtimeStates.Save(new ApplicationRuntimeState(
             definition.Id,
             process.Id,
             null,
             DateTimeOffset.UtcNow,
-            TryGetExitCode(process),
+            exitCode,
             GetLogPath(definition.Id)));
+        LogProcessStopped(definition, process.Id, exitCode);
         return Task.CompletedTask;
     }
 
@@ -306,20 +320,17 @@ public sealed partial class LocalProcessRunner(
                 if (state.Lifetime == LocalProcessLifetime.ControlPlaneScoped &&
                     !state.Process.HasExited)
                 {
-                    LogLifecycle(
-                        "Stopping host-scoped process resource {ResourceId} during Control Plane shutdown.",
-                        processId);
+                    LogProcessStoppingDuringShutdown(processId, state.Process.Id);
                     ProcessShutdown.KillProcessTreeAndWait(state.Process);
+                    var exitCode = TryGetExitCode(state.Process);
                     runtimeStates.Save(new ApplicationRuntimeState(
                         processId,
                         state.Process.Id,
                         null,
                         DateTimeOffset.UtcNow,
-                        TryGetExitCode(state.Process),
+                        exitCode,
                         state.LogPath));
-                    LogLifecycle(
-                        "Stopped host-scoped process resource {ResourceId} during Control Plane shutdown.",
-                        processId);
+                    LogProcessStoppedDuringShutdown(processId, state.Process.Id, exitCode);
                 }
             }
             catch (InvalidOperationException)
@@ -329,9 +340,6 @@ public sealed partial class LocalProcessRunner(
             state.Process.Dispose();
         }
     }
-
-    private void LogLifecycle(string message, params object?[] args) =>
-        _logger.LogInformation(message, args);
 
     private bool TryGetRunningProcess(
         LocalProcessDefinition? definition,
@@ -358,6 +366,7 @@ public sealed partial class LocalProcessRunner(
                 DateTimeOffset.UtcNow,
                 TryGetExitCode(state.Process),
                 state.LogPath));
+            LogProcessExitObserved(definition, state.Process.Id, TryGetExitCode(state.Process));
         }
 
         var runtimeState = runtimeStates.Get(definition.Id);
@@ -381,17 +390,23 @@ public sealed partial class LocalProcessRunner(
             candidate.EnableRaisingEvents = true;
             candidate.Exited += (_, _) =>
             {
+                var exitCode = TryGetExitCode(candidate);
                 log.Append(
-                    $"Process exited with code {TryGetExitCode(candidate)?.ToString() ?? "unknown"}.",
+                    $"Process exited with code {exitCode?.ToString() ?? "unknown"}.",
                     "process",
-                    TryGetExitCode(candidate) == 0 ? "Information" : "Error");
+                    exitCode == 0 ? "Information" : "Error");
                 runtimeStates.Save(new ApplicationRuntimeState(
                     definition.Id,
                     candidate.Id,
                     null,
                     DateTimeOffset.UtcNow,
-                    TryGetExitCode(candidate),
+                    exitCode,
                     logPath));
+                LogProcessExited(
+                    definition,
+                    candidate.Id,
+                    exitCode,
+                    FormatLocalProcessCommandLine(definition.ExecutablePath, definition.Arguments));
             };
 
             _processes[definition.Id] = new LocalProcessState(
@@ -399,6 +414,7 @@ public sealed partial class LocalProcessRunner(
                 log,
                 definition.Lifetime,
                 logPath);
+            LogRecoveredProcessTracking(definition, candidate.Id, logPath);
             process = candidate;
             return true;
         }
@@ -528,6 +544,239 @@ public sealed partial class LocalProcessRunner(
         !string.IsNullOrWhiteSpace(executablePath) &&
         IsDotNetCommand(Path.GetFileName(executablePath)) &&
         File.Exists(executablePath);
+
+    internal static string FormatLocalProcessCommandLine(
+        string executablePath,
+        string? arguments)
+    {
+        var executable = QuoteCommandArgument(executablePath);
+        var trimmedArguments = string.IsNullOrWhiteSpace(arguments)
+            ? string.Empty
+            : arguments.Trim();
+        return string.IsNullOrWhiteSpace(trimmedArguments)
+            ? executable
+            : $"{executable} {trimmedArguments}";
+    }
+
+    internal static string FormatLocalProcessCommandLine(
+        string executablePath,
+        IReadOnlyList<string> arguments)
+    {
+        var executable = QuoteCommandArgument(executablePath);
+        return arguments.Count == 0
+            ? executable
+            : $"{executable} {string.Join(' ', arguments.Select(QuoteCommandArgument))}";
+    }
+
+    private void LogProcessStarting(
+        LocalProcessDefinition definition,
+        string commandLine,
+        string workingDirectory)
+    {
+        using var scope = BeginResourceProcessScope(definition.Id);
+        _logger.LogInformation(
+            "Starting local process for resource {ResourceName}: {ProcessCommandLine} in {WorkingDirectory} with {ProcessLifetime} lifetime.",
+            ResourceDisplayLabels.GetName(definition.Id),
+            commandLine,
+            workingDirectory,
+            definition.Lifetime);
+    }
+
+    private void LogProcessStarted(
+        LocalProcessDefinition definition,
+        int processId,
+        string commandLine,
+        string workingDirectory)
+    {
+        using var scope = BeginResourceProcessScope(definition.Id, processId);
+        _logger.LogInformation(
+            "Started local process {ProcessId} for resource {ResourceName}: {ProcessCommandLine} in {WorkingDirectory}.",
+            processId,
+            ResourceDisplayLabels.GetName(definition.Id),
+            commandLine,
+            workingDirectory);
+    }
+
+    private void LogProcessExited(
+        LocalProcessDefinition definition,
+        int processId,
+        int? exitCode,
+        string commandLine)
+    {
+        using var scope = BeginResourceProcessScope(definition.Id, processId);
+        _logger.LogInformation(
+            "Local process {ProcessId} for resource {ResourceName} exited with code {ExitCode}: {ProcessCommandLine}.",
+            processId,
+            ResourceDisplayLabels.GetName(definition.Id),
+            exitCode?.ToString() ?? "unknown",
+            commandLine);
+    }
+
+    private void LogProcessStopping(
+        LocalProcessDefinition definition,
+        int processId,
+        bool force)
+    {
+        using var scope = BeginResourceProcessScope(definition.Id, processId);
+        _logger.LogInformation(
+            "Stopping local process {ProcessId} for resource {ResourceName}; force={Force}.",
+            processId,
+            ResourceDisplayLabels.GetName(definition.Id),
+            force);
+    }
+
+    private void LogProcessStopped(
+        LocalProcessDefinition definition,
+        int processId,
+        int? exitCode)
+    {
+        using var scope = BeginResourceProcessScope(definition.Id, processId);
+        _logger.LogInformation(
+            "Stopped local process {ProcessId} for resource {ResourceName}; exit code {ExitCode}.",
+            processId,
+            ResourceDisplayLabels.GetName(definition.Id),
+            exitCode?.ToString() ?? "unknown");
+    }
+
+    private void LogProcessStoppingDuringShutdown(string resourceId, int processId)
+    {
+        using var scope = BeginResourceProcessScope(resourceId, processId);
+        _logger.LogInformation(
+            "Stopping control-plane-scoped local process {ProcessId} for resource {ResourceName} during Control Plane shutdown.",
+            processId,
+            ResourceDisplayLabels.GetName(resourceId));
+    }
+
+    private void LogProcessStoppedDuringShutdown(
+        string resourceId,
+        int processId,
+        int? exitCode)
+    {
+        using var scope = BeginResourceProcessScope(resourceId, processId);
+        _logger.LogInformation(
+            "Stopped control-plane-scoped local process {ProcessId} for resource {ResourceName} during Control Plane shutdown; exit code {ExitCode}.",
+            processId,
+            ResourceDisplayLabels.GetName(resourceId),
+            exitCode?.ToString() ?? "unknown");
+    }
+
+    private void LogProcessExitObserved(
+        LocalProcessDefinition definition,
+        int processId,
+        int? exitCode)
+    {
+        using var scope = BeginResourceProcessScope(definition.Id, processId);
+        _logger.LogInformation(
+            "Observed previously tracked local process {ProcessId} for resource {ResourceName} has exited with code {ExitCode}.",
+            processId,
+            ResourceDisplayLabels.GetName(definition.Id),
+            exitCode?.ToString() ?? "unknown");
+    }
+
+    private void LogRecoveredProcessTracking(
+        LocalProcessDefinition definition,
+        int processId,
+        string logPath)
+    {
+        using var scope = BeginResourceProcessScope(definition.Id, processId);
+        _logger.LogInformation(
+            "Recovered tracking for local process {ProcessId} under resource {ResourceName}; log path {LogPath}.",
+            processId,
+            ResourceDisplayLabels.GetName(definition.Id),
+            logPath);
+    }
+
+    private void LogPreStartCommandStarting(
+        string resourceId,
+        string commandLine,
+        string workingDirectory)
+    {
+        using var scope = BeginResourceProcessScope(resourceId);
+        _logger.LogInformation(
+            "Starting pre-start process for resource {ResourceName}: {ProcessCommandLine} in {WorkingDirectory}.",
+            ResourceDisplayLabels.GetName(resourceId),
+            commandLine,
+            workingDirectory);
+    }
+
+    private void LogPreStartCommandStarted(
+        string resourceId,
+        int processId,
+        string commandLine,
+        string workingDirectory)
+    {
+        using var scope = BeginResourceProcessScope(resourceId, processId);
+        _logger.LogInformation(
+            "Started pre-start process {ProcessId} for resource {ResourceName}: {ProcessCommandLine} in {WorkingDirectory}.",
+            processId,
+            ResourceDisplayLabels.GetName(resourceId),
+            commandLine,
+            workingDirectory);
+    }
+
+    private void LogPreStartCommandExited(
+        string resourceId,
+        int processId,
+        string commandLine,
+        int exitCode)
+    {
+        using var scope = BeginResourceProcessScope(resourceId, processId);
+        _logger.LogInformation(
+            "Pre-start process {ProcessId} for resource {ResourceName} exited with code {ExitCode}: {ProcessCommandLine}.",
+            processId,
+            ResourceDisplayLabels.GetName(resourceId),
+            exitCode,
+            commandLine);
+    }
+
+    private void LogPreStartCommandCouldNotStart(string resourceId, string commandLine)
+    {
+        using var scope = BeginResourceProcessScope(resourceId);
+        _logger.LogWarning(
+            "Pre-start process for resource {ResourceName} could not be started: {ProcessCommandLine}.",
+            ResourceDisplayLabels.GetName(resourceId),
+            commandLine);
+    }
+
+    private void LogPreStartCommandFailedToStart(
+        string resourceId,
+        string commandLine,
+        Exception exception)
+    {
+        using var scope = BeginResourceProcessScope(resourceId);
+        _logger.LogWarning(
+            exception,
+            "Pre-start process for resource {ResourceName} failed to start: {ProcessCommandLine}.",
+            ResourceDisplayLabels.GetName(resourceId),
+            commandLine);
+    }
+
+    private IDisposable? BeginResourceProcessScope(string resourceId, int? processId = null)
+    {
+        var scope = new Dictionary<string, object?>
+        {
+            ["ResourceId"] = resourceId,
+            ["ResourceName"] = ResourceDisplayLabels.GetName(resourceId)
+        };
+        if (processId is not null)
+        {
+            scope["ProcessId"] = processId.Value;
+        }
+
+        return _logger.BeginScope(scope);
+    }
+
+    private static string QuoteCommandArgument(string argument)
+    {
+        if (string.IsNullOrEmpty(argument))
+        {
+            return "\"\"";
+        }
+
+        return argument.Any(char.IsWhiteSpace) || argument.Contains('"', StringComparison.Ordinal)
+            ? $"\"{argument.Replace("\"", "\\\"", StringComparison.Ordinal)}\""
+            : argument;
+    }
 
     private static bool ProcessStartMatches(
         Process process,

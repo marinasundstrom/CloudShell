@@ -3045,6 +3045,16 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void LocalProcessRunner_FormatsProcessCommandLineForLogs()
+    {
+        var commandLine = LocalProcessRunner.FormatLocalProcessCommandLine(
+            "dotnet",
+            ["run", "--project", "samples/Application Topology/Host"]);
+
+        Assert.Equal("dotnet run --project \"samples/Application Topology/Host\"", commandLine);
+    }
+
+    [Fact]
     public void ApplicationProvider_RegistersResourceMonitoringProvider()
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
