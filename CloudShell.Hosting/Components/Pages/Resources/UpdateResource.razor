@@ -285,9 +285,7 @@
     protected override async Task OnParametersSetAsync()
     {
         DisplaySelection = await DisplaySettings.GetAsync();
-        Resource = string.IsNullOrWhiteSpace(ResourceId)
-            ? null
-            : await ResourceManager.GetResourceAsync(ResourceId);
+        Resource = await LoadRouteResourceAsync();
         if (Resource is null)
         {
             NavigateToResourceNotFound();
@@ -324,6 +322,56 @@
             ConfigurationContext = new ResourceConfigurationContext(resource.Id);
             ConfigurationContext.StateChanged += HandleConfigurationStateChanged;
         }
+    }
+
+    private async Task<Resource?> LoadRouteResourceAsync()
+    {
+        if (string.IsNullOrWhiteSpace(ResourceId))
+        {
+            return null;
+        }
+
+        var resource = await ResourceManager.GetResourceAsync(ResourceId);
+        if (resource is not null)
+        {
+            return resource;
+        }
+
+        if (!string.IsNullOrWhiteSpace(RequestedRouteView) ||
+            !TrySplitCombinedResourceRoute(ResourceId, out var routeResourceId, out var routeView))
+        {
+            return null;
+        }
+
+        resource = await ResourceManager.GetResourceAsync(routeResourceId);
+        if (resource is null)
+        {
+            return null;
+        }
+
+        ResourceId = routeResourceId;
+        RequestedRouteView = routeView;
+        return resource;
+    }
+
+    private static bool TrySplitCombinedResourceRoute(
+        string routeResourceId,
+        out string resourceId,
+        out string routeView)
+    {
+        resourceId = string.Empty;
+        routeView = string.Empty;
+
+        var separator = routeResourceId.LastIndexOf('/');
+        if (separator <= 0 || separator == routeResourceId.Length - 1)
+        {
+            return false;
+        }
+
+        resourceId = routeResourceId[..separator];
+        routeView = Uri.UnescapeDataString(routeResourceId[(separator + 1)..].Trim());
+        return !string.IsNullOrWhiteSpace(resourceId) &&
+            ResourceViewId.TryParse(routeView, out _);
     }
 
     private void Cancel() => Navigation.NavigateTo("/resources");

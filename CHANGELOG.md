@@ -34,6 +34,9 @@ on `git blame --follow`, and then by the broad type of change.
   distinct from the resolved target URL. Application overview endpoint rows
   also show DNS source metadata as muted text instead of appending it to the
   URL.
+- Resource details now tolerate route-bound resource view segments that arrive
+  as part of the resource id, so direct links such as `/resources/{id}/dns`
+  still resolve the resource before selecting the registered view.
 - Re-aligned the local-development MVP queue around Application Topology
   repeatability, resource-name-first UI messages, exposure/name-mapping link
   clarity, host-scoped lifecycle cleanup, process/Docker diagnostics, guarded
