@@ -234,6 +234,8 @@ public sealed class SampleSmokeTests
         Assert.Contains("Related activity", traceHtml);
         Assert.Contains("Open resource", traceHtml);
         Assert.Contains("<fluent-anchor", traceHtml);
+        Assert.Contains(">Project Reference Frontend</a>", traceHtml);
+        Assert.DoesNotContain(">application:project-reference-frontend</a>", traceHtml);
         Assert.DoesNotContain("id=\"trace-sort-mode\"", traceHtml);
         Assert.Contains("Error spans", traceHtml);
         Assert.Contains("trace-span-row selected attention", traceHtml);
@@ -303,6 +305,8 @@ public sealed class SampleSmokeTests
         Assert.DoesNotContain("id=\"trace-source-filter\"", relatedTracesHtml);
         Assert.Contains("Related logs", relatedTracesHtml);
         Assert.Contains("Related activity", relatedTracesHtml);
+        Assert.Contains(">Project Reference Frontend</a>", relatedTracesHtml);
+        Assert.DoesNotContain(">application:project-reference-frontend</a>", relatedTracesHtml);
         Assert.Contains("Clear trace filter", relatedTracesHtml);
         Assert.Contains(
             "href=\"/resources/application%3Aproject-reference-frontend/logs?traceId=4bf92f3577b34da6a3ce929d0e0e4736\"",

@@ -340,10 +340,10 @@ else if (ShowHeading)
                                         <dd>@selectedSpan.SpanId</dd>
                                         <dt>@L["Parent span"]</dt>
                                         <dd>@(selectedSpan.ParentSpanId ?? L["none"].Value)</dd>
-                                        <dt>@L["Resource ID"]</dt>
+                                        <dt>@L["Resource"]</dt>
                                         <dd>
                                             <a class="resource-link" href="@BuildResourceRoute(selectedSpan.ResourceId)">
-                                                @selectedSpan.ResourceId
+                                                @GetResourceLabel(selectedSpan.ResourceId)
                                             </a>
                                         </dd>
                                         <dt>@L["Kind"]</dt>
