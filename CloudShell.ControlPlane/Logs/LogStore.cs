@@ -31,6 +31,44 @@ public sealed class LogStore(
             .ToArray();
     }
 
+    public IReadOnlyList<LogSource> GetLogSources()
+    {
+        var resources = resourceManager.GetResources();
+        var visibleResourceIds = resources
+            .Select(resource => resource.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var descriptors = Providers
+            .SelectMany(provider => provider.GetLogs())
+            .Where(log => log.ResourceId is null || visibleResourceIds.Contains(log.ResourceId))
+            .ToArray();
+        var projected = new List<LogSource>();
+        var matchedDescriptors = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var resource in resources)
+        {
+            foreach (var source in resource.ResourceLogSources)
+            {
+                var descriptor = descriptors.FirstOrDefault(descriptor =>
+                    IsMatchingSource(resource, source, descriptor));
+                if (descriptor is not null)
+                {
+                    matchedDescriptors.Add(descriptor.Id);
+                }
+
+                projected.Add(ToLogSource(resource, source, descriptor));
+            }
+        }
+
+        projected.AddRange(descriptors
+            .Where(descriptor => !matchedDescriptors.Contains(descriptor.Id))
+            .Select(descriptor => descriptor.ToLogSource()));
+
+        return projected
+            .OrderBy(source => source.SourceName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(source => source.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
     public IReadOnlyList<LogDescriptor> GetLogsForResource(string resourceId) =>
         GetLogs()
             .Where(log => string.Equals(log.ResourceId, resourceId, StringComparison.OrdinalIgnoreCase))
@@ -102,4 +140,45 @@ public sealed class LogStore(
             .SelectMany(extension => extension.LogProviderTypes)
             .Any(type => type.IsAssignableFrom(providerType));
     }
+
+    private static LogSource ToLogSource(
+        Resource resource,
+        ResourceLogSource source,
+        LogDescriptor? descriptor)
+    {
+        var descriptorSource = descriptor?.ToLogSource();
+        return new LogSource(
+            descriptor?.Id ?? GetResourceLogSourceId(resource.Id, source.Id),
+            source.Name,
+            descriptorSource?.Provider ?? resource.Provider,
+            descriptorSource?.SourceName ?? resource.Name,
+            descriptorSource?.SourceKind ?? LogSourceKind.Resource,
+            source.Kind,
+            source.Format,
+            source.Storage,
+            descriptorSource is null
+                ? source.Capabilities
+                : source.Capabilities | descriptorSource.Capabilities,
+            resource.Id,
+            descriptorSource?.ArtifactId,
+            source.Location,
+            source.ProducerResourceId,
+            source.Description,
+            source.Origin,
+            source.Configuration,
+            source.Purpose,
+            source.Availability);
+    }
+
+    private static bool IsMatchingSource(
+        Resource resource,
+        ResourceLogSource source,
+        LogDescriptor descriptor) =>
+        string.Equals(descriptor.ResourceId, resource.Id, StringComparison.OrdinalIgnoreCase) &&
+        descriptor.Kind == source.Kind &&
+        (string.Equals(descriptor.Name, source.Name, StringComparison.OrdinalIgnoreCase) ||
+            source.Purpose == ResourceLogSourcePurpose.Default);
+
+    private static string GetResourceLogSourceId(string resourceId, string sourceId) =>
+        $"{resourceId}:log-source:{sourceId}";
 }

@@ -578,6 +578,16 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(ResourceLogSourceOrigin.ProviderDefault, logSource.Origin);
         Assert.Equal(ResourceLogSourcePurpose.Default, logSource.Purpose);
         Assert.Equal(LogSourceAvailability.ResourceRunning, logSource.Availability);
+        var projectedLogSource = Assert.Single(
+            await controlPlane.ListLogSourcesAsync(new LogQuery(ResourceId: api.Id)),
+            source => source.Name == "Console logs");
+        Assert.Equal("contract:api:log-source:console", projectedLogSource.Id);
+        Assert.Equal(api.Id, projectedLogSource.ResourceId);
+        Assert.Equal("Contract API", projectedLogSource.SourceName);
+        Assert.Equal(ResourceLogSourceKind.ProcessOutput, projectedLogSource.Kind);
+        Assert.Equal(LogFormat.JsonConsole, projectedLogSource.Format);
+        Assert.Equal(LogSourceAvailability.ResourceRunning, projectedLogSource.Availability);
+        Assert.True(projectedLogSource.SupportsStreaming);
         var source = Assert.Single(api.EffectiveObservability.TelemetrySources);
         Assert.Equal("contract-api-otlp", source.Id);
         Assert.Equal(TelemetrySourceKind.Exporter, source.Kind);
@@ -834,6 +844,9 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(
             "#/components/schemas/ResourceResponse",
             listResources.GetProperty("items").GetProperty("$ref").GetString());
+        Assert.True(root
+            .GetProperty("paths")
+            .TryGetProperty("/api/control-plane/v1/log-sources", out _));
 
         var paths = root.GetProperty("paths");
         Assert.False(paths.TryGetProperty("/api/control-plane/v1/resources/{resourceId}/image", out _));

@@ -152,6 +152,10 @@ public interface ILogManager
         LogQuery? query = null,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<LogSource>> ListLogSourcesAsync(
+        LogQuery? query = null,
+        CancellationToken cancellationToken = default);
+
     Task<LogDescriptor?> GetLogAsync(
         string logId,
         CancellationToken cancellationToken = default);

@@ -819,6 +819,15 @@ public sealed class InProcessControlPlane(
         return Task.FromResult(ApplyQuery(GetReadableLogs(), query));
     }
 
+    public Task<IReadOnlyList<LogSource>> ListLogSourcesAsync(
+        LogQuery? query = null,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        EnsureCanReadLogs();
+        return Task.FromResult(ApplyQuery(GetReadableLogSources(), query));
+    }
+
     public Task<IReadOnlyList<ResourceEvent>> ListResourceEventsAsync(
         ResourceEventQuery? query = null,
         CancellationToken cancellationToken = default)
@@ -1256,6 +1265,14 @@ public sealed class InProcessControlPlane(
     {
         var readableResourceIds = GetReadableResourceIds();
         return logs.GetLogs()
+            .Where(log => log.ResourceId is null || readableResourceIds.Contains(log.ResourceId))
+            .ToArray();
+    }
+
+    private IReadOnlyList<LogSource> GetReadableLogSources()
+    {
+        var readableResourceIds = GetReadableResourceIds();
+        return logs.GetLogSources()
             .Where(log => log.ResourceId is null || readableResourceIds.Contains(log.ResourceId))
             .ToArray();
     }
@@ -1960,6 +1977,36 @@ public sealed class InProcessControlPlane(
         if (query.SourceKind is not null)
         {
             filtered = filtered.Where(log => log.SourceKind == query.SourceKind);
+        }
+
+        return filtered.ToArray();
+    }
+
+    private static IReadOnlyList<LogSource> ApplyQuery(
+        IReadOnlyList<LogSource> sources,
+        LogQuery? query)
+    {
+        if (query is null)
+        {
+            return sources;
+        }
+
+        var filtered = sources.AsEnumerable();
+        if (!string.IsNullOrWhiteSpace(query.ResourceId))
+        {
+            filtered = filtered.Where(source =>
+                string.Equals(source.ResourceId, query.ResourceId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.ArtifactId))
+        {
+            filtered = filtered.Where(source =>
+                string.Equals(source.ArtifactId, query.ArtifactId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (query.SourceKind is not null)
+        {
+            filtered = filtered.Where(source => source.SourceKind == query.SourceKind);
         }
 
         return filtered.ToArray();

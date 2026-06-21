@@ -174,6 +174,9 @@ public static class CloudShellControlPlaneApiExtensions
         api.MapGet("/logs", ListLogs)
             .WithName("CloudShellControlPlane_ListLogs");
 
+        api.MapGet("/log-sources", ListLogSources)
+            .WithName("CloudShellControlPlane_ListLogSources");
+
         api.MapGet("/resource-events", ListResourceEvents)
             .WithName("CloudShellControlPlane_ListResourceEvents")
             .Produces<ResourceEventResponse[]>(StatusCodes.Status200OK);
@@ -984,6 +987,27 @@ public static class CloudShellControlPlaneApiExtensions
                 new LogQuery(resourceId, artifactId, sourceKind),
                 cancellationToken))
             .Select(log => log.ToResponse())
+            .ToArray());
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            return ToProblem(exception);
+        }
+    }
+
+    private static async Task<IResult> ListLogSources(
+        string? resourceId,
+        string? artifactId,
+        LogSourceKind? sourceKind,
+        ILogManager logs,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Results.Ok((await logs.ListLogSourcesAsync(
+                new LogQuery(resourceId, artifactId, sourceKind),
+                cancellationToken))
+            .Select(source => source.ToResponse())
             .ToArray());
         }
         catch (UnauthorizedAccessException exception)

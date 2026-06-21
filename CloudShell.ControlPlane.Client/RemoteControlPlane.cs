@@ -533,6 +533,18 @@ public sealed class RemoteControlPlane : IControlPlane
         .Select(response => response.ToLogDescriptor())
         .ToArray();
 
+    public async Task<IReadOnlyList<LogSource>> ListLogSourcesAsync(
+        LogQuery? query = null,
+        CancellationToken cancellationToken = default) =>
+        (await GetRequiredAsync<IReadOnlyList<LogSourceResponse>>(
+            "log-sources",
+            cancellationToken,
+            ("resourceId", query?.ResourceId),
+            ("artifactId", query?.ArtifactId),
+            ("sourceKind", query?.SourceKind?.ToString())))
+        .Select(response => response.ToLogSource())
+        .ToArray();
+
     public async Task<IReadOnlyList<ResourceEvent>> ListResourceEventsAsync(
         ResourceEventQuery? query = null,
         CancellationToken cancellationToken = default) =>
@@ -1193,6 +1205,27 @@ file sealed record LogResponse(
     string? ArtifactId,
     bool SupportsStreaming);
 
+file sealed record LogSourceResponse(
+    string Id,
+    string Name,
+    string Provider,
+    string SourceName,
+    LogSourceKind SourceKind,
+    ResourceLogSourceKind Kind,
+    LogFormat Format,
+    LogStorageResponse Storage,
+    LogSourceCapabilities Capabilities,
+    string? ResourceId,
+    string? ArtifactId,
+    string? Location,
+    string? ProducerResourceId,
+    string? Description,
+    ResourceLogSourceOrigin Origin,
+    LogSourceConfigurationResponse Configuration,
+    ResourceLogSourcePurpose Purpose,
+    LogSourceAvailability Availability,
+    bool SupportsStreaming);
+
 file sealed record ResourceEventResponse(
     string ResourceId,
     string EventType,
@@ -1604,6 +1637,29 @@ file static class RemoteControlPlaneMapper
             response.ResourceId,
             response.ArtifactId,
             response.SupportsStreaming);
+
+    public static LogSource ToLogSource(this LogSourceResponse response) =>
+        new(
+            response.Id,
+            response.Name,
+            response.Provider,
+            response.SourceName,
+            response.SourceKind,
+            response.Kind,
+            response.Format,
+            response.Storage.ToLogStorage(),
+            response.SupportsStreaming
+                ? response.Capabilities | LogSourceCapabilities.Stream
+                : response.Capabilities,
+            response.ResourceId,
+            response.ArtifactId,
+            response.Location,
+            response.ProducerResourceId,
+            response.Description,
+            response.Origin,
+            response.Configuration.ToLogSourceConfiguration(),
+            response.Purpose,
+            response.Availability);
 
     public static LogEntry ToLogEntry(this LogEntryResponse response) =>
         new(

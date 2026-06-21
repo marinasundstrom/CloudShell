@@ -2217,10 +2217,12 @@ public sealed class InProcessControlPlaneResourceStateTests
             metricStore: metricStore);
 
         var logs = await controlPlane.ListLogsAsync();
+        var logSources = await controlPlane.ListLogSourcesAsync();
         var spans = await controlPlane.ListTraceSpansAsync();
         var points = await controlPlane.ListMetricPointsAsync();
 
         Assert.Equal("visible", Assert.Single(logs).ResourceId);
+        Assert.Equal("visible", Assert.Single(logSources).ResourceId);
         Assert.Equal("visible", Assert.Single(spans).ResourceId);
         Assert.Equal("visible", Assert.Single(points).ResourceId);
     }
@@ -2962,6 +2964,8 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         public IReadOnlyList<LogDescriptor> GetLogs() => [];
 
+        public IReadOnlyList<LogSource> GetLogSources() => [];
+
         public IReadOnlyList<LogDescriptor> GetLogsForResource(string resourceId) => [];
 
         public LogDescriptor? GetLog(string logId) => null;
@@ -3014,6 +3018,9 @@ public sealed class InProcessControlPlaneResourceStateTests
         public IReadOnlyList<ILogProvider> Providers => [];
 
         public IReadOnlyList<LogDescriptor> GetLogs() => logs;
+
+        public IReadOnlyList<LogSource> GetLogSources() =>
+            logs.Select(log => log.ToLogSource()).ToArray();
 
         public IReadOnlyList<LogDescriptor> GetLogsForResource(string resourceId) =>
             logs

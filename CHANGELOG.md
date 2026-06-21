@@ -50,6 +50,9 @@ on `git blame --follow`, and then by the broad type of change.
   metadata, separate from universal log persistence.
 - Log source declarations now announce availability so live-only sources can be
   distinguished from persisted or provider-backed sources.
+- The Control Plane API and remote client now expose log-source discovery by
+  projecting resource-declared sources and provider descriptors into
+  `LogSource`.
 
 ### 2026-06-20
 

@@ -141,10 +141,11 @@ different origins and should remain distinguishable.
 sources and any provider-owned non-resource sources. It is the object that log
 listing, read, query, and stream APIs should address. The initial abstraction
 skeleton is in `CloudShell.Abstractions.Logs`; current `LogDescriptor` values
-can carry compatible source metadata and project to `LogSource` while existing
-APIs and UI keep using descriptors. This lets the Logs UI group by resource
-while still supporting future provider pages or global log views that are not
-strictly resource-scoped.
+can carry compatible source metadata and project to `LogSource`. The Control
+Plane exposes log-source discovery separately from the existing descriptor-based
+read/stream APIs while the Logs UI continues to use descriptors. This
+lets the Logs UI group by resource while still supporting future provider pages
+or global log views that are not strictly resource-scoped.
 
 `LogEntry` keeps the familiar text log shape of timestamp, message, severity,
 and source, but now also supports optional structured fields using common logging

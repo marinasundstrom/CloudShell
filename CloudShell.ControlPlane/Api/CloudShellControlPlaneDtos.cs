@@ -330,6 +330,27 @@ public sealed record LogResponse(
     string? ArtifactId,
     bool SupportsStreaming);
 
+public sealed record LogSourceResponse(
+    string Id,
+    string Name,
+    string Provider,
+    string SourceName,
+    LogSourceKind SourceKind,
+    ResourceLogSourceKind Kind,
+    LogFormat Format,
+    LogStorageResponse Storage,
+    LogSourceCapabilities Capabilities,
+    string? ResourceId,
+    string? ArtifactId,
+    string? Location,
+    string? ProducerResourceId,
+    string? Description,
+    ResourceLogSourceOrigin Origin,
+    LogSourceConfigurationResponse Configuration,
+    ResourceLogSourcePurpose Purpose,
+    LogSourceAvailability Availability,
+    bool SupportsStreaming);
+
 public sealed record ResourceEventResponse(
     string ResourceId,
     string EventType,
@@ -703,6 +724,28 @@ internal static class CloudShellControlPlaneDtoMapper
             log.ResourceId,
             log.ArtifactId,
             log.SupportsStreaming);
+
+    public static LogSourceResponse ToResponse(this LogSource source) =>
+        new(
+            source.Id,
+            source.Name,
+            source.Provider,
+            source.SourceName,
+            source.SourceKind,
+            source.Kind,
+            source.Format,
+            source.Storage.ToResponse(),
+            source.Capabilities,
+            source.ResourceId,
+            source.ArtifactId,
+            source.Location,
+            source.ProducerResourceId,
+            source.Description,
+            source.Origin,
+            source.Configuration.ToResponse(),
+            source.Purpose,
+            source.Availability,
+            source.SupportsStreaming);
 
     public static ResourceEventResponse ToResponse(this ResourceEvent resourceEvent) =>
         new(

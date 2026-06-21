@@ -6,6 +6,8 @@ public interface ILogStore
 
     IReadOnlyList<LogDescriptor> GetLogs();
 
+    IReadOnlyList<LogSource> GetLogSources();
+
     IReadOnlyList<LogDescriptor> GetLogsForResource(string resourceId);
 
     LogDescriptor? GetLog(string logId);
