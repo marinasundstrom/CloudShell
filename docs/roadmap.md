@@ -76,6 +76,35 @@ Required outcome:
 | Integration points | Providers, CloudShell extensions, webhooks, WebSocket/streaming subscriptions, and API clients can react to resource events and lifecycle state without replacing the core orchestrator path. |
 | Validation samples | More complex samples prove multi-resource application topology, public ingress, DNS/name mapping, service discovery, identity-backed configuration/secrets, and operator UI workflows. |
 
+### Later: IoT and Edge Devices
+
+Goal: let devices and edge workloads securely join a CloudShell environment,
+appear in the resource graph, use existing CloudShell-managed services, and be
+developed and diagnosed through Resource Manager without requiring CloudShell
+to copy a public-cloud IoT service catalog.
+
+The first IoT story should be a provisioning and resource-management story,
+not a full IoT Hub replacement. A device should be able to connect with a
+pre-issued bootstrap credential, such as a certificate or enrollment token,
+ask the environment for provisioning, and be reconciled into the CloudShell
+catalog as a device resource. From there, CloudShell can assign a principal,
+apply access grants, expose configuration or service connection metadata,
+record activity, and observe health and telemetry through the same Control
+Plane and Resource Manager concepts used by other resources.
+
+Required outcome:
+
+| Area | Required outcome |
+| --- | --- |
+| Device onboarding | A provisioning provider can validate a device bootstrap credential and create or reconcile a device resource. |
+| Device identity | Devices or device workloads receive principals and access grants through the standard identity and access model. |
+| Service access | Device workloads can use existing CloudShell-managed services such as configuration, secrets, databases, message brokers, telemetry, or application endpoints when granted access. |
+| Local development experience | Developers can use Resource Manager to understand provisioning status, service access, dependencies, health, telemetry, and failures for simulated or physical devices. |
+| Resource Manager visibility | Device resources show health, activity, telemetry, relationships, and provider-owned non-secret attributes. |
+| Provider boundary | Certificate validation, hardware-root checks, enrollment groups, and provider-specific device state remain provider-owned. |
+
+This is tracked by the [IoT device provisioning proposal](proposals/core/iot-device-provisioning.md).
+
 ### Post-MVP: Extensible Shell Composition
 
 Goal: make CloudShell UI an independently useful extensible shell platform
@@ -499,8 +528,9 @@ listed here before pulling in broader proposal work.
 15. Advanced app and environment concepts: defer autoscaling, backend pools,
    traffic splitting, provider-backed network-level service discovery,
    provider-backed DNS propagation, external deployment projection,
-   external-format resource graph import and code generation, container
-   application environments, and the initial on-premise hosting scenario.
+   external-format resource graph import and code generation, IoT device
+   provisioning, edge/device resource management, container application
+   environments, and the initial on-premise hosting scenario.
 
 ### Now: MVP Convergence and Resource Manager Reliability
 

@@ -44,6 +44,10 @@ on `git blame --follow`, and then by the broad type of change.
   lease-backed primary controller, and independent worker processes for
   subsystems such as log ingestion, telemetry, health polling, notifications,
   and provider reconciliation.
+- Documented a future IoT and edge-device direction where device provisioning
+  uses enrollment evidence plus cryptographic proof, reconciles devices into
+  the resource graph, binds device principals through the identity model, and
+  lets Resource Manager act as the development and diagnostics cockpit.
 - Mapped-resource DNS surfaces now render name mappings as endpoint anchors
   only when CloudShell can resolve the mapped target endpoint as HTTP/HTTPS,
   while name-mapping and DNS-zone overviews keep the name mapping itself

@@ -38,6 +38,7 @@ changes. Milestone scope remains authoritative in [Roadmap](../roadmap.md).
 | 17 | [Shell composition](core/shell-composition.md) | Proposed | Post-MVP extensible shell platform | Tracks the future CloudShell UI direction: reusable core and Blazor composition libraries with separate navigation and addressable content hierarchies, content-ID link resolution, Razor-owned routing, slots, section containers, standard settings, notifications, optional future graph persistence, and Resource Manager alignment with generic shell primitives. The current MVP should consume the landed composition work only to stabilize existing shell, Settings, and Resource Manager surfaces. |
 | 18 | [Resource graph import and code generation](core/resource-graph-import.md) | Proposed | Later portability and advanced authoring | Tracks external file import into CloudShell graph drafts, starting with Docker Compose YAML, with generated programmatic declarations as the preferred first output. |
 | 19 | [Managed SQL Server resource](resources/managed-sql-server.md) | Partially implemented | Post-MVP managed database resource shape | Tracks the future SQL Server managed resource surface. The current `application.sql-server` implementation remains a local-development container-backed bridge, but now has a provider-owned builder, projects as a service resource, displays declared database children, reports requested-versus-effective grant status, and avoids generic container-app deployment controls by default. |
+| 20 | [IoT device provisioning](core/iot-device-provisioning.md) | Proposed future direction | Later device and edge integration | Tracks a future IoT/edge story where devices bootstrap with pre-issued credentials, are reconciled into the CloudShell resource graph, receive principals and service access through the existing identity/access model, and publish health, activity, and telemetry without requiring a separate Azure-like service catalog. |
 
 ## Current proposal order
 
@@ -92,7 +93,8 @@ hardening.
     that fixes regressions or directly supports the current Resource Manager
     and Settings experience.
 13. Advanced app and environment concepts, including external-format resource
-    graph import and code generation
+    graph import and code generation, IoT device provisioning, and edge/device
+    resource management
 
 Use [Roadmap](../roadmap.md) for the reasoning behind this order and the
 concrete MVP execution plan.
