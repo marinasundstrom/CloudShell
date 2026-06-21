@@ -137,6 +137,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Merged Logs explorer views now support route-backed source filters so
   users can choose which operational log sources participate in the `All logs`
   read and history view.
+- The Logs explorer Sources view now lets the source inventory fill the normal
+  viewer space with vertical scrolling and lets long source labels wrap instead
+  of clipping the column.
 - Resource-scoped log source discovery, reads, and streams now enforce both
   the common logs permission and resource read access, while provider-owned
   sources remain gated by the common logs permission.

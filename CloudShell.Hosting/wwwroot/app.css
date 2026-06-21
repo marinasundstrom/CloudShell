@@ -3234,7 +3234,8 @@ h3 {
 }
 
 .log-source-inventory-shell {
-    max-height: 11rem;
+    flex: 1 1 auto;
+    min-height: 0;
     margin-bottom: .75rem;
     border: 1px solid var(--cloudshell-divider);
     border-radius: 4px;
@@ -3290,7 +3291,6 @@ h3 {
     text-align: right;
 }
 
-.log-source-inventory-source span,
 .log-source-inventory-log span,
 .log-source-inventory-log small {
     display: block;
@@ -3298,6 +3298,12 @@ h3 {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.log-source-inventory-source span {
+    display: block;
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .log-source-inventory-log small {
