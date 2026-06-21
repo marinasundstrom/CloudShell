@@ -220,7 +220,8 @@
     private RenderFragment RenderNetworkExposure() => @<div class="generated-list">
         @foreach (var exposure in InboundNetworkMappings)
         {
-            <GeneratedListItem Metadata="@FormatInboundNetworkMappingSummary(exposure)">
+            <GeneratedListItem IconName="network"
+                               Metadata="@FormatInboundNetworkMappingSummary(exposure)">
                 <TitleContent>@ResourceLink(exposure.Network)</TitleContent>
                 <SummaryContent>
                     @EndpointReference(exposure.Mapping.Source, exposure.Network)
@@ -235,7 +236,8 @@
         @foreach (var exposure in InboundLoadBalancerRoutes)
         {
             var entrypoint = L["Entrypoint: {0}", exposure.Route.EntrypointName].Value;
-            <GeneratedListItem Metadata="@entrypoint">
+            <GeneratedListItem IconName="load-balancer"
+                               Metadata="@entrypoint">
                 <TitleContent>@ResourceLink(exposure.LoadBalancer)</TitleContent>
                 <SummaryContent>
                     @FormatLoadBalancerRouteMatch(exposure.Route)
@@ -304,6 +306,7 @@
         @foreach (var mapping in Resource!.ResourceEndpointMappings)
         {
             <GeneratedListItem Title="@mapping.Name"
+                               IconName="endpoint"
                                Metadata="@MappingProviderLabel(mapping)">
                 <SummaryContent>
                     @EndpointReference(mapping.Source, Resource)
@@ -319,6 +322,7 @@
         {
             var entrypoint = L["Entrypoint: {0}", route.EntrypointName].Value;
             <GeneratedListItem Title="@route.Name"
+                               IconName="load-balancer"
                                Metadata="@entrypoint">
                 <SummaryContent>
                     @FormatLoadBalancerRouteMatch(route)
@@ -635,12 +639,14 @@
         var label = resource is null ? GetFallbackResourceLabel(resourceId) : GetResourceLabel(resource);
         return @<ResourcePillLink Label="@label"
                                   Href="@BuildResourceRoute(resourceId)"
+                                  Resource="@resource"
                                   Metadata="@resource?.EffectiveTypeId" />;
     }
 
     private RenderFragment ResourceLink(Resource resource) =>
         @<ResourcePillLink Label="@GetResourceLabel(resource)"
                            Href="@BuildResourceRoute(resource.Id)"
+                           Resource="@resource"
                            Metadata="@resource.EffectiveTypeId" />;
 
     private Resource? FindRelatedResource(string resourceId)

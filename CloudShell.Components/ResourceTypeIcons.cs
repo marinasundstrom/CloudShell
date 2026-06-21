@@ -1,9 +1,9 @@
 using Microsoft.FluentUI.AspNetCore.Components;
 using Icons = Microsoft.FluentUI.AspNetCore.Components.Icons;
 
-namespace CloudShell.Hosting.ResourceManager;
+namespace CloudShell.Components;
 
-internal static class ResourceTypeIcons
+public static class ResourceTypeIcons
 {
     public static Icon FromName(string? name)
     {
@@ -29,6 +29,17 @@ internal static class ResourceTypeIcons
             "configuration-store" => new Icons.Regular.Size20.AppsSettings(),
             "key" => new Icons.Regular.Size20.KeyMultiple(),
             "lock-closed" => new Icons.Regular.Size20.LockClosed(),
+            "health" or "health-checks" => new Icons.Regular.Size20.HeartPulseCheckmark(),
+            "activity" or "events" => new Icons.Regular.Size20.DataUsage(),
+            "dns" or "name-mapping" or "name-mappings" => new Icons.Regular.Size20.GlobeSync(),
+            "endpoint" or "endpoints" or "networking" => new Icons.Regular.Size20.Connector(),
+            "load-balancer" or "loadbalancer" or "route" or "routes" => new Icons.Regular.Size20.ArrowRouting(),
+            "identity" or "permissions" or "access-control" => new Icons.Regular.Size20.LockClosed(),
+            "preflight" or "readiness" => new Icons.Regular.Size20.HeartPulseCheckmark(),
+            "provisioning" => new Icons.Regular.Size20.AppsSettings(),
+            "logs" or "log" => new Icons.Regular.Size20.SlideTextSparkle(),
+            "traces" or "trace" => new Icons.Regular.Size20.GanttChart(),
+            "metrics" or "metric" => new Icons.Regular.Size20.ChartMultiple(),
             _ => FromResourceDescriptor(normalized)
         };
     }

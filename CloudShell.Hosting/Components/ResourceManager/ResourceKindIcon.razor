@@ -1,8 +1,9 @@
 @inject ShellCatalog ShellCatalog
 
-<span class="@CssClass" title="@TitleText" aria-label="@TitleText">
-    <FluentIcon Value="@ResolveIcon()" />
-</span>
+<ResourceIcon Resource="Resource"
+              IconName="@ResolveIconName()"
+              Class="@CssClass"
+              Title="@TitleText" />
 
 @code {
     [Parameter, EditorRequired]
@@ -20,17 +21,16 @@
     private string TitleText =>
         string.IsNullOrWhiteSpace(Title) ? Resource.Kind : Title;
 
-    private Icon ResolveIcon()
+    private string? ResolveIconName()
     {
         var resourceType = ShellCatalog.ResourceTypes.FirstOrDefault(type =>
             string.Equals(type.Id, Resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase));
         if (!string.IsNullOrWhiteSpace(resourceType?.Icon))
         {
-            return ResourceTypeIcons.FromName(resourceType.Icon);
+            return resourceType.Icon;
         }
 
-        return ResourceTypeIcons.FromName(
-            FirstNonEmpty(Resource.EffectiveTypeId, Resource.ResourceClass.ToString(), Resource.Kind));
+        return FirstNonEmpty(Resource.EffectiveTypeId, Resource.ResourceClass.ToString(), Resource.Kind);
     }
 
     private static string? FirstNonEmpty(params string?[] values) =>

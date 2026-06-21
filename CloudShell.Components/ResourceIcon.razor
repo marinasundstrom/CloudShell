@@ -1,0 +1,45 @@
+@if (ShouldRenderIcon)
+{
+    <span class="@CssClass" title="@TitleText" aria-label="@TitleText">
+        <FluentIcon Value="@ResolveIcon()" />
+    </span>
+}
+
+@code {
+    [Parameter]
+    public Resource? Resource { get; set; }
+
+    [Parameter]
+    public string? IconName { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    [Parameter]
+    public string? Title { get; set; }
+
+    private string CssClass =>
+        string.IsNullOrWhiteSpace(Class) ? "resource-kind-icon" : Class;
+
+    private string TitleText =>
+        !string.IsNullOrWhiteSpace(Title)
+            ? Title
+            : FirstNonEmpty(IconName, Resource?.EffectiveTypeId, Resource?.ResourceClass.ToString(), Resource?.Kind) ?? "Resource";
+
+    private bool ShouldRenderIcon =>
+        Resource is not null || !string.IsNullOrWhiteSpace(IconName);
+
+    private Icon ResolveIcon()
+    {
+        if (!string.IsNullOrWhiteSpace(IconName))
+        {
+            return ResourceTypeIcons.FromName(IconName);
+        }
+
+        return ResourceTypeIcons.FromName(
+            FirstNonEmpty(Resource?.EffectiveTypeId, Resource?.ResourceClass.ToString(), Resource?.Kind));
+    }
+
+    private static string? FirstNonEmpty(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+}

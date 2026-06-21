@@ -1970,6 +1970,7 @@ resourceGroups) =>
     private RenderFragment ResourceRelationshipLink(Resource resource) =>
         @<ResourcePillLink Label="@GetResourceLabel(resource)"
                            Href="@ResourceManagerRoutes.ResourceOverview(resource.Id)"
+                           Resource="@resource"
                            Metadata="@resource.EffectiveTypeId" />;
 
     private string FormatLoadBalancerRouteCounts(Resource resource)

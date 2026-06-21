@@ -292,6 +292,7 @@
                                        CurrentCaption="@L["Current"].Value"
                                        CurrentLabel="@GetResourceLabel(Resource)"
                                        CurrentMetadata="@Resource.EffectiveTypeId"
+                                       CurrentResource="Resource"
                                        UsedByTitle="@L["Used by"].Value"
                                        UsedBy="@GetDependentNodes()"
                                        EmptyUsedByTitle="@L["None"].Value"
@@ -746,12 +747,14 @@
         var label = resource is null ? GetFallbackResourceLabel(resourceId) : GetResourceLabel(resource);
         return @<ResourcePillLink Label="@label"
                                   Href="@BuildResourceRoute(resourceId)"
+                                  Resource="@resource"
                                   Metadata="@resource?.EffectiveTypeId" />;
     }
 
     private RenderFragment ResourceLink(Resource resource) =>
         @<ResourcePillLink Label="@GetResourceLabel(resource)"
                            Href="@BuildResourceRoute(resource.Id)"
+                           Resource="@resource"
                            Metadata="@resource.EffectiveTypeId" />;
 
     private Resource? FindRelatedResource(string resourceId)
@@ -782,7 +785,8 @@
                     FormatRelationshipSummary(dependency, dependencyId),
                     FormatRelationshipMetadata(dependency),
                     dependency is null,
-                    dependency is null ? null : GetRelationshipActions(dependency));
+                    dependency is null ? null : GetRelationshipActions(dependency),
+                    Resource: dependency);
             })
             .ToArray();
 
@@ -794,7 +798,8 @@
                     BuildResourceRoute(dependent.Id),
                     FormatRelationshipSummary(dependent, dependent.Id),
                     FormatRelationshipMetadata(dependent),
-                    Actions: GetRelationshipActions(dependent)))
+                    Actions: GetRelationshipActions(dependent),
+                    Resource: dependent))
             .ToArray();
 
     private string FormatRelationshipSummary(Resource? resource, string resourceId)

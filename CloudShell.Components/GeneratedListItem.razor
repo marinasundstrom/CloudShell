@@ -1,4 +1,68 @@
-<div class="@Class">
+<div class="@CssClass">
+    @if (HasIcon)
+    {
+        <ResourceIcon IconName="@IconName"
+                      Class="resource-kind-icon generated-list-icon" />
+        <span class="generated-list-item-content">
+            @Content
+        </span>
+    }
+    else
+    {
+        @Content
+    }
+</div>
+
+@code {
+    [Parameter]
+    public string? Title { get; set; }
+
+    [Parameter]
+    public RenderFragment? TitleContent { get; set; }
+
+    [Parameter]
+    public string? Summary { get; set; }
+
+    [Parameter]
+    public RenderFragment? SummaryContent { get; set; }
+
+    [Parameter]
+    public string? Metadata { get; set; }
+
+    [Parameter]
+    public string? SecondaryMetadata { get; set; }
+
+    [Parameter]
+    public RenderFragment? MetadataContent { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public string? IconName { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    private bool HasIcon => !string.IsNullOrWhiteSpace(IconName);
+
+    private string? CssClass
+    {
+        get
+        {
+            var generatedClass = HasIcon ? "generated-list-item with-icon" : null;
+            if (string.IsNullOrWhiteSpace(generatedClass))
+            {
+                return Class;
+            }
+
+            return string.IsNullOrWhiteSpace(Class)
+                ? generatedClass
+                : $"{generatedClass} {Class}";
+        }
+    }
+
+    private RenderFragment Content => @<text>
     @if (TitleContent is not null)
     {
         <strong>@TitleContent</strong>
@@ -37,33 +101,5 @@
     {
         @ChildContent
     }
-</div>
-
-@code {
-    [Parameter]
-    public string? Title { get; set; }
-
-    [Parameter]
-    public RenderFragment? TitleContent { get; set; }
-
-    [Parameter]
-    public string? Summary { get; set; }
-
-    [Parameter]
-    public RenderFragment? SummaryContent { get; set; }
-
-    [Parameter]
-    public string? Metadata { get; set; }
-
-    [Parameter]
-    public string? SecondaryMetadata { get; set; }
-
-    [Parameter]
-    public RenderFragment? MetadataContent { get; set; }
-
-    [Parameter]
-    public RenderFragment? ChildContent { get; set; }
-
-    [Parameter]
-    public string? Class { get; set; }
+    </text>;
 }

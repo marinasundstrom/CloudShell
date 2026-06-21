@@ -19,6 +19,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 - SQL Server overview connection strings now omit the SA password while
   keeping the password available only through the masked password field.
+- Resource Manager resource relationship cards, resource-reference pills, and
+  application overview resource cards now show resource-type icons for faster
+  scanning.
 
 ### 2026-06-21
 

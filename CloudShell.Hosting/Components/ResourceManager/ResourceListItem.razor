@@ -1,46 +1,16 @@
-<div class="@CssClass">
-    <ResourceKindIcon Resource="Resource" />
-    <span class="resource-list-item-content">
-        @if (TitleContent is not null)
-        {
-            <strong>@TitleContent</strong>
-        }
-        else if (!string.IsNullOrWhiteSpace(Title))
-        {
-            <strong>@Title</strong>
-        }
+@inject ShellCatalog ShellCatalog
 
-        @if (SummaryContent is not null)
-        {
-            <span>@SummaryContent</span>
-        }
-        else if (!string.IsNullOrWhiteSpace(Summary))
-        {
-            <span>@Summary</span>
-        }
-
-        @if (MetadataContent is not null)
-        {
-            @MetadataContent
-        }
-        else
-        {
-            @if (!string.IsNullOrWhiteSpace(Metadata))
-            {
-                <small>@Metadata</small>
-            }
-            @if (!string.IsNullOrWhiteSpace(SecondaryMetadata))
-            {
-                <small>@SecondaryMetadata</small>
-            }
-        }
-
-        @if (ChildContent is not null)
-        {
-            @ChildContent
-        }
-    </span>
-</div>
+<ResourceReferenceListItem Resource="Resource"
+                           IconName="@ResolveIconName()"
+                           Title="@Title"
+                           TitleContent="@TitleContent"
+                           Summary="@Summary"
+                           SummaryContent="@SummaryContent"
+                           Metadata="@Metadata"
+                           SecondaryMetadata="@SecondaryMetadata"
+                           MetadataContent="@MetadataContent"
+                           ChildContent="@ChildContent"
+                           Class="@Class" />
 
 @code {
     [Parameter, EditorRequired]
@@ -73,8 +43,15 @@
     [Parameter]
     public string? Class { get; set; }
 
-    private string CssClass =>
-        string.IsNullOrWhiteSpace(Class)
-            ? "resource-list-item"
-            : $"resource-list-item {Class}";
+    private string? ResolveIconName()
+    {
+        var resourceType = ShellCatalog.ResourceTypes.FirstOrDefault(type =>
+            string.Equals(type.Id, Resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase));
+        if (!string.IsNullOrWhiteSpace(resourceType?.Icon))
+        {
+            return resourceType.Icon;
+        }
+
+        return Resource.EffectiveTypeId;
+    }
 }

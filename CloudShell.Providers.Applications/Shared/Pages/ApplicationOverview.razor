@@ -143,6 +143,7 @@ else
             <ResourceRelationshipGraph CurrentCaption="current"
                                        CurrentLabel="@GetCurrentResourceLabel()"
                                        CurrentMetadata="@Application.ResourceType"
+                                       CurrentResource="ProjectedResource"
                                        DependsOn="@GetDependencyNodes()"
                                        UsedBy="@GetDependentNodes()" />
         </section>
@@ -183,23 +184,26 @@ else
         <section class="blade-section">
             <h3>Resource identity</h3>
             <div class="generated-list">
-                <GeneratedListItem Summary="@FormatIdentitySummary(identity)"
-                                   Metadata="@($"Provider: {FormatIdentityProvider(identity)}")">
+                <ResourceReferenceListItem Resource="ProjectedResource"
+                                           Summary="@FormatIdentitySummary(identity)"
+                                           Metadata="@($"Provider: {FormatIdentityProvider(identity)}")">
                     <TitleContent>
                         <a class="resource-link" href="@BuildResourceTabRoute(ProjectedResource.Id, ResourcePredefinedViewIds.Identity)">
                             @FormatIdentityName(identity)
                         </a>
                     </TitleContent>
-                </GeneratedListItem>
+                </ResourceReferenceListItem>
                 @if (!string.IsNullOrWhiteSpace(IdentityProvisioningStatusError))
                 {
                     <GeneratedListItem Title="Provisioning"
+                                       IconName="provisioning"
                                        Summary="@IdentityProvisioningStatusError"
                                        Metadata="Status unavailable" />
                 }
                 else if (IdentityProvisioningStatus is not null)
                 {
                     <GeneratedListItem Title="Provisioning"
+                                       IconName="provisioning"
                                        Summary="@FormatProvisioningState()"
                                        Metadata="@FormatProvisioningDetail()" />
                 }
@@ -207,10 +211,12 @@ else
                 {
                     var target = ResolveMappingResource(grant.TargetResourceId);
                     <GeneratedListItem Title="Can access"
+                                       IconName="permissions"
                                        Metadata="@grant.Permission">
                         <SummaryContent>
                             <ResourcePillLink Label="@(target is null ? GetFallbackResourceLabel(grant.TargetResourceId) : GetResourceLabel(target))"
                                               Href="@BuildResourceRoute(grant.TargetResourceId)"
+                                              Resource="target"
                                               Metadata="@target?.EffectiveTypeId" />
                         </SummaryContent>
                     </GeneratedListItem>
@@ -226,8 +232,10 @@ else
             <div class="generated-list">
                 @foreach (var volumeMount in VolumeMounts)
                 {
-                    <div>
-                        <strong>
+                    <ResourceReferenceListItem Resource="volumeMount.Volume"
+                                               Summary="@volumeMount.Mount.NormalizedTargetPath"
+                                               Metadata="@GetMountRuntimeLabel(volumeMount)">
+                        <TitleContent>
                             @if (volumeMount.Volume is null)
                             {
                                 @volumeMount.Mount.NormalizedVolumeReference
@@ -238,10 +246,8 @@ else
                                     @ApplicationVolumeResourceDisplay.GetMountSourceLabel(volumeMount.Mount, volumeMount.Volume)
                                 </a>
                             }
-                        </strong>
-                        <span>@volumeMount.Mount.NormalizedTargetPath</span>
-                        <small>@GetMountRuntimeLabel(volumeMount)</small>
-                    </div>
+                        </TitleContent>
+                    </ResourceReferenceListItem>
                 }
             </div>
         </section>
@@ -284,6 +290,7 @@ else
             <h3>Action readiness</h3>
             <div class="generated-list">
                 <GeneratedListItem Title="@actionReadiness.Status"
+                                   IconName="preflight"
                                    Summary="@actionReadiness.Message"
                                    Metadata="@($"{actionReadiness.ActionLabel} preflight")" />
             </div>
@@ -297,8 +304,9 @@ else
             <div class="generated-list">
                 @foreach (var reference in ServiceDiscoveryReferences)
                 {
-                    <GeneratedListItem Summary="@FormatServiceDiscoveryReference(reference)"
-                                       Metadata="@FormatServiceDiscoveryBindings(reference)">
+                    <ResourceReferenceListItem Resource="reference.Resource"
+                                               Summary="@FormatServiceDiscoveryReference(reference)"
+                                               Metadata="@FormatServiceDiscoveryBindings(reference)">
                         <TitleContent>
                             @if (reference.Resource is null)
                             {
@@ -311,7 +319,7 @@ else
                                 </a>
                             }
                         </TitleContent>
-                    </GeneratedListItem>
+                    </ResourceReferenceListItem>
                 }
             </div>
         </section>
@@ -358,36 +366,39 @@ else
                 <div class="generated-list">
                     @foreach (var mapping in InboundNetworkMappings)
                     {
-                        <GeneratedListItem Summary="@FormatMappingSummary(mapping.Mapping, mapping.Network, Application.Id)"
-                                           Metadata="@FormatMappingProvider(mapping.Mapping)">
+                        <ResourceReferenceListItem Resource="mapping.Network"
+                                                   Summary="@FormatMappingSummary(mapping.Mapping, mapping.Network, Application.Id)"
+                                                   Metadata="@FormatMappingProvider(mapping.Mapping)">
                             <TitleContent>
                                 <a class="resource-link" href="@BuildResourceRoute(mapping.Network.Id)">
                                     @GetResourceLabel(mapping.Network)
                                 </a>
                             </TitleContent>
-                        </GeneratedListItem>
+                        </ResourceReferenceListItem>
                     }
                     @foreach (var route in InboundLoadBalancerRoutes)
                     {
-                        <GeneratedListItem Summary="@FormatLoadBalancerRoute(route.Route)"
-                                           Metadata="Load-balancer route">
+                        <ResourceReferenceListItem Resource="route.LoadBalancer"
+                                                   Summary="@FormatLoadBalancerRoute(route.Route)"
+                                                   Metadata="Load-balancer route">
                             <TitleContent>
                                 <a class="resource-link" href="@BuildResourceRoute(route.LoadBalancer.Id)">
                                     @GetResourceLabel(route.LoadBalancer)
                                 </a>
                             </TitleContent>
-                        </GeneratedListItem>
+                        </ResourceReferenceListItem>
                     }
                     @foreach (var mapping in InboundNameMappings)
                     {
-                        <GeneratedListItem Summary="@ResourceNameMappingDisplay.GetSummary(mapping.Mapping, Application.Name)"
-                                           Metadata="@FormatNameMappingMetadata(mapping)">
+                        <ResourceReferenceListItem Resource="mapping.Mapping"
+                                                   Summary="@ResourceNameMappingDisplay.GetSummary(mapping.Mapping, Application.Name)"
+                                                   Metadata="@FormatNameMappingMetadata(mapping)">
                             <TitleContent>
                                 <a class="resource-link" href="@BuildResourceRoute(mapping.Mapping.Id)">
                                     @ResourceNameMappingDisplay.GetHostName(mapping.Mapping)
                                 </a>
                             </TitleContent>
-                        </GeneratedListItem>
+                        </ResourceReferenceListItem>
                     }
                 </div>
             }
@@ -400,6 +411,7 @@ else
             @if (HasApplicationHealthChecks)
             {
                 <GeneratedListItem Summary="@GetApplicationHealthSummary()"
+                                   IconName="health"
                                    Metadata="Resource health">
                     <TitleContent>
                         <a class="resource-link" href="@BuildResourceTabRoute(Application.Id, ResourcePredefinedViewIds.Health)">
@@ -409,6 +421,7 @@ else
                 </GeneratedListItem>
             }
             <GeneratedListItem Summary="Lifecycle and provider events for this application."
+                               IconName="activity"
                                Metadata="Resource activity">
                 <TitleContent>
                     <a class="resource-link" href="@BuildActivityRoute(Application.Id)">
@@ -419,6 +432,7 @@ else
             @if (Logs.Count > 0)
             {
                 <GeneratedListItem Summary="@GetLogsSummary(Logs)"
+                                   IconName="logs"
                                    Metadata="@GetLogSourcesSummary(Logs)">
                     <TitleContent>
                         <a class="resource-link" href="@BuildResourceLogsRoute(Application.Id, Logs)">
@@ -430,6 +444,7 @@ else
             @if (HasTraceObservability(Application))
             {
                 <GeneratedListItem Summary="Distributed traces attributed to this application."
+                                   IconName="traces"
                                    Metadata="Observability signal enabled">
                     <TitleContent>
                         <a class="resource-link" href="@BuildTraceRoute(Application.Id)">
@@ -1259,7 +1274,8 @@ else
                     FormatDependencySummary(dependency, dependencyId),
                     FormatDependencyMetadata(dependency),
                     dependency is null,
-                    dependency is null ? null : GetRelationshipActions(dependency));
+                    dependency is null ? null : GetRelationshipActions(dependency),
+                    Resource: dependency);
             })
             .ToArray();
 
@@ -1271,7 +1287,8 @@ else
                     BuildResourceRoute(dependent.Id),
                     FormatDependencySummary(dependent, dependent.Id),
                     FormatDependencyMetadata(dependent),
-                    Actions: GetRelationshipActions(dependent)))
+                    Actions: GetRelationshipActions(dependent),
+                    Resource: dependent))
             .ToArray();
 
     private IReadOnlyList<Resource> GetDependentResources(string resourceId) =>

@@ -86,6 +86,7 @@
                 @foreach (var exposure in InboundNameMappings)
                 {
                     <GeneratedListItem Summary="@FormatNameMappingSummary(exposure.Mapping)"
+                                       IconName="dns"
                                        Metadata="@FormatNameMappingMetadata(exposure)">
                         <TitleContent>
                             <EndpointLink Address="@ResourceNameMappingDisplay.GetMappedEndpointAddress(exposure.Mapping, Resource)"
@@ -186,6 +187,7 @@
     private RenderFragment ResourceLink(Resource resource) =>
         @<ResourcePillLink Label="@GetResourceLabel(resource)"
                            Href="@BuildResourceRoute(resource.Id)"
+                           Resource="@resource"
                            Metadata="@resource.EffectiveTypeId" />;
 
     private Resource? FindRelatedResource(string resourceId)

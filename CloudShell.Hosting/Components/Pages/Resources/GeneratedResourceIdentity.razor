@@ -175,6 +175,7 @@
                             ? L["Observed {0}", timestamp.ToLocalTime().ToString("g")].Value
                             : null;
                         <GeneratedListItem Title="@FormatIdentityReference(status.Identity)"
+                                           IconName="provisioning"
                                            Summary="@status.State.ToString()"
                                            Metadata="@status.Detail"
                                            SecondaryMetadata="@observedAt" />
@@ -187,6 +188,7 @@
                     @foreach (var diagnostic in ProvisioningStatus.ProvisioningDiagnostics)
                     {
                         <GeneratedListItem Title="@diagnostic.Severity.ToString()"
+                                           IconName="identity"
                                            Summary="@diagnostic.Message"
                                            Metadata="@(diagnostic.Identity is null ? null : FormatIdentityReference(diagnostic.Identity))" />
                     }
@@ -203,6 +205,7 @@
                 {
                     var title = L["Can access"].Value;
                     <GeneratedListItem Title="@title"
+                                       IconName="permissions"
                                        Metadata="@grant.Permission">
                         <SummaryContent>@ResourceLink(grant.TargetResourceId)</SummaryContent>
                     </GeneratedListItem>
@@ -216,6 +219,7 @@
                 {
                     var summary = L["Can access this resource"].Value;
                     <GeneratedListItem Title="@FormatIdentityReference(grant.ResourceIdentity!)"
+                                       IconName="permissions"
                                        Summary="@summary"
                                        Metadata="@grant.Permission" />
                 }
@@ -393,6 +397,7 @@
         var label = ResourceDisplayLabels.GetLabel(resource, resourceId);
         return @<ResourcePillLink Label="@label"
                                   Href="@BuildResourceRoute(resourceId)"
+                                  Resource="@resource"
                                   Metadata="@resource?.EffectiveTypeId" />;
     }
 

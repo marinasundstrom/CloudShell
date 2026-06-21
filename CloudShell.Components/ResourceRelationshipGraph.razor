@@ -3,13 +3,19 @@
         <h4>@DependsOnTitle</h4>
         @RenderNodes(DependsOn, EmptyDependsOnTitle, EmptyDependsOnSummary)
     </div>
-    <div class="resource-relationship-current">
-        <span>@CurrentCaption</span>
-        <strong>@CurrentLabel</strong>
-        @if (!string.IsNullOrWhiteSpace(CurrentMetadata))
+    <div class="@CurrentClass">
+        @if (CurrentResource is not null)
         {
-            <small>@CurrentMetadata</small>
+            <ResourceIcon Resource="CurrentResource" Class="resource-kind-icon relationship-current-icon" />
         }
+        <span class="resource-relationship-current-content">
+            <span>@CurrentCaption</span>
+            <strong>@CurrentLabel</strong>
+            @if (!string.IsNullOrWhiteSpace(CurrentMetadata))
+            {
+                <small>@CurrentMetadata</small>
+            }
+        </span>
     </div>
     <div class="resource-relationship-group">
         <h4>@UsedByTitle</h4>
@@ -40,6 +46,9 @@
     public string? CurrentMetadata { get; set; }
 
     [Parameter]
+    public Resource? CurrentResource { get; set; }
+
+    [Parameter]
     public string UsedByTitle { get; set; } = "Used by";
 
     [Parameter]
@@ -67,42 +76,62 @@
             @foreach (var node in nodes)
             {
                 <div class="@GetNodeClass(node)">
-                    <strong>
-                        @if (string.IsNullOrWhiteSpace(node.Href))
-                        {
-                            @node.Label
-                        }
-                        else
-                        {
-                            <a class="resource-link" href="@node.Href">
-                                @node.Label
-                            </a>
-                        }
-                    </strong>
-                    @if (!string.IsNullOrWhiteSpace(node.Summary))
+                    @if (node.Resource is not null)
                     {
-                        <span>@node.Summary</span>
+                        <ResourceIcon Resource="node.Resource" />
                     }
-                    @if (!string.IsNullOrWhiteSpace(node.Metadata))
-                    {
-                        <small>@node.Metadata</small>
-                    }
-                    @if (node.NodeActions.Count > 0)
-                    {
-                        <div class="resource-relationship-actions">
-                            @foreach (var action in node.NodeActions)
+                    <span class="resource-relationship-node-content">
+                        <strong>
+                            @if (string.IsNullOrWhiteSpace(node.Href))
                             {
-                                <a class="resource-link" href="@action.Href">@action.Label</a>
+                                @node.Label
                             }
-                        </div>
-                    }
+                            else
+                            {
+                                <a class="resource-link" href="@node.Href">
+                                    @node.Label
+                                </a>
+                            }
+                        </strong>
+                        @if (!string.IsNullOrWhiteSpace(node.Summary))
+                        {
+                            <span>@node.Summary</span>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(node.Metadata))
+                        {
+                            <small>@node.Metadata</small>
+                        }
+                        @if (node.NodeActions.Count > 0)
+                        {
+                            <div class="resource-relationship-actions">
+                                @foreach (var action in node.NodeActions)
+                                {
+                                    <a class="resource-link" href="@action.Href">@action.Label</a>
+                                }
+                            </div>
+                        }
+                    </span>
                 </div>
             }
         }
     </text>;
 
-    private static string GetNodeClass(ResourceRelationshipNode node) =>
-        node.IsMissing
+    private static string GetNodeClass(ResourceRelationshipNode node)
+    {
+        var nodeClass = node.IsMissing
             ? "resource-relationship-node missing"
             : "resource-relationship-node";
+
+        if (node.Resource is not null)
+        {
+            nodeClass += " with-icon";
+        }
+
+        return nodeClass;
+    }
+
+    private string CurrentClass =>
+        CurrentResource is null
+            ? "resource-relationship-current"
+            : "resource-relationship-current with-icon";
 }

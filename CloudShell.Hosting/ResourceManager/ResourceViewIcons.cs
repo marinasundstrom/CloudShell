@@ -32,7 +32,7 @@ internal static class ResourceViewIcons
             "entries" => new Icons.Regular.Size20.DocumentBulletList(),
             "secrets" => new Icons.Regular.Size20.KeyMultiple(),
             "database-item" or "databases" => new Icons.Regular.Size20.Database(),
-            _ => ResourceTypeIcons.FromName(normalized)
+            _ => CloudShell.Components.ResourceTypeIcons.FromName(normalized)
         };
     }
 }
