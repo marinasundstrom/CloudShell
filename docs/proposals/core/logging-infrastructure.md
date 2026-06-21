@@ -107,9 +107,21 @@ domain shape is:
   authorized, queried, read, streamed, and rendered.
 - `ILogProvider`: integration point that contributes and accesses projected
   log sources, rather than being conceptually "the log" itself.
+- `ILogSourceSession`: provider-owned runtime access context materialized when
+  a source is read or streamed.
 - parser/format metadata: a separate concern that tells CloudShell how to
   interpret records from a source when a provider does not return fully shaped
   entries.
+
+During migration, providers can continue to contribute `LogDescriptor` values
+for descriptor-based read and stream operations. The provider contract can
+also expose projected `LogSource` metadata directly, with descriptor-backed
+providers bridged into sources by default. This lets source discovery evolve
+without forcing every provider to rewrite read and stream operations at once.
+Providers can also materialize a log-source session when a source is accessed,
+which keeps discovery metadata separate from runtime handles such as file
+readers, process or container streams, remote cursors, credentials, offsets, or
+collector-specific query contexts.
 
 `ResourceLogSource` belongs to the resource model, like `ResourceHealthCheck`.
 It is a discovery contract: CloudShell and the Control Plane use it to discover
@@ -165,6 +177,17 @@ Plane exposes log-source discovery separately from the existing descriptor-based
 read/stream APIs while the Logs UI continues to use descriptors. This
 lets the Logs UI group by resource while still supporting future provider pages
 or global log views that are not strictly resource-scoped.
+
+Reading or streaming a source should go through a materialized
+`ILogSourceSession`. The session is not a persisted domain object; it is the
+provider-owned access boundary created for a particular read or stream
+operation. This keeps source discovery stable while allowing providers to open
+files, attach to process or container streams, acquire remote cursors, bind
+collector query windows, and release those resources when the operation ends.
+Descriptor-backed providers are bridged into sessions during migration. API
+clients should continue to address stable source IDs; the Control Plane can
+project the same session-backed access through polling endpoints, server-sent
+events, or WebSocket streams without exposing provider-specific handles.
 
 `LogEntry` keeps the familiar text log shape of timestamp, message, severity,
 and source, but now also supports optional structured fields using common logging

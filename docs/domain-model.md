@@ -744,7 +744,13 @@ In code:
 - `ILogManager` is the public domain abstraction.
 - `ILogStore` is the internal Control Plane implementation store.
 - `ILogProvider` is the provider contract for contributing and accessing log
-  sources.
+  sources. Providers may contribute projected `LogSource` metadata directly,
+  while descriptor-backed providers are bridged into sources during the
+  transition.
+- `ILogSourceSession` is the provider-owned runtime access context materialized
+  when a source is read or streamed. It keeps source discovery separate from
+  file handles, process or container streams, remote cursors, and collector
+  query contexts.
 - `ResourceLogSource` is the resource-model discovery declaration for a log
   source, similar to `ResourceHealthCheck` for health checks. It records
   whether the source is provider default or custom, and can point at runtime

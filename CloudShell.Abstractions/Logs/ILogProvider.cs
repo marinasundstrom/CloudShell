@@ -8,6 +8,23 @@ public interface ILogProvider
 
     IReadOnlyList<LogDescriptor> GetLogs();
 
+    IReadOnlyList<LogSource> GetLogSources() =>
+        GetLogs()
+            .Select(log => log.ToLogSource())
+            .ToArray();
+
+    ValueTask<ILogSourceSession?> OpenLogSourceAsync(
+        string logSourceId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var source = GetLogSources().FirstOrDefault(source =>
+            string.Equals(source.Id, logSourceId, StringComparison.OrdinalIgnoreCase));
+
+        return ValueTask.FromResult<ILogSourceSession?>(
+            source is null ? null : new DelegatingLogSourceSession(this, source.Id));
+    }
+
     Task<IReadOnlyList<LogEntry>> ReadLogAsync(
         string logId,
         int maxEntries = 200,

@@ -59,6 +59,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Log descriptor API responses now carry source kind, format, storage,
   capability, origin, purpose, and availability metadata so descriptor-based
   consumers stay aligned with log-source discovery.
+- `ILogProvider` can now expose projected `LogSource` metadata directly, with
+  descriptor-backed providers bridged into source discovery by default.
+- `ILogSourceSession` now represents the provider-owned runtime access context
+  used when reading or streaming a projected log source.
 
 ### 2026-06-20
 

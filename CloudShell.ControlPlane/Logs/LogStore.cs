@@ -41,8 +41,15 @@ public sealed class LogStore(
             .SelectMany(provider => provider.GetLogs())
             .Where(log => log.ResourceId is null || visibleResourceIds.Contains(log.ResourceId))
             .ToArray();
+        var providerSources = Providers
+            .SelectMany(provider => provider.GetLogSources())
+            .Where(source => source.ResourceId is null || visibleResourceIds.Contains(source.ResourceId))
+            .ToArray();
+        var providerSourceIds = providerSources
+            .Select(source => source.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var projected = new List<LogSource>();
-        var matchedDescriptors = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var matchedSourceIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var resource in resources)
         {
@@ -50,17 +57,31 @@ public sealed class LogStore(
             {
                 var descriptor = descriptors.FirstOrDefault(descriptor =>
                     IsMatchingSource(resource, source, descriptor));
+                var providerSource = descriptor is null
+                    ? providerSources.FirstOrDefault(providerSource =>
+                        IsMatchingSource(resource, source, providerSource))
+                    : providerSources.FirstOrDefault(providerSource =>
+                        string.Equals(providerSource.Id, descriptor.Id, StringComparison.OrdinalIgnoreCase));
                 if (descriptor is not null)
                 {
-                    matchedDescriptors.Add(descriptor.Id);
+                    matchedSourceIds.Add(descriptor.Id);
+                }
+                if (providerSource is not null)
+                {
+                    matchedSourceIds.Add(providerSource.Id);
                 }
 
-                projected.Add(ToLogSource(resource, source, descriptor));
+                projected.Add(ToLogSource(resource, source, descriptor, providerSource));
             }
         }
 
+        projected.AddRange(providerSources
+            .Where(source => !matchedSourceIds.Contains(source.Id)));
+
         projected.AddRange(descriptors
-            .Where(descriptor => !matchedDescriptors.Contains(descriptor.Id))
+            .Where(descriptor =>
+                !matchedSourceIds.Contains(descriptor.Id) &&
+                !providerSourceIds.Contains(descriptor.Id))
             .Select(descriptor => descriptor.ToLogSource()));
 
         return projected
@@ -85,9 +106,10 @@ public sealed class LogStore(
     {
         foreach (var provider in Providers)
         {
-            if (provider.GetLogs().Any(log => string.Equals(log.Id, logId, StringComparison.OrdinalIgnoreCase)))
+            await using var session = await OpenProviderLogSourceAsync(provider, logId, cancellationToken);
+            if (session is not null)
             {
-                return await provider.ReadLogAsync(logId, maxEntries, before, cancellationToken);
+                return await session.ReadAsync(maxEntries, before, cancellationToken);
             }
         }
 
@@ -101,19 +123,24 @@ public sealed class LogStore(
     {
         foreach (var provider in Providers)
         {
-            var log = provider.GetLogs().FirstOrDefault(log =>
-                string.Equals(log.Id, logId, StringComparison.OrdinalIgnoreCase));
-            if (log is null)
+            var source = GetProviderLogSource(provider, logId);
+            if (source is null)
             {
                 continue;
             }
 
-            if (!log.SupportsStreaming)
+            if (!source.SupportsStreaming)
             {
                 yield break;
             }
 
-            await foreach (var entry in provider.StreamLogAsync(logId, initialEntries, cancellationToken))
+            await using var session = await provider.OpenLogSourceAsync(logId, cancellationToken);
+            if (session is null)
+            {
+                yield break;
+            }
+
+            await foreach (var entry in session.StreamAsync(initialEntries, cancellationToken))
             {
                 yield return entry;
             }
@@ -141,26 +168,48 @@ public sealed class LogStore(
             .Any(type => type.IsAssignableFrom(providerType));
     }
 
+    private static async ValueTask<ILogSourceSession?> OpenProviderLogSourceAsync(
+        ILogProvider provider,
+        string logSourceId,
+        CancellationToken cancellationToken)
+    {
+        if (GetProviderLogSource(provider, logSourceId) is null)
+        {
+            return null;
+        }
+
+        return await provider.OpenLogSourceAsync(logSourceId, cancellationToken);
+    }
+
+    private static LogSource? GetProviderLogSource(
+        ILogProvider provider,
+        string logSourceId) =>
+        provider.GetLogSources().FirstOrDefault(source =>
+            string.Equals(source.Id, logSourceId, StringComparison.OrdinalIgnoreCase));
+
     private static LogSource ToLogSource(
         Resource resource,
         ResourceLogSource source,
-        LogDescriptor? descriptor)
+        LogDescriptor? descriptor,
+        LogSource? providerSource)
     {
         var descriptorSource = descriptor?.ToLogSource();
         return new LogSource(
-            descriptor?.Id ?? GetResourceLogSourceId(resource.Id, source.Id),
+            descriptor?.Id ?? providerSource?.Id ?? GetResourceLogSourceId(resource.Id, source.Id),
             source.Name,
-            descriptorSource?.Provider ?? resource.Provider,
-            descriptorSource?.SourceName ?? resource.Name,
-            descriptorSource?.SourceKind ?? LogSourceKind.Resource,
+            providerSource?.Provider ?? descriptorSource?.Provider ?? resource.Provider,
+            providerSource?.SourceName ?? descriptorSource?.SourceName ?? resource.Name,
+            providerSource?.SourceKind ?? descriptorSource?.SourceKind ?? LogSourceKind.Resource,
             source.Kind,
             source.Format,
             source.Storage,
-            descriptorSource is null
+            descriptorSource is null && providerSource is null
                 ? source.Capabilities
-                : source.Capabilities | descriptorSource.Capabilities,
+                : source.Capabilities |
+                    (descriptorSource?.Capabilities ?? LogSourceCapabilities.None) |
+                    (providerSource?.Capabilities ?? LogSourceCapabilities.None),
             resource.Id,
-            descriptorSource?.ArtifactId,
+            providerSource?.ArtifactId ?? descriptorSource?.ArtifactId,
             source.Location,
             source.ProducerResourceId,
             source.Description,
@@ -177,6 +226,15 @@ public sealed class LogStore(
         string.Equals(descriptor.ResourceId, resource.Id, StringComparison.OrdinalIgnoreCase) &&
         descriptor.Kind == source.Kind &&
         (string.Equals(descriptor.Name, source.Name, StringComparison.OrdinalIgnoreCase) ||
+            source.Purpose == ResourceLogSourcePurpose.Default);
+
+    private static bool IsMatchingSource(
+        Resource resource,
+        ResourceLogSource source,
+        LogSource providerSource) =>
+        string.Equals(providerSource.ResourceId, resource.Id, StringComparison.OrdinalIgnoreCase) &&
+        providerSource.Kind == source.Kind &&
+        (string.Equals(providerSource.Name, source.Name, StringComparison.OrdinalIgnoreCase) ||
             source.Purpose == ResourceLogSourcePurpose.Default);
 
     private static string GetResourceLogSourceId(string resourceId, string sourceId) =>
