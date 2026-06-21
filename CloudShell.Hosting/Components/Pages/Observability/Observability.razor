@@ -263,7 +263,7 @@ else
         string resourceId)
     {
         var normalizedName = string.IsNullOrWhiteSpace(serviceName)
-            ? resourceId
+            ? ResourceDisplayLabels.GetName(resourceId)
             : serviceName.Trim();
 
         if (!services.TryGetValue(normalizedName, out var service))

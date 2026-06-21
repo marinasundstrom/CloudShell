@@ -55,6 +55,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Observability and log views now use resource-name fallbacks instead of raw
   resource IDs when a telemetry/log source references a resource that is not
   present in the current resource snapshot.
+- Resource Manager relationship pills, restart prompts, and the observability
+  overview now use resource-name fallbacks instead of raw resource IDs when
+  the referenced resource cannot be resolved.
 - Re-aligned the local-development MVP queue around Application Topology
   repeatability, resource-name-first UI messages, exposure/name-mapping link
   clarity, host-scoped lifecycle cleanup, process/Docker diagnostics, guarded

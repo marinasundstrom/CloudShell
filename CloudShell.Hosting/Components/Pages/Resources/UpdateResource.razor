@@ -578,7 +578,7 @@
         var resourceName = Resource is not null &&
             string.Equals(resourceId, Resource.Id, StringComparison.OrdinalIgnoreCase)
             ? GetResourceLabel(Resource)
-            : resourceId;
+            : ResourceDisplayLabels.GetName(resourceId);
         var message = string.IsNullOrWhiteSpace(result.RestartMessage)
             ? L["This change requires a restart before it takes effect."].Value
             : result.RestartMessage;

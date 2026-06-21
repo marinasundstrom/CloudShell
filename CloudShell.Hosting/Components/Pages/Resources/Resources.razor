@@ -1930,7 +1930,7 @@ resourceGroups) =>
         var resource = FindResource(resourceId);
         if (resource is null)
         {
-            return @<ResourcePillLink Label="@resourceId"
+            return @<ResourcePillLink Label="@GetFallbackResourceLabel(resourceId)"
                                       Metadata="@L["Missing resource"].Value" />;
         }
 
