@@ -138,6 +138,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Configuration, host-configuration, and Secrets Vault resource declarations
   now keep resource names separate from display names so lifecycle and startup
   diagnostics use the actual resource name.
+- The Application Topology sample app settings now expose debug-level
+  Resource Manager local process and Docker host diagnostic category toggles.
 - Docker-backed application operations now log container-host command start,
   completion, and release messages at debug level with the full command
   arguments.
