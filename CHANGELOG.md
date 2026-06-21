@@ -63,6 +63,9 @@ on `git blame --follow`, and then by the broad type of change.
   descriptor-backed providers bridged into source discovery by default.
 - `ILogSourceSession` now represents the provider-owned runtime access context
   used when reading or streaming a projected log source.
+- The Control Plane domain API, HTTP API, and remote client now expose
+  source-addressed log metadata, read, and stream operations under
+  `log-sources`.
 
 ### 2026-06-20
 

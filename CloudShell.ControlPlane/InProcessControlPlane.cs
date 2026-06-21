@@ -828,6 +828,15 @@ public sealed class InProcessControlPlane(
         return Task.FromResult(ApplyQuery(GetReadableLogSources(), query));
     }
 
+    public Task<LogSource?> GetLogSourceAsync(
+        string logSourceId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        EnsureCanReadLogs();
+        return Task.FromResult(GetReadableLogSource(logSourceId));
+    }
+
     public Task<IReadOnlyList<ResourceEvent>> ListResourceEventsAsync(
         ResourceEventQuery? query = null,
         CancellationToken cancellationToken = default)
@@ -867,16 +876,22 @@ public sealed class InProcessControlPlane(
     public Task<IReadOnlyList<LogEntry>> ReadLogAsync(
         string logId,
         ReadLogOptions? options = null,
+        CancellationToken cancellationToken = default) =>
+        ReadLogSourceAsync(logId, options, cancellationToken);
+
+    public Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
+        string logSourceId,
+        ReadLogOptions? options = null,
         CancellationToken cancellationToken = default)
     {
         EnsureCanReadLogs();
-        if (GetReadableLog(logId) is null)
+        if (GetReadableLogSource(logSourceId) is null)
         {
             return Task.FromResult<IReadOnlyList<LogEntry>>([]);
         }
 
         return logs.ReadLogAsync(
-            logId,
+            logSourceId,
             options?.MaxEntries ?? 200,
             options?.Before,
             cancellationToken);
@@ -885,15 +900,21 @@ public sealed class InProcessControlPlane(
     public IAsyncEnumerable<LogEntry> StreamLogAsync(
         string logId,
         StreamLogOptions? options = null,
+        CancellationToken cancellationToken = default) =>
+        StreamLogSourceAsync(logId, options, cancellationToken);
+
+    public IAsyncEnumerable<LogEntry> StreamLogSourceAsync(
+        string logSourceId,
+        StreamLogOptions? options = null,
         CancellationToken cancellationToken = default)
     {
         EnsureCanReadLogs();
-        if (GetReadableLog(logId) is null)
+        if (GetReadableLogSource(logSourceId) is null)
         {
             return AsyncEnumerable.Empty<LogEntry>();
         }
 
-        return logs.StreamLogAsync(logId, options?.InitialEntries ?? 50, cancellationToken);
+        return logs.StreamLogAsync(logSourceId, options?.InitialEntries ?? 50, cancellationToken);
     }
 
     public Task<IReadOnlyList<TraceSpan>> ListTraceSpansAsync(
@@ -1280,6 +1301,10 @@ public sealed class InProcessControlPlane(
     private LogDescriptor? GetReadableLog(string logId) =>
         GetReadableLogs()
             .FirstOrDefault(log => string.Equals(log.Id, logId, StringComparison.OrdinalIgnoreCase));
+
+    private LogSource? GetReadableLogSource(string logSourceId) =>
+        GetReadableLogSources()
+            .FirstOrDefault(source => string.Equals(source.Id, logSourceId, StringComparison.OrdinalIgnoreCase));
 
     private HashSet<string> GetReadableResourceIds() =>
         resourceManager.GetResources()

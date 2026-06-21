@@ -121,7 +121,10 @@ without forcing every provider to rewrite read and stream operations at once.
 Providers can also materialize a log-source session when a source is accessed,
 which keeps discovery metadata separate from runtime handles such as file
 readers, process or container streams, remote cursors, credentials, offsets, or
-collector-specific query contexts.
+collector-specific query contexts. Session ownership stays with the provider:
+the provider decides whether multiple consumers share a background tailer,
+cursor, file reader, or remote subscription, and exposes entries through the
+common session contract.
 
 `ResourceLogSource` belongs to the resource model, like `ResourceHealthCheck`.
 It is a discovery contract: CloudShell and the Control Plane use it to discover
@@ -181,13 +184,23 @@ or global log views that are not strictly resource-scoped.
 Reading or streaming a source should go through a materialized
 `ILogSourceSession`. The session is not a persisted domain object; it is the
 provider-owned access boundary created for a particular read or stream
-operation. This keeps source discovery stable while allowing providers to open
-files, attach to process or container streams, acquire remote cursors, bind
-collector query windows, and release those resources when the operation ends.
-Descriptor-backed providers are bridged into sessions during migration. API
-clients should continue to address stable source IDs; the Control Plane can
-project the same session-backed access through polling endpoints, server-sent
-events, or WebSocket streams without exposing provider-specific handles.
+operation. It can carry provider-visible session identity and status while
+keeping source discovery stable. Providers own the session implementation and
+the optimization policy behind it: a provider may open files, attach to
+process or container streams, acquire remote cursors, bind collector query
+windows, fan out one background reader to many consumers, and release those
+resources when the operation ends. Descriptor-backed providers are bridged into
+sessions during migration. API clients should continue to address stable source
+IDs; the Control Plane can project the same session-backed access through
+polling endpoints, server-sent events, or WebSocket streams without exposing
+provider-specific handles.
+
+For example, a future `LogFileProvider` could keep one tracked reader per
+physical log file, maintain the file offset and tail status internally, and
+attach multiple `ILogSourceSession` consumers to that reader. Individual
+sessions would then represent access, authorization, cursor, and lifecycle for
+each consumer without forcing the provider to reread the same file for every
+connected UI tab, API client, or background integration.
 
 `LogEntry` keeps the familiar text log shape of timestamp, message, severity,
 and source, but now also supports optional structured fields using common logging

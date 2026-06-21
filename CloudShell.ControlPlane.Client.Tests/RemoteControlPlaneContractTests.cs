@@ -20,6 +20,8 @@ namespace CloudShell.ControlPlane.Client.Tests;
 public sealed class RemoteControlPlaneContractTests
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
+    private const string ProviderDiagnosticsLogSourceId = "contract:provider-diagnostics";
+    private const string ProviderDiagnosticsMessage = "Provider diagnostics are available.";
 
     [Fact]
     public async Task RemoteControlPlane_ListsSeededResourcesAndGroups()
@@ -652,6 +654,39 @@ public sealed class RemoteControlPlaneContractTests
     }
 
     [Fact]
+    public async Task RemoteControlPlane_ReadsProviderProjectedLogSource()
+    {
+        await using var app = await CreateAppAsync(includeProviderLogSource: true);
+        var controlPlane = CreateClient(app);
+
+        var source = await controlPlane.GetLogSourceAsync(ProviderDiagnosticsLogSourceId);
+        var sources = await controlPlane.ListLogSourcesAsync(new LogQuery(SourceKind: LogSourceKind.Provider));
+        var entries = await controlPlane.ReadLogSourceAsync(ProviderDiagnosticsLogSourceId);
+        var streamedEntries = new List<LogEntry>();
+        await foreach (var entry in controlPlane.StreamLogSourceAsync(
+            ProviderDiagnosticsLogSourceId,
+            new StreamLogOptions(InitialEntries: 1)))
+        {
+            streamedEntries.Add(entry);
+        }
+        using var httpClient = app.GetTestClient();
+        var response = await httpClient.GetAsync(
+            $"/api/control-plane/v1/log-sources/{Uri.EscapeDataString(ProviderDiagnosticsLogSourceId)}/entries");
+
+        Assert.NotNull(source);
+        Assert.Equal(ProviderDiagnosticsLogSourceId, source.Id);
+        Assert.Equal(LogSourceKind.Provider, source.SourceKind);
+        Assert.True(source.SupportsStreaming);
+        Assert.Contains(sources, candidate => candidate.Id == ProviderDiagnosticsLogSourceId);
+        Assert.Equal(ProviderDiagnosticsMessage, Assert.Single(entries).Message);
+        Assert.Equal(ProviderDiagnosticsMessage, Assert.Single(streamedEntries).Message);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var rawEntries = await response.Content.ReadFromJsonAsync<IReadOnlyList<LogEntryResponse>>(SerializerOptions);
+        Assert.NotNull(rawEntries);
+        Assert.Equal(ProviderDiagnosticsMessage, Assert.Single(rawEntries).Message);
+    }
+
+    [Fact]
     public async Task RemoteControlPlane_UpdatesResourceImage()
     {
         await using var app = await CreateAppAsync(includeImageResource: true);
@@ -875,6 +910,9 @@ public sealed class RemoteControlPlaneContractTests
             .TryGetProperty("/api/control-plane/v1/log-sources", out _));
 
         var paths = root.GetProperty("paths");
+        Assert.True(paths.TryGetProperty("/api/control-plane/v1/log-sources/{logSourceId}", out _));
+        Assert.True(paths.TryGetProperty("/api/control-plane/v1/log-sources/{logSourceId}/entries", out _));
+        Assert.True(paths.TryGetProperty("/api/control-plane/v1/log-sources/{logSourceId}/stream", out _));
         Assert.False(paths.TryGetProperty("/api/control-plane/v1/resources/{resourceId}/image", out _));
         Assert.True(paths.TryGetProperty("/api/container-apps/v1/{containerAppId}/revisions", out _));
         Assert.True(paths.TryGetProperty("/api/container-apps/v1/{containerAppId}/replicas", out _));
@@ -1280,7 +1318,8 @@ public sealed class RemoteControlPlaneContractTests
         bool includeLoadBalancer = false,
         bool includeStatelessResource = false,
         bool includeResolutionFailureResource = false,
-        bool includeRuntimeResource = false)
+        bool includeRuntimeResource = false,
+        bool includeProviderLogSource = false)
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(contentRoot);
@@ -1334,6 +1373,10 @@ public sealed class RemoteControlPlaneContractTests
         if (includeRuntimeResource)
         {
             builder.Services.AddSingleton<IResourceProvider, ContractRuntimeResourceProvider>();
+        }
+        if (includeProviderLogSource)
+        {
+            builder.Services.AddSingleton<ILogProvider, ContractProviderLogProvider>();
         }
 
         controlPlane.Resources(resources =>
@@ -1437,6 +1480,85 @@ public sealed class RemoteControlPlaneContractTests
     private static bool HasAttribute(LogEntry entry, string key, string value) =>
         entry.Attributes?.TryGetValue(key, out var actual) is true &&
         string.Equals(actual, value, StringComparison.Ordinal);
+
+    private sealed class ContractProviderLogProvider : ILogProvider
+    {
+        public string Id => "contract.provider-logs";
+
+        public string DisplayName => "Contract Provider Logs";
+
+        public IReadOnlyList<LogDescriptor> GetLogs() => [];
+
+        public IReadOnlyList<LogSource> GetLogSources() =>
+        [
+            new(
+                ProviderDiagnosticsLogSourceId,
+                "Provider diagnostics",
+                DisplayName,
+                "Contract provider",
+                LogSourceKind.Provider,
+                ResourceLogSourceKind.ProviderDefined,
+                Capabilities: LogSourceCapabilities.Read | LogSourceCapabilities.Stream,
+                Origin: ResourceLogSourceOrigin.ProviderProjected,
+                Availability: LogSourceAvailability.Always)
+        ];
+
+        public ValueTask<ILogSourceSession?> OpenLogSourceAsync(
+            string logSourceId,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<ILogSourceSession?>(
+                string.Equals(logSourceId, ProviderDiagnosticsLogSourceId, StringComparison.OrdinalIgnoreCase)
+                    ? new ContractProviderLogSourceSession()
+                    : null);
+
+        public Task<IReadOnlyList<LogEntry>> ReadLogAsync(
+            string logId,
+            int maxEntries = 200,
+            DateTimeOffset? before = null,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<LogEntry>>([]);
+    }
+
+    private sealed class ContractProviderLogSourceSession : ILogSourceSession
+    {
+        private static readonly LogEntry Entry = new(
+            DateTimeOffset.Parse("2026-06-21T12:00:00Z"),
+            ProviderDiagnosticsMessage,
+            "Information",
+            "Contract provider");
+
+        public string Id { get; } = Guid.NewGuid().ToString("N");
+
+        public string SourceId => ProviderDiagnosticsLogSourceId;
+
+        public LogSourceSessionStatus Status { get; private set; } = LogSourceSessionStatus.Active;
+
+        public Task<IReadOnlyList<LogEntry>> ReadAsync(
+            int maxEntries = 200,
+            DateTimeOffset? before = null,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<LogEntry>>([Entry]);
+
+        public async IAsyncEnumerable<LogEntry> StreamAsync(
+            int initialEntries = 50,
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            if (initialEntries <= 0)
+            {
+                yield break;
+            }
+
+            await Task.Yield();
+            cancellationToken.ThrowIfCancellationRequested();
+            yield return Entry;
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            Status = LogSourceSessionStatus.Closed;
+            return ValueTask.CompletedTask;
+        }
+    }
 
     private sealed class ContractIdentityProviderSetupHandler : IResourceIdentityProviderSetupHandler
     {

@@ -749,8 +749,9 @@ In code:
   transition.
 - `ILogSourceSession` is the provider-owned runtime access context materialized
   when a source is read or streamed. It keeps source discovery separate from
-  file handles, process or container streams, remote cursors, and collector
-  query contexts.
+  access status, file handles, process or container streams, remote cursors,
+  collector query contexts, and provider-owned fan-out or shared-reader
+  optimizations.
 - `ResourceLogSource` is the resource-model discovery declaration for a log
   source, similar to `ResourceHealthCheck` for health checks. It records
   whether the source is provider default or custom, and can point at runtime

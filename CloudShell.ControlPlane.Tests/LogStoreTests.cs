@@ -152,7 +152,11 @@ public sealed class LogStoreTests
 
     private sealed class TestLogSourceSession(string sourceId) : ILogSourceSession
     {
+        public string Id { get; } = Guid.NewGuid().ToString("N");
+
         public string SourceId => sourceId;
+
+        public LogSourceSessionStatus Status { get; private set; } = LogSourceSessionStatus.Active;
 
         public Task<IReadOnlyList<LogEntry>> ReadAsync(
             int maxEntries = 200,
@@ -174,7 +178,11 @@ public sealed class LogStoreTests
             yield return ProviderProjectedEntry;
         }
 
-        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        public ValueTask DisposeAsync()
+        {
+            Status = LogSourceSessionStatus.Closed;
+            return ValueTask.CompletedTask;
+        }
     }
 
     private sealed class TestResourceManagerStore(IReadOnlyList<Resource> resources) : IResourceManagerStore

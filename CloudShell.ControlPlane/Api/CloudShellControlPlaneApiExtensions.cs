@@ -179,6 +179,15 @@ public static class CloudShellControlPlaneApiExtensions
             .WithName("CloudShellControlPlane_ListLogSources")
             .Produces<LogSourceResponse[]>(StatusCodes.Status200OK);
 
+        api.MapGet("/log-sources/{logSourceId}", GetLogSource)
+            .WithName("CloudShellControlPlane_GetLogSource");
+
+        api.MapGet("/log-sources/{logSourceId}/entries", ReadLogSourceEntries)
+            .WithName("CloudShellControlPlane_ReadLogSourceEntries");
+
+        api.MapGet("/log-sources/{logSourceId}/stream", StreamLogSourceEntries)
+            .WithName("CloudShellControlPlane_StreamLogSourceEntries");
+
         api.MapGet("/resource-events", ListResourceEvents)
             .WithName("CloudShellControlPlane_ListResourceEvents")
             .Produces<ResourceEventResponse[]>(StatusCodes.Status200OK);
@@ -1054,6 +1063,97 @@ public static class CloudShellControlPlaneApiExtensions
             return log is null
                 ? Results.NotFound()
                 : Results.Ok(log.ToResponse());
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            return ToProblem(exception);
+        }
+    }
+
+    private static async Task<IResult> GetLogSource(
+        string logSourceId,
+        ILogManager logs,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var source = await logs.GetLogSourceAsync(logSourceId, cancellationToken);
+            return source is null
+                ? Results.NotFound()
+                : Results.Ok(source.ToResponse());
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            return ToProblem(exception);
+        }
+    }
+
+    private static async Task<IResult> ReadLogSourceEntries(
+        string logSourceId,
+        int? maxEntries,
+        DateTimeOffset? before,
+        ILogManager logs,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (await logs.GetLogSourceAsync(logSourceId, cancellationToken) is null)
+            {
+                return Results.NotFound();
+            }
+
+            var entries = await logs.ReadLogSourceAsync(
+                logSourceId,
+                new ReadLogOptions(Math.Clamp(maxEntries ?? 200, 1, 1000), before),
+                cancellationToken);
+
+            return Results.Ok(entries.Select(entry => entry.ToResponse()).ToArray());
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            return ToProblem(exception);
+        }
+    }
+
+    private static async Task<IResult> StreamLogSourceEntries(
+        string logSourceId,
+        int? initialEntries,
+        ILogManager logs,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var source = await logs.GetLogSourceAsync(logSourceId, cancellationToken);
+            if (source is null)
+            {
+                return Results.NotFound();
+            }
+
+            if (!source.SupportsStreaming)
+            {
+                return Problem(
+                    StatusCodes.Status405MethodNotAllowed,
+                    "Log streaming is unavailable",
+                    "The selected log source does not support streaming.");
+            }
+
+            return Results.Stream(
+                async stream =>
+                {
+                    await foreach (var entry in logs.StreamLogSourceAsync(
+                        logSourceId,
+                        new StreamLogOptions(Math.Clamp(initialEntries ?? 50, 0, 1000)),
+                        cancellationToken))
+                    {
+                        await JsonSerializer.SerializeAsync(
+                            stream,
+                            entry.ToResponse(),
+                            cancellationToken: cancellationToken);
+                        await stream.WriteAsync("\n"u8.ToArray(), cancellationToken);
+                        await stream.FlushAsync(cancellationToken);
+                    }
+                },
+                "application/x-ndjson");
         }
         catch (UnauthorizedAccessException exception)
         {
