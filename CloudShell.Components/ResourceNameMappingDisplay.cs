@@ -72,7 +72,8 @@ public static class ResourceNameMappingDisplay
                 string.Equals(endpoint.Name, endpointName, StringComparison.OrdinalIgnoreCase)) ??
             targetResource.Endpoints.FirstOrDefault();
         if (endpoint is null ||
-            !targetResource.TryGetResolvedEndpointUri(endpoint, out var endpointUri))
+            !targetResource.TryGetResolvedEndpointUri(endpoint, out var endpointUri) ||
+            !IsHttpUri(endpointUri))
         {
             return null;
         }

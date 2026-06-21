@@ -17,9 +17,12 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
-- Name mapping host names now render as endpoint anchors when CloudShell can
-  resolve the target endpoint, and application overview endpoint rows show DNS
-  source metadata as muted text instead of appending it to the URL.
+- Mapped-resource DNS surfaces now render name mappings as endpoint anchors
+  only when CloudShell can resolve the mapped target endpoint as HTTP/HTTPS,
+  while name-mapping and DNS-zone overviews keep the name mapping itself
+  distinct from the resolved target URL. Application overview endpoint rows
+  also show DNS source metadata as muted text instead of appending it to the
+  URL.
 - Re-aligned the local-development MVP queue around Application Topology
   repeatability, resource-name-first UI messages, exposure/name-mapping link
   clarity, host-scoped lifecycle cleanup, process/Docker diagnostics, guarded

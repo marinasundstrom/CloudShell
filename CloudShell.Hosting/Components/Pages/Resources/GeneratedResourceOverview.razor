@@ -191,9 +191,17 @@
 
     private RenderFragment RenderNameMapping() => @<dl class="detail-list">
         <dt>@L["Host name"]</dt>
-        <dd>@NameMappingHostLink(Resource)</dd>
+        <dd>@ResourceNameMappingDisplay.GetHostName(Resource)</dd>
         <dt>@L["Target"]</dt>
         <dd>@NameMappingTargetReference(Resource)</dd>
+        @if (GetNameMappingEndpointAddress(Resource) is { } resolvedEndpoint)
+        {
+            <dt>@L["Resolved target endpoint"]</dt>
+            <dd>
+                <EndpointLink Address="@resolvedEndpoint" />
+                <small class="muted">@L["Projected from the target resource endpoint"]</small>
+            </dd>
+        }
         @if (!string.IsNullOrWhiteSpace(Resource.ParentResourceId))
         {
             <dt>@L["DNS zone"]</dt>
@@ -948,11 +956,6 @@
             ResourceNameMappingDisplay.GetHostName(mapping),
             GetResourceLabel(Resource),
             ResourceNameMappingDisplay.GetTargetEndpointName(mapping)].Value;
-
-    private RenderFragment NameMappingHostLink(Resource mapping) =>
-        @<EndpointLink Address="@GetNameMappingEndpointAddress(mapping)"
-                       Text="@ResourceNameMappingDisplay.GetHostName(mapping)"
-                       EmptyText="@ResourceNameMappingDisplay.GetHostName(mapping)" />;
 
     private string? GetNameMappingEndpointAddress(Resource mapping) =>
         ResourceNameMappingDisplay.GetMappedEndpointAddress(

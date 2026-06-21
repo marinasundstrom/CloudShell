@@ -45,12 +45,18 @@ else
                                       Summary="@GetMappingSummary(mapping)"
                                       Metadata="@GetMappingMetadata(mapping)">
                         <TitleContent>
-                            @NameMappingHostLink(mapping)
+                            <a class="resource-link" href="@BuildResourceRoute(mapping.Id, ResourcePredefinedViewIds.Overview)">
+                                @ResourceNameMappingDisplay.GetHostName(mapping)
+                            </a>
                         </TitleContent>
                         <ChildContent>
-                            <a class="resource-link" href="@BuildResourceRoute(mapping.Id, ResourcePredefinedViewIds.Overview)">
-                                @L["Open name mapping"]
-                            </a>
+                            @if (GetNameMappingEndpointAddress(mapping) is { } resolvedEndpoint)
+                            {
+                                <span class="inline-resource-reference">
+                                    <span class="muted">@L["Resolved target endpoint"]</span>
+                                    <EndpointLink Address="@resolvedEndpoint" />
+                                </span>
+                            }
                         </ChildContent>
                     </ResourceListItem>
                 }
@@ -132,11 +138,6 @@ else
 
         return string.Join(" - ", parts);
     }
-
-    private RenderFragment NameMappingHostLink(Resource mapping) =>
-        @<EndpointLink Address="@GetNameMappingEndpointAddress(mapping)"
-                       Text="@ResourceNameMappingDisplay.GetHostName(mapping)"
-                       EmptyText="@ResourceNameMappingDisplay.GetHostName(mapping)" />;
 
     private string? GetNameMappingEndpointAddress(Resource mapping)
     {
