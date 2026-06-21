@@ -23,7 +23,7 @@ authorize access to it.
 
 The sample Web API exposes `/service-discovery/configuration` to prove the
 current service discovery path end to end. That endpoint calls the Configuration
-Store through the logical URI `https+http://sample-app-settings`, using the Web
+Store through the logical URI `https+http://configuration-sample-app`, using the Web
 API resource identity token for authorization.
 
 The Web API also dogfoods the public-preview SDK clients and their

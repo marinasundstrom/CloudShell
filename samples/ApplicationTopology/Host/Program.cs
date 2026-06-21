@@ -41,6 +41,8 @@ var metricIngestEndpoint = builder.Configuration["Observability:MetricIngestEndp
     ?? $"{cloudShellEndpoint}/api/control-plane/v1/metrics/ingest";
 var frontendEndpoint = builder.Configuration["ApplicationTopology:FrontendEndpoint"]
     ?? "http://localhost:5218";
+var apiEndpoint = builder.Configuration["ApplicationTopology:ApiEndpoint"]
+    ?? "http://localhost:21422";
 var sqlPassword = builder.Configuration["ApplicationTopology:SqlServer:Password"]
     ?? ApplicationProviderServiceCollectionExtensions.DefaultSqlServerAdministratorPassword;
 var sqlPort = builder.Configuration.GetValue("ApplicationTopology:SqlServer:Port", 14334);
@@ -161,7 +163,8 @@ cloudShell.Resources(resources =>
 
     var api = resources.AddAspNetCoreProject(
         "application-topology-api",
-        "../Api/CloudShell.ApplicationTopologyApi.csproj")
+        "../Api/CloudShell.ApplicationTopologyApi.csproj",
+        endpoint: apiEndpoint)
         .WithIdentity(identityProvider, name: "application-topology-api")
         .WithHttpHealthCheck("/health")
         .WithHttpProbe(ResourceProbeType.Liveness, "/alive")

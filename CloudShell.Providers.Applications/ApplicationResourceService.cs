@@ -5112,7 +5112,7 @@ public sealed partial class ApplicationResourceService(
             var exitCode = await localProcesses.RunCommandAsync(
                 definition.Id,
                 "dotnet",
-                ["build", projectPath, "--nologo"],
+                ["build", projectPath, "--nologo", "--disable-build-servers"],
                 workingDirectory,
                 cancellationToken);
             if (exitCode != 0)

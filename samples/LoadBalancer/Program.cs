@@ -98,7 +98,7 @@ cloudShell.Resources(resources =>
         .UseContainerHost(dockerHost)
         .ExposeHttp(80)
         .ExposeHttps(443)
-        .ExposeTcp(5432, "postgres");
+        .ExposeTcp(5432);
 
     lb.MapHost("app.cloudshell.local", webApp, port: 80);
     lb.MapPath("api.cloudshell.local", "/v1", apiService, port: 80);

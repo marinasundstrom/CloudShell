@@ -412,6 +412,7 @@ public sealed class SampleSmokeTests
     [Fact]
     public async Task ApplicationTopologyHost_ProjectsSqlStorageAndServiceDiscoveryTopology()
     {
+        var apiPort = await GetFreePortAsync();
         var frontendPort = await GetFreePortAsync();
         var sqlPort = await GetFreePortAsync();
         var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:application-topology");
@@ -420,6 +421,7 @@ public sealed class SampleSmokeTests
             "samples/ApplicationTopology/Host/CloudShell.ApplicationTopologyHost.csproj",
             await GetFreePortAsync(),
             [
+                ("ApplicationTopology__ApiEndpoint", $"http://localhost:{apiPort}"),
                 ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
                 ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
                 ("ApplicationTopology__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
@@ -996,6 +998,7 @@ public sealed class SampleSmokeTests
     [Fact]
     public async Task ApplicationTopologyHost_RuntimeFailurePathReturnsCorrelatedProblemDetails()
     {
+        var apiPort = await GetFreePortAsync();
         var frontendPort = await GetFreePortAsync();
         var sqlPort = await GetFreePortAsync();
         var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:application-topology");
@@ -1004,6 +1007,7 @@ public sealed class SampleSmokeTests
             "samples/ApplicationTopology/Host/CloudShell.ApplicationTopologyHost.csproj",
             await GetFreePortAsync(),
             [
+                ("ApplicationTopology__ApiEndpoint", $"http://localhost:{apiPort}"),
                 ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
                 ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
                 ("ApplicationTopology__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
@@ -1110,6 +1114,7 @@ public sealed class SampleSmokeTests
             return;
         }
 
+        var apiPort = await GetFreePortAsync();
         var frontendPort = await GetFreePortAsync();
         var sqlPort = await GetFreePortAsync();
         var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:application-topology");
@@ -1118,6 +1123,7 @@ public sealed class SampleSmokeTests
             "samples/ApplicationTopology/Host/CloudShell.ApplicationTopologyHost.csproj",
             await GetFreePortAsync(),
             [
+                ("ApplicationTopology__ApiEndpoint", $"http://localhost:{apiPort}"),
                 ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
                 ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
                 ("ApplicationTopology__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
@@ -1183,6 +1189,7 @@ public sealed class SampleSmokeTests
             return;
         }
 
+        var apiPort = await GetFreePortAsync();
         var sqlPort = await GetFreePortAsync();
         var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:application-topology");
         var secretsServiceBasePort = await GetServiceBasePortAsync("secrets-vault:application-topology");
@@ -1195,6 +1202,7 @@ public sealed class SampleSmokeTests
                 "samples/ApplicationTopology/Host/CloudShell.ApplicationTopologyHost.csproj",
                 await GetFreePortAsync(),
                 [
+                    ("ApplicationTopology__ApiEndpoint", $"http://localhost:{apiPort}"),
                     ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
                     ("ApplicationTopology__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
                     ("ApplicationTopology__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture))
@@ -1414,7 +1422,7 @@ public sealed class SampleSmokeTests
             "connected",
             serviceDiscoveryDocument.RootElement.GetProperty("status").GetString());
         Assert.Equal(
-            "https+http://sample-app-settings",
+            "https+http://configuration-sample-app",
             serviceDiscoveryDocument.RootElement.GetProperty("source").GetString());
         var serviceDiscoveryEntries = serviceDiscoveryDocument.RootElement
             .GetProperty("entries")
@@ -2934,12 +2942,26 @@ public sealed class SampleSmokeTests
                 request.Headers.Authorization = new("Bearer", bearerToken);
             }
 
-            using var response = await client.SendAsync(request);
-            var body = await response.Content.ReadAsStringAsync();
-            Assert.True(
-                response.IsSuccessStatusCode,
-                $"{method} {path} returned {(int)response.StatusCode} {response.ReasonPhrase}: {body}");
-            return body;
+            HttpResponseMessage response;
+            try
+            {
+                response = await client.SendAsync(request);
+            }
+            catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
+            {
+                throw new InvalidOperationException(
+                    $"{method} {path} failed before a response was received.{Environment.NewLine}{GetOutput()}",
+                    exception);
+            }
+
+            using (response)
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                Assert.True(
+                    response.IsSuccessStatusCode,
+                    $"{method} {path} returned {(int)response.StatusCode} {response.ReasonPhrase}: {body}");
+                return body;
+            }
         }
 
         public async Task<string> SendJsonAsync(
