@@ -1203,6 +1203,17 @@ file sealed record LogResponse(
     LogSourceKind SourceKind,
     string? ResourceId,
     string? ArtifactId,
+    string? Description,
+    ResourceLogSourceKind Kind,
+    LogFormat Format,
+    LogStorageResponse Storage,
+    LogSourceCapabilities Capabilities,
+    string? Location,
+    string? ProducerResourceId,
+    ResourceLogSourceOrigin Origin,
+    LogSourceConfigurationResponse Configuration,
+    ResourceLogSourcePurpose Purpose,
+    LogSourceAvailability Availability,
     bool SupportsStreaming);
 
 file sealed record LogSourceResponse(
@@ -1636,7 +1647,20 @@ file static class RemoteControlPlaneMapper
             response.SourceKind,
             response.ResourceId,
             response.ArtifactId,
-            response.SupportsStreaming);
+            response.SupportsStreaming,
+            response.Description,
+            response.Kind,
+            response.Format,
+            response.Storage.ToLogStorage(),
+            response.SupportsStreaming
+                ? response.Capabilities | LogSourceCapabilities.Stream
+                : response.Capabilities,
+            response.Location,
+            response.ProducerResourceId,
+            response.Origin,
+            response.Configuration.ToLogSourceConfiguration(),
+            response.Purpose,
+            response.Availability);
 
     public static LogSource ToLogSource(this LogSourceResponse response) =>
         new(

@@ -557,6 +557,14 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(ResourceChangeKind.ResourceActionExecuted, notification.Kind);
         Assert.Equal("network:contract", notification.ResourceId);
         Assert.Equal(PlatformResourceProvider.ReconcileEndpointMappingsActionId, notification.ActionId);
+        var networkLogs = await controlPlane.ListLogsAsync(new LogQuery(ResourceId: "network:contract"));
+        var activityLog = Assert.Single(networkLogs, log => log.Name == "Activity");
+        Assert.Equal(ResourceLogSourceKind.Activity, activityLog.Kind);
+        Assert.Equal(LogFormat.ResourceEvent, activityLog.Format);
+        Assert.True(activityLog.Capabilities.HasFlag(LogSourceCapabilities.Read));
+        Assert.True(activityLog.Capabilities.HasFlag(LogSourceCapabilities.Query));
+        Assert.True(activityLog.Capabilities.HasFlag(LogSourceCapabilities.StructuredFields));
+        Assert.Equal(ResourceLogSourceOrigin.ProviderProjected, activityLog.Origin);
 
         var api = await controlPlane.GetResourceAsync(ContractNetworkingResourceProvider.ApiResourceId);
         Assert.NotNull(api);
@@ -844,6 +852,24 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(
             "#/components/schemas/ResourceResponse",
             listResources.GetProperty("items").GetProperty("$ref").GetString());
+        var listLogs = root
+            .GetProperty("paths")
+            .GetProperty("/api/control-plane/v1/logs")
+            .GetProperty("get")
+            .GetProperty("responses")
+            .GetProperty("200")
+            .GetProperty("content")
+            .GetProperty("application/json")
+            .GetProperty("schema");
+        var logSchemaRef = listLogs.GetProperty("items").GetProperty("$ref").GetString();
+        Assert.NotNull(logSchemaRef);
+        var logSchemaName = logSchemaRef[(logSchemaRef.LastIndexOf('/') + 1)..];
+        Assert.True(schemas.TryGetProperty(logSchemaName, out var logSchema));
+        var logProperties = logSchema.GetProperty("properties");
+        Assert.True(logProperties.TryGetProperty("kind", out _));
+        Assert.True(logProperties.TryGetProperty("format", out _));
+        Assert.True(logProperties.TryGetProperty("capabilities", out _));
+        Assert.True(logProperties.TryGetProperty("availability", out _));
         Assert.True(root
             .GetProperty("paths")
             .TryGetProperty("/api/control-plane/v1/log-sources", out _));

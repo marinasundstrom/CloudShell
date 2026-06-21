@@ -56,6 +56,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The Logs explorer now uses projected `LogSource` metadata for source kind,
   format, and availability labels while keeping descriptor-based read and
   stream operations in place.
+- Log descriptor API responses now carry source kind, format, storage,
+  capability, origin, purpose, and availability metadata so descriptor-based
+  consumers stay aligned with log-source discovery.
 
 ### 2026-06-20
 

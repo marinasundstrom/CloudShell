@@ -172,10 +172,12 @@ public static class CloudShellControlPlaneApiExtensions
             .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
 
         api.MapGet("/logs", ListLogs)
-            .WithName("CloudShellControlPlane_ListLogs");
+            .WithName("CloudShellControlPlane_ListLogs")
+            .Produces<LogResponse[]>(StatusCodes.Status200OK);
 
         api.MapGet("/log-sources", ListLogSources)
-            .WithName("CloudShellControlPlane_ListLogSources");
+            .WithName("CloudShellControlPlane_ListLogSources")
+            .Produces<LogSourceResponse[]>(StatusCodes.Status200OK);
 
         api.MapGet("/resource-events", ListResourceEvents)
             .WithName("CloudShellControlPlane_ListResourceEvents")
