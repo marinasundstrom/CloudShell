@@ -11,6 +11,14 @@
     <div class="command-surface">
         <LanguageSelector />
         <ThemeSelector />
+        <CloudShellCompositeAnchor Appearance="Appearance.Stealth"
+                                   Page="@ShellCompositionIds.SettingsPage"
+                                   Class="shell-settings-link"
+                                   RenderUnresolved="false"
+                                   aria-label="@L["Settings"]"
+                                   title="@L["Settings"]">
+            <ShellNavigationIcon Icon="settings" />
+        </CloudShellCompositeAnchor>
         <AuthorizeView>
             <Authorized Context="authentication">
                 <span class="signed-in-user">

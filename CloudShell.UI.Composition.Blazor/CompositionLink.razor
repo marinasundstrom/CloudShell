@@ -3,6 +3,7 @@
                  RouteParams="@RouteParams"
                  ChildContent="@ChildContent"
                  Unresolved="@Unresolved"
+                 RenderUnresolved="@RenderUnresolved"
                  AdditionalAttributes="@AdditionalAttributes" />
 
 @code {
@@ -20,6 +21,9 @@
 
     [Parameter]
     public RenderFragment? Unresolved { get; set; }
+
+    [Parameter]
+    public bool RenderUnresolved { get; set; } = true;
 
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
