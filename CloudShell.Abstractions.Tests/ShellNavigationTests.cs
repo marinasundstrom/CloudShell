@@ -259,6 +259,24 @@ public sealed class ShellNavigationTests
         Assert.Equal("/observability/service-map", registry.ResolveHref(ObservabilityCompositionIds.ServiceMapPage));
         Assert.Equal("/observability/traces", registry.ResolveHref(ObservabilityCompositionIds.TracesPage));
         Assert.Equal("/observability/metrics", registry.ResolveHref(ObservabilityCompositionIds.MetricsPage));
+        Assert.Equal(
+            ObservabilityAuthorization.AnyReadPermissions,
+            registry.GetPage(ObservabilityCompositionIds.OverviewPage)?.Authorization.AnyPermissions);
+        Assert.Equal(
+            ObservabilityAuthorization.LogsReadPermissions,
+            registry.GetPage(ObservabilityCompositionIds.LogsPage)?.Authorization.AnyPermissions);
+        Assert.Equal(
+            ObservabilityAuthorization.TracesReadPermissions,
+            registry.GetPage(ObservabilityCompositionIds.DependenciesPage)?.Authorization.AnyPermissions);
+        Assert.Equal(
+            ObservabilityAuthorization.TracesReadPermissions,
+            registry.GetPage(ObservabilityCompositionIds.ServiceMapPage)?.Authorization.AnyPermissions);
+        Assert.Equal(
+            ObservabilityAuthorization.TracesReadPermissions,
+            registry.GetPage(ObservabilityCompositionIds.TracesPage)?.Authorization.AnyPermissions);
+        Assert.Equal(
+            ObservabilityAuthorization.MetricsReadPermissions,
+            registry.GetPage(ObservabilityCompositionIds.MetricsPage)?.Authorization.AnyPermissions);
 
         var menu = registry.GetMenu(ShellCompositionIds.MainMenu);
         Assert.NotNull(menu);
