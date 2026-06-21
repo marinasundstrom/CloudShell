@@ -1656,7 +1656,7 @@ public sealed class ResourceDeclarationTests
         Assert.False(denied.IsResolved);
         Assert.Contains("is not allowed to read secrets", denied.ErrorMessage);
         Assert.Contains("Identity 'api/api-service'", denied.ErrorMessage);
-        Assert.Contains("Other Secrets", denied.ErrorMessage);
+        Assert.Contains("other", denied.ErrorMessage);
     }
 
     [Fact]
@@ -2101,7 +2101,7 @@ public sealed class ResourceDeclarationTests
             "Could not resolve configuration-entry reference for setting 'WELCOME_MESSAGE'.",
             reason);
         Assert.Contains(
-            "Configuration entry 'Missing' was not found in 'App Settings'.",
+            "Configuration entry 'Missing' was not found in 'app'.",
             reason);
     }
 
@@ -2169,7 +2169,7 @@ public sealed class ResourceDeclarationTests
             "Could not resolve secret reference for setting 'SAMPLE_API_KEY'.",
             reason);
         Assert.Contains(
-            "Secret 'missing' was not found in Secrets Vault 'App Secrets'.",
+            "Secret 'missing' was not found in Secrets Vault 'app'.",
             reason);
     }
 
@@ -4146,7 +4146,7 @@ public sealed class ResourceDeclarationTests
         Assert.False(denied.IsResolved);
         Assert.Contains("is not allowed to read configuration entries", denied.ErrorMessage);
         Assert.Contains("Identity 'api/api-service'", denied.ErrorMessage);
-        Assert.Contains("Other Settings", denied.ErrorMessage);
+        Assert.Contains("other", denied.ErrorMessage);
     }
 
     [Fact]

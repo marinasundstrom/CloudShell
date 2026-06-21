@@ -181,7 +181,7 @@ public sealed class ResourceDiagnosticDisplayTests
         Assert.Equal(ResourceSignalSeverity.Warning, diagnostic.Severity);
         Assert.Equal("DNS publisher unavailable", diagnostic.Title);
         Assert.Equal(
-            "Provider resource 'networking:missing' could not be found. CloudShell cannot verify that this name mapping can be published.",
+            "Provider resource 'missing' could not be found. CloudShell cannot verify that this name mapping can be published.",
             diagnostic.Message);
     }
 
@@ -365,7 +365,7 @@ public sealed class ResourceDiagnosticDisplayTests
         var diagnostic = Assert.Single(diagnostics);
         Assert.Equal(ResourceSignalSeverity.Warning, diagnostic.Severity);
         Assert.Equal("Name mapping target unavailable", diagnostic.Title);
-        Assert.Equal("Target resource 'application:api' could not be found.", diagnostic.Message);
+        Assert.Equal("Target resource 'api' could not be found.", diagnostic.Message);
     }
 
     [Fact]
@@ -432,7 +432,7 @@ public sealed class ResourceDiagnosticDisplayTests
         Assert.Equal(ResourceSignalSeverity.Warning, diagnostic.Severity);
         Assert.Equal("Endpoint mapping provider unavailable", diagnostic.Title);
         Assert.Equal(
-            "Mapping 'API' requires provider resource 'networking:missing', but that resource could not be found.",
+            "Mapping 'API' requires provider resource 'missing', but that resource could not be found.",
             diagnostic.Message);
     }
 
@@ -472,7 +472,7 @@ public sealed class ResourceDiagnosticDisplayTests
         Assert.Equal(ResourceSignalSeverity.Warning, diagnostic.Severity);
         Assert.Equal("Endpoint mapping target unavailable", diagnostic.Title);
         Assert.Equal(
-            "Mapping 'API' target resource 'application:api' could not be found.",
+            "Mapping 'API' target resource 'api' could not be found.",
             diagnostic.Message);
     }
 
@@ -510,7 +510,7 @@ public sealed class ResourceDiagnosticDisplayTests
         Assert.Equal(ResourceSignalSeverity.Warning, diagnostic.Severity);
         Assert.Equal("Load balancer host unavailable", diagnostic.Title);
         Assert.Equal(
-            "Container host resource 'docker:missing' could not be found. Provider-owned load balancer runtime may not be placeable.",
+            "Container host resource 'missing' could not be found. Provider-owned load balancer runtime may not be placeable.",
             diagnostic.Message);
     }
 
@@ -550,7 +550,7 @@ public sealed class ResourceDiagnosticDisplayTests
         Assert.Equal(ResourceSignalSeverity.Warning, diagnostic.Severity);
         Assert.Equal("Load balancer route target unavailable", diagnostic.Title);
         Assert.Equal(
-            "Route 'API' targets resource 'application:api', but that resource could not be found.",
+            "Route 'API' targets resource 'api', but that resource could not be found.",
             diagnostic.Message);
     }
 
