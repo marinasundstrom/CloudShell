@@ -224,6 +224,11 @@ hosting, and deployments.
   confidence, app-centric Resource Manager workflows, focused
   dependency/dependent comprehension, readiness diagnostics,
   settings/secrets/identity polish, and a clear persisted-state handoff.
+* Keep the next MVP run in stabilization mode. Prioritize concrete evidence
+  from Application Topology over new platform fronts: readable resource names
+  in routine messages, navigable exposure and DNS/name mapping details,
+  reliable host-scoped lifecycle cleanup, clear process/Docker diagnostics,
+  and resource-page observability that keeps developers in the app context.
 * Use readable resource labels in routine Resource Manager UI, observability
   summaries, graph labels, alerts, and diagnostics when a display name or
   resource name exists. Keep Resource ID visible in canonical details, links,

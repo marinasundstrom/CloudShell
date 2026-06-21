@@ -54,7 +54,10 @@ hardening.
    samples green, making Application Topology the broad local-development
    proof, and refining focused dependency/dependent visualization only where
    the app workflow exposes unclear labels, navigation, empty states, or
-   diagnostic gaps.
+   diagnostic gaps. The next MVP run should stay in stabilization mode: fix
+   readable resource naming, exposure/name-mapping links, lifecycle cleanup and
+   process/Docker diagnostics, and app-page observability before pulling in
+   broader platform fronts.
 2. Application environment management path through
    [Container applications](containers/container-applications.md), app-owned
    exposure/discovery, virtual networks, public endpoints, load balancers, and

@@ -214,6 +214,15 @@ health/action surfacing are now in place, so the next work should use them as
 part of the app workflow rather than expanding into broad environment topology
 tooling.
 
+The current re-alignment keeps the MVP in stabilization mode. Recent work has
+made the main surfaces credible, so the next useful work is not a new feature
+front. Focus on the places where the local development loop still feels
+surprising: names and exposure links should be navigable and readable, routine
+messages should use resource names instead of IDs, lifecycle cleanup should be
+visible and reliable when the host shuts down, and resource pages should show
+the operational signals needed to understand the running app without jumping
+between unrelated global views.
+
 Use this decision filter:
 
 1. Does the work make Application Topology or another supported sample more
@@ -303,19 +312,26 @@ external-format import/code generation, and initial on-premise hosting.
 
 For the next run, prefer these slices in order:
 
-1. Run Application Topology and record any sample setup, startup, auth,
-   resource projection, or smoke-test gaps that prevent repeatable local use.
-2. Walk the primary application resource pages and fix labels, overview
-   details, warnings, action availability, and relationship links that still
-   obscure what the app runs, depends on, exposes, or can diagnose.
-3. Tighten readiness and failure feedback for the supported start/restart,
+1. Run Application Topology as the standing proof and record only concrete
+   sample setup, startup, auth, lifecycle, resource projection, or smoke-test
+   gaps that prevent repeatable local use.
+2. Fix Resource Manager naming and exposure clarity in the app path: user-facing
+   messages should lead with resource names, DNS/name mappings should be
+   convenient anchors where a concrete endpoint can be resolved, and generated
+   details should distinguish reachable addresses from muted source metadata.
+3. Harden lifecycle and provider feedback for the supported local flow:
+   host-scoped shutdown, detached/re-attach behavior, process and Docker command
+   diagnostics, occupied ports, missing hosts, and provider warnings should be
+   visible at the right logging level and surfaced as actionable resource
+   feedback when they affect the UI.
+4. Tighten readiness and failure feedback for the supported start/restart,
    SQL Server, storage, settings/secrets, identity, DNS/name, and exposure
    paths that the sample actually exercises.
-4. Keep resource-scoped health, logs, traces, monitoring, activity, and
+5. Keep resource-scoped health, logs, traces, monitoring, activity, and
    relationship views coherent from the app page before adding broader global
    views or new shell-platform features.
-5. Update sample documentation where the verified local-development flow
-   depends on explicit startup, auth, or host prerequisites.
+6. Update sample documentation where the verified local-development flow
+   depends on explicit startup, auth, logging, Docker, or host prerequisites.
 
 ### Immediate Proposal Order
 
@@ -936,6 +952,13 @@ listed here before pulling in broader proposal work.
   load-balancer endpoints. Next, host/runtime providers should report richer
   final bind failures and owning process/container diagnostics for dangling
   external processes or containers where they can observe that safely.
+- Add a guarded force-release recovery operation for stale host-scoped runtime
+  ownership, such as orphaned containers, processes, port reservations, or
+  provider runtime claims that block dependency startup after a previous host
+  exit. The operation should explain the resource and provider-owned runtime
+  ownership being released, require explicit permissions in team-owned and
+  on-premise environments, and prefer provider-supported cleanup before falling
+  back to releasing CloudShell's stale ownership record.
 - Expand host-readiness warnings beyond the current generated endpoint-mapping
   diagnostics, which now name missing provider resources, missing endpoint
   mapper capability, and unresolved source/target resources or endpoints. Next

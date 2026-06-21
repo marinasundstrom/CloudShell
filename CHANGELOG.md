@@ -17,6 +17,11 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Re-aligned the local-development MVP queue around Application Topology
+  repeatability, resource-name-first UI messages, exposure/name-mapping link
+  clarity, host-scoped lifecycle cleanup, process/Docker diagnostics, guarded
+  force-release recovery for stale runtime ownership, and app-page
+  observability before broader platform work.
 - Metrics views now present recent metric points in a structured table with
   stable source, metric, value, and attribute columns instead of a compact
   log-style stream.
