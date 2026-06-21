@@ -788,19 +788,34 @@ else if (ShowHeading)
         }
 
         var reads = await Task.WhenAll(
-            sources.Select(log =>
-                LogManager.ReadLogSourceAsync(
+            sources.Select(async log => new
+            {
+                Source = log,
+                Entries = await LogManager.ReadLogSourceAsync(
                     log.Id,
                     new ReadLogOptions(
                         MaxEntries: maxEntries,
-                        Before: before))));
+                        Before: before))
+            }));
 
         return reads
-            .SelectMany(entries => entries)
+            .SelectMany(read => read.Entries.Select(entry => WithMergedEntrySource(read.Source, entry)))
             .DistinctBy(GetEntryKey)
             .OrderBy(entry => entry.Timestamp)
             .TakeLast(maxEntries)
             .ToArray();
+    }
+
+    private LogEntry WithMergedEntrySource(LogSource source, LogEntry entry)
+    {
+        var sourceLabel = GetLogSourceLabel(source);
+        var entrySource = string.IsNullOrWhiteSpace(entry.Source)
+            ? source.Name
+            : entry.Source;
+        return entry with
+        {
+            Source = $"{sourceLabel} / {entrySource}"
+        };
     }
 
     private async Task LoadOlderEntriesAsync()
