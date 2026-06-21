@@ -123,6 +123,15 @@ persistence. The source should still describe how the Control Plane can read or
 tail the file for streaming and history, while log persistence policy remains a
 separate opt-in concern.
 
+Future file-query support should account for logging frameworks that split or
+roll log files by day, size, or provider-specific rules. The current source
+declaration should not grow a file-set model until the query/read behavior
+needs it, but the design should not assume every split source exposes the most
+recent file through a stable fixed name. Some providers may keep a stable
+"current" file and archive older files; others may write only date- or
+sequence-named files. That distinction matters for tailing, history queries,
+and locating the latest entries.
+
 Availability is source-specific. Process stdout/stderr may only be readable
 while the resource or producer process is running, while persisted, file-backed,
 remote, or provider-backed sources may remain readable after the resource stops.
