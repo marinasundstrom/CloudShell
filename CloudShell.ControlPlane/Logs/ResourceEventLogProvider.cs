@@ -28,7 +28,8 @@ public sealed class ResourceEventLogProvider(
                 Format: LogFormat.ResourceEvent,
                 Capabilities: LogSourceCapabilities.Read |
                     LogSourceCapabilities.Query |
-                    LogSourceCapabilities.StructuredFields))
+                    LogSourceCapabilities.StructuredFields,
+                Origin: ResourceLogSourceOrigin.ProviderProjected))
             .ToArray();
 
     public Task<IReadOnlyList<LogEntry>> ReadLogAsync(

@@ -15,7 +15,9 @@ public sealed record LogDescriptor(
     LogStorage Storage = default,
     LogSourceCapabilities Capabilities = LogSourceCapabilities.Read,
     string? Location = null,
-    string? ProducerResourceId = null)
+    string? ProducerResourceId = null,
+    ResourceLogSourceOrigin Origin = ResourceLogSourceOrigin.ProviderDefault,
+    LogSourceConfiguration Configuration = default)
 {
     public LogSource ToLogSource() =>
         new(
@@ -34,7 +36,9 @@ public sealed record LogDescriptor(
             ArtifactId,
             Location,
             ProducerResourceId,
-            Description);
+            Description,
+            Origin,
+            Configuration);
 }
 
 public enum LogSourceKind

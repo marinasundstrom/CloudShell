@@ -102,15 +102,23 @@ domain shape is:
   entries.
 
 `ResourceLogSource` belongs to the resource model. It describes what the
-resource exposes: source kind, format, display name, capabilities, and the
-provider-owned source location or capture target, such as stdout, stderr, a
-file path, file pattern, container runtime stream, sidecar, hidden sub-resource,
-or external provider API. A process-backed application can get implicit
-stdout/stderr sources, while the resource can declare additional sources such
-as ASP.NET Core file-sink logs. A visible resource can also declare sources
-physically produced by multiple background processes, containers, or hidden
-sub-resources without exposing those implementation details as primary
-Resource Manager items.
+resource exposes: source kind, format, display name, capabilities, origin,
+configuration metadata, and the provider-owned source location or capture
+target, such as stdout, stderr, a file path, file pattern, container runtime
+stream, sidecar, hidden sub-resource, or external provider API. A
+process-backed application can get implicit stdout/stderr sources, while the
+resource can declare additional sources such as ASP.NET Core file-sink logs. A
+visible resource can also declare sources physically produced by multiple
+background processes, containers, or hidden sub-resources without exposing
+those implementation details as primary Resource Manager items.
+
+Resource log source configuration is capability driven. A resource or resource
+type that supports log source declaration/configuration should advertise
+`ResourceCapabilityIds.LogSources`. The UI should use that capability plus the
+source configuration metadata to decide whether users can add, remove, or edit
+sources. Provider defaults, user-configured sources, programmatic extension
+declarations, provider projections, and runtime-discovered sources have
+different origins and should remain distinguishable.
 
 `LogSource` is the Control Plane abstraction projected from resource-owned
 sources and any provider-owned non-resource sources. It is the object that log

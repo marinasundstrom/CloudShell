@@ -20,7 +20,11 @@ public sealed class LogSourceTests
             Format: LogFormat.JsonConsole,
             Storage: LogStorage.InMemory,
             Capabilities: LogSourceCapabilities.Read | LogSourceCapabilities.StructuredFields,
-            ProducerResourceId: "application:test");
+            ProducerResourceId: "application:test",
+            Origin: ResourceLogSourceOrigin.Programmatic,
+            Configuration: new LogSourceConfiguration(
+                IsConfigurable: true,
+                SchemaId: "application.processOutput"));
 
         var source = descriptor.ToLogSource();
 
@@ -32,5 +36,8 @@ public sealed class LogSourceTests
         Assert.True(source.Capabilities.HasFlag(LogSourceCapabilities.StructuredFields));
         Assert.Equal("application:test", source.ResourceId);
         Assert.Equal("application:test", source.ProducerResourceId);
+        Assert.Equal(ResourceLogSourceOrigin.Programmatic, source.Origin);
+        Assert.True(source.Configuration.IsConfigurable);
+        Assert.Equal("application.processOutput", source.Configuration.SchemaId);
     }
 }

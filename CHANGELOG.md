@@ -38,6 +38,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Log source abstractions now define resource-owned source declarations,
   projected Control Plane sources, source format, storage, and capability
   metadata, with compatible projection from existing log descriptors.
+- Log source declarations now track source origin and configuration metadata,
+  and application resources advertise the `logs.sources` capability for future
+  capability-driven log source configuration.
 
 ### 2026-06-20
 

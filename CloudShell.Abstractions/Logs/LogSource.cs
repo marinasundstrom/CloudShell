@@ -9,7 +9,9 @@ public sealed record ResourceLogSource(
     LogSourceCapabilities Capabilities = LogSourceCapabilities.Read,
     string? Location = null,
     string? ProducerResourceId = null,
-    string? Description = null);
+    string? Description = null,
+    ResourceLogSourceOrigin Origin = ResourceLogSourceOrigin.ProviderDefault,
+    LogSourceConfiguration Configuration = default);
 
 public sealed record LogSource(
     string Id,
@@ -25,13 +27,28 @@ public sealed record LogSource(
     string? ArtifactId = null,
     string? Location = null,
     string? ProducerResourceId = null,
-    string? Description = null)
+    string? Description = null,
+    ResourceLogSourceOrigin Origin = ResourceLogSourceOrigin.ProviderDefault,
+    LogSourceConfiguration Configuration = default)
 {
     public bool SupportsStreaming => Capabilities.HasFlag(LogSourceCapabilities.Stream);
 
     public static LogSource FromDescriptor(LogDescriptor descriptor) =>
         descriptor.ToLogSource();
 }
+
+public enum ResourceLogSourceOrigin
+{
+    ProviderDefault,
+    UserConfigured,
+    Programmatic,
+    ProviderProjected,
+    RuntimeDiscovered
+}
+
+public readonly record struct LogSourceConfiguration(
+    bool IsConfigurable,
+    string? SchemaId = null);
 
 public enum ResourceLogSourceKind
 {

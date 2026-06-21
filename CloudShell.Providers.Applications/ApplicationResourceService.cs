@@ -3440,6 +3440,7 @@ public sealed partial class ApplicationResourceService(
         var capabilities = new List<ResourceCapability>
         {
             new(ResourceCapabilityIds.EnvironmentVariables),
+            new(ResourceCapabilityIds.LogSources),
             new(ResourceCapabilityIds.Monitoring)
         };
 

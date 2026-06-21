@@ -748,6 +748,9 @@ In code:
 - `ResourceLogSource` is the resource-model declaration for a log source.
 - `LogSource` is the Control Plane projection used for listing, authorization,
   reading, querying, streaming, parsing, and rendering.
+- `ResourceCapabilityIds.LogSources` advertises that a resource exposes or can
+  configure log sources. Future UI configuration should be driven by that
+  capability and `ResourceLogSource` configuration metadata.
 - `IResourceEventManager` is the public domain abstraction for resource
   activity queries.
 - `IResourceEventStore` is the internal append/query store for resource

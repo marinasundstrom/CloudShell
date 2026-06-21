@@ -121,13 +121,16 @@ extension-owned artifacts, then register it with `AddLogProvider<TProvider>()`.
 Each provider returns `LogDescriptor` values. A descriptor can point at a
 resource through `ResourceId`, an extension artifact through `ArtifactId`, or a
 provider-owned source through `SourceKind`. Descriptors now carry early
-`LogSource` metadata for source kind, format, storage, capabilities, location,
-and physical producer. This keeps the current API compatible while CloudShell
-evolves toward resource-owned `ResourceLogSource` declarations projected into
-Control Plane `LogSource` records. A single resource can have multiple logs,
-and multiple providers can expose logs for the same resource. The Resource
-Manager shows a log shortcut for resources with matching descriptors, and the
-Logs view opens resource-scoped log lists through `/logs?resourceId=...`.
+`LogSource` metadata for source kind, format, storage, capabilities, origin,
+configuration, location, and physical producer. This keeps the current API
+compatible while CloudShell evolves toward resource-owned `ResourceLogSource`
+declarations projected into Control Plane `LogSource` records. A single
+resource can have multiple logs, and multiple providers can expose logs for the
+same resource. Resources that expose or allow configuration of log sources
+should advertise `ResourceCapabilityIds.LogSources`; future UI configuration
+should be driven by that capability and the source configuration metadata. The
+Resource Manager shows a log shortcut for resources with matching descriptors,
+and the Logs view opens resource-scoped log lists through `/logs?resourceId=...`.
 
 Use `SupportsStreaming = true` only when the provider can support live tail
 semantics. Streaming-capable logs are tailed automatically in the Logs view

@@ -3406,6 +3406,9 @@ public sealed class ResourceDeclarationTests
         Assert.True(provider.CanMonitor(worker));
         Assert.True(provider.CanMonitor(api));
         Assert.True(provider.CanMonitor(redis));
+        Assert.True(worker.HasCapability(ResourceCapabilityIds.LogSources));
+        Assert.True(api.HasCapability(ResourceCapabilityIds.LogSources));
+        Assert.True(redis.HasCapability(ResourceCapabilityIds.LogSources));
         Assert.True(worker.HasCapability(ResourceCapabilityIds.Monitoring));
         Assert.True(api.HasCapability(ResourceCapabilityIds.Monitoring));
         Assert.True(redis.HasCapability(ResourceCapabilityIds.Monitoring));
@@ -3472,6 +3475,7 @@ public sealed class ResourceDeclarationTests
         var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:redis");
 
         Assert.True(provider.CanMonitor(resource));
+        Assert.True(resource.HasCapability(ResourceCapabilityIds.LogSources));
         Assert.True(resource.HasCapability(ResourceCapabilityIds.Monitoring));
 
         var snapshot = await provider.GetMonitoringSnapshotAsync(resource);
