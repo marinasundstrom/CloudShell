@@ -670,6 +670,10 @@ base log or event entry a blob store.
   and resource monitoring in split-hosted deployments, including
   authentication, authorization, reconnect, bounded update rates, and
   backpressure behavior.
+- Later, design log-source reader workers that can run outside the
+  request-serving Control Plane API process, claim source assignments through
+  leases or work queues, persist normalized entries, and avoid duplicate reads
+  when several Control Plane API replicas are running.
 - Keep resource event trace correlation focused on W3C `traceId`/`spanId`
   fields. Do not turn resource events into trace spans or log records.
 - Use the structured `LogEntry` metadata fields for provider logs only when a

@@ -151,6 +151,14 @@ supported MVP workflow. CloudShell-specific settings abstractions should layer
 on top of the generic composition graph when needed instead of pushing
 settings-menu concerns into the core composition model.
 
+Future on-premise scale-out should allow multiple Control Plane API replicas
+while coordinating singleton duties through a primary controller lease and
+moving eligible subsystems, such as log readers, telemetry ingestion, health
+polling, notification fan-out, and provider reconciliation, into independent
+workers. This is important platform direction, but it should not displace the
+current local-development MVP stabilization unless a new subsystem would
+otherwise bake in single-process assumptions.
+
 The supported sample smoke suite is currently green. The remaining MVP work
 should therefore bias toward release-quality local-development behavior rather
 than opening new platform fronts or repeatedly polishing secondary editor

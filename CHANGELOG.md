@@ -40,6 +40,10 @@ on `git blame --follow`, and then by the broad type of change.
   Resource Manager settings summary/navigation surface.
 - Embedded Resource Management settings now defer to the common Settings
   section header so the selected section title is not shown twice.
+- Documented future Control Plane scale-out around API replicas, a
+  lease-backed primary controller, and independent worker processes for
+  subsystems such as log ingestion, telemetry, health polling, notifications,
+  and provider reconciliation.
 - Mapped-resource DNS surfaces now render name mappings as endpoint anchors
   only when CloudShell can resolve the mapped target endpoint as HTTP/HTTPS,
   while name-mapping and DNS-zone overviews keep the name mapping itself

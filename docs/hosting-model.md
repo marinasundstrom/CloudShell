@@ -224,6 +224,42 @@ providers, stores, declarations, provider-owned services, templates, logs,
 actions, and API-backed behavior. They do not need to install Resource Manager
 UI integrations unless the same process also hosts the CloudShell UI.
 
+## Future Control Plane Scale-Out
+
+Shared on-premise environments should eventually be able to scale the Control
+Plane beyond one process. The intended direction is:
+
+- Control Plane API replicas can run behind a load balancer and serve
+  domain-shaped API requests.
+- One primary controller owns singleton work such as lifecycle reconciliation,
+  scheduled polling, resource-state convergence, and lease-sensitive provider
+  actions.
+- The primary controller is selected through a durable lease, leader election,
+  or equivalent store-backed mechanism so another process can take over after
+  failure.
+- Background subsystems can run as independent workers when they do not need
+  to live in the request-serving API process.
+
+Candidate worker subsystems include log-source readers, log persistence,
+telemetry ingestion, health polling, notification fan-out, and provider
+reconciliation. For example, a log worker may be assigned a bounded set of log
+sources, read from providers or runtime hosts, and persist normalized entries
+to the configured log store. API replicas and UI hosts then query the Control
+Plane log APIs instead of each process opening its own readers against the
+same sources.
+
+This scale-out model must keep Resource Manager coherent. Users should still
+see one resource graph, one activity history, one authorization boundary, and
+one set of provider-owned diagnostics even when the deployment is split across
+API replicas, a primary controller, and workers. Worker processes must honor
+the same resource/provider boundaries as in-process services and should use
+leases, work assignments, or subscriptions to prevent duplicate polling,
+duplicate log ingestion, and conflicting provider actions.
+
+The local-development and simple on-premise shapes can continue to run these
+roles in one combined process. New Control Plane subsystems should still avoid
+assuming that every API host owns every stateful background loop.
+
 ## Split Host
 
 For shared on-premise environments, the UI and Control Plane can be hosted

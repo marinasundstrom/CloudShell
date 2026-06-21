@@ -9,6 +9,42 @@ Decision IDs are stable enough to reference from changelog entries and related
 docs. When an implementation change follows a decision, the changelog should
 link to the decision so the dependency is visible.
 
+## 2026-06-21
+
+### ADR-20260621-001: Design Control Plane scale-out around a primary controller and workers
+
+CloudShell should eventually support Control Plane scale-out for shared
+on-premise environments. API-facing Control Plane hosts should be able to run
+as replicas behind a load balancer, while singleton duties such as lifecycle
+reconciliation, resource-state convergence, lease-sensitive provider actions,
+and scheduled polling run through a primary controller role.
+
+The primary controller role should not be tied to a specific process forever.
+It should be coordinated through a durable lease, leader election, or
+equivalent store-backed ownership mechanism so a different Control Plane
+process can take over after failure. Control Plane APIs must remain the
+authorization and validation boundary regardless of which process currently
+owns controller duties.
+
+Subsystems that do not need to live in the request-serving API process should
+be candidates for independent worker processes. Examples include log-source
+readers, log persistence, telemetry ingestion, health polling, notification
+fan-out, and provider reconciliation. These workers should consume explicit
+work, leases, subscriptions, or source assignments rather than each API
+replica independently polling or streaming the same external source.
+
+Resource Manager should continue to present one coherent Control Plane even
+when the backing deployment is split into API replicas, a primary controller,
+and background workers. The implementation must preserve resource-level
+authorization, resource/event correlation, auditability, and provider
+ownership boundaries.
+
+This is future scale-out direction. The local-development MVP can keep the
+combined in-process host, but new Control Plane subsystems should avoid
+assuming that all stateful background work runs inside every API host.
+
+Related changes: [Changelog](CHANGELOG.md).
+
 ## 2026-06-19
 
 ### ADR-20260619-006: Gate observability by signal permissions and resource read access
