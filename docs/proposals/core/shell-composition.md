@@ -955,7 +955,13 @@ them without declaring a separate menu.
 
 ## Notifications
 
-CloudShell should provide a notification system with two presentation modes:
+CloudShell should provide a notification system owned by the shell UI layer and
+backed by a platform abstraction. The shell should own the common notification
+model, presenters, user-facing interaction patterns, and persistence contract
+instead of leaving every feature or extension to invent its own notification
+surface.
+
+The system should provide two presentation modes:
 
 - Toasts for transient, immediate feedback.
 - An off-canvas notification center for durable notification history,
@@ -966,6 +972,21 @@ timestamp, optional resource or route target, and optional action affordances.
 Resource lifecycle events, permission denials, provider diagnostics, and
 long-running operation results can feed this system without every feature
 building its own notification UI.
+
+Durable notifications should be persisted independently from transient toast
+state. Persistence should track the notification payload, source module,
+audience, delivery state, read/dismissed state, and timestamps. The shell should
+support fan-out so one source event can produce per-user notification records
+for every user or principal that should receive it, rather than treating a
+notification as a single global banner. Recipient selection can initially be
+based on explicit users or roles, and later expand to policies, claims,
+resource ownership, environment membership, or subscription preferences.
+
+The composition model should not become the notification domain model. It can
+provide addressable pages, notification-center layout areas, and extension
+contribution points, while CloudShell owns a higher-level notification service,
+store, delivery/fan-out pipeline, and Fluent UI presenters on top of those
+primitives.
 
 ## Slots and extension areas
 
@@ -1018,6 +1039,11 @@ before broad new shell surfaces become release blockers.
   sections?
 - Which notification records belong in the Control Plane event stream, and
   which are UI-local shell state?
+- What is the minimum persisted notification schema for per-recipient delivery,
+  unread state, dismissal, source-module tracking, and target links?
+- How should notification fan-out decide the recipient set: explicit users,
+  roles, policies, claims, resource ownership, environment membership,
+  subscriptions, or a combination?
 - Should shell layout configuration be stored in the UI host, the Control
   Plane, or a separate shell configuration service for split hosting?
 - What is the minimum slot and section-container API that supports useful
