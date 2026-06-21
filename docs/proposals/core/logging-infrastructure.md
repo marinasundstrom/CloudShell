@@ -76,6 +76,16 @@ per-day file split. The file split remains a storage choice; resource event
 logs are a separate platform activity stream and should not be controlled by
 application log file settings.
 
+The built-in collectors and stores are intended for local development,
+debugging, and small-scale operations. In on-premise or larger team-owned
+environments, the Control Plane process should not bear the ongoing weight of
+collecting, parsing, and retaining every log and telemetry signal. The model
+should allow separate collector/ingestion processes and pluggable stores that
+are better suited for operational retention and query volume. CloudShell can
+still expose those sources through the same domain managers and shell views;
+the collection and storage responsibility should be replaceable behind the
+Control Plane boundary.
+
 The current contracts are:
 
 - `ILogProvider`: provider source contribution
