@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Net;
 using System.Net.Http.Json;
 
@@ -499,7 +500,7 @@ public sealed class RemoteControlPlaneContractTests
                     PlatformResourceProvider.ReconcileEndpointMappingsActionId))));
         Assert.Equal(ResourceSignalSeverity.Warning, deniedEvent.Severity);
         Assert.Equal(
-            $"Reconcile endpoint mappings action was denied. The '{NetworkResourceOperationPermissions.ReconcileEndpointMappings}' or '{CloudShellPermissions.Resources.Manage}' permission is required for resource 'network:contract'.",
+            $"Reconcile endpoint mappings action was denied. The '{NetworkResourceOperationPermissions.ReconcileEndpointMappings}' or '{CloudShellPermissions.Resources.Manage}' permission is required for resource 'contract'.",
             deniedEvent.Message);
     }
 
@@ -687,6 +688,41 @@ public sealed class RemoteControlPlaneContractTests
     }
 
     [Fact]
+    public async Task RemoteControlPlane_HidesDeniedResourceScopedLogSources()
+    {
+        await using var app = await CreateAppAsync(
+            includeMappedNetwork: true,
+            includeProviderLogSource: true,
+            authorization: new PermissionAndResourceAuthorizationService(
+                [CloudShellPermissions.Observability.Logs.Read],
+                ("network:contract", CloudShellPermissions.Resources.Read)));
+        var controlPlane = CreateClient(app);
+        var apiLogSourceId = $"{ContractNetworkingResourceProvider.ApiResourceId}:log-source:console";
+
+        var allSources = await controlPlane.ListLogSourcesAsync();
+        var apiSources = await controlPlane.ListLogSourcesAsync(
+            new LogQuery(ResourceId: ContractNetworkingResourceProvider.ApiResourceId));
+        var providerSources = await controlPlane.ListLogSourcesAsync(
+            new LogQuery(SourceKind: LogSourceKind.Provider));
+        var source = await controlPlane.GetLogSourceAsync(apiLogSourceId);
+        using var httpClient = app.GetTestClient();
+        var sourceResponse = await httpClient.GetAsync(
+            $"/api/control-plane/v1/log-sources/{Uri.EscapeDataString(apiLogSourceId)}");
+        var entriesResponse = await httpClient.GetAsync(
+            $"/api/control-plane/v1/log-sources/{Uri.EscapeDataString(apiLogSourceId)}/entries");
+        var streamResponse = await httpClient.GetAsync(
+            $"/api/control-plane/v1/log-sources/{Uri.EscapeDataString(apiLogSourceId)}/stream");
+
+        Assert.DoesNotContain(allSources, candidate => candidate.Id == apiLogSourceId);
+        Assert.Empty(apiSources);
+        Assert.Contains(providerSources, candidate => candidate.Id == ProviderDiagnosticsLogSourceId);
+        Assert.Null(source);
+        Assert.Equal(HttpStatusCode.NotFound, sourceResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, entriesResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, streamResponse.StatusCode);
+    }
+
+    [Fact]
     public async Task RemoteControlPlane_UpdatesResourceImage()
     {
         await using var app = await CreateAppAsync(includeImageResource: true);
@@ -705,15 +741,15 @@ public sealed class RemoteControlPlaneContractTests
             new ResourceEventQuery(
                 ResourceId: ContractImageResourceProvider.ResourceId,
                 EventType: ResourceEventTypes.Events.Deployment.ImageUpdated,
-                TriggeredBy: "build-server"));
+                TriggeredBy: "user"));
 
         Assert.Equal("Updated contract:container-app to example/api:20260608.", result.Message);
         var provider = app.Services.GetRequiredService<ContractImageResourceProvider>();
-        Assert.Equal(["example/api:20260608:False:build-server"], provider.UpdatedImages);
+        Assert.Equal(["example/api:20260608:False:user"], provider.UpdatedImages);
         var resourceEvent = Assert.Single(resourceEvents);
         Assert.Equal(ContractImageResourceProvider.ResourceId, resourceEvent.ResourceId);
         Assert.Equal(ResourceEventTypes.Events.Deployment.ImageUpdated, resourceEvent.EventType);
-        Assert.Equal("build-server", resourceEvent.TriggeredBy);
+        Assert.Equal("user", resourceEvent.TriggeredBy);
         Assert.Equal(ResourceSignalSeverity.Info, resourceEvent.Severity);
         Assert.False(string.IsNullOrWhiteSpace(resourceEvent.TraceId));
         Assert.False(string.IsNullOrWhiteSpace(resourceEvent.SpanId));
@@ -734,9 +770,9 @@ public sealed class RemoteControlPlaneContractTests
             entry.Category == "CloudShell.ResourceEvents" &&
             HasAttribute(entry, "resourceId", ContractImageResourceProvider.ResourceId) &&
             HasAttribute(entry, "eventType", ResourceEventTypes.Events.Deployment.ImageUpdated) &&
-            HasAttribute(entry, "triggeredBy", "build-server") &&
+            HasAttribute(entry, "triggeredBy", "user") &&
             entry.Message.Contains(ResourceEventTypes.Events.Deployment.ImageUpdated, StringComparison.Ordinal) &&
-            entry.Message.Contains("build-server", StringComparison.Ordinal));
+            entry.Message.Contains("user", StringComparison.Ordinal));
 
         var logResponse = await app.GetTestClient().GetAsync(
             $"/api/control-plane/v1/logs/{Uri.EscapeDataString(eventLog.Id)}/entries");
@@ -763,14 +799,14 @@ public sealed class RemoteControlPlaneContractTests
             "/api/control-plane/v1/resource-events" +
             $"?resourceId={Uri.EscapeDataString(ContractImageResourceProvider.ResourceId)}" +
             $"&eventType={Uri.EscapeDataString(ResourceEventTypes.Events.Deployment.ImageUpdated)}" +
-            "&triggeredBy=build-server&maxEvents=10");
+            "&triggeredBy=user&maxEvents=10");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var resourceEvent = Assert.Single(document.RootElement.EnumerateArray());
         Assert.Equal(ContractImageResourceProvider.ResourceId, resourceEvent.GetProperty("resourceId").GetString());
         Assert.Equal(ResourceEventTypes.Events.Deployment.ImageUpdated, resourceEvent.GetProperty("eventType").GetString());
-        Assert.Equal("build-server", resourceEvent.GetProperty("triggeredBy").GetString());
+        Assert.Equal("user", resourceEvent.GetProperty("triggeredBy").GetString());
         Assert.Equal("Information", resourceEvent.GetProperty("severity").GetString());
         Assert.False(resourceEvent.TryGetProperty("level", out _));
         Assert.Contains("example/api:20260609", resourceEvent.GetProperty("message").GetString(), StringComparison.Ordinal);
@@ -794,11 +830,11 @@ public sealed class RemoteControlPlaneContractTests
 
         Assert.Equal("Updated contract:container-app to 3 replicas.", result.Message);
         var provider = app.Services.GetRequiredService<ContractImageResourceProvider>();
-        Assert.Equal(["3:False:load-balancer"], provider.UpdatedReplicas);
+        Assert.Equal(["3:False:user"], provider.UpdatedReplicas);
         Assert.Contains(events, entry =>
             entry.Source == "event" &&
             entry.Message.Contains(ResourceEventTypes.Events.Deployment.ReplicasUpdated, StringComparison.Ordinal) &&
-            entry.Message.Contains("load-balancer", StringComparison.Ordinal));
+            entry.Message.Contains("user", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -1319,7 +1355,8 @@ public sealed class RemoteControlPlaneContractTests
         bool includeStatelessResource = false,
         bool includeResolutionFailureResource = false,
         bool includeRuntimeResource = false,
-        bool includeProviderLogSource = false)
+        bool includeProviderLogSource = false,
+        ICloudShellAuthorizationService? authorization = null)
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(contentRoot);
@@ -1340,6 +1377,11 @@ public sealed class RemoteControlPlaneContractTests
         });
 
         var controlPlane = builder.AddCloudShellControlPlane();
+        if (authorization is not null)
+        {
+            builder.Services.Replace(ServiceDescriptor.Singleton(authorization));
+        }
+
         builder.Services.AddSingleton<ContractIdentityDirectoryProvider>();
         builder.Services.AddSingleton<IResourceIdentityDirectoryProvider>(serviceProvider =>
             serviceProvider.GetRequiredService<ContractIdentityDirectoryProvider>());
@@ -1558,6 +1600,29 @@ public sealed class RemoteControlPlaneContractTests
             Status = LogSourceSessionStatus.Closed;
             return ValueTask.CompletedTask;
         }
+    }
+
+    private sealed class PermissionAndResourceAuthorizationService(
+        IReadOnlyList<string> permissions,
+        params (string ResourceId, string Permission)[] grants) : ICloudShellAuthorizationService
+    {
+        private readonly HashSet<string> permissions = new(permissions, StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> grants = new(
+            grants.Select(grant => CreateKey(grant.ResourceId, grant.Permission)),
+            StringComparer.OrdinalIgnoreCase);
+
+        public bool IsAuthenticated => true;
+
+        public bool HasPermission(string permission) => permissions.Contains(permission);
+
+        public bool CanAccessResourceGroup(string? resourceGroupId, string permission) =>
+            HasPermission(permission);
+
+        public bool CanAccessResource(string resourceId, string? resourceGroupId, string permission) =>
+            grants.Contains(CreateKey(resourceId, permission));
+
+        private static string CreateKey(string resourceId, string permission) =>
+            $"{resourceId}\n{permission}";
     }
 
     private sealed class ContractIdentityProviderSetupHandler : IResourceIdentityProviderSetupHandler

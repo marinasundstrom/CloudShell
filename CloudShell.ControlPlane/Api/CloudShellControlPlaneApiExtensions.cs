@@ -718,7 +718,7 @@ public static class CloudShellControlPlaneApiExtensions
 
     private static async Task<IResult> CreateContainerAppRevision(
         string containerAppId,
-        UpdateResourceImageRequest request,
+        [FromBody] UpdateResourceImageRequest request,
         IResourceManager resourceManager,
         CancellationToken cancellationToken)
     {
@@ -752,7 +752,7 @@ public static class CloudShellControlPlaneApiExtensions
 
     private static async Task<IResult> UpdateContainerAppReplicas(
         string containerAppId,
-        UpdateResourceReplicasRequest request,
+        [FromBody] UpdateResourceReplicasRequest request,
         IResourceManager resourceManager,
         CancellationToken cancellationToken)
     {
