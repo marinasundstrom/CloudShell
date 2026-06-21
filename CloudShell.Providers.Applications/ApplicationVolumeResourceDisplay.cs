@@ -1,5 +1,4 @@
 using CloudShell.Abstractions.ResourceManager;
-using CloudShell.Components;
 
 namespace CloudShell.Providers.Applications;
 

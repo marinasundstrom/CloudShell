@@ -1,33 +1,30 @@
-using CloudShell.Abstractions.ResourceManager;
-
-namespace CloudShell.Components;
+namespace CloudShell.Abstractions.ResourceManager;
 
 public static class ResourceDisplayLabels
 {
     public static string GetLabel(Resource resource) =>
-        GetLabel(resource, resource.Id);
+        GetLabel(resource, GetName(resource));
 
     public static string GetLabel(Resource? resource, string fallback) =>
         resource is null
             ? fallback
             : string.IsNullOrWhiteSpace(resource.EffectiveDisplayName)
                 ? fallback
-                : resource.EffectiveDisplayName;
+                : resource.EffectiveDisplayName.Trim();
 
     public static string GetLabel(IEnumerable<Resource> resources, string resourceId) =>
         resources.FirstOrDefault(resource => string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase)) is { } resource
             ? GetLabel(resource)
-            : resourceId;
+            : GetName(resourceId);
 
     public static string GetName(Resource resource) =>
         !string.IsNullOrWhiteSpace(resource.Name)
-            ? resource.Name
-            : ResourceId.TryParse(resource.Id, out var resourceId)
-                ? resourceId.Name
-                : resource.Id;
+            ? resource.Name.Trim()
+            : GetName(resource.Id);
 
     public static string GetName(string resourceId) =>
-        ResourceId.TryParse(resourceId, out var parsedResourceId)
+        ResourceId.TryParse(resourceId, out var parsedResourceId) &&
+        !string.IsNullOrWhiteSpace(parsedResourceId.Name)
             ? parsedResourceId.Name
             : resourceId;
 

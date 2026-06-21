@@ -147,9 +147,10 @@ public sealed class ResourceOrchestrationService(
             triggeredBy);
         LogLifecycle(
             action,
-            "Requested lifecycle {ActionKind} for resource {ResourceId}.",
+            resource,
+            "Requested lifecycle {ActionKind} for resource {ResourceName}.",
             action.Kind,
-            resource.Id);
+            ResourceDisplayLabels.GetName(resource));
         NotifyResourceChange(
             notifyResourceChange,
             ResourceChangeKind.ResourceActionStarted,
@@ -167,9 +168,10 @@ public sealed class ResourceOrchestrationService(
                 triggeredBy);
             LogLifecycle(
                 action,
-                "Completed lifecycle {ActionKind} for resource {ResourceId}: {Message}",
+                resource,
+                "Completed lifecycle {ActionKind} for resource {ResourceName}: {Message}",
                 action.Kind,
-                resource.Id,
+                ResourceDisplayLabels.GetName(resource),
                 result.Message);
             NotifyResourceChange(
                 notifyResourceChange,
@@ -196,9 +198,10 @@ public sealed class ResourceOrchestrationService(
                 ResourceSignalSeverity.Error);
             LogLifecycle(
                 action,
-                "Failed lifecycle {ActionKind} for resource {ResourceId}: {Message}",
+                resource,
+                "Failed lifecycle {ActionKind} for resource {ResourceName}: {Message}",
                 action.Kind,
-                resource.Id,
+                ResourceDisplayLabels.GetName(resource),
                 exception.Message);
             NotifyResourceChange(
                 notifyResourceChange,
@@ -210,13 +213,14 @@ public sealed class ResourceOrchestrationService(
         }
     }
 
-    private void LogLifecycle(ResourceAction action, string message, params object?[] args)
+    private void LogLifecycle(ResourceAction action, Resource resource, string message, params object?[] args)
     {
         if (GetLifecycleEventTypes(action) is null)
         {
             return;
         }
 
+        using var scope = ResourceLogScope.Begin(lifecycleLogger, resource);
         lifecycleLogger.LogInformation(message, args);
     }
 
@@ -604,28 +608,7 @@ public sealed class ResourceOrchestrationService(
     }
 
     private static string FormatResource(Resource resource)
-    {
-        var resourceName = GetResourceName(resource);
-        var label = string.IsNullOrWhiteSpace(resource.DisplayName)
-            ? resourceName
-            : resource.DisplayName.Trim();
-
-        return string.Equals(label, resourceName, StringComparison.Ordinal)
-            ? resourceName
-            : $"{label} ({resourceName})";
-    }
-
-    private static string GetResourceName(Resource resource)
-    {
-        if (!string.IsNullOrWhiteSpace(resource.Name))
-        {
-            return resource.Name.Trim();
-        }
-
-        return ResourceId.TryParse(resource.Id, out var resourceId)
-            ? resourceId.Name
-            : resource.Id;
-    }
+        => ResourceDisplayLabels.GetName(resource);
 
     private bool ShouldAutoStartAsDependency(Resource resource)
     {

@@ -168,7 +168,7 @@ public sealed class BuiltInResourceIdentityProvisioner(
             request.Identities
                 .Select(entry => new ResourceIdentityProvisioningDiagnostic(
                     ResourceIdentityProvisioningDiagnosticSeverity.Information,
-                    $"Provisioned built-in resource identity client '{BuiltInResourceIdentityRegistry.CreateClientId(entry.Identity)}'.",
+                    $"Provisioned built-in resource identity client for resource '{ResourceDisplayLabels.GetName(entry.Identity.ResourceId)}'.",
                     entry.Identity,
                     request.Provider.Id))
                 .ToArray()));

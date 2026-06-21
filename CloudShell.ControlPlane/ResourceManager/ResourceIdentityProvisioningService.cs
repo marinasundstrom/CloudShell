@@ -126,7 +126,7 @@ public sealed class ResourceIdentityProvisioningService(
             {
                 diagnostics.Add(new ResourceIdentityProvisioningDiagnostic(
                     ResourceIdentityProvisioningDiagnosticSeverity.Warning,
-                    $"Resource '{resourceId}' does not declare a resource identity.",
+                    $"Resource '{ResourceDisplayLabels.GetName(resourceId)}' does not declare a resource identity.",
                     ResourceIdentityReference.ForResource(resourceId)));
             }
 
@@ -170,7 +170,7 @@ public sealed class ResourceIdentityProvisioningService(
             {
                 diagnostics.Add(new ResourceIdentityProvisioningDiagnostic(
                     ResourceIdentityProvisioningDiagnosticSeverity.Warning,
-                    $"Resource '{resourceId}' does not declare a resource identity.",
+                    $"Resource '{ResourceDisplayLabels.GetName(resourceId)}' does not declare a resource identity.",
                     ResourceIdentityReference.ForResource(resourceId)));
             }
 

@@ -57,7 +57,7 @@ public sealed class ContainerHostResolver(
             ? resourceDefault
             : new ContainerHostResolutionResult(
                 null,
-                $"Resource '{request.TargetResourceId}' is container-backed but no default container host is registered. Use UseDocker(), UseContainerHost(...), or set an explicit container host.",
+                $"Resource '{ResourceDisplayLabels.GetName(request.TargetResourceId)}' is container-backed but no default container host is registered. Use UseDocker(), UseContainerHost(...), or set an explicit container host.",
                 ContainerHostResolutionFailureReason.DefaultHostMissing);
     }
 

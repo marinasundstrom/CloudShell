@@ -292,6 +292,35 @@ public sealed class ResourceIdentityProvisioningServiceTests
     }
 
     [Fact]
+    public async Task BuiltInProvisioner_DiagnosticUsesResourceNameInsteadOfClientId()
+    {
+        var registry = new BuiltInResourceIdentityRegistry();
+        var provisioner = new BuiltInResourceIdentityProvisioner(registry);
+        var provider = new ResourceIdentityProviderDefinition(
+            "identity:dev",
+            "Development",
+            ResourceIdentityProviderKind.BuiltIn);
+        var identity = ResourceIdentityReference.ForResource(
+            "configuration:application-topology",
+            "application-topology");
+
+        var result = await provisioner.ProvisionAsync(
+            new ResourceIdentityProvisioningRequest(
+                provider,
+                [
+                    new ResourceIdentityProvisioningEntry(
+                        identity,
+                        new ResourceIdentityBinding("identity:dev", Name: "application-topology"))
+                ],
+                []));
+
+        var diagnostic = Assert.Single(result.ProvisioningDiagnostics);
+        Assert.Equal(
+            "Provisioned built-in resource identity client for resource 'application-topology'.",
+            diagnostic.Message);
+    }
+
+    [Fact]
     public async Task BuiltInProvisioner_ListsInMemoryUserPrincipals()
     {
         var users = new InMemoryIdentitySetupOptions();

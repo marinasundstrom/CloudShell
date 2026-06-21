@@ -74,7 +74,7 @@ public sealed class ResourceDeclarationStartupService(
             {
                 diagnostics.Add(ResourceDeclarationStartupDiagnostic.Error(
                     declaration.ResourceId,
-                    $"Declared resource '{declaration.ResourceId}' could not be found."));
+                    $"Declared resource '{ResourceDisplayLabels.GetName(declaration.ResourceId)}' could not be found."));
                 continue;
             }
 
@@ -127,7 +127,7 @@ public sealed class ResourceDeclarationStartupService(
             {
                 diagnostics.Add(ResourceDeclarationStartupDiagnostic.Warning(
                     declaration.ResourceId,
-                    $"Declared resource '{declaration.ResourceId}' requested startup identity provisioning but does not declare an identity."));
+                    $"Declared resource '{ResourceDisplayLabels.GetName(declaration.ResourceId)}' requested startup identity provisioning but does not declare an identity."));
                 continue;
             }
 
@@ -136,7 +136,7 @@ public sealed class ResourceDeclarationStartupService(
             {
                 diagnostics.Add(ResourceDeclarationStartupDiagnostic.Error(
                     declaration.ResourceId,
-                    $"Declared resource '{declaration.ResourceId}' could not be found."));
+                    $"Declared resource '{ResourceDisplayLabels.GetName(declaration.ResourceId)}' could not be found."));
                 continue;
             }
 

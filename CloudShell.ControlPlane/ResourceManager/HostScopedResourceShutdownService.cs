@@ -63,8 +63,9 @@ public sealed class HostScopedResourceShutdownService(
             try
             {
                 LogLifecycle(
-                    "Stopping host-scoped resource {ResourceId} during Control Plane shutdown.",
-                    resource.Id);
+                    resource,
+                    "Stopping host-scoped resource {ResourceName} during Control Plane shutdown.",
+                    ResourceDisplayLabels.GetName(resource));
                 await orchestration.ExecuteActionAsync(
                     resource,
                     resource.StopAction!,
@@ -74,15 +75,17 @@ public sealed class HostScopedResourceShutdownService(
                     triggeredBy: ShutdownTrigger,
                     cause: "Host shutdown");
                 LogLifecycle(
-                    "Stopped host-scoped resource {ResourceId} during Control Plane shutdown.",
-                    resource.Id);
+                    resource,
+                    "Stopped host-scoped resource {ResourceName} during Control Plane shutdown.",
+                    ResourceDisplayLabels.GetName(resource));
             }
             catch (Exception exception)
             {
+                using var logScope = ResourceLogScope.Begin(logger, resource);
                 logger.LogWarning(
                     exception,
-                    "Failed to stop host-scoped resource {ResourceId} during Control Plane shutdown.",
-                    resource.Id);
+                    "Failed to stop host-scoped resource {ResourceName} during Control Plane shutdown.",
+                    ResourceDisplayLabels.GetName(resource));
 
                 if (cleanupToken.IsCancellationRequested)
                 {
@@ -92,8 +95,11 @@ public sealed class HostScopedResourceShutdownService(
         }
     }
 
-    private void LogLifecycle(string message, params object?[] args) =>
+    private void LogLifecycle(Resource resource, string message, params object?[] args)
+    {
+        using var scope = ResourceLogScope.Begin(logger, resource);
         logger.LogInformation(message, args);
+    }
 
     private static IEnumerable<Resource> GetHostScopedStopCandidates(
         ResourceOrchestrationCatalogSnapshot snapshot)

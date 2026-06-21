@@ -46,32 +46,41 @@ public static class ResourceDeclarationPersistenceExtensions
 
         foreach (var diagnostic in result.Diagnostics)
         {
-            var severity = diagnostic.Severity;
-            if (string.Equals(severity, "Error", StringComparison.OrdinalIgnoreCase))
-            {
-                logger.LogError(
-                    "Programmatic resource startup reported {Severity} for {ResourceId}: {Message}",
-                    severity,
-                    diagnostic.ResourceId,
-                    diagnostic.Message);
-                continue;
-            }
-
-            if (string.Equals(severity, "Warning", StringComparison.OrdinalIgnoreCase))
-            {
-                logger.LogWarning(
-                    "Programmatic resource startup reported {Severity} for {ResourceId}: {Message}",
-                    severity,
-                    diagnostic.ResourceId,
-                    diagnostic.Message);
-                continue;
-            }
-
-            logger.LogInformation(
-                "Programmatic resource startup reported {Severity} for {ResourceId}: {Message}",
-                severity,
-                diagnostic.ResourceId,
-                diagnostic.Message);
+            LogStartupDiagnostic(logger, diagnostic);
         }
+    }
+
+    private static void LogStartupDiagnostic(
+        ILogger logger,
+        ResourceDeclarationStartupDiagnostic diagnostic)
+    {
+        var severity = diagnostic.Severity;
+        var resourceName = ResourceDisplayLabels.GetName(diagnostic.ResourceId);
+        using var scope = ResourceLogScope.Begin(logger, diagnostic.ResourceId);
+        if (string.Equals(severity, "Error", StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogError(
+                "Programmatic resource startup reported {Severity} for resource {ResourceName}: {Message}",
+                severity,
+                resourceName,
+                diagnostic.Message);
+            return;
+        }
+
+        if (string.Equals(severity, "Warning", StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogWarning(
+                "Programmatic resource startup reported {Severity} for resource {ResourceName}: {Message}",
+                severity,
+                resourceName,
+                diagnostic.Message);
+            return;
+        }
+
+        logger.LogInformation(
+            "Programmatic resource startup reported {Severity} for resource {ResourceName}: {Message}",
+            severity,
+            resourceName,
+            diagnostic.Message);
     }
 }

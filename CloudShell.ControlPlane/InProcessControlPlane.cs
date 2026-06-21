@@ -636,7 +636,7 @@ public sealed class InProcessControlPlane(
         resourceEvents?.Append(new ResourceEvent(
             resource.Id,
             ResourceEventTypes.Actions.ForFailedAction(action.Id),
-            $"{action.DisplayName} action was denied. The '{FormatPermissionRequirement(permission)}' permission is required for resource '{resource.Id}'.",
+            $"{action.DisplayName} action was denied. The '{FormatPermissionRequirement(permission)}' permission is required for resource '{ResourceDisplayLabels.GetName(resource)}'.",
             DateTimeOffset.UtcNow,
             triggeredBy,
             Severity: ResourceSignalSeverity.Warning));
@@ -1185,7 +1185,7 @@ public sealed class InProcessControlPlane(
             return new ResourceActionCapability(
                 action.Id,
                 false,
-                $"The '{FormatPermissionRequirement(permission)}' permission is required for resource '{resource.Id}'.");
+                $"The '{FormatPermissionRequirement(permission)}' permission is required for resource '{ResourceDisplayLabels.GetName(resource)}'.");
         }
 
         if (!hasProcedureProvider)
@@ -1837,7 +1837,7 @@ public sealed class InProcessControlPlane(
             return new ResourcePermissionGrantStatus(
                 grant,
                 ResourcePermissionGrantEffectivenessState.Unknown,
-                $"Target resource '{grant.TargetResourceId}' is not available.");
+                $"Target resource '{ResourceDisplayLabels.GetName(grant.TargetResourceId)}' is not available.");
         }
 
         var request = new ResourcePermissionGrantStatusRequest(targetResource, grant);

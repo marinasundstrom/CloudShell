@@ -4,7 +4,6 @@ using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Client.Authentication;
-using CloudShell.Components;
 using Microsoft.Data.SqlClient;
 using System.Collections.Concurrent;
 using System.Diagnostics;

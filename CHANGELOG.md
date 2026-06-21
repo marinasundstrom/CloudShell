@@ -130,6 +130,9 @@ on `git blame --follow`, and then by the broad type of change.
   unresolved endpoint mappings, load-balancer targets, and name providers.
 - Resource Manager settings now describe the non-display-name label mode as
   resource names instead of resource IDs.
+- Control Plane startup, lifecycle, identity provisioning, and Resource
+  Manager diagnostics now use resource names in human-facing messages instead
+  of leading with canonical resource IDs.
 - The UI Extension Host sample now contributes its sample workspace sidebar
   item through the composition main menu instead of legacy shell navigation.
 - CloudShell Hosting now exposes `builder.AddCompositionModule(...)` for

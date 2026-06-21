@@ -121,7 +121,7 @@ public static class ResourceDiagnosticDisplay
             diagnostics.Add(new ResourceDiagnosticView(
                 "Warning",
                 "Name mapping target unavailable",
-                $"Target resource '{targetResourceId}' could not be found."));
+                $"Target resource '{ResourceDisplayLabels.GetName(targetResourceId)}' could not be found."));
             return true;
         }
 
@@ -327,7 +327,7 @@ public static class ResourceDiagnosticDisplay
             diagnostics.Add(new ResourceDiagnosticView(
                 "Warning",
                 "DNS publisher unavailable",
-                $"Provider resource '{providerResourceId}' could not be found. CloudShell cannot verify that this name mapping can be published."));
+                $"Provider resource '{ResourceDisplayLabels.GetName(providerResourceId)}' could not be found. CloudShell cannot verify that this name mapping can be published."));
             return;
         }
 
@@ -378,7 +378,7 @@ public static class ResourceDiagnosticDisplay
             diagnostics.Add(new ResourceDiagnosticView(
                 "Warning",
                 "Endpoint mapping provider unavailable",
-                $"Mapping '{mapping.Name}' requires provider resource '{providerResourceId}', but that resource could not be found."));
+                $"Mapping '{mapping.Name}' requires provider resource '{ResourceDisplayLabels.GetName(providerResourceId)}', but that resource could not be found."));
             return;
         }
 
@@ -405,7 +405,7 @@ public static class ResourceDiagnosticDisplay
             diagnostics.Add(new ResourceDiagnosticView(
                 "Warning",
                 $"Endpoint mapping {role} unavailable",
-                $"Mapping '{mapping.Name}' {role} resource '{endpointReference.ResourceId}' could not be found."));
+                $"Mapping '{mapping.Name}' {role} resource '{ResourceDisplayLabels.GetName(endpointReference.ResourceId)}' could not be found."));
             return;
         }
 
@@ -450,7 +450,7 @@ public static class ResourceDiagnosticDisplay
             diagnostics.Add(new ResourceDiagnosticView(
                 "Warning",
                 "Load balancer host unavailable",
-                $"Container host resource '{hostResourceId}' could not be found. Provider-owned load balancer runtime may not be placeable."));
+                $"Container host resource '{ResourceDisplayLabels.GetName(hostResourceId)}' could not be found. Provider-owned load balancer runtime may not be placeable."));
         }
     }
 
@@ -471,7 +471,7 @@ public static class ResourceDiagnosticDisplay
                 diagnostics.Add(new ResourceDiagnosticView(
                     "Warning",
                     "Load balancer route target unavailable",
-                    $"Route '{route.Name}' targets resource '{route.Target.ResourceId}', but that resource could not be found."));
+                    $"Route '{route.Name}' targets resource '{ResourceDisplayLabels.GetName(route.Target.ResourceId)}', but that resource could not be found."));
                 continue;
             }
 
