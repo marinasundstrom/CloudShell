@@ -818,7 +818,7 @@ public sealed partial class DockerContainerResourceProvider :
     }
 
     private void LogDockerLifecycle(string message, params object?[] args) =>
-        _logger.LogInformation(message, args);
+        _logger.LogDebug(message, args);
 
     private DockerClient GetClientForContainerResource(Resource resource)
     {
