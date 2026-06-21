@@ -3037,6 +3037,191 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task ApplicationProvider_RemovesStaleControlPlaneScopedContainerBeforeStart()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(contentRoot);
+        var commandLogPath = Path.Combine(contentRoot, "fake-docker-commands.log");
+        var fakeDocker = CreateRecordingContainerHostExecutable(contentRoot, commandLogPath);
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .UseContainerHost(new ContainerHostDescriptor(
+                "docker:test",
+                "Test Docker",
+                ContainerHostKind.Docker,
+                "unix:///var/run/docker.sock",
+                Metadata: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["cloudshell.executable"] = fakeDocker
+                },
+                Capabilities:
+                [
+                    ContainerHostCapabilityIds.ContainerImage,
+                    ContainerHostCapabilityIds.StorageMountFileSystem
+                ]))
+            .AddApplicationProvider(options =>
+            {
+                options.DefinitionsPath = "application-resources.json";
+                options.RuntimeStatePath = "application-runtime-state.json";
+                options.LogDirectory = "application-logs";
+                options.ContainerStartConfirmationDelay = TimeSpan.FromMilliseconds(25);
+            });
+
+        try
+        {
+            using var serviceProvider = services.BuildServiceProvider();
+            var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+            var resourceProvider = serviceProvider.GetRequiredService<SqlServerApplicationResourceProvider>();
+            var registrations = new MutableResourceRegistrationStore();
+            await provider.SetupApplicationAsync(
+                new ApplicationResourceDefinition(
+                    "application:sql",
+                    "SQL Server",
+                    string.Empty,
+                    containerImage: "mcr.microsoft.com/mssql/server:2022-latest",
+                    containerHostId: "docker:test",
+                    lifetime: ApplicationLifetime.ControlPlaneScoped,
+                    resourceType: ApplicationResourceTypes.SqlServer),
+                resourceGroupId: null,
+                registrations);
+            var resourceManager = new TestResourceManagerStore(resourceProvider, registrations);
+            var resource = Assert.Single(resourceManager.GetResources());
+            var orchestrator = new DefaultResourceOrchestrator();
+
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                orchestrator.ExecuteActionAsync(
+                    new ResourceOrchestrationContext(
+                        resource,
+                        registrations.GetRegistration(resource.Id),
+                        null,
+                        resourceManager,
+                        registrations),
+                    ResourceAction.Start));
+
+            var commands = File.ReadAllLines(commandLogPath);
+            var rmIndex = Array.FindIndex(
+                commands,
+                command => command == "rm -f cloudshell-application-sql");
+            var runIndex = Array.FindIndex(
+                commands,
+                command => command.StartsWith("run --name cloudshell-application-sql ", StringComparison.Ordinal));
+
+            Assert.True(rmIndex >= 0, string.Join(Environment.NewLine, commands));
+            Assert.True(runIndex >= 0, string.Join(Environment.NewLine, commands));
+            Assert.True(rmIndex < runIndex, string.Join(Environment.NewLine, commands));
+            Assert.Contains(
+                " --rm ",
+                commands[runIndex],
+                StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(contentRoot))
+            {
+                Directory.Delete(contentRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ApplicationProvider_StopRemovesControlPlaneScopedContainer()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(contentRoot);
+        var commandLogPath = Path.Combine(contentRoot, "fake-docker-commands.log");
+        var fakeDocker = CreateRecordingContainerHostExecutable(contentRoot, commandLogPath);
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider(options =>
+            {
+                options.DefinitionsPath = "application-resources.json";
+                options.RuntimeStatePath = "application-runtime-state.json";
+                options.LogDirectory = "application-logs";
+            });
+
+        try
+        {
+            using var serviceProvider = services.BuildServiceProvider();
+            var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+            var engine = new ContainerHostDescriptor(
+                "docker:test",
+                "Test Docker",
+                ContainerHostKind.Docker,
+                "unix:///var/run/docker.sock",
+                Metadata: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["cloudshell.executable"] = fakeDocker
+                });
+            var definition = new ApplicationResourceDefinition(
+                "application:sql",
+                "SQL Server",
+                string.Empty,
+                containerImage: "mcr.microsoft.com/mssql/server:2022-latest",
+                lifetime: ApplicationLifetime.ControlPlaneScoped,
+                resourceType: ApplicationResourceTypes.SqlServer);
+            var method = typeof(ApplicationResourceService).GetMethod(
+                "StopContainerApplicationInstanceAsync",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance,
+                [
+                    typeof(ApplicationResourceDefinition),
+                    typeof(ContainerHostDescriptor),
+                    typeof(ApplicationProcessLog),
+                    typeof(ResourceOrchestratorServiceInstance),
+                    typeof(CancellationToken),
+                    typeof(ResourceProcedureContext)
+                ]);
+
+            Assert.NotNull(method);
+
+            var task = Assert.IsAssignableFrom<Task>(method.Invoke(
+                provider,
+                [
+                    definition,
+                    engine,
+                    new ApplicationProcessLog(),
+                    new ResourceOrchestratorServiceInstance(
+                        "cloudshell-application-sql",
+                        1,
+                        1),
+                    CancellationToken.None,
+                    null
+                ]));
+            await task;
+
+            var commands = File.ReadAllLines(commandLogPath);
+
+            Assert.Contains("stop cloudshell-application-sql", commands);
+            Assert.Contains("rm -f cloudshell-application-sql", commands);
+            Assert.True(
+                Array.IndexOf(commands, "stop cloudshell-application-sql") <
+                Array.IndexOf(commands, "rm -f cloudshell-application-sql"));
+        }
+        finally
+        {
+            if (Directory.Exists(contentRoot))
+            {
+                Directory.Delete(contentRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task ApplicationProvider_CancellingContainerHostCommandKillsProcess()
     {
         if (OperatingSystem.IsWindows())
@@ -9684,6 +9869,32 @@ public sealed class ResourceDeclarationTests
             #!/bin/sh
             echo $$ > {{QuoteShellArgument(pidPath)}}
             sleep 30
+            """);
+        File.SetUnixFileMode(
+            path,
+            UnixFileMode.UserRead |
+            UnixFileMode.UserExecute |
+            UnixFileMode.GroupRead |
+            UnixFileMode.GroupExecute |
+            UnixFileMode.OtherRead |
+            UnixFileMode.OtherExecute);
+        return path;
+    }
+
+    private static string CreateRecordingContainerHostExecutable(string directory, string commandLogPath)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            throw new PlatformNotSupportedException("The fake container host executable test helper uses Unix file mode.");
+        }
+
+        var path = Path.Combine(directory, "fake-docker-record");
+        File.WriteAllText(
+            path,
+            $$"""
+            #!/bin/sh
+            printf '%s\n' "$*" >> {{QuoteShellArgument(commandLogPath)}}
+            exit 0
             """);
         File.SetUnixFileMode(
             path,

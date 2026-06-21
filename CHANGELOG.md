@@ -140,6 +140,9 @@ on `git blame --follow`, and then by the broad type of change.
   diagnostics use the actual resource name.
 - The Application Topology sample app settings now expose debug-level
   Resource Manager local process and Docker host diagnostic category toggles.
+- Added provider coverage for control-plane-scoped container cleanup so stale
+  stable container names are removed before start and stopped containers are
+  removed during shutdown/stop cleanup.
 - Docker-backed application operations now log container-host command start,
   completion, and release messages at debug level with the full command
   arguments.
