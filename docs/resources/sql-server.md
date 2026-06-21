@@ -125,10 +125,11 @@ configuration and diagnostics surfaces instead of being the primary overview.
 
 For local development, the overview also shows a convenience connection string
 and the configured SA password. The connection string uses the current local
-endpoint and the configured `MSSQL_SA_PASSWORD` value:
+endpoint and omits the password so copying it does not expose the configured
+`MSSQL_SA_PASSWORD` value:
 
 ```text
-Server=localhost,<port>;User Id=sa;Password=<password>;TrustServerCertificate=True;
+Server=localhost,<port>;User Id=sa;TrustServerCertificate=True;
 ```
 
 The password is hidden by default with reveal and copy actions for local

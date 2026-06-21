@@ -13,6 +13,13 @@ link to ADR entries when a change depends on a recorded decision.
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
+### 2026-06-22
+
+#### Changed
+
+- SQL Server overview connection strings now omit the SA password while
+  keeping the password available only through the masked password field.
+
 ### 2026-06-21
 
 #### Changed

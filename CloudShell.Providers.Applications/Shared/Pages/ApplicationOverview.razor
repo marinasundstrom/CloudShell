@@ -1699,8 +1699,7 @@ else
         var server = uri.Port > 0
             ? $"{uri.Host},{uri.Port}"
             : uri.Host;
-        var password = GetSqlServerPassword(application) ?? "<SA password>";
-        return $"Server={server};User Id=sa;Password={password};TrustServerCertificate=True;";
+        return $"Server={server};User Id=sa;TrustServerCertificate=True;";
     }
 
     private static string? GetSqlServerEndpointAddress(ApplicationResourceDefinition application)
