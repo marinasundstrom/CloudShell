@@ -88,6 +88,36 @@ The current contracts are:
 This surface is useful for Resource Manager log views and provider-specific
 operational detail.
 
+The current model is missing an explicit source concept. The intended next
+domain shape is:
+
+- `ResourceLogSource`: resource-model metadata that declares a log produced by
+  or on behalf of a resource.
+- `LogSource`: Control Plane projection of a log source that can be listed,
+  authorized, queried, read, streamed, and rendered.
+- `ILogProvider`: integration point that contributes and accesses projected
+  log sources, rather than being conceptually "the log" itself.
+- parser/format metadata: a separate concern that tells CloudShell how to
+  interpret records from a source when a provider does not return fully shaped
+  entries.
+
+`ResourceLogSource` belongs to the resource model. It describes what the
+resource exposes: source kind, format, display name, capabilities, and the
+provider-owned source location or capture target, such as stdout, stderr, a
+file path, file pattern, container runtime stream, sidecar, hidden sub-resource,
+or external provider API. A process-backed application can get implicit
+stdout/stderr sources, while the resource can declare additional sources such
+as ASP.NET Core file-sink logs. A visible resource can also declare sources
+physically produced by multiple background processes, containers, or hidden
+sub-resources without exposing those implementation details as primary
+Resource Manager items.
+
+`LogSource` is the Control Plane abstraction projected from resource-owned
+sources and any provider-owned non-resource sources. It is the object that log
+listing, read, query, and stream APIs should address. This lets the Logs UI
+group by resource while still supporting future provider pages or global log
+views that are not strictly resource-scoped.
+
 `LogEntry` keeps the familiar text log shape of timestamp, message, severity,
 and source, but now also supports optional structured fields using common logging
 and OpenTelemetry terminology:
@@ -238,10 +268,36 @@ For MVP, implement the smallest useful split:
 4. Use Resource Manager activity views to render resource events separately
    from raw provider logs. A generated resource Activity tab now reads from
    `IResourceEventManager`.
-5. Document audit, structured properties, retention, and export as follow-up
+5. Introduce `ResourceLogSource` and projected `LogSource` before adding more
+   log storage/query surface area, so resources can declare multiple log
+   sources and providers can expose their read/stream/query capabilities
+   consistently.
+6. Document audit, structured properties, retention, and export as follow-up
    decisions.
 
 ## Future Design Areas
+
+### Resource Log Sources
+
+Resource log sources should become the durable resource-model declaration for
+logs. They should allow providers and resource declarations to describe:
+
+- whether a source is implicit, such as captured stdout/stderr for a running
+  process, or explicit, such as an ASP.NET Core file sink
+- the source kind, such as process stream, file, file pattern, container
+  runtime stream, external API, or provider-owned source
+- the source format, such as plain text, JSON console, Serilog compact JSON,
+  OpenTelemetry log data, or provider-shaped structured entries
+- whether the source supports read, tail/stream, query, search, or structured
+  field filtering
+- retention and persistence policy hints, including whether storage is
+  session-only, provider-file backed, database backed, or remote-provider
+  backed
+
+The Control Plane should project these declarations into `LogSource` records
+that are independent of the physical producer. A single visible resource may
+project sources produced by multiple processes, containers, sidecars, hidden
+sub-resources, or provider subsystems.
 
 ### Structured Log Entries
 
@@ -250,6 +306,13 @@ The first structured `LogEntry` slice is in place through optional `category`,
 `attributes` fields. Resource-event-backed Activity logs populate these fields
 when projected through the log view, while stdout/stderr and provider logs can
 remain plain text.
+
+Structured logging is a format and capability of a `LogSource`, not a separate
+top-level observability category. A file, process stream, container log stream,
+or provider API can all emit either plain text or structured records. The
+parser/format metadata on the source should determine how CloudShell converts
+raw records into the common fallback `LogEntry` projection or a richer
+provider-specific view model.
 
 Application process logs now parse JSON console log lines at the provider
 boundary. The initial supported shape follows the standard

@@ -32,6 +32,9 @@ on `git blame --follow`, and then by the broad type of change.
   opt into bounded plain-file persistence with retention limits and optional
   per-day file splitting; Application Topology enables file-backed application
   logs explicitly.
+- The logging proposal now identifies `ResourceLogSource` as the resource-model
+  declaration and projected `LogSource` as the Control Plane abstraction for
+  listing, querying, streaming, parsing, and rendering logs.
 
 ### 2026-06-20
 

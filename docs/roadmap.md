@@ -829,7 +829,10 @@ listed here before pulling in broader proposal work.
   selector for one observed telemetry scope, then use an `All instances`
   default plus provider-defined scope options when multiple scopes exist. Logs,
   traces, and telemetry metrics need stable scope dimensions before Resource
-  Manager can implement that filtering consistently.
+  Manager can implement that filtering consistently. Logging needs an explicit
+  `ResourceLogSource` declaration in the resource model and a projected
+  `LogSource` Control Plane abstraction before adding richer log query,
+  streaming, parser, and renderer behavior.
   CloudShell now retains application/runtime telemetry metric points in memory
   for the MVP and can query provider-backed current resource monitoring
   snapshots for Docker containers, local application processes, single-instance
