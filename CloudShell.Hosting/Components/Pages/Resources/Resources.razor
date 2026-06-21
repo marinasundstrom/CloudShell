@@ -608,7 +608,11 @@
                             @foreach (var exposure in GetInboundNameMappings(selected))
                             {
                                 <div>
-                                    <strong>@ResourceNameMappingDisplay.GetHostName(exposure.Mapping)</strong>
+                                    <strong>
+                                        <EndpointLink Address="@GetNameMappingEndpointAddress(exposure.Mapping)"
+                                                      Text="@ResourceNameMappingDisplay.GetHostName(exposure.Mapping)"
+                                                      EmptyText="@ResourceNameMappingDisplay.GetHostName(exposure.Mapping)" />
+                                    </strong>
                                     <span>@FormatNameMappingSummary(exposure.Mapping, selected)</span>
                                     <small>@FormatNameMappingMetadata(exposure.Mapping)</small>
                                 </div>
@@ -1825,6 +1829,16 @@ resourceGroups) =>
             ResourceNameMappingDisplay.GetHostName(mapping),
             GetResourceLabel(target),
             ResourceNameMappingDisplay.GetTargetEndpointName(mapping)].Value;
+
+    private string? GetNameMappingEndpointAddress(Resource mapping)
+    {
+        var targetResourceId = ResourceNameMappingDisplay.GetTargetResourceId(mapping);
+        var target = string.IsNullOrWhiteSpace(targetResourceId)
+            ? null
+            : ResolveMappingResource(targetResourceId);
+
+        return ResourceNameMappingDisplay.GetMappedEndpointAddress(mapping, target);
+    }
 
     private string FormatNameMappingMetadata(Resource mapping)
     {

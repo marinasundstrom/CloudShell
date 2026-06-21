@@ -20,6 +20,9 @@ public static class ResourceNameMappingDisplay
     public static string GetTargetEndpointName(Resource resource) =>
         GetAttribute(resource, ResourceAttributeNames.NameMappingTargetEndpointName, "default");
 
+    public static string GetTargetResourceId(Resource resource) =>
+        GetAttribute(resource, ResourceAttributeNames.NameMappingTargetResourceId, string.Empty);
+
     public static string GetExposureLabel(Resource resource) =>
         GetAttribute(resource, ResourceAttributeNames.NameMappingExposure, ResourceExposureScope.Public.ToString());
 
@@ -45,9 +48,57 @@ public static class ResourceNameMappingDisplay
     public static string GetSummary(Resource resource, string targetName) =>
         $"{GetHostName(resource)} -> {targetName}/{GetTargetEndpointName(resource)}";
 
+    public static string? GetMappedEndpointAddress(Resource resource, Resource? targetResource)
+    {
+        var hostName = GetHostName(resource).Trim();
+        if (string.IsNullOrWhiteSpace(hostName))
+        {
+            return null;
+        }
+
+        if (Uri.TryCreate(hostName, UriKind.Absolute, out var directUri) &&
+            IsHttpUri(directUri))
+        {
+            return directUri.ToString();
+        }
+
+        if (targetResource is null)
+        {
+            return null;
+        }
+
+        var endpointName = GetTargetEndpointName(resource);
+        var endpoint = targetResource.Endpoints.FirstOrDefault(endpoint =>
+                string.Equals(endpoint.Name, endpointName, StringComparison.OrdinalIgnoreCase)) ??
+            targetResource.Endpoints.FirstOrDefault();
+        if (endpoint is null ||
+            !targetResource.TryGetResolvedEndpointUri(endpoint, out var endpointUri))
+        {
+            return null;
+        }
+
+        try
+        {
+            var builder = new UriBuilder(endpointUri)
+            {
+                Host = hostName
+            };
+
+            return builder.Uri.ToString();
+        }
+        catch (UriFormatException)
+        {
+            return null;
+        }
+    }
+
     private static string GetAttribute(Resource resource, string name, string fallback) =>
         resource.ResourceAttributes.TryGetValue(name, out var value) &&
         !string.IsNullOrWhiteSpace(value)
             ? value
             : fallback;
+
+    private static bool IsHttpUri(Uri uri) =>
+        uri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
+        uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase);
 }

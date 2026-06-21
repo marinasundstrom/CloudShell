@@ -2340,6 +2340,14 @@ h3 {
     color: var(--cloudshell-accent-foreground);
 }
 
+.endpoint-overview,
+.inline-resource-reference {
+    display: inline-flex;
+    align-items: baseline;
+    gap: .35rem;
+    flex-wrap: wrap;
+}
+
 .endpoint {
     max-width: 18rem;
     white-space: nowrap;

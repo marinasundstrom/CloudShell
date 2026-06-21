@@ -74,11 +74,13 @@ else
             }
             <dt>Endpoint</dt>
             <dd>
-                <EndpointLink Address="@overviewEndpoint.Address" />
-                @if (!string.IsNullOrWhiteSpace(overviewEndpoint.Source))
-                {
-                    <small>@overviewEndpoint.Source</small>
-                }
+                <span class="endpoint-overview">
+                    <EndpointLink Address="@overviewEndpoint.Address" />
+                    @if (!string.IsNullOrWhiteSpace(overviewEndpoint.Source))
+                    {
+                        <small class="muted">@overviewEndpoint.Source</small>
+                    }
+                </span>
             </dd>
             @if (IsSqlServer(Application) && GetSqlServerConnectionString(Application) is { } connectionString)
             {

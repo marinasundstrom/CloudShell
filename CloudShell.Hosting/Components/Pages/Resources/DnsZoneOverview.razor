@@ -45,10 +45,13 @@ else
                                       Summary="@GetMappingSummary(mapping)"
                                       Metadata="@GetMappingMetadata(mapping)">
                         <TitleContent>
-                            <a class="resource-link" href="@BuildResourceRoute(mapping.Id, ResourcePredefinedViewIds.Overview)">
-                                @ResourceNameMappingDisplay.GetHostName(mapping)
-                            </a>
+                            @NameMappingHostLink(mapping)
                         </TitleContent>
+                        <ChildContent>
+                            <a class="resource-link" href="@BuildResourceRoute(mapping.Id, ResourcePredefinedViewIds.Overview)">
+                                @L["Open name mapping"]
+                            </a>
+                        </ChildContent>
                     </ResourceListItem>
                 }
             </div>
@@ -128,6 +131,21 @@ else
         }
 
         return string.Join(" - ", parts);
+    }
+
+    private RenderFragment NameMappingHostLink(Resource mapping) =>
+        @<EndpointLink Address="@GetNameMappingEndpointAddress(mapping)"
+                       Text="@ResourceNameMappingDisplay.GetHostName(mapping)"
+                       EmptyText="@ResourceNameMappingDisplay.GetHostName(mapping)" />;
+
+    private string? GetNameMappingEndpointAddress(Resource mapping)
+    {
+        var targetResourceId = ResourceNameMappingDisplay.GetTargetResourceId(mapping);
+        var target = string.IsNullOrWhiteSpace(targetResourceId)
+            ? null
+            : ResourcesById.GetValueOrDefault(targetResourceId);
+
+        return ResourceNameMappingDisplay.GetMappedEndpointAddress(mapping, target);
     }
 
     private string GetProviderLabel(Resource mapping)

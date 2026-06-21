@@ -87,7 +87,14 @@
                 {
                     <GeneratedListItem Summary="@FormatNameMappingSummary(exposure.Mapping)"
                                        Metadata="@FormatNameMappingMetadata(exposure)">
-                        <TitleContent>@ResourceLink(exposure.Mapping)</TitleContent>
+                        <TitleContent>
+                            <EndpointLink Address="@ResourceNameMappingDisplay.GetMappedEndpointAddress(exposure.Mapping, Resource)"
+                                          Text="@ResourceNameMappingDisplay.GetHostName(exposure.Mapping)"
+                                          EmptyText="@ResourceNameMappingDisplay.GetHostName(exposure.Mapping)" />
+                        </TitleContent>
+                        <ChildContent>
+                            @ResourceLink(exposure.Mapping)
+                        </ChildContent>
                     </GeneratedListItem>
                 }
             </div>

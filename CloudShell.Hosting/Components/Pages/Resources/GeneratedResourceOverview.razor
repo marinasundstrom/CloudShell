@@ -99,6 +99,11 @@
             new("essentials", L["Essentials"], 0, RenderEssentials())
         };
 
+        if (ResourceNameMappingDisplay.IsNameMappingResource(Resource))
+        {
+            sections.Add(new("name-mapping", L["Name mapping"], 80, RenderNameMapping()));
+        }
+
         if (HasRuntimeSection)
         {
             sections.Add(new("runtime", L["Runtime"], 100, RenderRuntime()));
@@ -182,6 +187,24 @@
         <dd>@Resource.Version</dd>
         <dt>@L["Updated"]</dt>
         <dd>@Resource.LastUpdated.ToLocalTime().ToString("g")</dd>
+    </dl>;
+
+    private RenderFragment RenderNameMapping() => @<dl class="detail-list">
+        <dt>@L["Host name"]</dt>
+        <dd>@NameMappingHostLink(Resource)</dd>
+        <dt>@L["Target"]</dt>
+        <dd>@NameMappingTargetReference(Resource)</dd>
+        @if (!string.IsNullOrWhiteSpace(Resource.ParentResourceId))
+        {
+            <dt>@L["DNS zone"]</dt>
+            <dd>@ResourceLink(Resource.ParentResourceId)</dd>
+        }
+        <dt>@L["Exposure"]</dt>
+        <dd>@ResourceNameMappingDisplay.GetExposureLabel(Resource)</dd>
+        <dt>@L["Provider"]</dt>
+        <dd>@FormatNameMappingProvider(Resource)</dd>
+        <dt>@L["Materialization"]</dt>
+        <dd>@ResourceNameMappingDisplay.GetMaterializationLabel(Resource, Localize)</dd>
     </dl>;
 
     private RenderFragment RenderRuntime() => @<dl class="detail-list">
@@ -751,6 +774,7 @@
             .Concat(InboundNameMappings.Select(mapping => mapping.Mapping.Id))
             .Concat(InboundNameMappings.Select(mapping => mapping.Mapping.ParentResourceId))
             .Concat(InboundNameMappings.Select(mapping => ResourceNameMappingDisplay.GetProviderResourceId(mapping.Mapping)))
+            .Concat(GetNameMappingRelatedResourceIds(Resource))
             .Concat(Resource.ResourceEndpointMappings.SelectMany(GetMappingResourceIds))
             .Concat(InboundNetworkMappings.SelectMany(mapping => GetMappingResourceIds(mapping.Mapping)))
             .Concat(Resource.ResourceLoadBalancerRoutes.Select(route => route.Target.ResourceId))
@@ -925,6 +949,34 @@
             GetResourceLabel(Resource),
             ResourceNameMappingDisplay.GetTargetEndpointName(mapping)].Value;
 
+    private RenderFragment NameMappingHostLink(Resource mapping) =>
+        @<EndpointLink Address="@GetNameMappingEndpointAddress(mapping)"
+                       Text="@ResourceNameMappingDisplay.GetHostName(mapping)"
+                       EmptyText="@ResourceNameMappingDisplay.GetHostName(mapping)" />;
+
+    private string? GetNameMappingEndpointAddress(Resource mapping) =>
+        ResourceNameMappingDisplay.GetMappedEndpointAddress(
+            mapping,
+            FindRelatedResource(ResourceNameMappingDisplay.GetTargetResourceId(mapping)));
+
+    private RenderFragment NameMappingTargetReference(Resource mapping)
+    {
+        var targetResourceId = ResourceNameMappingDisplay.GetTargetResourceId(mapping);
+        var endpointName = ResourceNameMappingDisplay.GetTargetEndpointName(mapping);
+
+        return @<span class="inline-resource-reference">
+            @if (string.IsNullOrWhiteSpace(targetResourceId))
+            {
+                <span class="muted">@L["none"]</span>
+            }
+            else
+            {
+                @ResourceLink(targetResourceId)
+                <span class="muted">/ @endpointName</span>
+            }
+        </span>;
+    }
+
     private string FormatNameMappingMetadata(NameMappingView view)
     {
         var parts = new List<string>
@@ -964,6 +1016,18 @@
         !string.IsNullOrWhiteSpace(value)
             ? value
             : fallback;
+
+    private static IEnumerable<string?> GetNameMappingRelatedResourceIds(Resource resource)
+    {
+        if (!ResourceNameMappingDisplay.IsNameMappingResource(resource))
+        {
+            yield break;
+        }
+
+        yield return ResourceNameMappingDisplay.GetTargetResourceId(resource);
+        yield return resource.ParentResourceId;
+        yield return ResourceNameMappingDisplay.GetProviderResourceId(resource);
+    }
 
     private static bool HasLoadBalancerShape(Resource resource) =>
         resource.HasCapability(ResourceCapabilityIds.NetworkingLoadBalancer) ||
