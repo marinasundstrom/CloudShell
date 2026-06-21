@@ -747,14 +747,19 @@ In code:
   compatibility methods during the migration. It can also materialize a
   disposable log-source session for Control Plane services that need to own the
   read, poll, stream, or future transport lifecycle explicitly.
-- `ILogProvider` is the provider contract for contributing and accessing log
-  sources. Providers may contribute projected `LogSource` metadata directly,
-  while descriptor-backed providers are bridged into sources during the
-  transition. When opening a session, providers receive the resolved
-  `LogSource` so source kind, storage, location, and configuration stay behind
-  the provider boundary. Providers can also declare whether they can open a
-  resolved source, allowing resource-declared sources to be routed by kind and
-  configuration instead of only by provider-listed source IDs.
+- `ILogSourceCatalog` is the Control Plane listing/projection boundary. It
+  merges resource `ResourceLogSource` declarations, contributed `LogSource`
+  records, and descriptor compatibility projections into the log-source
+  inventory consumed by `ILogManager`.
+- `ILogSourceContributor` is the integration point for listing-only source
+  metadata that is not naturally declared on a resource and does not itself
+  manage read or stream sessions.
+- `ILogProvider` is the provider contract for managing specific log source
+  types or sources. Its primary responsibility is deciding whether it can open
+  a resolved `LogSource` and materializing the `ILogSourceSession` for that
+  source. Providers may also contribute projected `LogSource` metadata
+  directly, while descriptor-backed providers are bridged into sources during
+  the transition.
 - `ILogSourceSession` is the provider-owned runtime access context materialized
   when a source is read or streamed. It keeps source discovery separate from
   access status, file handles, process or container streams, remote cursors,

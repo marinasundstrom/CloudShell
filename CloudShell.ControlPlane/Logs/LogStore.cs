@@ -8,9 +8,12 @@ public sealed class LogStore(
     IEnumerable<ILogProvider> providers,
     IResourceManagerStore resourceManager,
     CloudShellExtensionRegistry extensionRegistry,
-    ICloudShellExtensionActivationStore activationStore) : ILogStore
+    ICloudShellExtensionActivationStore activationStore,
+    IEnumerable<ILogSourceContributor>? sourceContributors = null) : ILogStore
 {
     private readonly IReadOnlyList<ILogProvider> providers = providers.ToArray();
+    private readonly IReadOnlyList<ILogSourceContributor> sourceContributors =
+        sourceContributors?.ToArray() ?? [];
 
     public IReadOnlyList<ILogProvider> Providers => providers
         .Where(IsProviderActive)
@@ -32,63 +35,7 @@ public sealed class LogStore(
     }
 
     public IReadOnlyList<LogSource> GetLogSources()
-    {
-        var resources = resourceManager.GetResources();
-        var visibleResourceIds = resources
-            .Select(resource => resource.Id)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var descriptors = Providers
-            .SelectMany(provider => provider.GetLogs())
-            .Where(log => log.ResourceId is null || visibleResourceIds.Contains(log.ResourceId))
-            .ToArray();
-        var providerSources = Providers
-            .SelectMany(provider => provider.GetLogSources())
-            .Where(source => source.ResourceId is null || visibleResourceIds.Contains(source.ResourceId))
-            .ToArray();
-        var providerSourceIds = providerSources
-            .Select(source => source.Id)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var projected = new List<LogSource>();
-        var matchedSourceIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var resource in resources)
-        {
-            foreach (var source in resource.ResourceLogSources)
-            {
-                var descriptor = descriptors.FirstOrDefault(descriptor =>
-                    IsMatchingSource(resource, source, descriptor));
-                var providerSource = descriptor is null
-                    ? providerSources.FirstOrDefault(providerSource =>
-                        IsMatchingSource(resource, source, providerSource))
-                    : providerSources.FirstOrDefault(providerSource =>
-                        string.Equals(providerSource.Id, descriptor.Id, StringComparison.OrdinalIgnoreCase));
-                if (descriptor is not null)
-                {
-                    matchedSourceIds.Add(descriptor.Id);
-                }
-                if (providerSource is not null)
-                {
-                    matchedSourceIds.Add(providerSource.Id);
-                }
-
-                projected.Add(ToLogSource(resource, source, descriptor, providerSource));
-            }
-        }
-
-        projected.AddRange(providerSources
-            .Where(source => !matchedSourceIds.Contains(source.Id)));
-
-        projected.AddRange(descriptors
-            .Where(descriptor =>
-                !matchedSourceIds.Contains(descriptor.Id) &&
-                !providerSourceIds.Contains(descriptor.Id))
-            .Select(descriptor => descriptor.ToLogSource()));
-
-        return projected
-            .OrderBy(source => source.SourceName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(source => source.Name, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-    }
+        => CreateSourceCatalog().GetLogSources();
 
     public IReadOnlyList<LogDescriptor> GetLogsForResource(string resourceId) =>
         GetLogs()
@@ -99,8 +46,7 @@ public sealed class LogStore(
         GetLogs().FirstOrDefault(log => string.Equals(log.Id, logId, StringComparison.OrdinalIgnoreCase));
 
     public LogSource? GetLogSource(string logSourceId) =>
-        GetLogSources()
-            .FirstOrDefault(source => string.Equals(source.Id, logSourceId, StringComparison.OrdinalIgnoreCase));
+        CreateSourceCatalog().GetLogSource(logSourceId);
 
     public async Task<IReadOnlyList<LogEntry>> ReadLogAsync(
         string logId,
@@ -207,56 +153,37 @@ public sealed class LogStore(
             .Any(type => type.IsAssignableFrom(providerType));
     }
 
-    private static LogSource ToLogSource(
-        Resource resource,
-        ResourceLogSource source,
-        LogDescriptor? descriptor,
-        LogSource? providerSource)
+    private ILogSourceCatalog CreateSourceCatalog() =>
+        new LogSourceCatalog(resourceManager, Providers, GetSourceContributors());
+
+    private IReadOnlyList<ILogSourceContributor> GetSourceContributors()
     {
-        var descriptorSource = descriptor?.ToLogSource();
-        return new LogSource(
-            descriptor?.Id ?? providerSource?.Id ?? GetResourceLogSourceId(resource.Id, source.Id),
-            source.Name,
-            providerSource?.Provider ?? descriptorSource?.Provider ?? resource.Provider,
-            providerSource?.SourceName ?? descriptorSource?.SourceName ?? resource.Name,
-            providerSource?.SourceKind ?? descriptorSource?.SourceKind ?? LogSourceKind.Resource,
-            source.Kind,
-            source.Format,
-            source.Storage,
-            descriptorSource is null && providerSource is null
-                ? source.Capabilities
-                : source.Capabilities |
-                    (descriptorSource?.Capabilities ?? LogSourceCapabilities.None) |
-                    (providerSource?.Capabilities ?? LogSourceCapabilities.None),
-            resource.Id,
-            providerSource?.ArtifactId ?? descriptorSource?.ArtifactId,
-            source.Location,
-            source.ProducerResourceId,
-            source.Description,
-            source.Origin,
-            source.Configuration,
-            source.Purpose,
-            source.Availability);
+        var activeProviders = Providers;
+        return activeProviders
+            .Cast<ILogSourceContributor>()
+            .Concat(sourceContributors
+                .Where(IsSourceContributorActive)
+                .Where(contributor =>
+                    activeProviders.All(provider => !ReferenceEquals(provider, contributor))))
+            .ToArray();
     }
 
-    private static bool IsMatchingSource(
-        Resource resource,
-        ResourceLogSource source,
-        LogDescriptor descriptor) =>
-        string.Equals(descriptor.ResourceId, resource.Id, StringComparison.OrdinalIgnoreCase) &&
-        descriptor.Kind == source.Kind &&
-        (string.Equals(descriptor.Name, source.Name, StringComparison.OrdinalIgnoreCase) ||
-            source.Purpose == ResourceLogSourcePurpose.Default);
+    private bool IsSourceContributorActive(ILogSourceContributor contributor)
+    {
+        var extensionContributorTypes = extensionRegistry
+            .Extensions
+            .SelectMany(extension => extension.LogSourceContributorTypes)
+            .ToArray();
+        var contributorType = contributor.GetType();
+        var isExtensionContributor = extensionContributorTypes.Any(type => type.IsAssignableFrom(contributorType));
+        if (!isExtensionContributor)
+        {
+            return true;
+        }
 
-    private static bool IsMatchingSource(
-        Resource resource,
-        ResourceLogSource source,
-        LogSource providerSource) =>
-        string.Equals(providerSource.ResourceId, resource.Id, StringComparison.OrdinalIgnoreCase) &&
-        providerSource.Kind == source.Kind &&
-        (string.Equals(providerSource.Name, source.Name, StringComparison.OrdinalIgnoreCase) ||
-            source.Purpose == ResourceLogSourcePurpose.Default);
-
-    private static string GetResourceLogSourceId(string resourceId, string sourceId) =>
-        $"{resourceId}:log-source:{sourceId}";
+        return extensionRegistry
+            .GetActiveExtensions(activationStore)
+            .SelectMany(extension => extension.LogSourceContributorTypes)
+            .Any(type => type.IsAssignableFrom(contributorType));
+    }
 }

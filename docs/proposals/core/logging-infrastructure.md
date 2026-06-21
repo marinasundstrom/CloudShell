@@ -105,8 +105,14 @@ explicit source concept:
   and streaming.
 - `LogSource`: Control Plane projection of a log source that can be listed,
   authorized, persisted, queried, read, streamed, and rendered.
-- `ILogProvider`: integration point that contributes and accesses projected
-  log sources, rather than being conceptually "the log" itself.
+- `ILogSourceContributor`: listing-only integration point for projected log
+  source metadata supplied outside the resource model.
+- `ILogSourceCatalog`: Control Plane aggregation/projection boundary that
+  merges resource declarations, contributed source metadata, and descriptor
+  compatibility projections.
+- `ILogProvider`: integration point that manages specific source types or
+  sources and materializes sessions for projected log sources, rather than
+  being conceptually "the log" itself.
 - `ILogSourceSession`: provider-owned runtime access context materialized when
   a source is read or streamed.
 - parser/format metadata: a separate concern that tells CloudShell how to
@@ -118,11 +124,12 @@ for descriptor-based read and stream operations. The provider contract can
 also expose projected `LogSource` metadata directly, with descriptor-backed
 providers bridged into sources by default. This lets source discovery evolve
 without forcing every provider to rewrite read and stream operations at once.
-The internal `ILogStore` boundary uses source-addressed read and stream
-operations, with descriptor-named methods retained only as compatibility
-aliases. It also exposes session materialization as an explicit operation so
-Control Plane services can open a resolved source session, consume it through
-read, polling, streaming, or future transports, and dispose it deterministically.
+The source catalog owns listing. The internal `ILogStore` boundary uses
+source-addressed read and stream operations, with descriptor-named methods
+retained only as compatibility aliases. It also exposes session materialization
+as an explicit operation so Control Plane services can open a resolved source
+session, consume it through read, polling, streaming, or future transports, and
+dispose it deterministically.
 Providers can also materialize a log-source session when a source is accessed,
 which keeps discovery metadata separate from runtime handles such as file
 readers, process or container streams, remote cursors, credentials, offsets, or

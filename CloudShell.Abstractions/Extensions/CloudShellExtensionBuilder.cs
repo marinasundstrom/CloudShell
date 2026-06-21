@@ -16,6 +16,7 @@ internal sealed class CloudShellExtensionBuilder(
     private readonly List<ResourceTypeContribution> _resourceTypes = [];
     private readonly List<Type> _resourceProviderTypes = [];
     private readonly List<Type> _logProviderTypes = [];
+    private readonly List<Type> _logSourceContributorTypes = [];
     private string? _startRoute;
 
     public IServiceCollection Services { get; } = services;
@@ -237,6 +238,16 @@ internal sealed class CloudShellExtensionBuilder(
         Services.AddSingleton<TProvider>();
         Services.AddSingleton<ILogProvider>(
             serviceProvider => serviceProvider.GetRequiredService<TProvider>());
+        return this;
+    }
+
+    public ICloudShellExtensionBuilder AddLogSourceContributor<TContributor>()
+        where TContributor : class, ILogSourceContributor
+    {
+        _logSourceContributorTypes.Add(typeof(TContributor));
+        Services.AddSingleton<TContributor>();
+        Services.AddSingleton<ILogSourceContributor>(
+            serviceProvider => serviceProvider.GetRequiredService<TContributor>());
         return this;
     }
 
@@ -596,6 +607,7 @@ internal sealed class CloudShellExtensionBuilder(
             _resourceTypes.ToArray(),
             _resourceProviderTypes.ToArray(),
             _logProviderTypes.ToArray(),
+            _logSourceContributorTypes.ToArray(),
             _customViews.ToArray(),
             _startRoute);
 

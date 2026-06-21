@@ -114,9 +114,15 @@ return new Resource(
 
 ## Log Providers
 
-Logs are first-class services registered independently of resources. Implement
-`ILogProvider` when an extension can expose logs for resources, providers, or
-extension-owned artifacts, then register it with `AddLogProvider<TProvider>()`.
+Logs are first-class services registered independently of resources. Use
+`ResourceLogSource` declarations for logs owned by a resource model. Implement
+`ILogSourceContributor` when an extension only needs to contribute projected
+log source metadata for the Control Plane catalog. Implement `ILogProvider`
+when the extension manages a specific log source type or source and can decide
+whether it can open a resolved `LogSource` and materialize an
+`ILogSourceSession`. Register contributors with
+`AddLogSourceContributor<TContributor>()` and providers with
+`AddLogProvider<TProvider>()`.
 
 Resource providers should declare stable, provider-owned defaults on resources
 with `ResourceLogSource`. A source declaration is primarily a discovery

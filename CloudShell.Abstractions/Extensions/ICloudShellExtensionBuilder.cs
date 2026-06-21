@@ -89,6 +89,9 @@ public interface ICloudShellExtensionBuilder
     ICloudShellExtensionBuilder AddLogProvider<TProvider>()
         where TProvider : class, ILogProvider;
 
+    ICloudShellExtensionBuilder AddLogSourceContributor<TContributor>()
+        where TContributor : class, ILogSourceContributor;
+
     ICloudShellExtensionBuilder AddResourceType<TRegistrationComponent>(
         string id,
         string displayName,

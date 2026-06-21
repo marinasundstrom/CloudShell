@@ -172,6 +172,23 @@ public sealed class LogStoreTests
     }
 
     [Fact]
+    public void GetLogSources_IncludesStandaloneSourceContributors()
+    {
+        var store = new LogStore(
+            [],
+            new TestResourceManagerStore([]),
+            new CloudShellExtensionRegistry(),
+            new InMemoryCloudShellExtensionActivationStore(),
+            [new TestLogSourceContributor()]);
+
+        var source = Assert.Single(store.GetLogSources());
+
+        Assert.Equal("collector:logs", source.Id);
+        Assert.Equal(LogSourceKind.Provider, source.SourceKind);
+        Assert.Equal(ResourceLogSourceOrigin.ProviderProjected, source.Origin);
+    }
+
+    [Fact]
     public async Task ResourceEventLogProvider_ExposesActivityAsProjectedLogSource()
     {
         var resource = CreateResource("application:api", "api");
@@ -302,6 +319,21 @@ public sealed class LogStoreTests
             Status = LogSourceSessionStatus.Closed;
             return ValueTask.CompletedTask;
         }
+    }
+
+    private sealed class TestLogSourceContributor : ILogSourceContributor
+    {
+        public IReadOnlyList<LogSource> GetLogSources() =>
+        [
+            new(
+                "collector:logs",
+                "Collector logs",
+                "Collector",
+                "Collector",
+                LogSourceKind.Provider,
+                ResourceLogSourceKind.ProviderDefined,
+                Origin: ResourceLogSourceOrigin.ProviderProjected)
+        ];
     }
 
     private sealed class ResourceDeclaredLogProvider : ILogProvider

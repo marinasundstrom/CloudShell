@@ -76,6 +76,26 @@ public sealed class ExtensionRegistrationTests
     }
 
     [Fact]
+    public void AddExtension_RegistersLogSourceContributorsInTheServiceCollection()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddCloudShell()
+            .AddExtension<LogSourceContributorExtension>();
+
+        var registry = GetRegistry(services);
+        var extension = Assert.Single(registry.Extensions, extension => extension.Id == "sample.log-sources");
+
+        Assert.Contains(services, descriptor =>
+            descriptor.ServiceType == typeof(SampleLogSourceContributor));
+        Assert.Contains(services, descriptor =>
+            descriptor.ServiceType == typeof(ILogSourceContributor) &&
+            descriptor.ImplementationFactory is not null);
+        Assert.Contains(extension.LogSourceContributorTypes, type => type == typeof(SampleLogSourceContributor));
+    }
+
+    [Fact]
     public void AddResourceType_RecordsSeparateRegistrationAndUpdateComponents()
     {
         var services = new ServiceCollection();
@@ -897,6 +917,22 @@ public sealed class ExtensionRegistrationTests
         }
     }
 
+    private sealed class LogSourceContributorExtension : ICloudShellExtension
+    {
+        public CloudShellExtensionManifest Manifest => new(
+            "sample.log-sources",
+            "Sample log sources",
+            "Contributes log source metadata.",
+            "1.0.0",
+            ["sample.log-sources"],
+            []);
+
+        public void Configure(ICloudShellExtensionBuilder builder)
+        {
+            builder.AddLogSourceContributor<SampleLogSourceContributor>();
+        }
+    }
+
     private sealed class ResourceProcedureExtension : ICloudShellExtension
     {
         public CloudShellExtensionManifest Manifest => new(
@@ -1235,6 +1271,11 @@ public sealed class ExtensionRegistrationTests
             DateTimeOffset? before = null,
             CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<LogEntry>>([]);
+    }
+
+    private sealed class SampleLogSourceContributor : ILogSourceContributor
+    {
+        public IReadOnlyList<LogSource> GetLogSources() => [];
     }
 
     [Route("/sample")]

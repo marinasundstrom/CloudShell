@@ -85,6 +85,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource activity logs are now projected by the built-in provider as native
   `LogSource` records, with descriptor-shaped logs retained as compatibility
   projections.
+- Log source listing now has an explicit catalog/contributor abstraction:
+  `ILogSourceCatalog` merges resource declarations, source contributors, and
+  descriptor compatibility projections, while `ILogProvider` remains
+  responsible for managing/opening sources and materializing sessions.
 - Docker host/container resources and Configuration Store/Secrets Vault
   service resources now declare provider-owned default log sources.
 - Resource inventory, Observability landing, Docker container, and application

@@ -1,6 +1,6 @@
 namespace CloudShell.Abstractions.Logs;
 
-public interface ILogProvider
+public interface ILogProvider : ILogSourceContributor
 {
     string Id { get; }
 
@@ -8,7 +8,10 @@ public interface ILogProvider
 
     IReadOnlyList<LogDescriptor> GetLogs();
 
-    IReadOnlyList<LogSource> GetLogSources() =>
+    IReadOnlyList<LogSource> ILogSourceContributor.GetLogSources() =>
+        GetLogSources();
+
+    new IReadOnlyList<LogSource> GetLogSources() =>
         GetLogs()
             .Select(log => log.ToLogSource())
             .ToArray();

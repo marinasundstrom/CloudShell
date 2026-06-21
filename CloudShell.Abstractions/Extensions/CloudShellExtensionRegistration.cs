@@ -11,6 +11,7 @@ public sealed class CloudShellExtensionRegistration(
     IReadOnlyList<ResourceTypeContribution> resourceTypes,
     IReadOnlyList<Type> resourceProviderTypes,
     IReadOnlyList<Type> logProviderTypes,
+    IReadOnlyList<Type> logSourceContributorTypes,
     IReadOnlyList<CustomShellViewContribution>? customViews = null,
     string? startRoute = null)
 {
@@ -39,6 +40,8 @@ public sealed class CloudShellExtensionRegistration(
     public IReadOnlyList<Type> ResourceProviderTypes { get; } = resourceProviderTypes;
 
     public IReadOnlyList<Type> LogProviderTypes { get; } = logProviderTypes;
+
+    public IReadOnlyList<Type> LogSourceContributorTypes { get; } = logSourceContributorTypes;
 
     public IReadOnlyList<CustomShellViewContribution> CustomViews { get; } = customViews ?? [];
 
