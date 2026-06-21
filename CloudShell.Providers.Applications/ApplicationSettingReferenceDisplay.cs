@@ -196,7 +196,7 @@ internal static class ApplicationSettingReferenceDisplay
         string resourceId,
         string itemName,
         Resource? resource) =>
-        $"{ResourceDisplayLabels.GetLabel(resource, resourceId)} / {itemName}";
+        $"{ResourceDisplayLabels.GetLabel(resource, ResourceDisplayLabels.GetName(resourceId))} / {itemName}";
 
     private static string FormatReferenceDetail(
         string resourceId,
@@ -208,7 +208,7 @@ internal static class ApplicationSettingReferenceDisplay
         Func<string, Resource?> resolveResource)
     {
         var detail = resource is null
-            ? $"{resourceId} (unavailable)"
+            ? $"{ResourceDisplayLabels.GetName(resourceId)} (unavailable)"
             : ResourceDisplayLabels.GetLabel(resource, resourceId);
         if (!string.IsNullOrWhiteSpace(version))
         {

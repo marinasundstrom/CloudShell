@@ -403,7 +403,9 @@ else
             !string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase));
 
     private static string FormatUnavailableReference(string? resourceId) =>
-        $"{resourceId} (unavailable)";
+        string.IsNullOrWhiteSpace(resourceId)
+            ? "(unavailable)"
+            : $"{ResourceDisplayLabels.GetName(resourceId)} (unavailable)";
 
     private static TextFieldType GetLiteralValueTextFieldType(string? name, bool hasStoredSensitiveValue) =>
         hasStoredSensitiveValue || ResourceSettingDisplay.IsSensitiveLiteralName(name)

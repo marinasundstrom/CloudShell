@@ -158,10 +158,10 @@ public sealed class ResourceSettingDisplayTests
             _ => null);
 
         Assert.Equal("Configuration entry", row.Source);
-        Assert.Equal("configuration:missing / Sample:Message", row.Target);
+        Assert.Equal("missing / Sample:Message", row.Target);
         Assert.Equal("Unavailable", row.Status);
         Assert.Equal("warning", row.StatusKind);
-        Assert.Equal("configuration:missing (unavailable)", row.Detail);
+        Assert.Equal("missing (unavailable)", row.Detail);
     }
 
     [Fact]

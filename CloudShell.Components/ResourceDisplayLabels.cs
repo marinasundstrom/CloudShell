@@ -26,6 +26,11 @@ public static class ResourceDisplayLabels
                 ? resourceId.Name
                 : resource.Id;
 
+    public static string GetName(string resourceId) =>
+        ResourceId.TryParse(resourceId, out var parsedResourceId)
+            ? parsedResourceId.Name
+            : resourceId;
+
     public static string GetQualifiedLabel(Resource resource)
     {
         var label = GetLabel(resource);

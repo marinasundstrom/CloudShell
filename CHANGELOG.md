@@ -120,6 +120,8 @@ on `git blame --follow`, and then by the broad type of change.
   composition main menu with graph-encoded permission requirements.
 - Custom card-like and tab-like navigation links now suppress hover underlines
   when their own border or background state already communicates hover.
+- Missing configuration and secret references now fall back to resource names
+  instead of full resource IDs in app environment summaries and selectors.
 - The UI Extension Host sample now contributes its sample workspace sidebar
   item through the composition main menu instead of legacy shell navigation.
 - CloudShell Hosting now exposes `builder.AddCompositionModule(...)` for
