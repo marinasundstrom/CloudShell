@@ -2,6 +2,7 @@
              LogId="@LogId"
              TraceId="@TraceId"
              View="@View"
+             SourceIds="@SourceIds"
              Inline="true"
              ShowHeading="false"
              ShowSourceSummary="false"
@@ -20,4 +21,7 @@
 
     [Parameter]
     public string? View { get; set; }
+
+    [Parameter]
+    public string? SourceIds { get; set; }
 }

@@ -3114,6 +3114,77 @@ h3 {
     min-width: 10rem;
 }
 
+.log-source-filter-menu {
+    position: relative;
+}
+
+.log-source-filter-menu summary {
+    display: inline-grid;
+    grid-template-columns: auto auto;
+    align-items: center;
+    gap: .45rem;
+    min-height: 2rem;
+    border: 1px solid var(--cloudshell-input-stroke);
+    border-radius: 4px;
+    background: var(--cloudshell-input);
+    color: var(--cloudshell-text);
+    padding: 0 .65rem;
+    cursor: pointer;
+    list-style: none;
+}
+
+.log-source-filter-menu summary::-webkit-details-marker {
+    display: none;
+}
+
+.log-source-filter-menu summary span {
+    color: var(--cloudshell-text-muted);
+    font-size: .78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.log-source-filter-menu summary strong {
+    font-size: .82rem;
+    font-weight: 650;
+}
+
+.log-source-filter-options {
+    position: absolute;
+    top: calc(100% + .35rem);
+    right: 0;
+    z-index: 20;
+    display: grid;
+    gap: .35rem;
+    width: min(28rem, 86vw);
+    max-height: min(24rem, 70vh);
+    overflow: auto;
+    border: 1px solid var(--cloudshell-border);
+    border-radius: 6px;
+    background: var(--cloudshell-surface);
+    box-shadow: 0 16px 36px rgb(15 23 42 / 18%);
+    padding: .65rem;
+}
+
+.log-source-filter-commands {
+    display: flex;
+    justify-content: flex-end;
+    padding-bottom: .25rem;
+    border-bottom: 1px solid var(--cloudshell-border);
+}
+
+.log-source-filter-checkbox {
+    min-width: 0;
+}
+
+.log-source-filter-checkbox span {
+    display: inline-block;
+    max-width: 22rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .log-wrap-toggle,
 .log-stream-toggle {
     display: inline-flex;

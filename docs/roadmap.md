@@ -865,7 +865,11 @@ listed here before pulling in broader proposal work.
   changing resource Telemetry navigation or scope selection.
   Control Plane API streaming for live telemetry/monitoring remains a later
   design question after basic provider monitoring support is established;
-  durable retention and aggregation remain future work.
+  durable retention and aggregation remain future work. Merged log views now
+  support UI-level source filters over projected `LogSource` records for reads
+  and older-history queries; live merged streaming should wait for log sessions
+  to support provider-owned multi-source fan-in, shared readers, and disposal
+  semantics instead of faking it in the UI.
 - Define only the audit event schemas needed by current MVP operations:
   resource actions, host/runtime operations, image deployments, authorization
   decisions, identity provisioning, configuration reads, and secret reads.

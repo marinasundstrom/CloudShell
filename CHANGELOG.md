@@ -93,6 +93,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The Logs explorer now separates Stream and Sources views, keeps source
   inventory out of the live stream, labels merged log entries with their
   source/resource, and keeps wrapped log rows following the latest entries.
+- Merged Logs explorer views now support route-backed source filters so
+  users can choose which operational log sources participate in the `All logs`
+  read and history view.
 - Resource-scoped log source discovery, reads, and streams now enforce both
   the common logs permission and resource read access, while provider-owned
   sources remain gated by the common logs permission.

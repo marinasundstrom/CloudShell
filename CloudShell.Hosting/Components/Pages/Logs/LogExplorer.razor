@@ -228,6 +228,32 @@ else if (ShowHeading)
                                 }
                             </select>
                         </label>
+                        @if (IsCombinedLog(selected) && GetMergedSourceFilterOptions().Count > 1)
+                        {
+                            <details class="log-source-filter-menu">
+                                <summary>
+                                    <span>@L["Sources"]</span>
+                                    <strong>@GetMergedSourceFilterSummary()</strong>
+                                </summary>
+                                <div class="log-source-filter-options" role="group" aria-label="@L["Merged log sources"]">
+                                    <div class="log-source-filter-commands">
+                                        <FluentButton Appearance="Appearance.Neutral"
+                                                      Disabled="@AreAllMergedSourcesSelected()"
+                                                      OnClick="SelectAllMergedSources">
+                                            @L["All"]
+                                        </FluentButton>
+                                    </div>
+                                    @foreach (var source in GetMergedSourceFilterOptions())
+                                    {
+                                        <FluentCheckbox Class="log-source-filter-checkbox"
+                                                        Value="@IsMergedSourceSelected(source)"
+                                                        ValueChanged="enabled => SetMergedSourceSelected(source.Id, enabled)">
+                                            <span title="@GetMergedSourceFilterLabel(source)">@GetMergedSourceFilterLabel(source)</span>
+                                        </FluentCheckbox>
+                                    }
+                                </div>
+                            </details>
+                        }
                         <FluentCheckbox Class="log-wrap-toggle" @bind-Value="WrapLogMessages">
                             @L["Wrap"]
                         </FluentCheckbox>
@@ -272,7 +298,7 @@ else if (ShowHeading)
                         <strong>@(IsSelectedLogStreaming(selected) ? L["Waiting for entries"] : L["No entries"])</strong>
                         <span>@(IsSelectedLogStreaming(selected)
                                                     ? L["Streaming is active for this log source."]
-                                                    : L["This log source did not return recent entries."])</span>
+                                                    : GetNoEntriesMessage(selected))</span>
                     </div>
                 }
                 else
@@ -322,6 +348,9 @@ else if (ShowHeading)
     public string? View { get; set; }
 
     [Parameter]
+    public string? SourceIds { get; set; }
+
+    [Parameter]
     public bool Inline { get; set; }
 
     [Parameter]
@@ -341,6 +370,7 @@ else if (ShowHeading)
 
     private IReadOnlyList<LogEntry> Entries { get; set; } = [];
     private string? LoadedLogId { get; set; }
+    private string? LoadedMergedSourceFilterKey { get; set; }
     private string? StreamingLogId { get; set; }
     private string? ReadError { get; set; }
     private CancellationTokenSource? StreamingCancellation { get; set; }
@@ -366,6 +396,7 @@ else if (ShowHeading)
     private LogViewer? LogViewerComponent { get; set; }
 
     private const string AllLogsId = "__all";
+    private const string SourceIdsQueryName = "sourceIds";
     private const string LogStreamView = "stream";
     private const string LogSourcesView = "sources";
     private const int InitialWindowEntries = 100;
@@ -390,12 +421,14 @@ else if (ShowHeading)
             await StopStreamingAsync();
             Entries = [];
             LoadedLogId = null;
+            LoadedMergedSourceFilterKey = null;
             CanLoadOlderEntries = false;
             CancelScrollToLatest();
             return;
         }
 
-        if (!string.Equals(LoadedLogId, selected.Id, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(LoadedLogId, selected.Id, StringComparison.OrdinalIgnoreCase) ||
+            IsLoadedMergedSourceFilterStale(selected))
         {
             await StopStreamingAsync();
             await LoadLogAsync(selected);
@@ -465,6 +498,26 @@ else if (ShowHeading)
             .Where(log => !IsCombinedLog(log) && !IsActivityLog(log))
             .ToArray();
 
+    private IReadOnlyList<LogSource> GetMergedLogSources()
+    {
+        var sources = GetOperationalLogSources(VisibleLogSources);
+        var requestedSourceIds = GetRequestedMergedSourceIds();
+        if (requestedSourceIds is null)
+        {
+            return sources;
+        }
+
+        return sources
+            .Where(source => requestedSourceIds.Contains(source.Id))
+            .ToArray();
+    }
+
+    private IReadOnlyList<LogSource> GetMergedSourceFilterOptions() =>
+        GetOperationalLogSources(VisibleLogSources)
+            .OrderBy(source => GetLogSourceLabel(source), StringComparer.OrdinalIgnoreCase)
+            .ThenBy(source => source.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
     private IReadOnlyList<LogSource> GetInventoryLogSources() =>
         VisibleLogSources
             .Where(log => !IsCombinedLog(log))
@@ -497,6 +550,85 @@ else if (ShowHeading)
             Description: logs.Count == 1
                 ? L["Recent entries from the available operational log source."].Value
                 : L["Merged recent entries from all operational log sources."].Value);
+    }
+
+    private IReadOnlySet<string>? GetRequestedMergedSourceIds()
+    {
+        if (SourceIds is null)
+        {
+            return null;
+        }
+
+        return SourceIds
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private bool IsMergedSourceSelected(LogSource source) =>
+        GetRequestedMergedSourceIds() is not { } selectedIds ||
+        selectedIds.Contains(source.Id);
+
+    private bool AreAllMergedSourcesSelected()
+    {
+        var sources = GetMergedSourceFilterOptions();
+        return sources.Count == 0 || GetMergedLogSources().Count == sources.Count;
+    }
+
+    private string GetMergedSourceFilterSummary()
+    {
+        var sources = GetMergedSourceFilterOptions();
+        var selectedCount = GetMergedLogSources().Count;
+        return selectedCount == sources.Count
+            ? L["All sources"].Value
+            : L["{0} of {1}", selectedCount, sources.Count].Value;
+    }
+
+    private string GetMergedSourceFilterLabel(LogSource source) =>
+        $"{GetLogSourceLabel(source)} / {source.Name}";
+
+    private string GetMergedSourceFilterKey() =>
+        string.Join(
+            "|",
+            GetMergedLogSources()
+                .Select(source => source.Id)
+                .OrderBy(id => id, StringComparer.OrdinalIgnoreCase));
+
+    private bool IsLoadedMergedSourceFilterStale(LogSource selected) =>
+        IsCombinedLog(selected) &&
+        !string.Equals(LoadedMergedSourceFilterKey, GetMergedSourceFilterKey(), StringComparison.Ordinal);
+
+    private void SelectAllMergedSources() =>
+        NavigateToMergedSourceFilter(null);
+
+    private void SetMergedSourceSelected(string sourceId, bool selected)
+    {
+        var selectedIds = GetRequestedMergedSourceIds() is { } requestedSourceIds
+            ? new HashSet<string>(requestedSourceIds, StringComparer.OrdinalIgnoreCase)
+            : GetMergedSourceFilterOptions()
+                .Select(source => source.Id)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (selected)
+        {
+            selectedIds.Add(sourceId);
+        }
+        else
+        {
+            selectedIds.Remove(sourceId);
+        }
+
+        NavigateToMergedSourceFilter(selectedIds);
+    }
+
+    private void NavigateToMergedSourceFilter(IReadOnlySet<string>? selectedSourceIds)
+    {
+        var selected = GetSelectedLog(GetSelectableLogs());
+        if (selected is null)
+        {
+            return;
+        }
+
+        Navigation.NavigateTo(BuildLogRoute(selected, TraceId, selectedSourceIds));
     }
 
     private IReadOnlyList<LogEntry> GetVisibleEntries()
@@ -850,6 +982,7 @@ else if (ShowHeading)
                 RequestScrollToLatest();
             }
             LoadedLogId = log.Id;
+            LoadedMergedSourceFilterKey = IsCombinedLog(log) ? GetMergedSourceFilterKey() : null;
         }
         catch (Exception exception)
         {
@@ -857,6 +990,7 @@ else if (ShowHeading)
             CanLoadOlderEntries = false;
             ReadError = exception.Message;
             LoadedLogId = log.Id;
+            LoadedMergedSourceFilterKey = IsCombinedLog(log) ? GetMergedSourceFilterKey() : null;
             CancelScrollToLatest();
         }
         finally
@@ -869,7 +1003,7 @@ else if (ShowHeading)
         int maxEntries,
         DateTimeOffset? before = null)
     {
-        var sources = GetOperationalLogSources(VisibleLogSources);
+        var sources = GetMergedLogSources();
         if (sources.Count == 0)
         {
             return [];
@@ -1135,12 +1269,19 @@ else if (ShowHeading)
             entry.TraceId,
             entry.SpanId);
 
-    private string BuildLogRoute(LogSource log, string? traceId = null)
+    private string BuildLogRoute(
+        LogSource log,
+        string? traceId = null,
+        IReadOnlySet<string>? mergedSourceIds = null)
     {
         var query = new Dictionary<string, string?>();
         if (!IsCombinedLog(log))
         {
             query["logId"] = log.Id;
+        }
+        else
+        {
+            AddMergedSourceFilterQuery(query, mergedSourceIds);
         }
 
         AddLogViewQuery(query, ResolveLogView());
@@ -1198,6 +1339,10 @@ else if (ShowHeading)
         {
             query["logId"] = selected.Id;
         }
+        else if (selected is not null)
+        {
+            AddMergedSourceFilterQuery(query);
+        }
 
         AddLogViewQuery(query, view);
 
@@ -1229,6 +1374,35 @@ else if (ShowHeading)
         }
     }
 
+    private void AddMergedSourceFilterQuery(
+        Dictionary<string, string?> query,
+        IReadOnlySet<string>? selectedSourceIds = null)
+    {
+        var sources = GetMergedSourceFilterOptions();
+        if (sources.Count <= 1)
+        {
+            return;
+        }
+
+        var sourceIds = selectedSourceIds ?? GetRequestedMergedSourceIds();
+        if (sourceIds is null)
+        {
+            return;
+        }
+
+        var knownSourceIds = sources
+            .Where(source => sourceIds.Contains(source.Id))
+            .Select(source => source.Id)
+            .OrderBy(id => id, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (knownSourceIds.Length == sources.Count)
+        {
+            return;
+        }
+
+        query[SourceIdsQueryName] = string.Join(",", knownSourceIds);
+    }
+
     private string? BuildActivityRoute(LogSource log) =>
         IsActivityLog(log) && !string.IsNullOrWhiteSpace(log.ResourceId)
             ? ResourceManagerCompositionLinks.ResourceDetails(
@@ -1246,6 +1420,11 @@ else if (ShowHeading)
         !string.IsNullOrWhiteSpace(TraceId)
             ? L["This log source has entries, but none are correlated with the selected trace."].Value
             : L["This log source has entries, but none contain structured metadata."].Value;
+
+    private string GetNoEntriesMessage(LogSource selected) =>
+        IsCombinedLog(selected) && GetMergedLogSources().Count == 0
+            ? L["Select at least one source to read merged log entries."].Value
+            : L["This log source did not return recent entries."].Value;
 
     private string BuildTraceRoute(string? resourceId, string traceId)
     {
