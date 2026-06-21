@@ -1011,6 +1011,53 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void ConfigurationResources_DisplayNameDoesNotReplaceResourceName()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddConfigurationProvider()
+            .AddSecretsProvider()
+            .Resources(resources =>
+            {
+                resources
+                    .AddConfigurationStore("configuration:application-topology")
+                    .WithDisplayName("Settings");
+                resources
+                    .AddSecretsVault("secrets-vault:application-topology")
+                    .WithDisplayName("Secrets");
+                resources
+                    .AddHostConfigurationSource("configuration:host-development")
+                    .WithDisplayName("Host Development Settings");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var configurationProvider = serviceProvider.GetRequiredService<ConfigurationResourceProvider>();
+        var secretsProvider = serviceProvider.GetRequiredService<SecretsVaultProvider>();
+        var hostConfigurationProvider = serviceProvider.GetRequiredService<HostConfigurationSourceProvider>();
+
+        var configuration = Assert.Single(
+            configurationProvider.GetResources(),
+            resource => resource.Id == "configuration:application-topology");
+        var secrets = Assert.Single(
+            secretsProvider.GetResources(),
+            resource => resource.Id == "secrets-vault:application-topology");
+        var hostConfiguration = Assert.Single(
+            hostConfigurationProvider.GetResources(),
+            resource => resource.Id == "configuration:host-development");
+
+        Assert.Equal("application-topology", configuration.Name);
+        Assert.Equal("Settings", configuration.DisplayName);
+        Assert.Equal("application-topology", secrets.Name);
+        Assert.Equal("Secrets", secrets.DisplayName);
+        Assert.Equal("host-development", hostConfiguration.Name);
+        Assert.Equal("Host Development Settings", hostConfiguration.DisplayName);
+    }
+
+    [Fact]
     public void ResourceGraphBuilder_DeclaresResourceGroups()
     {
         var services = new ServiceCollection();

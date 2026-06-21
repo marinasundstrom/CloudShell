@@ -133,6 +133,11 @@ on `git blame --follow`, and then by the broad type of change.
 - Control Plane startup, lifecycle, identity provisioning, and Resource
   Manager diagnostics now use resource names in human-facing messages instead
   of leading with canonical resource IDs.
+- Programmatic resource startup now logs a clear start/completion summary and
+  keeps provider warning/error diagnostics at warning/error levels.
+- Configuration, host-configuration, and Secrets Vault resource declarations
+  now keep resource names separate from display names so lifecycle and startup
+  diagnostics use the actual resource name.
 - Docker-backed application operations now log container-host command start,
   completion, and release messages at debug level with the full command
   arguments.

@@ -9,18 +9,22 @@ public sealed record ConfigurationStoreDefinition
         string name,
         IReadOnlyList<ConfigurationEntry>? entries = null,
         string? endpoint = null,
-        IReadOnlyList<ResourceHealthCheck>? healthChecks = null)
+        IReadOnlyList<ResourceHealthCheck>? healthChecks = null,
+        string? displayName = null)
     {
         Id = id;
         Name = name;
         Entries = entries ?? [];
         Endpoint = endpoint;
         HealthChecks = healthChecks ?? [];
+        DisplayName = displayName;
     }
 
     public string Id { get; init; }
 
     public string Name { get; init; }
+
+    public string? DisplayName { get; init; }
 
     public IReadOnlyList<ConfigurationEntry> Entries { get; init; }
 

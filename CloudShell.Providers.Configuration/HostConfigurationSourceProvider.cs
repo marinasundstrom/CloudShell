@@ -103,7 +103,8 @@ public sealed class HostConfigurationSourceProvider(
             {
                 [ResourceAttributeNames.ConfigurationEntryCount] =
                     source.Entries.Count.ToString(CultureInfo.InvariantCulture)
-            });
+            },
+            DisplayName: source.DisplayName);
 
     private static HostConfigurationSourceDefinition Normalize(HostConfigurationSourceDefinition source)
     {
@@ -117,6 +118,9 @@ public sealed class HostConfigurationSourceProvider(
             Name = string.IsNullOrWhiteSpace(source.Name)
                 ? id
                 : source.Name.Trim(),
+            DisplayName = string.IsNullOrWhiteSpace(source.DisplayName)
+                ? null
+                : source.DisplayName.Trim(),
             Entries = source.Entries
                 .Where(entry => !string.IsNullOrWhiteSpace(entry))
                 .Select(entry => entry.Trim())

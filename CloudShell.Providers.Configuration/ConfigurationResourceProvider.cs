@@ -507,7 +507,8 @@ public sealed partial class ConfigurationResourceProvider :
                     configurationStore.Entries.Count.ToString(CultureInfo.InvariantCulture),
                 [ResourceAttributeNames.EndpointCount] = "1"
             },
-            EndpointNetworkMappings: [CreateEntriesEndpointMapping(configurationStore)]);
+            EndpointNetworkMappings: [CreateEntriesEndpointMapping(configurationStore)],
+            DisplayName: configurationStore.DisplayName);
 
     private ResourceState GetState(ConfigurationStoreDefinition configurationStore)
     {
@@ -817,6 +818,9 @@ public sealed partial class ConfigurationResourceProvider :
         {
             Id = id,
             Name = definition.Name.Trim(),
+            DisplayName = string.IsNullOrWhiteSpace(definition.DisplayName)
+                ? null
+                : definition.DisplayName.Trim(),
             Endpoint = string.IsNullOrWhiteSpace(definition.Endpoint)
                 ? null
                 : definition.Endpoint.TrimEnd('/'),

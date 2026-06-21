@@ -42,12 +42,43 @@ public static class ResourceDeclarationPersistenceExtensions
             .GetRequiredService<ILoggerFactory>()
             .CreateLogger(CloudShellLogCategories.ProgrammaticResourceStartup);
         var startup = scope.ServiceProvider.GetRequiredService<ResourceDeclarationStartupService>();
+        logger.LogInformation("Starting programmatic resource startup.");
         var result = await startup.StartAutoStartDeclarationsAsync(cancellationToken);
 
         foreach (var diagnostic in result.Diagnostics)
         {
             LogStartupDiagnostic(logger, diagnostic);
         }
+
+        LogStartupSummary(logger, result);
+    }
+
+    private static void LogStartupSummary(
+        ILogger logger,
+        ResourceDeclarationStartupResult result)
+    {
+        if (result.HasErrors)
+        {
+            logger.LogError(
+                "Programmatic resource startup completed with {ErrorCount} error(s), {WarningCount} warning(s), and {InformationCount} information diagnostic(s).",
+                result.ErrorCount,
+                result.WarningCount,
+                result.InformationCount);
+            return;
+        }
+
+        if (result.HasWarnings)
+        {
+            logger.LogWarning(
+                "Programmatic resource startup completed with {WarningCount} warning(s) and {InformationCount} information diagnostic(s).",
+                result.WarningCount,
+                result.InformationCount);
+            return;
+        }
+
+        logger.LogInformation(
+            "Programmatic resource startup completed successfully with {InformationCount} information diagnostic(s).",
+            result.InformationCount);
     }
 
     private static void LogStartupDiagnostic(
@@ -57,7 +88,7 @@ public static class ResourceDeclarationPersistenceExtensions
         var severity = diagnostic.Severity;
         var resourceName = ResourceDisplayLabels.GetName(diagnostic.ResourceId);
         using var scope = ResourceLogScope.Begin(logger, diagnostic.ResourceId);
-        if (string.Equals(severity, "Error", StringComparison.OrdinalIgnoreCase))
+        if (diagnostic.IsError)
         {
             logger.LogError(
                 "Programmatic resource startup reported {Severity} for resource {ResourceName}: {Message}",
@@ -67,7 +98,7 @@ public static class ResourceDeclarationPersistenceExtensions
             return;
         }
 
-        if (string.Equals(severity, "Warning", StringComparison.OrdinalIgnoreCase))
+        if (diagnostic.IsWarning)
         {
             logger.LogWarning(
                 "Programmatic resource startup reported {Severity} for resource {ResourceName}: {Message}",

@@ -76,7 +76,7 @@ public static class ConfigurationProviderServiceCollectionExtensions
         var id = NormalizeConfigurationStoreId(name);
         var definition = new ConfigurationStoreDefinition(
             id,
-            CreateDisplayName(id),
+            CreateResourceName(id),
             entries);
         var declared = new DeclaredConfigurationStore(definition);
         var options = builder.Services.GetOrAddConfigurationProviderOptions();
@@ -90,7 +90,8 @@ public static class ConfigurationProviderServiceCollectionExtensions
             {
                 declared.Definition = declared.Definition with
                 {
-                    Name = GetDisplayName(declaration, CreateDisplayName(id))
+                    Name = CreateResourceName(id),
+                    DisplayName = GetDisplayName(declaration)
                 };
                 declared.Persist = declaration.Persistence == ResourceDeclarationPersistence.Persisted;
                 declared.OverwritePersistedState = declaration.OverwritePersistedState;
@@ -107,7 +108,7 @@ public static class ConfigurationProviderServiceCollectionExtensions
         var id = NormalizeConfigurationStoreId(name);
         var definition = new HostConfigurationSourceDefinition(
             id,
-            CreateDisplayName(id),
+            CreateResourceName(id),
             entries);
         var declared = new DeclaredHostConfigurationSource(definition);
         var options = builder.Services.GetOrAddConfigurationProviderOptions();
@@ -122,7 +123,8 @@ public static class ConfigurationProviderServiceCollectionExtensions
             {
                 declared.Definition = declared.Definition with
                 {
-                    Name = GetDisplayName(declaration, CreateDisplayName(id))
+                    Name = CreateResourceName(id),
+                    DisplayName = GetDisplayName(declaration)
                 };
             });
 
@@ -137,7 +139,7 @@ public static class ConfigurationProviderServiceCollectionExtensions
         var id = NormalizeSecretsVaultId(name);
         var definition = new SecretsVaultDefinition(
             id,
-            CreateDisplayName(id),
+            CreateResourceName(id),
             secrets);
         var declared = new DeclaredSecretsVault(definition);
         var options = builder.Services.GetOrAddConfigurationProviderOptions();
@@ -152,7 +154,8 @@ public static class ConfigurationProviderServiceCollectionExtensions
             {
                 declared.Definition = declared.Definition with
                 {
-                    Name = GetDisplayName(declaration, CreateDisplayName(id))
+                    Name = CreateResourceName(id),
+                    DisplayName = GetDisplayName(declaration)
                 };
             });
 
@@ -178,15 +181,15 @@ public static class ConfigurationProviderServiceCollectionExtensions
         return options;
     }
 
-    private static string CreateDisplayName(string resourceId)
+    private static string CreateResourceName(string resourceId)
         => ResourceId.TryParse(resourceId, out var id)
             ? id.Name
             : resourceId.Trim();
 
-    private static string GetDisplayName(ResourceDeclaration declaration, string fallback) =>
+    private static string? GetDisplayName(ResourceDeclaration declaration) =>
         string.IsNullOrWhiteSpace(declaration.DisplayName)
-            ? fallback
-            : declaration.DisplayName;
+            ? null
+            : declaration.DisplayName.Trim();
 
     private static string NormalizeConfigurationStoreId(string name)
     {

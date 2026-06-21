@@ -8,13 +8,30 @@ using CloudShell.Persistence;
 namespace CloudShell.ControlPlane.ResourceManager;
 
 public sealed record ResourceDeclarationStartupResult(
-    IReadOnlyList<ResourceDeclarationStartupDiagnostic> Diagnostics);
+    IReadOnlyList<ResourceDeclarationStartupDiagnostic> Diagnostics)
+{
+    public int ErrorCount => Diagnostics.Count(diagnostic => diagnostic.IsError);
+
+    public int WarningCount => Diagnostics.Count(diagnostic => diagnostic.IsWarning);
+
+    public int InformationCount => Diagnostics.Count(diagnostic => diagnostic.IsInformation);
+
+    public bool HasErrors => ErrorCount > 0;
+
+    public bool HasWarnings => WarningCount > 0;
+}
 
 public sealed record ResourceDeclarationStartupDiagnostic(
     string Severity,
     string ResourceId,
     string Message)
 {
+    public bool IsError => string.Equals(Severity, "Error", StringComparison.OrdinalIgnoreCase);
+
+    public bool IsWarning => string.Equals(Severity, "Warning", StringComparison.OrdinalIgnoreCase);
+
+    public bool IsInformation => !IsError && !IsWarning;
+
     public static ResourceDeclarationStartupDiagnostic Warning(string resourceId, string message) =>
         new("Warning", resourceId, message);
 

@@ -440,7 +440,8 @@ public sealed partial class SecretsVaultProvider(
                 ["secretsVault.secrets"] = vault.Secrets.Count.ToString(CultureInfo.InvariantCulture),
                 [ResourceAttributeNames.EndpointCount] = "1"
             },
-            EndpointNetworkMappings: [CreateSecretsEndpointMapping(vault)]);
+            EndpointNetworkMappings: [CreateSecretsEndpointMapping(vault)],
+            DisplayName: vault.DisplayName);
 
     private static SecretsVaultDefinition Normalize(SecretsVaultDefinition vault)
     {
@@ -452,6 +453,9 @@ public sealed partial class SecretsVaultProvider(
             Name = string.IsNullOrWhiteSpace(vault.Name)
                 ? id
                 : vault.Name.Trim(),
+            DisplayName = string.IsNullOrWhiteSpace(vault.DisplayName)
+                ? null
+                : vault.DisplayName.Trim(),
             Endpoint = string.IsNullOrWhiteSpace(vault.Endpoint) ? null : vault.Endpoint.TrimEnd('/'),
             HealthChecks = NormalizeHealthChecks(vault.HealthChecks),
             Secrets = vault.Secrets
