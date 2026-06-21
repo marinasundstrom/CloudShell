@@ -143,6 +143,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added provider coverage for control-plane-scoped container cleanup so stale
   stable container names are removed before start and stopped containers are
   removed during shutdown/stop cleanup.
+- Executable-backed sample smoke tests and provider process tests are now
+  categorized as integration tests, with Docker-dependent smoke tests also
+  carrying `Category=DockerIntegration`.
 - Docker-backed application operations now log container-host command start,
   completion, and release messages at debug level with the full command
   arguments.

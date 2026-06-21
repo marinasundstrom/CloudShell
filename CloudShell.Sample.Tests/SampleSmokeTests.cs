@@ -26,6 +26,7 @@ public sealed class SampleSmokeCollection
 }
 
 [Collection(SampleSmokeCollection.Name)]
+[Trait("Category", "Integration")]
 public sealed class SampleSmokeTests
 {
     private static readonly TimeSpan StartupTimeout = TimeSpan.FromSeconds(90);
@@ -1080,6 +1081,7 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
+    [Trait("Category", "DockerIntegration")]
     public async Task ApplicationTopologyHost_SqlInclusiveRuntimePathConnectsFrontendApiAndDatabase()
     {
         if (!await DockerComposeStack.IsAvailableAsync() ||
@@ -1361,6 +1363,7 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
+    [Trait("Category", "DockerIntegration")]
     public async Task ThirdPartyIdentitySample_KeycloakProvisionedWorkloadReadsConfiguration()
     {
         if (!await DockerComposeStack.IsAvailableAsync())

@@ -2494,6 +2494,7 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task LocalProcessRunner_DisposeStopsControlPlaneScopedProcesses()
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
@@ -2549,6 +2550,7 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task LocalProcessRunner_ReturnsMonitoringSnapshotForRunningProcess()
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
@@ -2586,6 +2588,7 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task LocalProcessRunner_RunCommandUsesContentRootByDefault()
     {
         if (OperatingSystem.IsWindows())
@@ -2628,6 +2631,7 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task LocalProcessRunner_DisposeStopsControlPlaneScopedProcessTree()
     {
         if (OperatingSystem.IsWindows())
@@ -2688,6 +2692,7 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task LocalProcessRunner_StopAsyncStopsControlPlaneScopedProcessTree()
     {
         if (OperatingSystem.IsWindows())
@@ -2748,6 +2753,7 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task LocalProcessRunner_CleanupHostScopedProcessStopsRecoveredProcess()
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
@@ -2956,6 +2962,7 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task ApplicationProvider_ThrowsWhenContainerHostProcessExitsDuringStartup()
     {
         if (OperatingSystem.IsWindows())
@@ -3037,6 +3044,7 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task ApplicationProvider_RemovesStaleControlPlaneScopedContainerBeforeStart()
     {
         if (OperatingSystem.IsWindows())
@@ -3132,6 +3140,7 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task ApplicationProvider_StopRemovesControlPlaneScopedContainer()
     {
         if (OperatingSystem.IsWindows())
@@ -3222,6 +3231,7 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task ApplicationProvider_CancellingContainerHostCommandKillsProcess()
     {
         if (OperatingSystem.IsWindows())

@@ -48,6 +48,21 @@ reviewed and verified independently.
    git diff --check
    ```
 
+   Tests that launch external executables, run sample hosts, or depend on
+   mutable sample project layout are marked with `Category=Integration`. Tests
+   that require a live Docker daemon also carry `Category=DockerIntegration`.
+   Exclude executable-backed integration tests from routine local runs with:
+
+   ```bash
+   dotnet test CloudShell.sln --filter "Category!=Integration"
+   ```
+
+   Run Docker-dependent integration tests explicitly with:
+
+   ```bash
+   dotnet test CloudShell.Sample.Tests/CloudShell.Sample.Tests.csproj --filter "Category=DockerIntegration"
+   ```
+
 5. **Update project documentation**
 
    Update documentation when behavior, APIs, concepts, resource types, samples,
