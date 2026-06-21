@@ -45,6 +45,7 @@
 
     private ElementReference LogEntryList { get; set; }
     private IJSObjectReference? LogModule { get; set; }
+    private bool IsDisposed { get; set; }
 
     public async Task<bool> IsAtLatestAsync()
     {
@@ -58,7 +59,7 @@
             var module = await GetLogModuleAsync();
             return await module.InvokeAsync<bool>("isAtLatest", LogEntryList);
         }
-        catch (JSException)
+        catch (Exception exception) when (IsRecoverableJsInteropException(exception))
         {
             return true;
         }
@@ -71,7 +72,7 @@
             var module = await GetLogModuleAsync();
             return await module.InvokeAsync<bool>("scrollToLatest", LogEntryList);
         }
-        catch (JSException)
+        catch (Exception exception) when (IsRecoverableJsInteropException(exception))
         {
             return false;
         }
@@ -84,7 +85,7 @@
             var module = await GetLogModuleAsync();
             return await module.InvokeAsync<double>("getScrollHeight", LogEntryList);
         }
-        catch (JSException)
+        catch (Exception exception) when (IsRecoverableJsInteropException(exception))
         {
             return 0;
         }
@@ -97,7 +98,7 @@
             var module = await GetLogModuleAsync();
             await module.InvokeVoidAsync("preservePrependedScroll", LogEntryList, previousScrollHeight);
         }
-        catch (JSException)
+        catch (Exception exception) when (IsRecoverableJsInteropException(exception))
         {
         }
     }
@@ -113,6 +114,8 @@
 
     private async Task<IJSObjectReference> GetLogModuleAsync()
     {
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+
         if (LogModule is null)
         {
             LogModule = await JS.InvokeAsync<IJSObjectReference>(
@@ -122,6 +125,9 @@
 
         return LogModule;
     }
+
+    private static bool IsRecoverableJsInteropException(Exception exception) =>
+        exception is JSException or JSDisconnectedException or ObjectDisposedException;
 
     internal static bool HasStructuredMetadata(LogEntry entry) =>
         !string.IsNullOrWhiteSpace(entry.EventId) ||
@@ -163,9 +169,19 @@
 
     public async ValueTask DisposeAsync()
     {
-        if (LogModule is not null)
+        IsDisposed = true;
+        var module = LogModule;
+        LogModule = null;
+
+        if (module is not null)
         {
-            await LogModule.DisposeAsync();
+            try
+            {
+                await module.DisposeAsync();
+            }
+            catch (Exception exception) when (IsRecoverableJsInteropException(exception))
+            {
+            }
         }
     }
 }
