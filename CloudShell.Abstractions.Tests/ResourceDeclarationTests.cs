@@ -743,7 +743,7 @@ public sealed class ResourceDeclarationTests
             exception.Message,
             StringComparison.Ordinal);
         Assert.Contains(
-            "Dependency path: Target (target) -> Dependency (dependency).",
+            "Dependency path: Target -> Dependency.",
             exception.Message,
             StringComparison.Ordinal);
         Assert.Contains("Reason: auto-start is disabled.", exception.Message, StringComparison.Ordinal);
@@ -891,7 +891,7 @@ public sealed class ResourceDeclarationTests
             exception.Message,
             StringComparison.Ordinal);
         Assert.Contains(
-            "Dependency path: Target (target) -> Dependency (dependency).",
+            "Dependency path: Target -> Dependency.",
             exception.Message,
             StringComparison.Ordinal);
         Assert.Contains(

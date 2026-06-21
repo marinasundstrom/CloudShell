@@ -65,7 +65,7 @@ public sealed class HostScopedResourceShutdownService(
                 LogLifecycle(
                     resource,
                     "Stopping host-scoped resource {ResourceName} during Control Plane shutdown.",
-                    ResourceDisplayLabels.GetName(resource));
+                    ResourceDisplayLabels.GetQualifiedLabel(resource));
                 await orchestration.ExecuteActionAsync(
                     resource,
                     resource.StopAction!,
@@ -77,7 +77,7 @@ public sealed class HostScopedResourceShutdownService(
                 LogLifecycle(
                     resource,
                     "Stopped host-scoped resource {ResourceName} during Control Plane shutdown.",
-                    ResourceDisplayLabels.GetName(resource));
+                    ResourceDisplayLabels.GetQualifiedLabel(resource));
             }
             catch (Exception exception)
             {
@@ -85,7 +85,7 @@ public sealed class HostScopedResourceShutdownService(
                 logger.LogWarning(
                     exception,
                     "Failed to stop host-scoped resource {ResourceName} during Control Plane shutdown.",
-                    ResourceDisplayLabels.GetName(resource));
+                    ResourceDisplayLabels.GetQualifiedLabel(resource));
 
                 if (cleanupToken.IsCancellationRequested)
                 {

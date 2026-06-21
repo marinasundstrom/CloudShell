@@ -124,8 +124,9 @@ smaller or presentation-focused.
 
 ### MVP Readiness Snapshot
 
-The MVP is now primarily a convergence problem, not a concept-discovery
-problem. The core resource model, endpoint/network mapping model, container app
+The MVP is now a working baseline that needs stabilization and focused
+adjustments, not another round of concept discovery. The core resource model,
+endpoint/network mapping model, container app
 surface, local/default container host path, storage/volume bridge,
 configuration and secrets resources, built-in identity flow, Keycloak-backed
 identity validation, Resource Manager details, and supported sample smoke

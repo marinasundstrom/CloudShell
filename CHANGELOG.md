@@ -149,6 +149,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Local process tracking now drops exited in-memory process entries after the
   first observed exit so shutdown and stop checks do not repeat the same debug
   log line.
+- Lifecycle, dependency auto-start, and host-scoped shutdown messages now use
+  qualified resource labels when a display label differs from the resource name,
+  keeping cascading local-dev start and shutdown flows easier to distinguish.
 - Docker-backed application operations now log container-host command start,
   completion, and release messages at debug level with the full command
   arguments.

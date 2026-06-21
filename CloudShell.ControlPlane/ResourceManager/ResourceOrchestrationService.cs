@@ -150,7 +150,7 @@ public sealed class ResourceOrchestrationService(
             resource,
             "Requested lifecycle {ActionKind} for resource {ResourceName}.",
             action.Kind,
-            ResourceDisplayLabels.GetName(resource));
+            ResourceDisplayLabels.GetQualifiedLabel(resource));
         NotifyResourceChange(
             notifyResourceChange,
             ResourceChangeKind.ResourceActionStarted,
@@ -171,7 +171,7 @@ public sealed class ResourceOrchestrationService(
                 resource,
                 "Completed lifecycle {ActionKind} for resource {ResourceName}: {Message}",
                 action.Kind,
-                ResourceDisplayLabels.GetName(resource),
+                ResourceDisplayLabels.GetQualifiedLabel(resource),
                 result.Message);
             NotifyResourceChange(
                 notifyResourceChange,
@@ -201,7 +201,7 @@ public sealed class ResourceOrchestrationService(
                 resource,
                 "Failed lifecycle {ActionKind} for resource {ResourceName}: {Message}",
                 action.Kind,
-                ResourceDisplayLabels.GetName(resource),
+                ResourceDisplayLabels.GetQualifiedLabel(resource),
                 exception.Message);
             NotifyResourceChange(
                 notifyResourceChange,
@@ -608,7 +608,7 @@ public sealed class ResourceOrchestrationService(
     }
 
     private static string FormatResource(Resource resource)
-        => ResourceDisplayLabels.GetName(resource);
+        => ResourceDisplayLabels.GetQualifiedLabel(resource);
 
     private bool ShouldAutoStartAsDependency(Resource resource)
     {
