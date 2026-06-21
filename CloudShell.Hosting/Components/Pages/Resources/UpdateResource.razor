@@ -1253,7 +1253,7 @@
 
     private string GetResourceSubtitle(Resource resource) =>
         DisplaySelection.EnableDisplayNames
-            ? L["{0} / {1}", resource.Kind, resource.Id].Value
+            ? L["{0} / {1}", resource.Kind, DisplaySelection.GetResourceName(resource)].Value
             : resource.Kind;
 
     private sealed record PendingResourceRestart(

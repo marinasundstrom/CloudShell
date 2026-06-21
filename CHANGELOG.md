@@ -38,6 +38,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Application overviews now describe configuration and secret reference
   metadata with resource labels and friendly resource-identity labels instead
   of leading with raw resource IDs.
+- Resource detail headers now use the readable resource name in the subtitle
+  while keeping the canonical Resource ID visible in detail sections.
 - Health views now share a resource health history chart backed by retained
   resource health snapshots, and the resource-scoped Health tab auto-refreshes
   while open.

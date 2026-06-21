@@ -612,6 +612,8 @@ public sealed class SampleSmokeTests
         var apiDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details");
         Assert.Contains(">Identity<", apiDetailsHtml);
+        Assert.Contains("ASP.NET Core project / application-topology-api", apiDetailsHtml);
+        Assert.DoesNotContain("ASP.NET Core project / application:application-topology-api", apiDetailsHtml);
         Assert.Contains("Action readiness", apiDetailsHtml);
         Assert.Contains("Start preflight checks passed.", apiDetailsHtml);
         Assert.Contains("Resource status", apiDetailsHtml);
@@ -787,6 +789,8 @@ public sealed class SampleSmokeTests
         var frontendDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-frontend")}/details");
         Assert.Contains(">Identity<", frontendDetailsHtml);
+        Assert.Contains("ASP.NET Core project / application-topology-frontend", frontendDetailsHtml);
+        Assert.DoesNotContain("ASP.NET Core project / application:application-topology-frontend", frontendDetailsHtml);
         Assert.Contains("Access control", frontendDetailsHtml);
         Assert.Contains(">Dependency graph<", frontendDetailsHtml);
         Assert.Contains(">Depends on<", frontendDetailsHtml);
@@ -885,6 +889,8 @@ public sealed class SampleSmokeTests
         Assert.Contains(">Identity<", sqlDetailsHtml);
         Assert.Contains("Access control", sqlDetailsHtml);
         Assert.Contains("SQL Server", sqlDetailsHtml);
+        Assert.Contains("SQL Server / application-topology-sql-server", sqlDetailsHtml);
+        Assert.DoesNotContain("SQL Server / application:application-topology-sql-server", sqlDetailsHtml);
         Assert.Contains("1 declared database", sqlDetailsHtml);
         Assert.Contains("Administrator", sqlDetailsHtml);
         Assert.Contains("Storage mounts", sqlDetailsHtml);
