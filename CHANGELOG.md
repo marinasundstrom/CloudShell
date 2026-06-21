@@ -42,6 +42,8 @@ on `git blame --follow`, and then by the broad type of change.
   control-plane-scoped container apps remove replicas directly with force.
 - Local process runner debug logs now include explicit process-handle release
   messages after tracked process exit observation and runner disposal.
+- Local process runner pre-start commands now terminate their process tree when
+  canceled and log the released process handle.
 - Docker host client create/dispose diagnostics now use Debug level, matching
   the process-oriented container host command logs.
 - Re-aligned the local-development MVP queue around Application Topology

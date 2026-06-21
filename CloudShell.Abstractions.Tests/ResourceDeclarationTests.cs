@@ -2685,6 +2685,84 @@ public sealed class ResourceDeclarationTests
 
     [Fact]
     [Trait("Category", "Integration")]
+    public async Task LocalProcessRunner_CancellingRunCommandKillsProcessTreeAndReleasesHandle()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(contentRoot);
+        var pidPath = Path.Combine(contentRoot, "pre-start.pid");
+        var command = CreateHangingContainerHostExecutable(contentRoot, pidPath);
+        var options = new LocalProcessOptions
+        {
+            RuntimeStatePath = "application-runtime-state.json",
+            LogDirectory = "application-logs"
+        };
+        var environment = new TestHostEnvironment(contentRoot);
+        var runtimeStates = new ApplicationRuntimeStateStore(options, environment);
+        using var logProvider = new CapturingLoggerProvider();
+        using var loggerFactory = LoggerFactory.Create(builder =>
+        {
+            builder.SetMinimumLevel(LogLevel.Debug);
+            builder.AddProvider(logProvider);
+        });
+        Process? process = null;
+
+        try
+        {
+            using var runner = new LocalProcessRunner(runtimeStates, options, environment, loggerFactory);
+            using var cancellation = new CancellationTokenSource();
+            var commandTask = runner.RunCommandAsync(
+                "application:test",
+                command,
+                [],
+                cancellationToken: cancellation.Token);
+            var processId = await WaitForProcessIdFileAsync(pidPath, TimeSpan.FromSeconds(5));
+            process = Process.GetProcessById(processId);
+
+            await cancellation.CancelAsync();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => commandTask);
+            Assert.True(await WaitForExitAsync(process, TimeSpan.FromSeconds(5)));
+            Assert.Contains(
+                logProvider.Messages,
+                message => message.Contains("Killed canceled pre-start process", StringComparison.Ordinal));
+            Assert.Contains(
+                logProvider.Messages,
+                message => message.Contains("Released pre-start process handle", StringComparison.Ordinal));
+        }
+        finally
+        {
+            if (process is not null)
+            {
+                try
+                {
+                    if (!process.HasExited)
+                    {
+                        process.Kill(entireProcessTree: true);
+                    }
+                }
+                catch (InvalidOperationException)
+                {
+                }
+                finally
+                {
+                    process.Dispose();
+                }
+            }
+
+            if (Directory.Exists(contentRoot))
+            {
+                Directory.Delete(contentRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
     public async Task LocalProcessRunner_DisposeStopsControlPlaneScopedProcessTree()
     {
         if (OperatingSystem.IsWindows())

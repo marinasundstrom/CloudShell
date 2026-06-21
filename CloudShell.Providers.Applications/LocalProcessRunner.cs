@@ -191,9 +191,10 @@ public sealed partial class LocalProcessRunner(
             "Information");
         LogPreStartCommandStarting(resourceId, commandLine, startInfo.WorkingDirectory);
 
+        Process? process = null;
         try
         {
-            using var process = Process.Start(startInfo);
+            process = Process.Start(startInfo);
             if (process is null)
             {
                 processLog.Append(
@@ -207,7 +208,11 @@ public sealed partial class LocalProcessRunner(
             LogPreStartCommandStarted(resourceId, process.Id, commandLine, startInfo.WorkingDirectory);
             var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
             var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
-            await process.WaitForExitAsync(cancellationToken);
+            await WaitForPreStartCommandExitOrKillAsync(
+                resourceId,
+                process,
+                commandLine,
+                cancellationToken);
             var output = await outputTask;
             var error = await errorTask;
 
@@ -228,11 +233,24 @@ public sealed partial class LocalProcessRunner(
             LogPreStartCommandExited(resourceId, process.Id, commandLine, process.ExitCode);
             return process.ExitCode;
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
         {
             processLog.Append(exception.Message, "process", "Error");
             LogPreStartCommandFailedToStart(resourceId, commandLine, exception);
             return -1;
+        }
+        finally
+        {
+            if (process is not null)
+            {
+                var processId = process.Id;
+                process.Dispose();
+                LogPreStartCommandReleased(resourceId, processId, commandLine);
+            }
         }
     }
 
@@ -799,6 +817,64 @@ public sealed partial class LocalProcessRunner(
             processId,
             ResourceDisplayLabels.GetName(resourceId),
             exitCode,
+            commandLine);
+    }
+
+    private async Task WaitForPreStartCommandExitOrKillAsync(
+        string resourceId,
+        Process process,
+        string commandLine,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await process.WaitForExitAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            LogPreStartCommandCancellationRequested(resourceId, process.Id, commandLine);
+            ProcessShutdown.KillProcessTreeAndWait(process);
+            LogPreStartCommandKilled(resourceId, process.Id, commandLine);
+            throw;
+        }
+    }
+
+    private void LogPreStartCommandCancellationRequested(
+        string resourceId,
+        int processId,
+        string commandLine)
+    {
+        using var scope = BeginResourceProcessScope(resourceId, processId);
+        _logger.LogDebug(
+            "Cancellation requested for pre-start process {ProcessId} for resource {ResourceName}; terminating process tree: {ProcessCommandLine}.",
+            processId,
+            ResourceDisplayLabels.GetName(resourceId),
+            commandLine);
+    }
+
+    private void LogPreStartCommandKilled(
+        string resourceId,
+        int processId,
+        string commandLine)
+    {
+        using var scope = BeginResourceProcessScope(resourceId, processId);
+        _logger.LogDebug(
+            "Killed canceled pre-start process {ProcessId} for resource {ResourceName}: {ProcessCommandLine}.",
+            processId,
+            ResourceDisplayLabels.GetName(resourceId),
+            commandLine);
+    }
+
+    private void LogPreStartCommandReleased(
+        string resourceId,
+        int processId,
+        string commandLine)
+    {
+        using var scope = BeginResourceProcessScope(resourceId, processId);
+        _logger.LogDebug(
+            "Released pre-start process handle {ProcessId} for resource {ResourceName}: {ProcessCommandLine}.",
+            processId,
+            ResourceDisplayLabels.GetName(resourceId),
             commandLine);
     }
 
