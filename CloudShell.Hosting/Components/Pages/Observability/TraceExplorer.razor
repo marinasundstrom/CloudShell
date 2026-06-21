@@ -150,7 +150,9 @@ else if (ShowHeading)
             @if (ShowResourceDetails && selected is not null && string.IsNullOrWhiteSpace(TraceId))
             {
                 <dl class="detail-list">
-                    <dt>@L["Resource ID"]</dt>
+                    <dt>@L["Resource name"]</dt>
+                    <dd>@DisplaySelection.GetResourceName(selected)</dd>
+                    <dt>@L["Canonical resource ID"]</dt>
                     <dd>@selected.Id</dd>
                     <dt>@L["Service name"]</dt>
                     <dd>@(observability?.ServiceName ?? NormalizeServiceName(selected.Name, selected.Id))</dd>

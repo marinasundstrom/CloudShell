@@ -254,6 +254,10 @@ public sealed class SampleSmokeTests
         var traceListHtml = await host.GetStringAsync(
             "/observability/traces?resourceId=application%3Aproject-reference-api");
         Assert.Contains("id=\"trace-sort-mode\"", traceListHtml);
+        Assert.Contains("<dt>Resource name</dt>", traceListHtml);
+        Assert.Contains("<dd>project-reference-api</dd>", traceListHtml);
+        Assert.Contains("<dt>Canonical resource ID</dt>", traceListHtml);
+        Assert.Contains("<dd>application:project-reference-api</dd>", traceListHtml);
         Assert.Contains("Newest", traceListHtml);
         Assert.Contains("Longest duration", traceListHtml);
         Assert.Contains("Errors first", traceListHtml);

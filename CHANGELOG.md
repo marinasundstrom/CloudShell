@@ -124,6 +124,8 @@ on `git blame --follow`, and then by the broad type of change.
   instead of full resource IDs in app environment summaries and selectors.
 - Application overview, generated overview, and generated endpoint summaries
   now use resource-name fallbacks for unresolved related resources.
+- The Traces resource detail panel now leads with the readable resource name
+  while keeping the canonical resource ID as a secondary field.
 - The UI Extension Host sample now contributes its sample workspace sidebar
   item through the composition main menu instead of legacy shell navigation.
 - CloudShell Hosting now exposes `builder.AddCompositionModule(...)` for
