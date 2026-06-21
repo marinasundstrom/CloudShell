@@ -3392,6 +3392,97 @@ h3 {
     font-size: 1.25rem;
 }
 
+.metric-point-table-shell {
+    border: 1px solid #202938;
+    border-radius: 4px;
+    overflow: auto;
+    background: #111827;
+}
+
+.metric-point-table {
+    width: 100%;
+    min-width: 62rem;
+    border-collapse: collapse;
+    table-layout: fixed;
+    color: #e5e7eb;
+    font-size: .78rem;
+    line-height: 1.45;
+}
+
+.metric-point-table th,
+.metric-point-table td {
+    padding: .42rem .65rem;
+    border-bottom: 1px solid #1f2937;
+    text-align: left;
+    vertical-align: top;
+}
+
+.metric-point-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #172033;
+    color: #93a4b7;
+    font-weight: 600;
+}
+
+.metric-point-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.metric-point-table tbody tr:hover {
+    background: #172033;
+}
+
+.metric-point-time {
+    width: 5.5rem;
+    white-space: nowrap;
+}
+
+.metric-point-source {
+    width: 17rem;
+}
+
+.metric-point-name {
+    width: 18rem;
+}
+
+.metric-point-value {
+    width: 7rem;
+    white-space: nowrap;
+}
+
+.metric-point-source span,
+.metric-point-name span {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.metric-point-attributes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .25rem .4rem;
+}
+
+.metric-point-attribute {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    color: #cbd5e1;
+    font-family: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+.metric-point-attribute strong {
+    color: #93a4b7;
+    font-weight: 600;
+}
+
+.metric-point-empty {
+    color: #93a4b7;
+}
+
 .recent-trace-item {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto auto;

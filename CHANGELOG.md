@@ -13,6 +13,14 @@ link to ADR entries when a change depends on a recorded decision.
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
+### 2026-06-21
+
+#### Changed
+
+- Metrics views now present recent metric points in a structured table with
+  stable source, metric, value, and attribute columns instead of a compact
+  log-style stream.
+
 ### 2026-06-20
 
 #### Changed

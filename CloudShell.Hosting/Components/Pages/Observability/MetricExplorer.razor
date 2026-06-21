@@ -156,18 +156,52 @@ else if (ShowHeading)
                     }
                 </div>
 
-                <div class="log-entry-list wrap" role="log" aria-label="@L["Recent metric points"]">
-                    @foreach (var point in points)
-                    {
-                        <div class="log-entry">
-                            <time>@point.Timestamp.ToLocalTime().ToString("HH:mm:ss")</time>
-                            <span class="log-entry-source">@point.ServiceName</span>
-                            <span class="log-entry-level">@FormatMetricValue(point.Value, point.Unit)</span>
-                            <div class="log-entry-body">
-                                <pre>@point.Name@GetMetricAttributes(point)</pre>
-                            </div>
-                        </div>
-                    }
+                <div class="metric-point-table-shell">
+                    <table class="metric-point-table" aria-label="@L["Recent metric points"]">
+                        <thead>
+                            <tr>
+                                <th class="metric-point-time" scope="col">@L["Time"]</th>
+                                <th class="metric-point-source" scope="col">@L["Source"]</th>
+                                <th class="metric-point-name" scope="col">@L["Metric"]</th>
+                                <th class="metric-point-value" scope="col">@L["Value"]</th>
+                                <th scope="col">@L["Attributes"]</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var point in points)
+                            {
+                                <tr>
+                                    <td class="metric-point-time">
+                                        <time>@point.Timestamp.ToLocalTime().ToString("HH:mm:ss")</time>
+                                    </td>
+                                    <td class="metric-point-source">
+                                        <span title="@point.ServiceName">@point.ServiceName</span>
+                                    </td>
+                                    <td class="metric-point-name">
+                                        <span title="@point.Name">@point.Name</span>
+                                    </td>
+                                    <td class="metric-point-value">@FormatMetricValue(point.Value, point.Unit)</td>
+                                    <td>
+                                        @if (point.MetricAttributes.Count == 0)
+                                        {
+                                            <span class="metric-point-empty">@L["None"]</span>
+                                        }
+                                        else
+                                        {
+                                            <div class="metric-point-attributes">
+                                                @foreach (var metricAttribute in point.MetricAttributes)
+                                                {
+                                                    <span class="metric-point-attribute">
+                                                        <strong>@metricAttribute.Key</strong>=@metricAttribute.Value
+                                                    </span>
+                                                }
+                                            </div>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
                 </div>
             }
         }
@@ -422,11 +456,6 @@ else if (ShowHeading)
         string.IsNullOrWhiteSpace(unit)
             ? value.ToString("0.###", CultureInfo.InvariantCulture)
             : $"{value.ToString("0.###", CultureInfo.InvariantCulture)} {unit}";
-
-    private static string GetMetricAttributes(MetricPoint point) =>
-        point.MetricAttributes.Count == 0
-            ? string.Empty
-            : $"{Environment.NewLine}{string.Join(", ", point.MetricAttributes.Select(attribute => $"{attribute.Key}={attribute.Value}"))}";
 
     private static IReadOnlyList<MetricSummary> BuildMetricSummaries(IReadOnlyList<MetricPoint> points) =>
         points
