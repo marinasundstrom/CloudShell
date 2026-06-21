@@ -3178,6 +3178,7 @@ h3 {
     background: var(--cloudshell-surface);
     color: var(--cloudshell-text-muted);
     font-weight: 700;
+    pointer-events: none;
 }
 
 .log-source-inventory tbody tr:last-child td {

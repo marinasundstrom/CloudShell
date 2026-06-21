@@ -1,6 +1,7 @@
 <LogExplorer ResourceId="@ResourceId"
              LogId="@LogId"
              TraceId="@TraceId"
+             View="@View"
              Inline="true"
              ShowHeading="false"
              ShowSourceSummary="false"
@@ -16,4 +17,7 @@
 
     [Parameter]
     public string? TraceId { get; set; }
+
+    [Parameter]
+    public string? View { get; set; }
 }

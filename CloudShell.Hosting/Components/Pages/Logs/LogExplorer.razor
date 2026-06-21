@@ -8,8 +8,9 @@
 
 @{
     var logs = GetSelectableLogs();
-    var selectionIssue = GetSelectionIssue(logs);
-    var selected = selectionIssue is null ? GetSelectedLog(logs) : null;
+    var selectedLogView = ResolveLogView();
+    var selectionIssue = selectedLogView == LogSourcesView ? null : GetSelectionIssue(logs);
+    var selected = selectionIssue is null ? GetSelectedLog(logs, selectedLogView == LogSourcesView) : null;
     var selectedResourceFilterId = GetSelectedResourceFilterId();
 }
 
@@ -78,169 +79,229 @@ else if (ShowHeading)
         }
         else
         {
-            <div class="panel-header log-viewer-header @(ShowSourceSummary ? null : "controls-only")">
-                @if (ShowSourceSummary)
-                {
-                    <div>
-                        <h2>@GetLogSourceLabel(selected)</h2>
-                        <p>@GetLogMetadataLabel(selected)</p>
-                    </div>
-                }
-                <div class="log-viewer-actions">
-                    @if (!ShowHeading && !string.IsNullOrWhiteSpace(TraceId))
+            <nav class="metric-view-tabs" role="tablist" aria-label="@L["Log views"]">
+                <a class="@GetLogViewTabClass(LogStreamView, selectedLogView)"
+                   role="tab"
+                   aria-selected="@(selectedLogView == LogStreamView)"
+                   href="@BuildLogViewRoute(LogStreamView, selected)">
+                    @L["Stream"]
+                </a>
+                <a class="@GetLogViewTabClass(LogSourcesView, selectedLogView)"
+                   role="tab"
+                   aria-selected="@(selectedLogView == LogSourcesView)"
+                   href="@BuildLogViewRoute(LogSourcesView, selected)">
+                    @L["Sources"]
+                </a>
+            </nav>
+
+            @if (selectedLogView == LogSourcesView)
+            {
+                <div class="panel-header log-viewer-header @(ShowSourceSummary ? null : "controls-only")">
+                    @if (ShowSourceSummary)
                     {
-                        <FluentButton Appearance="Appearance.Neutral" OnClick="ClearTraceFilter">
-                            @L["Clear trace filter"]
-                        </FluentButton>
-                    }
-                    @if (!Inline)
-                    {
-                        <ResourceSourceSelect Id="log-resource-filter"
-                                              Label="@L["Resource"]"
-                                              Options="LogResourceFilters"
-                                              SelectedResourceId="selectedResourceFilterId"
-                                              SelectedResourceIdChanged="SelectResourceFilter"
-                                              AllOptionLabel="@L["All resources"].Value" />
-                    }
-                    <label class="trace-source-filter" for="log-source-filter">
-                        <span>@L["Log source"]</span>
-                        <select id="log-source-filter" class="trace-source-select" value="@selected.Id"
-                                @onchange="SelectLog">
-                            @foreach (var log in logs)
-                            {
-                                <option value="@log.Id">@GetLogOptionLabel(log)</option>
-                            }
-                        </select>
-                    </label>
-                    <FluentCheckbox Class="log-wrap-toggle" @bind-Value="WrapLogMessages">
-                        @L["Wrap"]
-                    </FluentCheckbox>
-                    <FluentCheckbox Class="log-wrap-toggle" @bind-Value="ShowStructuredOnly"
-                                    Disabled="@(GetStructuredEntryCount() == 0)">
-                        @L["Structured only"]
-                    </FluentCheckbox>
-                    @if (selected.SupportsStreaming)
-                    {
-                        <FluentCheckbox Class="log-stream-toggle" Value="@IsSelectedLogStreaming(selected)"
-                                        ValueChanged="enabled => SetStreamingEnabled(selected, enabled)" Disabled="@IsLoading">
-                            @(IsSelectedLogStreaming(selected) ? L["Streaming"] : L["Stream"])
-                        </FluentCheckbox>
-                    }
-                </div>
-            </div>
-
-            @if (ShowSourceDescription && !string.IsNullOrWhiteSpace(selected.Description))
-            {
-                <p class="log-description">@selected.Description</p>
-            }
-
-            @if (ShowSourceInventory && GetInventoryLogSources().Count > 0)
-            {
-                var inventorySources = GetInventoryLogSources();
-
-                <div class="log-source-inventory-shell">
-                    <table class="log-source-inventory" aria-label="@L["Log sources"]">
-                        <thead>
-                            <tr>
-                                <th class="log-source-inventory-source" scope="col">@L["Source"]</th>
-                                <th class="log-source-inventory-log" scope="col">@L["Log"]</th>
-                                <th scope="col">@L["Kind"]</th>
-                                <th scope="col">@L["Format"]</th>
-                                <th scope="col">@L["Availability"]</th>
-                                <th scope="col">@L["Capabilities"]</th>
-                                <th class="log-source-inventory-action" scope="col">@L["Action"]</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var source in inventorySources)
-                            {
-                                var isSelected = string.Equals(source.Id, selected.Id, StringComparison.OrdinalIgnoreCase);
-                                <tr class="@(isSelected ? "selected" : null)">
-                                    <td class="log-source-inventory-source">
-                                        <span title="@GetLogSourceLabel(source)">@GetLogSourceLabel(source)</span>
-                                    </td>
-                                    <td class="log-source-inventory-log">
-                                        <span title="@source.Name">@source.Name</span>
-                                        @if (!string.IsNullOrWhiteSpace(source.Description))
-                                        {
-                                            <small>@source.Description</small>
-                                        }
-                                    </td>
-                                    <td>@FormatLogSourceKind(source.Kind)</td>
-                                    <td>@FormatLogFormat(source.Format)</td>
-                                    <td>@FormatAvailability(source.Availability)</td>
-                                    <td>@FormatCapabilities(source.Capabilities)</td>
-                                    <td class="log-source-inventory-action">
-                                        @if (isSelected)
-                                        {
-                                            <span>@L["Selected"]</span>
-                                        }
-                                        else
-                                        {
-                                            <FluentAnchor Appearance="Appearance.Neutral"
-                                                          Href="@BuildLogSourceRoute(source, TraceId)">
-                                                @L["Open"]
-                                            </FluentAnchor>
-                                        }
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            }
-
-            @if (!string.IsNullOrWhiteSpace(TraceId))
-            {
-                <p class="log-description">@L["Showing entries correlated with trace {0}.", FormatTraceId(TraceId)]</p>
-            }
-
-            @if (IsLoading)
-            {
-                <div class="empty-state compact">
-                    <strong>@L["Loading log entries"]</strong>
-                    <span>@L["Reading recent output from {0}.", selected.Provider]</span>
-                </div>
-            }
-            else if (ReadError is not null)
-            {
-                <ProcedureMessage Message="@ReadError" />
-            }
-            else if (Entries.Count == 0)
-            {
-                <div class="empty-state compact">
-                    <strong>@(IsSelectedLogStreaming(selected) ? L["Waiting for entries"] : L["No entries"])</strong>
-                    <span>@(IsSelectedLogStreaming(selected)
-                                                ? L["Streaming is active for this log source."]
-                                                : L["This log source did not return recent entries."])</span>
-                    </div>
-                }
-            else
-                {
-                    var visibleEntries = GetVisibleEntries();
-
-                    <div class="log-history-bar">
-                        <FluentButton Appearance="Appearance.Neutral" Disabled="@(!CanLoadOlderEntries || IsLoadingOlder)"
-                                      OnClick="LoadOlderEntriesAsync">
-                            @(IsLoadingOlder ? L["Loading older"] : L["Load older"])
-                        </FluentButton>
-                        <span>@GetEntryCountLabel(visibleEntries.Count)</span>
-                    </div>
-
-                    @if (visibleEntries.Count == 0)
-                    {
-                        <div class="empty-state compact">
-                            <strong>@GetEmptyFilteredTitle()</strong>
-                            <span>@GetEmptyFilteredMessage()</span>
+                        <div>
+                            <h2>@L["Log sources"]</h2>
+                            <p>@L["{0} source(s) available", GetInventoryLogSources().Count]</p>
                         </div>
                     }
-                    else
+                    <div class="log-viewer-actions">
+                        @if (!Inline)
+                        {
+                            <ResourceSourceSelect Id="log-resource-filter"
+                                                  Label="@L["Resource"]"
+                                                  Options="LogResourceFilters"
+                                                  SelectedResourceId="selectedResourceFilterId"
+                                                  SelectedResourceIdChanged="SelectResourceFilter"
+                                                  AllOptionLabel="@L["All resources"].Value" />
+                        }
+                    </div>
+                </div>
+
+                var inventorySources = GetInventoryLogSources();
+                @if (ShowSourceInventory && inventorySources.Count > 0)
+                {
+                    <div class="log-source-inventory-shell">
+                        <table class="log-source-inventory" aria-label="@L["Log sources"]">
+                            <thead>
+                                <tr>
+                                    <th class="log-source-inventory-source" scope="col">@L["Source"]</th>
+                                    <th class="log-source-inventory-log" scope="col">@L["Log"]</th>
+                                    <th scope="col">@L["Kind"]</th>
+                                    <th scope="col">@L["Format"]</th>
+                                    <th scope="col">@L["Availability"]</th>
+                                    <th scope="col">@L["Capabilities"]</th>
+                                    <th class="log-source-inventory-action" scope="col">@L["Action"]</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var source in inventorySources)
+                                {
+                                    var isSelected = string.Equals(source.Id, selected.Id, StringComparison.OrdinalIgnoreCase);
+                                    var isSelectable = IsSelectableLogSource(source, logs);
+                                    var activityRoute = BuildActivityRoute(source);
+                                    <tr class="@(isSelected ? "selected" : null)">
+                                        <td class="log-source-inventory-source">
+                                            <span title="@GetLogSourceLabel(source)">@GetLogSourceLabel(source)</span>
+                                        </td>
+                                        <td class="log-source-inventory-log">
+                                            <span title="@source.Name">@source.Name</span>
+                                            @if (!string.IsNullOrWhiteSpace(source.Description))
+                                            {
+                                                <small>@source.Description</small>
+                                            }
+                                        </td>
+                                        <td>@FormatLogSourceKind(source.Kind)</td>
+                                        <td>@FormatLogFormat(source.Format)</td>
+                                        <td>@FormatAvailability(source.Availability)</td>
+                                        <td>@FormatCapabilities(source.Capabilities)</td>
+                                        <td class="log-source-inventory-action">
+                                            @if (isSelected)
+                                            {
+                                                <span>@L["Selected"]</span>
+                                            }
+                                            else if (isSelectable)
+                                            {
+                                                <FluentAnchor Appearance="Appearance.Neutral"
+                                                              Href="@BuildLogSourceRoute(source, TraceId)">
+                                                    @L["Open"]
+                                                </FluentAnchor>
+                                            }
+                                            else if (activityRoute is not null)
+                                            {
+                                                <FluentAnchor Appearance="Appearance.Neutral"
+                                                              Href="@activityRoute">
+                                                    @L["Activity"]
+                                                </FluentAnchor>
+                                            }
+                                            else
+                                            {
+                                                <span>@L["Listed"]</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="empty-state compact">
+                        <strong>@L["No log sources"]</strong>
+                        <span>@L["No log sources are registered for this view."]</span>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="panel-header log-viewer-header @(ShowSourceSummary ? null : "controls-only")">
+                    @if (ShowSourceSummary)
                     {
-                        <LogViewer @ref="LogViewerComponent"
-                                   Entries="visibleEntries"
-                                   WrapMessages="WrapLogMessages"
-                                   AriaLabel="@selected.Name"
-                                   TraceRouteFactory="entry => BuildTraceRoute(selected.ResourceId, entry.TraceId!)" />
+                        <div>
+                            <h2>@GetLogSourceLabel(selected)</h2>
+                            <p>@GetLogMetadataLabel(selected)</p>
+                        </div>
+                    }
+                    <div class="log-viewer-actions">
+                        @if (!ShowHeading && !string.IsNullOrWhiteSpace(TraceId))
+                        {
+                            <FluentButton Appearance="Appearance.Neutral" OnClick="ClearTraceFilter">
+                                @L["Clear trace filter"]
+                            </FluentButton>
+                        }
+                        @if (!Inline)
+                        {
+                            <ResourceSourceSelect Id="log-resource-filter"
+                                                  Label="@L["Resource"]"
+                                                  Options="LogResourceFilters"
+                                                  SelectedResourceId="selectedResourceFilterId"
+                                                  SelectedResourceIdChanged="SelectResourceFilter"
+                                                  AllOptionLabel="@L["All resources"].Value" />
+                        }
+                        <label class="trace-source-filter" for="log-source-filter">
+                            <span>@L["Log source"]</span>
+                            <select id="log-source-filter" class="trace-source-select" value="@selected.Id"
+                                    @onchange="SelectLog">
+                                @foreach (var log in logs)
+                                {
+                                    <option value="@log.Id">@GetLogOptionLabel(log)</option>
+                                }
+                            </select>
+                        </label>
+                        <FluentCheckbox Class="log-wrap-toggle" @bind-Value="WrapLogMessages">
+                            @L["Wrap"]
+                        </FluentCheckbox>
+                        <FluentCheckbox Class="log-wrap-toggle" @bind-Value="ShowStructuredOnly"
+                                        Disabled="@(GetStructuredEntryCount() == 0)">
+                            @L["Structured only"]
+                        </FluentCheckbox>
+                        @if (selected.SupportsStreaming)
+                        {
+                            <FluentCheckbox Class="log-stream-toggle" Value="@IsSelectedLogStreaming(selected)"
+                                            ValueChanged="enabled => SetStreamingEnabled(selected, enabled)" Disabled="@IsLoading">
+                                @(IsSelectedLogStreaming(selected) ? L["Streaming"] : L["Stream"])
+                            </FluentCheckbox>
+                        }
+                    </div>
+                </div>
+
+                @if (ShowSourceDescription && !string.IsNullOrWhiteSpace(selected.Description))
+                {
+                    <p class="log-description">@selected.Description</p>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(TraceId))
+                {
+                    <p class="log-description">@L["Showing entries correlated with trace {0}.", FormatTraceId(TraceId)]</p>
+                }
+
+                @if (IsLoading)
+                {
+                    <div class="empty-state compact">
+                        <strong>@L["Loading log entries"]</strong>
+                        <span>@L["Reading recent output from {0}.", selected.Provider]</span>
+                    </div>
+                }
+                else if (ReadError is not null)
+                {
+                    <ProcedureMessage Message="@ReadError" />
+                }
+                else if (Entries.Count == 0)
+                {
+                    <div class="empty-state compact">
+                        <strong>@(IsSelectedLogStreaming(selected) ? L["Waiting for entries"] : L["No entries"])</strong>
+                        <span>@(IsSelectedLogStreaming(selected)
+                                                    ? L["Streaming is active for this log source."]
+                                                    : L["This log source did not return recent entries."])</span>
+                    </div>
+                }
+                else
+                    {
+                        var visibleEntries = GetVisibleEntries();
+
+                        <div class="log-history-bar">
+                            <FluentButton Appearance="Appearance.Neutral" Disabled="@(!CanLoadOlderEntries || IsLoadingOlder)"
+                                          OnClick="LoadOlderEntriesAsync">
+                                @(IsLoadingOlder ? L["Loading older"] : L["Load older"])
+                            </FluentButton>
+                            <span>@GetEntryCountLabel(visibleEntries.Count)</span>
+                        </div>
+
+                        @if (visibleEntries.Count == 0)
+                        {
+                            <div class="empty-state compact">
+                                <strong>@GetEmptyFilteredTitle()</strong>
+                                <span>@GetEmptyFilteredMessage()</span>
+                            </div>
+                        }
+                        else
+                        {
+                            <LogViewer @ref="LogViewerComponent"
+                                       Entries="visibleEntries"
+                                       WrapMessages="WrapLogMessages"
+                                       AriaLabel="@selected.Name"
+                                       TraceRouteFactory="entry => BuildTraceRoute(selected.ResourceId, entry.TraceId!)" />
+                        }
                     }
                 }
             }
@@ -256,6 +317,9 @@ else if (ShowHeading)
 
     [Parameter]
     public string? TraceId { get; set; }
+
+    [Parameter]
+    public string? View { get; set; }
 
     [Parameter]
     public bool Inline { get; set; }
@@ -302,15 +366,23 @@ else if (ShowHeading)
     private LogViewer? LogViewerComponent { get; set; }
 
     private const string AllLogsId = "__all";
+    private const string LogStreamView = "stream";
+    private const string LogSourcesView = "sources";
     private const int InitialWindowEntries = 100;
     private const int HistoryPageEntries = 100;
     private const int MaxWindowEntries = 500;
-    private const int MaxScrollToLatestAttempts = 4;
+    private const int MaxScrollToLatestAttempts = 8;
 
     protected override async Task OnParametersSetAsync()
     {
         DisplaySelection = await DisplaySettings.GetAsync();
         await LoadVisibleLogsAsync();
+
+        if (ResolveLogView() == LogSourcesView)
+        {
+            await StopStreamingAsync();
+            return;
+        }
 
         var selected = GetSelectedLog(GetSelectableLogs());
         if (selected is null)
@@ -513,9 +585,11 @@ else if (ShowHeading)
                 .ToArray();
     }
 
-    private LogSource? GetSelectedLog(IReadOnlyList<LogSource> logs)
+    private LogSource? GetSelectedLog(
+        IReadOnlyList<LogSource> logs,
+        bool ignoreSelectionIssue = false)
     {
-        if (GetSelectionIssue(logs) is not null)
+        if (!ignoreSelectionIssue && GetSelectionIssue(logs) is not null)
         {
             return null;
         }
@@ -570,6 +644,19 @@ else if (ShowHeading)
     private static bool IsCombinedLog(LogSource log) =>
         string.Equals(log.Id, AllLogsId, StringComparison.OrdinalIgnoreCase);
 
+    private static bool IsSelectableLogSource(LogSource source, IReadOnlyList<LogSource> logs) =>
+        logs.Any(log => string.Equals(log.Id, source.Id, StringComparison.OrdinalIgnoreCase));
+
+    private string ResolveLogView() =>
+        string.Equals(View, LogSourcesView, StringComparison.OrdinalIgnoreCase)
+            ? LogSourcesView
+            : LogStreamView;
+
+    private string GetLogViewTabClass(string view, string selectedView) =>
+        string.Equals(view, selectedView, StringComparison.OrdinalIgnoreCase)
+            ? "metric-view-tab active"
+            : "metric-view-tab";
+
     private static bool IsActivityLog(LogSource log) =>
         log.Kind == ResourceLogSourceKind.Activity ||
         (string.Equals(log.Provider, "Activity", StringComparison.OrdinalIgnoreCase) &&
@@ -585,6 +672,7 @@ else if (ShowHeading)
         {
             query["resourceId"] = resourceId;
         }
+        AddLogViewQuery(query, ResolveLogView());
 
         if (!string.IsNullOrWhiteSpace(TraceId))
         {
@@ -1055,6 +1143,8 @@ else if (ShowHeading)
             query["logId"] = log.Id;
         }
 
+        AddLogViewQuery(query, ResolveLogView());
+
         if (Inline && !string.IsNullOrWhiteSpace(log.ResourceId))
         {
             if (!string.IsNullOrWhiteSpace(traceId))
@@ -1091,6 +1181,7 @@ else if (ShowHeading)
         {
             ["logId"] = log.Id
         };
+        AddLogViewQuery(query, LogStreamView);
 
         if (!string.IsNullOrWhiteSpace(traceId))
         {
@@ -1099,6 +1190,52 @@ else if (ShowHeading)
 
         return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("/logs", query);
     }
+
+    private string BuildLogViewRoute(string view, LogSource? selected)
+    {
+        var query = new Dictionary<string, string?>();
+        if (selected is not null && !IsCombinedLog(selected))
+        {
+            query["logId"] = selected.Id;
+        }
+
+        AddLogViewQuery(query, view);
+
+        if (!string.IsNullOrWhiteSpace(TraceId))
+        {
+            query["traceId"] = TraceId.Trim();
+        }
+
+        if (Inline && !string.IsNullOrWhiteSpace(ResourceId))
+        {
+            return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
+                ResourceManagerCompositionLinks.ResourceDetails(Composition, ResourceId, ResourcePredefinedViewIds.Logs),
+                query);
+        }
+
+        if (GetSelectedResourceFilterId() is { Length: > 0 } resourceId)
+        {
+            query["resourceId"] = resourceId;
+        }
+
+        return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("/logs", query);
+    }
+
+    private void AddLogViewQuery(Dictionary<string, string?> query, string view)
+    {
+        if (!string.Equals(view, LogStreamView, StringComparison.OrdinalIgnoreCase))
+        {
+            query[Inline ? "logView" : "view"] = view;
+        }
+    }
+
+    private string? BuildActivityRoute(LogSource log) =>
+        IsActivityLog(log) && !string.IsNullOrWhiteSpace(log.ResourceId)
+            ? ResourceManagerCompositionLinks.ResourceDetails(
+                Composition,
+                log.ResourceId,
+                ResourcePredefinedViewIds.Activity)
+            : null;
 
     private string GetEmptyFilteredTitle() =>
         !string.IsNullOrWhiteSpace(TraceId)

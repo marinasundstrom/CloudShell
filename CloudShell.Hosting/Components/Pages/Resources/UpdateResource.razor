@@ -245,6 +245,9 @@
     [SupplyParameterFromQuery(Name = "logId")]
     private string? RequestedLogId { get; set; }
 
+    [SupplyParameterFromQuery(Name = "logView")]
+    private string? RequestedLogView { get; set; }
+
     [SupplyParameterFromQuery(Name = "scopeResourceId")]
     private string? RequestedScopeResourceId { get; set; }
 
@@ -760,6 +763,7 @@
         {
             parameters["LogId"] = RequestedLogId;
             parameters["TraceId"] = RequestedTraceId;
+            parameters["View"] = RequestedLogView;
         }
         else if (selectedTab.Id == GeneratedTracesTabId)
         {
