@@ -83,7 +83,7 @@ else if (ShowHeading)
                 {
                     <div>
                         <h2>@GetLogSourceLabel(selected)</h2>
-                        <p>@selected.Name / @selected.Provider / @selected.SourceKind</p>
+                        <p>@GetLogMetadataLabel(selected)</p>
                     </div>
                 }
                 <div class="log-viewer-actions">
@@ -234,6 +234,8 @@ else if (ShowHeading)
     private double? PreservePrependedScrollHeight { get; set; }
     private bool IsDisposed { get; set; }
     private IReadOnlyList<LogDescriptor> VisibleLogs { get; set; } = [];
+    private IReadOnlyDictionary<string, LogSource> VisibleLogSourcesById { get; set; } =
+        new Dictionary<string, LogSource>(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyList<ResourceSourceSelectOption> LogResourceFilters { get; set; } = [];
     private IReadOnlyDictionary<string, Resource> LogResourcesById { get; set; } =
         new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
@@ -393,10 +395,11 @@ else if (ShowHeading)
     {
         if (Inline)
         {
-            VisibleLogs = await LogManager.ListLogsAsync(
-                string.IsNullOrWhiteSpace(ResourceId)
-                    ? null
-                    : new LogQuery(ResourceId: ResourceId));
+            var query = string.IsNullOrWhiteSpace(ResourceId)
+                ? null
+                : new LogQuery(ResourceId: ResourceId);
+            VisibleLogs = await LogManager.ListLogsAsync(query);
+            VisibleLogSourcesById = CreateLogSourceLookup(await LogManager.ListLogSourcesAsync(query));
             LogResourceFilters = [];
             LogResourcesById = new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
             SelectedResource = string.IsNullOrWhiteSpace(ResourceId)
@@ -413,6 +416,7 @@ else if (ShowHeading)
         }
 
         var logs = await LogManager.ListLogsAsync();
+        VisibleLogSourcesById = CreateLogSourceLookup(await LogManager.ListLogSourcesAsync());
         var resourceIds = logs
             .Select(log => log.ResourceId)
             .Where(resourceId => !string.IsNullOrWhiteSpace(resourceId))
@@ -445,6 +449,14 @@ else if (ShowHeading)
                 .Where(log => string.Equals(log.ResourceId, selectedResourceFilterId, StringComparison.OrdinalIgnoreCase))
                 .ToArray();
     }
+
+    private static IReadOnlyDictionary<string, LogSource> CreateLogSourceLookup(IReadOnlyList<LogSource> sources) =>
+        sources
+            .GroupBy(source => source.Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => group.First(),
+                StringComparer.OrdinalIgnoreCase);
 
     private LogDescriptor? GetSelectedLog(IReadOnlyList<LogDescriptor> logs)
     {
@@ -547,11 +559,65 @@ else if (ShowHeading)
             ? log.Name
             : $"{GetLogSourceLabel(log)} / {log.Name}";
 
+    private string GetLogMetadataLabel(LogDescriptor log)
+    {
+        if (IsCombinedLog(log))
+        {
+            return $"{log.Name} / {log.Provider} / {log.SourceKind}";
+        }
+
+        if (VisibleLogSourcesById.TryGetValue(log.Id, out var source))
+        {
+            return $"{source.Name} / {source.Provider} / {FormatLogSourceKind(source.Kind)} / {FormatLogFormat(source.Format)} / {FormatAvailability(source.Availability)}";
+        }
+
+        return $"{log.Name} / {log.Provider} / {log.SourceKind}";
+    }
+
     private string GetLogSourceLabel(LogDescriptor log) =>
         !string.IsNullOrWhiteSpace(log.ResourceId) &&
         LogResourcesById.TryGetValue(log.ResourceId, out var resource)
             ? GetResourceLabel(resource)
             : log.SourceName;
+
+    private string FormatLogSourceKind(ResourceLogSourceKind kind) =>
+        kind switch
+        {
+            ResourceLogSourceKind.ProcessOutput => L["Process output"].Value,
+            ResourceLogSourceKind.ProcessStdout => L["Process stdout"].Value,
+            ResourceLogSourceKind.ProcessStderr => L["Process stderr"].Value,
+            ResourceLogSourceKind.File => L["File"].Value,
+            ResourceLogSourceKind.FilePattern => L["File pattern"].Value,
+            ResourceLogSourceKind.Container => L["Container"].Value,
+            ResourceLogSourceKind.External => L["External"].Value,
+            ResourceLogSourceKind.Activity => L["Activity"].Value,
+            ResourceLogSourceKind.ProviderDefined => L["Provider defined"].Value,
+            _ => L["Other"].Value
+        };
+
+    private string FormatLogFormat(LogFormat format) =>
+        format switch
+        {
+            LogFormat.PlainText => L["Plain text"].Value,
+            LogFormat.JsonConsole => L["JSON console"].Value,
+            LogFormat.SerilogCompactJson => L["Serilog compact JSON"].Value,
+            LogFormat.OpenTelemetry => L["OpenTelemetry"].Value,
+            LogFormat.Structured => L["Structured"].Value,
+            LogFormat.ResourceEvent => L["Resource event"].Value,
+            LogFormat.ProviderDefined => L["Provider defined"].Value,
+            _ => format.ToString()
+        };
+
+    private string FormatAvailability(LogSourceAvailability availability) =>
+        availability switch
+        {
+            LogSourceAvailability.ResourceRunning => L["Resource running"].Value,
+            LogSourceAvailability.ProducerRunning => L["Producer running"].Value,
+            LogSourceAvailability.Persisted => L["Persisted"].Value,
+            LogSourceAvailability.Always => L["Always available"].Value,
+            LogSourceAvailability.ProviderDefined => L["Provider defined"].Value,
+            _ => L["Availability unknown"].Value
+        };
 
     private string GetResourceLabel(Resource resource) =>
         DisplaySelection.GetResourceLabel(resource);

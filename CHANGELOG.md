@@ -53,6 +53,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The Control Plane API and remote client now expose log-source discovery by
   projecting resource-declared sources and provider descriptors into
   `LogSource`.
+- The Logs explorer now uses projected `LogSource` metadata for source kind,
+  format, and availability labels while keeping descriptor-based read and
+  stream operations in place.
 
 ### 2026-06-20
 
