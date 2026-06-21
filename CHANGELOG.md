@@ -133,6 +133,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Control Plane startup, lifecycle, identity provisioning, and Resource
   Manager diagnostics now use resource names in human-facing messages instead
   of leading with canonical resource IDs.
+- Docker-backed application operations now log container-host command start,
+  completion, and release messages with the full command arguments.
 - The UI Extension Host sample now contributes its sample workspace sidebar
   item through the composition main menu instead of legacy shell navigation.
 - CloudShell Hosting now exposes `builder.AddCompositionModule(...)` for

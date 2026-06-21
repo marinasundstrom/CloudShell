@@ -3036,6 +3036,15 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void ApplicationProvider_FormatsContainerHostCommandLineForLogs()
+    {
+        var commandLine = ApplicationResourceService.FormatContainerHostCommandLine(
+            ["rm", "-f", "application topology api"]);
+
+        Assert.Equal("rm -f \"application topology api\"", commandLine);
+    }
+
+    [Fact]
     public void ApplicationProvider_RegistersResourceMonitoringProvider()
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
