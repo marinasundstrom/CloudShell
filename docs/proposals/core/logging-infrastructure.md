@@ -185,6 +185,13 @@ source configuration metadata to decide whether users can add, remove, or edit
 sources. Provider defaults, user-configured sources, programmatic extension
 declarations, provider projections, and runtime-discovered sources have
 different origins and should remain distinguishable.
+Default sources are owned by the resource provider for that resource type. A
+provider may use its own model or runtime knowledge to decide which defaults to
+declare, but CloudShell should not broadly infer log sources by inspecting app
+settings, framework files, or implementation details outside the provider
+contract. More specific sources, such as ASP.NET Core file-sink logs, should be
+declared by the provider or configured by the user when that capability is
+available.
 
 `LogSource` is the Control Plane abstraction projected from resource-owned
 sources and any provider-owned non-resource sources. It is the object that log

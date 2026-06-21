@@ -63,7 +63,12 @@ public sealed partial class ConfigurationResourceProvider :
             LogSourceKind.Resource,
             ResourceId: configurationStore.Id,
             SupportsStreaming: true,
-            Description: "Configuration Store service stdout, stderr, and lifecycle events."))
+            Description: "Configuration Store service stdout, stderr, and lifecycle events.",
+            Kind: ResourceLogSourceKind.ProcessOutput,
+            Format: LogFormat.PlainText,
+            Capabilities: LogSourceCapabilities.Read | LogSourceCapabilities.Stream,
+            Purpose: ResourceLogSourcePurpose.Default,
+            Availability: LogSourceAvailability.ResourceRunning))
         .ToArray();
 
     public Task<IReadOnlyList<LogEntry>> ReadLogAsync(
@@ -499,7 +504,11 @@ public sealed partial class ConfigurationResourceProvider :
             TypeId: "configuration.store",
             Actions: CreateActions(configurationStore),
             HealthChecks: configurationStore.HealthChecks,
-            Capabilities: [new(ResourceCapabilityIds.Monitoring)],
+            Capabilities:
+            [
+                new(ResourceCapabilityIds.Monitoring),
+                new(ResourceCapabilityIds.LogSources)
+            ],
             ResourceClass: ResourceClass.Configuration,
             Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
@@ -508,7 +517,22 @@ public sealed partial class ConfigurationResourceProvider :
                 [ResourceAttributeNames.EndpointCount] = "1"
             },
             EndpointNetworkMappings: [CreateEntriesEndpointMapping(configurationStore)],
-            DisplayName: configurationStore.DisplayName);
+            DisplayName: configurationStore.DisplayName,
+            LogSources: CreateDefaultLogSources());
+
+    private static IReadOnlyList<ResourceLogSource> CreateDefaultLogSources() =>
+        [
+            new ResourceLogSource(
+                "service",
+                "Configuration Store service logs",
+                ResourceLogSourceKind.ProcessOutput,
+                Format: LogFormat.PlainText,
+                Capabilities: LogSourceCapabilities.Read | LogSourceCapabilities.Stream,
+                Description: "Configuration Store service stdout, stderr, and lifecycle events.",
+                Origin: ResourceLogSourceOrigin.ProviderDefault,
+                Purpose: ResourceLogSourcePurpose.Default,
+                Availability: LogSourceAvailability.ResourceRunning)
+        ];
 
     private ResourceState GetState(ConfigurationStoreDefinition configurationStore)
     {

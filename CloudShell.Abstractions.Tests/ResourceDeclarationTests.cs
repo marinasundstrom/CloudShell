@@ -3919,10 +3919,52 @@ public sealed class ResourceDeclarationTests
 
         var log = Assert.Single(provider.GetLogs());
         var entries = await provider.ReadLogAsync(log.Id);
+        var resource = Assert.Single(provider.GetResources());
 
         Assert.Equal("configuration:example", log.ResourceId);
         Assert.Equal(LogSourceKind.Resource, log.SourceKind);
         Assert.True(log.SupportsStreaming);
+        Assert.True(resource.HasCapability(ResourceCapabilityIds.LogSources));
+        AssertDefaultServiceLogSource(
+            resource,
+            "Configuration Store service logs",
+            "Configuration Store service stdout, stderr, and lifecycle events.");
+        Assert.Empty(entries);
+    }
+
+    [Fact]
+    public async Task SecretsVaultProvider_ExposesVaultLogs()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddConfigurationProvider(options =>
+            {
+                options.SecretsVaultDefinitionsPath = "secrets-vaults.json";
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<SecretsVaultProvider>();
+        serviceProvider.GetRequiredService<SecretsVaultStore>().Save(
+            new SecretsVaultDefinition(
+                "secrets-vault:example",
+                "Example Secrets"));
+
+        var log = Assert.Single(provider.GetLogs());
+        var entries = await provider.ReadLogAsync(log.Id);
+        var resource = Assert.Single(provider.GetResources());
+
+        Assert.Equal("secrets-vault:example", log.ResourceId);
+        Assert.Equal(LogSourceKind.Resource, log.SourceKind);
+        Assert.True(log.SupportsStreaming);
+        Assert.True(resource.HasCapability(ResourceCapabilityIds.LogSources));
+        AssertDefaultServiceLogSource(
+            resource,
+            "Secrets Vault service logs",
+            "Secrets Vault service stdout, stderr, and lifecycle events.");
         Assert.Empty(entries);
     }
 
@@ -5323,6 +5365,8 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(ResourceManagementMode.RuntimeManaged, resource.ManagementMode);
         Assert.Equal(ResourceVisibility.Hidden, resource.Visibility);
         Assert.Equal(ResourceCleanupBehavior.None, resource.CleanupBehavior);
+        Assert.True(resource.HasCapability(ResourceCapabilityIds.LogSources));
+        AssertDefaultContainerLogSource(resource);
         var endpoint = Assert.Single(resource.Endpoints);
         Assert.Equal("port-1", endpoint.Name);
         Assert.Equal("tcp", endpoint.Protocol);
@@ -5588,6 +5632,10 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("tcp://build-01.example.com", endpointMapping.Address);
         Assert.DoesNotContain("secret", host.PrimaryEndpoint, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("DOCKER_HOST_PASSWORD", host.ResourceAttributes.Values);
+        Assert.True(host.HasCapability(ResourceCapabilityIds.LogSources));
+        Assert.True(container.HasCapability(ResourceCapabilityIds.LogSources));
+        AssertDefaultDockerHostLogSource(host);
+        AssertDefaultContainerLogSource(container);
         Assert.Equal("docker:build-01", container.ParentResourceId);
     }
 
@@ -10468,6 +10516,50 @@ public sealed class ResourceDeclarationTests
         Assert.True(source.Capabilities.HasFlag(LogSourceCapabilities.Read));
         Assert.True(source.Capabilities.HasFlag(LogSourceCapabilities.Stream));
         Assert.True(source.Capabilities.HasFlag(LogSourceCapabilities.StructuredFields));
+    }
+
+    private static void AssertDefaultContainerLogSource(Resource resource)
+    {
+        var source = Assert.Single(resource.ResourceLogSources);
+        Assert.Equal("logs", source.Id);
+        Assert.Equal("Container logs", source.Name);
+        Assert.Equal(ResourceLogSourceKind.Container, source.Kind);
+        Assert.Equal(LogFormat.PlainText, source.Format);
+        Assert.Equal(ResourceLogSourceOrigin.ProviderDefault, source.Origin);
+        Assert.Equal(ResourceLogSourcePurpose.Default, source.Purpose);
+        Assert.Equal(LogSourceAvailability.ProviderDefined, source.Availability);
+        Assert.True(source.Capabilities.HasFlag(LogSourceCapabilities.Read));
+        Assert.True(source.Capabilities.HasFlag(LogSourceCapabilities.Stream));
+    }
+
+    private static void AssertDefaultDockerHostLogSource(Resource resource)
+    {
+        var source = Assert.Single(resource.ResourceLogSources);
+        Assert.Equal("diagnostics", source.Id);
+        Assert.Equal("Host diagnostics", source.Name);
+        Assert.Equal(ResourceLogSourceKind.ProviderDefined, source.Kind);
+        Assert.Equal(ResourceLogSourceOrigin.ProviderDefault, source.Origin);
+        Assert.Equal(ResourceLogSourcePurpose.Default, source.Purpose);
+        Assert.Equal(LogSourceAvailability.ProviderDefined, source.Availability);
+        Assert.True(source.Capabilities.HasFlag(LogSourceCapabilities.Read));
+    }
+
+    private static void AssertDefaultServiceLogSource(
+        Resource resource,
+        string name,
+        string description)
+    {
+        var source = Assert.Single(resource.ResourceLogSources);
+        Assert.Equal("service", source.Id);
+        Assert.Equal(name, source.Name);
+        Assert.Equal(ResourceLogSourceKind.ProcessOutput, source.Kind);
+        Assert.Equal(LogFormat.PlainText, source.Format);
+        Assert.Equal(description, source.Description);
+        Assert.Equal(ResourceLogSourceOrigin.ProviderDefault, source.Origin);
+        Assert.Equal(ResourceLogSourcePurpose.Default, source.Purpose);
+        Assert.Equal(LogSourceAvailability.ResourceRunning, source.Availability);
+        Assert.True(source.Capabilities.HasFlag(LogSourceCapabilities.Read));
+        Assert.True(source.Capabilities.HasFlag(LogSourceCapabilities.Stream));
     }
 
     private static void WriteLaunchSettings(

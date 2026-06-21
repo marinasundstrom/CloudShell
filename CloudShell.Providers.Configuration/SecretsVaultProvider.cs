@@ -71,7 +71,12 @@ public sealed partial class SecretsVaultProvider(
             LogSourceKind.Resource,
             ResourceId: vault.Id,
             SupportsStreaming: true,
-            Description: "Secrets Vault service stdout, stderr, and lifecycle events."))
+            Description: "Secrets Vault service stdout, stderr, and lifecycle events.",
+            Kind: ResourceLogSourceKind.ProcessOutput,
+            Format: LogFormat.PlainText,
+            Capabilities: LogSourceCapabilities.Read | LogSourceCapabilities.Stream,
+            Purpose: ResourceLogSourcePurpose.Default,
+            Availability: LogSourceAvailability.ResourceRunning))
         .ToArray();
 
     public Task<IReadOnlyList<LogEntry>> ReadLogAsync(
@@ -433,7 +438,11 @@ public sealed partial class SecretsVaultProvider(
             TypeId: ResourceType,
             Actions: CreateActions(vault),
             HealthChecks: vault.HealthChecks,
-            Capabilities: [new(ResourceCapabilityIds.Monitoring)],
+            Capabilities:
+            [
+                new(ResourceCapabilityIds.Monitoring),
+                new(ResourceCapabilityIds.LogSources)
+            ],
             ResourceClass: ResourceClass.SecretsVault,
             Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
@@ -441,7 +450,22 @@ public sealed partial class SecretsVaultProvider(
                 [ResourceAttributeNames.EndpointCount] = "1"
             },
             EndpointNetworkMappings: [CreateSecretsEndpointMapping(vault)],
-            DisplayName: vault.DisplayName);
+            DisplayName: vault.DisplayName,
+            LogSources: CreateDefaultLogSources());
+
+    private static IReadOnlyList<ResourceLogSource> CreateDefaultLogSources() =>
+        [
+            new ResourceLogSource(
+                "service",
+                "Secrets Vault service logs",
+                ResourceLogSourceKind.ProcessOutput,
+                Format: LogFormat.PlainText,
+                Capabilities: LogSourceCapabilities.Read | LogSourceCapabilities.Stream,
+                Description: "Secrets Vault service stdout, stderr, and lifecycle events.",
+                Origin: ResourceLogSourceOrigin.ProviderDefault,
+                Purpose: ResourceLogSourcePurpose.Default,
+                Availability: LogSourceAvailability.ResourceRunning)
+        ];
 
     private static SecretsVaultDefinition Normalize(SecretsVaultDefinition vault)
     {

@@ -971,7 +971,11 @@ public sealed partial class DockerContainerResourceProvider :
                 ["docker.host.kind"] = configured.Host.Kind.ToString().ToLowerInvariant(),
                 ["docker.host.endpoint"] = configured.Host.NormalizedEndpoint
             },
-            Capabilities: [new(ResourceCapabilityIds.ContainerHost)],
+            Capabilities:
+            [
+                new(ResourceCapabilityIds.ContainerHost),
+                new(ResourceCapabilityIds.LogSources)
+            ],
             EndpointNetworkMappings:
             [
                 ResourceEndpointNetworkMapping.ForEndpoint(
@@ -981,7 +985,8 @@ public sealed partial class DockerContainerResourceProvider :
                     ResourceExposureScope.Private,
                     providerResourceId: configured.Id,
                     sourceEndpointName: "host")
-            ]);
+            ],
+            LogSources: CreateHostLogSources());
 
     private static IReadOnlyList<LogDescriptor> CreateLogDescriptors(Resource resource) =>
         resource.EffectiveTypeId switch
@@ -1464,7 +1469,11 @@ public sealed partial class DockerContainerResourceProvider :
             ParentResourceId: hostResourceId,
             TypeId: "docker.container",
             Actions: CreateContainerActions(container.State),
-            Capabilities: [new(ResourceCapabilityIds.Monitoring)],
+            Capabilities:
+            [
+                new(ResourceCapabilityIds.Monitoring),
+                new(ResourceCapabilityIds.LogSources)
+            ],
             ResourceClass: ResourceClass.Container,
             Attributes: CreateContainerAttributes(
                 container.Image,
@@ -1473,7 +1482,8 @@ public sealed partial class DockerContainerResourceProvider :
             Source: ResourceSource.RuntimeController,
             ManagementMode: ResourceManagementMode.RuntimeManaged,
             Visibility: ResourceVisibility.Hidden,
-            EndpointNetworkMappings: endpointProjection.EndpointNetworkMappings);
+            EndpointNetworkMappings: endpointProjection.EndpointNetworkMappings,
+            LogSources: CreateContainerLogSources());
     }
 
     private IReadOnlyList<Resource> GetDeclaredContainerResources(
@@ -1521,15 +1531,47 @@ public sealed partial class DockerContainerResourceProvider :
             TypeId: "docker.container",
             Actions: container is null ? [] : CreateContainerActions(container.State),
             HealthChecks: definition.HealthChecks,
-            Capabilities: [new(ResourceCapabilityIds.Monitoring)],
+            Capabilities:
+            [
+                new(ResourceCapabilityIds.Monitoring),
+                new(ResourceCapabilityIds.LogSources)
+            ],
             ResourceClass: ResourceClass.Container,
             Attributes: CreateContainerAttributes(
                 container?.Image ?? definition.Image,
                 definition.Registry,
                 endpointProjection.Endpoints.Count),
             EndpointNetworkMappings: endpointProjection.EndpointNetworkMappings,
-            DisplayName: definition.Name);
+            DisplayName: definition.Name,
+            LogSources: CreateContainerLogSources());
     }
+
+    private static IReadOnlyList<ResourceLogSource> CreateHostLogSources() =>
+        [
+            new ResourceLogSource(
+                "diagnostics",
+                "Host diagnostics",
+                ResourceLogSourceKind.ProviderDefined,
+                Capabilities: LogSourceCapabilities.Read,
+                Description: "Docker host connection and discovery diagnostics.",
+                Origin: ResourceLogSourceOrigin.ProviderDefault,
+                Purpose: ResourceLogSourcePurpose.Default,
+                Availability: LogSourceAvailability.ProviderDefined)
+        ];
+
+    private static IReadOnlyList<ResourceLogSource> CreateContainerLogSources() =>
+        [
+            new ResourceLogSource(
+                "logs",
+                "Container logs",
+                ResourceLogSourceKind.Container,
+                Format: LogFormat.PlainText,
+                Capabilities: LogSourceCapabilities.Read | LogSourceCapabilities.Stream,
+                Description: "Combined stdout and stderr from the Docker container.",
+                Origin: ResourceLogSourceOrigin.ProviderDefault,
+                Purpose: ResourceLogSourcePurpose.Default,
+                Availability: LogSourceAvailability.ProviderDefined)
+        ];
 
     private static IReadOnlyDictionary<string, string> CreateContainerAttributes(
         string image,
