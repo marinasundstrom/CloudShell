@@ -743,7 +743,11 @@ In code:
 
 - `ILogManager` is the public domain abstraction.
 - `ILogStore` is the internal Control Plane implementation store.
-- `ILogProvider` is the provider contract.
+- `ILogProvider` is the provider contract for contributing and accessing log
+  sources.
+- `ResourceLogSource` is the resource-model declaration for a log source.
+- `LogSource` is the Control Plane projection used for listing, authorization,
+  reading, querying, streaming, parsing, and rendering.
 - `IResourceEventManager` is the public domain abstraction for resource
   activity queries.
 - `IResourceEventStore` is the internal append/query store for resource

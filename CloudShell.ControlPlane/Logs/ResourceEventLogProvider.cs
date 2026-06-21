@@ -23,7 +23,12 @@ public sealed class ResourceEventLogProvider(
                 resource.Name,
                 LogSourceKind.Resource,
                 ResourceId: resource.Id,
-                Description: "Actor-attributed platform activity recorded for this resource."))
+                Description: "Actor-attributed platform activity recorded for this resource.",
+                Kind: ResourceLogSourceKind.Activity,
+                Format: LogFormat.ResourceEvent,
+                Capabilities: LogSourceCapabilities.Read |
+                    LogSourceCapabilities.Query |
+                    LogSourceCapabilities.StructuredFields))
             .ToArray();
 
     public Task<IReadOnlyList<LogEntry>> ReadLogAsync(

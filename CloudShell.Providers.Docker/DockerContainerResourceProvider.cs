@@ -995,7 +995,8 @@ public sealed partial class DockerContainerResourceProvider :
                     resource.Name,
                     LogSourceKind.Resource,
                     ResourceId: resource.Id,
-                    Description: "Docker host connection and discovery diagnostics.")
+                    Description: "Docker host connection and discovery diagnostics.",
+                    Kind: ResourceLogSourceKind.ProviderDefined)
             ],
             "docker.container" =>
             [
@@ -1007,7 +1008,10 @@ public sealed partial class DockerContainerResourceProvider :
                     LogSourceKind.Resource,
                     ResourceId: resource.Id,
                     SupportsStreaming: true,
-                    Description: "Combined stdout and stderr from the Docker container.")
+                    Description: "Combined stdout and stderr from the Docker container.",
+                    Kind: ResourceLogSourceKind.Container,
+                    Format: LogFormat.PlainText,
+                    Capabilities: LogSourceCapabilities.Read | LogSourceCapabilities.Stream)
             ],
             _ => []
         };

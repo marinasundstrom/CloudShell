@@ -9,7 +9,33 @@ public sealed record LogDescriptor(
     string? ResourceId = null,
     string? ArtifactId = null,
     bool SupportsStreaming = false,
-    string? Description = null);
+    string? Description = null,
+    ResourceLogSourceKind Kind = ResourceLogSourceKind.ProviderDefined,
+    LogFormat Format = LogFormat.PlainText,
+    LogStorage Storage = default,
+    LogSourceCapabilities Capabilities = LogSourceCapabilities.Read,
+    string? Location = null,
+    string? ProducerResourceId = null)
+{
+    public LogSource ToLogSource() =>
+        new(
+            Id,
+            Name,
+            Provider,
+            SourceName,
+            SourceKind,
+            Kind,
+            Format,
+            Storage,
+            SupportsStreaming
+                ? Capabilities | LogSourceCapabilities.Stream
+                : Capabilities,
+            ResourceId,
+            ArtifactId,
+            Location,
+            ProducerResourceId,
+            Description);
+}
 
 public enum LogSourceKind
 {

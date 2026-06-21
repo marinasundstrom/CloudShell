@@ -171,7 +171,12 @@ public sealed partial class ApplicationResourceService(
                 LogSourceKind.Resource,
                 ResourceId: application.Id,
                 SupportsStreaming: true,
-                Description: "Container app or process stdout and stderr.")
+                Description: "Container app or process stdout and stderr.",
+                Kind: ResourceLogSourceKind.ProcessOutput,
+                Format: LogFormat.JsonConsole,
+                Capabilities: LogSourceCapabilities.Read |
+                    LogSourceCapabilities.Stream |
+                    LogSourceCapabilities.StructuredFields)
         ];
     }
 

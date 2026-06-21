@@ -591,6 +591,8 @@ Implementation:
 
 - Use `ILogManager` for consumers, `ILogProvider` for provider sources, and
   `ILogStore` for internal storage.
+- Use `ResourceLogSource` for resource-owned log declarations and `LogSource`
+  for the Control Plane projection of readable/queryable/streamable sources.
 - Use `ResourceId`, `ArtifactId`, and `SourceKind` to scope descriptors.
 - Keep provider console output separate from platform resource events.
 - Do not assume every operational signal is a text log. Structured log fields,

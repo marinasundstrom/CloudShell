@@ -35,6 +35,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The logging proposal now identifies `ResourceLogSource` as the resource-model
   declaration and projected `LogSource` as the Control Plane abstraction for
   listing, querying, streaming, parsing, and rendering logs.
+- Log source abstractions now define resource-owned source declarations,
+  projected Control Plane sources, source format, storage, and capability
+  metadata, with compatible projection from existing log descriptors.
 
 ### 2026-06-20
 
