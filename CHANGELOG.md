@@ -58,6 +58,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager relationship pills, restart prompts, and the observability
   overview now use resource-name fallbacks instead of raw resource IDs when
   the referenced resource cannot be resolved.
+- DNS and name-mapping Resource Manager views now use resource-name fallbacks
+  for unresolved target and provider resources instead of showing raw resource
+  IDs in routine metadata.
 - Re-aligned the local-development MVP queue around Application Topology
   repeatability, resource-name-first UI messages, exposure/name-mapping link
   clarity, host-scoped lifecycle cleanup, process/Docker diagnostics, guarded

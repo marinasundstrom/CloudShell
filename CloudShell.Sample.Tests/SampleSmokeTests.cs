@@ -826,6 +826,8 @@ public sealed class SampleSmokeTests
         var dnsDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("dns:application-topology-local")}/details");
         Assert.Contains("app.application-topology.cloudshell.local", dnsDetailsHtml);
+        Assert.Contains("application-topology-frontend/http", dnsDetailsHtml);
+        Assert.DoesNotContain("application:application-topology-frontend/http", dnsDetailsHtml);
         Assert.Contains("local-hostnames", dnsDetailsHtml);
 
         var sqlEndpointsHtml = await host.GetStringAsync(
@@ -865,7 +867,7 @@ public sealed class SampleSmokeTests
         var missingResourceLogFilterHtml = await host.GetStringAsync(
             $"/logs?resourceId={Uri.EscapeDataString("application:application-topology-missing")}");
         Assert.Contains("Resource log filter not found", missingResourceLogFilterHtml);
-        Assert.Contains("application:application-topology-missing", missingResourceLogFilterHtml);
+        Assert.Contains("application-topology-missing", missingResourceLogFilterHtml);
         Assert.Contains("Show all logs", missingResourceLogFilterHtml);
 
         var inlineApiLogsHtml = await host.GetStringAsync(

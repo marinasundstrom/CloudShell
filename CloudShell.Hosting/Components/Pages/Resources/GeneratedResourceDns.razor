@@ -236,7 +236,7 @@
         {
             var provider = FindRelatedResource(providerResourceId);
             return provider is null
-                ? L["Provider: {0}", providerResourceId].Value
+                ? L["Provider: {0}", ResourceDisplayLabels.GetName(providerResourceId)].Value
                 : L["Provider: {0}", GetResourceLabel(provider)].Value;
         }
 

@@ -113,7 +113,7 @@ else
         var targetResourceId = GetAttribute(mapping, ResourceAttributeNames.NameMappingTargetResourceId, string.Empty);
         var targetLabel = ResourcesById.TryGetValue(targetResourceId, out var target)
             ? ResourceDisplayLabels.GetLabel(target)
-            : targetResourceId;
+            : ResourceDisplayLabels.GetName(targetResourceId);
         var endpoint = GetAttribute(mapping, ResourceAttributeNames.NameMappingTargetEndpointName, "default");
 
         return $"{targetLabel}/{endpoint}";
@@ -156,7 +156,7 @@ else
         {
             return ResourcesById.TryGetValue(providerResourceId, out var provider)
                 ? $"Provider: {ResourceDisplayLabels.GetLabel(provider)}"
-                : $"Provider: {providerResourceId}";
+                : $"Provider: {ResourceDisplayLabels.GetName(providerResourceId)}";
         }
 
         return $"Provider: {GetAttribute(mapping, ResourceAttributeNames.DnsProvider, "logical")}";
