@@ -51,8 +51,9 @@ public sealed class HostScopedResourceShutdownService(
 
         var candidates = GetHostScopedStopCandidates(snapshot).ToArray();
 
-        foreach (var resource in OrderForShutdown(candidates))
+        foreach (var candidate in OrderForShutdown(candidates))
         {
+            var resource = candidate.Resource;
             if (cleanupToken.IsCancellationRequested)
             {
                 logger.LogWarning(
@@ -68,7 +69,7 @@ public sealed class HostScopedResourceShutdownService(
                     ResourceDisplayLabels.GetQualifiedLabel(resource));
                 await orchestration.ExecuteActionAsync(
                     resource,
-                    resource.StopAction!,
+                    candidate.Action,
                     startDependencies: false,
                     new ShutdownAuthorizationService(),
                     cleanupToken,
@@ -101,30 +102,40 @@ public sealed class HostScopedResourceShutdownService(
         logger.LogInformation(message, args);
     }
 
-    private static IEnumerable<Resource> GetHostScopedStopCandidates(
+    private static IEnumerable<HostScopedStopCandidate> GetHostScopedStopCandidates(
         ResourceOrchestrationCatalogSnapshot snapshot)
     {
         foreach (var resource in snapshot.Resources)
         {
-            if (resource.State == ResourceState.Stopped ||
-                resource.StopAction is null ||
-                !snapshot.Workloads.TryGetValue(resource.Id, out var workload) ||
+            if (!snapshot.Workloads.TryGetValue(resource.Id, out var workload) ||
                 workload.Lifetime != ResourceLifetime.ControlPlaneScoped)
             {
                 continue;
             }
 
-            yield return resource;
+            if (resource.State != ResourceState.Stopped &&
+                resource.StopAction is { } stopAction)
+            {
+                yield return new HostScopedStopCandidate(resource, stopAction);
+                continue;
+            }
+
+            if (resource.State == ResourceState.Stopped &&
+                workload.Kind is ResourceWorkloadKind.ContainerImage or ResourceWorkloadKind.ContainerBuild)
+            {
+                yield return new HostScopedStopCandidate(resource, ResourceAction.Stop);
+            }
         }
     }
 
-    private static IEnumerable<Resource> OrderForShutdown(IReadOnlyList<Resource> resources)
+    private static IEnumerable<HostScopedStopCandidate> OrderForShutdown(IReadOnlyList<HostScopedStopCandidate> candidates)
     {
+        var resources = candidates.Select(candidate => candidate.Resource).ToArray();
         var resourcesById = resources.ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
-        return resources
-            .OrderBy(resource => GetDependentDepth(resource, resourcesById, []))
-            .ThenBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+        return candidates
+            .OrderBy(candidate => GetDependentDepth(candidate.Resource, resourcesById, []))
+            .ThenBy(candidate => candidate.Resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(candidate => candidate.Resource.Id, StringComparer.OrdinalIgnoreCase);
     }
 
     private static int GetDependentDepth(
@@ -164,4 +175,6 @@ public sealed class HostScopedResourceShutdownService(
 
         public bool CanAccessResource(string resourceId, string? resourceGroupId, string permission) => true;
     }
+
+    private sealed record HostScopedStopCandidate(Resource Resource, ResourceAction Action);
 }

@@ -3264,11 +3264,8 @@ public sealed class ResourceDeclarationTests
 
             var commands = File.ReadAllLines(commandLogPath);
 
-            Assert.Contains("stop cloudshell-application-sql", commands);
             Assert.Contains("rm -f cloudshell-application-sql", commands);
-            Assert.True(
-                Array.IndexOf(commands, "stop cloudshell-application-sql") <
-                Array.IndexOf(commands, "rm -f cloudshell-application-sql"));
+            Assert.DoesNotContain("stop cloudshell-application-sql", commands);
         }
         finally
         {

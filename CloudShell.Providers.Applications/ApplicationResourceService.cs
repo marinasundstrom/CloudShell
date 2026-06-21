@@ -2727,12 +2727,6 @@ public sealed partial class ApplicationResourceService(
             Id,
             "application.container.instance.stopping",
             $"Application provider is stopping container replica '{instance.Name}' for '{definition.Name}'.");
-        await RunContainerHostCommandAsync(
-            engine,
-            ["stop", instance.Name],
-            log,
-            cancellationToken,
-            dockerHostLogger);
         if (definition.Lifetime == ApplicationLifetime.ControlPlaneScoped)
         {
             await RunContainerHostCommandAsync(
@@ -2742,6 +2736,16 @@ public sealed partial class ApplicationResourceService(
                 cancellationToken,
                 dockerHostLogger);
         }
+        else
+        {
+            await RunContainerHostCommandAsync(
+                engine,
+                ["stop", instance.Name],
+                log,
+                cancellationToken,
+                dockerHostLogger);
+        }
+
         procedureContext?.AppendProviderEvent(
             Id,
             "application.container.instance.stopped",

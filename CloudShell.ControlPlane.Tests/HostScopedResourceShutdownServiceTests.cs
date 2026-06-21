@@ -56,6 +56,31 @@ public sealed class HostScopedResourceShutdownServiceTests
     }
 
     [Fact]
+    public async Task StopAsync_CleansUpStoppedHostScopedContainerWorkloads()
+    {
+        var container = CreateResource("sql", "SQL", ResourceState.Stopped, actions: []);
+        var localExecutable = CreateResource("worker", "Worker", ResourceState.Stopped, actions: []);
+        var catalog = new TestResourceOrchestrationCatalog(new ResourceOrchestrationCatalogSnapshot(
+            [container, localExecutable],
+            new Dictionary<string, ResourceWorkloadConfiguration>(StringComparer.OrdinalIgnoreCase)
+            {
+                [container.Id] = CreateWorkload(ResourceLifetime.ControlPlaneScoped, ResourceWorkloadKind.ContainerImage),
+                [localExecutable.Id] = CreateWorkload(ResourceLifetime.ControlPlaneScoped)
+            },
+            new Dictionary<string, ContainerHostDescriptor>(StringComparer.OrdinalIgnoreCase)));
+        var orchestrator = new RecordingResourceOrchestrator();
+        var resourceEvents = new InMemoryResourceEventStore();
+        using var services = CreateServices(catalog, orchestrator, resourceEvents);
+
+        await services.GetRequiredService<HostScopedResourceShutdownService>()
+            .StopAsync(CancellationToken.None);
+
+        var action = Assert.Single(orchestrator.ExecutedActions);
+        Assert.Equal("sql", action.ResourceId);
+        Assert.Equal(ResourceActionIds.Stop, action.ActionId);
+    }
+
+    [Fact]
     public async Task StopAsync_ContinuesWhenAHostScopedResourceStopFails()
     {
         var api = CreateResource("api", "API", ResourceState.Running);
@@ -173,8 +198,10 @@ public sealed class HostScopedResourceShutdownServiceTests
             dependsOn ?? [],
             Actions: actions ?? [ResourceAction.Stop]);
 
-    private static ResourceWorkloadConfiguration CreateWorkload(ResourceLifetime lifetime) =>
-        new(ResourceWorkloadKind.LocalExecutable, "test", Lifetime: lifetime);
+    private static ResourceWorkloadConfiguration CreateWorkload(
+        ResourceLifetime lifetime,
+        ResourceWorkloadKind kind = ResourceWorkloadKind.LocalExecutable) =>
+        new(kind, "test", Lifetime: lifetime);
 
     private sealed class TestResourceOrchestrationCatalog(
         ResourceOrchestrationCatalogSnapshot snapshot) : IResourceOrchestrationCatalog

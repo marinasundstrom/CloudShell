@@ -37,6 +37,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource details now tolerate route-bound resource view segments that arrive
   as part of the resource id, so direct links such as `/resources/{id}/dns`
   still resolve the resource before selecting the registered view.
+- Host-scoped shutdown now performs defensive cleanup for control-plane-scoped
+  container workloads even when their local runner process already exited, and
+  control-plane-scoped container apps remove replicas directly with force.
 - Re-aligned the local-development MVP queue around Application Topology
   repeatability, resource-name-first UI messages, exposure/name-mapping link
   clarity, host-scoped lifecycle cleanup, process/Docker diagnostics, guarded
