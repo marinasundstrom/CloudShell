@@ -5649,6 +5649,42 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task DockerProvider_DisposeLogsWhenRefreshDoesNotQuiesce()
+    {
+        var options = new DockerProviderOptions
+        {
+            Endpoint = new Uri("tcp://127.0.0.1:1"),
+            RequestTimeout = TimeSpan.FromMilliseconds(10)
+        };
+        using var logProvider = new CapturingLoggerProvider();
+        using var loggerFactory = LoggerFactory.Create(builder =>
+        {
+            builder.SetMinimumLevel(LogLevel.Debug);
+            builder.AddProvider(logProvider);
+        });
+        var provider = new DockerContainerResourceProvider(options, loggerFactory);
+        var refreshGate = typeof(DockerContainerResourceProvider)
+            .GetField("_refreshGate", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+            ?.GetValue(provider) as SemaphoreSlim;
+        Assert.NotNull(refreshGate);
+
+        await refreshGate.WaitAsync();
+        try
+        {
+            provider.Dispose();
+        }
+        finally
+        {
+            refreshGate.Release();
+        }
+
+        Assert.Contains(
+            logProvider.Messages,
+            message => message.Contains("Timed out waiting for Docker host refresh to stop", StringComparison.Ordinal));
+        await provider.RefreshAsync();
+    }
+
+    [Fact]
     public async Task DockerProvider_ReportsUnavailableHostCredentialsInDescriptor()
     {
         const string passwordVariable = "CLOUDSHELL_TEST_MISSING_DOCKER_HOST_PASSWORD";

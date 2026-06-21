@@ -26,7 +26,8 @@ public sealed partial class DockerContainerResourceProvider :
     IProgrammaticResourceDeclarationProvider,
     IResourceAutoStartPolicyProvider,
     IResourceOrchestrationDescriptorProvider,
-    IDisposable
+    IDisposable,
+    IAsyncDisposable
 {
     private static readonly JsonSerializerOptions DescriptorSerializerOptions = new(JsonSerializerDefaults.Web);
     public const string HostResourceType = "docker.host";
@@ -623,7 +624,21 @@ public sealed partial class DockerContainerResourceProvider :
 
     public void Dispose()
     {
-        IReadOnlyList<KeyValuePair<string, DockerClient>> clients;
+        DisposeCoreAsync(waitAsynchronously: false)
+            .AsTask()
+            .GetAwaiter()
+            .GetResult();
+        GC.SuppressFinalize(this);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await DisposeCoreAsync(waitAsynchronously: true);
+        GC.SuppressFinalize(this);
+    }
+
+    private async ValueTask DisposeCoreAsync(bool waitAsynchronously)
+    {
         lock (_gate)
         {
             if (_disposed)
@@ -633,6 +648,21 @@ public sealed partial class DockerContainerResourceProvider :
 
             _disposed = true;
             _dispose.Cancel();
+        }
+
+        var refreshQuiesced = waitAsynchronously
+            ? await WaitForRefreshToQuiesceAsync()
+            : WaitForRefreshToQuiesce();
+        if (!refreshQuiesced)
+        {
+            LogDockerLifecycle(
+                "Timed out waiting for Docker host refresh to stop after {DockerRefreshWaitTimeout}; disposing cached Docker host clients anyway.",
+                _options.RequestTimeout);
+        }
+
+        IReadOnlyList<KeyValuePair<string, DockerClient>> clients;
+        lock (_gate)
+        {
             clients = _clients.ToArray();
             _clients.Clear();
         }
@@ -649,13 +679,33 @@ public sealed partial class DockerContainerResourceProvider :
                 hostIdentity);
         }
 
-        if (_refreshGate.Wait(_options.RequestTimeout))
+        if (refreshQuiesced)
         {
-            _refreshGate.Release();
             _refreshGate.Dispose();
+            _dispose.Dispose();
+        }
+    }
+
+    private bool WaitForRefreshToQuiesce()
+    {
+        if (!_refreshGate.Wait(_options.RequestTimeout))
+        {
+            return false;
         }
 
-        _dispose.Dispose();
+        _refreshGate.Release();
+        return true;
+    }
+
+    private async ValueTask<bool> WaitForRefreshToQuiesceAsync()
+    {
+        if (!await _refreshGate.WaitAsync(_options.RequestTimeout))
+        {
+            return false;
+        }
+
+        _refreshGate.Release();
+        return true;
     }
 
     private bool IsDisposed()
