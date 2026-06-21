@@ -128,6 +128,10 @@ collector-specific query contexts. Session ownership stays with the provider:
 the provider decides whether multiple consumers share a background tailer,
 cursor, file reader, or remote subscription, and exposes entries through the
 common session contract.
+The provider should receive the resolved `LogSource` when opening a session so
+it can use source kind, storage, location, availability, and provider-owned
+configuration without requiring callers to understand provider-specific
+details.
 
 `ResourceLogSource` belongs to the resource model, like `ResourceHealthCheck`.
 It is a discovery contract: CloudShell and the Control Plane use it to discover

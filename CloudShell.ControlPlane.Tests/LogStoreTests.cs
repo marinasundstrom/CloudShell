@@ -55,6 +55,7 @@ public sealed class LogStoreTests
                     LogSourceKind.Provider,
                     ResourceLogSourceKind.ProviderDefined,
                     Capabilities: LogSourceCapabilities.Read,
+                    Location: "provider://diagnostics",
                     Origin: ResourceLogSourceOrigin.ProviderProjected)
             ]);
         var store = new LogStore(
@@ -90,6 +91,7 @@ public sealed class LogStoreTests
                     LogSourceKind.Provider,
                     ResourceLogSourceKind.ProviderDefined,
                     Capabilities: LogSourceCapabilities.Read,
+                    Location: "provider://diagnostics",
                     Origin: ResourceLogSourceOrigin.ProviderProjected)
             ]);
         var store = new LogStore(
@@ -102,6 +104,8 @@ public sealed class LogStoreTests
 
         var entry = Assert.Single(entries);
         Assert.Equal(ProviderProjectedEntry.Message, entry.Message);
+        Assert.NotNull(provider.OpenedSource);
+        Assert.Equal("provider://diagnostics", provider.OpenedSource.Location);
     }
 
     private static Resource CreateResource(
@@ -131,8 +135,21 @@ public sealed class LogStoreTests
 
         public IReadOnlyList<LogDescriptor> GetLogs() => logs;
 
+        public LogSource? OpenedSource { get; private set; }
+
         public IReadOnlyList<LogSource> GetLogSources() =>
             [.. logs.Select(log => log.ToLogSource()), .. sources];
+
+        public ValueTask<ILogSourceSession?> OpenLogSourceAsync(
+            LogSource source,
+            CancellationToken cancellationToken = default)
+        {
+            OpenedSource = source;
+            return ValueTask.FromResult<ILogSourceSession?>(
+                sources.Any(candidate => string.Equals(candidate.Id, source.Id, StringComparison.OrdinalIgnoreCase))
+                    ? new TestLogSourceSession(source.Id)
+                    : null);
+        }
 
         public ValueTask<ILogSourceSession?> OpenLogSourceAsync(
             string logSourceId,

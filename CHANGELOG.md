@@ -68,6 +68,9 @@ on `git blame --follow`, and then by the broad type of change.
   `log-sources`.
 - `ILogStore` now exposes source-addressed log read and stream operations,
   keeping descriptor-named methods as compatibility aliases.
+- `ILogProvider` can now open log sessions from a resolved `LogSource`, so
+  providers can use source metadata and configuration when materializing
+  sessions.
 
 ### 2026-06-20
 

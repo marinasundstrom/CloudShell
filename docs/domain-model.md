@@ -748,7 +748,9 @@ In code:
 - `ILogProvider` is the provider contract for contributing and accessing log
   sources. Providers may contribute projected `LogSource` metadata directly,
   while descriptor-backed providers are bridged into sources during the
-  transition.
+  transition. When opening a session, providers receive the resolved
+  `LogSource` so source kind, storage, location, and configuration stay behind
+  the provider boundary.
 - `ILogSourceSession` is the provider-owned runtime access context materialized
   when a source is read or streamed. It keeps source discovery separate from
   access status, file handles, process or container streams, remote cursors,

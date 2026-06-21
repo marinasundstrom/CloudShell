@@ -156,7 +156,7 @@ public sealed class LogStore(
                 yield break;
             }
 
-            await using var session = await provider.OpenLogSourceAsync(logSourceId, cancellationToken);
+            await using var session = await provider.OpenLogSourceAsync(source, cancellationToken);
             if (session is null)
             {
                 yield break;
@@ -195,12 +195,13 @@ public sealed class LogStore(
         string logSourceId,
         CancellationToken cancellationToken)
     {
-        if (GetProviderLogSource(provider, logSourceId) is null)
+        var source = GetProviderLogSource(provider, logSourceId);
+        if (source is null)
         {
             return null;
         }
 
-        return await provider.OpenLogSourceAsync(logSourceId, cancellationToken);
+        return await provider.OpenLogSourceAsync(source, cancellationToken);
     }
 
     private static LogSource? GetProviderLogSource(

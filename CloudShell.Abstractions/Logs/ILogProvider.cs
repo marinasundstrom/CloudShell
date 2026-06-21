@@ -14,6 +14,14 @@ public interface ILogProvider
             .ToArray();
 
     ValueTask<ILogSourceSession?> OpenLogSourceAsync(
+        LogSource source,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return OpenLogSourceAsync(source.Id, cancellationToken);
+    }
+
+    ValueTask<ILogSourceSession?> OpenLogSourceAsync(
         string logSourceId,
         CancellationToken cancellationToken = default)
     {
