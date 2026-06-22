@@ -34,9 +34,17 @@ the first major built-in integration, but the UI shell must stay useful for
 other product areas and extension-owned experiences.
 Architecturally, Resource Manager is still an integration into CloudShell. It
 is larger and more central than most extensions, but it is on the same side of
-the shell boundary as another CloudShell extension: it contributes shell UI,
-uses shell services, and installs Control Plane behavior through extension
-registration rather than defining the shell itself.
+the shell boundary as another CloudShell extension. Resource Manager has a
+shell extension that contributes UI and uses shell services. The backend for
+that extension is the Control Plane service, which may run in the same host
+process during development or remotely in a split deployment. Resource Manager
+does not define the shell itself.
+
+When the boundary matters, use precise terms: "Resource Manager shell
+extension" for the CloudShell UI integration and "Resource Manager backend" or
+"Control Plane side" for the backend services. "Resource Manager" by itself
+can refer to the whole product area or capability package that includes both
+halves.
 
 CloudShell UI should also stay isolated from extensions at the implementation
 level. Extensions integrate through declared extension points, shared
@@ -189,11 +197,11 @@ Resource Manager is the canonical large integration. It integrates with:
   persistence behavior, and authorization behavior.
 
 The CloudShell UI host sees the Resource Manager side as a shell extension.
-The Control Plane side remains a backend service boundary. A combined host may
-load both halves in one ASP.NET Core process, but the architecture is still
-"CloudShell UI hosts Resource Manager UI" and "Resource Manager UI talks to
-Resource Manager/Control Plane abstractions," not "CloudShell UI owns Control
-Plane behavior."
+The Control Plane service is the backend for that shell extension. A combined
+host may load both halves in one ASP.NET Core process, but the architecture is
+still "CloudShell UI hosts the Resource Manager shell extension" and "Resource
+Manager talks to its backend through public managers/client adapters," not
+"CloudShell UI owns Control Plane behavior."
 
 Resource Manager also owns product-specific extension points of its own.
 Resource providers extend Resource Manager through resource types, detail
@@ -209,13 +217,13 @@ flowchart LR
     subgraph UIHost["CloudShell UI host"]
         Shell["CloudShell UI shell"]
         ShellContracts["Shell contracts and services\nmenus, pages, sections, settings, notifications"]
-        ResourceManagerUi["Resource Manager UI integration"]
+        ResourceManagerUi["Resource Manager shell extension"]
         OtherUi["Other CloudShell UI integration"]
     end
 
     subgraph ControlPlaneHost["Control Plane host"]
         ControlPlane["Control Plane service"]
-        ResourceManagerBackend["Resource Manager Control Plane integration"]
+        ResourceManagerBackend["Resource Manager backend services"]
         ProviderBackend["Resource provider integration"]
     end
 

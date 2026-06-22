@@ -11,6 +11,12 @@ These surfaces are logically connected but not the same registration contract.
 The CloudShell UI and the Control Plane are distinct apps, even when the
 development host runs both in one ASP.NET Core process.
 
+Resource Manager is often used as shorthand for the whole product area that
+includes both its CloudShell UI shell extension and its Control Plane backend
+services. When writing provider code or documentation, name the side that is
+being extended: Resource Manager UI integration for shell-facing work, and
+Control Plane resource provider for backend resource behavior.
+
 ## Recommended Path
 
 When creating a new resource provider:
