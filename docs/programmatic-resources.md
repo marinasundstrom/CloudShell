@@ -60,6 +60,16 @@ project, and container-backed resources. Provider packages still own the
 extension methods and builder implementations that translate those calls into
 uniform `Resource` projections plus provider-owned configuration.
 
+For built-in application resources, those builders feed the shared
+application-resource infrastructure. The declaration describes the stable
+resource and its runtime intent; the application provider handles common
+process and container lifecycle management, log capture, runtime state, and
+host-scoped cleanup. A single application resource can be backed by multiple
+executables or containers, and provider or orchestrator sub-resources should
+remain contained under the application resource unless the user intentionally
+models them as independent resources. See
+[Application resources](resources/application-resources.md).
+
 ## Declarative Resource Graph
 
 Programmatic resources can also be used in an Aspire-like style for local

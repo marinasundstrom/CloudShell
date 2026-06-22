@@ -101,6 +101,10 @@ on `git blame --follow`, and then by the broad type of change.
   concrete component stack so another CloudShell UI implementation can consume
   the same public abstractions and services, then render them with its own
   presenters.
+- Clarified the application-resource abstraction direction: built-in
+  application providers dogfood shared process/container lifecycle,
+  containment, runtime-state, and orchestrator-managed sub-resource
+  infrastructure before that base is promoted as a stable extension point.
 
 ### 2026-06-21
 

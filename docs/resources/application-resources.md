@@ -50,12 +50,47 @@ templates, and orchestration. This keeps each provider responsible for its own
 resource boundary while avoiding repeated implementation work for behavior
 that application-style resources naturally share.
 
-The long-term direction is to turn this internal base into a stable foundation
-that other CloudShell-owned or third-party application resource providers can
-build on, with or without their own provider identity. That extension surface
-is not stable yet; provider authors should treat the current shared
-application service as built-in infrastructure until the abstractions are
-documented and promoted.
+The application-resource abstraction is intended to give provider authors as
+much as possible for free. A provider should describe the resource's authored
+shape, endpoints, configuration, dependencies, environment variables,
+observability, and runtime intent; the shared application infrastructure then
+handles the common process or container lifecycle plumbing. Providers should
+not have to reimplement routine start, stop, restart, log capture, runtime
+state tracking, endpoint projection, or host-scoped cleanup when those concerns
+match the shared model.
+
+An application resource can be backed by one executable, several cooperating
+executables, one container, several containers, or a provider-managed runtime
+service. The stable CloudShell resource remains the application resource that
+users inspect and operate. Runtime artifacts can still be tracked below that
+resource when they matter for cleanup, diagnostics, monitoring, or advanced
+inspection, but they should not become the primary user-facing resource unless
+the user explicitly modeled them as resources.
+
+Containment exists at more than one level:
+
+- The application resource contains the runtime behavior it owns.
+- The shared application infrastructure manages process and container
+  lifecycles for that resource.
+- Providers can project child or internal resources, such as SQL databases or
+  container replicas, when they are useful to inspect.
+- Orchestrators manage orchestrator-owned sub-resources and runtime service
+  descriptors that materialize the application resource on a selected host.
+
+Internal sub-resources should use ownership, management-mode, visibility, and
+cleanup metadata to make their relationship explicit. They remain part of the
+resource graph for diagnostics and cleanup, but Resource Manager should present
+the containing application as the normal management surface. The orchestrator,
+not the application provider author, owns the lifecycle of orchestrator-managed
+replicas, runtime services, and other materialized implementation artifacts.
+
+The long-term direction is to promote the reusable application-resource base
+into a stable extension point for CloudShell-owned and third-party application
+resource providers. The current shared service and type-provider base are still
+built-in infrastructure, not a stable public API. Until the abstractions are
+documented, tested as extension contracts, and marked stable, provider authors
+should treat them as dogfooded internal infrastructure rather than a supported
+NuGet extension surface.
 
 ## Endpoint And Exposure Model
 
