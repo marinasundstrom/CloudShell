@@ -113,17 +113,16 @@ public static class ApplicationProviderServiceCollectionExtensions
         ResourceObservability? observability = null)
     {
         var id = CreateApplicationResourceId(name);
-        var definition = new ApplicationResourceDefinition(
-            id,
-            CreateDisplayName(id),
-            executablePath,
-            arguments,
-            workingDirectory,
-            endpoint,
-            environmentVariables,
-            lifetime,
-            useServiceDiscovery: useServiceDiscovery,
-            observability: observability);
+        var definition = ApplicationResourceDefinitionBuilder
+            .ForExecutable(id, CreateDisplayName(id), executablePath)
+            .WithArguments(arguments)
+            .WithWorkingDirectory(workingDirectory)
+            .WithEndpoint(endpoint)
+            .WithEnvironmentVariables(environmentVariables ?? [])
+            .WithLifetime(lifetime)
+            .WithServiceDiscovery(useServiceDiscovery)
+            .WithObservability(observability)
+            .Build();
 
         return DeclareApplicationResource(
             builder,
@@ -147,21 +146,18 @@ public static class ApplicationProviderServiceCollectionExtensions
         ArgumentException.ThrowIfNullOrWhiteSpace(projectPath);
 
         var id = CreateApplicationResourceId(name);
-        var definition = new ApplicationResourceDefinition(
-            id,
-            CreateDisplayName(id),
-            executablePath: string.Empty,
-            environmentVariables: environmentVariables,
-            lifetime: lifetime,
-            useServiceDiscovery: useServiceDiscovery,
-            endpointPorts: string.IsNullOrWhiteSpace(endpoint)
+        var definition = ApplicationResourceDefinitionBuilder
+            .ForAspNetCoreProject(id, CreateDisplayName(id), projectPath)
+            .WithEnvironmentVariables(environmentVariables ?? [])
+            .WithLifetime(lifetime)
+            .WithServiceDiscovery(useServiceDiscovery)
+            .WithEndpointPorts(string.IsNullOrWhiteSpace(endpoint)
                 ? []
-                : CreateAspNetCoreProjectEndpointPorts(endpoint),
-            resourceType: ApplicationResourceTypes.AspNetCoreProject,
-            observability: observability,
-            projectPath: projectPath,
-            projectArguments: applicationArguments,
-            aspNetCoreHotReload: hotReload);
+                : CreateAspNetCoreProjectEndpointPorts(endpoint))
+            .WithObservability(observability)
+            .WithProjectArguments(applicationArguments)
+            .WithAspNetCoreHotReload(hotReload)
+            .Build();
 
         return DeclareApplicationResource(
             builder,
@@ -254,11 +250,13 @@ public static class ApplicationProviderServiceCollectionExtensions
                 ResourceExposureScope.Local,
                 ResourceEndpointAssignment.Manual)
         };
-        var definition = new ApplicationResourceDefinition(
-            id,
-            CreateDisplayName(id),
-            executablePath: string.Empty,
-            environmentVariables:
+        var definition = ApplicationResourceDefinitionBuilder
+            .ForContainerImage(
+                id,
+                CreateDisplayName(id),
+                DefaultSqlServerImage,
+                ApplicationResourceTypes.SqlServer)
+            .WithEnvironmentVariables(
             [
                 new EnvironmentVariableAssignment("ACCEPT_EULA", "Y"),
                 new EnvironmentVariableAssignment(
@@ -266,21 +264,20 @@ public static class ApplicationProviderServiceCollectionExtensions
                     string.IsNullOrWhiteSpace(administratorPassword)
                         ? DefaultSqlServerAdministratorPassword
                         : administratorPassword)
-            ],
-            lifetime: ApplicationLifetime.ControlPlaneScoped,
-            containerImage: DefaultSqlServerImage,
-            endpointPorts: endpointPorts,
-            resourceType: ApplicationResourceTypes.SqlServer,
-            healthChecks:
+            ])
+            .WithLifetime(ApplicationLifetime.ControlPlaneScoped)
+            .WithEndpointPorts(endpointPorts)
+            .WithHealthChecks(
             [
                 new ResourceHealthCheck(
                     ApplicationResourceProbeSources.SqlServer,
                     ResourceProbeType.Liveness,
                     "liveness")
-            ],
-            volumeMounts: dataVolume is null
+            ])
+            .WithVolumeMounts(dataVolume is null
                 ? []
-                : [new ResourceVolumeMount(dataVolume.ResourceId, DefaultSqlServerDataPath, Name: "data")]);
+                : [new ResourceVolumeMount(dataVolume.ResourceId, DefaultSqlServerDataPath, Name: "data")])
+            .Build();
         var resource = DeclareApplicationResource(
             builder,
             ApplicationResourceProviderIds.SqlServer,
@@ -349,22 +346,17 @@ public static class ApplicationProviderServiceCollectionExtensions
         ArgumentException.ThrowIfNullOrWhiteSpace(image);
 
         var id = CreateApplicationResourceId(name);
-        var definition = new ApplicationResourceDefinition(
-            id,
-            CreateDisplayName(id),
-            executablePath: string.Empty,
-            endpoint: null,
-            environmentVariables: environmentVariables,
-            lifetime: ApplicationLifetime.ControlPlaneScoped,
-            useServiceDiscovery: useServiceDiscovery,
-            containerImage: image,
-            containerRegistry: registry,
-            replicas: Math.Max(1, replicas),
-            replicasEnabled: replicas > 1,
-            endpointPorts: CreateEndpointPorts(endpoints),
-            resourceType: ApplicationResourceTypes.ContainerApp,
-            observability: observability,
-            containerRevision: CreateContainerRevision());
+        var definition = ApplicationResourceDefinitionBuilder
+            .ForContainerImage(id, CreateDisplayName(id), image)
+            .WithEnvironmentVariables(environmentVariables ?? [])
+            .WithLifetime(ApplicationLifetime.ControlPlaneScoped)
+            .WithServiceDiscovery(useServiceDiscovery)
+            .WithContainerRegistry(registry)
+            .WithReplicas(Math.Max(1, replicas), replicas > 1)
+            .WithEndpointPorts(CreateEndpointPorts(endpoints))
+            .WithObservability(observability)
+            .WithContainerRevision(CreateContainerRevision())
+            .Build();
 
         return DeclareApplicationResource(
             builder,
