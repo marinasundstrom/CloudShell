@@ -86,6 +86,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Application runtime log parsing and resource log source projection are now
   factored out of `ApplicationResourceService`, starting the shared
   application infrastructure cleanup without changing provider behavior.
+- Container-host command execution and capture are now factored out of
+  `ApplicationResourceService`, keeping Docker/Podman process invocation,
+  environment setup, command logging, and output capture behind a smaller
+  application-provider helper.
 - Resource-scoped Logs views now keep navigation anchored on the selected
   parent resource when choosing projected runtime replica log sources.
 - The global Health page now includes visible resources with aggregate health
