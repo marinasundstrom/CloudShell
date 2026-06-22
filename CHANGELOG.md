@@ -79,6 +79,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Runtime replica log sources now resolve before generic application log
   sources and parse JSON console records into structured log entries, so
   replica Logs views can show app-emitted structured fields.
+- Resource-scoped Logs views now keep navigation anchored on the selected
+  parent resource when choosing projected runtime replica log sources.
 - The global Health page now includes visible resources with aggregate health
   assessments even when the concrete probe declarations live on projected
   runtime resources, while default summary counts stay focused on visible

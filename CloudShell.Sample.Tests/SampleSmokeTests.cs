@@ -2031,6 +2031,15 @@ public sealed class SampleSmokeTests
         Assert.Contains("Replica 2 logs", logsHtml);
         Assert.Contains("Replica 3 logs", logsHtml);
 
+        var logSourcesHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application:api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Logs.Value)}&logView=sources");
+        Assert.Contains(
+            "href=\"/resources/application%3Aapi/logs?logId=runtime-container%3Aapplication-api%3Areplica-1%3Alogs",
+            logSourcesHtml);
+        Assert.DoesNotContain(
+            "href=\"/resources/runtime-container%3Aapplication-api%3Areplica-1/logs",
+            logSourcesHtml);
+
         var tracesHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Traces.Value)}");
         Assert.Contains("Telemetry", tracesHtml);

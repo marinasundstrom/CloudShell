@@ -1263,7 +1263,7 @@ else if (ShowHeading)
 
         AddLogViewQuery(query, ResolveLogView());
 
-        if (Inline && !string.IsNullOrWhiteSpace(log.ResourceId))
+        if (Inline && !string.IsNullOrWhiteSpace(ResourceId))
         {
             if (!string.IsNullOrWhiteSpace(traceId))
             {
@@ -1271,7 +1271,7 @@ else if (ShowHeading)
             }
 
             return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
-                ResourceManagerCompositionLinks.ResourceDetails(Composition, log.ResourceId, ResourcePredefinedViewIds.Logs),
+                ResourceManagerCompositionLinks.ResourceDetails(Composition, ResourceId, ResourcePredefinedViewIds.Logs),
                 query);
         }
 
