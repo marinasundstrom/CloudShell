@@ -20,6 +20,7 @@ public static class ResourcePredefinedViews
         new(ResourcePredefinedViewIds.Volumes, "Volumes", SupportsSections: false, Icon: "volumes"),
         new(ResourcePredefinedViewIds.Activity, "Activity", SupportsSections: true, Icon: "activity"),
         new(ResourcePredefinedViewIds.Health, "Health", SupportsSections: true, Icon: "health"),
+        new(ResourcePredefinedViewIds.Recovery, "Recovery", SupportsSections: true, Icon: "recovery"),
         new(ResourcePredefinedViewIds.Monitoring, "Monitoring", SupportsSections: true, Icon: "monitoring"),
         new(ResourcePredefinedViewIds.Environment, "Environment", SupportsSections: false, Icon: "environment"),
         new(ResourcePredefinedViewIds.Logs, "Logs", SupportsSections: false, Icon: "document"),

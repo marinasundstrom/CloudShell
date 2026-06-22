@@ -40,6 +40,11 @@ public static class ResourcePredefinedViewVisibility
         (resource.ResourceHealthChecks.Count > 0 ||
          resourceType?.ResourceProbeOptions.SupportsHealthChecks == true);
 
+    public static bool HasRecoveryView(Resource? resource) =>
+        resource is not null &&
+        (resource.SupportsRecovery ||
+         resource.ResourceRecoveryPolicies.Count > 0);
+
     public static bool HasEnvironmentView(Resource? resource) =>
         resource?.HasCapability(ResourceCapabilityIds.EnvironmentVariables) == true;
 }

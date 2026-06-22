@@ -688,6 +688,7 @@ public sealed class SampleSmokeTests
         Assert.Contains(SecretsVaultResourceOperationPermissions.ReadSecrets, apiDetailsHtml);
         Assert.Contains("href=\"/resources/application%3Aapplication-topology-api/logs", apiDetailsHtml);
         Assert.Contains("href=\"/resources/application%3Aapplication-topology-api/traces\"", apiDetailsHtml);
+        Assert.Contains("href=\"/resources/application%3Aapplication-topology-api/recovery\"", apiDetailsHtml);
         Assert.DoesNotContain("href=\"/logs?resourceId=application%3Aapplication-topology-api", apiDetailsHtml);
         Assert.DoesNotContain("href=\"/observability/traces?resourceId=application%3Aapplication-topology-api", apiDetailsHtml);
         Assert.DoesNotContain("CloudShell-Passw0rd!", apiDetailsHtml);
@@ -710,6 +711,20 @@ public sealed class SampleSmokeTests
         Assert.Contains("Recent polling", apiHealthHtml);
         Assert.Contains("Unhealthy", apiHealthHtml);
         Assert.Contains("/health", apiHealthHtml);
+        Assert.Contains("href=\"/resources/application%3Aapplication-topology-api/recovery\"", apiHealthHtml);
+
+        var apiRecoveryHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Recovery.Value)}");
+        Assert.Contains(">Recovery<", apiRecoveryHtml);
+        Assert.Contains("Recovery summary", apiRecoveryHtml);
+        Assert.Contains("Waiting for signal", apiRecoveryHtml);
+        Assert.Contains("Enabled", apiRecoveryHtml);
+        Assert.Contains("Liveness signal", apiRecoveryHtml);
+        Assert.Contains("liveness (Liveness)", apiRecoveryHtml);
+        Assert.Contains("3 consecutive failed observation(s)", apiRecoveryHtml);
+        Assert.Contains("5s initial, 60s max, multiplier 2", apiRecoveryHtml);
+        Assert.Contains("href=\"/resources/application%3Aapplication-topology-api/health\"", apiRecoveryHtml);
+        Assert.Contains("href=\"/resources/application%3Aapplication-topology-api/activity\"", apiRecoveryHtml);
 
         var frontendHealthHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-frontend")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Health.Value)}");

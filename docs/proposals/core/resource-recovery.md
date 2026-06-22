@@ -455,20 +455,30 @@ The eighth landed slice connects liveness and recovery to resource activity:
 - Recovery waits for resources to be running before checking liveness, so an
   intentional manual stop does not trigger automatic restart.
 
+The ninth landed slice adds the first Resource Manager recovery surface:
+
+- Generated resource details show a Management > Recovery tab when the
+  resource declares recovery policy or projects the recovery capability.
+- The generated Recovery tab reads the Control Plane recovery policy and
+  runtime status, including the selected liveness signal, threshold, backoff,
+  attempts, last/next timestamps, and latest detail.
+- Resource-scoped Health links to Recovery when recovery is available, keeping
+  Health focused on health checks while making the consuming restart policy
+  discoverable.
+- The Recovery UI reads status only; invoking recovery refresh remains owned by
+  the recovery controller or polling loop because refresh can act on policy.
+
 The next recovery slice should stay narrow:
 
-1. Show generated Recovery configuration and status in Resource Manager under
-   the Management area, with Health linking to Recovery when recovery is
-   available.
-2. Add liveness support for built-in resource types where CloudShell can
+1. Add liveness support for built-in resource types where CloudShell can
    produce a meaningful signal, with SQL Server as an explicit early target.
-3. Decide whether a separate liveness state or resource condition is still
+2. Decide whether a separate liveness state or resource condition is still
    needed alongside the primary lifecycle status for resources where providers
    own more nuanced alive/not-alive semantics.
-4. Track resource state transitions together with liveness observations so
+3. Track resource state transitions together with liveness observations so
    recovery policy can decide whether to wait, restart, or leave provider
    state authoritative based on the observed transition path.
-5. Split recovery policy trigger configuration so degraded recovery and
+4. Split recovery policy trigger configuration so degraded recovery and
    stopped recovery can each opt into restart behavior and define their own
    maximum attempts.
 

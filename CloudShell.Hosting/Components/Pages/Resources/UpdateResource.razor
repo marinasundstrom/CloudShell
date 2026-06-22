@@ -860,6 +860,7 @@
         tab.ComponentType == typeof(GeneratedResourceAccessControl) ||
         tab.ComponentType == typeof(ResourceActivity) ||
         tab.ComponentType == typeof(GeneratedResourceHealth) ||
+        tab.ComponentType == typeof(GeneratedResourceRecovery) ||
         tab.ComponentType == typeof(GeneratedResourceMonitoring) ||
         tab.ComponentType == typeof(GeneratedResourceEndpoints) ||
         tab.ComponentType == typeof(GeneratedResourceDns);
@@ -965,6 +966,18 @@
                 typeof(GeneratedResourceHealth),
                 GroupTitle: ResourceTabGroupTitles.Management,
                 Icon: GetPredefinedViewIcon(GeneratedHealthTabId)));
+        }
+
+        if (ResourcePredefinedViewVisibility.HasRecoveryView(resource) &&
+            !contributedTabs.Any(tab => tab.Id == ResourcePredefinedViewIds.Recovery))
+        {
+            tabs.Add(new ResourceTabContribution(
+                ResourcePredefinedViewIds.Recovery,
+                "Recovery",
+                79,
+                typeof(GeneratedResourceRecovery),
+                GroupTitle: ResourceTabGroupTitles.Management,
+                Icon: GetPredefinedViewIcon(ResourcePredefinedViewIds.Recovery)));
         }
 
         if (hasResourceMonitoring &&

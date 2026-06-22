@@ -3,6 +3,7 @@
 @inject IResourceManager ResourceManager
 @inject IResourceHealthManager HealthChecks
 @inject IResourceOrchestrationSettings OrchestrationSettings
+@inject CloudShell.UI.Composition.CompositionRegistry Composition
 @inject IStringLocalizer<SharedResource> L
 
 <div class="generated-resource-view">
@@ -126,6 +127,14 @@
                                   OnClick="RefreshHealthAsync">
                         @(IsCheckingHealth ? L["Checking"] : L["Refresh"])
                     </FluentButton>
+                }
+                @if (ResourcePredefinedViewVisibility.HasRecoveryView(Resource))
+                {
+                    <FluentAnchor Appearance="Appearance.Neutral"
+                                  IconStart="@(new Icons.Regular.Size20.ArrowReset())"
+                                  Href="@BuildRecoveryRoute()">
+                        @L["Recovery"]
+                    </FluentAnchor>
                 }
             </Actions>
         </ResourceActivityHeader>
@@ -311,6 +320,12 @@
         string.IsNullOrWhiteSpace(check.EndpointName)
             ? L["default endpoint"].Value
             : check.EndpointName;
+
+    private string BuildRecoveryRoute() =>
+        ResourceManagerCompositionLinks.ResourceDetails(
+            Composition,
+            ResourceId ?? string.Empty,
+            ResourcePredefinedViewIds.Recovery);
 
     private static string FormatPath(ResourceHealthCheck check)
     {

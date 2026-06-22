@@ -47,6 +47,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The Application Topology sample now enables recovery for its API web project
   through a resource-builder recovery declaration so liveness and recovery can
   be validated against a real application resource.
+- Resource Manager generated details now include a Management > Recovery tab
+  for resources with recovery support, showing recovery policy and runtime
+  status, with the resource Health tab linking to Recovery.
 - Added a service observability and degradation proposal for service-first,
   replica-aware local-development telemetry correlation, common views, load
   and capacity context, established telemetry interfaces, extension

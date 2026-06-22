@@ -1,0 +1,262 @@
+@using System.Globalization
+@implements IDisposable
+@inject IResourceManager ResourceManager
+@inject IResourceRecoveryManager RecoveryManager
+@inject CloudShell.UI.Composition.CompositionRegistry Composition
+@inject IStringLocalizer<SharedResource> L
+
+<div class="generated-resource-view">
+    <GeneratedResourceViewLayout ResourceType="ResourceType"
+                                 ResourceId="@(ResourceId ?? string.Empty)"
+                                 Resource="Resource"
+                                 ViewId="@ResourcePredefinedViewIds.Recovery"
+                                 Sections="@BuildSections()" />
+</div>
+
+@code {
+    private static readonly TimeSpan AutoRefreshInterval = TimeSpan.FromSeconds(5);
+
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    [Parameter]
+    public ResourceTypeContribution? ResourceType { get; set; }
+
+    private Resource? Resource { get; set; }
+    private ResourceRecoveryStatus? Status { get; set; }
+    private System.Threading.Timer? RefreshTimer { get; set; }
+    private bool IsLoading { get; set; }
+    private bool IsDisposed { get; set; }
+    private bool AutoRefresh { get; set; } = true;
+
+    protected override void OnInitialized()
+    {
+        RefreshTimer = new System.Threading.Timer(
+            _ =>
+            {
+                if (!IsDisposed && AutoRefresh)
+                {
+                    _ = InvokeAsync(LoadRecoveryAsync);
+                }
+            },
+            null,
+            AutoRefreshInterval,
+            AutoRefreshInterval);
+    }
+
+    protected override Task OnParametersSetAsync() => LoadRecoveryAsync();
+
+    private async Task LoadRecoveryAsync()
+    {
+        if (string.IsNullOrWhiteSpace(ResourceId) || IsLoading || IsDisposed)
+        {
+            if (string.IsNullOrWhiteSpace(ResourceId))
+            {
+                Resource = null;
+                Status = null;
+            }
+
+            return;
+        }
+
+        IsLoading = true;
+        try
+        {
+            Resource = await ResourceManager.GetResourceAsync(ResourceId);
+            Status = await RecoveryManager.GetResourceRecoveryStatusAsync(ResourceId);
+        }
+        finally
+        {
+            IsLoading = false;
+            if (!IsDisposed)
+            {
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        IsDisposed = true;
+        RefreshTimer?.Dispose();
+    }
+
+    private IReadOnlyList<GeneratedResourceViewSection> BuildSections() =>
+    [
+        new("recovery", string.Empty, 0, RenderRecovery())
+    ];
+
+    private RenderFragment RenderRecovery() => @<text>
+        <ResourceActivityHeader Title="@L["Recovery"].Value"
+                                Subtitle="@GetStatusText()"
+                                ActionsClass="resource-monitoring-actions">
+            <Actions>
+                <FluentCheckbox @bind-Value="AutoRefresh">
+                    @L["Auto-refresh"]
+                </FluentCheckbox>
+                @if (!AutoRefresh)
+                {
+                    <FluentButton Appearance="Appearance.Neutral"
+                                  Disabled="@IsLoading"
+                                  IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                                  OnClick="LoadRecoveryAsync">
+                        @(IsLoading ? L["Loading"] : L["Reload"])
+                    </FluentButton>
+                }
+                @if (Resource is not null && ResourcePredefinedViewVisibility.HasHealthView(Resource, ResourceType))
+                {
+                    <FluentAnchor Appearance="Appearance.Neutral"
+                                  IconStart="@(new Icons.Regular.Size20.HeartPulseCheckmark())"
+                                  Href="@BuildHealthRoute()">
+                        @L["Health"]
+                    </FluentAnchor>
+                }
+                @if (Resource is not null)
+                {
+                    <FluentAnchor Appearance="Appearance.Neutral"
+                                  IconStart="@(new Icons.Regular.Size20.DataUsage())"
+                                  Href="@BuildActivityRoute()">
+                        @L["Activity"]
+                    </FluentAnchor>
+                }
+            </Actions>
+        </ResourceActivityHeader>
+
+        @if (Resource is null)
+        {
+            <EmptyState Title="@L["Resource unavailable"].Value"
+                        Message="@L["The resource could not be loaded."].Value"
+                        Compact="true" />
+        }
+        else if (!ResourcePredefinedViewVisibility.HasRecoveryView(Resource))
+        {
+            <ResourceCallout Severity="ResourceSignalSeverity.Warning"
+                             Title="@L["Recovery unavailable"].Value">
+                <p>@L["This resource does not declare recovery policy and does not project the recovery capability."]</p>
+            </ResourceCallout>
+        }
+        else if (Status is null)
+        {
+            <EmptyState Title="@L["Recovery status unavailable"].Value"
+                        Message="@L["No recovery status is available for this resource."]"
+                        Compact="true" />
+        }
+        else
+        {
+            var policy = Status.Policy;
+
+            <div class="resource-activity-groups" aria-label="@L["Recovery summary"]">
+                <span class="resource-activity-group">
+                    <strong>@L["State"]</strong>
+                    <span>@GetStateLabel(Status.State)</span>
+                </span>
+                <span class="resource-activity-group">
+                    <strong>@L["Policy"]</strong>
+                    <span>@(policy.Enabled ? L["Enabled"] : L["Disabled"])</span>
+                </span>
+                <span class="resource-activity-group">
+                    <strong>@L["Failures"]</strong>
+                    <span>@L["{0} of {1}", Status.ConsecutiveFailures, policy.FailureThreshold]</span>
+                </span>
+                <span class="resource-activity-group">
+                    <strong>@L["Attempts"]</strong>
+                    <span>@L["{0} of {1}", Status.AttemptCount, policy.MaxAttempts]</span>
+                </span>
+            </div>
+
+            <dl class="detail-list">
+                <dt>@L["Liveness signal"]</dt>
+                <dd>@FormatSignal(policy)</dd>
+                <dt>@L["Failure threshold"]</dt>
+                <dd>@L["{0} consecutive failed observation(s)", policy.FailureThreshold]</dd>
+                <dt>@L["Startup grace"]</dt>
+                <dd>@FormatSeconds(policy.StartupGracePeriodSeconds)</dd>
+                <dt>@L["Backoff"]</dt>
+                <dd>@FormatBackoff(policy)</dd>
+                <dt>@L["Reset after healthy"]</dt>
+                <dd>@FormatSeconds(policy.ResetAfterHealthySeconds)</dd>
+                <dt>@L["Last checked"]</dt>
+                <dd>@FormatTimestamp(Status.LastCheckedAt)</dd>
+                <dt>@L["Last attempt"]</dt>
+                <dd>@FormatTimestamp(Status.LastAttemptAt)</dd>
+                <dt>@L["Next attempt"]</dt>
+                <dd>@FormatTimestamp(Status.NextAttemptAt)</dd>
+                @if (!string.IsNullOrWhiteSpace(Status.LastDetail))
+                {
+                    <dt>@L["Detail"]</dt>
+                    <dd>@Status.LastDetail</dd>
+                }
+            </dl>
+
+            <ResourceCallout Severity="ResourceSignalSeverity.Info"
+                             Title="@L["Recovery uses liveness"].Value">
+                <p>@L["Recovery is evaluated from the configured liveness signal and uses the standard resource Restart lifecycle action when policy allows it."]</p>
+            </ResourceCallout>
+        }
+    </text>;
+
+    private string GetStatusText()
+    {
+        if (Status is null)
+        {
+            return L["Automatic restart policy and runtime state"].Value;
+        }
+
+        return Status.Policy.Enabled
+            ? L["{0} / {1} attempt(s)", GetStateLabel(Status.State), Status.AttemptCount].Value
+            : L["Disabled"].Value;
+    }
+
+    private string FormatSignal(ResourceRecoveryPolicy policy)
+    {
+        if (!string.IsNullOrWhiteSpace(policy.ProbeName))
+        {
+            return L["{0} ({1})", policy.ProbeName, policy.ProbeType].Value;
+        }
+
+        var check = Resource?.ResourceHealthChecks.FirstOrDefault(item => item.Type == policy.ProbeType);
+        return check is null
+            ? policy.ProbeType.ToString()
+            : L["{0} ({1})", check.Name, check.Type].Value;
+    }
+
+    private string FormatBackoff(ResourceRecoveryPolicy policy) =>
+        L["{0}s initial, {1}s max, multiplier {2}",
+            policy.InitialBackoffSeconds,
+            policy.MaxBackoffSeconds,
+            policy.BackoffMultiplier.ToString("0.##", CultureInfo.CurrentCulture)].Value;
+
+    private string FormatSeconds(int seconds) =>
+        L["{0}s", seconds].Value;
+
+    private string FormatTimestamp(DateTimeOffset? timestamp) =>
+        timestamp is null
+            ? L["n/a"].Value
+            : timestamp.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.CurrentCulture);
+
+    private string GetStateLabel(ResourceRecoveryState state) =>
+        state switch
+        {
+            ResourceRecoveryState.Disabled => L["Disabled"].Value,
+            ResourceRecoveryState.WaitingForSignal => L["Waiting for signal"].Value,
+            ResourceRecoveryState.Healthy => L["Healthy"].Value,
+            ResourceRecoveryState.Failing => L["Failing"].Value,
+            ResourceRecoveryState.Scheduled => L["Scheduled"].Value,
+            ResourceRecoveryState.Restarting => L["Restarting"].Value,
+            ResourceRecoveryState.Exhausted => L["Exhausted"].Value,
+            ResourceRecoveryState.Unavailable => L["Unavailable"].Value,
+            _ => state.ToString()
+        };
+
+    private string BuildHealthRoute() =>
+        ResourceManagerCompositionLinks.ResourceDetails(
+            Composition,
+            ResourceId ?? string.Empty,
+            ResourcePredefinedViewIds.Health);
+
+    private string BuildActivityRoute() =>
+        ResourceManagerCompositionLinks.ResourceDetails(
+            Composition,
+            ResourceId ?? string.Empty,
+            ResourcePredefinedViewIds.Activity);
+}
