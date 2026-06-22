@@ -207,25 +207,26 @@
         }
 
         var displayName = ResourceDisplayNameDefaults.Resolve(ResourceId);
-        var definition = new ApplicationResourceDefinition(
-            normalizedResourceId,
-            displayName,
-            ExecutablePath,
-            Arguments,
-            WorkingDirectory,
-            IsManualEndpointAssignment ? Endpoint : null,
-            BuildEnvironmentVariables(),
-            ParseLifetime(),
-            BuildDependencies(),
-            ReferenceIds,
-            UseServiceDiscovery,
-            NormalizeNullable(ContainerImage),
-            NormalizeNullable(ContainerBuildContext),
-            NormalizeNullable(ContainerDockerfile),
-            null,
-            Math.Max(1, Replicas),
-            resourceType: ApplicationResourceTypes.ExecutableApplication,
-            observability: EnableObservability ? ResourceObservability.Default : ResourceObservability.None);
+        var definition = ApplicationResourceDefinitionBuilder
+            .ForExecutable(
+                normalizedResourceId,
+                displayName,
+                ExecutablePath)
+            .WithArguments(Arguments)
+            .WithWorkingDirectory(WorkingDirectory)
+            .WithEndpoint(IsManualEndpointAssignment ? Endpoint : null)
+            .WithEnvironmentVariables(BuildEnvironmentVariables())
+            .WithLifetime(ParseLifetime())
+            .WithDependencies(BuildDependencies())
+            .WithReferences(ReferenceIds)
+            .WithServiceDiscovery(UseServiceDiscovery)
+            .WithContainerImage(NormalizeNullable(ContainerImage))
+            .WithContainerBuild(
+                NormalizeNullable(ContainerBuildContext),
+                NormalizeNullable(ContainerDockerfile))
+            .WithReplicas(Math.Max(1, Replicas), enabled: false)
+            .WithObservability(EnableObservability ? ResourceObservability.Default : ResourceObservability.None)
+            .Build();
 
         await ApplicationProvider.SetupApplicationAsync(definition, SelectedGroupId, Registrations);
         if (StartAfterCreate)

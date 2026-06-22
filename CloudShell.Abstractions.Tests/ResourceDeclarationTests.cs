@@ -3265,6 +3265,48 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void ApplicationResourceDefinitionBuilder_ProducesContainerBackedDefinition()
+    {
+        var definition = ApplicationResourceDefinitionBuilder
+            .ForContainerImage(
+                "application:worker",
+                "Worker",
+                "example/worker:1.0",
+                "custom.worker")
+            .WithEnvironmentVariables([new EnvironmentVariableAssignment("MODE", "test")])
+            .WithLifetime(ApplicationLifetime.ControlPlaneScoped)
+            .WithDependencies(["configuration:database"])
+            .WithReferences(["configuration:database"])
+            .WithServiceDiscovery(true)
+            .WithContainerRegistry("registry.local")
+            .WithContainerHost("docker:local")
+            .WithReplicas(3, enabled: true)
+            .WithEndpointPorts([new ServicePort("http", 8080, 5000, "http")])
+            .WithHealthChecks([new ResourceHealthCheck("/healthz")])
+            .WithObservability(ResourceObservability.Default)
+            .WithVolumeMounts([new ResourceVolumeMount("volume:data", "/data")])
+            .Build();
+
+        Assert.Equal("application:worker", definition.Id);
+        Assert.Equal("Worker", definition.Name);
+        Assert.Equal("custom.worker", definition.ResourceType);
+        Assert.Equal("example/worker:1.0", definition.ContainerImage);
+        Assert.Equal("registry.local", definition.ContainerRegistry);
+        Assert.Equal("docker:local", definition.ContainerHostId);
+        Assert.True(definition.ReplicasEnabled);
+        Assert.Equal(3, definition.Replicas);
+        Assert.Equal(ApplicationLifetime.ControlPlaneScoped, definition.Lifetime);
+        Assert.Equal(["configuration:database"], definition.DependsOn);
+        Assert.Equal(["configuration:database"], definition.References);
+        Assert.True(definition.UseServiceDiscovery);
+        Assert.Single(definition.EndpointPorts);
+        Assert.Single(definition.HealthChecks);
+        Assert.Single(definition.VolumeMounts);
+        Assert.Single(definition.EnvironmentVariables);
+        Assert.NotNull(definition.Observability);
+    }
+
+    [Fact]
     [Trait("Category", "Integration")]
     public async Task ApplicationProvider_ThrowsWhenContainerHostProcessExitsDuringStartup()
     {

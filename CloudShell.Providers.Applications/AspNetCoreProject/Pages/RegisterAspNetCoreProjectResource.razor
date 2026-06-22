@@ -165,22 +165,22 @@
 
         var displayName = ResourceDisplayNameDefaults.Resolve(ResourceId);
         var references = SelectedReferenceIds.ToArray();
-        var definition = new ApplicationResourceDefinition(
-            normalizedResourceId,
-            displayName,
-            executablePath: string.Empty,
-            environmentVariables: BuildEnvironmentVariables(),
-            lifetime: ParseLifetime(),
-            dependsOn: WaitForReferences ? references : [],
-            references: references,
-            useServiceDiscovery: UseServiceDiscovery && references.Length > 0,
-            endpointPorts: BuildEndpointPorts(),
-            resourceType: ApplicationResourceTypes.AspNetCoreProject,
-            healthChecks: ProbeContext?.GetSelectedHealthChecks(),
-            observability: EnableObservability ? ResourceObservability.Default : ResourceObservability.None,
-            projectPath: ProjectPath,
-            projectArguments: ApplicationArguments,
-            aspNetCoreHotReload: UseHotReload);
+        var definition = ApplicationResourceDefinitionBuilder
+            .ForAspNetCoreProject(
+                normalizedResourceId,
+                displayName,
+                ProjectPath)
+            .WithEnvironmentVariables(BuildEnvironmentVariables())
+            .WithLifetime(ParseLifetime())
+            .WithDependencies(WaitForReferences ? references : [])
+            .WithReferences(references)
+            .WithServiceDiscovery(UseServiceDiscovery && references.Length > 0)
+            .WithEndpointPorts(BuildEndpointPorts())
+            .WithHealthChecks(ProbeContext?.GetSelectedHealthChecks())
+            .WithObservability(EnableObservability ? ResourceObservability.Default : ResourceObservability.None)
+            .WithProjectArguments(ApplicationArguments)
+            .WithAspNetCoreHotReload(UseHotReload)
+            .Build();
 
         await ApplicationProvider.SetupApplicationAsync(definition, SelectedGroupId, Registrations);
         if (StartAfterCreate)

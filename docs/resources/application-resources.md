@@ -131,6 +131,10 @@ Provider-specific declaration helpers can call `AddApplicationResource(...)`
 with their own provider ID and an `ApplicationResourceDefinition` to reuse the
 same declaration tracking and builder defaults as the built-in resource
 helpers.
+Server-side UI forms and provider helpers should construct definitions through
+`ApplicationResourceDefinitionBuilder` so callers describe executable,
+project, container, endpoint, health, observability, storage, and dependency
+intent without depending on the full constructor shape.
 
 This is an initial shared application-resource provider contract, not the full
 toolkit. The goal is for any resource author to be able to use the application

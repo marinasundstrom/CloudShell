@@ -168,20 +168,21 @@
         var displayName = ResourceDisplayNameDefaults.Resolve(ResourceId);
         var volumeMounts = BuildVolumeMounts();
         var endpoint = GetEndpointDescriptor();
-        var definition = new ApplicationResourceDefinition(
-            normalizedResourceId,
-            displayName,
-            executablePath: string.Empty,
-            environmentVariables:
+        var definition = ApplicationResourceDefinitionBuilder
+            .ForContainerImage(
+                normalizedResourceId,
+                displayName,
+                Image.Trim(),
+                ApplicationResourceTypes.SqlServer)
+            .WithEnvironmentVariables(
             [
                 new EnvironmentVariableAssignment("ACCEPT_EULA", "Y"),
                 new EnvironmentVariableAssignment("MSSQL_SA_PASSWORD", Password)
-            ],
-            lifetime: ApplicationLifetime.ControlPlaneScoped,
-            dependsOn: volumeMounts.Select(mount => mount.VolumeReference).ToArray(),
-            containerImage: Image.Trim(),
-            containerHostId: NormalizeNullable(SelectedHostId),
-            endpointPorts:
+            ])
+            .WithLifetime(ApplicationLifetime.ControlPlaneScoped)
+            .WithDependencies(volumeMounts.Select(mount => mount.VolumeReference).ToArray())
+            .WithContainerHost(NormalizeNullable(SelectedHostId))
+            .WithEndpointPorts(
             [
                 new ServicePort(
                     endpoint.Name,
@@ -192,9 +193,9 @@
                     EndpointAssignment,
                     NormalizeNullable(SelectedNetworkResourceId),
                     NormalizeNullable(ManualEndpointHost))
-            ],
-            resourceType: ApplicationResourceTypes.SqlServer,
-            volumeMounts: volumeMounts);
+            ])
+            .WithVolumeMounts(volumeMounts)
+            .Build();
 
         await ApplicationProvider.SetupApplicationAsync(definition, SelectedGroupId, Registrations);
         if (StartAfterCreate)

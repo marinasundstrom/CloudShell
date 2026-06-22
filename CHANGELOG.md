@@ -83,6 +83,10 @@ on `git blame --follow`, and then by the broad type of change.
   application resource declaration helper, reusing the common builder defaults
   for environment variables, endpoints, probes, recovery, log formats, storage,
   and other application settings.
+- Application registration and update UI now builds application definitions
+  through `ApplicationResourceDefinitionBuilder` instead of directly invoking
+  the definition constructor, reducing UI coupling to the full definition
+  shape.
 - Application resource docs now frame the provider direction as a composable
   toolkit for custom resources backed by local executables, ad-hoc containers,
   or Resource Manager-managed sub-resources with default lifecycle,

@@ -242,27 +242,26 @@
             .Select(mount => mount.VolumeReference)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
-        var definition = new ApplicationResourceDefinition(
-            normalizedResourceId,
-            displayName,
-            executablePath: string.Empty,
-            environmentVariables: BuildEnvironmentVariables(),
-            lifetime: ParseLifetime(),
-            dependsOn: WaitForReferences
+        var definition = ApplicationResourceDefinitionBuilder
+            .ForContainerImage(
+                normalizedResourceId,
+                displayName,
+                Image.Trim())
+            .WithEnvironmentVariables(BuildEnvironmentVariables())
+            .WithLifetime(ParseLifetime())
+            .WithDependencies(WaitForReferences
                 ? references.Concat(volumeReferences).Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
-                : volumeReferences,
-            references: references,
-            useServiceDiscovery: references.Length > 0,
-            containerImage: Image.Trim(),
-            containerRegistry: NormalizeRegistry(Registry),
-            containerRegistryCredentials: BuildRegistryCredentials(),
-            containerHostId: NormalizeNullable(SelectedHostId),
-            replicas: EnableReplicas ? Math.Max(1, Replicas) : 1,
-            replicasEnabled: EnableReplicas,
-            endpointPorts: BuildEndpointPorts(),
-            resourceType: ApplicationResourceTypes.ContainerApp,
-            observability: EnableObservability ? ResourceObservability.Default : ResourceObservability.None,
-            volumeMounts: volumeMounts);
+                : volumeReferences)
+            .WithReferences(references)
+            .WithServiceDiscovery(references.Length > 0)
+            .WithContainerRegistry(NormalizeRegistry(Registry))
+            .WithContainerRegistryCredentials(BuildRegistryCredentials())
+            .WithContainerHost(NormalizeNullable(SelectedHostId))
+            .WithReplicas(EnableReplicas ? Math.Max(1, Replicas) : 1, EnableReplicas)
+            .WithEndpointPorts(BuildEndpointPorts())
+            .WithObservability(EnableObservability ? ResourceObservability.Default : ResourceObservability.None)
+            .WithVolumeMounts(volumeMounts)
+            .Build();
 
         await ApplicationProvider.SetupApplicationAsync(definition, SelectedGroupId, Registrations);
         if (StartAfterCreate)

@@ -347,42 +347,49 @@ else
             return ResourceProcedureResult.Completed(containerHostError);
         }
 
-        var definition = new ApplicationResourceDefinition(
-            Application.Id,
-            Name,
-            CanConfigureProcessSettings ? ExecutablePath : Application.ExecutablePath,
-            CanConfigureProcessSettings ? Arguments : Application.Arguments,
-            CanConfigureProcessSettings ? WorkingDirectory : Application.WorkingDirectory,
-            CanConfigureEndpoint && !IsAspNetCoreProject ? Endpoint : Application.Endpoint,
-            Application.EnvironmentVariables,
-            CanConfigureLifetime ? ParseLifetime() : Application.Lifetime,
-            BuildDependencies(),
-            ReferenceIds,
-            CanConfigureServiceDiscovery ? UseServiceDiscovery : Application.UseServiceDiscovery,
-            CanConfigureContainerImage ? NormalizeNullable(ContainerImage) : Application.ContainerImage,
-            CanConfigureContainerBuildSettings ? NormalizeNullable(ContainerBuildContext) : Application.ContainerBuildContext,
-            CanConfigureContainerBuildSettings ? NormalizeNullable(ContainerDockerfile) : Application.ContainerDockerfile,
-            CanConfigureContainerHost ? NormalizeNullable(SelectedHostId) : Application.ContainerHostId,
-            Math.Max(1, Application.Replicas),
-            CanConfigureAspNetCoreEndpoint
+        var definition = ApplicationResourceDefinitionBuilder
+            .ForExecutable(
+                Application.Id,
+                Name,
+                CanConfigureProcessSettings ? ExecutablePath : Application.ExecutablePath)
+            .WithResourceType(Application.ResourceType)
+            .WithArguments(CanConfigureProcessSettings ? Arguments : Application.Arguments)
+            .WithWorkingDirectory(CanConfigureProcessSettings ? WorkingDirectory : Application.WorkingDirectory)
+            .WithEndpoint(CanConfigureEndpoint && !IsAspNetCoreProject ? Endpoint : Application.Endpoint)
+            .WithEnvironmentVariables(Application.EnvironmentVariables)
+            .WithAppSettings(Application.AppSettings)
+            .WithLifetime(CanConfigureLifetime ? ParseLifetime() : Application.Lifetime)
+            .WithDependencies(BuildDependencies())
+            .WithReferences(ReferenceIds)
+            .WithServiceDiscovery(CanConfigureServiceDiscovery ? UseServiceDiscovery : Application.UseServiceDiscovery)
+            .WithContainerImage(CanConfigureContainerImage ? NormalizeNullable(ContainerImage) : Application.ContainerImage)
+            .WithContainerBuild(
+                CanConfigureContainerBuildSettings ? NormalizeNullable(ContainerBuildContext) : Application.ContainerBuildContext,
+                CanConfigureContainerBuildSettings ? NormalizeNullable(ContainerDockerfile) : Application.ContainerDockerfile,
+                Application.ProjectContainerBuild)
+            .WithContainerHost(CanConfigureContainerHost ? NormalizeNullable(SelectedHostId) : Application.ContainerHostId)
+            .WithReplicas(Math.Max(1, Application.Replicas), Application.ReplicasEnabled)
+            .WithEndpointPorts(CanConfigureAspNetCoreEndpoint
                 ? BuildAspNetCoreEndpointPorts()
                 : CanConfigureEndpoint
                     ? BuildEndpointPorts(Application.ResourceType, Endpoint)
-                    : Application.EndpointPorts,
-            resourceType: Application.ResourceType,
-            healthChecks: Application.HealthChecks,
-            observability: EnableObservability ? ResourceObservability.Default : ResourceObservability.None,
-            projectPath: CanConfigureProjectSettings ? ProjectPath : Application.ProjectPath,
-            projectArguments: CanConfigureProjectSettings ? ApplicationArguments : Application.ProjectArguments,
-            aspNetCoreHotReload: CanConfigureProjectSettings ? UseHotReload : Application.AspNetCoreHotReload,
-            useLaunchSettingsEndpoints: CanConfigureEndpoint ? false : Application.UseLaunchSettingsEndpoints,
-            containerRevision: Application.ContainerRevision,
-            containerRegistry: CanConfigureContainerImage ? NormalizeRegistry(ContainerRegistry) : Application.ContainerRegistry,
-            containerRegistryCredentials: CanConfigureContainerImage
+                    : Application.EndpointPorts)
+            .WithHealthChecks(Application.HealthChecks)
+            .WithRecoveryPolicies(Application.RecoveryPolicies)
+            .WithObservability(EnableObservability ? ResourceObservability.Default : ResourceObservability.None)
+            .WithProjectPath(CanConfigureProjectSettings ? ProjectPath : Application.ProjectPath)
+            .WithProjectArguments(CanConfigureProjectSettings ? ApplicationArguments : Application.ProjectArguments)
+            .WithAspNetCoreHotReload(CanConfigureProjectSettings ? UseHotReload : Application.AspNetCoreHotReload)
+            .WithLaunchSettingsEndpoints(CanConfigureEndpoint ? false : Application.UseLaunchSettingsEndpoints)
+            .WithContainerRevision(Application.ContainerRevision)
+            .WithContainerRegistry(CanConfigureContainerImage ? NormalizeRegistry(ContainerRegistry) : Application.ContainerRegistry)
+            .WithContainerRegistryCredentials(CanConfigureContainerImage
                 ? BuildRegistryCredentials()
-                : Application.ContainerRegistryCredentials,
-            replicasEnabled: Application.ReplicasEnabled,
-            volumeMounts: Application.VolumeMounts);
+                : Application.ContainerRegistryCredentials)
+            .WithVolumeMounts(Application.VolumeMounts)
+            .WithSqlDatabases(Application.SqlDatabases)
+            .WithLogSources(Application.LogSources)
+            .Build();
 
         var restartRequired =
             ApplicationProvider.IsRunning(Application.Id) &&
