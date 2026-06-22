@@ -40,6 +40,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Summary metric cards now support compact rendering, and summary metric cards
   and grids own their styling through component-scoped CSS instead of
   page-level hand-coded markup.
+- Documented CloudShell UI component organization guidance for view-local,
+  feature-local, Resource Manager-shared, and product-shared components.
 
 ### 2026-06-21
 

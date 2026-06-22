@@ -1,0 +1,135 @@
+# UI Structure and Component Organization
+
+CloudShell UI should be built from named, maintainable components without
+turning every local fragment into a global abstraction.
+
+This document defines the default rules for structuring Blazor UI, organizing
+component files, and deciding when a component belongs next to a view, inside a
+feature area, or in a shared component package.
+
+## Principles
+
+- Prefer Fluent UI components for standard controls, commands, form fields,
+  anchors, menus, checkboxes, selectors, and other established UI primitives.
+- Create CloudShell components for distinct CloudShell layout elements,
+  resource representations, status summaries, cards, grids, selectors, and
+  repeated view patterns.
+- Give custom components domain or presentation names that describe what they
+  are, not just how they are styled.
+- Keep styles and layout logic close to the component that owns them. Prefer
+  component-scoped `.razor.css` for component-owned appearance.
+- Keep global CSS for application chrome, design tokens, broad page layout,
+  shared reset/compatibility rules, and intentionally global utility classes.
+- Do not promote a component to a shared folder only because markup is long.
+  A component should be shared when it is reused, expected to be reused, or
+  represents a stable CloudShell concept.
+
+## Placement
+
+Use the narrowest reasonable location for a component.
+
+### View-local components
+
+Place a component next to the page or view that consumes it when:
+
+- it is used by only one page or view;
+- it exists mainly to make that view readable;
+- it depends on that view's private state or workflow;
+- it is unlikely to be reused outside the feature.
+
+For example, a helper component for one settings section should live near that
+settings section until another real consumer appears.
+
+### Feature-area components
+
+Place a component in a feature or provider folder when:
+
+- it is reused by several views within the same feature;
+- it represents a provider-specific or feature-specific concept;
+- it should not become part of the shared shell component language.
+
+Provider-owned components should usually live under the provider feature area,
+such as `CloudShell.Providers.Applications/<resource-type>/Pages/` or a
+nearby feature folder, instead of in a global shared folder.
+
+### Shared shell components
+
+Place a component in `CloudShell.Components` only when:
+
+- it is reused across more than one product area, provider, or host surface;
+- it is intentionally a shared CloudShell representation, such as an empty
+  state, resource icon, generated list item, resource table identity, metric
+  card, or resource selector;
+- it does not depend on Hosting-only services or Resource Manager internals;
+- it can be consumed by provider packages without creating an ownership leak.
+
+Place components in `CloudShell.Hosting/Components/ResourceManager` when they
+are shared within Resource Manager but need hosting services, shell catalog
+lookups, navigation helpers, or Resource Manager-specific context.
+
+## Component Boundaries
+
+Custom components should own one clear responsibility:
+
+- layout components own arrangement and spacing;
+- representation components own a repeated visual shape;
+- control components own interaction state and events;
+- feature components own a feature-specific workflow.
+
+Avoid components that only wrap one HTML element with a class unless the class
+represents a stable CloudShell element. Prefer plain Fluent UI or semantic HTML
+when there is no CloudShell concept to name.
+
+When a component needs customization, prefer parameters and templates over
+requiring callers to recreate internal markup. Use `@attributes` when the
+component can safely pass through accessibility attributes, test hooks, or
+normal HTML attributes to its root or primary element.
+
+## Styling
+
+Use component-scoped CSS when the style belongs to the component:
+
+- card internals;
+- local grid layout;
+- component-specific hover/focus behavior;
+- component-owned text truncation;
+- icon placement inside the component.
+
+Use global CSS only for:
+
+- shell layout regions;
+- app-wide panels and page shells;
+- design tokens and color variables;
+- typography rules;
+- intentionally shared utility classes;
+- third-party compatibility or reset styles.
+
+If several views share the same class because they share a concept, consider
+whether that concept should become a component. For example, a repeated metric
+card and metric summary grid should be represented by `SummaryMetricCard` and
+`SummaryMetricGrid` rather than repeated `div` markup plus global classes.
+
+## Localization
+
+Shared layout and representation components should usually receive already
+localized strings from the caller. Components that are owned by the shell or a
+specific feature may inject their own localizer when they own the displayed
+text.
+
+Do not hide user-facing strings inside generic shared components unless the
+component owns the wording as part of its contract.
+
+## Refactoring Rules
+
+Before extracting a component, ask:
+
+1. What concept does this component name?
+2. Is the component view-local, feature-local, Resource Manager-shared, or
+   product-shared?
+3. Does the component own styling or interaction logic that should be
+   contained?
+4. Can Fluent UI already express this without a CloudShell wrapper?
+5. Will moving it create a dependency from a shared package back into Hosting,
+   Resource Manager, or a provider?
+
+Start local. Promote only when reuse or a stable concept justifies it.

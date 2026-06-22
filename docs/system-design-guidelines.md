@@ -108,7 +108,10 @@ design tokens before adding custom shell markup or styling. Use `FluentAnchor`
 for navigational links that need `Href`; use `FluentButton` for button actions
 such as submit, command execution, and `OnClick` handlers. Use Fluent icons
 where they clarify behavior, artifact type, or navigation target, especially
-on primary commands and links to resource-owned artifacts.
+on primary commands and links to resource-owned artifacts. When CloudShell
+does need custom layout or representation components, follow the component
+placement, naming, and component-scoped styling rules in
+[UI structure and component organization](ui-structure.md).
 
 Internal Control Plane services can use lower-level provider and store
 interfaces such as `IResourceManagerStore`, `IResourceRegistrationStore`, and
