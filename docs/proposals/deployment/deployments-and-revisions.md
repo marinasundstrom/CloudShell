@@ -204,6 +204,45 @@ public sealed class OrchestratorRevision
 
 The deployment model should represent the orchestrator’s computed workload intent, not the full user-facing resource graph.
 
+### Resource and Orchestrator Boundary
+
+Higher-level resource infrastructure owns the domain request and the
+domain-specific history. Orchestrators own runtime rollout mechanics.
+
+For container apps, the container app infrastructure owns:
+
+* accepting a container app deployment request
+* validating app-level deployment input such as image, app configuration,
+  requested replicas, ingress intent, and identity references
+* producing and tracking container app revisions
+* recording source revision, trigger, requested replica count, and revision
+  status in the container app domain model
+* asking the selected orchestrator to materialize the requested app revision
+
+The orchestrator owns the mechanics required to apply that request:
+
+* computing or updating the orchestrator deployment
+* producing the orchestrator revision or equivalent runtime version metadata
+* creating new runtime replicas next to the currently serving replicas when
+  the rollout strategy requires availability
+* waiting for readiness or health gates
+* remapping service routing, ingress, backend pools, or load-balancer targets
+  to the new runtime replicas
+* draining, stopping, or deleting old runtime replicas after cutover
+* reporting rollout state, failure state, and runtime-managed resource
+  ownership back to the Resource Manager projection
+
+These responsibilities are not unique to container apps. Any resource type
+that expresses runtime workload intent should be able to request orchestration
+without knowing how a Docker Compose service, Kubernetes Service, Traefik
+route, load balancer, local container group, or future orchestrator performs
+the rollout.
+
+The boundary is intentionally asymmetric: the resource domain can decide what
+changed and which app revision should exist, but it should not directly
+manipulate orchestrator-owned replicas, routing tables, backend registrations,
+or cleanup behavior.
+
 ## Conceptual Flow
 
 ```text
@@ -363,6 +402,12 @@ The orchestrator computes the deployment, revision, service state, and runtime-m
 
 This keeps resource definitions focused on intent rather than runtime implementation details.
 
+For example, a container app deployment may request image `api:v2` with three
+replicas. The container app records the app revision and asks the orchestrator
+to apply it. The orchestrator decides how to create the new runtime replicas,
+verify readiness, move the ingress or load-balancer mapping, and clean up the
+old runtime replicas.
+
 ## Orchestrator Responsibilities
 
 Orchestrators are responsible for:
@@ -372,6 +417,8 @@ Orchestrators are responsible for:
 * reconciling services
 * creating and removing replicas
 * applying rollout behavior
+* applying routing or load-balancer cutover
+* draining and cleaning up superseded runtime replicas
 * tracking active and previous revisions
 * reporting deployment status
 * reporting revision status
@@ -576,14 +623,17 @@ Excess replicas removed
 Revision association preserved
 ```
 
-### Rollback
+### Restore From Revision
 
 ```text
-Previous revision selected
-Deployment updated to previous revision template
-Service reconciled
-Runtime resources replaced or adjusted
-Previous revision marked active
+Previous app revision selected as restore source
+New deployment requested from previous revision template
+Orchestrator applies the restored runtime spec
+New runtime replicas started next to active revision replicas when needed
+Readiness verified
+Traffic or endpoint routing switched to restored runtime version
+Superseded runtime replicas retained, drained, or stopped according to policy
+Restore deployment recorded in app revision history
 ```
 
 ### Delete
@@ -697,6 +747,8 @@ ContainerApp
 * Define the first rollout strategy for container app image updates, including
   readiness gates, traffic or endpoint cutover, drain behavior, and failure
   handling.
+* Define the Control Plane and orchestrator contracts for app-level deployment
+  requests that result in orchestrator-owned runtime rollout.
 * Define whether revisions are represented as runtime-managed resources or orchestrator metadata.
 * Define how deployment events integrate with traceability.
 * Define how deployment state is persisted across orchestrator restarts.

@@ -275,6 +275,13 @@ answers application-version questions; an orchestrator deployment/revision
 answers what runtime workload was applied and which service/runtime resources
 resulted.
 
+The container app layer should not directly manipulate orchestrator-owned
+replicas, backend registrations, routing tables, or cleanup behavior. It
+records app deployment intent and revision history, then asks the selected
+orchestrator to apply that intent. The orchestrator owns runtime materialization,
+readiness, ingress or load-balancer cutover, and cleanup of superseded runtime
+replicas.
+
 The container app resource is also the normal user-facing deployment and
 exposure artifact for application workloads. It can own the stable application
 endpoint, desired replica count, discovery name, public exposure intent,

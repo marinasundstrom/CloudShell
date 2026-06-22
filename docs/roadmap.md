@@ -474,7 +474,7 @@ listed here before pulling in broader proposal work.
    orchestrator service model is clearer. Container app usefulness depends on
    a thin deployment/revision/runtime-owned resource foundation: keep this
    foundation internal and diagnostic first, and do not pull in broad rollout
-   history, rollback, revision-management views, or traffic-splitting work for
+   history, restore, revision-management views, or traffic-splitting work for
    the MVP. Container apps default to single-instance mode; replicas are an
    explicit Application > Scale and replicas tab or programmatic
    `WithReplicas(...)` opt-in. Endpoint-bearing apps now prompt from Scale and
@@ -1194,8 +1194,8 @@ listed here before pulling in broader proposal work.
   implement replicas, keeping stable resources separate from runtime instances
   and using parent-derived naming conventions for materialized runtime
   containers.
-- Preserve container app current-revision projection for image updates; defer
-  rich rollout history, rollback, retention, and first-class deployment
+- Preserve container app current-revision projection for app deployments; defer
+  rich rollout history, restore, retention, and first-class deployment
   resources until runtime ownership and traceability are clear.
 
 ### Later: Advanced App and Environment Concepts
@@ -1269,7 +1269,7 @@ The following work should stay out of the MVP unless a release-gating sample
 forces a smaller slice:
 
 - Autoscaling, traffic splitting, backend pools, TLS binding, rollout history,
-  rollback, and first-class deployment resources.
+  restore, and first-class deployment resources.
 - Provider-backed network-level service discovery and public DNS propagation.
 - Broad IAM features such as inheritance, multiple identities per resource,
   effective permission APIs, and durable external authority reconciliation.

@@ -259,20 +259,21 @@ liveness/lifecycle signals, while scaling changes desired capacity.
    routes, DNS/name mappings, and unsupported host capabilities. Local
    host-published endpoint preflight is in place for container app start;
    route, DNS, and provider-backed diagnostics remain open.
-6. Keep image update, current revision, explicit replica scaling, and hidden
-   runtime ownership metadata as the MVP deployment surface. Container apps
-   default to single-instance mode; enabling replicas is a deliberate
-   Application > Scale and replicas action or programmatic `WithReplicas(...)`
-   declaration. Scale and replicas now prompts endpoint-bearing apps to create
-   a load-balancer route when replicas are enabled. Treat image update as the
-   bridge to Deployments and revisions: the long-term operation is to deploy a
-   new revision for the image, optionally with a requested replica count, start
-   that revision next to the current revision, verify readiness, switch
-   routing, and then retire the old revision. Use the internal orchestrator
-   deployment/revision contracts for container app implementation work, but
-   defer public rollout history, restore, revision management, traffic
-   splitting, and advanced rollout controls to later deployment/revision
-   slices.
+6. Keep container app deployment, current revision, explicit replica scaling,
+   and hidden runtime ownership metadata as the MVP deployment surface.
+   Container apps default to single-instance mode; enabling replicas is a
+   deliberate Application > Scale and replicas action or programmatic
+   `WithReplicas(...)` declaration. Scale and replicas now prompts
+   endpoint-bearing apps to create a load-balancer route when replicas are
+   enabled. Treat container app deployment as the bridge to Deployments and
+   revisions: the app records the app-owned revision and requested replica
+   count, then asks the orchestrator to materialize it. Starting replacement
+   replicas, verifying readiness, switching ingress/load-balancer routing, and
+   retiring old runtime replicas are orchestrator responsibilities. Use the
+   internal orchestrator deployment/revision contracts for container app
+   implementation work, but defer full rollout history, restore, revision
+   management, traffic splitting, and advanced rollout controls to later
+   deployment/revision slices.
 7. Keep container app replica diagnostics app-scoped in Scale and replicas. It
    shows app-owned replica/runtime diagnostics to users who can view or manage
    the container app without requiring the global runtime-managed inventory
@@ -337,11 +338,11 @@ liveness/lifecycle signals, while scaling changes desired capacity.
   preflight occupied local TCP/HTTP endpoint ports before Start. Future
   registry-backed providers should also suggest or allocate alternate ports
   when a default is unavailable.
-* Replace the current image-update-and-restart-required bridge with a
-  revision-based Deploy image operation that can include requested replica count,
-  materialize new revision containers next to the current revision, verify
-  readiness, switch traffic or endpoint routing, retain failed revisions for
-  diagnostics, and retire the old revision according to policy.
+* Continue evolving the container app deployment operation so it can include
+  requested replica count and records an app-owned revision. The orchestrator
+  should materialize new runtime replicas next to the current revision, verify
+  readiness, switch traffic or endpoint routing, retain failed runtime/app
+  revision diagnostics, and retire old runtime replicas according to policy.
 * Continue improving update behavior around replica, environment, endpoint,
   identity, and storage changes, deciding which changes belong to active
   revision capacity/configuration and which require a new deployment revision.

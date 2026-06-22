@@ -2303,7 +2303,7 @@ on `git blame --follow`, and then by the broad type of change.
   stable app resource. The projection includes deployment id, service id,
   status, revision/workload version, requested replicas, and projected runtime
   replicas, and the Deployment tab renders that state without exposing public
-  rollout-history or rollback APIs yet.
+  rollout-history or restore APIs yet.
   Decision: [ADR-20260615-002](ADR.md#adr-20260615-002).
 - Container app runtime replica child resources now carry the deployment id,
   service id, and deployment revision they implement. The Replicas tab shows

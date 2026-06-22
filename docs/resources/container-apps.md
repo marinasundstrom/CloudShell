@@ -234,11 +234,10 @@ identifiers after scaling is enabled so operators can correlate expected
 runtime artifacts with the current Deployment tab projection without enabling
 global hidden runtime-managed inventory.
 
-Revision management is a separate future Application view. The current
+Full revision management is a separate future Application view. The current
 Deployment tab projects the latest revision, container app deployment
-operation, and revision history, but
-CloudShell does not yet expose rollout history, restore, activation, or
-traffic splitting.
+operation, and basic revision history, but CloudShell does not yet expose full
+rollout history, restore, activation, or traffic splitting.
 
 A `cloudshell.service` resource can still be
 declared when a stable CloudShell Service resource or facade should expose
