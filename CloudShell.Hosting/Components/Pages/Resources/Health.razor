@@ -159,9 +159,9 @@
                     <ShellActivityLink Href="@BuildResourceRoute(resource.Id)"
                                        Title="@resource.EffectiveDisplayName"
                                        Summary="@L["{0} check(s)", resource.ResourceHealthChecks.Count].Value">
-                        <Icon>
+                        <Leading>
                             <ResourceKindIcon Resource="resource" />
-                        </Icon>
+                        </Leading>
                         <Trailing>
                             <span class="health-pill @GetHealthClass(summary?.Status)">
                                 @GetHealthLabel(summary?.Status)

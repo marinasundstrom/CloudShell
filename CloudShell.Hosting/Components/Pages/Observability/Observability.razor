@@ -71,9 +71,9 @@ else
                                    Title="@L[view.Title].Value"
                                    Summary="@L[view.Description].Value"
                                    TrailingText="@view.Summary">
-                    <Icon>
+                    <Leading>
                         <ShellNavigationIcon Icon="@view.Icon" />
-                    </Icon>
+                    </Leading>
                 </ShellActivityLink>
             }
         </ShellActivityList>
@@ -98,9 +98,9 @@ else
                                        Title="@service.ServiceName"
                                        Summary="@FormatObservedServiceSummary(service)"
                                        TrailingText="@FormatLastSeen(service.LastSeen)">
-                        <Icon>
+                        <Leading>
                             <ShellNavigationIcon Icon="observability" />
-                        </Icon>
+                        </Leading>
                     </ShellActivityLink>
                 }
             </ShellActivityList>

@@ -7,6 +7,7 @@
     border: 1px solid var(--cloudshell-divider);
     border-radius: 4px;
     background: var(--cloudshell-surface-muted);
+    color: var(--cloudshell-text);
     text-decoration: none;
 }
 
@@ -15,19 +16,39 @@
     text-decoration: none;
 }
 
-.activity-row > :last-child {
-    margin-left: auto;
+.activity-row-leading {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
 }
 
-.activity-row strong,
-.activity-row span {
+.activity-row-main {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.activity-row-main strong,
+.activity-row-main span {
     display: block;
 }
 
-.activity-row span,
+.activity-row-main strong {
+    color: var(--cloudshell-text);
+}
+
+.activity-row-main span,
 .activity-row ::deep(.muted) {
     color: var(--cloudshell-text-muted);
     font-size: .82rem;
+}
+
+.activity-row-trailing {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    margin-left: auto;
+    flex: 0 0 auto;
 }
 
 .activity-row ::deep(.health-pill),

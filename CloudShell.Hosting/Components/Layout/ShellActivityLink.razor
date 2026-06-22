@@ -1,9 +1,11 @@
 <a class="@CssClass" href="@Href" @attributes="AdditionalAttributes">
-    @if (Icon is not null)
+    @if (Leading is not null)
     {
-        @Icon
+        <span class="activity-row-leading">
+            @Leading
+        </span>
     }
-    <div>
+    <div class="activity-row-main">
         <strong>@Title</strong>
         @if (!string.IsNullOrWhiteSpace(Summary))
         {
@@ -13,11 +15,13 @@
     </div>
     @if (Trailing is not null)
     {
-        @Trailing
+        <span class="activity-row-trailing">
+            @Trailing
+        </span>
     }
     else if (!string.IsNullOrWhiteSpace(TrailingText))
     {
-        <span>@TrailingText</span>
+        <span class="activity-row-trailing">@TrailingText</span>
     }
 </a>
 
@@ -26,7 +30,7 @@
     public string? Href { get; set; }
 
     [Parameter]
-    public RenderFragment? Icon { get; set; }
+    public RenderFragment? Leading { get; set; }
 
     [Parameter]
     public string? Title { get; set; }
