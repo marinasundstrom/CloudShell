@@ -5,6 +5,12 @@ product concepts. The important boundary is not only "frontend" and
 "backend"; it is which layer owns UI composition, which layer owns Control
 Plane behavior, and which shared concepts an integration uses across both.
 
+Architecture describes the overarching model and conceptual boundaries. It is
+not the same as design or implementation. Design documents explain how the
+architecture is expressed in APIs, UI flows, validation, and behavior.
+Implementation and project-structure documents describe the concrete assemblies,
+folders, components, services, and migration steps used to realize that design.
+
 ## Application surfaces
 
 ### CloudShell UI
@@ -46,6 +52,87 @@ The Control Plane owns backend state and operations:
 CloudShell UI talks to the Control Plane through public domain managers and
 client adapters. UI integrations should not depend on Control Plane stores or
 provider runtime internals.
+
+## Host topology
+
+CloudShell separates the environment from the host applications and capability
+packages that compose it.
+
+### CloudShell environment
+
+A CloudShell environment is the managed local, team-owned, or on-premise
+cloud-like environment that users inspect and operate. It is anchored by
+Control Plane resource state, installed capability packages, and one or more
+UI hosts.
+
+The environment model is deliberately shared between local development and
+on-premise hosting. A developer can run the platform locally as a combined
+CloudShell UI and Control Plane host while resources are still code-first, then
+the same resource model can be persisted into durable Control Plane state and
+operated by a standing CloudShell environment. CloudShell is therefore a
+hosting platform that doubles as a development tool, not a development
+dashboard that must later be replaced by a different operational model.
+
+An on-premise CloudShell environment is a standalone CloudShell cloud
+environment, potentially for shared hosting. It owns Control Plane state,
+installed capabilities, provider integrations, and runtime placement policy
+instead of acting only as a developer workstation process.
+
+### CloudShell host application
+
+A CloudShell host application is the ASP.NET Core application owned by a
+product integrator or sample. It chooses deployment shape, configuration,
+authentication, persistence, and installed capabilities. A host application can
+run CloudShell UI, the Control Plane, or both.
+
+In split deployments, the UI host discovers resources through a remote Control
+Plane client instead of declaring resources or hosting providers locally. In
+combined local-development deployments, programmatically declared resources
+may run from the same host process that hosts CloudShell UI and the Control
+Plane, but they are still managed by the same local Control Plane that
+coordinates provider behavior, lifecycle actions, and resource projection.
+
+### Capability packages
+
+A CloudShell capability package is an installable environment capability. It
+may be vertical, such as Docker support, application resources, configuration
+services, or secrets, or cross-cutting, such as networking, identity,
+observability, deployment, or policy.
+
+A capability package may contribute:
+
+- Control Plane resource providers and provider-owned services.
+- Resource type definitions and programmatic declaration helpers.
+- Resource actions, logs, templates, diagnostics, and capabilities.
+- Resource Manager UI support such as add/update components, detail views,
+  tabs, routes, and UI actions.
+- Shell-level UI such as navigation, workspaces, settings pages,
+  notifications, named content areas, and operational dashboards.
+- SDK clients or helper packages for authored services.
+
+Capability packages are product packaging and environment-capability
+boundaries, not resource model entities. A capability package can define
+several resource types, and a resource can depend on capabilities from several
+packages.
+
+### CloudShell extensions
+
+A CloudShell extension is the in-process registration mechanism a capability
+package uses to plug into a host application. Extension registrations are
+code-level contracts. Capability packages are the packaging and environment
+capability boundary.
+
+Use "capability package" for installable environment capabilities. Use
+"extension" for the code-level registration mechanism. Use more specific
+terms such as "Control Plane provider integration" or "Resource Manager UI
+integration" when the layer matters.
+
+### Workloads
+
+Use "workload" only for runtime application execution concerns, such as
+container-image, container-build, ASP.NET Core project, or local executable
+configuration. That runtime meaning is distinct from CloudShell capability
+packages.
 
 ## Extension surfaces
 

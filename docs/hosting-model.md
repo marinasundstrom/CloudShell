@@ -1,12 +1,11 @@
 # Hosting Model
 
-CloudShell separates the CloudShell environment from the host applications and
-capability packages that compose it.
-
-A CloudShell environment is the managed local, team-owned, or on-premise
-cloud-like environment that users inspect and operate. It is anchored by
-Control Plane resource state and installed capability packages, and it can be
-served by one combined host or by separate Control Plane and UI hosts.
+CloudShell hosting describes how the conceptual application surfaces from
+[CloudShell architecture](architecture.md) are assembled into concrete ASP.NET
+Core host applications. The architecture document owns the definitions of
+CloudShell UI, Control Plane, CloudShell environment, capability package, and
+extension surface. This document focuses on the supported host shapes and
+registration patterns.
 
 CloudShell is intended to be the same platform in both roles. In local
 development it can run as a combined host that gives developers a resource
@@ -18,23 +17,10 @@ and operator-facing Resource Manager workflows. The local development shape is
 therefore not a separate dashboard product; it is the hosting platform running
 close to the developer.
 
-An on-premise CloudShell environment is a CloudShell instance running as its own
-cloud environment, potentially for shared hosting. It owns its Control Plane
-state, installed capabilities, provider integrations, and runtime placement
-policy instead of acting as only a developer workstation process.
-
-A CloudShell host application is an ASP.NET Core application owned by the
-integrator. It can host the CloudShell UI, the Control Plane, or both. A
-CloudShell capability package is an installable environment capability that can
-add Control Plane resource providers, resource type definitions, programmatic
-declarations, provider-owned runtime services, Resource Manager UI
-integrations, shell views, and client helpers. Capability packages are
-intended to be distributed as NuGet packages and installed into the host
-application through CloudShell extension registrations.
-
-This mirrors the practical separation between an application host and the
-capabilities it loads: the host chooses the deployment shape and configuration;
-capability packages contribute resource behavior and UI support.
+This mirrors the practical separation between a host application and the
+capabilities it loads: the host chooses deployment shape and configuration;
+capability packages contribute resource behavior, UI support, services, and
+client helpers.
 
 CloudShell supports three registration shapes:
 

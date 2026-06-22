@@ -52,6 +52,9 @@ on `git blame --follow`, and then by the broad type of change.
   extensible shell application, the Control Plane as the backend application,
   and extensions such as Resource Manager as integrations that can plug into
   both layers through shared concepts.
+- Consolidated host topology, capability package, extension surface, and
+  workload terminology into the architecture document, with system design,
+  domain model, and hosting guidance now referencing that conceptual model.
 
 ### 2026-06-21
 

@@ -3,6 +3,11 @@
 This document is the shared design baseline for CloudShell. Use it when adding
 features, stabilizing behavior, or deciding where a concept belongs.
 
+Architecture owns the overarching application model and conceptual boundaries;
+see [CloudShell architecture](architecture.md). This document is about design:
+how those concepts should shape APIs, providers, UI behavior, validation,
+resource modeling, and implementation choices.
+
 For a concept-by-concept explanation of the domain model, abstraction levels,
 and API projection, see [Domain model](domain-model.md).
 For artifact-by-artifact implementation and verification expectations, see
@@ -41,46 +46,9 @@ way.
 
 The WebUI is the shell surface. The Control Plane owns resource inventory,
 registrations, lifecycle procedures, logs, templates, and provider-backed
-operational data. For the full application-layer model, see
-[CloudShell architecture](architecture.md).
-
-CloudShell uses the following topology terms when describing environment
-hosting and extension packaging:
-
-- A CloudShell host application is the ASP.NET Core application that composes
-  CloudShell capabilities for one deployment. It may host only the CloudShell
-  UI, only the Control Plane, or both in a combined process. In local
-  development, programmatically declared resources may run from a combined host
-  process, but they are still managed by the same local Control Plane, which
-  owns resource lifecycle decisions and provider orchestration.
-- A CloudShell environment is the managed local, team-owned, or on-premise
-  cloud-like environment that users operate. It is anchored by a Control Plane,
-  installed capability packages, resource state, and one or more UI hosts.
-- The CloudShell UI is the Blazor shell application. It renders navigation,
-  Resource Manager, shell views, and UI integrations, and it talks to the
-  Control Plane through the domain-shaped client abstractions.
-- The CloudShell UI should remain useful without Resource Manager being the
-  only product surface. The shell owns common layout, navigation, settings,
-  notifications, and extensible content areas; Resource Manager and other
-  installed product areas plug into those shell primitives.
-- The Control Plane is the service application boundary that owns resource
-  state, provider coordination, lifecycle operations, logs, templates, API
-  projection, validation, and authorization.
-- A CloudShell capability package is an installable environment capability that
-  can contribute to one or both application surfaces. A capability package may
-  include Control Plane resource providers, resource type definitions,
-  programmatic declaration helpers, provider-owned runtime services, Resource
-  Manager UI integrations, shell views, and client helpers. The intended
-  distribution model is NuGet packages referenced by host applications.
-- A CloudShell extension is the in-process registration mechanism that a
-  capability package uses to plug into the host application. Extensions are
-  code-level contracts; capability packages are product packaging and
-  environment-capability boundaries.
-
-Use "workload" only for runtime application execution concerns, such as
-container-image, container-build, ASP.NET Core project, or local executable
-configuration. That runtime meaning is distinct from CloudShell capability
-packages.
+operational data. The durable definitions of CloudShell UI, Control Plane,
+host applications, environments, capability packages, extension surfaces, and
+workloads live in [CloudShell architecture](architecture.md).
 
 UI and Control Plane are distinct applications even when they are hosted
 together in one ASP.NET Core process. Resource provider registration for the
