@@ -253,6 +253,77 @@ public sealed class ResourceManagerStoreProjectionTests
     }
 
     [Fact]
+    public void GetAvailableResources_ProjectsLivenessCapabilityFromLivenessHealthCheck()
+    {
+        var resource = CreateResource(
+            "api",
+            "API",
+            healthChecks:
+            [
+                new ResourceHealthCheck(
+                    ResourceProbeSource.ForHttp("/alive", "http"),
+                    ResourceProbeType.Liveness,
+                    "liveness")
+            ]);
+        var store = CreateStore([resource]);
+
+        var projected = Assert.Single(store.GetAvailableResources());
+
+        Assert.True(projected.SupportsLiveness);
+        Assert.False(projected.SupportsRecovery);
+    }
+
+    [Fact]
+    public void GetAvailableResources_ProjectsRecoveryCapabilityWhenLivenessAndRestartAreSupported()
+    {
+        var resource = CreateResource(
+            "api",
+            "API",
+            actions: [ResourceAction.Restart],
+            healthChecks:
+            [
+                new ResourceHealthCheck(
+                    ResourceProbeSource.ForHttp("/alive", "http"),
+                    ResourceProbeType.Liveness,
+                    "liveness")
+            ]);
+        var store = CreateStore([resource]);
+
+        var projected = Assert.Single(store.GetAvailableResources());
+        var recovery = Assert.Single(
+            projected.ResourceCapabilities,
+            capability => string.Equals(capability.Id, ResourceCapabilityIds.Recovery, StringComparison.OrdinalIgnoreCase));
+
+        Assert.True(projected.SupportsLiveness);
+        Assert.True(projected.SupportsRecovery);
+        Assert.Equal(
+            ResourceCapabilityIds.Liveness,
+            recovery.CapabilityMetadata[ResourceCapabilityMetadataNames.RequiresCapability]);
+    }
+
+    [Fact]
+    public void GetAvailableResources_DoesNotProjectRecoveryCapabilityFromGenericHealthCheck()
+    {
+        var resource = CreateResource(
+            "api",
+            "API",
+            actions: [ResourceAction.Restart],
+            healthChecks:
+            [
+                new ResourceHealthCheck(
+                    ResourceProbeSource.ForHttp("/healthz", "http"),
+                    ResourceProbeType.Health,
+                    "health")
+            ]);
+        var store = CreateStore([resource]);
+
+        var projected = Assert.Single(store.GetAvailableResources());
+
+        Assert.False(projected.SupportsLiveness);
+        Assert.False(projected.SupportsRecovery);
+    }
+
+    [Fact]
     public void GetResources_NormalizesDeclarationClassMismatchForKnownResourceType()
     {
         var resource = CreateResource(
@@ -472,7 +543,10 @@ public sealed class ResourceManagerStoreProjectionTests
         string? parentResourceId = null,
         ResourceClass resourceClass = ResourceClass.Generic,
         IReadOnlyDictionary<string, string>? attributes = null,
-        ResourceIdentityBinding? identity = null) =>
+        ResourceIdentityBinding? identity = null,
+        IReadOnlyList<ResourceAction>? actions = null,
+        IReadOnlyList<ResourceHealthCheck>? healthChecks = null,
+        IReadOnlyList<ResourceCapability>? capabilities = null) =>
         new(
             id,
             name,
@@ -486,8 +560,11 @@ public sealed class ResourceManagerStoreProjectionTests
             [],
             ParentResourceId: parentResourceId,
             TypeId: "test.resource",
+            Actions: actions,
+            HealthChecks: healthChecks,
             ResourceClass: resourceClass,
             Attributes: attributes,
+            Capabilities: capabilities,
             Identity: identity);
 
     private static ResourceRegistration CreateRegistration(

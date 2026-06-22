@@ -26,6 +26,7 @@ public sealed class ResourceManagerStore(
         return Providers
             .SelectMany(provider => provider.GetResources())
             .Select(resource => ApplyResourceClass(resource, resourceTypeClasses, "provider projection", diagnostics))
+            .Select(ApplyCapabilityMetadata)
             .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
@@ -47,6 +48,7 @@ public sealed class ResourceManagerStore(
             .Select(resource => ApplyDeclarationMetadata(resource, declarationsById, resourceTypeClasses, diagnostics))
             .Select(resource => ApplyRegistrationMetadata(resource, registrationsById))
             .Select(resource => AddIdentityProviderDiagnostic(resource, diagnostics))
+            .Select(ApplyCapabilityMetadata)
             .ToArray();
         var registeredIds = registrationsById.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
 
@@ -113,7 +115,7 @@ public sealed class ResourceManagerStore(
             var projected = ApplyRegistrationMetadata(
                 ApplyDeclarationMetadata(resource, declarationsById, resourceTypeClasses, diagnostics),
                 registrationsById);
-            _ = AddIdentityProviderDiagnostic(projected, diagnostics);
+            _ = ApplyCapabilityMetadata(AddIdentityProviderDiagnostic(projected, diagnostics));
         }
 
         return diagnostics.ToArray();
@@ -223,6 +225,48 @@ public sealed class ResourceManagerStore(
                     .ToArray(),
             Identity = resource.IdentityBinding ?? registration.IdentityBinding
         };
+    }
+
+    private static Resource ApplyCapabilityMetadata(Resource resource)
+    {
+        var capabilities = resource.ResourceCapabilities
+            .GroupBy(capability => capability.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToList();
+
+        if (resource.ResourceHealthChecks.Any(check => check.Type == ResourceProbeType.Liveness))
+        {
+            AddCapabilityIfMissing(capabilities, new ResourceCapability(ResourceCapabilityIds.Liveness));
+        }
+
+        if (capabilities.Any(capability =>
+                string.Equals(capability.Id, ResourceCapabilityIds.Liveness, StringComparison.OrdinalIgnoreCase)) &&
+            resource.HasAction(ResourceActionIds.Restart))
+        {
+            AddCapabilityIfMissing(
+                capabilities,
+                new ResourceCapability(
+                    ResourceCapabilityIds.Recovery,
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        [ResourceCapabilityMetadataNames.RequiresCapability] = ResourceCapabilityIds.Liveness
+                    }));
+        }
+
+        return resource with { Capabilities = capabilities.ToArray() };
+    }
+
+    private static void AddCapabilityIfMissing(
+        List<ResourceCapability> capabilities,
+        ResourceCapability capability)
+    {
+        if (capabilities.Any(existing =>
+                string.Equals(existing.Id, capability.Id, StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        capabilities.Add(capability);
     }
 
     private Resource AddIdentityProviderDiagnostic(

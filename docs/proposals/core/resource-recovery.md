@@ -101,6 +101,9 @@ automatic recovery, and recovery should not appear as configurable until
 CloudShell can identify both a liveness-capable signal and a restart path.
 The resource model should represent liveness support and recovery support as
 separate capabilities, with recovery declaring its dependency on liveness.
+The first capability IDs are `liveness` and `recovery`; `recovery` describes
+support for configuring recovery policy, not whether recovery is currently
+enabled for the resource.
 
 ## Model
 
@@ -347,6 +350,15 @@ The fourth landed slice adds opt-in local-development polling:
 - Local polling is disabled by default so request-serving Control Plane hosts
   do not implicitly become the long-term owner of singleton recovery work.
 
+The fifth landed slice adds shared capability projection:
+
+- Resources with a liveness probe project the `liveness` capability.
+- Resources with both the `liveness` capability and a Restart action project
+  the `recovery` capability.
+- The projected `recovery` capability carries metadata declaring its
+  dependency on the `liveness` capability.
+- Generic health checks do not imply liveness or recovery support.
+
 The next recovery slice should stay narrow:
 
 1. Show generated Recovery configuration and status in Resource Manager under
@@ -354,11 +366,12 @@ The next recovery slice should stay narrow:
    available.
 2. Add sample coverage for one application resource with a liveness probe and
    automatic restart policy.
-3. Add provider-facing capability metadata so resources can advertise Recovery
-   support separately from liveness support while still declaring the required
-   signal dependency.
-4. Add liveness support for built-in resource types where CloudShell can
+3. Add liveness support for built-in resource types where CloudShell can
    produce a meaningful signal, with SQL Server as an explicit early target.
+4. Decide whether liveness evaluation should update a shared observed
+   resource condition or lifecycle-adjacent state, such as degraded or
+   unwell, and have recovery policy react to that state instead of directly
+   reacting to probe failures.
 
 Provider-native signal contracts, external orchestrator policy projection,
 durable controller leases, and advanced event schemas can follow after the
@@ -374,6 +387,9 @@ local-development loop proves the model.
   copied to resource instances like health-check defaults?
 - Should liveness become a first-class resource-model concept separate from
   health checks, or remain a typed probe with separate capability metadata?
+- Should liveness failure update a resource-level condition or state that
+  denotes the resource appears unwell, with recovery policy driven by that
+  condition, instead of keeping failed liveness only inside recovery status?
 - Should maximum attempts disable the policy until a user resets it, or pause
   until the resource becomes healthy again?
 - Should recovery state be stored as operational cache, durable Control Plane

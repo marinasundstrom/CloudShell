@@ -29,6 +29,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource recovery now has an opt-in local polling host that enumerates
   enabled recovery policies and calls the shared recovery refresh path without
   making request-serving Control Plane hosts the long-term polling owner.
+- Resources now project separate liveness and recovery capabilities, with
+  recovery derived only when a resource has a liveness signal and Restart
+  action support.
 - Added a service observability and degradation proposal for service-first,
   replica-aware local-development telemetry correlation, common views, load
   and capacity context, established telemetry interfaces, extension

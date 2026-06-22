@@ -144,6 +144,10 @@ public sealed record Resource(
         ResourceCapabilities.Any(capability =>
             string.Equals(capability.Id, capabilityId, StringComparison.OrdinalIgnoreCase));
 
+    public bool SupportsLiveness => HasCapability(ResourceCapabilityIds.Liveness);
+
+    public bool SupportsRecovery => HasCapability(ResourceCapabilityIds.Recovery);
+
     public bool SupportsLogSources =>
         ResourceLogSources.Count > 0 ||
         HasCapability(ResourceCapabilityIds.LogSources);
@@ -301,8 +305,15 @@ public sealed record ResourceCapability(
     public IReadOnlyDictionary<string, string> CapabilityMetadata => Metadata ?? EmptyMetadata;
 }
 
+public static class ResourceCapabilityMetadataNames
+{
+    public const string RequiresCapability = "requiresCapability";
+}
+
 public static class ResourceCapabilityIds
 {
+    public const string Liveness = "liveness";
+    public const string Recovery = "recovery";
     public const string EndpointSource = "endpoint.source";
     public const string ContainerHost = "container.host";
     public const string EnvironmentVariables = "environment.variables";

@@ -114,7 +114,7 @@ Important properties:
 - `ResourceHealthChecks`: health signals contributed by providers.
 - `ResourceCapabilities`: standardized or provider-owned capabilities the
   resource can provide to the environment, such as endpoint sources or
-  networking providers.
+  networking providers, liveness signals, or recovery support.
 
 `Resource` is a uniform projection. It is not subclassed for container apps,
 runtime containers, executables, projects, services, or infrastructure. A
