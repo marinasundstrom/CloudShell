@@ -20,7 +20,7 @@ signals exist in separate places:
 - telemetry metric points
 - resource health
 - process/container monitoring snapshots
-- container app replica projections
+- container app materialized replica resources
 - service resources that front other resources
 
 Those signals are useful individually, but the local-development workflow needs

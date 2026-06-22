@@ -574,7 +574,7 @@ or provider-managed. The distinction appears when providers also project
 runtime resources. A single local executable, project-backed application, or
 service resource can expose checks directly on the declared resource. A
 replicated container app is different: the declared application resource is
-the workload, exposure, and projection boundary, while projected runtime
+the workload, exposure, and projection boundary, while materialized runtime
 replicas are the concrete probe targets. The shared application resource model
 should therefore support checks declared directly on resources and checks
 projected onto runtime resources, with the provider deciding which projection

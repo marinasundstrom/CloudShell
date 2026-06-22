@@ -196,7 +196,7 @@ Implemented pieces include:
   single-instance apps explain that replicas are not enabled instead of
   projecting a single-instance container as a replica set
 * app-scoped Monitoring tab under Management that summarizes single-instance
-  container stats and replicated app resource usage from projected
+  container stats and replicated app resource usage from materialized
   replica/container monitoring snapshots when a static/default container host
   can be resolved
 * application-level service discovery opt-in through `WithServiceDiscovery()`
@@ -268,7 +268,7 @@ liveness/lifecycle signals, while scaling changes desired capacity.
    browsing hidden runtime-managed artifacts directly in the resource
    inventory.
 8. Add an app-scoped Monitoring tab for container apps that summarizes
-   provider-observed resource metrics for the app and shows each projected
+   provider-observed resource metrics for the app and shows each materialized
    runtime replica/container separately. This should use the resource
    Monitoring menu item under Management, not the shared Telemetry metrics
    surface, because CPU, memory, network, block I/O, process count, restart,
