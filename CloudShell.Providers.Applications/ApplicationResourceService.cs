@@ -4908,7 +4908,7 @@ public sealed partial class ApplicationResourceService(
             EnvironmentVariables = NormalizeEnvironmentVariables(definition.EnvironmentVariables),
             VolumeMounts = NormalizeVolumeMounts(definition.VolumeMounts),
             SqlDatabases = NormalizeSqlDatabases(definition.SqlDatabases),
-            LogSources = NormalizeLogSources(definition.LogSources)
+            LogSources = ApplicationLogSources.Normalize(definition.LogSources)
         };
     }
 
@@ -5931,23 +5931,6 @@ public sealed partial class ApplicationResourceService(
                 TargetPath = mount.NormalizedTargetPath,
                 Name = mount.NormalizedName
             })
-            .ToArray();
-
-    private static IReadOnlyList<ResourceLogSource> NormalizeLogSources(
-        IReadOnlyList<ResourceLogSource> logSources) =>
-        logSources
-            .Where(source =>
-                !string.IsNullOrWhiteSpace(source.Id) &&
-                !string.IsNullOrWhiteSpace(source.Name))
-            .Select(source => source with
-            {
-                Id = source.Id.Trim(),
-                Name = source.Name.Trim(),
-                Location = NormalizeNullable(source.Location),
-                ProducerResourceId = NormalizeNullable(source.ProducerResourceId),
-                Description = NormalizeNullable(source.Description)
-            })
-            .DistinctBy(source => source.Id, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private static uint StableHash(string value)

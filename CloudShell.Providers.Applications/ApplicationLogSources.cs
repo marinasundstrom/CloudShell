@@ -6,6 +6,23 @@ namespace CloudShell.Providers.Applications;
 
 internal static class ApplicationLogSources
 {
+    public static IReadOnlyList<ResourceLogSource> Normalize(
+        IReadOnlyList<ResourceLogSource> logSources) =>
+        logSources
+            .Where(source =>
+                !string.IsNullOrWhiteSpace(source.Id) &&
+                !string.IsNullOrWhiteSpace(source.Name))
+            .Select(source => source with
+            {
+                Id = source.Id.Trim(),
+                Name = source.Name.Trim(),
+                Location = NormalizeNullable(source.Location),
+                ProducerResourceId = NormalizeNullable(source.ProducerResourceId),
+                Description = NormalizeNullable(source.Description)
+            })
+            .DistinctBy(source => source.Id, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
     public static IReadOnlyList<ResourceLogSource> GetApplicationLogSources(
         ApplicationResourceDefinition application) =>
         application.LogSources.Count == 0
@@ -67,4 +84,7 @@ internal static class ApplicationLogSources
         ((capabilities == LogSourceCapabilities.None ? LogSourceCapabilities.Read : capabilities) |
             LogSourceCapabilities.Read) &
         ~LogSourceCapabilities.Stream;
+
+    private static string? NormalizeNullable(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
