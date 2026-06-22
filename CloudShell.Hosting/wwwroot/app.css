@@ -863,26 +863,6 @@ h3 {
     line-height: 1.4;
 }
 
-.selected-type-card {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    gap: .6rem;
-    padding: .65rem;
-    border: 1px solid var(--cloudshell-divider);
-    border-radius: 4px;
-    background: var(--cloudshell-surface-muted);
-}
-
-.selected-type-card p {
-    margin-top: .2rem;
-}
-
-.selected-type-card fluent-anchor,
-.selected-type-card a {
-    justify-self: start;
-    margin-top: .45rem;
-}
-
 .settings-card-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));

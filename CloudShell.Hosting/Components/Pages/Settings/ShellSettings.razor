@@ -17,24 +17,18 @@
                                           RouteSegment="@Section"
                                           IconSelector="GetIcon">
     <SummaryContent Context="sections">
-        <div class="selected-type-card">
-            <span class="resource-kind-icon" aria-hidden="true">
+        <ShellSummaryTile Title="@L["CloudShell"].Value"
+                          Description="@L["Common settings"].Value">
+            <Icon>
                 <FluentIcon Value="@(new Icons.Regular.Size20.SettingsCogMultiple())" />
-            </span>
-            <div>
-                <strong>@L["CloudShell"]</strong>
-                <p>@L["Common settings"]</p>
-            </div>
-        </div>
-        <div class="selected-type-card">
-            <span class="resource-kind-icon" aria-hidden="true">
+            </Icon>
+        </ShellSummaryTile>
+        <ShellSummaryTile Title="@L["{0} section(s)", sections.Count].Value"
+                          Description="@L["Composition-backed"].Value">
+            <Icon>
                 <FluentIcon Value="@(new Icons.Regular.Size20.AppsListDetail())" />
-            </span>
-            <div>
-                <strong>@L["{0} section(s)", sections.Count]</strong>
-                <p>@L["Composition-backed"]</p>
-            </div>
-        </div>
+            </Icon>
+        </ShellSummaryTile>
     </SummaryContent>
     <EmptyContent>
         <EmptyState Title="@L["No settings sections"].Value"

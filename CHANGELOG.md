@@ -49,6 +49,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Shell, observability, and Resource Manager pages now use a shared compact
   page heading component for standard eyebrow, title, description, and action
   layouts.
+- Composition-backed shell summaries now use a shared summary tile component
+  with component-scoped styling instead of repeated selected-type card markup.
 - Summary metric cards now support compact rendering, and summary metric cards
   and grids own their styling through component-scoped CSS instead of
   page-level hand-coded markup.

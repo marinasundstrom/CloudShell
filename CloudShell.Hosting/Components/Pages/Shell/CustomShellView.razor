@@ -35,18 +35,11 @@ else
                             SelectedItemChanged="item => SelectMenuItem(view.Route, item.Id)"
                             AriaLabel="@($"{view.Title} views")">
         <SummaryContent>
-            <div class="selected-type-card">
-                <span class="resource-kind-icon" aria-hidden="true">
+            <ShellSummaryTile Title="@view.Title" Description="@view.Description">
+                <Icon>
                     <FluentIcon Value="@ShellNavigationIcons.FromName(view.Icon)" />
-                </span>
-                <div>
-                    <strong>@view.Title</strong>
-                    @if (!string.IsNullOrWhiteSpace(view.Description))
-                    {
-                        <p>@view.Description</p>
-                    }
-                </div>
-            </div>
+                </Icon>
+            </ShellSummaryTile>
         </SummaryContent>
         <EmptyContent>
             <EmptyState Title="No view selected"

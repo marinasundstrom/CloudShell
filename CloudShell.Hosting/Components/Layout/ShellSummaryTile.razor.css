@@ -1,0 +1,19 @@
+.shell-summary-tile {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: .6rem;
+    padding: .65rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 4px;
+    background: var(--cloudshell-surface-muted);
+}
+
+.shell-summary-tile p {
+    margin-top: .2rem;
+}
+
+.shell-summary-tile ::deep(fluent-anchor),
+.shell-summary-tile ::deep(a) {
+    justify-self: start;
+    margin-top: .45rem;
+}
