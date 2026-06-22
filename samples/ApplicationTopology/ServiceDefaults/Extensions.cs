@@ -119,7 +119,8 @@ public static class Extensions
                     serviceName,
                     totalRequests,
                     timestamp,
-                    "count"),
+                    "count",
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)),
                 new CloudShellMetricPoint(
                     "http.server.duration",
                     resourceId,
