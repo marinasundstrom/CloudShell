@@ -55,6 +55,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Consolidated host topology, capability package, extension surface, and
   workload terminology into the architecture document, with system design,
   domain model, and hosting guidance now referencing that conceptual model.
+- Clarified that Resource Manager UI extensions should depend on Resource
+  Manager/UI abstractions and stable shared components instead of referencing
+  the concrete CloudShell UI host package solely for contracts or reusable UI.
 
 ### 2026-06-21
 

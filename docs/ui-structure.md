@@ -63,6 +63,18 @@ Place a component in `CloudShell.Components` only when:
 - it does not depend on Hosting-only services or Resource Manager internals;
 - it can be consumed by provider packages without creating an ownership leak.
 
+Extension UI packages should be able to reference abstractions and stable
+shared components without referencing the concrete CloudShell UI host package.
+Do not place extension-facing UI contracts or generally reusable component
+building blocks in `CloudShell.Hosting` merely because that is where the
+current built-in shell implementation lives.
+
+When the extension point is behavioral rather than visual, prefer a shared
+abstraction plus an optional CloudShell UI integration package over exposing a
+component as the contract. Notifications are the model case: extensions should
+publish notifications through a service abstraction, while CloudShell UI owns
+the toast/off-canvas presenters that render those notifications.
+
 Place components in `CloudShell.Hosting/Components/ResourceManager` when they
 are shared within Resource Manager but need hosting services, shell catalog
 lookups, navigation helpers, or Resource Manager-specific context.

@@ -174,6 +174,14 @@ Capability packages can still provide convenience registration that installs
 all relevant layers, but that convenience should not erase the architectural
 boundary.
 
+CloudShell UI and extensions may share common abstractions without sharing a
+concrete UI implementation. A shell feature such as notifications should expose
+an abstraction for producers and consumers, while CloudShell UI can provide an
+optional integration package that renders those notifications in the shell.
+Extensions should be able to hook into the notification service or another
+shell-owned service without referencing the UI components that happen to render
+it.
+
 ## Hosting shapes
 
 CloudShell supports several host shapes:
