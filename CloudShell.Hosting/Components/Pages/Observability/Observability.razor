@@ -64,19 +64,19 @@ else
         <ShellPanelHeader Title="@L["Workspace views"].Value"
                           Description="@L["Open the shared telemetry surfaces for logs, traces, metrics, and service request relationships."].Value" />
 
-        <div class="activity-list">
+        <ShellActivityList>
             @foreach (var view in WorkspaceViews)
             {
-                <a class="activity-row" href="@view.Href">
-                    <ShellNavigationIcon Icon="@view.Icon" />
-                    <div>
-                        <strong>@L[view.Title]</strong>
-                        <small class="muted">@L[view.Description]</small>
-                    </div>
-                    <span>@view.Summary</span>
-                </a>
+                <ShellActivityLink Href="@view.Href"
+                                   Title="@L[view.Title].Value"
+                                   Summary="@L[view.Description].Value"
+                                   TrailingText="@view.Summary">
+                    <Icon>
+                        <ShellNavigationIcon Icon="@view.Icon" />
+                    </Icon>
+                </ShellActivityLink>
             }
-        </div>
+        </ShellActivityList>
     </article>
 
     <article class="panel">
@@ -91,19 +91,19 @@ else
         }
         else
         {
-            <div class="activity-list">
+            <ShellActivityList>
                 @foreach (var service in ObservedServices.Take(8))
                 {
-                    <a class="activity-row" href="@BuildObservedServiceHref(service)">
-                        <ShellNavigationIcon Icon="observability" />
-                        <div>
-                            <strong>@service.ServiceName</strong>
-                            <small class="muted">@FormatObservedServiceSummary(service)</small>
-                        </div>
-                        <span>@FormatLastSeen(service.LastSeen)</span>
-                    </a>
+                    <ShellActivityLink Href="@BuildObservedServiceHref(service)"
+                                       Title="@service.ServiceName"
+                                       Summary="@FormatObservedServiceSummary(service)"
+                                       TrailingText="@FormatLastSeen(service.LastSeen)">
+                        <Icon>
+                            <ShellNavigationIcon Icon="observability" />
+                        </Icon>
+                    </ShellActivityLink>
                 }
-            </div>
+            </ShellActivityList>
         }
     </article>
     </section>

@@ -1,0 +1,55 @@
+<a class="@CssClass" href="@Href" @attributes="AdditionalAttributes">
+    @if (Icon is not null)
+    {
+        @Icon
+    }
+    <div>
+        <strong>@Title</strong>
+        @if (!string.IsNullOrWhiteSpace(Summary))
+        {
+            <span>@Summary</span>
+        }
+        @SummaryContent
+    </div>
+    @if (Trailing is not null)
+    {
+        @Trailing
+    }
+    else if (!string.IsNullOrWhiteSpace(TrailingText))
+    {
+        <span>@TrailingText</span>
+    }
+</a>
+
+@code {
+    [Parameter]
+    public string? Href { get; set; }
+
+    [Parameter]
+    public RenderFragment? Icon { get; set; }
+
+    [Parameter]
+    public string? Title { get; set; }
+
+    [Parameter]
+    public string? Summary { get; set; }
+
+    [Parameter]
+    public RenderFragment? SummaryContent { get; set; }
+
+    [Parameter]
+    public string? TrailingText { get; set; }
+
+    [Parameter]
+    public RenderFragment? Trailing { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string CssClass => string.IsNullOrWhiteSpace(Class)
+        ? "activity-row"
+        : $"activity-row {Class}";
+}

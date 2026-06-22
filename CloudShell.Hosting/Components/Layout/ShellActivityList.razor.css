@@ -1,0 +1,4 @@
+.activity-list {
+    display: grid;
+    gap: .55rem;
+}

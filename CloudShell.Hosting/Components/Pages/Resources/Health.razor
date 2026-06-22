@@ -152,22 +152,24 @@
         }
         else
         {
-            <div class="activity-list">
+            <ShellActivityList>
                 @foreach (var resource in ResourcesWithHealthChecks)
                 {
                     var summary = GetHealthSummary(resource);
-                    <a class="activity-row" href="@BuildResourceRoute(resource.Id)">
-                        <ResourceKindIcon Resource="resource" />
-                        <div>
-                            <strong>@resource.EffectiveDisplayName</strong>
-                            <span>@L["{0} check(s)", resource.ResourceHealthChecks.Count]</span>
-                        </div>
-                        <span class="health-pill @GetHealthClass(summary?.Status)">
-                            @GetHealthLabel(summary?.Status)
-                        </span>
-                    </a>
+                    <ShellActivityLink Href="@BuildResourceRoute(resource.Id)"
+                                       Title="@resource.EffectiveDisplayName"
+                                       Summary="@L["{0} check(s)", resource.ResourceHealthChecks.Count].Value">
+                        <Icon>
+                            <ResourceKindIcon Resource="resource" />
+                        </Icon>
+                        <Trailing>
+                            <span class="health-pill @GetHealthClass(summary?.Status)">
+                                @GetHealthLabel(summary?.Status)
+                            </span>
+                        </Trailing>
+                    </ShellActivityLink>
                 }
-            </div>
+            </ShellActivityList>
         }
     </article>
 </section>

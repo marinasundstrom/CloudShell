@@ -194,14 +194,12 @@ h3 {
 }
 
 .group-list,
-.activity-list,
 .provider-list {
     display: grid;
     gap: .55rem;
 }
 
 .group-row,
-.activity-row,
 .provider-row {
     display: flex;
     align-items: center;
@@ -213,55 +211,18 @@ h3 {
     background: var(--cloudshell-surface-muted);
 }
 
-.activity-row,
-.activity-row:hover,
-.activity-row:focus-visible {
-    text-decoration: none;
-}
-
-.activity-row span:last-child {
-    margin-left: auto;
-}
-
 .group-row strong,
 .group-row span,
-.activity-row strong,
-.activity-row span,
 .provider-row strong,
 .provider-row span {
     display: block;
 }
 
 .group-row span,
-.activity-row span,
 .provider-row span,
 .muted {
     color: var(--cloudshell-text-muted);
     font-size: .82rem;
-}
-
-.activity-row .health-pill,
-.activity-row .state-pill {
-    display: inline-flex;
-    color: white;
-    font-size: .76rem;
-}
-
-.activity-row.request-issue:hover {
-    border-color: var(--cloudshell-accent);
-    background: var(--cloudshell-hover);
-}
-
-.activity-row.request-issue.error {
-    border-color: var(--cloudshell-danger-text);
-    background: var(--cloudshell-danger-fill);
-    box-shadow: inset 3px 0 0 var(--cloudshell-danger-text);
-}
-
-.activity-row.request-issue.attention {
-    border-color: var(--cloudshell-warning-text);
-    background: var(--cloudshell-warning-fill);
-    box-shadow: inset 3px 0 0 var(--cloudshell-warning-text);
 }
 
 .group-meta {
@@ -1521,8 +1482,7 @@ h3 {
 }
 
 .resource-activity-group .health-pill,
-.resource-activity-header .health-pill,
-.activity-row .health-pill {
+.resource-activity-header .health-pill {
     color: var(--cloudshell-health-pill-foreground, white);
 }
 

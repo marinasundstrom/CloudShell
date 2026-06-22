@@ -51,6 +51,8 @@ on `git blame --follow`, and then by the broad type of change.
   layouts.
 - Composition-backed shell summaries now use a shared summary tile component
   with component-scoped styling instead of repeated selected-type card markup.
+- Dashboard, Health, and Observability navigation rows now use shared activity
+  list and link components with row-state styling contained in component CSS.
 - Summary metric cards now support compact rendering, and summary metric cards
   and grids own their styling through component-scoped CSS instead of
   page-level hand-coded markup.

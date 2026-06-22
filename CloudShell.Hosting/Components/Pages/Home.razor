@@ -77,21 +77,23 @@
         }
         else
         {
-            <div class="activity-list">
+            <ShellActivityList>
                 @foreach (var issue in SystemIssues.Take(8))
                 {
-                    <a class="activity-row" href="@BuildIssueRoute(issue)">
-                        <ResourceKindIcon Resource="issue.Resource" />
-                        <div>
-                            <strong>@issue.Resource.EffectiveDisplayName</strong>
-                            <span>@GetIssueSummary(issue)</span>
-                        </div>
-                        <span class="health-pill @GetIssueClass(issue)">
-                            @GetIssueLabel(issue)
-                        </span>
-                    </a>
+                    <ShellActivityLink Href="@BuildIssueRoute(issue)"
+                                       Title="@issue.Resource.EffectiveDisplayName"
+                                       Summary="@GetIssueSummary(issue)">
+                        <Icon>
+                            <ResourceKindIcon Resource="issue.Resource" />
+                        </Icon>
+                        <Trailing>
+                            <span class="health-pill @GetIssueClass(issue)">
+                                @GetIssueLabel(issue)
+                            </span>
+                        </Trailing>
+                    </ShellActivityLink>
                 }
-            </div>
+            </ShellActivityList>
         }
     </article>
 
@@ -107,18 +109,18 @@
         }
         else
         {
-            <div class="activity-list">
+            <ShellActivityList>
                 @foreach (var state in ResourceStateSummaries)
                 {
-                    <a class="activity-row" href="/resources">
-                        <span class="state-dot @ResourceStateDisplay.GetStateClass(state.State)"></span>
-                        <div>
-                            <strong>@GetStateLabel(state.State)</strong>
-                            <span>@L["{0} resource(s)", state.Count]</span>
-                        </div>
-                    </a>
+                    <ShellActivityLink Href="/resources"
+                                       Title="@GetStateLabel(state.State)"
+                                       Summary="@L["{0} resource(s)", state.Count].Value">
+                        <Icon>
+                            <span class="state-dot @ResourceStateDisplay.GetStateClass(state.State)"></span>
+                        </Icon>
+                    </ShellActivityLink>
                 }
-            </div>
+            </ShellActivityList>
         }
     </article>
 </section>
@@ -136,21 +138,22 @@
         }
         else
         {
-            <div class="activity-list">
+            <ShellActivityList>
                 @foreach (var item in ActiveRequestFailures.Take(6))
                 {
-                    <a class="@GetRequestIssueRowClass(item)" href="@BuildTraceRoute(item.RouteResourceId, item.TraceId)">
-                        <ResourceSeverityIcon Severity="@GetRequestIssueSeverity(item)" />
-                        <div>
-                            <strong>@item.RequestName</strong>
-                            <span>@L["{0} / {1} failed span(s) / latest {2}",
-                                item.ServiceSummary,
-                                item.ErrorSpanCount,
-                                FormatRequestFailureTime(item.LastSeen)]</span>
-                        </div>
-                    </a>
+                    <ShellActivityLink Href="@BuildTraceRoute(item.RouteResourceId, item.TraceId)"
+                                       Class="@GetRequestIssueRowClass(item)"
+                                       Title="@item.RequestName"
+                                       Summary="@L["{0} / {1} failed span(s) / latest {2}",
+                                           item.ServiceSummary,
+                                           item.ErrorSpanCount,
+                                           FormatRequestFailureTime(item.LastSeen)].Value">
+                        <Icon>
+                            <ResourceSeverityIcon Severity="@GetRequestIssueSeverity(item)" />
+                        </Icon>
+                    </ShellActivityLink>
                 }
-            </div>
+            </ShellActivityList>
         }
     </article>
 
@@ -158,36 +161,36 @@
         <ShellPanelHeader Title="@L["Quick views"].Value"
                           Description="@L["Open the main operational workspaces."].Value" />
 
-        <div class="activity-list">
-            <a class="activity-row" href="/resources">
-                <ShellNavigationIcon Icon="resources" />
-                <div>
-                    <strong>@L["Resources"]</strong>
-                    <span>@L["Inventory, lifecycle actions, relationships"]</span>
-                </div>
-            </a>
-            <a class="activity-row" href="/health">
-                <ShellNavigationIcon Icon="health" />
-                <div>
-                    <strong>@L["Health"]</strong>
-                    <span>@L["Configured health checks"]</span>
-                </div>
-            </a>
-            <a class="activity-row" href="/observability">
-                <ShellNavigationIcon Icon="observability" />
-                <div>
-                    <strong>@L["Observability"]</strong>
-                    <span>@L["Logs, traces, metrics, request flow"]</span>
-                </div>
-            </a>
-            <a class="activity-row" href="/settings/extensions">
-                <ShellNavigationIcon Icon="extensions" />
-                <div>
-                    <strong>@L["Extensions"]</strong>
-                    <span>@L["Installed capabilities and shell contributions"]</span>
-                </div>
-            </a>
-        </div>
+        <ShellActivityList>
+            <ShellActivityLink Href="/resources"
+                               Title="@L["Resources"].Value"
+                               Summary="@L["Inventory, lifecycle actions, relationships"].Value">
+                <Icon>
+                    <ShellNavigationIcon Icon="resources" />
+                </Icon>
+            </ShellActivityLink>
+            <ShellActivityLink Href="/health"
+                               Title="@L["Health"].Value"
+                               Summary="@L["Configured health checks"].Value">
+                <Icon>
+                    <ShellNavigationIcon Icon="health" />
+                </Icon>
+            </ShellActivityLink>
+            <ShellActivityLink Href="/observability"
+                               Title="@L["Observability"].Value"
+                               Summary="@L["Logs, traces, metrics, request flow"].Value">
+                <Icon>
+                    <ShellNavigationIcon Icon="observability" />
+                </Icon>
+            </ShellActivityLink>
+            <ShellActivityLink Href="/settings/extensions"
+                               Title="@L["Extensions"].Value"
+                               Summary="@L["Installed capabilities and shell contributions"].Value">
+                <Icon>
+                    <ShellNavigationIcon Icon="extensions" />
+                </Icon>
+            </ShellActivityLink>
+        </ShellActivityList>
     </article>
 </section>
 
@@ -504,8 +507,8 @@
 
     private static string GetRequestIssueRowClass(RequestFailureSummary item) =>
         item.EntryHasError
-            ? "activity-row request-issue error"
-            : "activity-row request-issue attention";
+            ? "request-issue error"
+            : "request-issue attention";
 
     private string GetStateLabel(ResourceState state) =>
         state.ToString();

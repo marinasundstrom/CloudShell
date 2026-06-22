@@ -1,0 +1,55 @@
+.activity-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: .8rem;
+    padding: .65rem .7rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 4px;
+    background: var(--cloudshell-surface-muted);
+    text-decoration: none;
+}
+
+.activity-row:hover,
+.activity-row:focus-visible {
+    text-decoration: none;
+}
+
+.activity-row > :last-child {
+    margin-left: auto;
+}
+
+.activity-row strong,
+.activity-row span {
+    display: block;
+}
+
+.activity-row span,
+.activity-row ::deep(.muted) {
+    color: var(--cloudshell-text-muted);
+    font-size: .82rem;
+}
+
+.activity-row ::deep(.health-pill),
+.activity-row ::deep(.state-pill) {
+    display: inline-flex;
+    color: var(--cloudshell-health-pill-foreground, white);
+    font-size: .76rem;
+}
+
+.activity-row.request-issue:hover {
+    border-color: var(--cloudshell-accent);
+    background: var(--cloudshell-hover);
+}
+
+.activity-row.request-issue.error {
+    border-color: var(--cloudshell-danger-text);
+    background: var(--cloudshell-danger-fill);
+    box-shadow: inset 3px 0 0 var(--cloudshell-danger-text);
+}
+
+.activity-row.request-issue.attention {
+    border-color: var(--cloudshell-warning-text);
+    background: var(--cloudshell-warning-fill);
+    box-shadow: inset 3px 0 0 var(--cloudshell-warning-text);
+}
