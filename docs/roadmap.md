@@ -909,7 +909,13 @@ listed here before pulling in broader proposal work.
   support UI-level source filters over projected `LogSource` records for reads
   and older-history queries; live merged streaming should wait for log sessions
   to support provider-owned multi-source fan-in, shared readers, and disposal
-  semantics instead of faking it in the UI.
+  semantics instead of faking it in the UI. Use
+  [Service observability and degradation](proposals/core/service-observability-and-degradation.md)
+  to track the service-first local-development experience that correlates
+  load, recent exceptions, structured logs, traces, health, resource
+  monitoring, replica scopes, and host/provider capacity context through
+  common CloudShell views without replacing Prometheus, Grafana, or other
+  specialized observability systems.
 - Define only the audit event schemas needed by current MVP operations:
   resource actions, host/runtime operations, image deployments, authorization
   decisions, identity provisioning, configuration reads, and secret reads.
