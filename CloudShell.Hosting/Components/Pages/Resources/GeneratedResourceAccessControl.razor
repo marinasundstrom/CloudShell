@@ -109,7 +109,9 @@
             </FluentAutocomplete>
             @if (PrincipalOptions.Count == 0)
             {
-                <p class="muted">@L["No principals are available to grant access. Resource identities are the only principal source in this MVP slice."]</p>
+                <EmptyState Title="@L["No principals available"].Value"
+                            Message="@L["No principals are available to grant access. Resource identities are the only principal source in this MVP slice."].Value"
+                            Compact="true" />
             }
 
             <label for="access-control-permission">@L["Permission"]</label>
@@ -155,7 +157,9 @@
     private RenderFragment RenderAssignedPrincipals() => @<text>
         @if (GrantGroups.Count == 0)
         {
-            <p class="muted">@L["No principals have access permissions for this resource."]</p>
+            <EmptyState Title="@L["No assigned principals"].Value"
+                        Message="@L["No principals have access permissions for this resource."].Value"
+                        Compact="true" />
         }
         else
         {

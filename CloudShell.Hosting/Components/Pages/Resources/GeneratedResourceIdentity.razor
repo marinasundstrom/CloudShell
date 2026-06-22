@@ -160,7 +160,9 @@
             </dl>
             @if (ProvisioningStatus.Statuses.Count == 0)
             {
-                <p class="muted">@L["No provisioning status was reported for this resource identity."]</p>
+                <EmptyState Title="@L["No provisioning status"].Value"
+                            Message="@L["No provisioning status was reported for this resource identity."].Value"
+                            Compact="true" />
             }
             else
             {

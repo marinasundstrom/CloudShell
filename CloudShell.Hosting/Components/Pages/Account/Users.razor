@@ -142,7 +142,9 @@ else
 
             @if (LocalUsers.Count == 0)
             {
-                <p class="muted">@L["No local users exist yet."]</p>
+                <EmptyState Title="@L["No local users"].Value"
+                            Message="@L["No local users exist yet."].Value"
+                            Compact="true" />
             }
             else
             {
