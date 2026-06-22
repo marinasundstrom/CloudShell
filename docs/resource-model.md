@@ -512,6 +512,13 @@ status, while retained `ResourceHealthSummary` snapshots provide resource-keyed
 history that resource-scoped and environment-wide Health views can chart and
 correlate by resource and check.
 
+`ResourceHealthCheck` is the shared health-signal declaration. Its
+`ResourceProbeType` says how the signal should be interpreted, such as health,
+liveness, readiness, or startup. Its `ResourceProbeSource` says where the
+signal comes from. HTTP is the built-in source today, but providers can add
+non-HTTP evaluators for process, container, runtime, or provider-native
+signals without turning every resource health check into an HTTP endpoint.
+
 `Observability` contains resource observability metadata. If missing, it
 defaults to `ResourceObservability.None` through `EffectiveObservability`.
 `ResourceObservability` can also advertise telemetry sources and scopes. A

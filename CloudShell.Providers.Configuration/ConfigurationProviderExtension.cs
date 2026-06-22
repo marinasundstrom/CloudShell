@@ -49,7 +49,8 @@ public sealed class ConfigurationProviderExtension : ICloudShellExtension
                         new ResourceHealthCheck(
                             "/healthz",
                             EndpointName: "entries",
-                            Name: "health")
+                            Name: "health",
+                            Source: ResourceProbeSource.ForHttp("/healthz", "entries"))
                     ]),
                 resourceClass: ResourceClass.Configuration)
             .AddResourcePredefinedViewSection<Pages.ConfigurationStoreOverviewSection>(

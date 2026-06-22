@@ -3,12 +3,10 @@ using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.ControlPlane.ResourceManager;
 
-public sealed class ResourceHealthProbeService(IHttpClientFactory httpClientFactory)
+public sealed class ResourceHealthProbeService(IEnumerable<IResourceProbeEvaluator> evaluators)
 {
     public const string HttpClientName = CloudShellLogCategories.ResourceHealthProbes;
     public const string HttpClientLogCategory = CloudShellLogCategories.ResourceHealthProbeHttpClient;
-
-    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(5);
 
     public async Task<IReadOnlyDictionary<string, ResourceHealthSummary>> CheckAsync(
         IReadOnlyList<Resource> resources,
@@ -36,7 +34,10 @@ public sealed class ResourceHealthProbeService(IHttpClientFactory httpClientFact
         var checks = new List<ResourceHealthCheckResult>();
         foreach (var check in resource.ResourceHealthChecks)
         {
-            checks.Add(await CheckEndpointAsync(resource, check, cancellationToken));
+            var evaluator = evaluators.FirstOrDefault(candidate => candidate.CanEvaluate(resource, check));
+            checks.Add(evaluator is null
+                ? CreateUnsupportedSourceResult(check)
+                : await evaluator.EvaluateAsync(resource, check, cancellationToken));
         }
 
         var status = checks.Any(check => check.Status == ResourceHealthStatus.Unhealthy)
@@ -52,12 +53,28 @@ public sealed class ResourceHealthProbeService(IHttpClientFactory httpClientFact
             checks);
     }
 
-    private async Task<ResourceHealthCheckResult> CheckEndpointAsync(
+    private static ResourceHealthCheckResult CreateUnsupportedSourceResult(ResourceHealthCheck check) =>
+        new(
+            check,
+            ResourceHealthStatus.Unknown,
+            $"Unsupported probe source '{check.EffectiveSource.Kind}'",
+            null);
+}
+
+public sealed class HttpResourceProbeEvaluator(IHttpClientFactory httpClientFactory) : IResourceProbeEvaluator
+{
+    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(5);
+
+    public bool CanEvaluate(Resource resource, ResourceHealthCheck check) =>
+        check.EffectiveSource.IsHttp;
+
+    public async Task<ResourceHealthCheckResult> EvaluateAsync(
         Resource resource,
         ResourceHealthCheck check,
         CancellationToken cancellationToken)
     {
-        var uri = ResolveCheckUri(resource, check);
+        var source = check.EffectiveSource.Http!;
+        var uri = ResolveCheckUri(resource, source);
         if (uri is null)
         {
             return new ResourceHealthCheckResult(
@@ -68,11 +85,11 @@ public sealed class ResourceHealthProbeService(IHttpClientFactory httpClientFact
         }
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(check.Timeout ?? DefaultTimeout);
+        timeout.CancelAfter(source.Timeout ?? DefaultTimeout);
 
         try
         {
-            var client = httpClientFactory.CreateClient(HttpClientName);
+            var client = httpClientFactory.CreateClient(ResourceHealthProbeService.HttpClientName);
             using var request = new HttpRequestMessage(HttpMethod.Get, uri);
             using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
             var status = (int)response.StatusCode < 400
@@ -103,15 +120,15 @@ public sealed class ResourceHealthProbeService(IHttpClientFactory httpClientFact
         }
     }
 
-    private static Uri? ResolveCheckUri(Resource resource, ResourceHealthCheck check)
+    private static Uri? ResolveCheckUri(Resource resource, ResourceHttpProbeSource source)
     {
-        if (Uri.TryCreate(check.Path, UriKind.Absolute, out var absolute) &&
+        if (Uri.TryCreate(source.Path, UriKind.Absolute, out var absolute) &&
             IsHttpScheme(absolute.Scheme))
         {
             return absolute;
         }
 
-        var endpoint = ResolveEndpoint(resource, check);
+        var endpoint = ResolveEndpoint(resource, source);
         if (endpoint is null ||
             !resource.TryGetResolvedEndpointUri(endpoint, out var endpointUri) ||
             !IsHttpScheme(endpointUri.Scheme))
@@ -119,18 +136,18 @@ public sealed class ResourceHealthProbeService(IHttpClientFactory httpClientFact
             return null;
         }
 
-        var path = string.IsNullOrWhiteSpace(check.Path) ? "/" : check.Path.Trim();
+        var path = string.IsNullOrWhiteSpace(source.Path) ? "/" : source.Path.Trim();
         return Uri.TryCreate(endpointUri, path, out var checkUri)
             ? checkUri
             : null;
     }
 
-    private static ResourceEndpoint? ResolveEndpoint(Resource resource, ResourceHealthCheck check)
+    private static ResourceEndpoint? ResolveEndpoint(Resource resource, ResourceHttpProbeSource source)
     {
-        if (!string.IsNullOrWhiteSpace(check.EndpointName))
+        if (!string.IsNullOrWhiteSpace(source.EndpointName))
         {
             return resource.Endpoints.FirstOrDefault(endpoint =>
-                string.Equals(endpoint.Name, check.EndpointName, StringComparison.OrdinalIgnoreCase));
+                string.Equals(endpoint.Name, source.EndpointName, StringComparison.OrdinalIgnoreCase));
         }
 
         return resource.Endpoints.FirstOrDefault(endpoint => IsHttpScheme(endpoint.Protocol)) ??

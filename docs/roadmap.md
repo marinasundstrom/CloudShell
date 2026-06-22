@@ -922,6 +922,10 @@ listed here before pulling in broader proposal work.
 - Use [Lifecycle orchestration](proposals/core/lifecycle-orchestration.md) to
   keep dependency startup, lifecycle action execution, resource activity, and
   future event-triggered automation on one common orchestration model.
+- Use [Resource recovery](proposals/core/resource-recovery.md) to track
+  liveness-signal-driven restart policy, exponential backoff, and provider
+  probe evaluators while keeping the Health UI wording and normal lifecycle
+  action path.
 - Use [Logging infrastructure](proposals/core/logging-infrastructure.md) to
   track structured logging, non-text operational payloads, resource events,
   audit records, diagnostics, metrics, and traces without prematurely merging
@@ -1030,7 +1034,8 @@ listed here before pulling in broader proposal work.
 - Define host/runtime recovery policy separately from host restart cleanup:
   detached container apps should be rediscovered through container host and
   stable workload identity, while crash restart/backoff behavior should be an
-  orchestrator policy instead of a side effect of runtime-state recovery.
+  orchestrator or resource recovery policy instead of a side effect of
+  runtime-state recovery.
 
 ### Next: Remote Docker Host Completion
 

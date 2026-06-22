@@ -2360,7 +2360,7 @@ public sealed class InProcessControlPlaneResourceStateTests
             traceStore ?? new EmptyTraceStore(),
             metricStore ?? new EmptyMetricStore(),
             new InMemoryResourceHealthStore(Options.Create(new ResourceHealthOptions())),
-            new ResourceHealthProbeService(new TestHttpClientFactory()),
+            new ResourceHealthProbeService([new HttpResourceProbeEvaluator(new TestHttpClientFactory())]),
             new ResourceHealthRefreshCoordinator(),
             CreateSelectionStore(),
             [],

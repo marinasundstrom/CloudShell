@@ -6765,7 +6765,7 @@ public sealed partial class ApplicationResourceService(
     private static IReadOnlyList<ResourceHealthCheck> NormalizeHealthChecks(
         IReadOnlyList<ResourceHealthCheck> healthChecks) =>
         healthChecks
-            .Where(check => !string.IsNullOrWhiteSpace(check.Path))
+            .Where(check => check.Source is not null || !string.IsNullOrWhiteSpace(check.Path))
             .Select(check => check with
             {
                 Path = check.Path.Trim(),

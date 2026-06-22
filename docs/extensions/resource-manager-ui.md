@@ -92,7 +92,8 @@ builder.AddResourceType<Pages.RegisterAcmeService>(
         new ResourceHealthCheck(
             "/healthz",
             EndpointName: "http",
-            Name: "health")
+            Name: "health",
+            Source: ResourceProbeSource.ForHttp("/healthz", "http"))
     ]));
 ```
 

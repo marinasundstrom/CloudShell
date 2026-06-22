@@ -17,6 +17,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Resource health checks now carry a shared probe source abstraction, with HTTP
+  as the built-in source and a provider-facing probe evaluator interface for
+  non-HTTP resource health signals.
 - Added a service observability and degradation proposal for service-first,
   replica-aware local-development telemetry correlation, common views, load
   and capacity context, established telemetry interfaces, extension

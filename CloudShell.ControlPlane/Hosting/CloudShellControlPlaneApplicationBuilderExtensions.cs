@@ -101,6 +101,8 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
                 : serviceProvider.GetRequiredService<InMemoryResourceHealthStore>();
         });
         builder.Services.AddScoped<ResourceHealthProbeService>();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<IResourceProbeEvaluator, HttpResourceProbeEvaluator>());
         builder.Services.AddScoped<ResourceTemplateService>();
         builder.Services.AddScoped<IContainerHostResolver, ContainerHostResolver>();
         builder.Services.AddScoped<ResourceOrchestrationService>();

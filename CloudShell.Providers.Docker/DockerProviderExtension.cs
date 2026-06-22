@@ -44,7 +44,8 @@ public sealed class DockerProviderExtension : ICloudShellExtension
                         new ResourceHealthCheck(
                             "/_ping",
                             EndpointName: "host",
-                            Name: "host")
+                            Name: "host",
+                            Source: ResourceProbeSource.ForHttp("/_ping", "host"))
                     ],
                     EnableHealthChecksByDefault: false),
                 resourceClass: ResourceClass.Infrastructure)

@@ -59,7 +59,8 @@ while still letting providers own resource-specific runtime behavior.
   automatically.
 - Do not define full retry, restart, backoff, crash recovery, or durable
   workflow persistence in this proposal. Those policies should build on this
-  lifecycle model.
+  lifecycle model; liveness-signal-driven restart policy is tracked by
+  [Resource recovery](resource-recovery.md).
 
 ## Current Foundation
 
@@ -187,7 +188,9 @@ Potential extension points include:
 - WebSocket or streaming subscriptions for Resource Manager, CLIs, agents, and
   provider tooling that need live operation progress
 - runtime recovery policies that decide whether a crashed resource should be
-  restarted, left failed, or handed to a provider-native orchestrator
+  restarted, left failed, or handed to a provider-native orchestrator. The
+  first liveness-signal and backoff policy is tracked by
+  [Resource recovery](resource-recovery.md).
 
 For MVP, lifecycle execution should remain directly orchestrated by Resource
 Manager. Event subscribers should not be required for dependency startup,

@@ -544,7 +544,12 @@ Verification:
 
 Implementation:
 
-- Use probe type, path, endpoint name, name, and timeout explicitly.
+- Use probe type, source, name, and source-specific settings explicitly.
+- Use `ResourceProbeSource` to describe where the signal comes from. HTTP is
+  the built-in source; provider-native sources should use stable source kinds
+  and non-secret metadata.
+- Use `IResourceProbeEvaluator` when a provider can evaluate a non-HTTP probe
+  source for Resource Manager health polling.
 - Keep health check declarations separate from observed health state.
 - Type-level probe options can provide defaults, but provider projection should
   still reflect what the resource supports.

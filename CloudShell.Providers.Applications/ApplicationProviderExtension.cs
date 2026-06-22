@@ -89,12 +89,14 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                         new ResourceHealthCheck(
                             "/healthz",
                             EndpointName: "http",
-                            Name: "health"),
+                            Name: "health",
+                            Source: ResourceProbeSource.ForHttp("/healthz", "http")),
                         new ResourceHealthCheck(
                             "/alive",
                             ResourceProbeType.Liveness,
                             "http",
-                            "liveness")
+                            "liveness",
+                            Source: ResourceProbeSource.ForHttp("/alive", "http"))
                     ]),
                 resourceClass: ResourceClass.Project)
             .AddResourceType<ContainerAppPages.RegisterContainerImageResource>(

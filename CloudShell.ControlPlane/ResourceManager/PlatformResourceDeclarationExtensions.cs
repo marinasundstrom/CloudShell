@@ -1177,7 +1177,8 @@ internal sealed class ServiceResourceBuilder(
                     type,
                     NormalizeNullable(endpointName),
                     NormalizeNullable(name) ?? type.ToString().ToLowerInvariant(),
-                    timeout))
+                    timeout,
+                    ResourceProbeSource.ForHttp(path, NormalizeNullable(endpointName), timeout)))
                 .ToArray()
         };
         return this;

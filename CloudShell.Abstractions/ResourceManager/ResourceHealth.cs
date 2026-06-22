@@ -8,12 +8,72 @@ public enum ResourceProbeType
     Startup
 }
 
+public static class ResourceProbeSourceKinds
+{
+    public const string Http = "http";
+}
+
+public sealed record ResourceProbeSource(
+    string Kind,
+    ResourceHttpProbeSource? Http = null,
+    IReadOnlyDictionary<string, string>? Metadata = null)
+{
+    public static ResourceProbeSource ForHttp(
+        string path,
+        string? endpointName = null,
+        TimeSpan? timeout = null) =>
+        new(
+            ResourceProbeSourceKinds.Http,
+            new ResourceHttpProbeSource(path, endpointName, timeout));
+
+    public bool IsHttp =>
+        string.Equals(Kind, ResourceProbeSourceKinds.Http, StringComparison.OrdinalIgnoreCase) &&
+        Http is not null;
+}
+
+public sealed record ResourceHttpProbeSource(
+    string Path,
+    string? EndpointName = null,
+    TimeSpan? Timeout = null);
+
 public sealed record ResourceHealthCheck(
     string Path,
     ResourceProbeType Type = ResourceProbeType.Health,
     string? EndpointName = null,
     string Name = "health",
-    TimeSpan? Timeout = null);
+    TimeSpan? Timeout = null,
+    ResourceProbeSource? Source = null)
+{
+    public ResourceHealthCheck(
+        ResourceProbeSource source,
+        ResourceProbeType type = ResourceProbeType.Health,
+        string name = "health")
+        : this(
+            source.Http?.Path ?? string.Empty,
+            type,
+            source.Http?.EndpointName,
+            name,
+            source.Http?.Timeout,
+            source)
+    {
+    }
+
+    public ResourceProbeSource EffectiveSource =>
+        Source ?? ResourceProbeSource.ForHttp(Path, EndpointName, Timeout);
+
+    public ResourceHttpProbeSource? HttpSource =>
+        EffectiveSource.IsHttp ? EffectiveSource.Http : null;
+}
+
+public interface IResourceProbeEvaluator
+{
+    bool CanEvaluate(Resource resource, ResourceHealthCheck check);
+
+    Task<ResourceHealthCheckResult> EvaluateAsync(
+        Resource resource,
+        ResourceHealthCheck check,
+        CancellationToken cancellationToken = default);
+}
 
 public enum ResourceHealthStatus
 {
