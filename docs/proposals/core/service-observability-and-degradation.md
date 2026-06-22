@@ -135,6 +135,30 @@ Runtime scopes are used for filtering and breakdowns. They should appear as
 "All instances" by default, with per-scope drill-down when more than one
 runtime scope exists.
 
+### Health Scope
+
+A health scope is the status boundary described by a health signal or computed
+degradation summary. It can be:
+
+- the whole service observation target
+- a selected group of related resources
+- one dependency or dependency group
+- one exposed service, route, or endpoint set
+- one runtime scope, such as a replica or backing container
+
+Health scopes let CloudShell distinguish "the resource is unavailable" from
+"one dependency, route, replica, or selected resource group is degraded."
+Scopes can come from provider metadata, from structured health-check payloads,
+or from Control Plane composition over known resources and relationships.
+
+In the future, the Control Plane can expose CloudShell-provided health check
+endpoints for health scopes. For example, it could expose a health endpoint
+for an application topology, a frontend plus its declared backend and SQL
+dependencies, or a container app and all of its replicas. Those endpoints
+would be derived from resource health snapshots, monitoring snapshots,
+telemetry, and provider-owned status, rather than requiring each application
+to implement the same aggregate endpoint itself.
+
 ### Load
 
 Load describes service traffic over a time window. The MVP should derive load
@@ -166,6 +190,27 @@ be simple and explainable:
 
 Findings should link to the evidence: traces, logs, metric points, monitoring
 snapshots, health checks, and resource details.
+
+Health can be one of the inputs to degradation, and it may be aggregate or
+scoped. A resource-level HTTP health endpoint might front many services,
+dependencies, routes, runtime instances, or a selected group of related
+CloudShell resources. For example, a frontend application can expose a JSON
+health response that includes its own status, backend API dependency status,
+SQL Server connectivity, and per-replica status. When a health signal is
+aggregated, the degradation view should preserve the health-scope breakdown
+if the payload, provider, or Control Plane can expose it: which service,
+dependency, route, instance, replica, partition, backing container, or
+referenced resource contributed to the degraded result. The stable resource
+remains the entry point, while runtime scopes, service scopes, and
+related-resource scopes provide drill-down.
+
+This allows Health to say "the resource is partially degraded" without
+claiming the whole resource is dead and without requiring every sub-service to
+be modeled as a separate resource. It also gives future Health dashboards
+enough structure to chart aggregate status and per-scope status over time.
+Recovery should still consume explicit liveness signals rather than broad
+aggregate Health status unless a provider or operator maps a specific
+aggregate result as the recovery signal.
 
 ### Capacity Context
 
