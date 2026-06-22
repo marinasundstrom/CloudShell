@@ -1,5 +1,5 @@
 <article class="@CssClass">
-    @if (!string.IsNullOrWhiteSpace(IconName))
+    @if (ShouldShowIcon)
     {
         <div class="metric-card-icon-shell">
             <ResourceIcon IconName="@IconName"
@@ -36,17 +36,24 @@
     public bool Warning { get; set; }
 
     [Parameter]
+    public bool Compact { get; set; }
+
+    [Parameter]
     public string? Class { get; set; }
 
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
+    private bool ShouldShowIcon =>
+        !Compact &&
+        !string.IsNullOrWhiteSpace(IconName);
+
     private string CssClass
     {
         get
         {
-            var cardClass = "metric-card";
-            if (!string.IsNullOrWhiteSpace(IconName))
+            var cardClass = Compact ? "metric-summary-card" : "metric-card";
+            if (ShouldShowIcon)
             {
                 cardClass += " has-icon";
             }

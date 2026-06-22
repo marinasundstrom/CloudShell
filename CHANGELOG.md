@@ -37,6 +37,9 @@ on `git blame --follow`, and then by the broad type of change.
   icon, title, and secondary-label rendering.
 - Resource Manager pages now use the shared empty-state component instead of
   locally hand-coded empty-state markup for simple empty and not-found states.
+- Summary metric cards now support compact rendering, and summary metric cards
+  and grids own their styling through component-scoped CSS instead of
+  page-level hand-coded markup.
 
 ### 2026-06-21
 

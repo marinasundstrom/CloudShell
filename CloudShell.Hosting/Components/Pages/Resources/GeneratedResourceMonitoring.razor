@@ -121,16 +121,15 @@
                 }
             </dl>
 
-            <div class="metric-summary-grid" aria-label="@L["Resource metrics"]">
+            <SummaryMetricGrid AriaLabel="@L["Resource metrics"].Value">
                 @foreach (var metric in Snapshot.Metrics)
                 {
-                    <div class="metric-summary-card">
-                        <span>@(metric.DisplayName ?? metric.Name)</span>
-                        <strong>@FormatValue(metric)</strong>
-                        <small>@(metric.Description ?? metric.Name)</small>
-                    </div>
+                    <SummaryMetricCard Title="@(metric.DisplayName ?? metric.Name)"
+                                       Value="@FormatValue(metric)"
+                                       Summary="@(metric.Description ?? metric.Name)"
+                                       Compact="true" />
                 }
-            </div>
+            </SummaryMetricGrid>
         }
     </text>;
 

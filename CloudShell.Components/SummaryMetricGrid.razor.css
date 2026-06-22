@@ -1,0 +1,6 @@
+.metric-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: .5rem;
+    margin-bottom: .75rem;
+}

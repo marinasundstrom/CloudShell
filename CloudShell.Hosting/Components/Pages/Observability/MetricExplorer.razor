@@ -152,16 +152,15 @@ else if (ShowHeading)
             {
                 @if (points.Count > 0)
                 {
-                    <div class="metric-summary-grid" aria-label="@L["Metric summaries"]">
+                    <SummaryMetricGrid AriaLabel="@L["Metric summaries"].Value">
                         @foreach (var summary in metricSummaries)
                         {
-                            <div class="metric-summary-card">
-                                <span>@summary.Name</span>
-                                <strong>@FormatMetricValue(summary.LatestValue, summary.Unit)</strong>
-                                <small>@L["{0} point(s) / latest {1}", summary.PointCount, summary.LatestTimestamp.ToLocalTime().ToString("HH:mm:ss")]</small>
-                            </div>
+                            <SummaryMetricCard Title="@summary.Name"
+                                               Value="@FormatMetricValue(summary.LatestValue, summary.Unit)"
+                                               Summary="@L["{0} point(s) / latest {1}", summary.PointCount, summary.LatestTimestamp.ToLocalTime().ToString("HH:mm:ss")].Value"
+                                               Compact="true" />
                         }
-                    </div>
+                    </SummaryMetricGrid>
                 }
 
                 @if (metricPanels.Count > 0)

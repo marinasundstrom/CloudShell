@@ -68,16 +68,15 @@ else
             }
             else
             {
-                <div class="metric-summary-grid" aria-label="Container app resource metrics">
+                <SummaryMetricGrid AriaLabel="Container app resource metrics">
                     @foreach (var metric in ApplicationSnapshot.Metrics)
                     {
-                        <div class="metric-summary-card">
-                            <span>@(metric.DisplayName ?? metric.Name)</span>
-                            <strong>@FormatValue(metric.Value, metric.Unit)</strong>
-                            <small>@(metric.Description ?? metric.Name)</small>
-                        </div>
+                        <SummaryMetricCard Title="@(metric.DisplayName ?? metric.Name)"
+                                           Value="@FormatValue(metric.Value, metric.Unit)"
+                                           Summary="@(metric.Description ?? metric.Name)"
+                                           Compact="true" />
                     }
-                </div>
+                </SummaryMetricGrid>
             }
         </section>
     }
@@ -93,33 +92,28 @@ else
             }
             else
             {
-                <div class="metric-summary-grid" aria-label="Container app replica metrics">
-                    <div class="metric-summary-card">
-                        <span>CPU usage</span>
-                        <strong>@FormatValue(SumMetric("resource.cpu.usage"), "%")</strong>
-                        <small>Sum of observed replica CPU usage.</small>
-                    </div>
-                    <div class="metric-summary-card">
-                        <span>Memory usage</span>
-                        <strong>@FormatValue(SumMetric("resource.memory.usage"), "bytes")</strong>
-                        <small>Sum of observed replica memory usage.</small>
-                    </div>
-                    <div class="metric-summary-card">
-                        <span>Network received</span>
-                        <strong>@FormatValue(SumMetric("resource.network.rxBytes"), "bytes")</strong>
-                        <small>Total observed replica network bytes received.</small>
-                    </div>
-                    <div class="metric-summary-card">
-                        <span>Network sent</span>
-                        <strong>@FormatValue(SumMetric("resource.network.txBytes"), "bytes")</strong>
-                        <small>Total observed replica network bytes sent.</small>
-                    </div>
-                    <div class="metric-summary-card">
-                        <span>Process count</span>
-                        <strong>@FormatValue(SumMetric("resource.process.count"), "count")</strong>
-                        <small>Sum of observed replica process counts.</small>
-                    </div>
-                </div>
+                <SummaryMetricGrid AriaLabel="Container app replica metrics">
+                    <SummaryMetricCard Title="CPU usage"
+                                       Value="@FormatValue(SumMetric(CpuUsageMetricName), PercentUnit)"
+                                       Summary="Sum of observed replica CPU usage."
+                                       Compact="true" />
+                    <SummaryMetricCard Title="Memory usage"
+                                       Value="@FormatValue(SumMetric(MemoryUsageMetricName), BytesUnit)"
+                                       Summary="Sum of observed replica memory usage."
+                                       Compact="true" />
+                    <SummaryMetricCard Title="Network received"
+                                       Value="@FormatValue(SumMetric(NetworkReceivedMetricName), BytesUnit)"
+                                       Summary="Total observed replica network bytes received."
+                                       Compact="true" />
+                    <SummaryMetricCard Title="Network sent"
+                                       Value="@FormatValue(SumMetric(NetworkSentMetricName), BytesUnit)"
+                                       Summary="Total observed replica network bytes sent."
+                                       Compact="true" />
+                    <SummaryMetricCard Title="Process count"
+                                       Value="@FormatValue(SumMetric(ProcessCountMetricName), CountUnit)"
+                                       Summary="Sum of observed replica process counts."
+                                       Compact="true" />
+                </SummaryMetricGrid>
             }
         </section>
 
@@ -163,13 +157,13 @@ else
                                         <strong>@(row.Snapshot?.Status ?? "Unavailable")</strong>
                                         <span>@GetMonitoringMessage(row)</span>
                                     </td>
-                                    <td>@FormatMetric(row, "resource.cpu.usage")</td>
-                                    <td>@FormatMetric(row, "resource.memory.usage")</td>
+                                    <td>@FormatMetric(row, CpuUsageMetricName)</td>
+                                    <td>@FormatMetric(row, MemoryUsageMetricName)</td>
                                     <td>
-                                        <strong>@FormatMetric(row, "resource.network.rxBytes")</strong>
-                                        <span>sent @FormatMetric(row, "resource.network.txBytes")</span>
+                                        <strong>@FormatMetric(row, NetworkReceivedMetricName)</strong>
+                                        <span>sent @FormatMetric(row, NetworkSentMetricName)</span>
                                     </td>
-                                    <td>@FormatMetric(row, "resource.process.count")</td>
+                                    <td>@FormatMetric(row, ProcessCountMetricName)</td>
                                 </tr>
                             }
                         </tbody>
@@ -182,6 +176,14 @@ else
 
 @code {
     private static readonly TimeSpan AutoRefreshInterval = TimeSpan.FromSeconds(5);
+    private const string CpuUsageMetricName = "resource.cpu.usage";
+    private const string MemoryUsageMetricName = "resource.memory.usage";
+    private const string NetworkReceivedMetricName = "resource.network.rxBytes";
+    private const string NetworkSentMetricName = "resource.network.txBytes";
+    private const string ProcessCountMetricName = "resource.process.count";
+    private const string PercentUnit = "%";
+    private const string BytesUnit = "bytes";
+    private const string CountUnit = "count";
 
     [Parameter]
     public string? ResourceId { get; set; }
