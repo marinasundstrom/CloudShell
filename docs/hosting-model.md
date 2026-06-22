@@ -122,9 +122,11 @@ app.MapCloudShell<App>();
 app.Run();
 ```
 
-In this mode, the UI consumes the same `IControlPlane` abstraction as a split
-host, but the registered implementation is in-process and backed by Control
-Plane services.
+In this mode, the Resource Manager UI integration consumes the same
+Control Plane-facing abstractions as a split host, but the registered
+implementation is in-process and backed by Control Plane services. The
+CloudShell UI shell still hosts Resource Manager as an integration rather than
+owning Control Plane behavior directly.
 
 Combined local-development hosts do not introduce a separate runner concept.
 When resources are declared programmatically in the combined host, the same
@@ -255,10 +257,11 @@ The UI host owns:
 
 - Blazor shell rendering.
 - Navigation and layout.
-- An `IControlPlane` implementation backed by the remote Control
-  Plane API.
+- Shell integrations such as Resource Manager UI, which may register client
+  adapters backed by the remote Control Plane API.
 - Authentication challenge UX when required by the deployment.
-- A Control Plane credential used by the remote adapter.
+- A Control Plane credential used by Resource Manager or other integration
+  adapters that need to call the remote backend.
 
 ```csharp
 builder.Services.AddRemoteControlPlane(options =>
@@ -284,9 +287,10 @@ controlPlane.Resources(resources =>
 });
 ```
 
-The UI host should not declare resources. It should discover resources through
-`IControlPlane` so one shared Control Plane remains the authority for
-checked-in configuration, persisted state, provider actions, and authorization.
+The UI host should not declare resources. Resource Manager UI should discover
+resources through its configured Control Plane adapter so one shared Control
+Plane remains the authority for checked-in configuration, persisted state,
+provider actions, and authorization.
 Install cross-cutting capability packages on both sides when they include both
 resource behavior and UI support: the Control Plane host receives the
 provider/runtime registrations, and the UI host receives the shell or Resource

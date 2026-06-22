@@ -9,6 +9,13 @@ most user-facing resource providers, but they target different apps. The
 CloudShell UI and the Control Plane may be hosted together in one ASP.NET Core
 process during development, or they may run as separate deployable services.
 
+Resource Manager is itself a CloudShell integration. It is built-in and
+central to the current product, but it should be treated as a peer of other
+CloudShell extensions at the shell boundary rather than as the shell itself.
+Resource Manager then exposes its own extension model for resource providers,
+resource-specific UI, resource actions, templates, and provider-backed
+operational data.
+
 A CloudShell capability package is the product/package boundary that usually
 groups those pieces. For example, a Docker capability package can include a
 Control Plane provider, resource type definitions, declaration helpers, logs,
@@ -45,6 +52,12 @@ model. Resource Manager UI extensions build on that model for resource-specific
 presentation. Control Plane resource-provider extensions are non-UI services
 that project and operate resources.
 
+This creates two extension layers. A CloudShell extension can contribute a
+top-level product area such as Resource Manager, observability, or an
+extension-owned workspace. Resource Manager, as one of those product areas,
+can also accept resource-provider contributions through Resource Manager
+contracts that span UI and Control Plane behavior.
+
 A Control Plane provider contributes resource behavior: projection, creation,
 procedure execution, logs, templates, provider-owned runtime state, and
 provider-owned configuration. Resource Manager UI contributions contribute
@@ -65,9 +78,12 @@ product surface.
 
 For split hosting, register the capability package's Control Plane side in the
 Control Plane host and the package's UI side in the CloudShell UI host. UI
-integrations should consume `IControlPlane` and other public domain managers so
-the same UI code works with either an in-process Control Plane or a remote
-adapter.
+integrations should consume their product area's public managers and client
+adapters. For Resource Manager UI, that means Resource Manager/Control Plane
+abstractions such as `IControlPlane` or `IResourceManager`, which can be backed
+by an in-process implementation in a combined host or a remote adapter in a
+split host. The core CloudShell UI shell should only know that Resource
+Manager contributed shell surfaces; it should not own Control Plane behavior.
 
 UI extensions do not have to use the same component stack everywhere. They can
 render extension-owned pages or tools with their own presenters when they own
