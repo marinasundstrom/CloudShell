@@ -72,6 +72,8 @@ on `git blame --follow`, and then by the broad type of change.
   assessment, most relevant check detail, contributing check counts, and last
   observation time so runtime observations are visible next to replica state
   and placement.
+- Resource Health now links aggregate runtime-scope observations to the
+  resource-owned Scale and replicas view when the resource type exposes one.
 - Health status pills now have a shared `HealthPill` component used by the
   resource Health views, dashboard issue list, resource inventory, and
   container app replica table.

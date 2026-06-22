@@ -29,6 +29,9 @@
     private bool IsDisposed { get; set; }
     private bool AutoRefresh { get; set; } = true;
     private System.Threading.Timer? RefreshTimer { get; set; }
+    private static readonly ResourceViewId RuntimeScopeDetailsViewId =
+        new(ResourceTabGroupIds.Application, "scale-replicas");
+
     private bool SupportsHealthChecks =>
         Resource?.ResourceHealthChecks.Count > 0 ||
         ResourceType?.ResourceProbeOptions.SupportsHealthChecks == true;
@@ -134,6 +137,14 @@
                                   IconStart="@(new Icons.Regular.Size20.ArrowReset())"
                                   Href="@BuildRecoveryRoute()">
                         @L["Recovery"]
+                    </FluentAnchor>
+                }
+                @if (HasRuntimeScopeDetailsView())
+                {
+                    <FluentAnchor Appearance="Appearance.Neutral"
+                                  IconStart="@(new Icons.Regular.Size20.AppsListDetail())"
+                                  Href="@BuildRuntimeScopeDetailsRoute()">
+                        @L["Scale and replicas"]
                     </FluentAnchor>
                 }
             </Actions>
@@ -327,6 +338,21 @@
             Composition,
             ResourceId ?? string.Empty,
             ResourcePredefinedViewIds.Recovery);
+
+    private string BuildRuntimeScopeDetailsRoute() =>
+        ResourceManagerCompositionLinks.ResourceDetails(
+            Composition,
+            ResourceId ?? string.Empty,
+            RuntimeScopeDetailsViewId);
+
+    private bool HasRuntimeScopeDetailsView() =>
+        ResourceType?.ResourceTabs.Any(tab => tab.Id == RuntimeScopeDetailsViewId) == true &&
+        Summary?.Checks.Any(check =>
+            check.ScopeObservations.Any(observation =>
+                string.Equals(
+                    observation.ScopeKind,
+                    ResourceHealthScopeKinds.Runtime,
+                    StringComparison.OrdinalIgnoreCase))) == true;
 
     private static string FormatPath(ResourceHealthCheck check)
     {
