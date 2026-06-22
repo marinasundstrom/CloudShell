@@ -140,6 +140,12 @@ CloudShell's internal orchestrator deployment model, not a public
 rollout-history or restore API. Runtime materialization is requested through
 the internal orchestrator deployment-apply boundary; the container app domain
 records app revisions and does not directly replace replicas or remap ingress.
+When an image deployment changes a running app, the Control Plane applies the
+provider-described deployment spec through the selected orchestrator instead
+of returning a user-facing restart requirement. The default local orchestrator
+still uses its current container start mechanics; side-by-side replacement,
+readiness gates, traffic cutover, and old-replica cleanup remain rollout
+strategy work.
 
 ## Service Discovery
 

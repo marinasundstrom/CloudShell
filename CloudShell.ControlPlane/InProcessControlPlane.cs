@@ -716,7 +716,7 @@ public sealed class InProcessControlPlane(
         try
         {
             result = await provider.UpdateImageAsync(
-                CreateProcedureContext(resource),
+                CreateProcedureContext(resource, triggeredBy),
                 image,
                 command.RestartIfRunning,
                 triggeredBy,
@@ -746,8 +746,67 @@ public sealed class InProcessControlPlane(
             resource.Id,
             AffectedResourceIds: [resource.Id]));
 
+        if (updatedResource is not null)
+        {
+            result = await ApplyImageDeploymentIfRequiredAsync(
+                updatedResource,
+                result,
+                triggeredBy,
+                cancellationToken);
+        }
+
         return result;
     }
+
+    private async Task<ResourceProcedureResult> ApplyImageDeploymentIfRequiredAsync(
+        Resource resource,
+        ResourceProcedureResult result,
+        string? triggeredBy,
+        CancellationToken cancellationToken)
+    {
+        if (!result.RestartRequired)
+        {
+            return result;
+        }
+
+        var provider = GetDeploymentProvider(resource);
+        if (provider is null ||
+            !provider.CanDescribeDeployment(resource))
+        {
+            return result;
+        }
+
+        var deployment = await provider.DescribeDeploymentAsync(
+            CreateProcedureContext(
+                resource,
+                triggeredBy,
+                "Image deployment requested runtime reconciliation."),
+            cancellationToken);
+        if (deployment is null)
+        {
+            return result;
+        }
+
+        var applyResult = await orchestration.ApplyDeploymentAsync(
+            resource,
+            deployment,
+            cancellationToken,
+            triggeredBy,
+            "Image deployment requested runtime reconciliation.");
+        return MergeAppliedDeploymentResult(result, applyResult.ProcedureResult);
+    }
+
+    private static ResourceProcedureResult MergeAppliedDeploymentResult(
+        ResourceProcedureResult updateResult,
+        ResourceProcedureResult applyResult) =>
+        new(
+            string.Join(
+                " ",
+                new[] { updateResult.Message, applyResult.Message }
+                    .Where(message => !string.IsNullOrWhiteSpace(message))),
+            signals: updateResult.Signals
+                .Concat(applyResult.Signals)
+                .ToArray());
 
     private static string FormatRequestedReplicas(int? requestedReplicas) =>
         requestedReplicas is { } value
@@ -2406,7 +2465,25 @@ public sealed class InProcessControlPlane(
             as IResourceReplicaUpdateProvider;
     }
 
-    private ResourceProcedureContext CreateProcedureContext(Resource resource)
+    private IResourceOrchestratorDeploymentProvider? GetDeploymentProvider(Resource resource)
+    {
+        var registration = GetRegistrationForResourceOrAncestor(resource);
+        if (registration is not null)
+        {
+            return resourceManager.Providers.FirstOrDefault(provider =>
+                string.Equals(provider.Id, registration.ProviderId, StringComparison.OrdinalIgnoreCase))
+                as IResourceOrchestratorDeploymentProvider;
+        }
+
+        return resourceManager.Providers.FirstOrDefault(provider =>
+            string.Equals(provider.DisplayName, resource.Provider, StringComparison.OrdinalIgnoreCase))
+            as IResourceOrchestratorDeploymentProvider;
+    }
+
+    private ResourceProcedureContext CreateProcedureContext(
+        Resource resource,
+        string? triggeredBy = null,
+        string? cause = null)
     {
         var registration = GetRegistrationForResourceOrAncestor(resource);
         var group = resourceManager.GetGroupForResource(resource.Id);
@@ -2416,7 +2493,10 @@ public sealed class InProcessControlPlane(
             group?.Id,
             registrations,
             resourceManager,
-            orchestration.PreferredContainerHostId);
+            orchestration.PreferredContainerHostId,
+            triggeredBy,
+            cause,
+            resourceEvents);
     }
 
     private ResourceRegistration? GetRegistrationForResourceOrAncestor(Resource resource)

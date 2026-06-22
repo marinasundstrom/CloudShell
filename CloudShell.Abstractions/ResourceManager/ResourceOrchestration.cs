@@ -113,6 +113,15 @@ public interface IResourceOrchestratorDeploymentApplier
         CancellationToken cancellationToken = default);
 }
 
+public interface IResourceOrchestratorDeploymentProvider
+{
+    bool CanDescribeDeployment(Resource resource);
+
+    Task<ResourceOrchestratorDeployment?> DescribeDeploymentAsync(
+        ResourceProcedureContext context,
+        CancellationToken cancellationToken = default);
+}
+
 public interface IResourceOrchestrationDescriptorProvider
 {
     bool CanDescribe(Resource resource);

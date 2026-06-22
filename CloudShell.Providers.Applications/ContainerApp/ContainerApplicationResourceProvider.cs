@@ -21,6 +21,7 @@ internal sealed class ContainerApplicationResourceProvider(
         actions),
     IResourceImageUpdateProvider,
     IResourceReplicaUpdateProvider,
+    IResourceOrchestratorDeploymentProvider,
     IResourceOrchestratorServiceProcedureProvider
 {
     public const string ProviderId = ApplicationResourceProviderIds.ContainerApplication;
@@ -72,6 +73,14 @@ internal sealed class ContainerApplicationResourceProvider(
         ResourceProcedureContext context,
         CancellationToken cancellationToken = default) =>
         containerApplications.CreateOrchestratorServiceAsync(context, cancellationToken);
+
+    public bool CanDescribeDeployment(Resource resource) =>
+        containerApplications.CanDescribeDeployment(resource);
+
+    public Task<ResourceOrchestratorDeployment?> DescribeDeploymentAsync(
+        ResourceProcedureContext context,
+        CancellationToken cancellationToken = default) =>
+        containerApplications.DescribeDeploymentAsync(context, cancellationToken);
 
     public Task PrepareOrchestratorServiceAsync(
         ResourceOrchestratorServiceProcedureContext context,

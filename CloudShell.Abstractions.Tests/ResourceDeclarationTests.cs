@@ -3113,6 +3113,7 @@ public sealed class ResourceDeclarationTests
         Assert.IsNotAssignableFrom<IProgrammaticResourceDeclarationProvider>(applications);
         Assert.IsNotAssignableFrom<IResourceOrchestrationDescriptorProvider>(applications);
         Assert.IsNotAssignableFrom<IResourceActionAvailabilityProvider>(applications);
+        Assert.IsAssignableFrom<IResourceOrchestratorDeploymentProvider>(applications);
         Assert.Equal(
             ["application:worker"],
             serviceProvider.GetRequiredService<ExecutableApplicationResourceProvider>()
@@ -3147,12 +3148,15 @@ public sealed class ResourceDeclarationTests
             provider =>
                 provider is IResourceImageUpdateProvider or
                 IResourceReplicaUpdateProvider or
+                IResourceOrchestratorDeploymentProvider or
                 IResourceOrchestratorServiceProcedureProvider);
         Assert.IsAssignableFrom<IResourceImageUpdateProvider>(
             serviceProvider.GetRequiredService<ContainerApplicationResourceProvider>());
         Assert.IsAssignableFrom<IResourceReplicaUpdateProvider>(
             serviceProvider.GetRequiredService<ContainerApplicationResourceProvider>());
         Assert.IsAssignableFrom<IResourceOrchestratorServiceProcedureProvider>(
+            serviceProvider.GetRequiredService<ContainerApplicationResourceProvider>());
+        Assert.IsAssignableFrom<IResourceOrchestratorDeploymentProvider>(
             serviceProvider.GetRequiredService<ContainerApplicationResourceProvider>());
     }
 

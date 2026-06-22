@@ -272,9 +272,11 @@ liveness/lifecycle signals, while scaling changes desired capacity.
    retiring old runtime replicas are orchestrator responsibilities. Use the
    internal orchestrator deployment/revision contracts for container app
    implementation work. The Control Plane now has an internal deployment-apply
-   boundary for dispatching a deployment spec to the selected orchestrator, but
-   defer full rollout history, restore, revision management, traffic splitting,
-   and advanced rollout controls to later deployment/revision slices.
+   boundary for dispatching a deployment spec to the selected orchestrator, and
+   running image deployments use that boundary when runtime reconciliation is
+   required. Defer full rollout history, restore, revision management, traffic
+   splitting, side-by-side replacement, and advanced rollout controls to later
+   deployment/revision slices.
 7. Keep container app replica diagnostics app-scoped in Scale and replicas. It
    shows app-owned replica/runtime diagnostics to users who can view or manage
    the container app without requiring the global runtime-managed inventory

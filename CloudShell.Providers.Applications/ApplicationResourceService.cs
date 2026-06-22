@@ -51,6 +51,7 @@ public sealed partial class ApplicationResourceService(
     IApplicationResourceDeclarationOperations,
     IApplicationResourceDescriptorOperations,
     IApplicationResourceActionAvailabilityOperations,
+    IResourceOrchestratorDeploymentProvider,
     IContainerApplicationResourceProviderOperations,
     ISqlServerApplicationResourceProviderOperations,
     IDisposable
@@ -274,6 +275,29 @@ public sealed partial class ApplicationResourceService(
         }
 
         return Task.FromResult(CreateDefaultContainerOrchestratorService(application));
+    }
+
+    public bool CanDescribeDeployment(Resource resource) =>
+        ApplicationResourceTypes.IsContainerApp(resource.EffectiveTypeId) &&
+        store.GetApplication(resource.Id) is not null;
+
+    public Task<ResourceOrchestratorDeployment?> DescribeDeploymentAsync(
+        ResourceProcedureContext context,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var application = store.GetApplication(context.Resource.Id)
+            ?? throw new InvalidOperationException(
+                $"Container app resource '{context.Resource.Id}' is not configured.");
+        if (!ApplicationResourceTypes.IsContainerApp(application.ResourceType))
+        {
+            throw new InvalidOperationException(
+                $"Resource '{context.Resource.Id}' is not a container app.");
+        }
+
+        var state = context.Resource.State ?? GetState(application.Id);
+        return Task.FromResult<ResourceOrchestratorDeployment?>(
+            CreateDefaultContainerOrchestratorDeployment(application, state));
     }
 
     public async Task PrepareOrchestratorServiceAsync(

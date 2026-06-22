@@ -6,6 +6,7 @@ using CloudShell.ControlPlane.ResourceManager;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using System.Collections.Concurrent;
 
 namespace CloudShell.ControlPlane.Tests;
 
@@ -30,7 +31,10 @@ public sealed class ResourceOrchestrationDeploymentTests
         Assert.Equal(deployment.Spec.Service.Name, Assert.Single(provider.PreparedServices).Name);
         Assert.Equal(
             [1, 2, 3],
-            provider.ExecutedInstances.Select(instance => instance.Instance.ReplicaOrdinal));
+            provider.ExecutedInstances
+                .Select(instance => instance.Instance.ReplicaOrdinal)
+                .Order()
+                .ToArray());
         Assert.All(
             provider.ExecutedInstances,
             instance => Assert.Equal(deployment.Spec.Service.Name, instance.Service.Name));
@@ -66,27 +70,66 @@ public sealed class ResourceOrchestrationDeploymentTests
         Assert.Empty(provider.ExecutedInstances);
     }
 
+    [Fact]
+    public async Task ApplyDeploymentAsync_AllowsDifferentResourcesToApplyConcurrently()
+    {
+        var api = CreateResource("application:api", "API");
+        var worker = CreateResource("application:worker", "Worker");
+        var gate = new ConcurrentDeploymentGate(expectedCount: 2);
+        var provider = new RecordingServiceProcedureProvider([api, worker], gate);
+        var orchestration = CreateOrchestration([api, worker], provider);
+
+        var apiApply = orchestration.ApplyDeploymentAsync(
+            api,
+            CreateDeployment(api.Id, "default", replicas: 1));
+        var workerApply = orchestration.ApplyDeploymentAsync(
+            worker,
+            CreateDeployment(worker.Id, "default", replicas: 1));
+
+        var results = await Task.WhenAll(apiApply, workerApply)
+            .WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.All(
+            results,
+            result => Assert.Equal(ResourceOrchestratorDeploymentStatus.Active, result.Deployment.Status));
+        Assert.Equal(
+            [api.Id, worker.Id],
+            provider.PreparedServices
+                .Select(service => service.ResourceId)
+                .Order(StringComparer.OrdinalIgnoreCase)
+                .ToArray());
+    }
+
     private static ResourceOrchestrationService CreateOrchestration(
         Resource resource,
+        RecordingServiceProcedureProvider provider,
+        IResourceEventSink? resourceEvents = null) =>
+        CreateOrchestration([resource], provider, resourceEvents);
+
+    private static ResourceOrchestrationService CreateOrchestration(
+        IReadOnlyList<Resource> resources,
         RecordingServiceProcedureProvider provider,
         IResourceEventSink? resourceEvents = null)
     {
         var registrations = new TestResourceRegistrationStore(
-            new ResourceRegistration(resource.Id, provider.Id, null, DateTimeOffset.UtcNow, resource.DependsOn));
+            resources.Select(resource =>
+                new ResourceRegistration(resource.Id, provider.Id, null, DateTimeOffset.UtcNow, resource.DependsOn)));
         return new ResourceOrchestrationService(
             [new DefaultResourceOrchestrator()],
             [],
-            new TestResourceManagerStore(resource, provider),
+            new TestResourceManagerStore(resources, provider),
             registrations,
             new ResourceDeclarationStore(),
             CreateSelectionStore(),
             resourceEvents: resourceEvents);
     }
 
-    private static Resource CreateResource() =>
+    private static Resource CreateResource(
+        string id = "application:api",
+        string name = "API") =>
         new(
-            "application:api",
-            "API",
+            id,
+            name,
             "container-app",
             "Container App",
             "local",
@@ -103,9 +146,10 @@ public sealed class ResourceOrchestrationDeploymentTests
         string orchestratorId,
         int replicas)
     {
+        var serviceName = $"cloudshell-{resourceId.Replace(':', '-').Replace('_', '-').ToLowerInvariant()}";
         var service = new ResourceOrchestratorService(
             resourceId,
-            "cloudshell-application-api",
+            serviceName,
             new ResourceWorkloadConfiguration(
                 ResourceWorkloadKind.ContainerImage,
                 "api",
@@ -114,7 +158,7 @@ public sealed class ResourceOrchestrationDeploymentTests
                 ReplicasEnabled: replicas > 1),
             Networks: ["cloudshell"]);
         return new ResourceOrchestratorDeployment(
-            "deployment-application-api",
+            $"{serviceName}-deployment",
             orchestratorId,
             resourceId,
             service.Name,
@@ -128,19 +172,26 @@ public sealed class ResourceOrchestrationDeploymentTests
             new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))),
             new TestOptionsMonitor<ResourceManagerOptions>(new ResourceManagerOptions()));
 
-    private sealed class RecordingServiceProcedureProvider(Resource resource) :
+    private sealed class RecordingServiceProcedureProvider(
+        IReadOnlyList<Resource> resources,
+        ConcurrentDeploymentGate? gate = null) :
         IResourceProvider,
         IResourceOrchestratorServiceProcedureProvider
     {
+        public RecordingServiceProcedureProvider(Resource resource)
+            : this([resource])
+        {
+        }
+
         public string Id => "applications.container-app";
 
         public string DisplayName => "Container App";
 
-        public List<ResourceOrchestratorService> PreparedServices { get; } = [];
+        public ConcurrentBag<ResourceOrchestratorService> PreparedServices { get; } = [];
 
-        public List<ResourceOrchestratorServiceInstanceContext> ExecutedInstances { get; } = [];
+        public ConcurrentBag<ResourceOrchestratorServiceInstanceContext> ExecutedInstances { get; } = [];
 
-        public IReadOnlyList<Resource> GetResources() => [resource];
+        public IReadOnlyList<Resource> GetResources() => resources;
 
         public bool CanExecuteOrchestratorService(
             Resource resource,
@@ -152,13 +203,16 @@ public sealed class ResourceOrchestrationDeploymentTests
             CancellationToken cancellationToken = default) =>
             throw new InvalidOperationException("The deployment spec should provide the service.");
 
-        public Task PrepareOrchestratorServiceAsync(
+        public async Task PrepareOrchestratorServiceAsync(
             ResourceOrchestratorServiceProcedureContext context,
             ResourceAction action,
             CancellationToken cancellationToken = default)
         {
             PreparedServices.Add(context.Service);
-            return Task.CompletedTask;
+            if (gate is not null)
+            {
+                await gate.SignalAndWaitAsync(cancellationToken);
+            }
         }
 
         public Task ExecuteOrchestratorServiceInstanceAsync(
@@ -171,44 +225,62 @@ public sealed class ResourceOrchestrationDeploymentTests
         }
     }
 
+    private sealed class ConcurrentDeploymentGate(int expectedCount)
+    {
+        private readonly TaskCompletionSource allArrived =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int arrived;
+
+        public async Task SignalAndWaitAsync(CancellationToken cancellationToken)
+        {
+            if (Interlocked.Increment(ref arrived) == expectedCount)
+            {
+                allArrived.TrySetResult();
+            }
+
+            await allArrived.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
+        }
+    }
+
     private sealed class TestResourceManagerStore(
-        Resource resource,
+        IReadOnlyList<Resource> resources,
         IResourceProvider provider) : IResourceManagerStore
     {
         public IReadOnlyList<IResourceProvider> Providers => [provider];
 
         public IReadOnlyList<ResourceGroup> GetResourceGroups() => [];
 
-        public IReadOnlyList<Resource> GetAvailableResources() => [resource];
+        public IReadOnlyList<Resource> GetAvailableResources() => resources;
 
-        public IReadOnlyList<Resource> GetResources() => [resource];
+        public IReadOnlyList<Resource> GetResources() => resources;
 
         public IReadOnlyList<ResourceModelDiagnostic> GetResourceModelDiagnostics() => [];
 
         public ResourceClass? GetResourceTypeClass(string resourceType) => null;
 
         public Resource? GetResource(string id) =>
-            string.Equals(id, resource.Id, StringComparison.OrdinalIgnoreCase)
-                ? resource
-                : null;
+            resources.FirstOrDefault(resource =>
+                string.Equals(id, resource.Id, StringComparison.OrdinalIgnoreCase));
 
         public IReadOnlyList<Resource> GetChildren(string resourceId) => [];
 
         public ResourceGroup? GetGroupForResource(string resourceId) => null;
 
         public bool IsRegistered(string resourceId) =>
-            string.Equals(resourceId, resource.Id, StringComparison.OrdinalIgnoreCase);
+            resources.Any(resource =>
+                string.Equals(resourceId, resource.Id, StringComparison.OrdinalIgnoreCase));
     }
 
-    private sealed class TestResourceRegistrationStore(ResourceRegistration registration) :
+    private sealed class TestResourceRegistrationStore(IEnumerable<ResourceRegistration> registrations) :
         IResourceRegistrationStore
     {
-        public IReadOnlyList<ResourceRegistration> GetRegistrations() => [registration];
+        private readonly IReadOnlyList<ResourceRegistration> registrations = registrations.ToArray();
+
+        public IReadOnlyList<ResourceRegistration> GetRegistrations() => registrations;
 
         public ResourceRegistration? GetRegistration(string resourceId) =>
-            string.Equals(resourceId, registration.ResourceId, StringComparison.OrdinalIgnoreCase)
-                ? registration
-                : null;
+            registrations.FirstOrDefault(registration =>
+                string.Equals(resourceId, registration.ResourceId, StringComparison.OrdinalIgnoreCase));
 
         public Task RegisterAsync(
             string providerId,

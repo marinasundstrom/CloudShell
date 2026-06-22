@@ -26,14 +26,18 @@ Initial implementation now adds internal data contracts for
 `ResourceOrchestratorDeployment`, `ResourceOrchestratorDeploymentSpec`, and
 `ResourceOrchestratorRevision` in the orchestration abstractions, plus an
 opt-in `IResourceOrchestratorDeploymentApplier` boundary and Control Plane
-dispatcher for applying a deployment through the selected orchestrator. These
-are intended for container apps, providers, and orchestrators to build on
-first.
+dispatcher for applying a deployment through the selected orchestrator.
+Providers can opt into `IResourceOrchestratorDeploymentProvider` to describe
+the deployment spec that should be applied after a domain update. These are
+intended for container apps, providers, and orchestrators to build on first.
 Container apps now use the deployment contract to project deployment status,
 service id, workload version, requested replicas, and materialized replica count
 onto the stable app resource and Deployment tab. Materialized runtime replica
 resources also carry the deployment id, service id, and deployment revision
-they implement for traceability.
+they implement for traceability. Container app image deployment now records
+the app revision through the app provider and, when runtime reconciliation is
+required, asks the Control Plane to apply the provider-described orchestrator
+deployment spec.
 The intended general rule is broader than container apps: when an orchestrator
 handles a resource state change that has runtime workload intent, it may derive
 a default deployment for that change even when the user manages the resource
@@ -245,6 +249,17 @@ The boundary is intentionally asymmetric: the resource domain can decide what
 changed and which app revision should exist, but it should not directly
 manipulate orchestrator-owned replicas, routing tables, backend registrations,
 or cleanup behavior.
+
+Deployment application is scoped to a resource and deployment. CloudShell must
+be able to apply deployments for different container apps concurrently; any
+serialization should be limited to the same resource, same runtime target, or
+provider-specific critical section that truly cannot be run in parallel.
+The model should retain enough per-deployment status, timing, event, and
+runtime-resource correlation data for a future live deployment visualization
+that can show several container app deployments progressing at the same time:
+the orchestrator materializing runtime resources, updating existing runtime
+resources, acting on routing or ingress resources, and cleaning up superseded
+runtime resources.
 
 ## Conceptual Flow
 

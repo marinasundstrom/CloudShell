@@ -2329,6 +2329,44 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task UpdateResourceImageAsync_AppliesDescribedDeploymentWhenRuntimeReconciliationRequired()
+    {
+        var provider = new TestDeploymentImageUpdateResourceProvider();
+        var resourceEvents = new InMemoryResourceEventStore();
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            provider,
+            resourceEvents: resourceEvents);
+
+        var result = await controlPlane.UpdateResourceImageAsync(
+            new UpdateResourceImageCommand(
+                "target",
+                "example/api:20260623",
+                RestartIfRunning: false,
+                TriggeredBy: "build-server",
+                RequestedReplicas: 2));
+
+        Assert.False(result.RestartRequired);
+        Assert.Contains("Updated target.", result.Message, StringComparison.Ordinal);
+        Assert.Contains("Applied deployment 'target-deployment'", result.Message, StringComparison.Ordinal);
+        Assert.Equal(["target:example/api:20260623:False:build-server:2"], provider.UpdatedImages);
+        Assert.Equal(["target"], provider.DescribedDeployments);
+        Assert.Equal(["start:target-service"], provider.PreparedActions);
+        Assert.Equal(
+            [
+                "start:target-service-replica-1:1/2",
+                "start:target-service-replica-2:2/2"
+            ],
+            provider.InstanceActions);
+        Assert.Contains(
+            resourceEvents.GetEvents(new ResourceEventQuery(
+                ResourceId: "target",
+                EventType: ResourceEventTypes.Events.Deployment.Applied,
+                TriggeredBy: "build-server")),
+            resourceEvent => resourceEvent.Message.Contains("target-deployment", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task UpdateResourceReplicasAsync_RejectsInvalidReplicaCount()
     {
         var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)]);
@@ -3509,6 +3547,99 @@ public sealed class InProcessControlPlaneResourceStateTests
 
             UpdatedImages.Add($"{context.Resource.Id}:{image}:{restartIfRunning}:{triggeredBy}:{requestedReplicas?.ToString(CultureInfo.InvariantCulture) ?? "unchanged"}");
             return Task.FromResult(ResourceProcedureResult.Completed($"Updated {context.Resource.Id}."));
+        }
+    }
+
+    private sealed class TestDeploymentImageUpdateResourceProvider :
+        IResourceProvider,
+        IResourceImageUpdateProvider,
+        IResourceOrchestratorDeploymentProvider,
+        IResourceOrchestratorServiceProcedureProvider
+    {
+        public string Id => "test";
+
+        public string DisplayName => "Test";
+
+        public List<string> UpdatedImages { get; } = [];
+
+        public List<string> DescribedDeployments { get; } = [];
+
+        public List<string> PreparedActions { get; } = [];
+
+        public List<string> InstanceActions { get; } = [];
+
+        public IReadOnlyList<Resource> GetResources() => [];
+
+        public bool CanUpdateImage(Resource resource) => true;
+
+        public Task<ResourceProcedureResult> UpdateImageAsync(
+            ResourceProcedureContext context,
+            string image,
+            bool restartIfRunning,
+            string? triggeredBy = null,
+            CancellationToken cancellationToken = default,
+            int? requestedReplicas = null)
+        {
+            UpdatedImages.Add($"{context.Resource.Id}:{image}:{restartIfRunning}:{triggeredBy}:{requestedReplicas?.ToString(CultureInfo.InvariantCulture) ?? "unchanged"}");
+            return Task.FromResult(ResourceProcedureResult.CompletedWithRestartRequired(
+                $"Updated {context.Resource.Id}.",
+                context.Resource.Id,
+                "Runtime deployment must be applied."));
+        }
+
+        public bool CanDescribeDeployment(Resource resource) => true;
+
+        public Task<ResourceOrchestratorDeployment?> DescribeDeploymentAsync(
+            ResourceProcedureContext context,
+            CancellationToken cancellationToken = default)
+        {
+            DescribedDeployments.Add(context.Resource.Id);
+            var service = new ResourceOrchestratorService(
+                context.Resource.Id,
+                "target-service",
+                new ResourceWorkloadConfiguration(
+                    ResourceWorkloadKind.ContainerImage,
+                    "target",
+                    Image: "example/api:20260623",
+                    Replicas: 2,
+                    ReplicasEnabled: true));
+            return Task.FromResult<ResourceOrchestratorDeployment?>(new ResourceOrchestratorDeployment(
+                "target-deployment",
+                "default",
+                context.Resource.Id,
+                service.Name,
+                "revision-2",
+                new ResourceOrchestratorDeploymentSpec(service, "revision-2"),
+                ResourceOrchestratorDeploymentStatus.Pending));
+        }
+
+        public bool CanExecuteOrchestratorService(
+            Resource resource,
+            ResourceAction action) =>
+            action.Kind == ResourceActionKind.Start;
+
+        public Task<ResourceOrchestratorService> CreateOrchestratorServiceAsync(
+            ResourceProcedureContext context,
+            CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("The deployment spec should provide the service.");
+
+        public Task PrepareOrchestratorServiceAsync(
+            ResourceOrchestratorServiceProcedureContext context,
+            ResourceAction action,
+            CancellationToken cancellationToken = default)
+        {
+            PreparedActions.Add($"{action.Kind.ToString().ToLowerInvariant()}:{context.Service.Name}");
+            return Task.CompletedTask;
+        }
+
+        public Task ExecuteOrchestratorServiceInstanceAsync(
+            ResourceOrchestratorServiceInstanceContext context,
+            ResourceAction action,
+            CancellationToken cancellationToken = default)
+        {
+            InstanceActions.Add(
+                $"{action.Kind.ToString().ToLowerInvariant()}:{context.Instance.Name}:{context.Instance.ReplicaOrdinal}/{context.Instance.ReplicaCount}");
+            return Task.CompletedTask;
         }
     }
 

@@ -74,6 +74,10 @@ on `git blame --follow`, and then by the broad type of change.
 - The Control Plane now has an internal orchestrator deployment-apply boundary
   so deployment specs can be dispatched to the selected orchestrator without
   resource domains directly manipulating runtime replicas, ingress, or cleanup.
+- Running container app image deployments now ask the provider for the current
+  orchestrator deployment spec and apply it through the selected orchestrator
+  instead of surfacing a restart-required result when runtime reconciliation is
+  available.
 - SQL Server database declarations now use `DeclareDatabase(...)`, and local
   development or test resources can opt in to missing database creation with
   `DeclareDatabase(...).EnsureCreated()` instead of creating declared
