@@ -39,34 +39,30 @@ else
     </section>
 
     <section class="metric-grid">
-        <article class="metric-card">
-            <span>@L["Telemetry resources"]</span>
-            <strong>@TelemetryResourceCount</strong>
-            <small>@L["Resources declaring logs, traces, or metrics"]</small>
-        </article>
+        <SummaryMetricCard Title="@L["Telemetry resources"].Value"
+                           Value="@TelemetryResourceCount"
+                           Summary="@L["Resources declaring logs, traces, or metrics"].Value"
+                           IconName="telemetry" />
         @if (Authorization.CanReadLogs())
         {
-            <article class="metric-card">
-                <span>@L["Log sources"]</span>
-                <strong>@Logs.Count</strong>
-                <small>@L["Available operational streams"]</small>
-            </article>
+            <SummaryMetricCard Title="@L["Log sources"].Value"
+                               Value="@Logs.Count"
+                               Summary="@L["Available operational streams"].Value"
+                               IconName="logs" />
         }
         @if (Authorization.CanReadTraces())
         {
-            <article class="metric-card">
-                <span>@L["Trace spans"]</span>
-                <strong>@TraceSpans.Count</strong>
-                <small>@L["{0} request edge(s)", RequestEdgeCount]</small>
-            </article>
+            <SummaryMetricCard Title="@L["Trace spans"].Value"
+                               Value="@TraceSpans.Count"
+                               Summary="@L["{0} request edge(s)", RequestEdgeCount].Value"
+                               IconName="traces" />
         }
         @if (Authorization.CanReadMetrics())
         {
-            <article class="metric-card">
-                <span>@L["Metric points"]</span>
-                <strong>@MetricPoints.Count</strong>
-                <small>@L["{0} observed service(s)", ObservedServices.Count]</small>
-            </article>
+            <SummaryMetricCard Title="@L["Metric points"].Value"
+                               Value="@MetricPoints.Count"
+                               Summary="@L["{0} observed service(s)", ObservedServices.Count].Value"
+                               IconName="metrics" />
         }
     </section>
 

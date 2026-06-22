@@ -35,26 +35,23 @@
 </section>
 
 <section class="metric-grid">
-    <article class="metric-card">
-        <span>@L["Resources with checks"]</span>
-        <strong>@ResourcesWithHealthChecks.Count</strong>
-        <small>@L["{0} configured check(s)", TotalConfiguredChecks]</small>
-    </article>
-    <article class="metric-card">
-        <span>@L["Healthy"]</span>
-        <strong>@HealthyResourceCount</strong>
-        <small>@L["Latest probe status"]</small>
-    </article>
-    <article class="metric-card @(UnhealthyResourceCount > 0 ? "metric-card-warning" : null)">
-        <span>@L["Unhealthy"]</span>
-        <strong>@UnhealthyResourceCount</strong>
-        <small>@L["Resources with failing checks"]</small>
-    </article>
-    <article class="metric-card">
-        <span>@L["Unknown"]</span>
-        <strong>@UnknownResourceCount</strong>
-        <small>@L["Missing endpoint or inconclusive result"]</small>
-    </article>
+    <SummaryMetricCard Title="@L["Resources with checks"].Value"
+                       Value="@ResourcesWithHealthChecks.Count"
+                       Summary="@L["{0} configured check(s)", TotalConfiguredChecks].Value"
+                       IconName="health-checks" />
+    <SummaryMetricCard Title="@L["Healthy"].Value"
+                       Value="@HealthyResourceCount"
+                       Summary="@L["Latest probe status"].Value"
+                       IconName="healthy" />
+    <SummaryMetricCard Title="@L["Unhealthy"].Value"
+                       Value="@UnhealthyResourceCount"
+                       Summary="@L["Resources with failing checks"].Value"
+                       IconName="unhealthy"
+                       Warning="@(UnhealthyResourceCount > 0)" />
+    <SummaryMetricCard Title="@L["Unknown"].Value"
+                       Value="@UnknownResourceCount"
+                       Summary="@L["Missing endpoint or inconclusive result"].Value"
+                       IconName="unknown" />
 </section>
 
 <section class="dashboard-grid">

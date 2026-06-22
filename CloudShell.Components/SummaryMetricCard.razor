@@ -1,0 +1,64 @@
+<article class="@CssClass">
+    @if (!string.IsNullOrWhiteSpace(IconName))
+    {
+        <div class="metric-card-icon-shell">
+            <ResourceIcon IconName="@IconName"
+                          Class="metric-card-icon"
+                          Title="@Title" />
+        </div>
+    }
+    <span>@Title</span>
+    <strong>@Value</strong>
+    @if (!string.IsNullOrWhiteSpace(Summary))
+    {
+        <small>@Summary</small>
+    }
+    @if (ChildContent is not null)
+    {
+        @ChildContent
+    }
+</article>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public object? Value { get; set; }
+
+    [Parameter]
+    public string? Summary { get; set; }
+
+    [Parameter]
+    public string? IconName { get; set; }
+
+    [Parameter]
+    public bool Warning { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    private string CssClass
+    {
+        get
+        {
+            var cardClass = "metric-card";
+            if (!string.IsNullOrWhiteSpace(IconName))
+            {
+                cardClass += " has-icon";
+            }
+
+            if (Warning)
+            {
+                cardClass += " metric-card-warning";
+            }
+
+            return string.IsNullOrWhiteSpace(Class)
+                ? cardClass
+                : $"{cardClass} {Class}";
+        }
+    }
+}

@@ -22,6 +22,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager resource relationship cards, resource-reference pills, and
   application overview resource cards now show resource-type icons for faster
   scanning.
+- Dashboard, Health, and Observability summary cards now use a shared metric
+  card with prominent area icons, while generated information cards use the
+  same left badge treatment as resource cards for consistency.
 
 ### 2026-06-21
 

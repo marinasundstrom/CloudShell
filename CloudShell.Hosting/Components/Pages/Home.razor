@@ -43,26 +43,25 @@
 </section>
 
 <section class="metric-grid">
-    <article class="metric-card">
-        <span>@L["Resources"]</span>
-        <strong>@Resources.Count</strong>
-        <small>@L["{0} with lifecycle state", StatefulResourceCount]</small>
-    </article>
-    <article class="metric-card @(ActiveFailureCount > 0 ? "metric-card-warning" : null)">
-        <span>@L["Active failures"]</span>
-        <strong>@ActiveFailureCount</strong>
-        <small>@L["Latest unsuperseded resource failures"]</small>
-    </article>
-    <article class="metric-card @(UnhealthyResourceCount > 0 ? "metric-card-warning" : null)">
-        <span>@L["Unhealthy"]</span>
-        <strong>@UnhealthyResourceCount</strong>
-        <small>@L["Resources with failing health checks"]</small>
-    </article>
-    <article class="metric-card @(RequestFailureCount > 0 ? "metric-card-warning" : null)">
-        <span>@L["Request failures"]</span>
-        <strong>@RequestFailureCount</strong>
-        <small>@L["Failed traces in recent telemetry"]</small>
-    </article>
+    <SummaryMetricCard Title="@L["Resources"].Value"
+                       Value="@Resources.Count"
+                       Summary="@L["{0} with lifecycle state", StatefulResourceCount].Value"
+                       IconName="resources" />
+    <SummaryMetricCard Title="@L["Active failures"].Value"
+                       Value="@ActiveFailureCount"
+                       Summary="@L["Latest unsuperseded resource failures"].Value"
+                       IconName="failure"
+                       Warning="@(ActiveFailureCount > 0)" />
+    <SummaryMetricCard Title="@L["Unhealthy"].Value"
+                       Value="@UnhealthyResourceCount"
+                       Summary="@L["Resources with failing health checks"].Value"
+                       IconName="unhealthy"
+                       Warning="@(UnhealthyResourceCount > 0)" />
+    <SummaryMetricCard Title="@L["Request failures"].Value"
+                       Value="@RequestFailureCount"
+                       Summary="@L["Failed traces in recent telemetry"].Value"
+                       IconName="request-failures"
+                       Warning="@(RequestFailureCount > 0)" />
 </section>
 
 <section class="dashboard-grid">

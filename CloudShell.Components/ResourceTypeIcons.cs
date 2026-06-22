@@ -17,6 +17,7 @@ public static class ResourceTypeIcons
         return normalized switch
         {
             "application" => new Icons.Regular.Size20.AppGeneric(),
+            "resources" or "resource" => new Icons.Regular.Size20.AppFolder(),
             "web" => new Icons.Regular.Size20.GlobeSync(),
             "container" => new Icons.Regular.Size20.CubeTree(),
             "docker" => new Icons.Regular.Size20.Server(),
@@ -30,6 +31,10 @@ public static class ResourceTypeIcons
             "key" => new Icons.Regular.Size20.KeyMultiple(),
             "lock-closed" => new Icons.Regular.Size20.LockClosed(),
             "health" or "health-checks" => new Icons.Regular.Size20.HeartPulseCheckmark(),
+            "healthy" => new Icons.Regular.Size20.HeartPulseCheckmark(),
+            "unhealthy" or "failure" or "failures" or "request-failures" => new Icons.Regular.Size20.Warning(),
+            "unknown" => new Icons.Regular.Size20.Info(),
+            "telemetry" => new Icons.Regular.Size20.DataUsage(),
             "activity" or "events" => new Icons.Regular.Size20.DataUsage(),
             "dns" or "name-mapping" or "name-mappings" => new Icons.Regular.Size20.GlobeSync(),
             "endpoint" or "endpoints" or "networking" => new Icons.Regular.Size20.Connector(),
