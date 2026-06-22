@@ -74,7 +74,7 @@ public sealed class InProcessControlPlane(
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(resourceManager.GetAvailableResources());
+        return Task.FromResult(ApplyLivenessStatus(resourceManager.GetAvailableResources()));
     }
 
     public Task<IReadOnlyList<Resource>> ListResourcesAsync(
@@ -82,7 +82,7 @@ public sealed class InProcessControlPlane(
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(ApplyQuery(resourceManager.GetResources(), query));
+        return Task.FromResult(ApplyQuery(ApplyLivenessStatus(resourceManager.GetResources()), query));
     }
 
     public Task<Resource?> GetResourceAsync(
@@ -90,7 +90,7 @@ public sealed class InProcessControlPlane(
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(resourceManager.GetResource(resourceId));
+        return Task.FromResult(ApplyLivenessStatus(resourceManager.GetResource(resourceId)));
     }
 
     public Task<IReadOnlyList<Resource>> ListResourceChildrenAsync(
@@ -98,7 +98,7 @@ public sealed class InProcessControlPlane(
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(resourceManager.GetChildren(resourceId));
+        return Task.FromResult(ApplyLivenessStatus(resourceManager.GetChildren(resourceId)));
     }
 
     public Task<IReadOnlyList<ResourceRegistration>> ListResourceRegistrationsAsync(
@@ -177,6 +177,7 @@ public sealed class InProcessControlPlane(
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Select(resourceId => resourceManager.GetResource(resourceId))
             .OfType<Resource>()
+            .Select(resource => ApplyLivenessStatus(resource, resourceHealth.GetLatest(resource.Id)))
             .ToArray();
         var capabilities = await Task.WhenAll(resources.Select(resource =>
             CreateCapabilitiesAsync(resource, cancellationToken)));
@@ -1538,6 +1539,35 @@ public sealed class InProcessControlPlane(
                     "No cached health result",
                     null))
                 .ToArray());
+
+    private IReadOnlyList<Resource> ApplyLivenessStatus(IReadOnlyList<Resource> resources)
+    {
+        var summaries = resourceHealth.GetLatest(resources.Select(resource => resource.Id));
+        return resources
+            .Select(resource => ApplyLivenessStatus(resource, summaries.GetValueOrDefault(resource.Id)))
+            .ToArray();
+    }
+
+    private Resource? ApplyLivenessStatus(Resource? resource) =>
+        resource is null
+            ? null
+            : ApplyLivenessStatus(resource, resourceHealth.GetLatest(resource.Id));
+
+    private static Resource ApplyLivenessStatus(Resource resource, ResourceHealthSummary? summary)
+    {
+        if (resource.State is not (ResourceState.Running or ResourceState.Starting) ||
+            !HasUnhealthyLiveness(summary))
+        {
+            return resource;
+        }
+
+        return resource with { State = ResourceState.Degraded };
+    }
+
+    private static bool HasUnhealthyLiveness(ResourceHealthSummary? summary) =>
+        summary?.Checks.Any(check =>
+            check.Check.Type == ResourceProbeType.Liveness &&
+            check.Status == ResourceHealthStatus.Unhealthy) == true;
 
     private static bool ShouldWarnDependents(ResourceAction action) =>
         action.Kind is ResourceActionKind.Stop or ResourceActionKind.Restart or ResourceActionKind.Pause;

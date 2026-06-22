@@ -32,6 +32,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resources now project separate liveness and recovery capabilities, with
   recovery derived only when a resource has a liveness signal and Restart
   action support.
+- Unhealthy liveness now projects active resources as `Degraded`, keeping
+  liveness visible in the resource lifecycle status that recovery policy can
+  react to.
 - Added a service observability and degradation proposal for service-first,
   replica-aware local-development telemetry correlation, common views, load
   and capacity context, established telemetry interfaces, extension

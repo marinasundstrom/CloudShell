@@ -144,6 +144,19 @@ scoped. Provider-specific resource configuration should not store the generic
 recovery policy unless the provider owns an external scheduler that must
 receive a projected policy.
 
+As the liveness model matures, recovery policy should split trigger behavior
+by observed state transition instead of treating every failed liveness signal
+the same way. At minimum, resources should be able to configure:
+
+- whether `Degraded` should trigger restart and how many attempts are allowed
+  for degraded recovery
+- whether `Stopped` after an unexpected liveness loss should trigger restart
+  and how many attempts are allowed for stopped recovery
+
+Those state-trigger sections can still share default backoff settings, but
+the policy should allow a resource or operator to treat "responding but
+unhealthy" differently from "not responding and probably stopped."
+
 ## Signals
 
 CloudShell already has:
@@ -359,6 +372,16 @@ The fifth landed slice adds shared capability projection:
   dependency on the `liveness` capability.
 - Generic health checks do not imply liveness or recovery support.
 
+The sixth landed slice connects liveness to lifecycle status:
+
+- Latest unhealthy liveness results project otherwise active resources as
+  `Degraded`.
+- Generic health failures do not project lifecycle degradation.
+- Stopped resources remain stopped when liveness fails, because not responding
+  is expected for a stopped resource.
+- This makes recovery policy able to build on the normal lifecycle status
+  model instead of treating failed liveness as a private recovery-only fact.
+
 The next recovery slice should stay narrow:
 
 1. Show generated Recovery configuration and status in Resource Manager under
@@ -368,10 +391,19 @@ The next recovery slice should stay narrow:
    automatic restart policy.
 3. Add liveness support for built-in resource types where CloudShell can
    produce a meaningful signal, with SQL Server as an explicit early target.
-4. Decide whether liveness evaluation should update a shared observed
-   resource condition or lifecycle-adjacent state, such as degraded or
-   unwell, and have recovery policy react to that state instead of directly
-   reacting to probe failures.
+4. Decide whether a separate liveness state or resource condition is still
+   needed alongside the primary lifecycle status for resources where providers
+   own more nuanced alive/not-alive semantics.
+5. Add structured liveness outcome data that distinguishes an unhealthy
+   response from no response at all, so the Control Plane can model transition
+   paths such as `Running` to `Degraded` for responding-but-unhealthy resources
+   and `Running` to `Stopped` when the liveness signal is unreachable.
+6. Track resource state transitions together with liveness observations so
+   recovery policy can decide whether to wait, restart, or leave provider
+   state authoritative based on the observed transition path.
+7. Split recovery policy trigger configuration so degraded recovery and
+   stopped recovery can each opt into restart behavior and define their own
+   maximum attempts.
 
 Provider-native signal contracts, external orchestrator policy projection,
 durable controller leases, and advanced event schemas can follow after the
@@ -387,9 +419,15 @@ local-development loop proves the model.
   copied to resource instances like health-check defaults?
 - Should liveness become a first-class resource-model concept separate from
   health checks, or remain a typed probe with separate capability metadata?
-- Should liveness failure update a resource-level condition or state that
-  denotes the resource appears unwell, with recovery policy driven by that
-  condition, instead of keeping failed liveness only inside recovery status?
+- Do resources also need a separate liveness state or condition for cases
+  where liveness should not directly degrade the primary lifecycle status?
+- What structured outcome should liveness checks return so CloudShell can
+  distinguish "responded unhealthy" from "did not respond at all" without
+  parsing provider or transport error messages?
+- Which state transitions should recovery policy react to directly, and which
+  transitions should be left to provider-owned lifecycle reconciliation?
+- Should degraded recovery and stopped recovery share one backoff schedule, or
+  should each state trigger maintain its own backoff and attempt counters?
 - Should maximum attempts disable the policy until a user resets it, or pause
   until the resource becomes healthy again?
 - Should recovery state be stored as operational cache, durable Control Plane
