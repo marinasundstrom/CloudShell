@@ -73,10 +73,16 @@ on `git blame --follow`, and then by the broad type of change.
   and provide an `ApplicationResourceProjection` while reusing the common
   application declaration, template, lifecycle, descriptor, and action
   availability path.
-- Built-in application resource providers now consume narrower provider-facing
-  operation contracts for common application behavior, container-app behavior,
-  and SQL Server permission status instead of taking a direct dependency on the
-  full application provider facade.
+- Built-in application resource providers now consume split provider-facing
+  contracts for definitions, procedures, templates, declarations, descriptors,
+  action availability, container-app behavior, and SQL Server permission status
+  instead of taking a direct dependency on the full application provider
+  facade.
+- Custom application-like providers can now declare an
+  `ApplicationResourceDefinition` with their own provider ID through the shared
+  application resource declaration helper, reusing the common builder defaults
+  for environment variables, endpoints, probes, recovery, log formats, storage,
+  and other application settings.
 - Application resource docs now frame the provider direction as a composable
   toolkit for custom resources backed by local executables, ad-hoc containers,
   or Resource Manager-managed sub-resources with default lifecycle,

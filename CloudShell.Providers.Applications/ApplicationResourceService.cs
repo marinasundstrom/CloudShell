@@ -43,7 +43,12 @@ public sealed partial class ApplicationResourceService(
     IResourceEnvironmentVariableConfigurationProvider,
     IApplicationResourceProjectionSource,
     IHostScopedResourceCleanupProvider,
-    IApplicationResourceProviderOperations,
+    IApplicationResourceDefinitionSource,
+    IApplicationResourceProcedureOperations,
+    IApplicationResourceTemplateOperations,
+    IApplicationResourceDeclarationOperations,
+    IApplicationResourceDescriptorOperations,
+    IApplicationResourceActionAvailabilityOperations,
     IContainerApplicationResourceProviderOperations,
     ISqlServerApplicationResourceProviderOperations,
     IDisposable

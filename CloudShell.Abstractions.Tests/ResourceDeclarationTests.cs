@@ -3178,9 +3178,7 @@ public sealed class ResourceDeclarationTests
             });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = new CustomApplicationResourceProvider(
-            serviceProvider.GetRequiredService<IApplicationResourceProjectionSource>(),
-            serviceProvider.GetRequiredService<ApplicationResourceService>());
+        var provider = ActivatorUtilities.CreateInstance<CustomApplicationResourceProvider>(serviceProvider);
 
         var resource = Assert.Single(provider.GetResources());
 
@@ -3197,6 +3195,73 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(ResourceClass.Service, resource.ResourceClass);
         Assert.Equal("custom-worker", resource.Version);
         Assert.Equal("custom-worker", resource.ResourceAttributes[ResourceAttributeNames.WorkloadKind]);
+    }
+
+    [Fact]
+    public void ApplicationProvider_DeclaresCustomApplicationResourceWithSharedDefaults()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider(options =>
+            {
+                options.DefinitionsPath = "application-resources.json";
+                options.RuntimeStatePath = "application-runtime-state.json";
+                options.LogDirectory = "application-logs";
+            })
+            .Resources(resources =>
+            {
+                resources
+                    .AddApplicationResource(
+                        CustomApplicationResourceProvider.ProviderId,
+                        new ApplicationResourceDefinition(
+                            "application:custom-worker",
+                            "Custom Worker",
+                            "dotnet",
+                            resourceType: CustomApplicationResourceProvider.ResourceType,
+                            lifetime: ApplicationLifetime.ControlPlaneScoped))
+                    .WithEnvironment("MODE", "custom")
+                    .WithHttpEndpoint(port: 5090, targetPort: 8080)
+                    .WithHttpHealthCheck("/healthz")
+                    .WithLogFormat(LogFormat.JsonConsole)
+                    .Persist(overwrite: true);
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var applications = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var application = applications.GetApplication("application:custom-worker");
+        var provider = ActivatorUtilities.CreateInstance<CustomApplicationResourceProvider>(serviceProvider);
+        var declaration = Assert.Single(
+            serviceProvider.GetRequiredService<ResourceDeclarationStore>().GetDeclarations(),
+            declaration => string.Equals(
+                declaration.ResourceId,
+                "application:custom-worker",
+                StringComparison.OrdinalIgnoreCase));
+
+        Assert.NotNull(application);
+        Assert.Equal(CustomApplicationResourceProvider.ProviderId, declaration.ProviderId);
+        Assert.Equal(ResourceDeclarationPersistence.Persisted, declaration.Persistence);
+        Assert.True(declaration.OverwritePersistedState);
+        Assert.Equal(ApplicationLifetime.ControlPlaneScoped, application.Lifetime);
+        Assert.Contains(
+            application.EnvironmentVariables,
+            variable => variable.Name == "MODE" && variable.Value == "custom");
+        var endpoint = Assert.Single(application.EndpointPorts);
+        Assert.Equal("http", endpoint.Name);
+        Assert.Equal(8080, endpoint.TargetPort);
+        Assert.Equal(5090, endpoint.Port);
+        var healthCheck = Assert.Single(application.HealthChecks);
+        Assert.Equal("/healthz", healthCheck.Path);
+        var logSource = Assert.Single(application.LogSources);
+        Assert.Equal(LogFormat.JsonConsole, logSource.Format);
+
+        var resource = Assert.Single(provider.GetResources());
+        Assert.Equal("application:custom-worker", resource.Id);
+        Assert.Equal(CustomApplicationResourceProvider.ResourceType, resource.EffectiveTypeId);
+        Assert.Equal("Custom application", resource.Kind);
     }
 
     [Fact]
@@ -11249,8 +11314,20 @@ public sealed class ResourceDeclarationTests
 
     private sealed class CustomApplicationResourceProvider(
         IApplicationResourceProjectionSource projections,
-        ApplicationResourceService applications)
-        : ApplicationResourceTypeProvider(projections, applications)
+        IApplicationResourceDefinitionSource definitions,
+        IApplicationResourceProcedureOperations procedures,
+        IApplicationResourceTemplateOperations templates,
+        IApplicationResourceDeclarationOperations declarations,
+        IApplicationResourceDescriptorOperations descriptors,
+        IApplicationResourceActionAvailabilityOperations actions)
+        : ApplicationResourceTypeProvider(
+            projections,
+            definitions,
+            procedures,
+            templates,
+            declarations,
+            descriptors,
+            actions)
     {
         public const string ProviderId = "custom.application";
 

@@ -3,10 +3,13 @@ using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.Providers.Applications;
 
-public interface IApplicationResourceProviderOperations
+public interface IApplicationResourceDefinitionSource
 {
     ApplicationResourceDefinition? GetApplication(string id);
+}
 
+public interface IApplicationResourceProcedureOperations
+{
     Task<ResourceProcedureResult> DeleteAsync(
         ResourceProcedureContext context,
         CancellationToken cancellationToken = default);
@@ -15,7 +18,10 @@ public interface IApplicationResourceProviderOperations
         ResourceProcedureContext context,
         ResourceAction action,
         CancellationToken cancellationToken = default);
+}
 
+public interface IApplicationResourceTemplateOperations
+{
     bool CanExport(Resource resource);
 
     Task<ResourceTemplateDefinition> ExportAsync(
@@ -29,21 +35,30 @@ public interface IApplicationResourceProviderOperations
         ResourceTemplateDefinition template,
         ResourceTemplateImportContext context,
         CancellationToken cancellationToken = default);
+}
 
+public interface IApplicationResourceDeclarationOperations
+{
     ResourceAutoStartPolicy GetAutoStartPolicy(ResourceDeclaration declaration);
 
     Task ApplyDeclarationAsync(
         ResourceDeclaration declaration,
         IResourceRegistrationStore registrations,
         CancellationToken cancellationToken = default);
+}
 
+public interface IApplicationResourceDescriptorOperations
+{
     bool CanDescribe(Resource resource);
 
     Task<ResourceOrchestrationDescriptor> DescribeAsync(
         Resource resource,
         ResourceOrchestrationDescriptorContext context,
         CancellationToken cancellationToken = default);
+}
 
+public interface IApplicationResourceActionAvailabilityOperations
+{
     bool CanEvaluateAction(Resource resource, ResourceAction action);
 
     Task<string?> GetActionUnavailableReasonAsync(

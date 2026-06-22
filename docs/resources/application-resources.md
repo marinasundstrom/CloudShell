@@ -119,15 +119,18 @@ to project application-like resources can reference
 instances for their authored resource type, and subclass
 `ApplicationResourceTypeProvider` with an `ApplicationResourceProjection`. The
 base provider forwards common resource-provider responsibilities through
-`IApplicationResourceProviderOperations`, including templates, declarations,
-lifecycle actions, orchestration descriptors, auto-start policy, and action
-availability. `IApplicationResourceProjectionSource` and
+separate provider-facing contracts for definitions, procedures, templates,
+declarations, descriptors, and action availability. `IApplicationResourceProjectionSource` and
 `ApplicationResourceProjectionSupport` let custom providers reuse the same
 definition-to-resource projection path and workload-kind conventions as the
 built-in executable, ASP.NET Core project, container app, and SQL Server
 providers. Built-in container app and SQL Server providers consume additional
 role-specific contracts for container-app operations and SQL permission status
 instead of taking a dependency on the whole application provider facade.
+Provider-specific declaration helpers can call `AddApplicationResource(...)`
+with their own provider ID and an `ApplicationResourceDefinition` to reuse the
+same declaration tracking and builder defaults as the built-in resource
+helpers.
 
 This is an initial shared application-resource provider contract, not the full
 toolkit. The goal is for any resource author to be able to use the application
@@ -148,7 +151,7 @@ primitives from the built-in provider's concrete implementation details, so
 external resource authors can reuse common declaration, projection,
 process-definition, logging, monitoring, endpoint, volume, and container-host
 command infrastructure without depending on `ApplicationResourceService`
-internals. The current provider-facing operations contracts are still backed
+internals. The current provider-facing role contracts are still backed
 by `ApplicationResourceService`; future slices should move concrete behavior
 behind dedicated services and adapters only when a concrete external resource
 author would otherwise need to duplicate behavior or depend on provider-private

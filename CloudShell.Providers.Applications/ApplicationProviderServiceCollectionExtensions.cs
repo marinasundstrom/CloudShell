@@ -52,6 +52,49 @@ public static class ApplicationProviderServiceCollectionExtensions
             ServiceDescriptor.Scoped<IResourceProbeEvaluator, SqlServerResourceProbeEvaluator>());
     }
 
+    public static IExecutableResourceBuilder AddApplicationResource(
+        this IResourceDeclarationBuilder builder,
+        string providerId,
+        ApplicationResourceDefinition definition) =>
+        DeclareApplicationResource(builder, providerId, definition);
+
+    private static ExecutableApplicationResourceBuilder DeclareApplicationResource(
+        IResourceDeclarationBuilder builder,
+        string providerId,
+        ApplicationResourceDefinition definition)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentException.ThrowIfNullOrWhiteSpace(providerId);
+        ArgumentNullException.ThrowIfNull(definition);
+        ArgumentException.ThrowIfNullOrWhiteSpace(definition.Id);
+
+        var declared = new DeclaredApplicationResource(definition);
+
+        builder.Services
+            .GetOrAddApplicationProviderOptions()
+            .DeclaredApplications
+            .Add(declared);
+
+        var fallbackName = string.IsNullOrWhiteSpace(definition.Name)
+            ? CreateDisplayName(definition.Id)
+            : definition.Name;
+        var resource = builder.Declare(
+            providerId,
+            definition.Id,
+            onChanged: declaration =>
+            {
+                declared.Definition = declared.Definition with
+                {
+                    Name = GetDisplayName(declaration, fallbackName),
+                    DependsOn = declaration.DependsOn
+                };
+                declared.Persist = declaration.Persistence == ResourceDeclarationPersistence.Persisted;
+                declared.OverwritePersistedState = declaration.OverwritePersistedState;
+            });
+
+        return new ExecutableApplicationResourceBuilder(resource, declared);
+    }
+
     public static IExecutableResourceBuilder AddExecutable(
         this IResourceDeclarationBuilder builder,
         string name) =>
@@ -81,28 +124,11 @@ public static class ApplicationProviderServiceCollectionExtensions
             lifetime,
             useServiceDiscovery: useServiceDiscovery,
             observability: observability);
-        var declared = new DeclaredApplicationResource(definition);
 
-        builder.Services
-            .GetOrAddApplicationProviderOptions()
-            .DeclaredApplications
-            .Add(declared);
-
-        var resource = builder.Declare(
+        return DeclareApplicationResource(
+            builder,
             ApplicationResourceProviderIds.Executable,
-            id,
-            onChanged: declaration =>
-            {
-                declared.Definition = declared.Definition with
-                {
-                    Name = GetDisplayName(declaration, CreateDisplayName(id)),
-                    DependsOn = declaration.DependsOn
-                };
-                declared.Persist = declaration.Persistence == ResourceDeclarationPersistence.Persisted;
-                declared.OverwritePersistedState = declaration.OverwritePersistedState;
-            });
-
-        return new ExecutableApplicationResourceBuilder(resource, declared);
+            definition);
     }
 
     public static IProjectResourceBuilder AddAspNetCoreProject(
@@ -136,28 +162,11 @@ public static class ApplicationProviderServiceCollectionExtensions
             projectPath: projectPath,
             projectArguments: applicationArguments,
             aspNetCoreHotReload: hotReload);
-        var declared = new DeclaredApplicationResource(definition);
 
-        builder.Services
-            .GetOrAddApplicationProviderOptions()
-            .DeclaredApplications
-            .Add(declared);
-
-        var resource = builder.Declare(
+        return DeclareApplicationResource(
+            builder,
             ApplicationResourceProviderIds.AspNetCoreProject,
-            id,
-            onChanged: declaration =>
-            {
-                declared.Definition = declared.Definition with
-                {
-                    Name = GetDisplayName(declaration, CreateDisplayName(id)),
-                    DependsOn = declaration.DependsOn
-                };
-                declared.Persist = declaration.Persistence == ResourceDeclarationPersistence.Persisted;
-                declared.OverwritePersistedState = declaration.OverwritePersistedState;
-            });
-
-        return new ExecutableApplicationResourceBuilder(resource, declared);
+            definition);
     }
 
     public static IProjectResourceBuilder AsContainer(
@@ -272,33 +281,17 @@ public static class ApplicationProviderServiceCollectionExtensions
             volumeMounts: dataVolume is null
                 ? []
                 : [new ResourceVolumeMount(dataVolume.ResourceId, DefaultSqlServerDataPath, Name: "data")]);
-        var declared = new DeclaredApplicationResource(definition);
-
-        builder.Services
-            .GetOrAddApplicationProviderOptions()
-            .DeclaredApplications
-            .Add(declared);
-
-        var resource = builder.Declare(
+        var resource = DeclareApplicationResource(
+            builder,
             ApplicationResourceProviderIds.SqlServer,
-            id,
-            onChanged: declaration =>
-            {
-                declared.Definition = declared.Definition with
-                {
-                    Name = GetDisplayName(declaration, CreateDisplayName(id)),
-                    DependsOn = declaration.DependsOn
-                };
-                declared.Persist = declaration.Persistence == ResourceDeclarationPersistence.Persisted;
-                declared.OverwritePersistedState = declaration.OverwritePersistedState;
-            });
+            definition);
 
         if (dataVolume is not null)
         {
             resource.DependsOn(dataVolume);
         }
 
-        return new ExecutableApplicationResourceBuilder(resource, declared);
+        return resource;
     }
 
     /// <summary>
@@ -372,28 +365,11 @@ public static class ApplicationProviderServiceCollectionExtensions
             resourceType: ApplicationResourceTypes.ContainerApp,
             observability: observability,
             containerRevision: CreateContainerRevision());
-        var declared = new DeclaredApplicationResource(definition);
 
-        builder.Services
-            .GetOrAddApplicationProviderOptions()
-            .DeclaredApplications
-            .Add(declared);
-
-        var resource = builder.Declare(
+        return DeclareApplicationResource(
+            builder,
             ApplicationResourceProviderIds.ContainerApplication,
-            id,
-            onChanged: declaration =>
-            {
-                declared.Definition = declared.Definition with
-                {
-                    Name = GetDisplayName(declaration, CreateDisplayName(id)),
-                    DependsOn = declaration.DependsOn
-                };
-                declared.Persist = declaration.Persistence == ResourceDeclarationPersistence.Persisted;
-                declared.OverwritePersistedState = declaration.OverwritePersistedState;
-            });
-
-        return new ExecutableApplicationResourceBuilder(resource, declared);
+            definition);
     }
 
     private static string CreateApplicationResourceId(string name)

@@ -4,9 +4,21 @@ namespace CloudShell.Providers.Applications;
 
 internal sealed class ContainerApplicationResourceProvider(
     IApplicationResourceProjectionSource projections,
-    IApplicationResourceProviderOperations applications,
+    IApplicationResourceDefinitionSource definitions,
+    IApplicationResourceProcedureOperations procedures,
+    IApplicationResourceTemplateOperations templates,
+    IApplicationResourceDeclarationOperations declarations,
+    IApplicationResourceDescriptorOperations descriptors,
+    IApplicationResourceActionAvailabilityOperations actions,
     IContainerApplicationResourceProviderOperations containerApplications)
-    : ApplicationResourceTypeProvider(projections, applications),
+    : ApplicationResourceTypeProvider(
+        projections,
+        definitions,
+        procedures,
+        templates,
+        declarations,
+        descriptors,
+        actions),
     IResourceImageUpdateProvider,
     IResourceReplicaUpdateProvider,
     IResourceOrchestratorServiceProcedureProvider

@@ -5,9 +5,21 @@ namespace CloudShell.Providers.Applications;
 
 internal sealed class SqlServerApplicationResourceProvider(
     IApplicationResourceProjectionSource projections,
-    IApplicationResourceProviderOperations applications,
+    IApplicationResourceDefinitionSource definitions,
+    IApplicationResourceProcedureOperations procedures,
+    IApplicationResourceTemplateOperations templates,
+    IApplicationResourceDeclarationOperations declarations,
+    IApplicationResourceDescriptorOperations descriptors,
+    IApplicationResourceActionAvailabilityOperations actions,
     ISqlServerApplicationResourceProviderOperations sqlServerApplications)
-    : ApplicationResourceTypeProvider(projections, applications),
+    : ApplicationResourceTypeProvider(
+        projections,
+        definitions,
+        procedures,
+        templates,
+        declarations,
+        descriptors,
+        actions),
     IResourcePermissionGrantStatusProvider
 {
     public const string ProviderId = ApplicationResourceProviderIds.SqlServer;

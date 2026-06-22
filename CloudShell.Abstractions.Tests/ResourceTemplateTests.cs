@@ -479,7 +479,14 @@ public sealed class ResourceTemplateTests
                 [],
                 [],
                 new ResourceDeclarationStore());
-            ResourceProvider = new ExecutableApplicationResourceProvider(Provider, Provider);
+            ResourceProvider = new ExecutableApplicationResourceProvider(
+                Provider,
+                Provider,
+                Provider,
+                Provider,
+                Provider,
+                Provider,
+                Provider);
             Group = new ResourceGroup("group-1", "Local Development", "Development resources", ["application:example-web-api"]);
             Registrations = new TestRegistrationStore();
             ResourceGroups = new TestResourceGroupStore(Group);

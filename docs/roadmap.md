@@ -611,11 +611,15 @@ listed here before pulling in broader proposal work.
    coordinates projection, lifecycle, templates, declarations, descriptors,
    logging, monitoring, configuration updates, SQL access, runtime execution,
    container materialization, process tracking, and host-scoped cleanup.
-   The built-in application providers now consume narrower provider-facing
-   operation contracts for common application behavior, container-app behavior,
-   and SQL Server permission status, while those contracts are still backed by
-   `ApplicationResourceService`. Future slices should continue moving concrete
-   behavior behind dedicated implementations rather than expanding the facade.
+   The built-in application providers now consume split provider-facing
+   contracts for definitions, procedures, templates, declarations, descriptors,
+   action availability, container-app behavior, and SQL Server permission
+   status, while those contracts are still backed by
+   `ApplicationResourceService`. Custom providers can declare
+   `ApplicationResourceDefinition` instances with their own provider ID through
+   the shared application resource declaration helper and reuse the common
+   builder defaults. Future slices should continue moving concrete behavior
+   behind dedicated implementations rather than expanding the facade.
    The destination is a composable application-resource toolkit: external
    providers should be able to declare their own stable resource type, choose a
    local executable, ad-hoc container, or Resource Manager-managed sub-resource
