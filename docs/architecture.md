@@ -33,6 +33,13 @@ CloudShell UI should not be defined by Resource Manager. Resource Manager is
 the first major built-in integration, but the UI shell must stay useful for
 other product areas and extension-owned experiences.
 
+CloudShell UI should also stay isolated from extensions at the implementation
+level. Extensions integrate through declared extension points, shared
+abstractions, and shell-provided services. They should not depend on the
+concrete CloudShell UI host implementation or reach into shell internals to
+participate in navigation, settings, notifications, Resource Manager views, or
+other shell-owned surfaces.
+
 ### Control Plane
 
 The Control Plane is the backend application. It may be hosted with
@@ -139,6 +146,13 @@ packages.
 An extension can integrate with CloudShell UI, the Control Plane, or both.
 Those are separate layers even when a single capability package installs both
 halves into a combined host.
+
+Extensions are guests of the host application. The host loads their
+contributions, validates them, adapts them into shell composition or Control
+Plane services, and decides which surfaces are active. Even when extensions
+run in-process for the current implementation, the architectural dependency
+should point toward abstractions and host-provided services, not toward
+CloudShell UI implementation details.
 
 For example, Resource Manager integrates with:
 

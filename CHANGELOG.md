@@ -58,6 +58,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Clarified that Resource Manager UI extensions should depend on Resource
   Manager/UI abstractions and stable shared components instead of referencing
   the concrete CloudShell UI host package solely for contracts or reusable UI.
+- Clarified that CloudShell UI should stay isolated from extension
+  implementations, consuming contributions through extension points,
+  abstractions, shell services, and adapter layers rather than exposing shell
+  internals as the integration model.
 
 ### 2026-06-21
 

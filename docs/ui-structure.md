@@ -69,6 +69,11 @@ Do not place extension-facing UI contracts or generally reusable component
 building blocks in `CloudShell.Hosting` merely because that is where the
 current built-in shell implementation lives.
 
+CloudShell UI should consume extension contributions through extension points
+and services. Extension components can render inside shell-owned outlets, but
+they should not require direct access to shell internals or host-only helper
+types unless the integration package explicitly owns that adapter boundary.
+
 When the extension point is behavioral rather than visual, prefer a shared
 abstraction plus an optional CloudShell UI integration package over exposing a
 component as the contract. Notifications are the model case: extensions should

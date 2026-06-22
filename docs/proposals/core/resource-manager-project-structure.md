@@ -54,6 +54,9 @@ less obvious.
 - Let UI extension packages contribute Resource Manager views without
   depending on the concrete CloudShell UI host package or shell implementation
   project.
+- Keep CloudShell UI isolated from extension implementations by routing
+  extension participation through Resource Manager UI abstractions,
+  shell-owned services, and adapter layers.
 - Let provider packages contribute Control Plane resource behavior without
   depending on Blazor, Fluent UI, or shell rendering.
 - Preserve the option for convenience packages that install both halves into a
@@ -141,6 +144,13 @@ CloudShell UI host assembly. `CloudShell.Hosting` should remain the shell host
 and built-in presenter implementation, while extension-facing contracts live
 in abstractions packages and reusable UI building blocks live in a shared
 component package.
+
+The intended direction is that CloudShell UI consumes extension contributions;
+extensions do not consume CloudShell UI internals. The UI host should expose
+integration points, services, and adapters for contribution registration and
+rendering. Resource Manager UI abstractions should describe what can be
+contributed, while the concrete shell decides how those contributions are
+validated, composed, authorized, localized, and rendered.
 
 CloudShell UI may also provide optional integration packages that bind shared
 abstractions to the concrete shell experience. For example, a future
