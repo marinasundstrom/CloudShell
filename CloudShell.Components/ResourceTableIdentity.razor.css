@@ -1,0 +1,12 @@
+.resource-table-identity {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    min-width: 0;
+}
+
+.resource-table-identity > span:last-child {
+    display: grid;
+    gap: .1rem;
+    min-width: 0;
+}
