@@ -145,7 +145,7 @@
                         Message="@L["The resource could not be loaded."].Value"
                         Compact="true" />
         }
-        else if (Resource.ResourceHealthChecks.Count == 0)
+        else if (Resource.ResourceHealthChecks.Count == 0 && Summary?.Checks.Count is not > 0)
         {
             <ResourceCallout Severity="@(SupportsHealthChecks ? ResourceSignalSeverity.Info : ResourceSignalSeverity.Warning)"
                              Title="@GetNoHealthChecksTitle()">
@@ -176,7 +176,7 @@
             </div>
 
             <ResourceHealthHistoryChart Title="@L["Recent polling"].Value"
-                                        Checks="Resource.ResourceHealthChecks"
+                                        Checks="GetChartChecks()"
                                         Snapshots="Snapshots" />
 
             <div class="resource-activity-list">
@@ -281,7 +281,10 @@
         }
 
         var results = Summary?.Checks ?? [];
-        return Resource.ResourceHealthChecks
+        var checks = Resource.ResourceHealthChecks.Count > 0
+            ? Resource.ResourceHealthChecks
+            : results.Select(result => result.Check).ToArray();
+        return checks
             .Select(check => new HealthCheckRow(
                 check,
                 results.FirstOrDefault(result => ReferenceEquals(result.Check, check) || result.Check == check)))
@@ -350,6 +353,11 @@
         check.IntervalSeconds is null
             ? L["shared interval"].Value
             : L["every {0}s", check.IntervalSeconds].Value;
+
+    private IReadOnlyList<ResourceHealthCheck> GetChartChecks() =>
+        Resource?.ResourceHealthChecks.Count > 0
+            ? Resource.ResourceHealthChecks
+            : Summary?.Checks.Select(result => result.Check).ToArray() ?? [];
 
     private string FormatScope(ResourceHealthScopeObservation observation)
     {

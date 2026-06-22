@@ -61,6 +61,12 @@ on `git blame --follow`, and then by the broad type of change.
   runtime replica resources, keeping the declaration on the container app
   definition while preparing the Control Plane to poll replica health directly
   when providers can expose replica probe addresses.
+- Runtime replica health observations now roll up into an aggregate health
+  assessment on the stable container app resource, and a Replicated Container
+  Health sample verifies the parent assessment and scoped replica observations.
+- Documented the health vocabulary split: liveness is an observation, while
+  health is an assessment that may include liveness, readiness, dependencies,
+  provider-owned status, and aggregate application data.
 - Recovery remains available for stopped resources that can be started, and an
   enabled recovery policy can start a stopped resource after it previously
   observed a healthy signal.

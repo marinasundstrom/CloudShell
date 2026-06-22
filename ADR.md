@@ -103,6 +103,12 @@ hosts and other clients must read the latest Control Plane health state instead
 of probing resource endpoints directly. This keeps browser sessions and split
 UI hosts from multiplying probe load against managed services.
 
+Liveness is an observation; health is an assessment. A liveness probe answers
+whether a resource or runtime scope appears alive enough for lifecycle and
+recovery policy. A health result may assess liveness together with readiness,
+dependency state, provider-owned status, and aggregate endpoint data exposed
+by the application or provider.
+
 The latest health state is an operational cache and should always be available
 when resources declare checks. Historical health snapshot retention is separate
 and should be opt-in for local development, because short-lived local sessions

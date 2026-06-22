@@ -1941,6 +1941,83 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
+    public async Task ReplicatedContainerHealthSample_ProjectsReplicaHealthIntoParentAssessment()
+    {
+        using var host = await SampleProcess.StartAsync(
+            "samples/ReplicatedContainerHealth/CloudShell.ReplicatedContainerHealth.csproj",
+            await GetFreePortAsync());
+
+        await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+        var app = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application:api");
+        var appAttributes = app.GetProperty("attributes");
+
+        Assert.Equal("true", appAttributes.GetProperty(ResourceAttributeNames.ContainerReplicasEnabled).GetString());
+        Assert.Equal("3", appAttributes.GetProperty(ResourceAttributeNames.ContainerReplicas).GetString());
+        Assert.Equal("3", appAttributes.GetProperty(ResourceAttributeNames.DeploymentProjectedReplicas).GetString());
+
+        var childrenJson = await host.GetStringAsync(
+            $"/api/control-plane/v1/resources/{Uri.EscapeDataString("application:api")}/children");
+        using var childrenDocument = JsonDocument.Parse(childrenJson);
+        var replicas = childrenDocument.RootElement.EnumerateArray()
+            .Where(resource =>
+                resource.GetProperty("attributes").TryGetProperty(ResourceAttributeNames.RuntimeKind, out var kind) &&
+                kind.GetString() == "containerReplica")
+            .OrderBy(resource =>
+                resource.GetProperty("attributes").GetProperty(ResourceAttributeNames.RuntimeReplicaOrdinal).GetString())
+            .ToArray();
+
+        Assert.Equal(3, replicas.Length);
+        Assert.All(replicas, replica =>
+        {
+            Assert.Equal("application:api", replica.GetProperty("parentResourceId").GetString());
+            Assert.Equal("application:api", replica.GetProperty("ownerResourceId").GetString());
+            Assert.Equal("runtime.container", replica.GetProperty("typeId").GetString());
+            Assert.Equal((int)ResourceManagementMode.RuntimeManaged, replica.GetProperty("managementMode").GetInt32());
+            Assert.Equal((int)ResourceVisibility.Hidden, replica.GetProperty("visibility").GetInt32());
+        });
+
+        var summaryJson = await host.SendAsync(
+            HttpMethod.Post,
+            $"/api/control-plane/v1/resources/{Uri.EscapeDataString("application:api")}/health/refresh");
+        using var summaryDocument = JsonDocument.Parse(summaryJson);
+        var summary = summaryDocument.RootElement;
+        var checks = summary.GetProperty("checks").EnumerateArray().ToArray();
+
+        Assert.Equal("application:api", summary.GetProperty("resourceId").GetString());
+        Assert.Equal((int)ResourceHealthStatus.Unknown, summary.GetProperty("status").GetInt32());
+        Assert.Contains(checks, check =>
+            check.GetProperty("check").GetProperty("type").GetInt32() == (int)ResourceProbeType.Health &&
+            check.GetProperty("check").GetProperty("name").GetString() == "health");
+        Assert.Contains(checks, check =>
+            check.GetProperty("check").GetProperty("type").GetInt32() == (int)ResourceProbeType.Liveness &&
+            check.GetProperty("check").GetProperty("name").GetString() == "alive");
+
+        var liveness = Assert.Single(checks, check =>
+            check.GetProperty("check").GetProperty("type").GetInt32() == (int)ResourceProbeType.Liveness);
+        var observations = liveness.GetProperty("observations").EnumerateArray().ToArray();
+        Assert.Equal(3, observations.Length);
+        Assert.All(observations, observation =>
+        {
+            Assert.Equal("runtime", observation.GetProperty("scopeKind").GetString());
+            Assert.Equal("alive", observation.GetProperty("attributes").GetProperty("health.check.name").GetString());
+            Assert.Equal(ResourceProbeType.Liveness.ToString(), observation.GetProperty("attributes").GetProperty("health.check.type").GetString());
+            Assert.StartsWith(
+                "runtime-container:application-api:replica-",
+                observation.GetProperty("resourceId").GetString());
+        });
+
+        var healthHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application:api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Health.Value)}");
+        Assert.Contains("Health summary", healthHtml);
+        Assert.Contains("runtime scope check(s)", healthHtml);
+    }
+
+    [Fact]
     public async Task HostVirtualNetworkSample_ProjectsVirtualNetworkAndHostProvider()
     {
         using var host = await SampleProcess.StartAsync(

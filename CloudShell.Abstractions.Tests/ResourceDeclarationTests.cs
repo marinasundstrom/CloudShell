@@ -9062,13 +9062,11 @@ public sealed class ResourceDeclarationTests
         Assert.All(replicas, replica =>
         {
             var check = Assert.Single(replica.ResourceHealthChecks);
+            Assert.Equal("health", check.Name);
             Assert.Equal(ResourceProbeSourceKinds.Http, check.EffectiveSource.Kind);
             Assert.Equal("/health", check.EffectiveSource.Http?.Path);
             Assert.Equal("http", check.EffectiveSource.Http?.EndpointName);
         });
-        Assert.Equal("health-replica-1", Assert.Single(replicas[0].ResourceHealthChecks).Name);
-        Assert.Equal("health-replica-2", Assert.Single(replicas[1].ResourceHealthChecks).Name);
-        Assert.Equal("health-replica-3", Assert.Single(replicas[2].ResourceHealthChecks).Name);
     }
 
     [Fact]

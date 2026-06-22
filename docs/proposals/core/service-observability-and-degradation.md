@@ -159,12 +159,16 @@ resource health checks, liveness signals, readiness signals, provider-owned
 status, monitoring snapshots, and other resource factors into a scoped health
 or degradation result.
 
-Resource health checks remain resource-owned signals first. Resource Manager
-can show them on each individual resource whether the backing application
-serves the endpoint itself, a provider serves a native signal, or a container
-app provider aggregates replica observations into the container app's resource
-health check result. Health scopes are then built from those observed
-resource-level checks and related signals.
+Resource health checks remain resource-owned assessments first. Liveness is an
+observation about whether a resource or runtime scope is alive enough to
+participate in lifecycle and recovery policy; health is an assessment over
+liveness, readiness, dependencies, provider-owned status, and any aggregate
+signal the resource exposes. Resource Manager can show health on each
+individual resource whether the backing application serves the endpoint
+itself, a provider serves a native signal, or a container app provider
+aggregates replica observations into the container app's resource health check
+result. Health scopes are then built from those observed resource-level checks
+and related signals.
 
 In the future, the Control Plane can expose CloudShell-provided health check
 endpoints for health scopes. For example, it could expose a health endpoint
@@ -191,18 +195,21 @@ liveness result and expose the per-replica breakdown for Health, Monitoring,
 and Degradation views. When exactly one replica is running, the aggregate
 result and the runtime-scope result can be the same observation.
 
-The first container app slice keeps the declaration on the container app
-definition and projects replicated HTTP checks onto hidden runtime replica
-resources. Those checks may remain unresolved until the provider model can
-expose replica-specific probe addresses or provider-native replica health.
-The container app aggregate health result should be introduced separately as a
-Control Plane aggregation over the observed replica checks.
+The first container app slices keep the declaration on the container app
+definition, project replicated HTTP checks onto hidden runtime replica
+resources, and materialize an aggregate health summary on the stable container
+app resource from the observed replica checks. Those checks may remain
+unresolved until the provider model can expose replica-specific probe
+addresses or provider-native replica health, but the parent assessment can
+still show which runtime scopes contributed to the result.
 
 This should be expressed in the shared application resource toolkit rather
-than as a one-off container app exception. Application-like resource types can
-choose different health ownership policies: executable applications,
-project-backed applications, and single-process service resources may expose
-resource-owned health and liveness directly, while replicated container apps
+than as a one-off container app exception. Every declared resource can
+participate in liveness observations and health assessments regardless of
+whether it is user-managed, platform-owned, or provider-managed. The special
+case is projected runtime resources: executable applications, project-backed
+applications, and single-process service resources may expose health and
+liveness directly on the declared resource, while replicated container apps
 project the declared checks onto runtime replicas and aggregate the replica
 state back to the stable application resource.
 
@@ -403,16 +410,16 @@ For replicated container apps, Monitoring should summarize the service first
 and then break down per replica/container.
 
 The current implementation should keep resource health check declarations as
-metadata for resource-provided health signals. Health check results can now
-carry scoped observations returned by evaluators, which lets a provider-owned
-aggregate check report per-replica, dependency, route, or runtime-scope detail
-without adding scope metadata to every resource health check declaration.
+metadata for resource-provided health assessments. Health check results can
+now carry scoped observations returned by evaluators, which lets a
+provider-owned aggregate check report per-replica, dependency, route, or
+runtime-scope detail without adding scope metadata to every resource health
+check declaration.
 Health scopes remain a future Control Plane-managed aggregation concept built
 from the observed state CloudShell collects by polling those signals,
 liveness checks, readiness checks, provider status, and monitoring sources.
-The next implementation slice should introduce a provider-owned runtime-scope
-aggregation model for container apps and a separate Control Plane-owned health
-scope definition and status model.
+The next implementation slice should introduce a separate Control Plane-owned
+health scope definition and status model.
 
 ## Initial Implementation Plan
 

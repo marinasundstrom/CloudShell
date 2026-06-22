@@ -22,6 +22,7 @@
     <ProjectReference Include="..\samples\CloudShell.ContainerHost\CloudShell.ContainerHost.csproj" />
     <ProjectReference Include="..\samples\CloudShell.ResourceHost\CloudShell.ResourceHost.csproj" />
     <ProjectReference Include="..\samples\ContainerAppDeployment\CloudShell.ContainerAppDeployment.csproj" />
+    <ProjectReference Include="..\samples\ReplicatedContainerHealth\CloudShell.ReplicatedContainerHealth.csproj" />
     <ProjectReference Include="..\samples\HostVirtualNetwork\CloudShell.HostVirtualNetwork.csproj" />
     <ProjectReference Include="..\samples\LoadBalancer\CloudShell.LoadBalancer.csproj" />
     <ProjectReference Include="..\samples\ApplicationTopology\Host\CloudShell.ApplicationTopologyHost.csproj" />

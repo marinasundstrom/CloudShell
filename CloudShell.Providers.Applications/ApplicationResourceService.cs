@@ -4057,12 +4057,7 @@ public sealed partial class ApplicationResourceService(
             return [];
         }
 
-        return application.HealthChecks
-            .Select(check => check with
-            {
-                Name = $"{check.Name}-replica-{instance.ReplicaOrdinal.ToString(CultureInfo.InvariantCulture)}"
-            })
-            .ToArray();
+        return application.HealthChecks;
     }
 
     private static IReadOnlyList<Resource> CreateSqlDatabaseResources(ApplicationResourceDefinition application) =>

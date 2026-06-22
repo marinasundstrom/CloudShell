@@ -107,6 +107,7 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 "Register a top-level containerized application that runs through the selected or default container host.",
                 "container",
                 22,
+                probeOptions: new ResourceTypeProbeOptions(SupportsHealth: true),
                 resourceClass: ResourceClass.Container)
             .AddResourceType<SqlServerPages.RegisterSqlServerResource>(
                 ApplicationResourceTypes.SqlServer,

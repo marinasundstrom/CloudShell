@@ -993,13 +993,13 @@ public sealed class InProcessControlPlane(
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var resources = resourceManager.GetResources()
-            .Where(resource => resource.ResourceHealthChecks.Count > 0)
-            .ToArray();
+        var allResources = resourceManager.GetResources();
+        var resources = GetProbeHealthResources(allResources);
 
         await RefreshStaleResourceHealthAsync(resources, cancellationToken);
 
-        return CreateHealthSummaryDictionary(resources);
+        AddRuntimeHealthAggregateSummaries(allResources);
+        return CreateHealthSummaryDictionary(GetHealthSummaryResources(allResources));
     }
 
     public async Task<ResourceHealthSummary?> GetResourceHealthAsync(
@@ -1008,15 +1008,27 @@ public sealed class InProcessControlPlane(
     {
         cancellationToken.ThrowIfCancellationRequested();
         var resource = resourceManager.GetResource(resourceId);
-        if (resource is null ||
-            resource.ResourceHealthChecks.Count == 0)
+        if (resource is null)
         {
             return null;
         }
 
-        await RefreshStaleResourceHealthAsync([resource], cancellationToken);
+        if (resource.ResourceHealthChecks.Count > 0)
+        {
+            await RefreshStaleResourceHealthAsync([resource], cancellationToken);
+            return resourceHealth.GetLatest(resource.Id) ?? CreateUnknownHealthSummary(resource);
+        }
 
-        return resourceHealth.GetLatest(resource.Id) ?? CreateUnknownHealthSummary(resource);
+        var allResources = resourceManager.GetResources();
+        var children = GetRuntimeHealthChildren(resource, allResources);
+        if (children.Count == 0)
+        {
+            return null;
+        }
+
+        await RefreshStaleResourceHealthAsync(children, cancellationToken);
+        AddRuntimeHealthAggregateSummary(resource, allResources);
+        return resourceHealth.GetLatest(resource.Id);
     }
 
     public Task<IReadOnlyList<ResourceHealthSummary>> ListResourceHealthSnapshotsAsync(
@@ -1034,11 +1046,11 @@ public sealed class InProcessControlPlane(
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var resources = resourceManager.GetResources()
-            .Where(resource => resource.ResourceHealthChecks.Count > 0)
-            .ToArray();
+        var allResources = resourceManager.GetResources();
+        var resources = GetProbeHealthResources(allResources);
         await RefreshResourceHealthCoreAsync(resources, cancellationToken);
-        return CreateHealthSummaryDictionary(resources);
+        AddRuntimeHealthAggregateSummaries(allResources);
+        return CreateHealthSummaryDictionary(GetHealthSummaryResources(allResources));
     }
 
     public async Task<ResourceHealthSummary?> RefreshResourceHealthAsync(
@@ -1047,13 +1059,26 @@ public sealed class InProcessControlPlane(
     {
         cancellationToken.ThrowIfCancellationRequested();
         var resource = resourceManager.GetResource(resourceId);
-        if (resource is null ||
-            resource.ResourceHealthChecks.Count == 0)
+        if (resource is null)
         {
             return null;
         }
 
-        await RefreshResourceHealthCoreAsync([resource], cancellationToken);
+        if (resource.ResourceHealthChecks.Count > 0)
+        {
+            await RefreshResourceHealthCoreAsync([resource], cancellationToken);
+            return resourceHealth.GetLatest(resource.Id);
+        }
+
+        var allResources = resourceManager.GetResources();
+        var children = GetRuntimeHealthChildren(resource, allResources);
+        if (children.Count == 0)
+        {
+            return null;
+        }
+
+        await RefreshResourceHealthCoreAsync(children, cancellationToken);
+        AddRuntimeHealthAggregateSummary(resource, allResources);
         return resourceHealth.GetLatest(resource.Id);
     }
 
@@ -1440,6 +1465,18 @@ public sealed class InProcessControlPlane(
             StringComparer.OrdinalIgnoreCase);
     }
 
+    private static IReadOnlyList<Resource> GetProbeHealthResources(IReadOnlyList<Resource> resources) =>
+        resources
+            .Where(resource => resource.ResourceHealthChecks.Count > 0)
+            .ToArray();
+
+    private IReadOnlyList<Resource> GetHealthSummaryResources(IReadOnlyList<Resource> resources) =>
+        GetProbeHealthResources(resources)
+            .Concat(GetRuntimeHealthAggregateParents(resources))
+            .GroupBy(resource => resource.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToArray();
+
     private async Task RefreshStaleResourceHealthAsync(
         IReadOnlyList<Resource> resources,
         CancellationToken cancellationToken)
@@ -1479,7 +1516,14 @@ public sealed class InProcessControlPlane(
         bool respectCheckIntervals,
         CancellationToken cancellationToken)
     {
-        var previousLivenessStates = resources.ToDictionary(
+        var allResources = resourceManager.GetResources();
+        var aggregateParents = GetRuntimeHealthAggregateParents(allResources, resources);
+        var lifecycleResources = resources
+            .Concat(aggregateParents)
+            .GroupBy(resource => resource.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToArray();
+        var previousLivenessStates = lifecycleResources.ToDictionary(
             resource => resource.Id,
             resource => GetLivenessLifecycleProjection(resource)?.State,
             StringComparer.OrdinalIgnoreCase);
@@ -1490,7 +1534,169 @@ public sealed class InProcessControlPlane(
             respectCheckIntervals ? ShouldEvaluateHealthCheck : null,
             cancellationToken);
         resourceHealth.AddRange(summaries.Values);
-        RecordLivenessLifecycleTransitions(resources, previousLivenessStates);
+        AddRuntimeHealthAggregateSummaries(allResources, aggregateParents);
+        RecordLivenessLifecycleTransitions(lifecycleResources, previousLivenessStates);
+    }
+
+    private IReadOnlyList<Resource> GetRuntimeHealthAggregateParents(
+        IReadOnlyList<Resource> resources,
+        IReadOnlyList<Resource>? changedChildren = null)
+    {
+        var sourceChildren = changedChildren ?? resources;
+        var parentIds = sourceChildren
+            .Where(IsRuntimeHealthChild)
+            .Select(resource => resource.ParentResourceId!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (parentIds.Count == 0)
+        {
+            return [];
+        }
+
+        return resources
+            .Where(resource => parentIds.Contains(resource.Id))
+            .ToArray();
+    }
+
+    private static IReadOnlyList<Resource> GetRuntimeHealthChildren(
+        Resource resource,
+        IReadOnlyList<Resource> resources) =>
+        resources
+            .Where(child => string.Equals(child.ParentResourceId, resource.Id, StringComparison.OrdinalIgnoreCase))
+            .Where(IsRuntimeHealthChild)
+            .ToArray();
+
+    private static bool IsRuntimeHealthChild(Resource resource) =>
+        !string.IsNullOrWhiteSpace(resource.ParentResourceId) &&
+        resource.IsRuntimeManaged &&
+        resource.ResourceHealthChecks.Count > 0;
+
+    private void AddRuntimeHealthAggregateSummaries(
+        IReadOnlyList<Resource> resources,
+        IReadOnlyList<Resource>? parents = null)
+    {
+        foreach (var parent in parents ?? GetRuntimeHealthAggregateParents(resources))
+        {
+            AddRuntimeHealthAggregateSummary(parent, resources);
+        }
+    }
+
+    private void AddRuntimeHealthAggregateSummary(
+        Resource parent,
+        IReadOnlyList<Resource> resources)
+    {
+        var children = GetRuntimeHealthChildren(parent, resources);
+        if (children.Count == 0)
+        {
+            return;
+        }
+
+        var summary = CreateRuntimeHealthAggregateSummary(parent, children);
+        if (summary is not null)
+        {
+            resourceHealth.Add(summary);
+        }
+    }
+
+    private ResourceHealthSummary? CreateRuntimeHealthAggregateSummary(
+        Resource parent,
+        IReadOnlyList<Resource> children)
+    {
+        var childSummaries = children
+            .Select(child => (Child: child, Summary: resourceHealth.GetLatest(child.Id) ?? CreateUnknownHealthSummary(child)))
+            .ToArray();
+        var results = childSummaries
+            .SelectMany(item => item.Summary.Checks.Select(result => (item.Child, item.Summary, Result: result)))
+            .GroupBy(
+                item => (item.Result.Check.Type, item.Result.Check.Name),
+                item => item)
+            .Select(group => CreateRuntimeHealthAggregateResult(group.Key.Type, group.Key.Name, group))
+            .ToArray();
+        if (results.Length == 0)
+        {
+            return null;
+        }
+
+        var status = CombineHealthStatus(results.Select(result => result.Status));
+        var checkedAt = childSummaries
+            .Select(item => item.Summary.CheckedAt)
+            .DefaultIfEmpty(DateTimeOffset.UtcNow)
+            .Max();
+        return new ResourceHealthSummary(parent.Id, status, checkedAt, results);
+    }
+
+    private static ResourceHealthCheckResult CreateRuntimeHealthAggregateResult(
+        ResourceProbeType type,
+        string name,
+        IEnumerable<(Resource Child, ResourceHealthSummary Summary, ResourceHealthCheckResult Result)> items)
+    {
+        var results = items.ToArray();
+        var status = CombineHealthStatus(results.Select(item => item.Result.Status));
+        var healthy = results.Count(item => item.Result.Status == ResourceHealthStatus.Healthy);
+        var total = results.Length;
+        var detail = status == ResourceHealthStatus.Healthy
+            ? $"All {total} runtime scope check(s) are healthy."
+            : $"{healthy} of {total} runtime scope check(s) are healthy.";
+        var check = results.First().Result.Check with { Name = name, Type = type };
+        return new ResourceHealthCheckResult(
+            check,
+            status,
+            detail,
+            null,
+            CombineHealthOutcome(results.Select(item => item.Result.Outcome)),
+            results
+                .Select(item => item.Result.CheckedAt ?? item.Summary.CheckedAt)
+                .DefaultIfEmpty(DateTimeOffset.UtcNow)
+                .Max(),
+            results
+                .Select(item => CreateRuntimeScopeObservation(item.Child, item.Result))
+                .ToArray());
+    }
+
+    private static ResourceHealthScopeObservation CreateRuntimeScopeObservation(
+        Resource child,
+        ResourceHealthCheckResult result)
+    {
+        var attributes = new Dictionary<string, string>(child.ResourceAttributes, StringComparer.OrdinalIgnoreCase)
+        {
+            ["health.check.name"] = result.Check.Name,
+            ["health.check.type"] = result.Check.Type.ToString()
+        };
+        return new ResourceHealthScopeObservation(
+            child.Id,
+            ResourceHealthScopeKinds.Runtime,
+            result.Status,
+            result.Detail,
+            result.Outcome,
+            child.EffectiveDisplayName,
+            child.Id,
+            result.CheckedAt,
+            attributes);
+    }
+
+    private static ResourceHealthStatus CombineHealthStatus(IEnumerable<ResourceHealthStatus> statuses)
+    {
+        var values = statuses.ToArray();
+        return values.Any(status => status == ResourceHealthStatus.Unhealthy)
+            ? ResourceHealthStatus.Unhealthy
+            : values.Any(status => status == ResourceHealthStatus.Unknown)
+                ? ResourceHealthStatus.Unknown
+                : ResourceHealthStatus.Healthy;
+    }
+
+    private static ResourceHealthCheckOutcome CombineHealthOutcome(IEnumerable<ResourceHealthCheckOutcome> outcomes)
+    {
+        var values = outcomes.ToArray();
+        if (values.Any(outcome => outcome == ResourceHealthCheckOutcome.NoResponse))
+        {
+            return ResourceHealthCheckOutcome.NoResponse;
+        }
+
+        if (values.All(outcome => outcome == ResourceHealthCheckOutcome.Responded))
+        {
+            return ResourceHealthCheckOutcome.Responded;
+        }
+
+        return values.FirstOrDefault(outcome => outcome != ResourceHealthCheckOutcome.Responded);
     }
 
     private IReadOnlyList<Resource> GetStaleHealthResources(IReadOnlyList<Resource> resources)

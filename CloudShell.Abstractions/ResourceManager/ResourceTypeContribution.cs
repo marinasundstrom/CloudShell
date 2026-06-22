@@ -62,11 +62,12 @@ public sealed record ResourceEndpointDescriptor(
 
 public sealed record ResourceTypeProbeOptions(
     IReadOnlyList<ResourceHealthCheck>? HealthChecks = null,
-    bool EnableHealthChecksByDefault = true)
+    bool EnableHealthChecksByDefault = true,
+    bool SupportsHealth = false)
 {
     public static ResourceTypeProbeOptions None { get; } = new();
 
     public IReadOnlyList<ResourceHealthCheck> ResourceHealthChecks => HealthChecks ?? [];
 
-    public bool SupportsHealthChecks => ResourceHealthChecks.Count > 0;
+    public bool SupportsHealthChecks => SupportsHealth || ResourceHealthChecks.Count > 0;
 }

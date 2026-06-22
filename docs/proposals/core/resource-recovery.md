@@ -571,13 +571,15 @@ Provider-native signal contracts, external orchestrator policy projection,
 durable controller leases, and advanced event schemas can follow after the
 local-development loop proves the model.
 
-Application providers may later need aggregate liveness for resources backed
-by multiple executables, containers, or replicas. In that model, one failed
-unit may represent degraded capacity rather than a stopped resource, while
-all units failing may represent stopped or failed resource state. The provider
-should own that aggregation and expose the resulting liveness/degradation
-signal through the shared resource model instead of forcing the generic
-recovery controller to infer per-unit semantics.
+Application providers may need aggregate liveness for resources backed by
+multiple executables, containers, or replicas. Liveness remains the
+observation; health is the assessment that may combine liveness with
+readiness, dependency health, provider-owned status, and aggregate endpoint
+data. One failed unit may represent degraded capacity rather than a stopped
+resource, while all units failing may represent stopped or failed resource
+state. The provider should own that aggregation policy and expose the
+resulting liveness/degradation assessment through the shared resource model
+instead of forcing the generic recovery controller to infer per-unit semantics.
 
 ## Open Questions
 

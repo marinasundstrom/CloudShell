@@ -23,6 +23,9 @@
   <Folder Name="/samples/ContainerAppDeployment/">
     <Project Path="samples/ContainerAppDeployment/CloudShell.ContainerAppDeployment.csproj" />
   </Folder>
+  <Folder Name="/samples/ReplicatedContainerHealth/">
+    <Project Path="samples/ReplicatedContainerHealth/CloudShell.ReplicatedContainerHealth.csproj" />
+  </Folder>
   <Folder Name="/samples/HostVirtualNetwork/">
     <Project Path="samples/HostVirtualNetwork/CloudShell.HostVirtualNetwork.csproj" />
   </Folder>

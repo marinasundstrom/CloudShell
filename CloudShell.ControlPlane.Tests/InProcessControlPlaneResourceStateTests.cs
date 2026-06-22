@@ -13,6 +13,7 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using System.Diagnostics;
+using System.Globalization;
 using System.Security.Claims;
 using System.Text.Json;
 
@@ -1794,6 +1795,76 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task RefreshResourceHealthAsync_AggregatesRuntimeChildHealthForParentResource()
+    {
+        var parent = CreateResource("application:api", ResourceState.Running);
+        var replica1 = CreateRuntimeReplicaResource(parent.Id, 1) with
+        {
+            HealthChecks = [CreateLivenessCheck()]
+        };
+        var replica2 = CreateRuntimeReplicaResource(parent.Id, 2) with
+        {
+            HealthChecks = [CreateLivenessCheck()]
+        };
+        var controlPlane = CreateControlPlane(
+            [parent, replica1, replica2],
+            probeEvaluators:
+            [
+                new ResourceSpecificProbeEvaluator(
+                    new Dictionary<string, ResourceHealthStatus>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        [replica1.Id] = ResourceHealthStatus.Healthy,
+                        [replica2.Id] = ResourceHealthStatus.Unhealthy
+                    })
+            ]);
+
+        var summary = await controlPlane.RefreshResourceHealthAsync(parent.Id);
+
+        Assert.NotNull(summary);
+        Assert.Equal(parent.Id, summary.ResourceId);
+        Assert.Equal(ResourceHealthStatus.Unhealthy, summary.Status);
+        var result = Assert.Single(summary.Checks);
+        Assert.Equal(ResourceProbeType.Liveness, result.Check.Type);
+        Assert.Equal("alive", result.Check.Name);
+        Assert.Equal(ResourceHealthStatus.Unhealthy, result.Status);
+        Assert.Equal(2, result.ScopeObservations.Count);
+        Assert.Contains(result.ScopeObservations, observation =>
+            observation.ResourceId == replica1.Id &&
+            observation.Status == ResourceHealthStatus.Healthy &&
+            observation.ObservationAttributes[ResourceAttributeNames.RuntimeReplicaOrdinal] == "1");
+        Assert.Contains(result.ScopeObservations, observation =>
+            observation.ResourceId == replica2.Id &&
+            observation.Status == ResourceHealthStatus.Unhealthy &&
+            observation.ObservationAttributes[ResourceAttributeNames.RuntimeReplicaOrdinal] == "2");
+    }
+
+    [Fact]
+    public async Task ListResourcesAsync_ProjectsParentAsDegradedWhenRuntimeChildLivenessFails()
+    {
+        var parent = CreateResource("application:api", ResourceState.Running);
+        var replica1 = CreateRuntimeReplicaResource(parent.Id, 1) with
+        {
+            HealthChecks = [CreateLivenessCheck()]
+        };
+        var replica2 = CreateRuntimeReplicaResource(parent.Id, 2) with
+        {
+            HealthChecks = [CreateLivenessCheck()]
+        };
+        var controlPlane = CreateControlPlane(
+            [parent, replica1, replica2],
+            probeEvaluators: [new StaticProbeEvaluator(ResourceHealthStatus.Unhealthy, "Replica is unhealthy")]);
+
+        await controlPlane.RefreshResourceHealthAsync(parent.Id);
+        await controlPlane.RefreshResourceHealthAsync(parent.Id);
+        await controlPlane.RefreshResourceHealthAsync(parent.Id);
+
+        var projected = (await controlPlane.ListResourcesAsync())
+            .Single(resource => resource.Id == parent.Id);
+
+        Assert.Equal(ResourceState.Degraded, projected.State);
+    }
+
+    [Fact]
     public async Task RefreshResourceHealthAsync_RecordsDegradedEventWhenLivenessFailureThresholdIsReached()
     {
         var resourceEvents = new InMemoryResourceEventStore();
@@ -2977,6 +3048,23 @@ public sealed class InProcessControlPlaneResourceStateTests
             RecoveryPolicies: recoveryPolicies,
             DisplayName: displayName);
 
+    private static Resource CreateRuntimeReplicaResource(string parentResourceId, int replica) =>
+        CreateResource($"runtime-container:api:replica-{replica}", ResourceState.Running) with
+        {
+            ParentResourceId = parentResourceId,
+            ResourceClass = ResourceClass.Container,
+            Source = ResourceSource.Orchestrator,
+            ManagementMode = ResourceManagementMode.RuntimeManaged,
+            Visibility = ResourceVisibility.Hidden,
+            OwnerResourceId = parentResourceId,
+            Attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.RuntimeKind] = "containerReplica",
+                [ResourceAttributeNames.RuntimeReplicaOrdinal] = replica.ToString(CultureInfo.InvariantCulture),
+                [ResourceAttributeNames.RuntimeReplicaCount] = "2"
+            }
+        };
+
     private static ResourceHealthCheck CreateLivenessCheck() =>
         new(
             new ResourceProbeSource("test"),
@@ -3219,6 +3307,27 @@ public sealed class InProcessControlPlaneResourceStateTests
         {
             CallCount++;
             return Task.FromResult(new ResourceHealthCheckResult(check, status, detail, null, outcome));
+        }
+    }
+
+    private sealed class ResourceSpecificProbeEvaluator(
+        IReadOnlyDictionary<string, ResourceHealthStatus> statuses) : IResourceProbeEvaluator
+    {
+        public bool CanEvaluate(Resource resource, ResourceHealthCheck check) =>
+            string.Equals(check.EffectiveSource.Kind, "test", StringComparison.OrdinalIgnoreCase);
+
+        public Task<ResourceHealthCheckResult> EvaluateAsync(
+            Resource resource,
+            ResourceHealthCheck check,
+            CancellationToken cancellationToken = default)
+        {
+            var status = statuses.GetValueOrDefault(resource.Id, ResourceHealthStatus.Unknown);
+            return Task.FromResult(new ResourceHealthCheckResult(
+                check,
+                status,
+                $"{resource.Id} is {status.ToString().ToLowerInvariant()}",
+                null,
+                ResourceHealthCheckOutcome.Responded));
         }
     }
 
