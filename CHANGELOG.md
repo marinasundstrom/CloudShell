@@ -74,6 +74,8 @@ on `git blame --follow`, and then by the broad type of change.
   and placement.
 - Resource Health now links aggregate runtime-scope observations to the
   resource-owned Scale and replicas view when the resource type exposes one.
+- The global Health page now links resources directly to their resource-scoped
+  Health tab instead of sending users back to the resource overview.
 - Health status pills now have a shared `HealthPill` component used by the
   resource Health views, dashboard issue list, resource inventory, and
   container app replica table.

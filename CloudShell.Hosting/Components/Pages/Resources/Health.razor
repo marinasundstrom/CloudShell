@@ -396,7 +396,10 @@
     }
 
     private string BuildResourceRoute(string resourceId) =>
-        ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId);
+        ResourceManagerCompositionLinks.ResourceDetails(
+            Composition,
+            resourceId,
+            ResourcePredefinedViewIds.Health);
 
     public void Dispose()
     {
