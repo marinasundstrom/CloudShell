@@ -583,12 +583,13 @@ listed here before pulling in broader proposal work.
    local/default container-host MVP path.
 14. Runtime-managed resources and deployment model: the first ownership,
    visibility, cleanup, and internal orchestrator deployment/revision contracts
-   are in place. Container apps now project desired replica/runtime-container
-   children as hidden runtime-managed resources parented to the app, with
-   Resource Manager visibility controlled separately for hidden resources and
-   hidden runtime-managed artifacts. Docker host raw container discoveries use
-   the same hidden runtime-managed projection by default, while explicitly
-   declared Docker containers remain normal user-managed resources. Generic
+   are in place. Container apps now materialize desired replica resources as
+   hidden runtime-managed children parented to the app, with Resource Manager
+   visibility controlled separately for hidden resources and hidden
+   runtime-managed artifacts. Docker host raw container discoveries are a
+   separate provider-observation path that projects Docker container resources
+   as hidden runtime-managed resources by default, while explicitly declared
+   Docker containers remain normal user-managed resources. Generic
    child-resource UI should honor visibility settings; providers should expose
    deliberate host/app-scoped tabs when those artifacts need first-class
    inspection. Container apps now have app-scoped projected runtime-child
@@ -609,7 +610,11 @@ listed here before pulling in broader proposal work.
    `ApplicationResourceService` responsibilities and extract smaller
    provider-facing services for runtime execution, environment resolution,
    container materialization, log projection, and host-scoped cleanup only
-   where extension authors need stable reuse.
+   where extension authors need stable reuse. Treat application runtime
+   materialization as broader than projection: an application resource may own
+   local processes, ad-hoc containers, and Resource Manager-managed
+   sub-resources, while projecting only the artifacts whose resource identity
+   has operational value.
 15. Advanced app and environment concepts: defer autoscaling, backend pools,
    traffic splitting, provider-backed network-level service discovery,
    provider-backed DNS propagation, external deployment projection,

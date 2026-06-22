@@ -5,9 +5,12 @@ resources project as `application.container-app`. The container app is the
 stable deployment target. It is not the same thing as a Docker container
 resource, even when the current host is Local Docker.
 
-Docker or another container host provider may expose runtime containers or
-replicas as separate resources for inspection and low-level operations, but
-deployment automation should target the container app.
+Replicas are app-owned runtime resources materialized by the container app when
+replica mode is enabled. Docker or another container host provider may also
+project observed runtime containers as separate container resources for
+inspection and low-level operations, but those projected container resources
+are not the same thing as the container app's replica resources. Deployment
+automation should target the container app.
 
 For shared application-provider behavior, see
 [Application resources](application-resources.md). For related resource types,
@@ -135,9 +138,10 @@ known restart blocker does not leave the app on a partially applied deployment
 change.
 
 The same tab shows the app's current internal deployment projection: deployment
-status, orchestrator service id, scaling mode, desired replicas, and projected
-runtime replicas. This is an inspection surface over CloudShell's internal
-orchestrator deployment model, not a public rollout-history or rollback API.
+status, orchestrator service id, scaling mode, desired replicas, and
+materialized runtime replica resources. This is an inspection surface over
+CloudShell's internal orchestrator deployment model, not a public
+rollout-history or rollback API.
 
 ## Service Discovery
 
@@ -174,9 +178,9 @@ replica count greater than one to the container app declaration helpers.
 
 Container apps project replica intent through `container.replicas.enabled` and
 `container.replicas`. The current MVP supports updating that explicit count;
-autoscaling policy, traffic splitting, and replica health are future
+autoscaling policy, traffic splitting, and richer replica health are future
 resource-model work. The Scale and replicas tab is also diagnostic: it lists
-projected runtime replica artifacts only after scaling is enabled.
+materialized runtime replica resources only after scaling is enabled.
 When updating replicas with automatic restart for a running app, the provider
 preflights restart readiness before saving the new desired count.
 
@@ -205,12 +209,14 @@ Content-Type: application/json
 ```
 
 The API targets the stable container app resource and opts the app into replica
-mode. Everything below that resource is provider-owned implementation detail:
-a default local container group, a Docker Compose service, a Kubernetes Service
-or Deployment, or another runtime-specific management shape. The provider
-configures that implementation with the app's current image or revision and
-desired replica count, then creates, updates, inspects, or replaces individual
-runtime containers as needed.
+mode. The container app materializes app-owned replica resources below itself,
+then the selected provider or orchestrator maps those replicas to runtime
+implementation details: a default local container group, Docker containers, a
+Docker Compose service, a Kubernetes Service or Deployment, or another
+runtime-specific management shape. The provider configures that implementation
+with the app's current image or revision and desired replica count, then
+creates, updates, inspects, or replaces the backing runtime containers as
+needed.
 
 Inside the orchestration layer, CloudShell represents this management group as
 a `ResourceOrchestratorService` descriptor. Container apps produce this
@@ -225,10 +231,12 @@ projected as a Resource Manager resource by default. It is also distinct from
 the `cloudshell.service` resource type at the CloudShell model/API layer.
 
 Runtime replica child resources carry the app deployment id, orchestrator
-service id, and deployment revision they implement. The app-scoped Scale and
-replicas tab shows those identifiers after scaling is enabled so operators can
-correlate expected runtime artifacts with the current Deployment tab
-projection without enabling global hidden runtime-managed inventory.
+service id, and deployment revision they implement. They are real
+runtime-managed resources materialized by the container app, not merely Docker
+container projections. The app-scoped Scale and replicas tab shows those
+identifiers after scaling is enabled so operators can correlate expected
+runtime artifacts with the current Deployment tab projection without enabling
+global hidden runtime-managed inventory.
 
 Revision management is a separate future Application view. The current
 Deployment tab projects the latest revision and image update operation, but
@@ -244,16 +252,17 @@ orchestrator may materialize an explicitly modeled `cloudshell.service` as its
 provider-native service primitive when that resource represents the service
 unit.
 
-Runtime replica containers are not normal Resource Manager management targets.
-CloudShell may project them as hidden runtime-managed child resources of the
-container app for diagnostics and relationship inspection. The current
-application provider projects desired replica/container children from the
-orchestrator service descriptor with replica ordinal, replica count, container
-name, and revision metadata. Provider-observed container IDs, placement, health,
-and materialization state are future enrichment. Hidden replica resources are
-not automatically internal artifacts: they can remain part of the resource
-graph for the container app while staying out of the top-level inventory by
-default. Resource Manager decides whether to present them on app-owned views.
+Runtime replica resources are not normal Resource Manager management targets.
+The container app materializes them as hidden runtime-managed child resources
+for diagnostics, relationship inspection, scoped health, logs, telemetry, and
+lifetime tracking. The current application provider creates replica resources
+from the orchestrator service descriptor with replica ordinal, replica count,
+container name, and revision metadata. Provider-observed backing container IDs,
+placement, health, and materialization state are future enrichment. Hidden
+replica resources are not automatically internal artifacts: they can remain
+part of the resource graph for the container app while staying out of the
+top-level inventory by default. Resource Manager decides whether to present
+them on app-owned views.
 Resource Manager only shows them in global inventory when both hidden resources
 and runtime-managed resources are enabled for the current user, and
 runtime-managed inspection requires the

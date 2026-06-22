@@ -67,13 +67,42 @@ resource when they matter for cleanup, diagnostics, monitoring, or advanced
 inspection, but they should not become the primary user-facing resource unless
 the user explicitly modeled them as resources.
 
+Runtime materialization and resource projection are separate concerns. An
+application resource may materialize runtime work without projecting every
+runtime artifact as a resource. The shared application infrastructure should
+support a small set of materialization primitives that provider authors can
+reuse when policy allows:
+
+- spawn a local process and keep enough identity to observe, stop, recover, and
+  clean it up according to the resource lifetime
+- start an ad-hoc container on a selected container host and track the host,
+  name, replica, log source, and cleanup identity owned by the application
+- create or reconcile sub-resources through the Resource Manager when the
+  materialized entity is itself a meaningful resource with identity,
+  authorization, relationships, diagnostics, or lifecycle behavior
+
+Processes and ad-hoc containers can remain resource-owned runtime state when
+they are only implementation details of the application. They should be
+projected as child or runtime-managed resources only when that projection adds
+resource-model value, such as independent inspection, targeted diagnostics,
+actions, permissions, ownership traversal, or references from other resources.
+Sub-resources that are managed through the Resource Manager are different:
+they are real resources with normal resource identity, even when the
+application provider creates or reconciles them on behalf of the parent.
+
 Containment exists at more than one level:
 
 - The application resource contains the runtime behavior it owns.
 - The shared application infrastructure manages process and container
   lifecycles for that resource.
-- Providers can project child or internal resources, such as SQL databases or
-  container replicas, when they are useful to inspect.
+- Providers can materialize child or internal resources, such as SQL databases
+  or container app replicas, when they are real resources owned by the parent.
+- Providers can also project provider-observed resources, such as Docker host
+  containers, when the backing platform exposes resources that are useful to
+  inspect.
+- Providers can create Resource Manager-managed sub-resources when the
+  materialized artifact should participate in the normal resource graph rather
+  than remain provider-owned runtime state.
 - Orchestrators manage orchestrator-owned sub-resources and runtime service
   descriptors that materialize the application resource on a selected host.
 

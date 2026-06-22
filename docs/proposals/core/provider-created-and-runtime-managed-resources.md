@@ -24,18 +24,28 @@ visibility gates as the global inventory so hidden implementation details do
 not appear merely because they are parented to a stable resource. This is an
 internal foundation for container app runtime artifacts before broad runtime
 resource projection is announced as a public product surface.
-Container apps now use this foundation to project desired runtime container
-replicas as hidden children of the stable container app resource. Provider-
-observed container IDs, health, placement, and materialization details remain
-future enrichment.
-Docker host discovery also projects raw Docker containers as hidden
-runtime-managed observations by default. Explicit `AddDockerContainer(...)`
-resources remain normal user-managed resources.
+Container apps now use this foundation to materialize desired replica
+resources as hidden runtime-managed children of the stable container app
+resource. Those replicas are app-owned resources even when a local Docker
+container backs each replica. Provider-observed backing container IDs, health,
+placement, and materialization details remain future enrichment.
+Docker host discovery is a different path: it projects raw Docker containers
+as hidden runtime-managed observations by default. Explicit
+`AddDockerContainer(...)` resources remain normal user-managed resources.
 
 Runtime-managed resources are one important case, but the broader problem is
 that provider-created, orchestrator-created, and runtime-created resources need
 to participate in the same resource graph without becoming part of the normal
 user-authored application contract.
+
+Not every materialized runtime artifact needs to be a resource. A parent
+resource may spawn and own local processes, ad-hoc containers, sidecars, helper
+tasks, provider sessions, or external handles as provider-owned runtime state.
+Those artifacts should become `Resource` projections only when resource
+identity adds value: inspection, relationships, authorization, lifecycle
+actions, diagnostics, cleanup traversal, or references from other resources.
+This lets an application resource own runtime work without making every
+process or container part of the user-authored resource graph.
 
 ## Problem
 
@@ -60,6 +70,14 @@ provider-created resources, such as deployment revisions, generated container
 images, gateway routes, or backend registrations. They may be essential to
 system operation and lifecycle management, but they are not necessarily
 user-authored resources.
+
+There is also a middle category: materialized runtime state that belongs to a
+resource but is not itself a resource. Examples include a process ID for a
+local executable, an ad-hoc container name used by an application resource, a
+provider-owned log tailing session, or a temporary helper process used during
+reconciliation. These artifacts still need ownership, observation, cleanup, and
+lifetime policy, but those concerns can be satisfied by provider-owned runtime
+state when resource projection would add noise rather than value.
 
 Keeping such artifacts outside the Resource Manager creates several problems:
 
@@ -149,9 +167,11 @@ These qualities should not be collapsed into a single category. For example, a
 generated deployment revision may be provider-created, provider-managed, and
 visible. A storage-owned volume may be user-created, user-managed, hidden from
 global inventory, and still visible from Storage-owned UI flows when the user
-has permission. A replica may be orchestrator-created, runtime-managed, hidden
-from global inventory, and visible from container-app UI flows. A health probe
-may be runtime-created, runtime-managed, and internal.
+has permission. A container app replica may be materialized by the container
+app, runtime-managed, hidden from global inventory, and visible from
+container-app UI flows. A Docker container observed by a Docker host provider
+may be a projected provider observation rather than the container app's replica
+resource. A health probe may be runtime-created, runtime-managed, and internal.
 
 Every non-internal resource remains:
 
@@ -262,6 +282,22 @@ resource when one or more of the following conditions apply:
 Providers are not required to register implementation details that do not
 provide meaningful value through the resource model.
 
+Providers should keep a materialized artifact as runtime state when all of the
+following are true:
+
+* the artifact has no useful identity outside its owner
+* lifecycle actions are naturally performed through the owning resource
+* authorization and audit can be represented by the owning resource's actions
+* diagnostics can be projected through the owning resource's logs, telemetry,
+  health, activity, or generated detail sections
+* no other resource needs to depend on or reference the artifact directly
+
+This is the expected shape for many local processes and ad-hoc containers
+spawned by application resources. The application resource still owns their
+lifetime and must track enough runtime identity to stop, clean up, recover, and
+explain them. It does not need to project each artifact as a child resource
+unless the child has independent operational value.
+
 Examples that are often good candidates for resources:
 
 * deployment revisions
@@ -279,6 +315,8 @@ Examples that may remain provider-owned implementation state:
 * protocol-specific connection objects
 * transient retry state
 * provider-specific optimization data
+* local process identities owned by an application resource
+* ad-hoc container identities owned only for application lifetime management
 
 CloudShell should not require providers to model every implementation detail as
 resources. A provider may maintain internal state outside the Resource Manager

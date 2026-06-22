@@ -184,13 +184,17 @@ host selection is deployment plumbing; consumers should not need to know which
 runtime type or runtime container is used to deploy the app. A container app is more
 than a single container: it may be backed by one or more runtime container
 instances/replicas, and those runtime instances may change across deployments.
-Docker and other host providers may also project runtime container resources,
-often as children under a container host resource. Projected resources can
-still have stable, addressable resource IDs when the provider has a stable
-underlying identity. For Docker containers, the resource ID is derived from
-the host resource ID plus the actual container identity. Those runtime
-container resources are useful for inspection and low-level operations, but
-they are not the stable deployment target for app image updates.
+The container app may materialize app-owned replica resources below itself
+when replica mode is enabled. Docker and other host providers may also project
+runtime container resources, often as children under a container host resource.
+Those Docker-host container resources are provider observations of runtime
+containers, not the same thing as the container app's replica resources.
+Projected provider resources can still have stable, addressable resource IDs
+when the provider has a stable underlying identity. For Docker containers, the
+resource ID is derived from the host resource ID plus the actual container
+identity. Those runtime container resources are useful for inspection and
+low-level operations, but they are not the stable deployment target for app
+image updates.
 
 Provider-owned resources may create and manage runtime containers without
 becoming container app resources. For example, a load balancer provider can run
@@ -896,9 +900,10 @@ a revision for a container app, rather than as a resource-type-specific route
 under the core Resource Manager `/resources` endpoints.
 
 `UpdateResourceReplicasCommand` targets the same stable container app resource
-and updates the explicit desired replica count. Runtime containers created for
-replicas remain provider-owned implementation instances, not API targets for
-deployment automation.
+and updates the explicit desired replica count. The container app materializes
+replica resources to represent the app-owned runtime units. The backing
+runtime containers remain provider-owned implementation instances and are not
+API targets for deployment automation.
 
 The intended build-server deployment procedure is to push an immutable image tag
 to a registry, then call the authenticated Container Apps revision endpoint with
