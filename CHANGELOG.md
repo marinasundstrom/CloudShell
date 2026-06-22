@@ -42,6 +42,12 @@ on `git blame --follow`, and then by the broad type of change.
   page-level hand-coded markup.
 - Documented CloudShell UI component organization guidance for view-local,
   feature-local, Resource Manager-shared, and product-shared components.
+- Resource table identity and health history chart styles now live with their
+  components through scoped CSS instead of the global app stylesheet.
+- Added a Resource Manager project-structure proposal for separating shell
+  hosting, Resource Manager UI, Resource Manager UI abstractions, host
+  installation, Control Plane services, and provider UI/runtime integration
+  boundaries.
 
 ### 2026-06-21
 
