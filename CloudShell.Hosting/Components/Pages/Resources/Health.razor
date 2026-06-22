@@ -95,10 +95,15 @@
                                     @if (index == 0)
                                     {
                                         <td rowspan="@rows.Count">
-                                            <a class="resource-link" href="@BuildResourceRoute(resource.Id)">
-                                                <strong>@resource.EffectiveDisplayName</strong>
-                                            </a>
-                                            <span>@resource.Kind</span>
+                                            <ResourceTableIdentity IconName="@resource.EffectiveTypeId"
+                                                                   IconTitle="@resource.Kind"
+                                                                   Summary="@resource.Kind">
+                                                <TitleContent>
+                                                    <a class="resource-link" href="@BuildResourceRoute(resource.Id)">
+                                                        @resource.EffectiveDisplayName
+                                                    </a>
+                                                </TitleContent>
+                                            </ResourceTableIdentity>
                                         </td>
                                     }
                                     <td>

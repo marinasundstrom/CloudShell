@@ -32,6 +32,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Dashboard, Health, and Observability summary cards now use a shared metric
   card with prominent area icons, while generated information cards use the
   same left badge treatment as resource cards for consistency.
+- SQL Server database rows, container replica tables, and the common Health
+  table now use a shared resource table identity component for consistent
+  icon, title, and secondary-label rendering.
 
 ### 2026-06-21
 

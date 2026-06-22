@@ -188,15 +188,10 @@ else
                     {
                         <tr>
                             <td>
-                                <div class="resource-table-identity">
-                                    <span class="resource-kind-icon">
-                                        <FluentIcon Value="@(new Icons.Regular.Size20.Database())" />
-                                    </span>
-                                    <span>
-                                        <strong>@database.Label</strong>
-                                        <span>@database.Name</span>
-                                    </span>
-                                </div>
+                                <ResourceTableIdentity IconName="database-item"
+                                                       IconTitle="Database"
+                                                       Title="@database.Label"
+                                                       Summary="@database.Name" />
                             </td>
                             <td>@FormatDatabaseSummary(database)</td>
                             <td>@FormatDatabaseState(database)</td>

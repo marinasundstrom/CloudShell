@@ -151,15 +151,10 @@ else
                             {
                                 <tr>
                                     <td>
-                                        <div class="resource-table-identity">
-                                            <span class="resource-kind-icon">
-                                                <FluentIcon Value="@(new Icons.Regular.Size20.CubeTree())" />
-                                            </span>
-                                            <span>
-                                                <strong>@row.Resource.Name</strong>
-                                                <span>@FormatReplicaOrdinal(row.Resource)</span>
-                                            </span>
-                                        </div>
+                                        <ResourceTableIdentity IconName="replica"
+                                                               IconTitle="Replica"
+                                                               Title="@row.Resource.Name"
+                                                               Summary="@FormatReplicaOrdinal(row.Resource)" />
                                     </td>
                                     <td>
                                         <ResourceStateIndicator State="row.Resource.State" Variant="pill" />

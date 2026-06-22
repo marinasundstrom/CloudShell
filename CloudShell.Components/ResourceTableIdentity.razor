@@ -1,0 +1,50 @@
+<div class="resource-table-identity" @attributes="AdditionalAttributes">
+    <ResourceIcon IconName="@IconName"
+                  Class="@IconClass"
+                  Title="@IconTitle" />
+    <span>
+        @if (TitleContent is not null)
+        {
+            <strong>@TitleContent</strong>
+        }
+        else if (!string.IsNullOrWhiteSpace(Title))
+        {
+            <strong>@Title</strong>
+        }
+
+        @if (SummaryContent is not null)
+        {
+            <span>@SummaryContent</span>
+        }
+        else if (!string.IsNullOrWhiteSpace(Summary))
+        {
+            <span>@Summary</span>
+        }
+    </span>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string IconName { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? IconTitle { get; set; }
+
+    [Parameter]
+    public string? IconClass { get; set; }
+
+    [Parameter]
+    public string? Title { get; set; }
+
+    [Parameter]
+    public RenderFragment? TitleContent { get; set; }
+
+    [Parameter]
+    public string? Summary { get; set; }
+
+    [Parameter]
+    public RenderFragment? SummaryContent { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+}
