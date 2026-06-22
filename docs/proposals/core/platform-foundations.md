@@ -215,6 +215,22 @@ hosting, and deployments.
 
 ## Remaining Tasks
 
+* Stabilize the current UI foundation before opening new platform fronts. The
+  first target is consistency and maintainability across shell chrome,
+  Settings, Resource Manager pages, generated details, provider-owned views,
+  route-backed resource tabs, selectors, tables, alerts, action controls,
+  iconography, status indicators, and empty/loading/error states.
+* Consolidate duplicated UI behavior when the same pattern already appears in
+  current MVP surfaces. Candidate areas include resource selectors, principal
+  selectors, resource references, action bars, status pills, alert boxes,
+  generated detail rows, resource tables, and local navigation. Shared
+  components must preserve localization, accessibility, authorization,
+  read-only behavior, and loading/error semantics.
+* Keep the foundation extensibility-aware without exposing unstable internals.
+  Use stable IDs, clear ownership boundaries, predictable route/link
+  resolution, and validated contribution points where they already exist.
+  Expect a later refactor when CloudShell builds shell-owned abstractions and
+  extension contracts on top of the UI composition library.
 * Keep the supported sample smoke suite green, and use Application Topology as
   the broad local-development proof for container/project-backed apps, SQL
   Server with mounted storage, configuration, secrets, identity-backed access,

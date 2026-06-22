@@ -54,6 +54,15 @@ Proposed. This is post-MVP platform direction. MVP work should keep Resource
 Manager and supported local-development samples stable while avoiding
 short-term UI decisions that would prevent this model.
 
+The immediate MVP UI work is still important to this direction, but it is not
+the final shell extensibility layer. Current Resource Manager and Settings
+components should be made consistent, maintainable, and reusable where that
+helps the active product. Later, when CloudShell defines shell-owned
+abstractions and extension points on top of the reusable UI composition
+library, those proven patterns should be refactored into explicit shell
+contracts. The extension contract should not be today's internal presenter
+types exposed directly.
+
 For the reusable library direction, see
 [UI composition library](ui-composition.md). For the current experimental
 library, CloudShell Hosting integration slices, and sample behavior, see

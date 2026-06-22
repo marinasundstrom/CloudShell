@@ -106,6 +106,15 @@ identity-backed configuration and secrets where they affect runtime behavior,
 logs, traces, monitoring, activity, and inbound names. Secondary editing tabs
 should be improved only when they block that primary experience.
 
+The current MVP stabilization priority is the UI experience and the
+abstractions that support it at every layer. That includes shell composition
+where it already backs navigation or settings, Resource Manager page and tab
+contracts, provider-owned UI contributions, generated detail rendering,
+shared selector and status components, route/link resolution, labels,
+empty/error states, and the Control Plane API shapes the UI depends on. New
+platform capabilities should wait when the existing UI path is inconsistent,
+hard to reason about, or difficult to maintain.
+
 ## MVP Proof
 
 The MVP should prove that a common-hosted CloudShell environment can manage a

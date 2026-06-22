@@ -19,7 +19,7 @@ changes. Milestone scope remains authoritative in [Roadmap](../roadmap.md).
 
 | Order | Proposal | Status | Milestone relationship | Notes |
 | --- | --- | --- | --- | --- |
-| 1 | [Platform foundations](core/platform-foundations.md) | In progress | MVP: UX polish; Samples should work | Current MVP convergence focus. Tracks the local development target: Application Topology confidence, app-centric Resource Manager workflows, focused relationship comprehension, readiness diagnostics, readable resource labels, settings/secrets/identity polish, persisted-state handoff, and cross-cutting reliability. |
+| 1 | [Platform foundations](core/platform-foundations.md) | In progress | MVP: UX polish; Samples should work | Current MVP convergence focus. Tracks the local development target with the UI foundation as the stabilization lens: consistent current UI structure, reusable components, iconography, maintainable Resource Manager and Settings patterns, Application Topology confidence, app-centric workflows, focused relationship comprehension, readiness diagnostics, readable resource labels, settings/secrets/identity polish, persisted-state handoff, and cross-cutting reliability. |
 | 2 | [Secrets management](services/secrets-management.md) | In progress | MVP: App settings and secrets integrations | Built-in vault and reference flow exist; remaining work focuses Resource Manager assignment polish, safe reference display, diagnostics, and identity-backed access where needed. |
 | 3 | [Identity and access](core/identity-and-access.md) | Current implementation working document | MVP: Identity, Built-in; external validation | Built-in provisioning, scoped tokens, grants, and service integration are working. A Keycloak sample validates external OIDC user sign-in, role claim mapping, sample-scoped resource identity provisioning, runtime credential injection, provider setup, external service-bearer validation plumbing, and automated workload smoke coverage with a Keycloak-issued token. |
 | 4 | [Lifecycle orchestration](core/lifecycle-orchestration.md) | Proposed | MVP: Resource Manager behavior and traceability | Defines the common lifecycle action procedure, dependency execution flow, resource events, failure semantics, and future event-triggered extension point. |
@@ -53,14 +53,19 @@ configuration/secrets/identity clarity, persisted-state handoff, or release
 hardening.
 
 1. MVP convergence and Resource Manager reliability through
-   [Platform foundations](core/platform-foundations.md), keeping supported
-   samples green, making Application Topology the broad local-development
-   proof, and refining focused dependency/dependent visualization only where
-   the app workflow exposes unclear labels, navigation, empty states, or
-   diagnostic gaps. The next MVP run should stay in stabilization mode: fix
-   readable resource naming, exposure/name-mapping links, lifecycle cleanup and
-   process/Docker diagnostics, and app-page observability before pulling in
-   broader platform fronts.
+   [Platform foundations](core/platform-foundations.md), with the current UI
+   foundation as the first stabilization lens. Keep supported samples green,
+   make Application Topology the broad local-development proof, and stabilize
+   the UI structures the MVP already uses: page anatomy, local navigation,
+   generated details, selectors, tables, alerts, action controls, iconography,
+   status/empty/loading/error states, and provider-owned views. Consolidate
+   duplicated components and presenters when that improves maintainability,
+   consistency, and testability. Do not turn this into broad shell-composition
+   or extension API work before the internal Resource Manager and Settings
+   surfaces are stable. Expect a deliberate refactoring step later when
+   CloudShell starts building shell-owned abstractions and extension points on
+   top of the reusable UI composition library; do not prematurely expose the
+   current internal presenters as the extension contract.
 2. Application environment management path through
    [Container applications](containers/container-applications.md), app-owned
    exposure/discovery, virtual networks, public endpoints, load balancers, and

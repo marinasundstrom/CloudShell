@@ -188,6 +188,50 @@ workers. This is important platform direction, but it should not displace the
 current local-development MVP stabilization unless a new subsystem would
 otherwise bake in single-process assumptions.
 
+The main stabilization lens is now the UI foundation that the MVP already
+uses. The priority is to make shell chrome, Resource Manager pages, resource
+menus, settings sections, generated details, selectors, tables, alerts,
+actions, route-backed tabs, and provider-owned views coherent and
+maintainable. This does not mean broadening the shell-composition feature set
+for MVP. It means hardening the abstractions and implementations that are
+already in the product so they can evolve without rewrites and later become
+extension points. Balance internal needs with future opportunity: favor
+stable IDs, clear ownership boundaries, validated contribution contracts,
+reusable presenters, predictable routing/link behavior, and testable UI
+patterns, but do not expose unstable internals as extension APIs before the
+Resource Manager and Settings experience proves them.
+
+Consistency in the current UI is part of that foundation. Equivalent concepts
+should use equivalent structure and presentation: the same page anatomy,
+section hierarchy, local navigation, label rules, component choices,
+iconography, table/list/card patterns, alert styling, selector behavior,
+action button states, empty/loading/error states, and route-backed navigation
+patterns across shell pages, Settings, generated resource details, and
+provider-owned Resource Manager views. Icons should reinforce resource kind,
+action intent, or navigation target using the same icon language in related
+views. Consolidation is valuable when it reduces drift or makes a common
+behavior testable; it should not become an abstract component exercise
+detached from the active MVP workflows.
+
+Maintainability and reuse are part of the UI stability target. When several
+views solve the same problem, prefer a shared component, presenter, helper, or
+view model that preserves localization, accessibility, authorization,
+read-only behavior, and loading/error semantics. Reuse should be driven by
+real duplication in current MVP surfaces: selectors, resource references,
+principal pickers, status pills, alerts, action bars, generated detail rows,
+resource tables, and local navigation are good candidates. Avoid extracting
+generic abstractions that hide important resource-specific behavior or make
+provider views harder to understand.
+
+This stabilization does not eliminate the need for a later shell refactoring.
+Once CloudShell starts building shell-owned abstractions and extensibility
+points on top of the reusable UI composition library, existing Resource
+Manager and Settings presenters will need to be adapted into those contracts.
+That should be an intentional layer boundary, not an accidental exposure of
+today's internal components. The MVP goal is to make the current UI coherent
+and maintainable enough that the later extension layer can be built from
+proven patterns.
+
 The supported sample smoke suite is currently green. The remaining MVP work
 should therefore bias toward release-quality local-development behavior rather
 than opening new platform fronts or repeatedly polishing secondary editor
@@ -196,6 +240,11 @@ surfaces:
 - Keep supported samples building and smoke-testing.
 - Make the primary application Resource Manager path understandable without
   sample-specific knowledge.
+- Stabilize the UI contracts behind the main path before adding new UI
+  surface area: resource view registration, menu grouping, route/link
+  resolution, shared selectors, action controls, status pills, generated
+  details, alerts, resource tables, and page-level empty/error/loading states
+  should have reusable patterns and tests where regressions are likely.
 - Tighten action capability reasons, diagnostics, and ProblemDetails responses
   around already-supported flows.
 - Spend UI polish on the app-centric experience, overview details, readiness
@@ -264,16 +313,23 @@ between unrelated global views.
 
 Use this decision filter:
 
-1. Does the work make Application Topology or another supported sample more
+1. Does the work stabilize an existing UI structure, component pattern,
+   iconography pattern, navigation pattern, selector, generated detail
+   surface, provider-owned view, or shell/Resource Manager abstraction used by
+   the MVP?
+2. Does it reduce real duplication or drift in current UI code while
+   preserving localization, accessibility, authorization, read-only behavior,
+   and loading/error states?
+3. Does the work make Application Topology or another supported sample more
    faithful, repeatable, or diagnosable?
-2. Does it keep users on the application resource page while explaining
+4. Does it keep users on the application resource page while explaining
    endpoints, dependencies, exposure, storage, settings/secrets, identity,
    telemetry, monitoring, or activity?
-3. Does it explain an action failure before dispatch, with stable capability
+5. Does it explain an action failure before dispatch, with stable capability
    reasons, diagnostics, or ProblemDetails instead of provider exception text?
-4. Does it clarify the code-first-to-`Persist()` handoff without mixing in
+6. Does it clarify the code-first-to-`Persist()` handoff without mixing in
    deployment behavior?
-5. Does it remove confusion from labels, generated details, resource
+7. Does it remove confusion from labels, generated details, resource
    references, observability labels, or not-found/read-only/transient states in
    the primary app workflow?
 
@@ -294,7 +350,16 @@ remains separate and waits for the orchestrator deployment API.
 
 Prioritize the remaining local-dev work in this order:
 
-1. **Application Topology confidence.** Keep the smoke suite green and use the
+1. **Stable UI foundation for current surfaces.** Make the UI structure,
+   components, iconography, local navigation, generated details, selectors,
+   tables, alerts, actions, and status/empty/loading/error states consistent
+   across the shell, Settings, Resource Manager, and provider-owned views that
+   already exist. Prefer maintainable shared components and presenters when
+   repeated behavior is proven in current MVP surfaces. Keep this foundation
+   extensibility-aware through stable IDs, ownership boundaries, link
+   resolution, and contribution contracts, but do not open broad extension APIs
+   until the internal surfaces are stable.
+2. **Application Topology confidence.** Keep the smoke suite green and use the
    Application Topology sample as the broad MVP proof. The sample should be
    faithful enough to exercise the real local-development path: container or
    project-backed apps, SQL Server with mounted storage, configuration,
@@ -304,20 +369,20 @@ Prioritize the remaining local-dev work in this order:
    sample-specific knowledge. Treat this as the next planning anchor: each
    candidate slice should say which Application Topology run, resource page,
    or failure path it improves.
-2. **Resource relationship comprehension.** Keep the focused dependency and
+3. **Resource relationship comprehension.** Keep the focused dependency and
    dependent graph scoped to the current resource. The first graph, related
    actions, and related health/readiness details now exist; next work should
    refine labels, empty states, navigation, and diagnostic correlation only
    where Application Topology or another supported sample proves confusion.
    Do not expand this into broad graph authoring, import, or code-generation
    features for the MVP.
-3. **App-centric Resource Manager path.** Make the application resource page
+4. **App-centric Resource Manager path.** Make the application resource page
    the operator entry point for endpoints, service discovery, exposure,
    storage, runtime-impacting settings/secrets, identity, logs, traces,
    monitoring, inbound names, immediate dependencies, incoming dependents, and
    related activity. Prefer improvements that keep the user in this context
    over polishing secondary editor tabs.
-4. **Readiness diagnostics before failure.** Before Start, Restart, image
+5. **Readiness diagnostics before failure.** Before Start, Restart, image
    update, configuration update, or provider reconcile fails, Resource Manager
    should explain missing container hosts, unavailable credentials, occupied
    ports, unsupported host capabilities, unsafe volume mappings, unresolved
@@ -325,7 +390,7 @@ Prioritize the remaining local-dev work in this order:
    DNS/name materialization gaps. Prioritize feedback loops that materially
    improve the supported local-dev experience, especially when a sample exposes
    a blocker or confusing failure.
-5. **Configuration, secrets, and identity clarity.** The app experience should
+6. **Configuration, secrets, and identity clarity.** The app experience should
    make runtime-impacting settings and secret references understandable:
    references must be visible without leaking secret values, identity grant
    status must be clear where it affects startup or service calls,
@@ -333,12 +398,12 @@ Prioritize the remaining local-dev work in this order:
    failures should produce stable diagnostics and ProblemDetails. Keep this
    solid, not exhaustive; do not treat the Environment tab itself as the MVP
    target unless it blocks this flow.
-6. **Persisted-state handoff.** `Persist()` should stay a clear boundary from
+7. **Persisted-state handoff.** `Persist()` should stay a clear boundary from
    code-first local declarations to durable Control Plane/provider state.
    Local development can continue after persistence, but deployment remains a
    separate orchestrator concern and should wait for the orchestrator
    deployment API.
-7. **Release hardening.** Keep generated details, action availability,
+8. **Release hardening.** Keep generated details, action availability,
    activity records, not-found states, read-only behavior, transient
    declaration warnings, and sample documentation consistent across supported
    samples.
@@ -351,25 +416,31 @@ external-format import/code generation, and initial on-premise hosting.
 
 For the next run, prefer these slices in order:
 
-1. Run Application Topology as the standing proof and record only concrete
+1. Inventory and tighten the current UI foundation used by Resource Manager
+   and Settings: shared local navigation, route-backed resource views,
+   selector/search behavior, resource/principal reference labels, action bars,
+   status pills, alert boxes, generated detail rows, tables, empty/loading/error
+   states, and icon usage. Extract or consolidate only where current MVP views
+   already repeat the same behavior.
+2. Run Application Topology as the standing proof and record only concrete
    sample setup, startup, auth, lifecycle, resource projection, or smoke-test
    gaps that prevent repeatable local use.
-2. Fix Resource Manager naming and exposure clarity in the app path: user-facing
+3. Fix Resource Manager naming and exposure clarity in the app path: user-facing
    messages should lead with resource names, DNS/name mappings should be
    convenient anchors where a concrete endpoint can be resolved, and generated
    details should distinguish reachable addresses from muted source metadata.
-3. Harden lifecycle and provider feedback for the supported local flow:
+4. Harden lifecycle and provider feedback for the supported local flow:
    host-scoped shutdown, detached/re-attach behavior, process and Docker command
    diagnostics, occupied ports, missing hosts, and provider warnings should be
    visible at the right logging level and surfaced as actionable resource
    feedback when they affect the UI.
-4. Tighten readiness and failure feedback for the supported start/restart,
+5. Tighten readiness and failure feedback for the supported start/restart,
    SQL Server, storage, settings/secrets, identity, DNS/name, and exposure
    paths that the sample actually exercises.
-5. Keep resource-scoped health, logs, traces, monitoring, activity, and
+6. Keep resource-scoped health, logs, traces, monitoring, activity, and
    relationship views coherent from the app page before adding broader global
    views or new shell-platform features.
-6. Update sample documentation where the verified local-development flow
+7. Update sample documentation where the verified local-development flow
    depends on explicit startup, auth, logging, Docker, or host prerequisites.
 
 ### Immediate Proposal Order
