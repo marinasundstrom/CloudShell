@@ -81,6 +81,13 @@ identity and resource type. The base provider depends on
 role-specific contracts they need instead of depending on the whole built-in
 application provider facade.
 
+The intended end state is a set of composable application-resource primitives:
+an external provider declares its stable resource, chooses whether the runtime
+is a local executable, ad-hoc container, or managed sub-resource set, and then
+uses default services for the common lifecycle, logs, telemetry, endpoint,
+health, liveness, configuration, storage, and cleanup behavior. Provider
+authors should only implement the parts that make their resource distinct.
+
 ## Declarative Resource Graph
 
 Programmatic resources can also be used in an Aspire-like style for local

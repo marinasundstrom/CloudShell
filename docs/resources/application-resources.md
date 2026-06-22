@@ -130,20 +130,29 @@ role-specific contracts for container-app operations and SQL permission status
 instead of taking a dependency on the whole application provider facade.
 
 This is an initial shared application-resource provider contract, not the full
-toolkit. `ApplicationResourceService` is currently the built-in application
-provider facade and coordinates several roles: projection source, lifecycle
-actions, templates, declarations, descriptors, logs, monitoring,
-configuration updates, SQL access, runtime execution, container
-materialization, process tracking, and host-scoped cleanup. The direction is
-to separate provider-neutral primitives from the built-in provider's concrete
-implementation details, so external resource authors can reuse common
-declaration, projection, process-definition, logging, monitoring, endpoint,
-volume, and container-host command infrastructure without depending on
-`ApplicationResourceService` internals. The current provider-facing operations
-contracts are still backed by `ApplicationResourceService`; future slices
-should move concrete behavior behind dedicated services and adapters only when
-a concrete external resource author would otherwise need to duplicate behavior
-or depend on provider-private details.
+toolkit. The goal is for any resource author to be able to use the application
+resource primitives to implement their own resource type when the runtime is
+backed by a local executable, an ad-hoc container, or Resource
+Manager-managed sub-resources such as replicas. The provider should be able to
+declare the stable resource identity and choose the backing runtime shape, then
+opt into default wiring for lifecycle actions, endpoint projection, log
+sources, telemetry scopes, health and liveness declarations, storage mounts,
+configuration, and cleanup.
+
+`ApplicationResourceService` is currently the built-in application provider
+facade and coordinates several roles: projection source, lifecycle actions,
+templates, declarations, descriptors, logs, monitoring, configuration updates,
+SQL access, runtime execution, container materialization, process tracking,
+and host-scoped cleanup. The direction is to separate provider-neutral
+primitives from the built-in provider's concrete implementation details, so
+external resource authors can reuse common declaration, projection,
+process-definition, logging, monitoring, endpoint, volume, and container-host
+command infrastructure without depending on `ApplicationResourceService`
+internals. The current provider-facing operations contracts are still backed
+by `ApplicationResourceService`; future slices should move concrete behavior
+behind dedicated services and adapters only when a concrete external resource
+author would otherwise need to duplicate behavior or depend on provider-private
+details.
 
 ## Endpoint And Exposure Model
 

@@ -616,6 +616,11 @@ listed here before pulling in broader proposal work.
    and SQL Server permission status, while those contracts are still backed by
    `ApplicationResourceService`. Future slices should continue moving concrete
    behavior behind dedicated implementations rather than expanding the facade.
+   The destination is a composable application-resource toolkit: external
+   providers should be able to declare their own stable resource type, choose a
+   local executable, ad-hoc container, or Resource Manager-managed sub-resource
+   runtime shape, and opt into default lifecycle, endpoint, log, telemetry,
+   health, liveness, configuration, storage, and cleanup behavior.
    Next slices should extract role-specific provider-facing services and
    adapters for runtime execution, environment resolution, container
    materialization, log projection, monitoring, endpoint/volume helpers, and

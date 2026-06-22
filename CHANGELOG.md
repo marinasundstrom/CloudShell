@@ -77,6 +77,10 @@ on `git blame --follow`, and then by the broad type of change.
   operation contracts for common application behavior, container-app behavior,
   and SQL Server permission status instead of taking a direct dependency on the
   full application provider facade.
+- Application resource docs now frame the provider direction as a composable
+  toolkit for custom resources backed by local executables, ad-hoc containers,
+  or Resource Manager-managed sub-resources with default lifecycle,
+  observability, endpoint, health, configuration, storage, and cleanup wiring.
 - The Replicated Container Health sample now configures replica-aware logs,
   trace spans, and request metrics so the container app's Logs, Traces,
   Metrics, and Monitoring views can be verified against a realistic demo API.
