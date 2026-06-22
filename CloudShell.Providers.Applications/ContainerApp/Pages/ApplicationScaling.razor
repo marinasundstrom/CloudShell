@@ -135,10 +135,15 @@ else
                                         @{
                                             var health = GetReplicaHealth(replica);
                                         }
-                                        <strong>
+                                        <div class="replica-health-assessment">
                                             <HealthPill Status="health?.Status" />
-                                        </strong>
-                                        <span>@GetHealthDetail(replica, health)</span>
+                                            <span>@GetHealthDetail(replica, health)</span>
+                                            @if (health is not null && health.Checks.Count > 0)
+                                            {
+                                                <small>@GetHealthBreakdown(health)</small>
+                                                <small>@FormatCheckedAt(health.CheckedAt)</small>
+                                            }
+                                        </div>
                                     </td>
                                     <td>@GetAttribute(replica, ResourceAttributeNames.RuntimeRevision, replica.Version)</td>
                                     <td>
@@ -337,4 +342,20 @@ else
             ResourceHealthStatus.Healthy => 2,
             _ => 3
         };
+
+    private static string GetHealthBreakdown(ResourceHealthSummary health)
+    {
+        var unhealthy = health.Checks.Count(check => check.Status == ResourceHealthStatus.Unhealthy);
+        var unknown = health.Checks.Count(check => check.Status == ResourceHealthStatus.Unknown);
+        var healthy = health.Checks.Count(check => check.Status == ResourceHealthStatus.Healthy);
+
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"{health.Checks.Count} check(s): {healthy} healthy, {unknown} unknown, {unhealthy} unhealthy");
+    }
+
+    private static string FormatCheckedAt(DateTimeOffset checkedAt) =>
+        string.Create(
+            CultureInfo.InvariantCulture,
+            $"Checked {checkedAt.LocalDateTime:g}");
 }

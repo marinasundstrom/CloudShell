@@ -1,0 +1,19 @@
+.replica-health-assessment {
+    display: grid;
+    gap: .18rem;
+    align-items: start;
+    max-width: 20rem;
+}
+
+.replica-health-assessment ::deep(.health-pill) {
+    justify-self: start;
+}
+
+.replica-health-assessment span,
+.replica-health-assessment small {
+    overflow-wrap: anywhere;
+}
+
+.replica-health-assessment small {
+    color: var(--cloudshell-text-muted);
+}

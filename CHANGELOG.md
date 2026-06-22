@@ -69,8 +69,9 @@ on `git blame --follow`, and then by the broad type of change.
   runtime resources, while default summary counts stay focused on visible
   resources instead of hidden runtime projections.
 - Container app Scale and replicas now shows each projected replica's health
-  assessment and most relevant check detail so runtime observations are
-  visible next to replica state and placement.
+  assessment, most relevant check detail, contributing check counts, and last
+  observation time so runtime observations are visible next to replica state
+  and placement.
 - Health status pills now have a shared `HealthPill` component used by the
   resource Health views, dashboard issue list, resource inventory, and
   container app replica table.
