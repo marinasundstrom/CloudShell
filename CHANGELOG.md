@@ -75,6 +75,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Health status pills now have a shared `HealthPill` component used by the
   resource Health views, dashboard issue list, resource inventory, and
   container app replica table.
+- Resource health check declarations now deserialize reliably after persistence
+  when they use either the HTTP compatibility fields or a provider-owned probe
+  source.
 - Documented the health vocabulary split: liveness is an observation, while
   health is an assessment that may include liveness, readiness, dependencies,
   provider-owned status, and aggregate application data.

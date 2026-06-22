@@ -38,6 +38,7 @@ public sealed record ResourceHttpProbeSource(
     string? EndpointName = null,
     TimeSpan? Timeout = null);
 
+[method: JsonConstructor]
 public sealed record ResourceHealthCheck(
     string Path,
     ResourceProbeType Type = ResourceProbeType.Health,
