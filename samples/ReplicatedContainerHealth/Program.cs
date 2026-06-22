@@ -10,10 +10,6 @@ using CloudShell.Providers.Docker;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 
-const string registryHost = "localhost";
-var registryPort = builder.Configuration.GetValue("ReplicatedContainerHealth:RegistryPort", 5024);
-string registryAddress = $"{registryHost}:{registryPort.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
-const string registryResourceId = "docker:container:replicated-health-registry";
 const string sampleImageTag = "20260622.1";
 
 var cloudShell = builder.AddCloudShellControlPlane();
@@ -29,28 +25,13 @@ cloudShell.Resources(resources =>
 {
     var docker = resources
         .AddDocker("sample")
-        .WithRegistry(registryAddress)
-        .Persist(overwrite: true);
-
-    var registry = docker
-        .AddDockerContainer(
-            registryResourceId,
-            "registry:2")
-        .WithEndpoint(
-            "http",
-            targetPort: 5000,
-            port: registryPort,
-            protocol: "http",
-            exposure: ResourceExposureScope.Public)
-        .WithHttpHealthCheck("/v2/", "http")
-        .WithAutoStart(false)
         .Persist(overwrite: true);
 
     resources
         .AddAspNetCoreProject(
             "api",
             "Api/CloudShell.ReplicatedContainerHealth.Api.csproj")
-        .AsContainer(registry: registryAddress, replicas: 3, tag: sampleImageTag)
+        .AsContainer(replicas: 3, tag: sampleImageTag)
         .WithEndpointPort(
             "http",
             targetPort: 8080,
@@ -60,8 +41,6 @@ cloudShell.Resources(resources =>
         .WithHttpHealthCheck("/health", "http")
         .WithHttpProbe(ResourceProbeType.Liveness, "/alive", "http", "alive")
         .WithContainerHost(docker)
-        .DependsOn(registry)
-        .WithReference(registry)
         .WithAutoStart(false)
         .Persist(overwrite: true);
 });

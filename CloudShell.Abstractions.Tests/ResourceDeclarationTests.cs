@@ -9908,10 +9908,54 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("application:api", service.ResourceId);
         Assert.Equal("cloudshell-application-api", service.Name);
         Assert.Equal(3, service.Replicas);
+        Assert.Equal(ResourceWorkloadKind.ContainerImage, service.Workload.Kind);
+        Assert.Equal("example/api:latest", service.Workload.Image);
         var port = Assert.Single(service.ServicePorts);
         Assert.Equal("http", port.Name);
         Assert.Equal(8080, port.TargetPort);
         Assert.Equal(5080, port.Port);
+    }
+
+    [Fact]
+    public void ContainerApplicationProvider_CreatesImageServiceForMaterializedProjectContainerBuild()
+    {
+        var services = new ServiceCollection();
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services.AddSingleton(new ApplicationProviderOptions());
+        services
+            .AddControlPlane()
+            .AddExtension<ApplicationProviderExtension>();
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var application = new ApplicationResourceDefinition(
+            "application:api",
+            "api",
+            executablePath: string.Empty,
+            containerImage: "cloudshell-application-api:20260622.1",
+            replicas: 3,
+            endpointPorts:
+            [
+                new ServicePort("http", 8080, 5080, "http")
+            ],
+            resourceType: ApplicationResourceTypes.ContainerApp,
+            projectPath: "src/API/API.csproj",
+            containerRevision: "20260622.1",
+            projectContainerBuild: true,
+            replicasEnabled: true);
+        var method = typeof(ApplicationResourceService).GetMethod(
+            "CreateDefaultContainerOrchestratorService",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+        Assert.NotNull(method);
+        var service = Assert.IsType<ResourceOrchestratorService>(method.Invoke(provider, [application]));
+
+        Assert.Equal(ResourceWorkloadKind.ContainerImage, service.Workload.Kind);
+        Assert.Equal("cloudshell-application-api:20260622.1", service.Workload.Image);
+        Assert.Equal(3, service.Replicas);
+        Assert.True(service.ReplicasEnabled);
     }
 
     [Fact]

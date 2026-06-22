@@ -82,7 +82,10 @@ on `git blame --follow`, and then by the broad type of change.
   app endpoint remains the normal traffic ingress.
 - ASP.NET Core project-to-container declarations can now pass an explicit
   `AsContainer(tag: "...")` image tag, and the Replicated Container Health
-  sample uses an explicit local registry and tag for its test web app image.
+  sample uses an explicit local image tag for its test web app image.
+- Container application starts now materialize project-backed images before
+  preparing the runtime service, and container app stops remove the replicated
+  ingress container from the service-provider path.
 - Health status pills now have a shared `HealthPill` component used by the
   resource Health views, dashboard issue list, resource inventory, and
   container app replica table.

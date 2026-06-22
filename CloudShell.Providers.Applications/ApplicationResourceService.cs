@@ -60,6 +60,8 @@ public sealed partial class ApplicationResourceService(
 
     private readonly ConcurrentDictionary<string, ApplicationProcessState> _processes =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, Lazy<Task<ApplicationResourceDefinition>>> _containerImageMaterializations =
+        new(StringComparer.OrdinalIgnoreCase);
     private readonly IReadOnlyList<IResourceIdentityCredentialEnvironmentProvider> identityCredentialEnvironmentProviders =
         identityCredentialEnvironmentProviders.ToArray();
     private readonly ILogger dockerHostLogger =
@@ -788,12 +790,29 @@ public sealed partial class ApplicationResourceService(
         ResourceAction action,
         CancellationToken cancellationToken = default)
     {
+        var application = GetContainerApplication(context.ResourceContext.Resource.Id);
+
+        if (action.Kind is ResourceActionKind.Stop && ShouldUseContainerAppIngress(context.Service))
+        {
+            var stopEngine = await ResolveRequiredContainerHostAsync(
+                application,
+                context.ResourceContext.ResourceManager,
+                context.ResourceContext.PreferredContainerHostId,
+                ContainerHostCapabilityIds.ContainerImage,
+                cancellationToken);
+            await StopContainerAppIngressAsync(
+                application,
+                stopEngine,
+                GetProcessLog(application.Id),
+                cancellationToken);
+            return;
+        }
+
         if (action.Kind != ResourceActionKind.Start)
         {
             return;
         }
 
-        var application = GetContainerApplication(context.ResourceContext.Resource.Id);
         var engine = await ResolveRequiredContainerHostAsync(
             application,
             context.ResourceContext.ResourceManager,
@@ -802,23 +821,13 @@ public sealed partial class ApplicationResourceService(
             cancellationToken);
         var processLog = GetProcessLog(application.Id);
 
-        if (action.Kind is ResourceActionKind.Stop && ShouldUseContainerAppIngress(context.Service))
-        {
-            await StopContainerAppIngressAsync(
-                application,
-                engine,
-                processLog,
-                cancellationToken);
-            return;
-        }
-
-            await LoginToContainerRegistryAsync(
-                engine,
-                GetEffectiveContainerRegistry(application),
-                application.ContainerRegistryCredentials,
-                processLog,
-                cancellationToken,
-                dockerHostLogger);
+        await LoginToContainerRegistryAsync(
+            engine,
+            GetEffectiveContainerRegistry(application),
+            application.ContainerRegistryCredentials,
+            processLog,
+            cancellationToken,
+            dockerHostLogger);
 
         foreach (var network in context.Service.ServiceNetworks
                      .Where(network => !string.IsNullOrWhiteSpace(network))
@@ -842,16 +851,39 @@ public sealed partial class ApplicationResourceService(
         switch (action.Kind)
         {
             case ResourceActionKind.Start:
-                await StartContainerApplicationInstanceAsync(
+                var materializationKey = CreateContainerImageMaterializationKey(application);
+                application = await MaterializeContainerImageAsync(
                     application,
-                    context.ResourceContext.Resource.DependsOn,
-                    context.ResourceContext.ResourceGroupId,
-                    context.ResourceContext.Registrations,
                     context.ResourceContext.ResourceManager,
                     context.ResourceContext.PreferredContainerHostId,
-                    context.Service,
-                    context.Instance,
-                    cancellationToken);
+                    cancellationToken,
+                    context.ResourceContext,
+                    cacheMaterialization: context.Instance.ReplicaCount > 1);
+                try
+                {
+                    await StartContainerApplicationInstanceAsync(
+                        application,
+                        context.ResourceContext.Resource.DependsOn,
+                        context.ResourceContext.ResourceGroupId,
+                        context.ResourceContext.Registrations,
+                        context.ResourceContext.ResourceManager,
+                        context.ResourceContext.PreferredContainerHostId,
+                        context.Service,
+                        context.Instance,
+                        cancellationToken);
+                }
+                catch
+                {
+                    RemoveContainerImageMaterialization(materializationKey);
+                    throw;
+                }
+                finally
+                {
+                    if (context.Instance.ReplicaOrdinal >= context.Instance.ReplicaCount)
+                    {
+                        RemoveContainerImageMaterialization(materializationKey);
+                    }
+                }
                 return;
             case ResourceActionKind.Stop:
                 await StopContainerApplicationInstanceAsync(
@@ -2266,15 +2298,21 @@ public sealed partial class ApplicationResourceService(
         CancellationToken cancellationToken,
         ResourceProcedureContext? procedureContext = null)
     {
-        var service = CreateDefaultContainerOrchestratorService(definition);
+        var runtimeDefinition = await MaterializeContainerImageAsync(
+            definition,
+            resourceManager,
+            preferredContainerHostId,
+            cancellationToken,
+            procedureContext);
+        var service = CreateDefaultContainerOrchestratorService(runtimeDefinition);
         procedureContext?.AppendProviderEvent(
             Id,
             "application.container.service.preparing",
-            $"Application provider is preparing container service '{service.Name}' for '{definition.Name}'.");
+            $"Application provider is preparing container service '{service.Name}' for '{runtimeDefinition.Name}'.");
         await PrepareOrchestratorServiceAsync(
             new ResourceOrchestratorServiceProcedureContext(
                 new ResourceProcedureContext(
-                    CreateResource(definition, CreateInfrastructureProjection(definition)),
+                    CreateResource(runtimeDefinition, CreateInfrastructureProjection(runtimeDefinition)),
                     null,
                     resourceGroupId,
                     registrations,
@@ -2289,14 +2327,7 @@ public sealed partial class ApplicationResourceService(
         procedureContext?.AppendProviderEvent(
             Id,
             "application.container.service.prepared",
-            $"Application provider prepared container service '{service.Name}' for '{definition.Name}'.");
-
-        var runtimeDefinition = await MaterializeProjectContainerImageAsync(
-            definition,
-            resourceManager,
-            preferredContainerHostId,
-            cancellationToken,
-            procedureContext);
+            $"Application provider prepared container service '{service.Name}' for '{runtimeDefinition.Name}'.");
         foreach (var instance in CreateDefaultContainerServiceInstances(service))
         {
             await StartContainerApplicationInstanceAsync(
@@ -2910,22 +2941,76 @@ public sealed partial class ApplicationResourceService(
             lastError);
     }
 
-    private async Task<ApplicationResourceDefinition> MaterializeProjectContainerImageAsync(
+    private async Task<ApplicationResourceDefinition> MaterializeContainerImageAsync(
+        ApplicationResourceDefinition definition,
+        IResourceManagerStore? resourceManager,
+        string? preferredContainerHostId,
+        CancellationToken cancellationToken,
+        ResourceProcedureContext? procedureContext = null,
+        bool cacheMaterialization = false)
+    {
+        if (!string.IsNullOrWhiteSpace(definition.ContainerImage))
+        {
+            return definition;
+        }
+
+        if (!definition.ProjectContainerBuild &&
+            string.IsNullOrWhiteSpace(definition.ContainerBuildContext))
+        {
+            return definition;
+        }
+
+        if (resourceManager is null)
+        {
+            throw new InvalidOperationException(
+                $"Container resource '{definition.Name}' requires resource manager context to resolve a container host.");
+        }
+
+        if (!cacheMaterialization)
+        {
+            return await MaterializeContainerImageCoreAsync(
+                definition,
+                resourceManager,
+                preferredContainerHostId,
+                cancellationToken,
+                procedureContext);
+        }
+
+        var key = CreateContainerImageMaterializationKey(definition);
+        var materialization = _containerImageMaterializations.GetOrAdd(
+            key,
+            _ => new Lazy<Task<ApplicationResourceDefinition>>(
+                () => MaterializeContainerImageCoreAsync(
+                    definition,
+                    resourceManager,
+                    preferredContainerHostId,
+                    cancellationToken,
+                    procedureContext),
+                LazyThreadSafetyMode.ExecutionAndPublication));
+
+        try
+        {
+            return await materialization.Value;
+        }
+        catch
+        {
+            RemoveContainerImageMaterialization(key);
+            throw;
+        }
+    }
+
+    private async Task<ApplicationResourceDefinition> MaterializeContainerImageCoreAsync(
         ApplicationResourceDefinition definition,
         IResourceManagerStore resourceManager,
         string? preferredContainerHostId,
         CancellationToken cancellationToken,
         ResourceProcedureContext? procedureContext = null)
     {
-        if (!definition.ProjectContainerBuild)
-        {
-            return definition;
-        }
-
-        if (string.IsNullOrWhiteSpace(definition.ProjectPath))
+        if (string.IsNullOrWhiteSpace(definition.ProjectPath) &&
+            string.IsNullOrWhiteSpace(definition.ContainerDockerfile))
         {
             throw new InvalidOperationException(
-                $"Container resource '{definition.Name}' cannot be built from a project because it does not specify a project path.");
+                $"Container resource '{definition.Name}' cannot be built because it does not specify a project path or Dockerfile.");
         }
 
         var engine = await ResolveRequiredContainerHostAsync(
@@ -2943,6 +3028,12 @@ public sealed partial class ApplicationResourceService(
             $"Application provider is building project container image '{imageReference.Reference}' for '{definition.Name}' using '{engine.Name}'.");
         if (string.IsNullOrWhiteSpace(definition.ContainerDockerfile))
         {
+            if (string.IsNullOrWhiteSpace(definition.ProjectPath))
+            {
+                throw new InvalidOperationException(
+                    $"Container resource '{definition.Name}' cannot be published as a project container because it does not specify a project path.");
+            }
+
             await PublishProjectContainerImageAsync(
                 definition,
                 imageReference.Repository,
@@ -2973,6 +3064,25 @@ public sealed partial class ApplicationResourceService(
         {
             ContainerImage = imageReference.Reference
         };
+    }
+
+    private static string CreateContainerImageMaterializationKey(ApplicationResourceDefinition definition) =>
+        string.Join(
+            '|',
+            definition.Id,
+            definition.ContainerRevision,
+            definition.ContainerRegistry,
+            definition.ContainerHostId,
+            definition.ProjectPath,
+            definition.ContainerBuildContext,
+            definition.ContainerDockerfile);
+
+    private void RemoveContainerImageMaterialization(string key)
+    {
+        if (!string.IsNullOrWhiteSpace(key))
+        {
+            _containerImageMaterializations.TryRemove(key, out _);
+        }
     }
 
     private async Task StartContainerApplicationInstanceAsync(
