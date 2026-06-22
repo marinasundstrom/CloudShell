@@ -245,7 +245,7 @@ Recommended first signal behavior:
 - `Health`: remains a general status signal unless the user or provider
   explicitly maps it as the liveness signal. Broad or aggregate Health checks
   can represent many health scopes, such as services, dependencies, related
-  resources, instances, replicas, or routes, through a single HTTP JSON
+  resource sets, instances, replicas, or routes, through a single HTTP JSON
   response, provider-native payload, or future Control Plane-provided health
   endpoint. Those aggregate scopes should not imply recovery by themselves.
 

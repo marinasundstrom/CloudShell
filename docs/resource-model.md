@@ -512,24 +512,40 @@ status, while retained `ResourceHealthSummary` snapshots provide resource-keyed
 history that resource-scoped and environment-wide Health views can chart and
 correlate by resource and check.
 
-Health checks can represent different health scopes. A health scope is the
-status boundary a check describes: the whole resource, a service exposed by
-the resource, a dependency group, a selected set of related resources, or a
-provider-defined runtime scope such as a replica, worker, partition, shard, or
-backing container. Aggregate health checks are allowed. For example, a
-frontend HTTP health endpoint might return JSON that includes the frontend
-process status, backend API reachability, SQL Server connectivity, and
-per-replica status. CloudShell health declarations let the Control Plane
-discover and poll that signal; future health projection can then preserve the
-individual failing health scope when the payload or provider can expose it.
-This lets Health show partial degradation without forcing every degraded
-sub-service, dependency, related resource, or runtime instance to become a
-top-level CloudShell resource.
+Resource health check declarations are metadata for health signals exposed by
+the resource. Those signals may represent only the resource, or they may be
+provider-owned aggregate endpoints. For example, a frontend HTTP health
+endpoint might return JSON that includes the frontend process status, backend
+API reachability, SQL Server connectivity, and per-replica status. CloudShell
+health declarations let the Control Plane discover and poll that signal; the
+resource or provider still owns the endpoint shape, payload, and any
+resource-local aggregation model.
+
+For container app style resources, the health declaration belongs to the
+stable container app resource, not to each replica as an independent top-level
+resource. A provider can interpret that declaration as the signal to evaluate
+for each runtime scope when multiple replicas or backing containers exist.
+The container app then exposes an aggregate resource health or liveness result
+derived from the per-replica observations, with per-replica details available
+for Health, Monitoring, and Degradation drill-downs when the provider can
+surface them. When only one replica is running, the aggregate and runtime
+scope result can be equivalent without changing the resource model.
 
 Future Control Plane health endpoints can expose CloudShell-computed health
-scopes too. For example, a health scope could represent the frontend and its
-declared dependencies, a container app and all replicas, or a curated group of
-resources that should be reported together for a local application topology.
+scopes. A health scope is a Control Plane aggregation boundary built from the
+state CloudShell has already collected by polling resource health checks,
+liveness signals, readiness signals, provider-owned status, monitoring data,
+and other resource factors. For example, a health scope could represent the
+frontend and its declared dependencies, a container app and all replicas, or a
+curated group of resources that should be reported together for a local
+application topology. The scope names the boundary; a future scope definition
+or provider-specific implementation can decide which observed signals
+contribute to the aggregate result.
+
+Managed health scopes can later be configured from the global Health surface.
+An operator could create a scope, add resources to that scope, choose which
+signals or provider factors contribute, and let the Control Plane expose the
+computed aggregate through a CloudShell-provided health endpoint.
 
 `ResourceHealthCheck` is the shared health-signal declaration. Its
 `ResourceProbeType` says how the signal should be interpreted, such as health,

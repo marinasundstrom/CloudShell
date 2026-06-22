@@ -141,15 +141,23 @@ A health scope is the status boundary described by a health signal or computed
 degradation summary. It can be:
 
 - the whole service observation target
-- a selected group of related resources
+- a selected resource set
 - one dependency or dependency group
 - one exposed service, route, or endpoint set
 - one runtime scope, such as a replica or backing container
 
 Health scopes let CloudShell distinguish "the resource is unavailable" from
-"one dependency, route, replica, or selected resource group is degraded."
-Scopes can come from provider metadata, from structured health-check payloads,
-or from Control Plane composition over known resources and relationships.
+"one dependency, route, replica, or selected resource set is degraded."
+Scopes are a concept for naming and visualizing health boundaries; aggregate
+health checks can still exist without explicit scope metadata. Scopes can come
+from provider metadata, structured health-check payloads, or Control Plane
+composition over known resources and relationships.
+
+A scope names the aggregation target, not the aggregation algorithm. For a
+Control Plane-computed resource-set scope, the implementation may combine
+resource health checks, liveness signals, readiness signals, provider-owned
+status, monitoring snapshots, and other resource factors into a scoped health
+or degradation result.
 
 In the future, the Control Plane can expose CloudShell-provided health check
 endpoints for health scopes. For example, it could expose a health endpoint
@@ -158,6 +166,30 @@ dependencies, or a container app and all of its replicas. Those endpoints
 would be derived from resource health snapshots, monitoring snapshots,
 telemetry, and provider-owned status, rather than requiring each application
 to implement the same aggregate endpoint itself.
+
+The global Health surface can later manage these Control Plane-computed
+scopes. A user could create a health scope, add resources to it, select which
+resource health checks, liveness signals, readiness signals, monitoring data,
+or provider factors contribute, and then use the generated Control Plane
+endpoint as the health endpoint for that scope.
+
+Container apps need a provider-owned scoped health model because the stable
+resource can represent one or many running replicas. The resource-level health
+check declaration should stay on the container app. When multiple replicas or
+backing containers exist, the provider may use that declaration as the signal
+to evaluate for each runtime scope, aggregate the observations into the
+container app's resource health or liveness result, and expose the per-replica
+breakdown for Health, Monitoring, and Degradation views. When exactly one
+replica is running, the aggregate result and the runtime-scope result can be
+the same observation.
+
+The aggregation policy is provider-owned. One failed replica might degrade the
+container app while enough healthy replicas remain to serve traffic, while all
+replicas failing or the runtime disappearing should move the resource toward a
+stopped or unavailable lifecycle state when the provider can make that
+distinction. Recovery should consume the aggregate liveness outcome for the
+stable container app resource unless a later provider model supports
+replica-specific recovery operations.
 
 ### Load
 
@@ -193,7 +225,7 @@ snapshots, health checks, and resource details.
 
 Health can be one of the inputs to degradation, and it may be aggregate or
 scoped. A resource-level HTTP health endpoint might front many services,
-dependencies, routes, runtime instances, or a selected group of related
+dependencies, routes, runtime instances, or a selected set of related
 CloudShell resources. For example, a frontend application can expose a JSON
 health response that includes its own status, backend API dependency status,
 SQL Server connectivity, and per-replica status. When a health signal is
@@ -346,6 +378,16 @@ Monitoring should show capacity and runtime pressure:
 
 For replicated container apps, Monitoring should summarize the service first
 and then break down per replica/container.
+
+The current implementation should keep resource health check declarations as
+metadata for resource-provided health signals. Health scopes remain a future
+Control Plane-managed aggregation concept built from the observed state
+CloudShell collects by polling those signals, liveness checks, readiness
+checks, provider status, and monitoring sources. The next implementation slice
+should introduce a provider-owned runtime-scope aggregation model for
+container apps and a separate Control Plane-owned health scope definition and
+status model instead of adding scope metadata to every resource health check
+declaration.
 
 ## Initial Implementation Plan
 
