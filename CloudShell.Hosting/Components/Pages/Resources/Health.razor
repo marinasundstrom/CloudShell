@@ -113,9 +113,7 @@
                                         <span>@(row.Result?.Uri?.ToString() ?? L["No resolved URI"].Value)</span>
                                     </td>
                                     <td>
-                                        <span class="health-pill @GetHealthClass(row.Result?.Status)">
-                                            @GetHealthLabel(row.Result?.Status)
-                                        </span>
+                                        <HealthPill Status="row.Result?.Status" Label="@GetHealthLabel(row.Result?.Status)" />
                                     </td>
                                 </tr>
                             }
@@ -163,9 +161,7 @@
                             <ResourceKindIcon Resource="resource" />
                         </Leading>
                         <Trailing>
-                            <span class="health-pill @GetHealthClass(summary?.Status)">
-                                @GetHealthLabel(summary?.Status)
-                            </span>
+                            <HealthPill Status="summary?.Status" Label="@GetHealthLabel(summary?.Status)" />
                         </Trailing>
                     </ShellActivityLink>
                 }
@@ -361,15 +357,6 @@
 
     private string GetPendingDetail() =>
         IsCheckingHealth ? L["Checking"].Value : L["No result"].Value;
-
-    private static string GetHealthClass(ResourceHealthStatus? status) =>
-        status switch
-        {
-            ResourceHealthStatus.Healthy => "health-healthy",
-            ResourceHealthStatus.Unhealthy => "health-unhealthy",
-            ResourceHealthStatus.Unknown => "health-unknown",
-            _ => "health-pending"
-        };
 
     private bool HasHealthAssessment(Resource resource) =>
         resource.ResourceHealthChecks.Count > 0 ||

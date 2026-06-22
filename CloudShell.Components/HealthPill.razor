@@ -1,0 +1,48 @@
+@using CloudShell.Abstractions.ResourceManager
+
+<span class="@CssClass" title="@EffectiveTitle" aria-label="@EffectiveTitle">
+    @DisplayText
+</span>
+
+@code {
+    [Parameter]
+    public ResourceHealthStatus? Status { get; set; }
+
+    [Parameter]
+    public string? Label { get; set; }
+
+    [Parameter]
+    public string? Title { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    private string DisplayText => !string.IsNullOrWhiteSpace(Label)
+        ? Label
+        : Status switch
+        {
+            ResourceHealthStatus.Healthy => "Healthy",
+            ResourceHealthStatus.Unhealthy => "Unhealthy",
+            ResourceHealthStatus.Unknown => "Unknown",
+            _ => "Not checked"
+        };
+
+    private string EffectiveTitle => string.IsNullOrWhiteSpace(Title)
+        ? $"Health: {DisplayText}"
+        : Title;
+
+    private string CssClass => string.Join(
+        ' ',
+        new[]
+        {
+            "health-pill",
+            Status switch
+            {
+                ResourceHealthStatus.Healthy => "health-healthy",
+                ResourceHealthStatus.Unhealthy => "health-unhealthy",
+                ResourceHealthStatus.Unknown => "health-unknown",
+                _ => "health-pending"
+            },
+            Class
+        }.Where(value => !string.IsNullOrWhiteSpace(value)));
+}

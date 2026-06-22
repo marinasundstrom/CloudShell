@@ -161,9 +161,7 @@
             <div class="resource-activity-groups" aria-label="@L["Health summary"]">
                 <span class="resource-activity-group">
                     <strong>@L["Status"]</strong>
-                    <span class="health-pill @GetHealthClass(Summary?.Status)">
-                        @GetHealthLabel(Summary?.Status)
-                    </span>
+                    <HealthPill Status="Summary?.Status" Label="@GetHealthLabel(Summary?.Status)" />
                 </span>
                 <span class="resource-activity-group">
                     <strong>@L["Checks"]</strong>
@@ -188,9 +186,7 @@
                                 <strong>@row.Check.Name</strong>
                                 <span>@row.Check.Type</span>
                             </div>
-                            <span class="health-pill @GetHealthClass(row.Result?.Status)">
-                                @GetHealthLabel(row.Result?.Status)
-                            </span>
+                            <HealthPill Status="row.Result?.Status" Label="@GetHealthLabel(row.Result?.Status)" />
                         </div>
                         <p>@(row.Result?.Detail ?? GetPendingDetail())</p>
                         <footer>
@@ -310,15 +306,6 @@
 
     private string GetPendingDetail() =>
         IsCheckingHealth ? L["Checking"].Value : L["No result"].Value;
-
-    private static string GetHealthClass(ResourceHealthStatus? status) =>
-        status switch
-        {
-            ResourceHealthStatus.Healthy => "health-healthy",
-            ResourceHealthStatus.Unhealthy => "health-unhealthy",
-            ResourceHealthStatus.Unknown => "health-unknown",
-            _ => "health-pending"
-        };
 
     private static int GetHealthRank(ResourceHealthStatus? status) =>
         status switch

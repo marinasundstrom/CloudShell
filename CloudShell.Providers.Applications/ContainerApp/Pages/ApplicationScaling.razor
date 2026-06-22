@@ -1,5 +1,6 @@
 @using System.Globalization
 @inject ApplicationResourceService ApplicationProvider
+@inject IResourceHealthManager HealthManager
 @inject IResourceManagerStore ResourceManager
 @inject IResourceRegistrationStore Registrations
 
@@ -110,6 +111,7 @@ else
                             <tr>
                                 <th>Replica</th>
                                 <th>State</th>
+                                <th>Health</th>
                                 <th>Revision</th>
                                 <th>Container</th>
                                 <th>Materialization</th>
@@ -128,6 +130,15 @@ else
                                     </td>
                                     <td>
                                         <ResourceStateIndicator State="replica.State" Variant="pill" />
+                                    </td>
+                                    <td>
+                                        @{
+                                            var health = GetReplicaHealth(replica);
+                                        }
+                                        <strong>
+                                            <HealthPill Status="health?.Status" />
+                                        </strong>
+                                        <span>@GetHealthDetail(replica, health)</span>
                                     </td>
                                     <td>@GetAttribute(replica, ResourceAttributeNames.RuntimeRevision, replica.Version)</td>
                                     <td>
@@ -157,6 +168,8 @@ else
     private ApplicationResourceDefinition? Application { get; set; }
     private Resource? ProjectedResource { get; set; }
     private IReadOnlyList<Resource> ProjectedReplicas { get; set; } = [];
+    private IReadOnlyDictionary<string, ResourceHealthSummary> HealthResults { get; set; } =
+        new Dictionary<string, ResourceHealthSummary>(StringComparer.OrdinalIgnoreCase);
     private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
     private bool EnableReplicas { get; set; }
     private int Replicas { get; set; } = 2;
@@ -173,7 +186,7 @@ else
                 Application,
                 ScalingViewId);
 
-    protected override void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
         Application = string.IsNullOrWhiteSpace(ResourceId)
             ? null
@@ -188,6 +201,9 @@ else
                 .OrderBy(GetReplicaOrdinal)
                 .ThenBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
                 .ToArray();
+        HealthResults = ProjectedReplicas.Count == 0
+            ? new Dictionary<string, ResourceHealthSummary>(StringComparer.OrdinalIgnoreCase)
+            : await HealthManager.ListResourceHealthAsync();
 
         if (Application is not null)
         {
@@ -288,4 +304,37 @@ else
             ? value
             : fallback;
 
+    private ResourceHealthSummary? GetReplicaHealth(Resource replica) =>
+        HealthResults.GetValueOrDefault(replica.Id);
+
+    private static string GetHealthDetail(
+        Resource replica,
+        ResourceHealthSummary? health)
+    {
+        if (health is null)
+        {
+            return replica.ResourceHealthChecks.Count > 0
+                ? "No health result"
+                : "No health checks";
+        }
+
+        var detail = health.Checks
+            .OrderBy(GetHealthRank)
+            .FirstOrDefault();
+        if (detail is not null)
+        {
+            return $"{detail.Check.Name}: {detail.Detail}";
+        }
+
+        return "No health checks";
+    }
+
+    private static int GetHealthRank(ResourceHealthCheckResult result) =>
+        result.Status switch
+        {
+            ResourceHealthStatus.Unhealthy => 0,
+            ResourceHealthStatus.Unknown => 1,
+            ResourceHealthStatus.Healthy => 2,
+            _ => 3
+        };
 }

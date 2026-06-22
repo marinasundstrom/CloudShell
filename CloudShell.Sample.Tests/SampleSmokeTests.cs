@@ -2019,6 +2019,11 @@ public sealed class SampleSmokeTests
         var globalHealthHtml = await host.GetStringAsync("/health");
         Assert.Contains("api", globalHealthHtml);
         Assert.Contains("runtime scope check(s)", globalHealthHtml);
+
+        var scalingHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application:api")}/details?tab={Uri.EscapeDataString("application:scale-replicas")}");
+        Assert.Contains("<th>Health</th>", scalingHtml);
+        Assert.Contains("health: No matching HTTP endpoint", scalingHtml);
     }
 
     [Fact]
