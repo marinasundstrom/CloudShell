@@ -81,6 +81,9 @@ public static class ResourceEventTypes
         {
             public const string ImageUpdated = "event.deployment.image.updated";
             public const string ReplicasUpdated = "event.deployment.replicas.updated";
+            public const string Applying = "event.deployment.applying";
+            public const string Applied = "event.deployment.applied";
+            public const string Failed = "event.deployment.failed";
         }
     }
 

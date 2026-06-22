@@ -137,7 +137,9 @@ The same tab shows the app's current internal deployment projection: deployment
 status, orchestrator service id, scaling mode, requested replicas, and
 materialized runtime replica resources. This is an inspection surface over
 CloudShell's internal orchestrator deployment model, not a public
-rollout-history or restore API.
+rollout-history or restore API. Runtime materialization is requested through
+the internal orchestrator deployment-apply boundary; the container app domain
+records app revisions and does not directly replace replicas or remap ingress.
 
 ## Service Discovery
 

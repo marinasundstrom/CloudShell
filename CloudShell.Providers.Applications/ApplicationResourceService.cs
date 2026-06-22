@@ -63,6 +63,7 @@ public sealed partial class ApplicationResourceService(
     private static readonly TimeSpan SqlServerDatabaseReconciliationRetryDelay = TimeSpan.FromSeconds(1);
     private static readonly SemaphoreSlim AspNetCoreProjectBuildLock = new(1, 1);
     private const string DefaultContainerNetworkName = "cloudshell";
+    private const string DefaultOrchestratorId = "default";
     private const string AspNetCoreUrlsEnvironmentVariable = "ASPNETCORE_URLS";
     private const string DotNetWatchRestartOnRudeEditEnvironmentVariable = "DOTNET_WATCH_RESTART_ON_RUDE_EDIT";
     public const string HiddenResourceEnvironmentVariable = "CloudShell__ResourceManager__Hidden";
@@ -4112,7 +4113,7 @@ public sealed partial class ApplicationResourceService(
 
         return new ResourceOrchestratorDeployment(
             CreateDefaultContainerOrchestratorDeploymentId(application.Id),
-            Id,
+            DefaultOrchestratorId,
             application.Id,
             service.Name,
             revision,

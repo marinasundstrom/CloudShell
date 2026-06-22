@@ -3,7 +3,9 @@ using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.ControlPlane.ResourceManager;
 
-public sealed class DefaultResourceOrchestrator : IResourceOrchestrator
+public sealed class DefaultResourceOrchestrator :
+    IResourceOrchestrator,
+    IResourceOrchestratorDeploymentApplier
 {
     public string Id => "default";
 
@@ -54,6 +56,35 @@ public sealed class DefaultResourceOrchestrator : IResourceOrchestrator
         return provider.DeleteAsync(
             CreateProcedureContext(context),
             cancellationToken);
+    }
+
+    public bool CanApplyDeployment(
+        ResourceOrchestrationContext context,
+        ResourceOrchestratorDeployment deployment) =>
+        GetServiceProcedureProvider(context, ResourceAction.Start) is not null &&
+        string.Equals(deployment.OrchestratorId, Id, StringComparison.OrdinalIgnoreCase);
+
+    public async Task<ResourceOrchestratorDeploymentApplyResult> ApplyDeploymentAsync(
+        ResourceOrchestrationContext context,
+        ResourceOrchestratorDeployment deployment,
+        CancellationToken cancellationToken = default)
+    {
+        var provider = GetServiceProcedureProvider(context, ResourceAction.Start)
+            ?? throw new ControlPlaneException(
+                ControlPlaneError.ResourceActionUnsupported(context.Resource.Name));
+        var resourceContext = CreateProcedureContext(context);
+        await ExecuteOrchestratorServiceActionCoreAsync(
+            provider,
+            resourceContext,
+            deployment.Spec.Service,
+            ResourceAction.Start,
+            cancellationToken);
+
+        var applied = deployment with { Status = ResourceOrchestratorDeploymentStatus.Active };
+        return new ResourceOrchestratorDeploymentApplyResult(
+            applied,
+            ResourceProcedureResult.Completed(
+                $"Applied deployment '{deployment.Id}' for revision '{deployment.RevisionId}'."));
     }
 
     private static async Task<ResourceProcedureResult> ExecuteOrchestratorServiceActionAsync(

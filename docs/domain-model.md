@@ -270,10 +270,12 @@ layer for applying runtime intent. A resource can still be managed directly by
 Resource Manager while an orchestrator derives a default deployment for a
 deployment-relevant state or configuration change. They are available for
 internal container-app, provider, and orchestrator implementation work before
-they are announced as a public management surface. A container app revision
-answers application-version questions; an orchestrator deployment/revision
-answers what runtime workload was applied and which service/runtime resources
-resulted.
+they are announced as a public management surface. The Control Plane exposes
+an internal deployment-apply boundary that dispatches a deployment spec to the
+selected orchestrator instead of having the resource domain manipulate runtime
+replicas directly. A container app revision answers application-version
+questions; an orchestrator deployment/revision answers what runtime workload
+was applied and which service/runtime resources resulted.
 
 The container app layer should not directly manipulate orchestrator-owned
 replicas, backend registrations, routing tables, or cleanup behavior. It

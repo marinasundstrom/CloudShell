@@ -53,6 +53,56 @@ public sealed class ResourceOrchestrationService(
         return await orchestrator.DeleteAsync(context, cancellationToken);
     }
 
+    public async Task<ResourceOrchestratorDeploymentApplyResult> ApplyDeploymentAsync(
+        Resource resource,
+        ResourceOrchestratorDeployment deployment,
+        CancellationToken cancellationToken = default,
+        string? triggeredBy = null,
+        string? cause = null)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentNullException.ThrowIfNull(deployment);
+
+        if (!string.Equals(resource.Id, deployment.SourceResourceId, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ControlPlaneException(
+                ControlPlaneError.InvalidRequest(
+                    $"Deployment '{deployment.Id}' belongs to resource '{deployment.SourceResourceId}', not '{resource.Id}'."));
+        }
+
+        var context = CreateContext(resource, triggeredBy, cause);
+        var applier = SelectDeploymentApplier(context, deployment);
+        AppendResourceActionEvent(
+            resource,
+            ResourceEventTypes.Events.Deployment.Applying,
+            $"Applying deployment '{deployment.Id}' for revision '{deployment.RevisionId}'.{FormatCause(cause)}",
+            triggeredBy);
+
+        try
+        {
+            var result = await applier.ApplyDeploymentAsync(
+                context,
+                deployment with { Status = ResourceOrchestratorDeploymentStatus.Applying },
+                cancellationToken);
+            AppendResourceActionEvent(
+                resource,
+                ResourceEventTypes.Events.Deployment.Applied,
+                $"Applied deployment '{deployment.Id}' for revision '{result.Deployment.RevisionId}'. Result: {result.ProcedureResult.Message}",
+                triggeredBy);
+            return result;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            AppendResourceActionEvent(
+                resource,
+                ResourceEventTypes.Events.Deployment.Failed,
+                $"Failed deployment '{deployment.Id}' for revision '{deployment.RevisionId}'. Reason: {exception.Message}",
+                triggeredBy,
+                ResourceSignalSeverity.Error);
+            throw;
+        }
+    }
+
     public async Task<ResourceProcedureResult> ExecuteActionAsync(
         Resource resource,
         ResourceAction action,
@@ -670,6 +720,62 @@ public sealed class ResourceOrchestrationService(
         SelectPreferredOrchestrator(orchestrator => orchestrator.CanDelete(context))
         ?? throw new ControlPlaneException(
             ControlPlaneError.ResourceDeleteUnsupported(context.Resource.Name));
+
+    private IResourceOrchestratorDeploymentApplier SelectDeploymentApplier(
+        ResourceOrchestrationContext context,
+        ResourceOrchestratorDeployment deployment)
+    {
+        if (!string.IsNullOrWhiteSpace(deployment.OrchestratorId))
+        {
+            var explicitOrchestrator = orchestrators.FirstOrDefault(orchestrator =>
+                string.Equals(orchestrator.Id, deployment.OrchestratorId, StringComparison.OrdinalIgnoreCase));
+            if (explicitOrchestrator is null)
+            {
+                throw new ControlPlaneException(
+                    ControlPlaneError.InvalidRequest(
+                        $"Orchestrator '{deployment.OrchestratorId}' is not registered for deployment '{deployment.Id}'."));
+            }
+
+            if (explicitOrchestrator is IResourceOrchestratorDeploymentApplier explicitApplier &&
+                explicitApplier.CanApplyDeployment(context, deployment))
+            {
+                return explicitApplier;
+            }
+
+            throw new ControlPlaneException(
+                ControlPlaneError.InvalidRequest(
+                    $"Orchestrator '{deployment.OrchestratorId}' cannot apply deployment '{deployment.Id}' for resource '{context.Resource.Name}'."));
+        }
+
+        return SelectPreferredDeploymentApplier((orchestrator, applier) =>
+            applier.CanApplyDeployment(context, deployment))
+            ?? throw new ControlPlaneException(
+                ControlPlaneError.InvalidRequest(
+                    $"No orchestrator can apply deployment '{deployment.Id}' for resource '{context.Resource.Name}'."));
+    }
+
+    private IResourceOrchestratorDeploymentApplier? SelectPreferredDeploymentApplier(
+        Func<IResourceOrchestrator, IResourceOrchestratorDeploymentApplier, bool> predicate)
+    {
+        var selectedId = selectionStore.Get().OrchestratorId;
+        if (!string.Equals(selectedId, "default", StringComparison.OrdinalIgnoreCase))
+        {
+            var selected = orchestrators.FirstOrDefault(orchestrator =>
+                string.Equals(orchestrator.Id, selectedId, StringComparison.OrdinalIgnoreCase) &&
+                orchestrator is IResourceOrchestratorDeploymentApplier applier &&
+                predicate(orchestrator, applier));
+            if (selected is IResourceOrchestratorDeploymentApplier selectedApplier)
+            {
+                return selectedApplier;
+            }
+        }
+
+        var defaultOrchestrator = orchestrators.FirstOrDefault(orchestrator =>
+            string.Equals(orchestrator.Id, "default", StringComparison.OrdinalIgnoreCase) &&
+            orchestrator is IResourceOrchestratorDeploymentApplier applier &&
+            predicate(orchestrator, applier));
+        return defaultOrchestrator as IResourceOrchestratorDeploymentApplier;
+    }
 
     private IResourceOrchestrator? SelectPreferredOrchestrator(
         Func<IResourceOrchestrator, bool> predicate)

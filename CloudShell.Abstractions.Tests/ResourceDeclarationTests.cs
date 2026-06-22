@@ -3638,12 +3638,6 @@ public sealed class ResourceDeclarationTests
             {
                 ["cloudshell.executable"] = fakeDocker
             });
-        var method = typeof(ApplicationResourceService).GetMethod(
-            "RunContainerHostCommandAsync",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-
-        Assert.NotNull(method);
-
         using var logProvider = new CapturingLoggerProvider();
         using var loggerFactory = LoggerFactory.Create(builder =>
         {
@@ -3651,15 +3645,12 @@ public sealed class ResourceDeclarationTests
             builder.AddProvider(logProvider);
         });
         using var cancellation = new CancellationTokenSource();
-        var task = Assert.IsAssignableFrom<Task<int>>(method.Invoke(
-            null,
-            [
-                engine,
-                new[] { "version" },
-                new ApplicationProcessLog(),
-                cancellation.Token,
-                loggerFactory.CreateLogger("test")
-            ]));
+        var task = ApplicationContainerHostCommands.RunAsync(
+            engine,
+            ["version"],
+            new ApplicationProcessLog(),
+            cancellation.Token,
+            loggerFactory.CreateLogger("test"));
         var processId = await WaitForProcessIdFileAsync(pidPath, TimeSpan.FromSeconds(5));
         using var process = Process.GetProcessById(processId);
 

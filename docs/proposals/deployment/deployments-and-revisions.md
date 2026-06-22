@@ -24,8 +24,11 @@ desired capacity without necessarily creating another revision.
 
 Initial implementation now adds internal data contracts for
 `ResourceOrchestratorDeployment`, `ResourceOrchestratorDeploymentSpec`, and
-`ResourceOrchestratorRevision` in the orchestration abstractions. These are
-intended for container apps, providers, and orchestrators to build on first.
+`ResourceOrchestratorRevision` in the orchestration abstractions, plus an
+opt-in `IResourceOrchestratorDeploymentApplier` boundary and Control Plane
+dispatcher for applying a deployment through the selected orchestrator. These
+are intended for container apps, providers, and orchestrators to build on
+first.
 Container apps now use the deployment contract to project deployment status,
 service id, workload version, requested replicas, and materialized replica count
 onto the stable app resource and Deployment tab. Materialized runtime replica

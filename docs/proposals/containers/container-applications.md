@@ -184,8 +184,8 @@ Implemented pieces include:
   replica mode
 * shared resource metadata for provider/orchestrator/runtime ownership,
   visibility, owner resource, and cleanup behavior
-* internal orchestrator deployment/revision data contracts for future
-  container app runtime materialization
+* internal orchestrator deployment/revision data contracts and a Control Plane
+  deployment-apply boundary for future container app runtime materialization
 * hidden runtime-managed child resources for container app replicas, parented
   to and owned by the stable container app resource, with
   deployment/service/revision correlation metadata
@@ -271,9 +271,10 @@ liveness/lifecycle signals, while scaling changes desired capacity.
    replicas, verifying readiness, switching ingress/load-balancer routing, and
    retiring old runtime replicas are orchestrator responsibilities. Use the
    internal orchestrator deployment/revision contracts for container app
-   implementation work, but defer full rollout history, restore, revision
-   management, traffic splitting, and advanced rollout controls to later
-   deployment/revision slices.
+   implementation work. The Control Plane now has an internal deployment-apply
+   boundary for dispatching a deployment spec to the selected orchestrator, but
+   defer full rollout history, restore, revision management, traffic splitting,
+   and advanced rollout controls to later deployment/revision slices.
 7. Keep container app replica diagnostics app-scoped in Scale and replicas. It
    shows app-owned replica/runtime diagnostics to users who can view or manage
    the container app without requiring the global runtime-managed inventory

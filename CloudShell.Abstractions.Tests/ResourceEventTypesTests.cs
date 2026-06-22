@@ -40,6 +40,15 @@ public sealed class ResourceEventTypesTests
         Assert.Equal(
             "event.deployment.replicas.updated",
             ResourceEventTypes.Events.Deployment.ReplicasUpdated);
+        Assert.Equal(
+            "event.deployment.applying",
+            ResourceEventTypes.Events.Deployment.Applying);
+        Assert.Equal(
+            "event.deployment.applied",
+            ResourceEventTypes.Events.Deployment.Applied);
+        Assert.Equal(
+            "event.deployment.failed",
+            ResourceEventTypes.Events.Deployment.Failed);
     }
 
     [Theory]

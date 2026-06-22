@@ -57,6 +57,10 @@ public sealed record ResourceOrchestratorRevision(
     DateTimeOffset CreatedAt,
     ResourceOrchestratorRevisionStatus Status);
 
+public sealed record ResourceOrchestratorDeploymentApplyResult(
+    ResourceOrchestratorDeployment Deployment,
+    ResourceProcedureResult ProcedureResult);
+
 public enum ResourceOrchestratorDeploymentStatus
 {
     Pending,
@@ -94,6 +98,18 @@ public interface IResourceOrchestrator
 
     Task<ResourceProcedureResult> DeleteAsync(
         ResourceOrchestrationContext context,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IResourceOrchestratorDeploymentApplier
+{
+    bool CanApplyDeployment(
+        ResourceOrchestrationContext context,
+        ResourceOrchestratorDeployment deployment);
+
+    Task<ResourceOrchestratorDeploymentApplyResult> ApplyDeploymentAsync(
+        ResourceOrchestrationContext context,
+        ResourceOrchestratorDeployment deployment,
         CancellationToken cancellationToken = default);
 }
 
