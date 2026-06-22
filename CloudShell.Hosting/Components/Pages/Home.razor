@@ -87,9 +87,8 @@
                             <ResourceKindIcon Resource="issue.Resource" />
                         </Leading>
                         <Trailing>
-                            <span class="health-pill @GetIssueClass(issue)">
-                                @GetIssueLabel(issue)
-                            </span>
+                            <HealthPill Status="GetIssueHealthStatus(issue)"
+                                        Label="@GetIssueLabel(issue)" />
                         </Trailing>
                     </ShellActivityLink>
                 }
@@ -470,23 +469,23 @@
         return issue.Resource.State?.ToString() ?? L["Unknown"].Value;
     }
 
-    private static string GetIssueClass(ResourceIssue issue)
+    private static ResourceHealthStatus? GetIssueHealthStatus(ResourceIssue issue)
     {
         if (issue.Failure?.Severity == ResourceSignalSeverity.Warning)
         {
-            return "health-unknown";
+            return ResourceHealthStatus.Unknown;
         }
 
         if (issue.Failure is not null ||
             issue.Health?.Status == ResourceHealthStatus.Unhealthy)
         {
-            return "health-unhealthy";
+            return ResourceHealthStatus.Unhealthy;
         }
 
         return issue.Resource.State switch
         {
-            ResourceState.Degraded => "health-unhealthy",
-            _ => "health-unknown"
+            ResourceState.Degraded => ResourceHealthStatus.Unhealthy,
+            _ => ResourceHealthStatus.Unknown
         };
     }
 

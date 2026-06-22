@@ -318,18 +318,6 @@ h3 {
     min-width: 6rem;
 }
 
-.health-pill {
-    display: inline-flex;
-    align-items: center;
-    min-width: 5.2rem;
-    justify-content: center;
-    border-radius: 999px;
-    padding: .18rem .45rem;
-    color: white;
-    font-size: .76rem;
-    font-weight: 650;
-}
-
 .resource-shell {
     display: grid;
     grid-template-columns: 16rem minmax(0, 1fr) 22rem;
@@ -1463,22 +1451,6 @@ h3 {
 
 .resource-activity-group.event {
     color: #7c3aed;
-}
-
-.health-pill {
-    color: var(--cloudshell-health-pill-foreground, white);
-}
-
-.health-pill.health-healthy,
-.health-pill.health-unhealthy,
-.health-pill.health-unknown,
-.health-pill.health-pending {
-    --cloudshell-health-pill-foreground: white;
-}
-
-.resource-activity-group .health-pill,
-.resource-activity-header .health-pill {
-    color: var(--cloudshell-health-pill-foreground, white);
 }
 
 .resource-activity-badges {

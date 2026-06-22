@@ -72,7 +72,8 @@ on `git blame --follow`, and then by the broad type of change.
   assessment and most relevant check detail so runtime observations are
   visible next to replica state and placement.
 - Health status pills now have a shared `HealthPill` component used by the
-  resource Health views and container app replica table.
+  resource Health views, dashboard issue list, resource inventory, and
+  container app replica table.
 - Documented the health vocabulary split: liveness is an observation, while
   health is an assessment that may include liveness, readiness, dependencies,
   provider-owned status, and aggregate application data.

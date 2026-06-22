@@ -1,0 +1,18 @@
+.health-pill {
+    display: inline-flex;
+    align-items: center;
+    min-width: 5.2rem;
+    justify-content: center;
+    border-radius: 999px;
+    padding: .18rem .45rem;
+    color: var(--cloudshell-health-pill-foreground, white);
+    font-size: .76rem;
+    font-weight: 650;
+}
+
+.health-pill.health-healthy,
+.health-pill.health-unhealthy,
+.health-pill.health-unknown,
+.health-pill.health-pending {
+    --cloudshell-health-pill-foreground: white;
+}

@@ -2013,10 +2013,10 @@ resourceGroups) =>
         }
 
         var health = GetHealthSummary(resource);
-        builder.OpenElement(3, "span");
-        builder.AddAttribute(4, "class", $"health-pill {GetHealthClass(health?.Status)}");
-        builder.AddContent(5, GetHealthLabel(health));
-        builder.CloseElement();
+        builder.OpenComponent<HealthPill>(3);
+        builder.AddAttribute(4, "Status", health?.Status);
+        builder.AddAttribute(5, "Label", GetHealthLabel(health));
+        builder.CloseComponent();
     };
 
     private string GetHealthLabel(ResourceHealthSummary? health)
@@ -2033,15 +2033,6 @@ resourceGroups) =>
             _ => L["Unknown"].Value
         };
     }
-
-    private static string GetHealthClass(ResourceHealthStatus? status) =>
-        status switch
-        {
-            ResourceHealthStatus.Healthy => "health-healthy",
-            ResourceHealthStatus.Unhealthy => "health-unhealthy",
-            ResourceHealthStatus.Unknown => "health-unknown",
-            _ => "health-pending"
-        };
 
     private static string GetActionKey(Resource resource, ResourceAction action) =>
         GetActionKey(resource.Id, action.Id);
