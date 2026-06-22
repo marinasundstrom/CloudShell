@@ -2015,6 +2015,10 @@ public sealed class SampleSmokeTests
             $"/resources/{Uri.EscapeDataString("application:api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Health.Value)}");
         Assert.Contains("Health summary", healthHtml);
         Assert.Contains("runtime scope check(s)", healthHtml);
+
+        var globalHealthHtml = await host.GetStringAsync("/health");
+        Assert.Contains("api", globalHealthHtml);
+        Assert.Contains("runtime scope check(s)", globalHealthHtml);
     }
 
     [Fact]

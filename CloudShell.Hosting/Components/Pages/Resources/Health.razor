@@ -34,7 +34,7 @@
 <SummaryMetricGrid AriaLabel="@L["Health summary"].Value">
     <SummaryMetricCard Title="@L["Resources with checks"].Value"
                        Value="@ResourcesWithHealthChecks.Count"
-                       Summary="@L["{0} configured check(s)", TotalConfiguredChecks].Value"
+                       Summary="@L["{0} assessed check(s)", TotalConfiguredChecks].Value"
                        IconName="health-checks" />
     <SummaryMetricCard Title="@L["Healthy"].Value"
                        Value="@HealthyResourceCount"
@@ -131,7 +131,7 @@
                             <strong>@resource.EffectiveDisplayName</strong>
                         </a>
                         <ResourceHealthHistoryChart Compact="true"
-                                                    Checks="resource.ResourceHealthChecks"
+                                                    Checks="GetChartChecks(resource)"
                                                     Snapshots="GetHealthSnapshots(resource)"
                                                     Title="@L["Recent polling"].Value" />
                     </div>
@@ -158,7 +158,7 @@
                     var summary = GetHealthSummary(resource);
                     <ShellActivityLink Href="@BuildResourceRoute(resource.Id)"
                                        Title="@resource.EffectiveDisplayName"
-                                       Summary="@L["{0} check(s)", resource.ResourceHealthChecks.Count].Value">
+                                       Summary="@L["{0} check(s)", GetHealthCheckCount(resource)].Value">
                         <Leading>
                             <ResourceKindIcon Resource="resource" />
                         </Leading>
@@ -189,22 +189,22 @@
 
     private IReadOnlyList<Resource> ResourcesWithHealthChecks =>
         Resources
-            .Where(resource => resource.ResourceHealthChecks.Count > 0)
+            .Where(HasHealthAssessment)
             .OrderBy(resource => GetHealthRank(GetHealthSummary(resource)?.Status))
             .ThenBy(resource => resource.EffectiveDisplayName, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private int TotalConfiguredChecks =>
-        ResourcesWithHealthChecks.Sum(resource => resource.ResourceHealthChecks.Count);
+        ResourcesWithHealthChecks.Sum(GetHealthCheckCount);
 
     private int HealthyResourceCount =>
-        HealthResults.Values.Count(summary => summary.Status == ResourceHealthStatus.Healthy);
+        ResourcesWithHealthChecks.Count(resource => GetHealthSummary(resource)?.Status == ResourceHealthStatus.Healthy);
 
     private int UnhealthyResourceCount =>
-        HealthResults.Values.Count(summary => summary.Status == ResourceHealthStatus.Unhealthy);
+        ResourcesWithHealthChecks.Count(resource => GetHealthSummary(resource)?.Status == ResourceHealthStatus.Unhealthy);
 
     private int UnknownResourceCount =>
-        HealthResults.Values.Count(summary => summary.Status == ResourceHealthStatus.Unknown);
+        ResourcesWithHealthChecks.Count(resource => GetHealthSummary(resource)?.Status == ResourceHealthStatus.Unknown);
 
     protected override async Task OnInitializedAsync()
     {
@@ -305,9 +305,7 @@
     private async Task<IReadOnlyDictionary<string, IReadOnlyList<ResourceHealthSummary>>> LoadHealthSnapshotsAsync(
         CancellationToken cancellationToken)
     {
-        var resources = Resources
-            .Where(resource => resource.ResourceHealthChecks.Count > 0)
-            .ToArray();
+        var resources = ResourcesWithHealthChecks;
         var snapshots = await Task.WhenAll(resources.Select(async resource =>
             new
             {
@@ -324,7 +322,8 @@
     private IReadOnlyList<HealthCheckRow> GetHealthCheckRows(Resource resource)
     {
         var results = GetHealthSummary(resource)?.Checks ?? [];
-        return resource.ResourceHealthChecks
+        var checks = GetChartChecks(resource);
+        return checks
             .Select(check => new HealthCheckRow(
                 check,
                 results.FirstOrDefault(result => ReferenceEquals(result.Check, check) || result.Check == check)))
@@ -371,6 +370,20 @@
             ResourceHealthStatus.Unknown => "health-unknown",
             _ => "health-pending"
         };
+
+    private bool HasHealthAssessment(Resource resource) =>
+        resource.ResourceHealthChecks.Count > 0 ||
+        GetHealthSummary(resource)?.Checks.Count > 0;
+
+    private int GetHealthCheckCount(Resource resource) =>
+        resource.ResourceHealthChecks.Count > 0
+            ? resource.ResourceHealthChecks.Count
+            : GetHealthSummary(resource)?.Checks.Count ?? 0;
+
+    private IReadOnlyList<ResourceHealthCheck> GetChartChecks(Resource resource) =>
+        resource.ResourceHealthChecks.Count > 0
+            ? resource.ResourceHealthChecks
+            : GetHealthSummary(resource)?.Checks.Select(result => result.Check).ToArray() ?? [];
 
     private static int GetHealthRank(ResourceHealthStatus? status) =>
         status switch

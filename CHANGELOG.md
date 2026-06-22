@@ -64,6 +64,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Runtime replica health observations now roll up into an aggregate health
   assessment on the stable container app resource, and a Replicated Container
   Health sample verifies the parent assessment and scoped replica observations.
+- The global Health page now includes visible resources with aggregate health
+  assessments even when the concrete probe declarations live on projected
+  runtime resources, while default summary counts stay focused on visible
+  resources instead of hidden runtime projections.
 - Documented the health vocabulary split: liveness is an observation, while
   health is an assessment that may include liveness, readiness, dependencies,
   provider-owned status, and aggregate application data.
