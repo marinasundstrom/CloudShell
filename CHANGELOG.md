@@ -35,8 +35,9 @@ on `git blame --follow`, and then by the broad type of change.
 - SQL Server database rows, container replica tables, and the common Health
   table now use a shared resource table identity component for consistent
   icon, title, and secondary-label rendering.
-- Resource Manager pages now use the shared empty-state component instead of
-  locally hand-coded empty-state markup for simple empty and not-found states.
+- Resource Manager and observability pages now use the shared empty-state
+  component instead of locally hand-coded empty-state markup for simple empty
+  and not-found states.
 - Users, Extensions, Settings, Health, Resource Templates, custom shell views,
   Resource Manager settings, and tabbed resource panels now use the shared
   shell panel header component instead of repeated local header markup.

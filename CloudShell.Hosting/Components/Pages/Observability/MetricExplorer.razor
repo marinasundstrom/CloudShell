@@ -139,10 +139,9 @@ else if (ShowHeading)
 
             @if (points.Count == 0 && metricPanels.Count == 0)
             {
-                <div class="empty-state compact">
-                    <strong>@L["No metrics received"]</strong>
-                    <span>@L["Start this resource and send traffic through it. Metrics are retained only while CloudShell is running."]</span>
-                </div>
+                <EmptyState Title="@L["No metrics received"].Value"
+                            Message="@L["Start this resource and send traffic through it. Metrics are retained only while CloudShell is running."].Value"
+                            Compact="true" />
             }
             else
             {
@@ -227,10 +226,9 @@ else if (ShowHeading)
                 {
                     @if (points.Count == 0)
                     {
-                        <div class="empty-state compact">
-                            <strong>@L["No metrics received"]</strong>
-                            <span>@L["Start this resource and send traffic through it. Metrics are retained only while CloudShell is running."]</span>
-                        </div>
+                        <EmptyState Title="@L["No metrics received"].Value"
+                                    Message="@L["Start this resource and send traffic through it. Metrics are retained only while CloudShell is running."].Value"
+                                    Compact="true" />
                     }
                     else
                     {

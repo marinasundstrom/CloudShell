@@ -193,10 +193,9 @@ else if (ShowHeading)
 
             @if (spans.Count == 0)
             {
-                <div class="empty-state compact">
-                    <strong>@L["No spans received"]</strong>
-                    <span>@L["Start this resource and send traffic through it. Spans are retained only while CloudShell is running."]</span>
-                </div>
+                <EmptyState Title="@L["No spans received"].Value"
+                            Message="@L["Start this resource and send traffic through it. Spans are retained only while CloudShell is running."].Value"
+                            Compact="true" />
             }
             else
             {
@@ -304,10 +303,9 @@ else if (ShowHeading)
                             <aside class="trace-span-details">
                                 @if (selectedSpan is null)
                                 {
-                                    <div class="empty-state compact">
-                                        <strong>@L["No span selected"]</strong>
-                                        <span>@L["Select a span to inspect its details."]</span>
-                                    </div>
+                                    <EmptyState Title="@L["No span selected"].Value"
+                                                Message="@L["Select a span to inspect its details."].Value"
+                                                Compact="true" />
                                 }
                                 else
                                 {

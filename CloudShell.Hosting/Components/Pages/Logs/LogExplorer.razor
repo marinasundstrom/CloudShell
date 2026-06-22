@@ -182,10 +182,9 @@ else if (ShowHeading)
                 }
                 else
                 {
-                    <div class="empty-state compact">
-                        <strong>@L["No log sources"]</strong>
-                        <span>@L["No log sources are registered for this view."]</span>
-                    </div>
+                    <EmptyState Title="@L["No log sources"].Value"
+                                Message="@L["No log sources are registered for this view."].Value"
+                                Compact="true" />
                 }
             }
             else
@@ -279,10 +278,9 @@ else if (ShowHeading)
 
                 @if (IsLoading)
                 {
-                    <div class="empty-state compact">
-                        <strong>@L["Loading log entries"]</strong>
-                        <span>@L["Reading recent output from {0}.", selected.Provider]</span>
-                    </div>
+                    <EmptyState Title="@L["Loading log entries"].Value"
+                                Message="@L["Reading recent output from {0}.", selected.Provider].Value"
+                                Compact="true" />
                 }
                 else if (ReadError is not null)
                 {
@@ -290,12 +288,11 @@ else if (ShowHeading)
                 }
                 else if (Entries.Count == 0)
                 {
-                    <div class="empty-state compact">
-                        <strong>@(IsSelectedLogStreaming(selected) ? L["Waiting for entries"] : L["No entries"])</strong>
-                        <span>@(IsSelectedLogStreaming(selected)
-                                                    ? L["Streaming is active for this log source."]
-                                                    : GetNoEntriesMessage(selected))</span>
-                    </div>
+                    <EmptyState Title="@(IsSelectedLogStreaming(selected) ? L["Waiting for entries"].Value : L["No entries"].Value)"
+                                Message="@(IsSelectedLogStreaming(selected)
+                                    ? L["Streaming is active for this log source."].Value
+                                    : GetNoEntriesMessage(selected))"
+                                Compact="true" />
                 }
                 else
                     {
@@ -311,10 +308,9 @@ else if (ShowHeading)
 
                         @if (visibleEntries.Count == 0)
                         {
-                            <div class="empty-state compact">
-                                <strong>@GetEmptyFilteredTitle()</strong>
-                                <span>@GetEmptyFilteredMessage()</span>
-                            </div>
+                            <EmptyState Title="@GetEmptyFilteredTitle()"
+                                        Message="@GetEmptyFilteredMessage()"
+                                        Compact="true" />
                         }
                         else
                         {
