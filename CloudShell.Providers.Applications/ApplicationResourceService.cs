@@ -3889,7 +3889,7 @@ public sealed partial class ApplicationResourceService(
             application.DependsOn,
             TypeId: application.ResourceType,
             Actions: CreateActions(application, state),
-            HealthChecks: application.HealthChecks,
+            HealthChecks: CreateHealthChecks(application),
             RecoveryPolicies: application.RecoveryPolicies,
             Observability: GetEffectiveObservability(application),
             ResourceClass: projection.GetResourceClass(application),
@@ -3898,6 +3898,18 @@ public sealed partial class ApplicationResourceService(
             EndpointNetworkMappings: CreateEndpointNetworkMappings(application),
             DisplayName: application.Name,
             LogSources: CreateDefaultResourceLogSources());
+    }
+
+    private static IReadOnlyList<ResourceHealthCheck> CreateHealthChecks(
+        ApplicationResourceDefinition application)
+    {
+        if (!ApplicationResourceTypes.IsContainerApp(application.ResourceType) ||
+            !IsReplicaModeEnabled(application))
+        {
+            return application.HealthChecks;
+        }
+
+        return [];
     }
 
     private static IReadOnlyList<ResourceLogSource> CreateDefaultResourceLogSources() =>
@@ -4023,6 +4035,7 @@ public sealed partial class ApplicationResourceService(
             [],
             ParentResourceId: application.Id,
             TypeId: "runtime.container",
+            HealthChecks: CreateRuntimeContainerHealthChecks(application, instance),
             ResourceClass: ResourceClass.Container,
             Attributes: attributes,
             Capabilities: [new(ResourceCapabilityIds.Monitoring)],
@@ -4031,6 +4044,25 @@ public sealed partial class ApplicationResourceService(
             Visibility: ResourceVisibility.Hidden,
             OwnerResourceId: application.Id,
             CleanupBehavior: ResourceCleanupBehavior.DeleteWithOwner);
+    }
+
+    private static IReadOnlyList<ResourceHealthCheck> CreateRuntimeContainerHealthChecks(
+        ApplicationResourceDefinition application,
+        ResourceOrchestratorServiceInstance instance)
+    {
+        if (!ApplicationResourceTypes.IsContainerApp(application.ResourceType) ||
+            !IsReplicaModeEnabled(application) ||
+            application.HealthChecks.Count == 0)
+        {
+            return [];
+        }
+
+        return application.HealthChecks
+            .Select(check => check with
+            {
+                Name = $"{check.Name}-replica-{instance.ReplicaOrdinal.ToString(CultureInfo.InvariantCulture)}"
+            })
+            .ToArray();
     }
 
     private static IReadOnlyList<Resource> CreateSqlDatabaseResources(ApplicationResourceDefinition application) =>

@@ -523,13 +523,30 @@ resource-local aggregation model.
 
 For container app style resources, the health declaration belongs to the
 stable container app resource, not to each replica as an independent top-level
-resource. A provider can interpret that declaration as the signal to evaluate
-for each runtime scope when multiple replicas or backing containers exist.
-The container app then exposes an aggregate resource health or liveness result
-derived from the per-replica observations, with per-replica details available
-for Health, Monitoring, and Degradation drill-downs when the provider can
-surface them. When only one replica is running, the aggregate and runtime
-scope result can be equivalent without changing the resource model.
+resource. For replicated container apps, that declaration is a template for
+the checks that should run against the runtime replica containers. The
+container app resource remains the stable workload, exposure, and projection
+boundary, while the runtime replica resources carry the concrete health and
+liveness checks that CloudShell can poll when the provider can expose
+replica-specific probe addresses or provider-native replica health. A future
+Control Plane aggregate can then derive the container app's health or
+liveness result from the per-replica observations, with per-replica details
+available for Health, Monitoring, and Degradation drill-downs.
+The current container app implementation projects replicated HTTP checks onto
+the hidden runtime replica resources. Until replica-specific probe addresses
+are available, those checks may remain unresolved; the aggregate container app
+health result remains future work.
+
+Application-like resources share much of the same provider toolkit, but they
+do not all own health and liveness the same way. A single local executable,
+project-backed application, or service resource can control its own health and
+liveness checks directly because the resource maps closely to one running
+service process. A replicated container app is different: the stable
+application resource is mostly the workload, exposure, and projection
+boundary, while the actual health and liveness targets are the runtime
+replicas. The shared application resource model should therefore support both
+resource-owned checks and runtime-owned checks, with the provider deciding
+which projection fits the resource type.
 
 Future Control Plane health endpoints can expose CloudShell-computed health
 scopes. A health scope is a Control Plane aggregation boundary built from the

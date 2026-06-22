@@ -182,13 +182,29 @@ Control Plane endpoint as the health endpoint for that scope.
 
 Container apps need a provider-owned scoped health model because the stable
 resource can represent one or many running replicas. The resource-level health
-check declaration should stay on the container app. When multiple replicas or
-backing containers exist, the provider may use that declaration as the signal
-to evaluate for each runtime scope, aggregate the observations into the
-container app's resource health or liveness result, and expose the per-replica
-breakdown for Health, Monitoring, and Degradation views. When exactly one
-replica is running, the aggregate result and the runtime-scope result can be
-the same observation.
+check declaration should stay on the container app definition as the template
+for runtime replica checks. When multiple replicas or backing containers
+exist, the provider should project the declared health and liveness checks
+onto the runtime scopes that can actually be probed. CloudShell can then
+aggregate the replica observations into the container app's resource health or
+liveness result and expose the per-replica breakdown for Health, Monitoring,
+and Degradation views. When exactly one replica is running, the aggregate
+result and the runtime-scope result can be the same observation.
+
+The first container app slice keeps the declaration on the container app
+definition and projects replicated HTTP checks onto hidden runtime replica
+resources. Those checks may remain unresolved until the provider model can
+expose replica-specific probe addresses or provider-native replica health.
+The container app aggregate health result should be introduced separately as a
+Control Plane aggregation over the observed replica checks.
+
+This should be expressed in the shared application resource toolkit rather
+than as a one-off container app exception. Application-like resource types can
+choose different health ownership policies: executable applications,
+project-backed applications, and single-process service resources may expose
+resource-owned health and liveness directly, while replicated container apps
+project the declared checks onto runtime replicas and aggregate the replica
+state back to the stable application resource.
 
 The aggregation policy is provider-owned. One failed replica might degrade the
 container app while enough healthy replicas remain to serve traffic, while all

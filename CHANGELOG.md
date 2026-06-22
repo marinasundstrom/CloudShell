@@ -57,6 +57,10 @@ on `git blame --follow`, and then by the broad type of change.
   provider-owned aggregate checks can report per-replica, dependency, route,
   or runtime-scope details without adding scope metadata to resource health
   declarations.
+- Replicated container app HTTP health checks now project onto the hidden
+  runtime replica resources, keeping the declaration on the container app
+  definition while preparing the Control Plane to poll replica health directly
+  when providers can expose replica probe addresses.
 - Recovery remains available for stopped resources that can be started, and an
   enabled recovery policy can start a stopped resource after it previously
   observed a healthy signal.
