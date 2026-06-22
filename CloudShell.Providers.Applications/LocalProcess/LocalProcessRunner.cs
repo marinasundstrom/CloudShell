@@ -125,7 +125,10 @@ public sealed partial class LocalProcessRunner(
                 null,
                 DateTimeOffset.UtcNow,
                 exitCode,
-                logPath));
+                logPath,
+                VolumeMounts: MarkVolumeMountsNotActive(
+                    definition.RuntimeVolumeMounts,
+                    DateTimeOffset.UtcNow)));
             LogProcessExited(definition, process.Id, exitCode, commandLine);
         };
 
@@ -146,7 +149,8 @@ public sealed partial class LocalProcessRunner(
             process.Id,
             startedAt,
             DateTimeOffset.UtcNow,
-            LogPath: logPath));
+            LogPath: logPath,
+            VolumeMounts: definition.RuntimeVolumeMounts));
 
         processLog.Append(
             $"Started {commandLine} with process id {process.Id} using {definition.Lifetime} lifetime.",
@@ -279,7 +283,10 @@ public sealed partial class LocalProcessRunner(
             null,
             DateTimeOffset.UtcNow,
             exitCode,
-            logPath));
+            logPath,
+            VolumeMounts: MarkVolumeMountsNotActive(
+                runtimeStates.Get(definition.Id)?.RuntimeVolumeMounts ?? definition.RuntimeVolumeMounts,
+                DateTimeOffset.UtcNow)));
         LogProcessStopped(definition, process.Id, exitCode);
         return Task.CompletedTask;
     }
@@ -326,7 +333,10 @@ public sealed partial class LocalProcessRunner(
                 null,
                 DateTimeOffset.UtcNow,
                 exitCode,
-                runtimeState.LogPath));
+                runtimeState.LogPath,
+                VolumeMounts: MarkVolumeMountsNotActive(
+                    runtimeState.RuntimeVolumeMounts,
+                    DateTimeOffset.UtcNow)));
             LogRecoveredHostScopedProcessStopped(definition.Id, process.Id, exitCode);
         }
         catch (Exception exception) when (exception is ArgumentException or InvalidOperationException)
@@ -397,7 +407,10 @@ public sealed partial class LocalProcessRunner(
                         null,
                         DateTimeOffset.UtcNow,
                         exitCode,
-                        state.LogPath));
+                        state.LogPath,
+                        VolumeMounts: MarkVolumeMountsNotActive(
+                            runtimeStates.Get(processId)?.RuntimeVolumeMounts ?? [],
+                            DateTimeOffset.UtcNow)));
                     LogProcessStoppedDuringShutdown(processId, state.Process.Id, exitCode);
                 }
             }
@@ -436,7 +449,10 @@ public sealed partial class LocalProcessRunner(
                 null,
                 DateTimeOffset.UtcNow,
                 exitCode,
-                state.LogPath));
+                state.LogPath,
+                VolumeMounts: MarkVolumeMountsNotActive(
+                    runtimeStates.Get(definition.Id)?.RuntimeVolumeMounts ?? definition.RuntimeVolumeMounts,
+                    DateTimeOffset.UtcNow)));
             LogProcessExitObserved(definition, state.Process.Id, exitCode);
             if (_processes.TryRemove(definition.Id, out var removedState))
             {
@@ -483,7 +499,10 @@ public sealed partial class LocalProcessRunner(
                     null,
                     DateTimeOffset.UtcNow,
                     exitCode,
-                    logPath));
+                    logPath,
+                    VolumeMounts: MarkVolumeMountsNotActive(
+                        runtimeStates.Get(definition.Id)?.RuntimeVolumeMounts ?? definition.RuntimeVolumeMounts,
+                        DateTimeOffset.UtcNow)));
                 LogProcessExited(
                     definition,
                     candidate.Id,
@@ -557,6 +576,17 @@ public sealed partial class LocalProcessRunner(
 
         Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
     }
+
+    private static IReadOnlyList<ResourceVolumeMountMaterialization> MarkVolumeMountsNotActive(
+        IEnumerable<ResourceVolumeMountMaterialization> mounts,
+        DateTimeOffset observedAt) =>
+        mounts
+            .Select(mount => mount with
+            {
+                Status = ResourceVolumeMountMaterializationStatus.NotActive,
+                ObservedAt = observedAt
+            })
+            .ToArray();
 
     private ProcessStartInfo CreateScopedStartInfo(LocalProcessDefinition definition) =>
         new()

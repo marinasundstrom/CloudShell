@@ -4,25 +4,30 @@
 
 In progress.
 
-Initial domain primitives are in place for volume resources and container app
+Initial domain primitives are in place for volume resources and application
 volume mounts: `cloudshell.volume`, `ResourceVolumeMount`, workload descriptor
-projection, container declaration builder support, application resource mount
-counts, storage volume/consumer capabilities, standard volume mount
-permissions, first Resource Manager selectors plus a dedicated Storage tab for
-container-backed resources that can map volumes, and a basic Resource Manager
-create/configuration/overview flow for direct `cloudshell.volume` resources.
+projection, declaration builder support for container, executable, and ASP.NET
+Core project resources, application resource mount counts, storage
+volume/consumer capabilities, standard volume mount permissions, first
+Resource Manager selectors plus a dedicated Storage tab for resources that can
+map volumes, and a basic Resource Manager create/configuration/overview flow
+for direct `cloudshell.volume` resources.
 SQL Server is the first resource-specific flow that recommends a known data
 mount point and warns when data will not be persisted.
 Volume overviews show reverse consumers, including declared target path and
 read/write mode when the workload descriptor is available.
-The current container materializers support `FileSystem` mounts and application
+The current resource materializers support `FileSystem` mounts and application
 Start/Restart availability now reports when a managed volume or storage parent
 uses an unsupported medium. Container hosts can now advertise the standard
 `storage.mount.filesystem` capability, and application Start/Restart
 availability reports when the selected host does not advertise that capability
-for a managed `FileSystem` volume. Provider-defined storage resources,
-provider-backed volume resources, richer host-specific compatibility
-negotiation, and usage monitoring remain open.
+for a managed `FileSystem` volume. Local executable and ASP.NET Core project
+resources materialize filesystem mounts by linking the resolved source
+directory into the app's target path before launch; relative target paths are
+resolved under the app working directory, while absolute target paths are
+honored as host paths. Provider-defined storage resources, provider-backed
+volume resources, richer host-specific compatibility negotiation, and usage
+monitoring remain open.
 The local Docker runner now records runtime-observed volume mount
 materialization facts, including resolved source, target path, access mode, and
 active/not-active status, after a successful container start. Application
@@ -159,11 +164,18 @@ they are attaching. Start/Restart action availability should preflight the
 currently selected mappings and report when the provider cannot materialize a
 managed volume medium. Future host providers should advertise storage media or
 mount capabilities explicitly so compatibility can be negotiated per host
-instead of being inferred from the current container materializer.
+instead of being inferred from the current resource materializer.
 The first host-level negotiation is intentionally narrow:
 Docker-compatible hosts advertise `storage.mount.filesystem`, and application
 Start/Restart availability checks that capability for managed `FileSystem`
 volume resources when a selected container host can be resolved.
+Local process-backed application resources do not use a container host. For
+those resources, `FileSystem` volume mounts are materialized as filesystem
+links from the app target path to the resolved volume source before the
+process starts. Relative target paths are resolved under the application
+working directory so declarations can use paths such as `data` or `App_Data`;
+absolute target paths remain absolute host paths and should be used
+deliberately.
 
 Storage-owned volumes are sub-items of their Storage resource in Resource
 Manager. They keep `cloudshell.volume` identity, but the projected resource

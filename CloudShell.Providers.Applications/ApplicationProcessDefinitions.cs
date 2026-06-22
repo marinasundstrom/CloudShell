@@ -7,7 +7,8 @@ internal static class ApplicationProcessDefinitions
 {
     public static LocalProcessDefinition Create(
         ApplicationResourceDefinition definition,
-        IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables = null)
+        IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables = null,
+        IReadOnlyList<ResourceVolumeMountMaterialization>? volumeMounts = null)
     {
         var command = CreateCommand(definition);
         return new LocalProcessDefinition(
@@ -16,7 +17,8 @@ internal static class ApplicationProcessDefinitions
             command.Arguments,
             definition.WorkingDirectory,
             environmentVariables ?? definition.EnvironmentVariables,
-            ToLocalProcessLifetime(definition.Lifetime));
+            ToLocalProcessLifetime(definition.Lifetime),
+            volumeMounts);
     }
 
     public static bool ResolveAspNetCoreHotReload(ApplicationResourceDefinition definition)

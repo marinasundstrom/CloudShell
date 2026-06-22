@@ -13,6 +13,16 @@ link to ADR entries when a change depends on a recorded decision.
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
+### 2026-06-23
+
+#### Changed
+
+- FileSystem volumes can now be attached to executable and ASP.NET Core
+  project resources through the same `ResourceVolumeMount` model used by
+  container apps, with Resource Manager Storage tabs and local process
+  filesystem-link materialization that keeps durable state owned by the volume
+  resource.
+
 ### 2026-06-22
 
 #### Changed

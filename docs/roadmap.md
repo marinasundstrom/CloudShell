@@ -757,14 +757,16 @@ listed here before pulling in broader proposal work.
   that facade is deliberately modeled; Resource Manager should show that
   relationship from both the target resource and the exposure resource.
 - Treat storage as part of the same app-environment path, not as deployment
-  trivia. The MVP now has basic volume resources and container app volume
+  trivia. The MVP now has basic volume resources and application volume
   attachments with a dedicated resource Storage tab plus a direct volume
-  create/configuration/overview flow, Local Storage resources, and
-  Docker/Docker Compose runtime materialization for `FileSystem` mounts.
+  create/configuration/overview flow, Local Storage resources,
+  Docker/Docker Compose runtime materialization for container `FileSystem`
+  mounts, and local process filesystem materialization for executable and
+  ASP.NET Core project mounts.
   Resource Manager volume selectors now only offer mountable volume resources
   and show their storage medium, and Start/Restart action availability now
   preflights unsupported volume and storage-parent media for the current
-  container materializers. Application overview pages show attached storage
+  resource materializers. Application overview pages show attached storage
   mounts, and volume overview pages show reverse consumers with declared target
   path and access mode when workload descriptors are available. Docker-backed
   container hosts now advertise `storage.mount.filesystem`, and application

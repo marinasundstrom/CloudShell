@@ -175,6 +175,13 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 20,
                 showsApplyButton: true,
                 groupTitle: ResourceTabGroupTitles.General)
+            .AddResourceTab<SharedPages.ApplicationStorage>(
+                ApplicationResourceTypes.ExecutableApplication,
+                ResourcePredefinedViewIds.Storage,
+                "Storage",
+                30,
+                showsApplyButton: true,
+                groupTitle: ResourceTabGroupTitles.Storage)
             .AddResourcePredefinedViewSection<SharedPages.ApplicationEndpointActions>(
                 ApplicationResourceTypes.ExecutableApplication,
                 ResourcePredefinedViewIds.Endpoints,
@@ -194,6 +201,13 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 20,
                 showsApplyButton: true,
                 groupTitle: ResourceTabGroupTitles.General)
+            .AddResourceTab<SharedPages.ApplicationStorage>(
+                ApplicationResourceTypes.AspNetCoreProject,
+                ResourcePredefinedViewIds.Storage,
+                "Storage",
+                30,
+                showsApplyButton: true,
+                groupTitle: ResourceTabGroupTitles.Storage)
             .AddResourcePredefinedViewSection<SharedPages.ApplicationEndpointActions>(
                 ApplicationResourceTypes.AspNetCoreProject,
                 ResourcePredefinedViewIds.Endpoints,

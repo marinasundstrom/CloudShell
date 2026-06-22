@@ -8,7 +8,11 @@ public sealed record LocalProcessDefinition(
     string? Arguments = null,
     string? WorkingDirectory = null,
     IReadOnlyList<EnvironmentVariableAssignment>? EnvironmentVariables = null,
-    LocalProcessLifetime Lifetime = LocalProcessLifetime.Detached);
+    LocalProcessLifetime Lifetime = LocalProcessLifetime.Detached,
+    IReadOnlyList<ResourceVolumeMountMaterialization>? VolumeMounts = null)
+{
+    public IReadOnlyList<ResourceVolumeMountMaterialization> RuntimeVolumeMounts => VolumeMounts ?? [];
+}
 
 public enum LocalProcessLifetime
 {

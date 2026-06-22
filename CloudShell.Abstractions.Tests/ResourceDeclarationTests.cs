@@ -1276,8 +1276,11 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("application.sql-server", sqlServerLiveness.EffectiveSource.Kind);
         AssertStorageTab(sqlServerType);
         AssertApplicationExposureSection(sqlServerType);
-        AssertApplicationExposureSection(resourceTypes[ApplicationResourceTypes.ExecutableApplication]);
+        var executableType = resourceTypes[ApplicationResourceTypes.ExecutableApplication];
+        AssertStorageTab(executableType);
+        AssertApplicationExposureSection(executableType);
         var aspNetCoreProjectType = resourceTypes[ApplicationResourceTypes.AspNetCoreProject];
+        AssertStorageTab(aspNetCoreProjectType);
         AssertApplicationExposureSection(aspNetCoreProjectType);
         AssertResourceEndpointDescriptor(aspNetCoreProjectType, "http", 80, "http");
         AssertResourceEndpointDescriptor(containerAppType, "http", 80, "http");
@@ -1297,9 +1300,6 @@ public sealed class ResourceDeclarationTests
         Assert.DoesNotContain(
             resourceTypes[ApplicationResourceTypes.AspNetCoreProject].ResourceTabs,
             tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Application, "scale-replicas"));
-        Assert.DoesNotContain(
-            resourceTypes[ApplicationResourceTypes.AspNetCoreProject].ResourceTabs,
-            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Storage, "storage"));
         Assert.DoesNotContain(
             resourceTypes[ApplicationResourceTypes.AspNetCoreProject].ResourceTabs,
             tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Application, "deployment"));
@@ -4862,6 +4862,67 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void TypedLocalApplicationBuilders_CanDeclareVolumeMounts()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+
+        services
+            .AddControlPlane()
+            .AddApplicationProvider()
+            .Resources(resources =>
+            {
+                var executableVolume = resources.AddVolume("volume:worker-data").WithDisplayName("Worker Data");
+                var projectVolume = resources.AddVolume("volume:api-data").WithDisplayName("API Data");
+
+                resources
+                    .AddExecutableApplication(
+                        "application:worker",
+                        executablePath: "dotnet")
+                    .WithVolume(executableVolume, "data", name: "data");
+
+                resources
+                    .AddAspNetCoreProject(
+                        "application:api",
+                        "src/API/API.csproj")
+                    .WithVolume(projectVolume, "App_Data", readOnly: true, name: "data");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var store = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var workerDeclaration = Assert.Single(store.GetDeclarations(), declaration =>
+            declaration.ResourceId == "application:worker");
+        var apiDeclaration = Assert.Single(store.GetDeclarations(), declaration =>
+            declaration.ResourceId == "application:api");
+        var worker = provider.GetApplication("application:worker");
+        var api = provider.GetApplication("application:api");
+        var workerResource = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == "application:worker");
+        var apiResource = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == "application:api");
+
+        Assert.Equal(["volume:worker-data"], workerDeclaration.DependsOn);
+        var workerMount = Assert.Single(worker?.VolumeMounts ?? []);
+        Assert.Equal("volume:worker-data", workerMount.VolumeReference);
+        Assert.Equal("data", workerMount.TargetPath);
+        Assert.False(workerMount.ReadOnly);
+        Assert.Equal("data", workerMount.Name);
+        Assert.Equal("1", workerResource.ResourceAttributes[ResourceAttributeNames.VolumeMountCount]);
+        Assert.True(workerResource.HasCapability(ResourceCapabilityIds.StorageVolumeConsumer));
+
+        Assert.Equal(["volume:api-data"], apiDeclaration.DependsOn);
+        var apiMount = Assert.Single(api?.VolumeMounts ?? []);
+        Assert.Equal("volume:api-data", apiMount.VolumeReference);
+        Assert.Equal("App_Data", apiMount.TargetPath);
+        Assert.True(apiMount.ReadOnly);
+        Assert.Equal("data", apiMount.Name);
+        Assert.Equal("1", apiResource.ResourceAttributes[ResourceAttributeNames.VolumeMountCount]);
+        Assert.True(apiResource.HasCapability(ResourceCapabilityIds.StorageVolumeConsumer));
+    }
+
+    [Fact]
     public void TypedAspNetCoreProjectBuilder_UsesDotNetWatchByDefault()
     {
         var services = new ServiceCollection();
@@ -7365,6 +7426,106 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void LocalProcessVolumeMaterializations_LinkRelativeTargetUnderWorkingDirectory()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var workingDirectory = Path.Combine(contentRoot, "src", "Worker");
+        Directory.CreateDirectory(workingDirectory);
+        var volume = new Resource(
+            "volume:data",
+            "Data",
+            "Volume",
+            "Test",
+            "local",
+            ResourceState.Running,
+            [],
+            "1.0",
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: PlatformResourceProvider.VolumeResourceType,
+            ResourceClass: ResourceClass.Storage,
+            Attributes: new Dictionary<string, string>
+            {
+                [ResourceAttributeNames.VolumeStorageMedium] = StorageMedia.FileSystem,
+                [ResourceAttributeNames.VolumeLocation] = "Data/volumes/data"
+            },
+            Capabilities: [new(ResourceCapabilityIds.StorageVolume)]);
+        var resourceManager = new StaticResourceManagerStore([volume]);
+
+        try
+        {
+            var materializations = ApplicationResourceService.CreateLocalProcessVolumeMaterializations(
+                [new ResourceVolumeMount("volume:data", "App_Data", ReadOnly: true)],
+                resourceManager,
+                contentRoot,
+                workingDirectory);
+
+            var materialization = Assert.Single(materializations);
+            var expectedSource = Path.Combine(contentRoot, "Data", "volumes", "data");
+            var expectedTarget = Path.Combine(workingDirectory, "App_Data");
+            var target = new DirectoryInfo(expectedTarget);
+            var resolvedTarget = target.ResolveLinkTarget(returnFinalTarget: true);
+
+            Assert.Equal("volume:data", materialization.VolumeReference);
+            Assert.Equal("App_Data", materialization.TargetPath);
+            Assert.Equal(expectedSource, materialization.Source);
+            Assert.True(materialization.ReadOnly);
+            Assert.Equal(ResourceVolumeMountMaterializationStatus.Materialized, materialization.Status);
+            Assert.True(Directory.Exists(expectedSource));
+            Assert.True(target.Attributes.HasFlag(FileAttributes.ReparsePoint));
+            Assert.NotNull(resolvedTarget);
+            Assert.Equal(expectedSource, resolvedTarget!.FullName);
+        }
+        finally
+        {
+            if (Directory.Exists(contentRoot))
+            {
+                Directory.Delete(contentRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void LocalProcessVolumeMaterializations_TreatUnmanagedReferenceAsFileSystemPath()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var workingDirectory = Path.Combine(contentRoot, "src", "Worker");
+        Directory.CreateDirectory(workingDirectory);
+
+        try
+        {
+            var materialization = Assert.Single(ApplicationResourceService.CreateLocalProcessVolumeMaterializations(
+                [new ResourceVolumeMount("Data/unmanaged", "data")],
+                null,
+                contentRoot,
+                workingDirectory));
+            var expectedSource = Path.Combine(contentRoot, "Data", "unmanaged");
+            var expectedTarget = Path.Combine(workingDirectory, "data");
+
+            Assert.Equal(expectedSource, materialization.Source);
+            Assert.Equal(expectedSource, new DirectoryInfo(expectedTarget)
+                .ResolveLinkTarget(returnFinalTarget: true)?.FullName);
+        }
+        finally
+        {
+            if (Directory.Exists(contentRoot))
+            {
+                Directory.Delete(contentRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public void LocalContainerVolumeArguments_ResolveLocalStorageOwnedVolume()
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
@@ -7478,7 +7639,7 @@ public sealed class ResourceDeclarationTests
             resource.ResourceActions.Single(action => action.Kind == ResourceActionKind.Start));
 
         Assert.Equal(
-            "Volume resource 'volume:data' uses storage medium 'NFS', which cannot be mounted by the current container materializer.",
+            "Volume resource 'volume:data' uses storage medium 'NFS', which cannot be mounted by the current resource materializer.",
             reason);
     }
 
@@ -7872,7 +8033,7 @@ public sealed class ResourceDeclarationTests
             contentRoot);
 
         Assert.Equal(
-            "Storage resource 'storage:remote' uses storage medium 'NFS', which cannot be mounted by the current container materializer.",
+            "Storage resource 'storage:remote' uses storage medium 'NFS', which cannot be mounted by the current resource materializer.",
             reason);
     }
 

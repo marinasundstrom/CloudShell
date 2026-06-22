@@ -634,6 +634,26 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return this;
     }
 
+    IExecutableResourceBuilder IExecutableResourceBuilder.WithVolume(
+        string volumeReference,
+        string targetPath,
+        bool readOnly,
+        string? name)
+    {
+        AddVolumeMount(volumeReference, targetPath, readOnly, name);
+        return this;
+    }
+
+    IExecutableResourceBuilder IExecutableResourceBuilder.WithVolume(
+        IResourceBuilder volume,
+        string targetPath,
+        bool readOnly,
+        string? name)
+    {
+        AddVolumeMount(volume, targetPath, readOnly, name);
+        return this;
+    }
+
     public IExecutableResourceBuilder WithEnvironment(
         IReadOnlyList<EnvironmentVariableAssignment> environmentVariables)
     {
@@ -736,6 +756,26 @@ internal sealed class ExecutableApplicationResourceBuilder(
         {
             ProjectArguments = NormalizeNullable(arguments)
         };
+        return this;
+    }
+
+    IProjectResourceBuilder IProjectResourceBuilder.WithVolume(
+        string volumeReference,
+        string targetPath,
+        bool readOnly,
+        string? name)
+    {
+        AddVolumeMount(volumeReference, targetPath, readOnly, name);
+        return this;
+    }
+
+    IProjectResourceBuilder IProjectResourceBuilder.WithVolume(
+        IResourceBuilder volume,
+        string targetPath,
+        bool readOnly,
+        string? name)
+    {
+        AddVolumeMount(volume, targetPath, readOnly, name);
         return this;
     }
 
@@ -994,14 +1034,7 @@ internal sealed class ExecutableApplicationResourceBuilder(
         bool readOnly = false,
         string? name = null)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(volumeReference);
-        ArgumentException.ThrowIfNullOrWhiteSpace(targetPath);
-        declared.Definition = declared.Definition with
-        {
-            VolumeMounts = declared.Definition.VolumeMounts
-                .Append(new ResourceVolumeMount(volumeReference, targetPath, readOnly, name))
-                .ToArray()
-        };
+        AddVolumeMount(volumeReference, targetPath, readOnly, name);
         return this;
     }
 
@@ -1012,8 +1045,34 @@ internal sealed class ExecutableApplicationResourceBuilder(
         string? name = null)
     {
         ArgumentNullException.ThrowIfNull(volume);
+        AddVolumeMount(volume, targetPath, readOnly, name);
+        return this;
+    }
+
+    private void AddVolumeMount(
+        IResourceBuilder volume,
+        string targetPath,
+        bool readOnly,
+        string? name)
+    {
         DependsOn(volume);
-        return WithVolume(volume.ResourceId, targetPath, readOnly, name);
+        AddVolumeMount(volume.ResourceId, targetPath, readOnly, name);
+    }
+
+    private void AddVolumeMount(
+        string volumeReference,
+        string targetPath,
+        bool readOnly,
+        string? name)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(volumeReference);
+        ArgumentException.ThrowIfNullOrWhiteSpace(targetPath);
+        declared.Definition = declared.Definition with
+        {
+            VolumeMounts = declared.Definition.VolumeMounts
+                .Append(new ResourceVolumeMount(volumeReference, targetPath, readOnly, name))
+                .ToArray()
+        };
     }
 
     public IProjectResourceBuilder WithContainerBuild(

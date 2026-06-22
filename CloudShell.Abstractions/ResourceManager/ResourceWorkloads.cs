@@ -149,6 +149,18 @@ public interface IExecutableResourceBuilder :
 
     IExecutableResourceBuilder WithLogSourceFormat(string sourceId, LogFormat format);
 
+    IExecutableResourceBuilder WithVolume(
+        string volumeReference,
+        string targetPath,
+        bool readOnly = false,
+        string? name = null);
+
+    IExecutableResourceBuilder WithVolume(
+        IResourceBuilder volume,
+        string targetPath,
+        bool readOnly = false,
+        string? name = null);
+
     IExecutableResourceBuilder WithEnvironment(
         IReadOnlyList<EnvironmentVariableAssignment> environmentVariables);
 
@@ -256,6 +268,18 @@ public interface IProjectResourceBuilder :
     IProjectResourceBuilder WithLogFormat(LogFormat format);
 
     IProjectResourceBuilder WithLogSourceFormat(string sourceId, LogFormat format);
+
+    IProjectResourceBuilder WithVolume(
+        string volumeReference,
+        string targetPath,
+        bool readOnly = false,
+        string? name = null);
+
+    IProjectResourceBuilder WithVolume(
+        IResourceBuilder volume,
+        string targetPath,
+        bool readOnly = false,
+        string? name = null);
 
     IProjectResourceBuilder WithEnvironment(
         IReadOnlyList<EnvironmentVariableAssignment> environmentVariables);

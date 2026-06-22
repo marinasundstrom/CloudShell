@@ -143,6 +143,16 @@ that definition by normalizing it, saving it in the application provider store,
 and synchronizing the normal Resource Manager registration, group, and
 dependencies.
 
+Storage state is modeled separately from application resources. A volume
+resource owns the durable storage identity and provider-backed location, which
+can later be materialized, backed up, moved, or diagnosed by a storage
+provider. Executable, ASP.NET Core project, container app, and SQL Server
+resources only declare `ResourceVolumeMount` attachments to those volumes. For
+local process-backed resources, `FileSystem` volume mounts are materialized by
+linking the resolved volume source into the application target path before
+launch; relative target paths are resolved under the application working
+directory.
+
 This is an initial shared application-resource provider contract, not the full
 toolkit. The goal is for any resource author to be able to use the application
 resource primitives to implement their own normal resource type when the

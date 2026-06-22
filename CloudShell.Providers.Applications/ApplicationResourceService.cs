@@ -993,6 +993,25 @@ public sealed partial class ApplicationResourceService(
             return;
         }
 
+        var workingDirectory = ResolveConfiguredWorkingDirectory(definition);
+        var volumeMaterializations = CreateLocalProcessVolumeMaterializations(
+            definition.VolumeMounts,
+            resourceManager,
+            environment.ContentRootPath,
+            workingDirectory);
+        if (volumeMaterializations.Count > 0)
+        {
+            procedureContext?.AppendProviderEvent(
+                Id,
+                "application.process.volume.mounts.prepared",
+                $"Application provider prepared {volumeMaterializations.Count.ToString(CultureInfo.InvariantCulture)} filesystem volume mount{Pluralize(volumeMaterializations.Count)} for '{definition.Name}'.");
+        }
+
+        localProcess = localProcess with
+        {
+            VolumeMounts = volumeMaterializations
+        };
+
         MarkStarting(definition.Id);
         try
         {
