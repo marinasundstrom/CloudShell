@@ -4249,47 +4249,6 @@ public sealed partial class ApplicationResourceService(
             .ToArray();
     }
 
-    private static IReadOnlyList<Resource> CreateSqlDatabaseResources(ApplicationResourceDefinition application) =>
-        application.SqlDatabases
-            .Select(database => CreateSqlDatabaseResource(application, database))
-            .ToArray();
-
-    private static Resource CreateSqlDatabaseResource(
-        ApplicationResourceDefinition application,
-        SqlServerDatabaseDefinition database)
-    {
-        var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            [ResourceAttributeNames.DatabaseName] = database.Name,
-            [ResourceAttributeNames.DatabaseServerResourceId] = application.Id,
-            [ResourceAttributeNames.DatabaseSource] = "declared"
-        };
-
-        return new Resource(
-            CreateSqlDatabaseResourceId(application.Id, database.Name),
-            database.Name,
-            "SQL database",
-            "Applications",
-            "local",
-            null,
-            [],
-            ApplicationResourceProjectionSupport.GetContainerVersion(application) ?? string.Empty,
-            DateTimeOffset.UtcNow,
-            [application.Id],
-            ParentResourceId: application.Id,
-            TypeId: ApplicationResourceTypes.SqlDatabase,
-            ResourceClass: ResourceClass.Service,
-            Attributes: attributes,
-            Source: ResourceSource.Provider,
-            ManagementMode: ResourceManagementMode.ProviderManaged,
-            Visibility: ResourceVisibility.Diagnostic,
-            OwnerResourceId: application.Id,
-            CleanupBehavior: ResourceCleanupBehavior.DeleteWithOwner,
-            DisplayName: string.IsNullOrWhiteSpace(database.DisplayName)
-                ? database.Name
-                : database.DisplayName);
-    }
-
     private static bool TryCreateSqlServerConnectionString(
         ApplicationResourceDefinition server,
         Resource serverResource,
@@ -6099,16 +6058,6 @@ public sealed partial class ApplicationResourceService(
             })
             .ToArray();
 
-    private static IReadOnlyList<SqlServerDatabaseDefinition> NormalizeSqlDatabases(
-        IReadOnlyList<SqlServerDatabaseDefinition> databases) =>
-        databases
-            .Where(database => !string.IsNullOrWhiteSpace(database.Name))
-            .Select(database => new SqlServerDatabaseDefinition(
-                NormalizeDatabaseName(database.Name),
-                NormalizeNullable(database.DisplayName)))
-            .DistinctBy(database => database.Name, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-
     private static IReadOnlyList<ResourceLogSource> NormalizeLogSources(
         IReadOnlyList<ResourceLogSource> logSources) =>
         logSources
@@ -6125,9 +6074,6 @@ public sealed partial class ApplicationResourceService(
             })
             .DistinctBy(source => source.Id, StringComparer.OrdinalIgnoreCase)
             .ToArray();
-
-    private static string NormalizeDatabaseName(string name) =>
-        name.Trim();
 
     private static uint StableHash(string value)
     {
@@ -6152,9 +6098,6 @@ public sealed partial class ApplicationResourceService(
 
     private static string CreateRuntimeContainerResourceId(string resourceId, int replica) =>
         $"runtime-container:{CreateStableIdentifier(resourceId)}:replica-{Math.Max(1, replica).ToString(CultureInfo.InvariantCulture)}";
-
-    private static string CreateSqlDatabaseResourceId(string serverResourceId, string databaseName) =>
-        $"{serverResourceId}/database:{CreateStableIdentifier(databaseName)}";
 
     private static string GetContainerName(string resourceId, int replica = 1, int replicas = 1)
     {
