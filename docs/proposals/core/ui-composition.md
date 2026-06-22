@@ -2,7 +2,7 @@
 
 `CloudShell.UI.Composition` is a reusable layout and content composition
 library for Blazor applications. It is its own subject, separate from the
-CloudShell Shell product experience and extension model.
+CoreShell product experience and extension model.
 
 CloudShell uses the library as an implementation foundation for shell-owned
 areas, but the library should remain useful outside CloudShell Hosting. A host
@@ -13,7 +13,8 @@ activation, Fluent UI, or Control Plane concepts.
 
 For the current implementation guide, package split, and sandbox behavior, see
 [UI composition](../../ui-composition.md). For the CloudShell product layer
-that consumes this library, see [Shell composition](shell-composition.md).
+that consumes this library through CoreShell, see
+[Shell composition](shell-composition.md).
 
 ## Status
 
@@ -44,8 +45,8 @@ proposal owns the CloudShell-specific layer above it.
 
 ## Non-goals
 
-- Do not make the library the CloudShell Shell extension API. Shell
-  integrations can use CloudShell-owned abstractions that project into this
+- Do not make the library the CoreShell extension API. Shell integrations can
+  use CoreShell-owned abstractions that project into this
   graph.
 - Do not encode CloudShell product areas such as main navigation, Settings,
   Resource Manager, notifications, or provider workspaces as generic library
@@ -81,7 +82,7 @@ The library should not answer CloudShell product questions such as:
 - Which CloudShell permissions hide, disable, or block a contribution.
 - Which Fluent UI component should present a shell concept.
 
-Those decisions belong to CloudShell Shell or to another host that consumes the
+Those decisions belong to CoreShell or to another host that consumes the
 library.
 
 ## Current Library Shape
@@ -99,11 +100,11 @@ The current implementation is intentionally small:
 - CloudShell Hosting currently consumes the graph through adapters and
   presenters, but those adapters should stay above the library boundary.
 
-## Relationship to CloudShell Shell
+## Relationship to CoreShell
 
-CloudShell Shell should be a consumer and adapter layer over this library, not
-part of the library itself. Shell-owned abstractions can define durable product
-areas such as:
+CoreShell should be a consumer and adapter layer over this library, not part of
+the library itself. Shell-owned abstractions can define durable product areas
+such as:
 
 - main navigation
 - common Settings

@@ -13,14 +13,22 @@ folders, components, services, and migration steps used to realize that design.
 
 ## Application surfaces
 
-### CloudShell UI
+### CoreShell and CloudShell UI
 
-CloudShell UI is the extensible Blazor application. It may run inside a host
-application by itself, or it may run in the same host process as the Control
-Plane for local development.
+The common shell infrastructure should be treated as **CoreShell** until a
+better name is chosen. CoreShell is the product-neutral extensible shell layer:
+the common layout, navigation, composition services, settings surface,
+notification abstractions, extension points, and presenter contracts. It is
+the CMS-like infrastructure for addressable shell content, layout structure,
+and extensibility.
+CloudShell UI is the product host that assembles CoreShell with the default
+presenters and predefined integrations.
 
-CloudShell UI acts as a shell for integrations. It owns common visual
-structure and shell services:
+CloudShell UI may run inside a host application by itself, or it may run in the
+same host process as the Control Plane for local development.
+
+CoreShell acts as a shell for integrations. It owns common visual structure and
+shell services:
 
 - main layout and navigation
 - top bar and user/session affordances
@@ -29,9 +37,9 @@ structure and shell services:
 - shell composition adapters and presenters
 - shell-level extension areas
 
-CloudShell UI should not be defined by Resource Manager. Resource Manager is
-the first major built-in integration, but the UI shell must stay useful for
-other product areas and extension-owned experiences.
+CoreShell should not be defined by Resource Manager. Resource Manager is the
+first major built-in integration in CloudShell, but the shell must stay useful
+for other product areas and extension-owned experiences.
 Architecturally, Resource Manager is still an integration into CloudShell. It
 is larger and more central than most extensions, but it is on the same side of
 the shell boundary as another CloudShell extension. Resource Manager has a
@@ -46,7 +54,7 @@ extension" for the CloudShell UI integration and "Resource Manager backend" or
 can refer to the whole product area or capability package that includes both
 halves.
 
-CloudShell UI should also stay isolated from extensions at the implementation
+CoreShell should also stay isolated from extensions at the implementation
 level. Extensions integrate through declared extension points, shared
 abstractions, and shell-provided services. They should not depend on the
 concrete CloudShell UI host implementation or reach into shell internals to
@@ -64,6 +72,15 @@ sections, notifications, and settings are integrated through shell contracts
 and services. From the extension's perspective those services should feel like
 normal product services, such as a notification manager or layout manager,
 even though the active shell decides how the result is rendered.
+
+Fluent UI is the default CloudShell look and feel, not the shell contract.
+CoreShell extension points should live in a framework-neutral layer such as
+`CoreShell.Extensibility`. Fluent-specific presenters should live behind a
+separate layer such as `CoreShell.FluentUI`, which CloudShell can use as its
+default presenter implementation. `CoreShell.FluentUI` should expose concrete
+host-usable components and integrations such as navigation menu presenters,
+settings presenters, section/tab layouts, notification surfaces, and other
+Fluent UI renderers over CoreShell contracts.
 
 ### Control Plane
 

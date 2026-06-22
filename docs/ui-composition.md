@@ -823,7 +823,7 @@ conflicts, permission metadata, and route conflicts.
 
 The current composition engine does not yet include:
 
-- CloudShell Shell adapter APIs that project shell-owned contribution
+- CoreShell adapter APIs that project shell-owned contribution
   contracts into composition modules
 - Resource Manager adapters that project resource-specific contracts into
   composition modules

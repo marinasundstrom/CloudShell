@@ -54,6 +54,13 @@ nearby feature folder, instead of in a global shared folder.
 
 ### Shared shell components
 
+The common shell infrastructure is expected to move toward a CoreShell shape:
+framework-neutral shell contracts and services in a CoreShell extensibility
+layer, Fluent UI presenters in a CoreShell Fluent UI layer, and CloudShell as
+the product host that assembles the default presenters and predefined
+integrations. Until the projects are split, use that logical boundary when
+deciding where a component belongs.
+
 Place a component in `CloudShell.Components` only when:
 
 - it is reused across more than one product area, provider, or host surface;
@@ -76,8 +83,11 @@ types unless the integration package explicitly owns that adapter boundary.
 
 Avoid making Fluent UI or the current CloudShell host implementation part of
 an extension-facing contract unless the package is explicitly a Fluent
-presenter package. Another CloudShell UI implementation should be able to use
-the same public abstractions and services, then provide its own presenters.
+presenter package. A future `CoreShell.FluentUI` package can be the default
+CloudShell look and feel while `CoreShell.Extensibility` remains the
+framework-neutral extension surface. Another CloudShell UI implementation
+should be able to use the same public abstractions and services, then provide
+its own presenters.
 
 When the extension point is behavioral rather than visual, prefer a shared
 abstraction plus an optional CloudShell UI integration package over exposing a
@@ -88,6 +98,11 @@ the toast/off-canvas presenters that render those notifications.
 Place components in `CloudShell.Hosting/Components/ResourceManager` when they
 are shared within Resource Manager but need hosting services, shell catalog
 lookups, navigation helpers, or Resource Manager-specific context.
+
+Place components in `CloudShell.Hosting/Components/Layout` only when they are
+current shell presenter components for the built-in CloudShell host. If they
+become durable shell concepts, they are candidates for a future CoreShell
+presenter package rather than Resource Manager or provider-owned code.
 
 ## Component Boundaries
 

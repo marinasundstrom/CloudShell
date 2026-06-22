@@ -21,6 +21,11 @@ no longer reflects the product structure:
 - CloudShell UI is an extensible Blazor application. It may act as a shell for
   integrations and may run inside a host application by itself or together
   with the Control Plane.
+- The common shell infrastructure is expected to become CoreShell: a
+  product-neutral shell layer with extension contracts, shell services,
+  CMS-like composition infrastructure, and presenter abstractions.
+- CloudShell is the product host that uses CoreShell, the default Fluent UI
+  presenters, and predefined integrations such as Resource Manager.
 - The Control Plane is a backend application. It may be hosted with
   CloudShell UI for local development, or independently in split and
   on-premise deployments.
@@ -82,19 +87,40 @@ less obvious.
 
 ### CloudShell UI
 
-CloudShell UI is the extensible Blazor application. It may run in a host
-application by itself, or alongside the Control Plane in a combined local
-development host. It owns common application chrome and shell-level services:
+CloudShell UI is the product host application. It may run by itself, or
+alongside the Control Plane in a combined local development host. It assembles
+CoreShell, the default Fluent UI presenter layer, and predefined integrations
+such as Resource Manager.
+
+### CoreShell
+
+CoreShell is the intended name for the common UI infrastructure until a better
+name exists. It is the product-neutral shell layer that owns common application
+chrome, CMS-like composition infrastructure, extensibility contracts, and
+shell-level services:
 
 - main layout and top bar
 - main navigation presenter
 - common Settings surface
 - notification UI and future notification persistence adapters
-- shell-owned composition adapters and Fluent UI presenters
+- shell-owned composition adapters
 - generic shell pages that are not Resource Manager-specific
 
-CloudShell UI should depend on Resource Manager UI only when the host wants to
-install Resource Manager as one of its product areas.
+CoreShell should expose extension points and service contracts through a
+framework-neutral layer, tentatively `CoreShell.Extensibility`. Shell
+presenters that depend on Fluent UI should live in a separate default presenter
+layer, tentatively `CoreShell.FluentUI`. CloudShell uses that Fluent UI layer
+as the default look and feel, but another host should be able to implement its
+own presenters over the same CoreShell contracts.
+
+`CoreShell.FluentUI` should expose components and integration helpers that a
+host web app can directly use: navigation menu presenters, shell layout
+presenters, settings presenters, section/tab layout presenters, notification
+surfaces, and other Fluent UI renderers over CoreShell contracts. It is a
+default presenter package, not the source of the CMS-like model itself.
+
+CloudShell UI should depend on Resource Manager UI only when the product host
+wants to install Resource Manager as one of its predefined product areas.
 
 ### Control Plane
 
@@ -210,11 +236,14 @@ The exact names can still change, but the desired split is:
 
 | Project | Responsibility |
 | --- | --- |
-| `CloudShell.Hosting` | CloudShell shell host, shell chrome, shell services, shell composition adapters, and non-Resource-Manager pages. |
+| `CloudShell.CoreShell` | Common shell infrastructure: shell services, composition integration, shell-owned standard areas, extension point registration, and product-neutral shell logic. |
+| `CloudShell.CoreShell.Extensibility` | Public shell extension contracts and service abstractions for menus, pages, sections, settings, notifications, and other shell-owned areas. |
+| `CloudShell.CoreShell.FluentUI` | Default Fluent UI presenters and host-usable components for CoreShell contracts, including navigation menu integrations, settings presenters, notification surfaces, shell layouts, section/tab presenters, and common shell visual language. |
+| `CloudShell.Hosting` | CloudShell product host that assembles CoreShell, the default Fluent UI presenters, predefined integrations, authentication, localization, and host-specific wiring. |
 | `CloudShell.Components` | Stable shared UI components that extension UI packages can consume without referencing the concrete CloudShell UI host. Components here should avoid Hosting-only services and Resource Manager implementation dependencies. |
 | `CloudShell.ResourceManager.Abstractions` | Shared Resource Manager concepts used across UI and Control Plane integrations: stable IDs, names, contribution descriptors, capability descriptors, route/link target concepts, installation concepts, and extension registration primitives that are not tied to Blazor or Control Plane stores. |
 | `CloudShell.ResourceManager.UI.Abstractions` | Public Resource Manager UI contracts: resource view contribution descriptors, create/update view contracts, Resource Manager composition IDs, UI capability descriptors, and UI registration builders. This should depend on shared Resource Manager abstractions, not Control Plane implementation. |
-| `CloudShell.ResourceManager.UI` | Built-in Resource Manager UI implementation: pages, Resource Manager Fluent presenters, generated resource views, Resource Manager settings sections, and adapters from Resource Manager UI contracts into shell composition. |
+| `CloudShell.ResourceManager.UI` | Built-in Resource Manager shell extension: pages, Resource Manager Fluent presenters or presenter adapters, generated resource views, Resource Manager settings sections, and adapters from Resource Manager UI contracts into CoreShell composition. |
 | `CloudShell.ResourceManager.Hosting.Abstractions` | Host-level Resource Manager installation contracts shared by combined hosts, split UI hosts, and split Control Plane hosts. This should describe how a host opts into Resource Manager capabilities without forcing both UI and Control Plane into one process. |
 | `CloudShell.ResourceManager.Hosting` | Host registration helpers that install Resource Manager services into the appropriate host shape. In a UI host, this installs Resource Manager UI and remote-client dependencies. In a Control Plane host, this installs resource manager services, API endpoints, stores, providers, and orchestration. In a combined host, it can install both through explicit options. |
 | `CloudShell.ControlPlane` | Control Plane implementation, including Resource Manager domain services until or unless a later split creates a dedicated Control Plane Resource Manager implementation assembly. |
