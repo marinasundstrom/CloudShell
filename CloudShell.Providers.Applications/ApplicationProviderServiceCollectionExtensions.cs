@@ -1,5 +1,6 @@
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Extensions;
+using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -645,6 +646,21 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return this;
     }
 
+    public IExecutableResourceBuilder WithLogFormat(LogFormat format)
+    {
+        WithLogSourceFormat("console", format);
+        return this;
+    }
+
+    public IExecutableResourceBuilder WithLogSourceFormat(string sourceId, LogFormat format)
+    {
+        declared.Definition = declared.Definition with
+        {
+            LogSources = SetLogSourceFormat(declared.Definition.LogSources, sourceId, format)
+        };
+        return this;
+    }
+
     public IExecutableResourceBuilder WithEnvironment(
         IReadOnlyList<EnvironmentVariableAssignment> environmentVariables)
     {
@@ -1272,6 +1288,18 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return this;
     }
 
+    IProjectResourceBuilder IProjectResourceBuilder.WithLogFormat(LogFormat format)
+    {
+        WithLogFormat(format);
+        return this;
+    }
+
+    IProjectResourceBuilder IProjectResourceBuilder.WithLogSourceFormat(string sourceId, LogFormat format)
+    {
+        WithLogSourceFormat(sourceId, format);
+        return this;
+    }
+
     IProjectResourceBuilder IProjectResourceBuilder.WithEnvironment(
         IReadOnlyList<EnvironmentVariableAssignment> environmentVariables)
     {
@@ -1511,6 +1539,66 @@ internal sealed class ExecutableApplicationResourceBuilder(
             : ResourceOrchestratorSelectionDefaults.NormalizeHealthCheckInterval(
                 (int)Math.Ceiling(interval.Value.TotalSeconds));
 
+    private static IReadOnlyList<ResourceLogSource> SetLogSourceFormat(
+        IReadOnlyList<ResourceLogSource> sources,
+        string sourceId,
+        LogFormat format)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourceId);
+
+        var normalizedSourceId = sourceId.Trim();
+        var current = sources.Count == 0
+            ? [CreateDefaultApplicationLogSource()]
+            : sources;
+        if (!current.Any(source => string.Equals(source.Id, normalizedSourceId, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new ArgumentException(
+                $"Log source '{normalizedSourceId}' is not declared on this resource.",
+                nameof(sourceId));
+        }
+
+        return current
+            .Select(source => string.Equals(source.Id, normalizedSourceId, StringComparison.OrdinalIgnoreCase)
+                ? source with
+                {
+                    Format = format,
+                    Capabilities = ApplyLogFormatCapabilities(source.Capabilities, format),
+                    Configuration = new LogSourceConfiguration(
+                        IsConfigurable: true,
+                        SchemaId: "cloudshell.logSource.format")
+                }
+                : source)
+            .ToArray();
+    }
+
+    private static ResourceLogSource CreateDefaultApplicationLogSource() =>
+        new(
+            "console",
+            "Console logs",
+            ResourceLogSourceKind.ProcessOutput,
+            Format: LogFormat.PlainText,
+            Capabilities: LogSourceCapabilities.Read |
+                LogSourceCapabilities.Stream,
+            Description: "Container app or process stdout and stderr.",
+            Origin: ResourceLogSourceOrigin.ProviderDefault,
+            Configuration: new LogSourceConfiguration(IsConfigurable: true, SchemaId: "cloudshell.logSource.format"),
+            Purpose: ResourceLogSourcePurpose.Default,
+            Availability: LogSourceAvailability.ResourceRunning);
+
+    private static LogSourceCapabilities ApplyLogFormatCapabilities(
+        LogSourceCapabilities capabilities,
+        LogFormat format) =>
+        IsStructuredLogFormat(format)
+            ? capabilities | LogSourceCapabilities.StructuredFields
+            : capabilities & ~LogSourceCapabilities.StructuredFields;
+
+    private static bool IsStructuredLogFormat(LogFormat format) =>
+        format is LogFormat.JsonConsole or
+            LogFormat.SerilogCompactJson or
+            LogFormat.Structured or
+            LogFormat.OpenTelemetry or
+            LogFormat.ResourceEvent;
+
     IResourceBuilder IResourceBuilder.Persist(bool overwrite) =>
         Persist(overwrite);
 
@@ -1595,6 +1683,18 @@ internal sealed class ExecutableApplicationResourceBuilder(
     IContainerResourceBuilder IContainerResourceBuilder.WithRecovery(ResourceRecoveryPolicy policy)
     {
         WithRecovery(policy);
+        return this;
+    }
+
+    IContainerResourceBuilder IContainerResourceBuilder.WithLogFormat(LogFormat format)
+    {
+        WithLogFormat(format);
+        return this;
+    }
+
+    IContainerResourceBuilder IContainerResourceBuilder.WithLogSourceFormat(string sourceId, LogFormat format)
+    {
+        WithLogSourceFormat(sourceId, format);
         return this;
     }
 

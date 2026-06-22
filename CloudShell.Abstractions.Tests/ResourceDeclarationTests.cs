@@ -9140,25 +9140,93 @@ public sealed class ResourceDeclarationTests
             {
                 Assert.Equal("runtime-container:application-api:replica-1", log.ResourceId);
                 Assert.Equal("Replica 1 logs", log.Name);
-                Assert.Equal(LogFormat.JsonConsole, log.Format);
-                Assert.True(log.Capabilities.HasFlag(LogSourceCapabilities.StructuredFields));
+                Assert.Equal(LogFormat.PlainText, log.Format);
+                Assert.False(log.Capabilities.HasFlag(LogSourceCapabilities.StructuredFields));
                 Assert.Equal(ResourceLogSourceOrigin.ProviderProjected, log.Origin);
             },
             log =>
             {
                 Assert.Equal("runtime-container:application-api:replica-2", log.ResourceId);
                 Assert.Equal("Replica 2 logs", log.Name);
-                Assert.Equal(LogFormat.JsonConsole, log.Format);
-                Assert.True(log.Capabilities.HasFlag(LogSourceCapabilities.StructuredFields));
+                Assert.Equal(LogFormat.PlainText, log.Format);
+                Assert.False(log.Capabilities.HasFlag(LogSourceCapabilities.StructuredFields));
                 Assert.Equal(ResourceLogSourceOrigin.ProviderProjected, log.Origin);
             },
             log =>
             {
                 Assert.Equal("runtime-container:application-api:replica-3", log.ResourceId);
                 Assert.Equal("Replica 3 logs", log.Name);
+                Assert.Equal(LogFormat.PlainText, log.Format);
+                Assert.False(log.Capabilities.HasFlag(LogSourceCapabilities.StructuredFields));
+                Assert.Equal(ResourceLogSourceOrigin.ProviderProjected, log.Origin);
+            });
+    }
+
+    [Fact]
+    public void ContainerApplicationProvider_ProjectsConfiguredRuntimeReplicaLogFormat()
+    {
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        services
+            .AddControlPlane()
+            .AddExtension<ApplicationProviderExtension>()
+            .Resources(resources =>
+            {
+                resources
+                    .AddContainer(
+                        "api",
+                        "example/api:latest",
+                        replicas: 2)
+                    .WithLogFormat(LogFormat.JsonConsole)
+                    .WithContainerHost("docker:dev");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var resources = provider.GetResources();
+        var app = Assert.Single(resources, resource => resource.Id == "application:api");
+        var appSource = Assert.Single(app.ResourceLogSources);
+
+        Assert.Equal("console", appSource.Id);
+        Assert.Equal(LogFormat.JsonConsole, appSource.Format);
+        Assert.True(appSource.Capabilities.HasFlag(LogSourceCapabilities.StructuredFields));
+        Assert.True(appSource.Configuration.IsConfigurable);
+
+        var replicas = resources
+            .Where(resource => string.Equals(resource.ParentResourceId, app.Id, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(resource => resource.ResourceAttributes[ResourceAttributeNames.RuntimeReplicaOrdinal])
+            .ToArray();
+
+        Assert.All(replicas, replica =>
+        {
+            var source = Assert.Single(replica.ResourceLogSources);
+            Assert.Equal("logs", source.Id);
+            Assert.Equal(LogFormat.JsonConsole, source.Format);
+            Assert.True(source.Capabilities.HasFlag(LogSourceCapabilities.StructuredFields));
+            Assert.False(source.Capabilities.HasFlag(LogSourceCapabilities.Stream));
+            Assert.True(source.Configuration.IsConfigurable);
+        });
+
+        var logs = provider.GetLogs()
+            .Where(log => string.Equals(log.ProducerResourceId, app.Id, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(log => log.ResourceId, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        Assert.Collection(
+            logs,
+            log =>
+            {
+                Assert.Equal("runtime-container:application-api:replica-1", log.ResourceId);
                 Assert.Equal(LogFormat.JsonConsole, log.Format);
                 Assert.True(log.Capabilities.HasFlag(LogSourceCapabilities.StructuredFields));
-                Assert.Equal(ResourceLogSourceOrigin.ProviderProjected, log.Origin);
+            },
+            log =>
+            {
+                Assert.Equal("runtime-container:application-api:replica-2", log.ResourceId);
+                Assert.Equal(LogFormat.JsonConsole, log.Format);
+                Assert.True(log.Capabilities.HasFlag(LogSourceCapabilities.StructuredFields));
             });
     }
 
@@ -11054,14 +11122,15 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("console", source.Id);
         Assert.Equal("Console logs", source.Name);
         Assert.Equal(ResourceLogSourceKind.ProcessOutput, source.Kind);
-        Assert.Equal(LogFormat.JsonConsole, source.Format);
+        Assert.Equal(LogFormat.PlainText, source.Format);
         Assert.Equal(LogStorageKind.InMemory, source.Storage.Kind);
         Assert.Equal(ResourceLogSourceOrigin.ProviderDefault, source.Origin);
         Assert.Equal(ResourceLogSourcePurpose.Default, source.Purpose);
         Assert.Equal(LogSourceAvailability.ResourceRunning, source.Availability);
+        Assert.True(source.Configuration.IsConfigurable);
         Assert.True(source.Capabilities.HasFlag(LogSourceCapabilities.Read));
         Assert.True(source.Capabilities.HasFlag(LogSourceCapabilities.Stream));
-        Assert.True(source.Capabilities.HasFlag(LogSourceCapabilities.StructuredFields));
+        Assert.False(source.Capabilities.HasFlag(LogSourceCapabilities.StructuredFields));
     }
 
     private static void AssertDefaultContainerLogSource(Resource resource)

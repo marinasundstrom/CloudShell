@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.Providers.Applications;
@@ -37,7 +38,8 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         bool projectContainerBuild = false,
         IReadOnlyList<ResourceVolumeMount>? volumeMounts = null,
         bool replicasEnabled = false,
-        IReadOnlyList<SqlServerDatabaseDefinition>? sqlDatabases = null)
+        IReadOnlyList<SqlServerDatabaseDefinition>? sqlDatabases = null,
+        IReadOnlyList<ResourceLogSource>? logSources = null)
     {
         Id = id;
         Name = name;
@@ -74,6 +76,7 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         ContainerRegistryCredentials = containerRegistryCredentials;
         VolumeMounts = volumeMounts ?? [];
         SqlDatabases = sqlDatabases ?? [];
+        LogSources = logSources ?? [];
     }
 
     public string Id { get; init; }
@@ -141,6 +144,8 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
     public IReadOnlyList<ResourceVolumeMount> VolumeMounts { get; init; }
 
     public IReadOnlyList<SqlServerDatabaseDefinition> SqlDatabases { get; init; }
+
+    public IReadOnlyList<ResourceLogSource> LogSources { get; init; }
 }
 
 public sealed record SqlServerDatabaseDefinition(

@@ -187,14 +187,17 @@ public sealed partial class ApplicationResourceService(
             cancellationToken,
             dockerHostLogger);
 
+        var sourceFormat = GetPrimaryApplicationLogSource(target.Application).Format;
         var entries = ParseRuntimeContainerLogOutput(
                 result.Output,
                 target.Instance.Name,
-                null)
+                null,
+                sourceFormat)
             .Concat(ParseRuntimeContainerLogOutput(
                 result.Error,
                 target.Instance.Name,
-                result.ExitCode == 0 ? "Error" : null))
+                result.ExitCode == 0 ? "Error" : null,
+                sourceFormat))
             .ToArray();
         if (result.ExitCode != 0 && entries.Length == 0)
         {
@@ -244,23 +247,28 @@ public sealed partial class ApplicationResourceService(
 
     private static IReadOnlyList<LogDescriptor> CreateApplicationLogDescriptors(ApplicationResourceDefinition application)
     {
+        var source = GetPrimaryApplicationLogSource(application);
         return
         [
             new LogDescriptor(
                 GetLogId(application.Id),
-                "Console logs",
+                source.Name,
                 "Applications",
                 application.Name,
                 LogSourceKind.Resource,
                 ResourceId: application.Id,
-                SupportsStreaming: true,
-                Description: "Container app or process stdout and stderr.",
-                Kind: ResourceLogSourceKind.ProcessOutput,
-                Format: LogFormat.JsonConsole,
-                Capabilities: LogSourceCapabilities.Read |
-                    LogSourceCapabilities.Stream |
-                    LogSourceCapabilities.StructuredFields,
-                Purpose: ResourceLogSourcePurpose.Default)
+                SupportsStreaming: source.Capabilities.HasFlag(LogSourceCapabilities.Stream),
+                Description: source.Description,
+                Kind: source.Kind,
+                Format: source.Format,
+                Storage: source.Storage,
+                Capabilities: source.Capabilities,
+                Location: source.Location,
+                ProducerResourceId: source.ProducerResourceId,
+                Origin: source.Origin,
+                Configuration: source.Configuration,
+                Purpose: source.Purpose,
+                Availability: source.Availability)
         ];
     }
 
@@ -277,22 +285,28 @@ public sealed partial class ApplicationResourceService(
             .Select(instance =>
             {
                 var resourceId = CreateRuntimeContainerResourceId(application.Id, instance.ReplicaOrdinal);
+                var source = CreateRuntimeContainerLogSource(
+                    application.Id,
+                    instance,
+                    GetPrimaryApplicationLogSource(application));
                 return new LogDescriptor(
                     GetRuntimeContainerLogId(application.Id, instance.ReplicaOrdinal),
-                    $"Replica {instance.ReplicaOrdinal.ToString(CultureInfo.InvariantCulture)} logs",
+                    source.Name,
                     "Applications",
                     instance.Name,
                     LogSourceKind.Resource,
                     ResourceId: resourceId,
-                    Description: "Runtime container stdout and stderr for this container app replica.",
-                    Kind: ResourceLogSourceKind.Container,
-                    Format: LogFormat.JsonConsole,
-                    Capabilities: LogSourceCapabilities.Read |
-                        LogSourceCapabilities.StructuredFields,
-                    ProducerResourceId: application.Id,
-                    Origin: ResourceLogSourceOrigin.ProviderProjected,
-                    Purpose: ResourceLogSourcePurpose.Default,
-                    Availability: LogSourceAvailability.ProducerRunning);
+                    Description: source.Description,
+                    Kind: source.Kind,
+                    Format: source.Format,
+                    Storage: source.Storage,
+                    Capabilities: source.Capabilities,
+                    Location: source.Location,
+                    ProducerResourceId: source.ProducerResourceId,
+                    Origin: source.Origin,
+                    Configuration: source.Configuration,
+                    Purpose: source.Purpose,
+                    Availability: source.Availability);
             })
             .ToArray();
     }
@@ -324,7 +338,8 @@ public sealed partial class ApplicationResourceService(
     private static IReadOnlyList<LogEntry> ParseRuntimeContainerLogOutput(
         string output,
         string source,
-        string? severity)
+        string? severity,
+        LogFormat format)
     {
         if (string.IsNullOrWhiteSpace(output))
         {
@@ -333,14 +348,15 @@ public sealed partial class ApplicationResourceService(
 
         return output
             .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Select(line => ParseRuntimeContainerLogLine(line, source, severity))
+            .Select(line => ParseRuntimeContainerLogLine(line, source, severity, format))
             .ToArray();
     }
 
     private static LogEntry ParseRuntimeContainerLogLine(
         string line,
         string source,
-        string? severity)
+        string? severity,
+        LogFormat format)
     {
         var normalized = line.TrimEnd('\r');
         var timestamp = DateTimeOffset.UtcNow;
@@ -357,9 +373,19 @@ public sealed partial class ApplicationResourceService(
             message = normalized[(separatorIndex + 1)..];
         }
 
-        return TryParseStructuredJsonLog(message, source, severity, timestamp)
-            ?? new LogEntry(timestamp, message, severity, source);
+        if (ShouldParseStructuredJson(format) &&
+            TryParseStructuredJsonLog(message, source, severity, timestamp) is { } structured)
+        {
+            return structured;
+        }
+
+        return new LogEntry(timestamp, message, severity, source);
     }
+
+    private static bool ShouldParseStructuredJson(LogFormat format) =>
+        format is LogFormat.JsonConsole or
+            LogFormat.SerilogCompactJson or
+            LogFormat.Structured;
 
     private static LogEntry? TryParseStructuredJsonLog(
         string line,
@@ -4533,7 +4559,7 @@ public sealed partial class ApplicationResourceService(
             Capabilities: CreateCapabilities(application, endpoints),
             EndpointNetworkMappings: CreateEndpointNetworkMappings(application),
             DisplayName: application.Name,
-            LogSources: CreateDefaultResourceLogSources());
+            LogSources: GetApplicationLogSources(application));
     }
 
     private static IReadOnlyList<ResourceHealthCheck> CreateHealthChecks(
@@ -4554,33 +4580,61 @@ public sealed partial class ApplicationResourceService(
                 "console",
                 "Console logs",
                 ResourceLogSourceKind.ProcessOutput,
-                Format: LogFormat.JsonConsole,
+                Format: LogFormat.PlainText,
                 Capabilities: LogSourceCapabilities.Read |
-                    LogSourceCapabilities.Stream |
-                    LogSourceCapabilities.StructuredFields,
+                    LogSourceCapabilities.Stream,
                 Description: "Container app or process stdout and stderr.",
                 Origin: ResourceLogSourceOrigin.ProviderDefault,
+                Configuration: new LogSourceConfiguration(IsConfigurable: true, SchemaId: "cloudshell.logSource.format"),
                 Purpose: ResourceLogSourcePurpose.Default,
                 Availability: LogSourceAvailability.ResourceRunning)
         ];
 
+    private static IReadOnlyList<ResourceLogSource> GetApplicationLogSources(
+        ApplicationResourceDefinition application) =>
+        application.LogSources.Count == 0
+            ? CreateDefaultResourceLogSources()
+            : application.LogSources;
+
+    private static ResourceLogSource GetPrimaryApplicationLogSource(
+        ApplicationResourceDefinition application)
+    {
+        var sources = GetApplicationLogSources(application);
+        return sources.FirstOrDefault(source => source.Purpose == ResourceLogSourcePurpose.Default) ??
+            sources[0];
+    }
+
     private static IReadOnlyList<ResourceLogSource> CreateRuntimeContainerLogSources(
         string producerResourceId,
-        ResourceOrchestratorServiceInstance instance) =>
+        ResourceOrchestratorServiceInstance instance,
+        ResourceLogSource source) =>
         [
-            new ResourceLogSource(
+            CreateRuntimeContainerLogSource(producerResourceId, instance, source)
+        ];
+
+    private static ResourceLogSource CreateRuntimeContainerLogSource(
+        string producerResourceId,
+        ResourceOrchestratorServiceInstance instance,
+        ResourceLogSource source) =>
+        new(
                 "logs",
                 $"Replica {instance.ReplicaOrdinal.ToString(CultureInfo.InvariantCulture)} logs",
                 ResourceLogSourceKind.Container,
-                Format: LogFormat.JsonConsole,
-                Capabilities: LogSourceCapabilities.Read |
-                    LogSourceCapabilities.StructuredFields,
+                Format: source.Format,
+                Storage: source.Storage,
+                Capabilities: ProjectRuntimeContainerLogSourceCapabilities(source.Capabilities),
                 ProducerResourceId: producerResourceId,
                 Description: "Runtime container stdout and stderr for this container app replica.",
                 Origin: ResourceLogSourceOrigin.ProviderProjected,
-                Purpose: ResourceLogSourcePurpose.Default,
-                Availability: LogSourceAvailability.ProducerRunning)
-        ];
+                Configuration: source.Configuration,
+                Purpose: source.Purpose,
+                Availability: LogSourceAvailability.ProducerRunning);
+
+    private static LogSourceCapabilities ProjectRuntimeContainerLogSourceCapabilities(
+        LogSourceCapabilities capabilities) =>
+        ((capabilities == LogSourceCapabilities.None ? LogSourceCapabilities.Read : capabilities) |
+            LogSourceCapabilities.Read) &
+        ~LogSourceCapabilities.Stream;
 
     private static ApplicationResourceProjection CreateInfrastructureProjection(
         ApplicationResourceDefinition application)
@@ -4697,7 +4751,10 @@ public sealed partial class ApplicationResourceService(
                 new(ResourceCapabilityIds.Monitoring),
                 new(ResourceCapabilityIds.LogSources)
             ],
-            LogSources: CreateRuntimeContainerLogSources(application.Id, instance),
+            LogSources: CreateRuntimeContainerLogSources(
+                application.Id,
+                instance,
+                GetPrimaryApplicationLogSource(application)),
             EndpointNetworkMappings: CreateRuntimeContainerEndpointNetworkMappings(application, service, instance, state),
             Source: ResourceSource.Orchestrator,
             ManagementMode: ResourceManagementMode.RuntimeManaged,
@@ -5684,7 +5741,8 @@ public sealed partial class ApplicationResourceService(
             AppSettings = NormalizeAppSettings(definition.AppSettings),
             EnvironmentVariables = NormalizeEnvironmentVariables(definition.EnvironmentVariables),
             VolumeMounts = NormalizeVolumeMounts(definition.VolumeMounts),
-            SqlDatabases = NormalizeSqlDatabases(definition.SqlDatabases)
+            SqlDatabases = NormalizeSqlDatabases(definition.SqlDatabases),
+            LogSources = NormalizeLogSources(definition.LogSources)
         };
     }
 
@@ -6856,6 +6914,23 @@ public sealed partial class ApplicationResourceService(
                 NormalizeDatabaseName(database.Name),
                 NormalizeNullable(database.DisplayName)))
             .DistinctBy(database => database.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private static IReadOnlyList<ResourceLogSource> NormalizeLogSources(
+        IReadOnlyList<ResourceLogSource> logSources) =>
+        logSources
+            .Where(source =>
+                !string.IsNullOrWhiteSpace(source.Id) &&
+                !string.IsNullOrWhiteSpace(source.Name))
+            .Select(source => source with
+            {
+                Id = source.Id.Trim(),
+                Name = source.Name.Trim(),
+                Location = NormalizeNullable(source.Location),
+                ProducerResourceId = NormalizeNullable(source.ProducerResourceId),
+                Description = NormalizeNullable(source.Description)
+            })
+            .DistinctBy(source => source.Id, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private static string NormalizeDatabaseName(string name) =>

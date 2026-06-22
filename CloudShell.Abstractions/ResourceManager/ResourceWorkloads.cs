@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Authorization;
+using CloudShell.Abstractions.Logs;
 
 namespace CloudShell.Abstractions.ResourceManager;
 
@@ -144,6 +145,10 @@ public interface IExecutableResourceBuilder :
 
     IExecutableResourceBuilder WithRecovery(ResourceRecoveryPolicy policy);
 
+    IExecutableResourceBuilder WithLogFormat(LogFormat format);
+
+    IExecutableResourceBuilder WithLogSourceFormat(string sourceId, LogFormat format);
+
     IExecutableResourceBuilder WithEnvironment(
         IReadOnlyList<EnvironmentVariableAssignment> environmentVariables);
 
@@ -247,6 +252,10 @@ public interface IProjectResourceBuilder :
         TimeSpan? interval = null);
 
     IProjectResourceBuilder WithRecovery(ResourceRecoveryPolicy policy);
+
+    IProjectResourceBuilder WithLogFormat(LogFormat format);
+
+    IProjectResourceBuilder WithLogSourceFormat(string sourceId, LogFormat format);
 
     IProjectResourceBuilder WithEnvironment(
         IReadOnlyList<EnvironmentVariableAssignment> environmentVariables);
@@ -395,6 +404,10 @@ public interface IContainerResourceBuilder :
         TimeSpan? interval = null);
 
     IContainerResourceBuilder WithRecovery(ResourceRecoveryPolicy policy);
+
+    IContainerResourceBuilder WithLogFormat(LogFormat format);
+
+    IContainerResourceBuilder WithLogSourceFormat(string sourceId, LogFormat format);
 
     IContainerResourceBuilder WithEnvironment(
         IReadOnlyList<EnvironmentVariableAssignment> environmentVariables);

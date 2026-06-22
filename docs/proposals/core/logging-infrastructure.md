@@ -461,16 +461,17 @@ and normal structured log properties. A single `/upstream` request now
 produces correlated spans and structured application logs for both the
 frontend and API resources.
 
-The Replicated Container Health sample uses the same provider-side structured
-parsing for runtime replica console streams so each projected replica log
-source can expose structured app log entries while still remaining a source
-under the stable container app resource.
+The Replicated Container Health sample declares the container app console
+source as JSON console output, so provider-side parsing can expose structured
+runtime replica log entries while the projected replica sources remain
+contained under the stable container app resource.
 
-Container apps should eventually own the log source definition that is
-projected to their replicas. That definition should include the expected
-format or parser, source kind, read/stream capabilities, and whether the
-source is a local-development console stream, a file sink, an OpenTelemetry
-logs exporter, or a provider-native logging API.
+Container apps now own the default resource log source declaration that is
+projected to their replicas. The source includes expected format, source kind,
+and read/stream capabilities; richer source declarations should grow to cover
+file sinks, OpenTelemetry log exporters, and provider-native logging APIs.
+Future UI configuration should remap the expected format of provider-projected
+sources before introducing user-created sources.
 
 The shell Logs view treats structured metadata as inspectable entry detail, not
 as inline text noise. Log source selection lives in the page header, structured

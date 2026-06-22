@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Hosting;
+using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Hosting;
 using CloudShell.Hosting;
@@ -55,6 +56,7 @@ cloudShell.Resources(resources =>
             exposure: ResourceExposureScope.Local)
         .WithHttpHealthCheck("/health", "http")
         .WithHttpProbe(ResourceProbeType.Liveness, "/alive", "http", "alive")
+        .WithLogFormat(LogFormat.JsonConsole)
         .WithOtlpExporter(otlpEndpoint, otlpProtocol)
         .WithEnvironment("CLOUDSHELL_TRACE_INGEST_ENDPOINT", traceIngestEndpoint ?? string.Empty)
         .WithEnvironment("CLOUDSHELL_METRIC_INGEST_ENDPOINT", metricIngestEndpoint ?? string.Empty)
