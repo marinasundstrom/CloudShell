@@ -90,10 +90,9 @@ else
 
         @if (ObservedServices.Count == 0)
         {
-            <div class="empty-state compact">
-                <strong>@L["No telemetry observed"]</strong>
-                <span>@L["Start resources and send traffic to populate traces and metrics."]</span>
-            </div>
+            <EmptyState Title="@L["No telemetry observed"].Value"
+                        Message="@L["Start resources and send traffic to populate traces and metrics."].Value"
+                        Compact="true" />
         }
         else
         {

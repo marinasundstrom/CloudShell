@@ -71,10 +71,9 @@
 
         @if (SystemIssues.Count == 0)
         {
-            <div class="empty-state compact">
-                <strong>@L["No current issues"]</strong>
-                <span>@L["No active resource failures, unhealthy health checks, or degraded lifecycle states were found in the current snapshot."]</span>
-            </div>
+            <EmptyState Title="@L["No current issues"].Value"
+                        Message="@L["No active resource failures, unhealthy health checks, or degraded lifecycle states were found in the current snapshot."].Value"
+                        Compact="true" />
         }
         else
         {
@@ -102,10 +101,9 @@
 
         @if (ResourceStateSummaries.Count == 0)
         {
-            <div class="empty-state compact">
-                <strong>@L["No stateful resources"]</strong>
-                <span>@L["Resources without lifecycle state are still available in Resource Manager."]</span>
-            </div>
+            <EmptyState Title="@L["No stateful resources"].Value"
+                        Message="@L["Resources without lifecycle state are still available in Resource Manager."].Value"
+                        Compact="true" />
         }
         else
         {
@@ -132,10 +130,9 @@
 
         @if (ActiveRequestFailures.Count == 0)
         {
-            <div class="empty-state compact">
-                <strong>@L["No failed requests"]</strong>
-                <span>@L["No failed request spans were found in the current telemetry snapshot."]</span>
-            </div>
+            <EmptyState Title="@L["No failed requests"].Value"
+                        Message="@L["No failed request spans were found in the current telemetry snapshot."].Value"
+                        Compact="true" />
         }
         else
         {
