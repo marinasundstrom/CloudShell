@@ -537,7 +537,8 @@ public sealed class RemoteControlPlaneContractTests
         var capabilities = await controlPlane.GetResourceOperationCapabilitiesAsync(["network:contract"]);
         var result = await controlPlane.ExecuteResourceActionAsync(
             "network:contract",
-            PlatformResourceProvider.ReconcileEndpointMappingsActionId);
+            PlatformResourceProvider.ReconcileEndpointMappingsActionId,
+            cause: "Topology drift detected.");
 
         Assert.NotNull(network);
         var mapping = Assert.Single(network.ResourceEndpointMappings);
@@ -560,6 +561,12 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(ResourceChangeKind.ResourceActionExecuted, notification.Kind);
         Assert.Equal("network:contract", notification.ResourceId);
         Assert.Equal(PlatformResourceProvider.ReconcileEndpointMappingsActionId, notification.ActionId);
+        var resourceEvents = await controlPlane.ListResourceEventsAsync(new ResourceEventQuery(
+            ResourceId: "network:contract",
+            EventType: ResourceEventTypes.Actions.ForAction(
+                PlatformResourceProvider.ReconcileEndpointMappingsActionId)));
+        Assert.Contains(resourceEvents, resourceEvent =>
+            resourceEvent.Message.Contains("Cause: Topology drift detected.", StringComparison.Ordinal));
         var networkLogSources = await controlPlane.ListLogSourcesAsync(new LogQuery(ResourceId: "network:contract"));
         var activityLog = Assert.Single(networkLogSources, log => log.Name == "Activity");
         Assert.Equal(ResourceLogSourceKind.Activity, activityLog.Kind);

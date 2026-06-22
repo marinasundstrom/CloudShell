@@ -529,6 +529,22 @@ public sealed class SampleSmokeTests
             "secrets-vault:application-topology",
             api.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
 
+        var apiRecoveryPolicyJson = await host.GetStringAsync(
+            $"/api/control-plane/v1/resources/{Uri.EscapeDataString("application:application-topology-api")}/recovery-policy");
+        using var apiRecoveryPolicyDocument = JsonDocument.Parse(apiRecoveryPolicyJson);
+        var apiRecoveryPolicy = apiRecoveryPolicyDocument.RootElement;
+        Assert.True(apiRecoveryPolicy.GetProperty("enabled").GetBoolean());
+        Assert.Equal((int)ResourceProbeType.Liveness, apiRecoveryPolicy.GetProperty("probeType").GetInt32());
+        Assert.Equal(3, apiRecoveryPolicy.GetProperty("failureThreshold").GetInt32());
+        Assert.Equal(3, apiRecoveryPolicy.GetProperty("maxAttempts").GetInt32());
+
+        var apiRecoveryStatusJson = await host.GetStringAsync(
+            $"/api/control-plane/v1/resources/{Uri.EscapeDataString("application:application-topology-api")}/recovery-status");
+        using var apiRecoveryStatusDocument = JsonDocument.Parse(apiRecoveryStatusJson);
+        var apiRecoveryStatus = apiRecoveryStatusDocument.RootElement;
+        Assert.Equal((int)ResourceRecoveryState.WaitingForSignal, apiRecoveryStatus.GetProperty("state").GetInt32());
+        Assert.True(apiRecoveryStatus.GetProperty("policy").GetProperty("enabled").GetBoolean());
+
         var grantsJson = await host.GetStringAsync(
             "/api/control-plane/v1/resource-permission-grants" +
             $"?principalKind={(int)ResourcePrincipalKind.ResourceIdentity}" +

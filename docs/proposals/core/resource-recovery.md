@@ -138,11 +138,19 @@ The first policy shape should be per resource:
 - maximum restart attempts
 - healthy duration required to reset attempts
 - recovery action, initially constrained to `restart`
+- restart cause, so lifecycle events can explain why the resource is being
+  restarted
 
 The first implementation can keep this policy platform-owned and resource
 scoped. Provider-specific resource configuration should not store the generic
 recovery policy unless the provider owns an external scheduler that must
 receive a projected policy.
+
+Programmatic authoring should declare recovery on the resource builder beside
+health and liveness probe declarations, such as `WithRecovery(...)` on an
+application resource. The resource model carries recovery policy declarations;
+the Control Plane materializes the currently supported policy into operational
+recovery state for polling, status, and restart decisions.
 
 As the liveness model matures, recovery policy should split trigger behavior
 by observed state transition instead of treating every failed liveness signal
@@ -161,6 +169,17 @@ Liveness check results should carry structured outcome data so the Control
 Plane does not need to parse transport or provider messages. The initial
 outcomes distinguish real responses, no response, unresolved probe targets,
 unsupported probe sources, and unknown synthetic observations.
+
+Liveness checks are best-effort observations. A failed check should appear in
+Health immediately, but lifecycle status changes, recovery attempts, and
+resource activity entries should wait until the configured failure threshold
+is reached. Once the threshold is reached, the latest liveness outcome should
+be trusted for the resource status transition.
+
+Liveness and recovery should be active only for running resources. If a
+resource is stopped intentionally through a lifecycle action, CloudShell should
+not keep polling its liveness signal and should not treat that stopped state
+as a recovery trigger.
 
 ## Signals
 
@@ -284,19 +303,26 @@ notice that liveness is failing or that a resource has degraded.
 
 Recovery events should be separate from lifecycle action events. A recovery
 attempt can cause a normal `Restart action`, `Restarting`, and `Restarted` or
-`Restart failed` sequence, but the activity stream should also explain why the
-restart was attempted.
+`Restart failed` sequence, with the restart cause set to the liveness failure
+that triggered recovery. The activity stream should also explain why recovery
+acted and whether the recovery attempt succeeded or failed.
 
 Potential event types:
 
+- `event.lifecycle.degraded`
+- `event.lifecycle.stopped.unexpectedly`
 - `event.recovery.signal.failed`
+- `event.recovery.restart.attempted`
 - `event.recovery.restart.scheduled`
+- `event.recovery.restart.succeeded`
+- `event.recovery.restart.failed`
 - `event.recovery.restart.skipped`
 - `event.recovery.restart.exhausted`
 - `event.recovery.reset`
 
-These event names are illustrative. The implementation should align them with
-the resource event taxonomy before landing.
+These events are operational activity. Future user-facing notifications can
+subscribe to the same taxonomy, but notification delivery is part of the
+broader notifications story.
 
 Future operational notifications should be published for liveness failures,
 degradation transitions, recovery attempts, skipped attempts, exhausted
@@ -408,32 +434,55 @@ The seventh landed slice adds structured liveness outcomes:
 - HTTP probe failures from non-2xx/3xx responses remain
   responding-but-unhealthy results, while timeouts and request failures are
   no-response results.
-- Latest unhealthy liveness results with a no-response outcome project
-  otherwise active resources as `Stopped`; responding-but-unhealthy liveness
-  continues to project active resources as `Degraded`.
+- Consecutive unhealthy liveness results that meet the configured failure
+  threshold can project otherwise active resources as `Stopped` when the latest
+  result has a no-response outcome; responding-but-unhealthy liveness projects
+  active resources as `Degraded`.
+
+The eighth landed slice connects liveness and recovery to resource activity:
+
+- Liveness-driven lifecycle transitions record `event.lifecycle.degraded` or
+  `event.lifecycle.stopped.unexpectedly` activity when the configured failure
+  threshold is reached.
+- Recovery-triggered restart actions carry a cause built from the failed
+  liveness signal, so normal restart lifecycle events include why the restart
+  happened.
+- Recovery now records restart attempted, succeeded, and failed activity in
+  addition to scheduled, skipped, exhausted, and reset activity.
+- Resource builders can declare recovery with `WithRecovery(...)`, and the
+  Application Topology sample enables recovery for the API project so liveness
+  and recovery can be tested against a real web application resource.
+- Recovery waits for resources to be running before checking liveness, so an
+  intentional manual stop does not trigger automatic restart.
 
 The next recovery slice should stay narrow:
 
 1. Show generated Recovery configuration and status in Resource Manager under
    the Management area, with Health linking to Recovery when recovery is
    available.
-2. Add sample coverage for one application resource with a liveness probe and
-   automatic restart policy.
-3. Add liveness support for built-in resource types where CloudShell can
+2. Add liveness support for built-in resource types where CloudShell can
    produce a meaningful signal, with SQL Server as an explicit early target.
-4. Decide whether a separate liveness state or resource condition is still
+3. Decide whether a separate liveness state or resource condition is still
    needed alongside the primary lifecycle status for resources where providers
    own more nuanced alive/not-alive semantics.
-5. Track resource state transitions together with liveness observations so
+4. Track resource state transitions together with liveness observations so
    recovery policy can decide whether to wait, restart, or leave provider
    state authoritative based on the observed transition path.
-6. Split recovery policy trigger configuration so degraded recovery and
+5. Split recovery policy trigger configuration so degraded recovery and
    stopped recovery can each opt into restart behavior and define their own
    maximum attempts.
 
 Provider-native signal contracts, external orchestrator policy projection,
 durable controller leases, and advanced event schemas can follow after the
 local-development loop proves the model.
+
+Application providers may later need aggregate liveness for resources backed
+by multiple executables, containers, or replicas. In that model, one failed
+unit may represent degraded capacity rather than a stopped resource, while
+all units failing may represent stopped or failed resource state. The provider
+should own that aggregation and expose the resulting liveness/degradation
+signal through the shared resource model instead of forcing the generic
+recovery controller to infer per-unit semantics.
 
 ## Open Questions
 

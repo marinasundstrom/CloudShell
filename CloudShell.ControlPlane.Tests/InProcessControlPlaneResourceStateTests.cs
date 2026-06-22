@@ -1034,6 +1034,30 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task ExecuteResourceActionAsync_RecordsCauseOnLifecycleEvents()
+    {
+        var resourceEvents = new InMemoryResourceEventStore();
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            resourceEvents: resourceEvents);
+
+        await controlPlane.ExecuteResourceActionAsync(
+            new ExecuteResourceActionCommand(
+                "target",
+                ResourceActionIds.Restart,
+                TriggeredBy: "operator",
+                Cause: "Maintenance window."));
+
+        var events = resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "target"));
+        Assert.Contains(events, resourceEvent =>
+            resourceEvent.EventType == ResourceEventTypes.Actions.ForAction(ResourceActionIds.Restart) &&
+            resourceEvent.Message.Contains("Cause: Maintenance window.", StringComparison.Ordinal));
+        Assert.Contains(events, resourceEvent =>
+            resourceEvent.EventType == ResourceEventTypes.Events.Lifecycle.Restarted &&
+            resourceEvent.Message.Contains("Cause: Maintenance window.", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task ExecuteResourceActionAsync_UsesAuthenticatedActorWhenTriggeredByIsOmitted()
     {
         var provider = new TestResourceProvider();
@@ -1613,6 +1637,33 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task GetResourceRecoveryPolicyAsync_ReturnsDeclaredResourcePolicy()
+    {
+        var resource = CreateResource(
+            "target",
+            ResourceState.Running,
+            recoveryPolicies:
+            [
+                new ResourceRecoveryPolicy(
+                    Enabled: true,
+                    FailureThreshold: 2,
+                    MaxAttempts: 4)
+            ]);
+        var controlPlane = CreateControlPlane([resource]);
+
+        var policy = await controlPlane.GetResourceRecoveryPolicyAsync("target");
+        var status = await controlPlane.GetResourceRecoveryStatusAsync("target");
+
+        Assert.NotNull(policy);
+        Assert.True(policy.Enabled);
+        Assert.Equal(2, policy.FailureThreshold);
+        Assert.Equal(4, policy.MaxAttempts);
+        Assert.NotNull(status);
+        Assert.Equal(ResourceRecoveryState.WaitingForSignal, status.State);
+        Assert.Equal(2, status.Policy.FailureThreshold);
+    }
+
+    [Fact]
     public async Task ClearResourceRecoveryPolicyAsync_RemovesPolicy()
     {
         var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)]);
@@ -1638,6 +1689,8 @@ public sealed class InProcessControlPlaneResourceStateTests
             probeEvaluators: [new StaticProbeEvaluator(ResourceHealthStatus.Unhealthy, "Not alive")]);
 
         await controlPlane.RefreshResourceHealthAsync("target");
+        await controlPlane.RefreshResourceHealthAsync("target");
+        await controlPlane.RefreshResourceHealthAsync("target");
 
         var projected = Assert.Single(await controlPlane.ListResourcesAsync());
         var loaded = await controlPlane.GetResourceAsync("target");
@@ -1645,6 +1698,24 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.Equal(ResourceState.Degraded, projected.State);
         Assert.NotNull(loaded);
         Assert.Equal(ResourceState.Degraded, loaded.State);
+    }
+
+    [Fact]
+    public async Task ListResourcesAsync_KeepsRunningBeforeLivenessFailureThreshold()
+    {
+        var resource = CreateResource("target", ResourceState.Running) with
+        {
+            HealthChecks = [CreateLivenessCheck()]
+        };
+        var controlPlane = CreateControlPlane(
+            [resource],
+            probeEvaluators: [new StaticProbeEvaluator(ResourceHealthStatus.Unhealthy, "Not alive")]);
+
+        await controlPlane.RefreshResourceHealthAsync("target");
+
+        var projected = Assert.Single(await controlPlane.ListResourcesAsync());
+
+        Assert.Equal(ResourceState.Running, projected.State);
     }
 
     [Fact]
@@ -1665,6 +1736,8 @@ public sealed class InProcessControlPlaneResourceStateTests
             probeEvaluators: [new StaticProbeEvaluator(ResourceHealthStatus.Unhealthy, "Not healthy")]);
 
         await controlPlane.RefreshResourceHealthAsync("target");
+        await controlPlane.RefreshResourceHealthAsync("target");
+        await controlPlane.RefreshResourceHealthAsync("target");
 
         var projected = Assert.Single(await controlPlane.ListResourcesAsync());
 
@@ -1682,6 +1755,8 @@ public sealed class InProcessControlPlaneResourceStateTests
             [resource],
             probeEvaluators: [new StaticProbeEvaluator(ResourceHealthStatus.Unhealthy, "Not alive")]);
 
+        await controlPlane.RefreshResourceHealthAsync("target");
+        await controlPlane.RefreshResourceHealthAsync("target");
         await controlPlane.RefreshResourceHealthAsync("target");
 
         var projected = Assert.Single(await controlPlane.ListResourcesAsync());
@@ -1707,6 +1782,8 @@ public sealed class InProcessControlPlaneResourceStateTests
             ]);
 
         await controlPlane.RefreshResourceHealthAsync("target");
+        await controlPlane.RefreshResourceHealthAsync("target");
+        await controlPlane.RefreshResourceHealthAsync("target");
 
         var projected = Assert.Single(await controlPlane.ListResourcesAsync());
         var loaded = await controlPlane.GetResourceAsync("target");
@@ -1714,6 +1791,65 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.Equal(ResourceState.Stopped, projected.State);
         Assert.NotNull(loaded);
         Assert.Equal(ResourceState.Stopped, loaded.State);
+    }
+
+    [Fact]
+    public async Task RefreshResourceHealthAsync_RecordsDegradedEventWhenLivenessFailureThresholdIsReached()
+    {
+        var resourceEvents = new InMemoryResourceEventStore();
+        var resource = CreateResource("target", ResourceState.Running) with
+        {
+            HealthChecks = [CreateLivenessCheck()]
+        };
+        var controlPlane = CreateControlPlane(
+            [resource],
+            probeEvaluators: [new StaticProbeEvaluator(ResourceHealthStatus.Unhealthy, "Not alive")],
+            resourceEvents: resourceEvents);
+
+        await controlPlane.RefreshResourceHealthAsync("target");
+        await controlPlane.RefreshResourceHealthAsync("target");
+
+        Assert.Empty(resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "target")));
+
+        await controlPlane.RefreshResourceHealthAsync("target");
+
+        var resourceEvent = Assert.Single(resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "target")));
+        Assert.Equal(ResourceEventTypes.Events.Lifecycle.Degraded, resourceEvent.EventType);
+        Assert.Equal("liveness", resourceEvent.TriggeredBy);
+        Assert.Equal(ResourceSignalSeverity.Warning, resourceEvent.Severity);
+        Assert.Contains("Resource degraded", resourceEvent.Message, StringComparison.Ordinal);
+        Assert.Contains("Not alive", resourceEvent.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RefreshResourceHealthAsync_RecordsStoppedUnexpectedlyEventWhenLivenessDoesNotRespondAfterThreshold()
+    {
+        var resourceEvents = new InMemoryResourceEventStore();
+        var resource = CreateResource("target", ResourceState.Running) with
+        {
+            HealthChecks = [CreateLivenessCheck()]
+        };
+        var controlPlane = CreateControlPlane(
+            [resource],
+            probeEvaluators:
+            [
+                new StaticProbeEvaluator(
+                    ResourceHealthStatus.Unhealthy,
+                    "No response",
+                    ResourceHealthCheckOutcome.NoResponse)
+            ],
+            resourceEvents: resourceEvents);
+
+        await controlPlane.RefreshResourceHealthAsync("target");
+        await controlPlane.RefreshResourceHealthAsync("target");
+        await controlPlane.RefreshResourceHealthAsync("target");
+
+        var resourceEvent = Assert.Single(resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "target")));
+        Assert.Equal(ResourceEventTypes.Events.Lifecycle.StoppedUnexpectedly, resourceEvent.EventType);
+        Assert.Equal("liveness", resourceEvent.TriggeredBy);
+        Assert.Equal(ResourceSignalSeverity.Error, resourceEvent.Severity);
+        Assert.Contains("Resource stopped unexpectedly", resourceEvent.Message, StringComparison.Ordinal);
+        Assert.Contains("No response", resourceEvent.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1746,6 +1882,7 @@ public sealed class InProcessControlPlaneResourceStateTests
     public async Task RefreshResourceRecoveryAsync_RestartsWhenFailureThresholdIsReached()
     {
         var provider = new TestResourceProvider();
+        var resourceEvents = new InMemoryResourceEventStore();
         var resource = CreateResource("target", ResourceState.Running) with
         {
             HealthChecks = [CreateLivenessCheck()]
@@ -1753,7 +1890,8 @@ public sealed class InProcessControlPlaneResourceStateTests
         var controlPlane = CreateControlPlane(
             [resource],
             provider,
-            probeEvaluators: [new StaticProbeEvaluator(ResourceHealthStatus.Unhealthy, "Not alive")]);
+            probeEvaluators: [new StaticProbeEvaluator(ResourceHealthStatus.Unhealthy, "Not alive")],
+            resourceEvents: resourceEvents);
 
         await controlPlane.SetResourceRecoveryPolicyAsync(
             "target",
@@ -1772,6 +1910,59 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.NotNull(status.LastAttemptAt);
         Assert.NotNull(status.NextAttemptAt);
         Assert.Equal(["target:restart"], provider.ExecutedActions);
+
+        var events = resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "target"));
+        Assert.Contains(events, resourceEvent =>
+            resourceEvent.EventType == ResourceEventTypes.Events.Recovery.RestartAttempted &&
+            resourceEvent.Message.Contains("Liveness check 'alive' failed: Not alive", StringComparison.Ordinal));
+        Assert.Contains(events, resourceEvent =>
+            resourceEvent.EventType == ResourceEventTypes.Events.Recovery.RestartSucceeded &&
+            resourceEvent.Severity == ResourceSignalSeverity.Success);
+        Assert.Contains(events, resourceEvent =>
+            resourceEvent.EventType == ResourceEventTypes.Events.Lifecycle.Restarted &&
+            resourceEvent.Message.Contains("Cause: Liveness check 'alive' failed: Not alive", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task RefreshResourceRecoveryAsync_RecordsFailedRestartAttempt()
+    {
+        var provider = new TestResourceProvider
+        {
+            FailedActionResourceId = "target",
+            FailureMessage = "Container runtime is unavailable."
+        };
+        var resourceEvents = new InMemoryResourceEventStore();
+        var resource = CreateResource("target", ResourceState.Running) with
+        {
+            HealthChecks = [CreateLivenessCheck()]
+        };
+        var controlPlane = CreateControlPlane(
+            [resource],
+            provider,
+            probeEvaluators: [new StaticProbeEvaluator(ResourceHealthStatus.Unhealthy, "Not alive")],
+            resourceEvents: resourceEvents);
+
+        await controlPlane.SetResourceRecoveryPolicyAsync(
+            "target",
+            new ResourceRecoveryPolicy(Enabled: true, FailureThreshold: 1));
+
+        var status = await controlPlane.RefreshResourceRecoveryAsync("target");
+
+        Assert.NotNull(status);
+        Assert.Equal(ResourceRecoveryState.Unavailable, status.State);
+        Assert.Equal("Container runtime is unavailable.", status.LastDetail);
+        Assert.Equal(["target:restart"], provider.ExecutedActions);
+
+        var events = resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "target"));
+        Assert.Contains(events, resourceEvent =>
+            resourceEvent.EventType == ResourceEventTypes.Events.Recovery.RestartAttempted);
+        Assert.Contains(events, resourceEvent =>
+            resourceEvent.EventType == ResourceEventTypes.Events.Recovery.RestartFailed &&
+            resourceEvent.Severity == ResourceSignalSeverity.Error &&
+            resourceEvent.Message.Contains("Container runtime is unavailable.", StringComparison.Ordinal));
+        Assert.Contains(events, resourceEvent =>
+            resourceEvent.EventType == ResourceEventTypes.Events.Lifecycle.RestartFailed &&
+            resourceEvent.Message.Contains("Cause: Liveness check 'alive' failed: Not alive", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -1796,6 +1987,35 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.NotNull(status);
         Assert.Equal(ResourceRecoveryState.Unavailable, status.State);
         Assert.Equal("No signal", status.LastDetail);
+        Assert.Empty(provider.ExecutedActions);
+    }
+
+    [Fact]
+    public async Task RefreshResourceRecoveryAsync_DoesNotCheckLivenessOrRestartStoppedResource()
+    {
+        var provider = new TestResourceProvider();
+        var evaluator = new StaticProbeEvaluator(ResourceHealthStatus.Unhealthy, "Not alive");
+        var resource = CreateResource("target", ResourceState.Stopped) with
+        {
+            HealthChecks = [CreateLivenessCheck()]
+        };
+        var controlPlane = CreateControlPlane(
+            [resource],
+            provider,
+            probeEvaluators: [evaluator]);
+
+        await controlPlane.SetResourceRecoveryPolicyAsync(
+            "target",
+            new ResourceRecoveryPolicy(Enabled: true, FailureThreshold: 1));
+
+        var status = await controlPlane.RefreshResourceRecoveryAsync("target");
+
+        Assert.NotNull(status);
+        Assert.Equal(ResourceRecoveryState.WaitingForSignal, status.State);
+        Assert.Equal(0, status.ConsecutiveFailures);
+        Assert.Equal(0, status.AttemptCount);
+        Assert.Contains("waiting for resource state", status.LastDetail, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(0, evaluator.CallCount);
         Assert.Empty(provider.ExecutedActions);
     }
 
@@ -2643,7 +2863,8 @@ public sealed class InProcessControlPlaneResourceStateTests
         IReadOnlyList<string>? dependsOn = null,
         IReadOnlyList<ResourceAction>? actions = null,
         string? name = null,
-        string? displayName = null) =>
+        string? displayName = null,
+        IReadOnlyList<ResourceRecoveryPolicy>? recoveryPolicies = null) =>
         new(
             id,
             name ?? id,
@@ -2662,6 +2883,7 @@ public sealed class InProcessControlPlaneResourceStateTests
                 ResourceAction.Pause,
                 ResourceAction.Restart
             ],
+            RecoveryPolicies: recoveryPolicies,
             DisplayName: displayName);
 
     private static ResourceHealthCheck CreateLivenessCheck() =>
@@ -2894,14 +3116,19 @@ public sealed class InProcessControlPlaneResourceStateTests
         string detail,
         ResourceHealthCheckOutcome outcome = ResourceHealthCheckOutcome.Responded) : IResourceProbeEvaluator
     {
+        public int CallCount { get; private set; }
+
         public bool CanEvaluate(Resource resource, ResourceHealthCheck check) =>
             string.Equals(check.EffectiveSource.Kind, "test", StringComparison.OrdinalIgnoreCase);
 
         public Task<ResourceHealthCheckResult> EvaluateAsync(
             Resource resource,
             ResourceHealthCheck check,
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult(new ResourceHealthCheckResult(check, status, detail, null, outcome));
+            CancellationToken cancellationToken = default)
+        {
+            CallCount++;
+            return Task.FromResult(new ResourceHealthCheckResult(check, status, detail, null, outcome));
+        }
     }
 
     private sealed class StaticWorkloadDescriptorProvider(

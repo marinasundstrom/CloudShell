@@ -618,6 +618,18 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return this;
     }
 
+    public IExecutableResourceBuilder WithRecovery(ResourceRecoveryPolicy policy)
+    {
+        ArgumentNullException.ThrowIfNull(policy);
+        declared.Definition = declared.Definition with
+        {
+            RecoveryPolicies = declared.Definition.RecoveryPolicies
+                .Append(policy)
+                .ToArray()
+        };
+        return this;
+    }
+
     public IExecutableResourceBuilder WithEnvironment(
         IReadOnlyList<EnvironmentVariableAssignment> environmentVariables)
     {
@@ -1235,6 +1247,12 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return this;
     }
 
+    IProjectResourceBuilder IProjectResourceBuilder.WithRecovery(ResourceRecoveryPolicy policy)
+    {
+        WithRecovery(policy);
+        return this;
+    }
+
     IProjectResourceBuilder IProjectResourceBuilder.WithEnvironment(
         IReadOnlyList<EnvironmentVariableAssignment> environmentVariables)
     {
@@ -1544,6 +1562,12 @@ internal sealed class ExecutableApplicationResourceBuilder(
         TimeSpan? timeout)
     {
         WithHttpProbe(type, path, endpointName, name, timeout);
+        return this;
+    }
+
+    IContainerResourceBuilder IContainerResourceBuilder.WithRecovery(ResourceRecoveryPolicy policy)
+    {
+        WithRecovery(policy);
         return this;
     }
 

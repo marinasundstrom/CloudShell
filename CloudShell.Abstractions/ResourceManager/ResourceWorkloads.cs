@@ -140,6 +140,8 @@ public interface IExecutableResourceBuilder :
         string? name = null,
         TimeSpan? timeout = null);
 
+    IExecutableResourceBuilder WithRecovery(ResourceRecoveryPolicy policy);
+
     IExecutableResourceBuilder WithEnvironment(
         IReadOnlyList<EnvironmentVariableAssignment> environmentVariables);
 
@@ -239,6 +241,8 @@ public interface IProjectResourceBuilder :
         string? endpointName = null,
         string? name = null,
         TimeSpan? timeout = null);
+
+    IProjectResourceBuilder WithRecovery(ResourceRecoveryPolicy policy);
 
     IProjectResourceBuilder WithEnvironment(
         IReadOnlyList<EnvironmentVariableAssignment> environmentVariables);
@@ -383,6 +387,8 @@ public interface IContainerResourceBuilder :
         string? endpointName = null,
         string? name = null,
         TimeSpan? timeout = null);
+
+    IContainerResourceBuilder WithRecovery(ResourceRecoveryPolicy policy);
 
     IContainerResourceBuilder WithEnvironment(
         IReadOnlyList<EnvironmentVariableAssignment> environmentVariables);

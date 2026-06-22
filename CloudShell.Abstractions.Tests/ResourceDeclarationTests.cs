@@ -4928,6 +4928,47 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void TypedAspNetCoreProjectBuilder_CanDeclareRecoveryPolicy()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                resources
+                    .AddAspNetCoreProject(
+                        "application:api",
+                        "src/API/API.csproj")
+                    .WithHttpProbe(ResourceProbeType.Liveness, "/alive")
+                    .WithRecovery(new ResourceRecoveryPolicy(
+                        Enabled: true,
+                        ProbeType: ResourceProbeType.Liveness,
+                        FailureThreshold: 2,
+                        MaxAttempts: 4));
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var options = serviceProvider.GetRequiredService<ApplicationProviderOptions>();
+        var declaredApplications = options
+            .GetType()
+            .GetProperty("DeclaredApplications", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(options) as System.Collections.IEnumerable;
+        var declaredApplication = Assert.Single(declaredApplications!.Cast<object>());
+        var application = Assert.IsType<ApplicationResourceDefinition>(
+            declaredApplication
+                .GetType()
+                .GetProperty("Definition")!
+                .GetValue(declaredApplication));
+        var policy = Assert.Single(application.RecoveryPolicies);
+
+        Assert.True(policy.Enabled);
+        Assert.Equal(ResourceProbeType.Liveness, policy.ProbeType);
+        Assert.Equal(2, policy.FailureThreshold);
+        Assert.Equal(4, policy.MaxAttempts);
+    }
+
+    [Fact]
     public void TypedAspNetCoreProjectBuilder_LeavesEndpointPortUnsetWhenOmitted()
     {
         var services = new ServiceCollection();

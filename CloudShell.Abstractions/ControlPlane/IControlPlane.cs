@@ -422,7 +422,8 @@ public sealed record ExecuteResourceActionCommand(
     bool IgnoreDependentWarning = false,
     string? TriggeredBy = null,
     ResourceIdentityReference? ActingIdentity = null,
-    DependencyStartFailureBehavior? DependencyStartFailureBehavior = null);
+    DependencyStartFailureBehavior? DependencyStartFailureBehavior = null,
+    string? Cause = null);
 
 public sealed record UpdateResourceImageCommand(
     string ResourceId,

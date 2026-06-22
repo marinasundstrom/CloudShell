@@ -112,6 +112,8 @@ Important properties:
 - `DetailRoute`: optional extension-owned UI detail route.
 - `ResourceActions`: resource-domain operations exposed by the provider.
 - `ResourceHealthChecks`: health signals contributed by providers.
+- `ResourceRecoveryPolicies`: resource-owned recovery policy declarations that
+  the Control Plane can materialize into operational recovery state.
 - `ResourceCapabilities`: standardized or provider-owned capabilities the
   resource can provide to the environment, such as endpoint sources or
   networking providers, liveness signals, or recovery support.
@@ -155,13 +157,17 @@ service. `null` state means "no lifecycle status is produced"; it is not the
 same as `Unknown`, which means the resource participates in lifecycle status
 but the provider cannot currently determine the value.
 
-Liveness is a resource-owned signal that can affect lifecycle status. When the
-Control Plane has a latest unhealthy liveness observation for a resource that
-is otherwise reported as active, a responding-but-unhealthy signal can project
-the resource as `Degraded`, while a no-response signal can project it as
-`Stopped`. Generic health and readiness checks do not imply lifecycle
-degradation by default. Providers can still project a more specific lifecycle
-state when they own a better runtime signal.
+Liveness is a resource-owned signal that can affect lifecycle status. Because
+liveness checks are best-effort observations, a single failed observation is
+kept as health history. Liveness is active only when the resource is running;
+resources intentionally stopped through lifecycle actions should not be probed
+for liveness or recovered from that stopped state. When consecutive unhealthy
+liveness observations meet the configured failure threshold for a running
+resource, a responding-but-unhealthy signal can project the resource as
+`Degraded`, while a no-response signal can project it as `Stopped`. Generic
+health and readiness checks do not imply lifecycle degradation by default.
+Providers can still project a more specific lifecycle state when they own a
+better runtime signal.
 
 A storage volume resource represents allocated physical storage that can be
 referenced and mounted by another resource. A simple local volume can be

@@ -203,6 +203,39 @@ public sealed class ResourceHealthProbeServiceTests
         Assert.Equal("Process is running", result.Detail);
     }
 
+    [Fact]
+    public async Task CheckAsync_DoesNotEvaluateLivenessWhenResourceIsStopped()
+    {
+        var evaluator = new ProviderProcessProbeEvaluator();
+        var service = new ResourceHealthProbeService([evaluator]);
+        var resource = new Resource(
+            "application:api",
+            "API",
+            "Application",
+            "Applications",
+            "local",
+            ResourceState.Stopped,
+            [],
+            "1.0",
+            DateTimeOffset.UtcNow,
+            [],
+            HealthChecks:
+            [
+                new ResourceHealthCheck(
+                    new ResourceProbeSource("provider.process"),
+                    ResourceProbeType.Liveness,
+                    "process")
+            ]);
+
+        var health = await service.CheckAsync([resource]);
+        var result = Assert.Single(Assert.Single(health).Value.Checks);
+
+        Assert.False(evaluator.Called);
+        Assert.Equal(ResourceHealthStatus.Unknown, result.Status);
+        Assert.Equal(ResourceHealthCheckOutcome.Unknown, result.Outcome);
+        Assert.Contains("Liveness check is inactive", result.Detail, StringComparison.Ordinal);
+    }
+
     private sealed class RecordingHttpClientFactory : IHttpClientFactory
     {
         public RecordingHandler Handler { get; } = new();

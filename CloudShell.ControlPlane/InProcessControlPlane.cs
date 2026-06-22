@@ -38,6 +38,7 @@ public sealed class InProcessControlPlane(
     private const string PreferredUsernameClaimType = "preferred_username";
     private const string UnauthenticatedRequestActor = "user";
     private const string RecoveryTriggeredBy = "recovery";
+    private const string LivenessTriggeredBy = "liveness";
 
     public event EventHandler<ResourceChangeNotification>? ResourcesChanged;
 
@@ -177,7 +178,7 @@ public sealed class InProcessControlPlane(
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Select(resourceId => resourceManager.GetResource(resourceId))
             .OfType<Resource>()
-            .Select(resource => ApplyLivenessStatus(resource, resourceHealth.GetLatest(resource.Id)))
+            .Select(ApplyLivenessStatusToResource)
             .ToArray();
         var capabilities = await Task.WhenAll(resources.Select(resource =>
             CreateCapabilitiesAsync(resource, cancellationToken)));
@@ -623,6 +624,7 @@ public sealed class InProcessControlPlane(
             CreateAuthorizationService(command.ActingIdentity),
             cancellationToken,
             triggeredBy,
+            cause: command.Cause,
             notifyResourceChange: NotifyResourcesChanged,
             dependencyStartFailureBehavior:
                 command.DependencyStartFailureBehavior ?? orchestration.DependencyStartFailureBehavior);
@@ -1061,7 +1063,7 @@ public sealed class InProcessControlPlane(
             return Task.FromResult<ResourceRecoveryPolicy?>(null);
         }
 
-        return Task.FromResult(resourceRecovery.GetPolicy(resource.Id));
+        return Task.FromResult(GetEffectiveRecoveryPolicy(resource));
     }
 
     public Task<ResourceRecoveryPolicy> SetResourceRecoveryPolicyAsync(
@@ -1099,7 +1101,7 @@ public sealed class InProcessControlPlane(
             return Task.FromResult<ResourceRecoveryStatus?>(null);
         }
 
-        var policy = resourceRecovery.GetPolicy(resource.Id) ?? ResourceRecoveryPolicy.Disabled;
+        var policy = GetEffectiveRecoveryPolicy(resource) ?? ResourceRecoveryPolicy.Disabled;
         var runtime = resourceRecovery.GetRuntimeState(resource.Id);
         var state = policy.Enabled ? runtime.State : ResourceRecoveryState.Disabled;
         if (policy.Enabled && state == ResourceRecoveryState.Disabled)
@@ -1130,11 +1132,22 @@ public sealed class InProcessControlPlane(
             return null;
         }
 
-        var policy = resourceRecovery.GetPolicy(resource.Id) ?? ResourceRecoveryPolicy.Disabled;
+        var policy = GetEffectiveRecoveryPolicy(resource) ?? ResourceRecoveryPolicy.Disabled;
         if (!policy.Enabled)
         {
             resourceRecovery.ClearRuntimeState(resource.Id);
             return new ResourceRecoveryStatus(resource.Id, policy, ResourceRecoveryState.Disabled);
+        }
+
+        if (!IsLivenessActive(resource))
+        {
+            return SetRecoveryRuntimeState(
+                resource,
+                policy,
+                new ResourceRecoveryRuntimeState(
+                    ResourceRecoveryState.WaitingForSignal,
+                    LastCheckedAt: DateTimeOffset.UtcNow,
+                    LastDetail: $"Recovery is waiting for resource state to become {ResourceState.Running}."));
         }
 
         var summary = await RefreshResourceHealthAsync(resource.Id, cancellationToken);
@@ -1186,12 +1199,6 @@ public sealed class InProcessControlPlane(
         }
 
         var failures = runtime.ConsecutiveFailures + 1;
-        AppendRecoveryEvent(
-            resource,
-            ResourceEventTypes.Events.Recovery.SignalFailed,
-            $"Recovery signal '{result.Check.Name}' failed: {result.Detail}",
-            ResourceSignalSeverity.Warning);
-
         var failing = runtime with
         {
             State = ResourceRecoveryState.Failing,
@@ -1205,6 +1212,12 @@ public sealed class InProcessControlPlane(
         {
             return SetRecoveryRuntimeState(resource, policy, failing);
         }
+
+        AppendRecoveryEvent(
+            resource,
+            ResourceEventTypes.Events.Recovery.SignalFailed,
+            $"Recovery signal '{result.Check.Name}' failed {failures} consecutive time(s): {result.Detail}",
+            ResourceSignalSeverity.Warning);
 
         if (failing.AttemptCount >= policy.MaxAttempts)
         {
@@ -1232,10 +1245,16 @@ public sealed class InProcessControlPlane(
         var attempt = failing.AttemptCount + 1;
         var backoff = CalculateRecoveryBackoff(policy, attempt);
         var nextAttemptAt = now + backoff;
+        var restartCause = FormatLivenessCause(result);
         AppendRecoveryEvent(
             resource,
             ResourceEventTypes.Events.Recovery.RestartScheduled,
             $"Recovery restart attempt {attempt} scheduled after {failures} failed signal(s).",
+            ResourceSignalSeverity.Warning);
+        AppendRecoveryEvent(
+            resource,
+            ResourceEventTypes.Events.Recovery.RestartAttempted,
+            $"Recovery restart attempt {attempt} started. {restartCause}",
             ResourceSignalSeverity.Warning);
 
         try
@@ -1245,8 +1264,15 @@ public sealed class InProcessControlPlane(
                     resource.Id,
                     ResourceActionIds.Restart,
                     IgnoreDependentWarning: true,
-                    TriggeredBy: RecoveryTriggeredBy),
+                    TriggeredBy: RecoveryTriggeredBy,
+                    Cause: restartCause),
                 cancellationToken);
+
+            AppendRecoveryEvent(
+                resource,
+                ResourceEventTypes.Events.Recovery.RestartSucceeded,
+                $"Recovery restart attempt {attempt} completed. Result: {procedure.Message}",
+                ResourceSignalSeverity.Success);
 
             return SetRecoveryRuntimeState(resource, policy, failing with
             {
@@ -1264,6 +1290,23 @@ public sealed class InProcessControlPlane(
                 ResourceEventTypes.Events.Recovery.RestartSkipped,
                 $"Recovery restart was skipped: {exception.Message}",
                 ResourceSignalSeverity.Warning);
+
+            return SetRecoveryRuntimeState(resource, policy, failing with
+            {
+                State = ResourceRecoveryState.Unavailable,
+                AttemptCount = attempt,
+                LastAttemptAt = now,
+                NextAttemptAt = nextAttemptAt,
+                LastDetail = exception.Message
+            });
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            AppendRecoveryEvent(
+                resource,
+                ResourceEventTypes.Events.Recovery.RestartFailed,
+                $"Recovery restart attempt {attempt} failed: {exception.Message}",
+                ResourceSignalSeverity.Error);
 
             return SetRecoveryRuntimeState(resource, policy, failing with
             {
@@ -1355,8 +1398,7 @@ public sealed class InProcessControlPlane(
             return;
         }
 
-        var summaries = await healthProbes.CheckAsync(staleResources, cancellationToken);
-        resourceHealth.AddRange(summaries.Values);
+        await RefreshResourceHealthCoreUnlockedAsync(staleResources, cancellationToken);
     }
 
     private async Task RefreshResourceHealthCoreAsync(
@@ -1365,8 +1407,20 @@ public sealed class InProcessControlPlane(
     {
         using var refresh = await healthRefreshes.EnterAsync(cancellationToken);
 
+        await RefreshResourceHealthCoreUnlockedAsync(resources, cancellationToken);
+    }
+
+    private async Task RefreshResourceHealthCoreUnlockedAsync(
+        IReadOnlyList<Resource> resources,
+        CancellationToken cancellationToken)
+    {
+        var previousLivenessStates = resources.ToDictionary(
+            resource => resource.Id,
+            resource => GetLivenessLifecycleProjection(resource)?.State,
+            StringComparer.OrdinalIgnoreCase);
         var summaries = await healthProbes.CheckAsync(resources, cancellationToken);
         resourceHealth.AddRange(summaries.Values);
+        RecordLivenessLifecycleTransitions(resources, previousLivenessStates);
     }
 
     private IReadOnlyList<Resource> GetStaleHealthResources(IReadOnlyList<Resource> resources)
@@ -1542,38 +1596,126 @@ public sealed class InProcessControlPlane(
                 .ToArray());
 
     private IReadOnlyList<Resource> ApplyLivenessStatus(IReadOnlyList<Resource> resources)
-    {
-        var summaries = resourceHealth.GetLatest(resources.Select(resource => resource.Id));
-        return resources
-            .Select(resource => ApplyLivenessStatus(resource, summaries.GetValueOrDefault(resource.Id)))
+        => resources
+            .Select(ApplyLivenessStatusToResource)
             .ToArray();
-    }
 
     private Resource? ApplyLivenessStatus(Resource? resource) =>
         resource is null
             ? null
-            : ApplyLivenessStatus(resource, resourceHealth.GetLatest(resource.Id));
+            : ApplyLivenessStatusToResource(resource);
 
-    private static Resource ApplyLivenessStatus(Resource resource, ResourceHealthSummary? summary)
+    private Resource ApplyLivenessStatusToResource(Resource resource)
     {
-        var failedLiveness = GetUnhealthyLiveness(summary);
-        if (resource.State is not (ResourceState.Running or ResourceState.Starting) ||
-            failedLiveness is null)
+        var projection = GetLivenessLifecycleProjection(resource);
+        return projection is null
+            ? resource
+            : resource with { State = projection.State };
+    }
+
+    private LivenessLifecycleProjection? GetLivenessLifecycleProjection(Resource resource)
+    {
+        if (!IsLivenessActive(resource))
         {
-            return resource;
+            return null;
+        }
+
+        var threshold = GetLivenessFailureThreshold(resource);
+        var snapshots = resourceHealth.GetSnapshots(resource.Id, threshold);
+        if (snapshots.Count < threshold ||
+            !snapshots.Take(threshold).All(HasUnhealthyLiveness))
+        {
+            return null;
+        }
+
+        var failedLiveness = GetUnhealthyLiveness(snapshots[0]);
+        if (failedLiveness is null)
+        {
+            return null;
         }
 
         var state = failedLiveness.Outcome == ResourceHealthCheckOutcome.NoResponse
             ? ResourceState.Stopped
             : ResourceState.Degraded;
 
-        return resource with { State = state };
+        return new LivenessLifecycleProjection(state, failedLiveness);
     }
 
     private static ResourceHealthCheckResult? GetUnhealthyLiveness(ResourceHealthSummary? summary) =>
         summary?.Checks.FirstOrDefault(check =>
             check.Check.Type == ResourceProbeType.Liveness &&
             check.Status == ResourceHealthStatus.Unhealthy);
+
+    private static bool HasUnhealthyLiveness(ResourceHealthSummary? summary) =>
+        GetUnhealthyLiveness(summary) is not null;
+
+    private static bool IsLivenessActive(Resource resource) =>
+        resource.State == ResourceState.Running;
+
+    private int GetLivenessFailureThreshold(Resource resource)
+    {
+        var policy = GetEffectiveRecoveryPolicy(resource) ?? new ResourceRecoveryPolicy();
+        return NormalizeRecoveryPolicy(policy).FailureThreshold;
+    }
+
+    private ResourceRecoveryPolicy? GetEffectiveRecoveryPolicy(Resource resource)
+    {
+        var stored = resourceRecovery.GetPolicy(resource.Id);
+        if (stored is not null)
+        {
+            return stored;
+        }
+
+        var declared = resource.ResourceRecoveryPolicies.FirstOrDefault();
+        if (declared is null)
+        {
+            return null;
+        }
+
+        var normalized = NormalizeRecoveryPolicy(declared);
+        resourceRecovery.SetPolicy(resource.Id, normalized);
+        return normalized;
+    }
+
+    private void RecordLivenessLifecycleTransitions(
+        IReadOnlyList<Resource> resources,
+        IReadOnlyDictionary<string, ResourceState?> previousStates)
+    {
+        foreach (var resource in resources)
+        {
+            var projection = GetLivenessLifecycleProjection(resource);
+            if (projection is null ||
+                previousStates.GetValueOrDefault(resource.Id) == projection.State)
+            {
+                continue;
+            }
+
+            var eventType = projection.State == ResourceState.Stopped
+                ? ResourceEventTypes.Events.Lifecycle.StoppedUnexpectedly
+                : ResourceEventTypes.Events.Lifecycle.Degraded;
+            var severity = projection.State == ResourceState.Stopped
+                ? ResourceSignalSeverity.Error
+                : ResourceSignalSeverity.Warning;
+            var message = projection.State == ResourceState.Stopped
+                ? $"Resource stopped unexpectedly. {FormatLivenessCause(projection.Result)}"
+                : $"Resource degraded. {FormatLivenessCause(projection.Result)}";
+
+            resourceEvents?.Append(new ResourceEvent(
+                resource.Id,
+                eventType,
+                message,
+                DateTimeOffset.UtcNow,
+                LivenessTriggeredBy,
+                severity));
+        }
+    }
+
+    private static string FormatLivenessCause(ResourceHealthCheckResult result) =>
+        $"Liveness check '{result.Check.Name}' failed: {result.Detail}";
+
+    private sealed record LivenessLifecycleProjection(
+        ResourceState State,
+        ResourceHealthCheckResult Result);
 
     private static bool ShouldWarnDependents(ResourceAction action) =>
         action.Kind is ResourceActionKind.Stop or ResourceActionKind.Restart or ResourceActionKind.Pause;

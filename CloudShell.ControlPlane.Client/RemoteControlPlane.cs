@@ -428,6 +428,7 @@ public sealed class RemoteControlPlane : IControlPlane
                 ("ignoreDependentWarning", command.IgnoreDependentWarning.ToString()),
                 ("dependencyStartFailureBehavior", command.DependencyStartFailureBehavior?.ToString()),
                 ("triggeredBy", command.TriggeredBy),
+                ("cause", command.Cause),
                 ("actingIdentityResourceId", command.ActingIdentity?.ResourceId),
                 ("actingIdentityName", command.ActingIdentity?.Name)),
             null,

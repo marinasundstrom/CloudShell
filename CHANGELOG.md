@@ -38,6 +38,15 @@ on `git blame --follow`, and then by the broad type of change.
 - Liveness check results now carry structured outcomes so
   responding-but-unhealthy signals can keep active resources `Degraded`, while
   no-response liveness signals can project active resources as `Stopped`.
+- Liveness-driven lifecycle projection now waits for the configured failure
+  threshold, records degraded or unexpectedly stopped resource activity when
+  the threshold is reached, and passes recovery causes into restart lifecycle
+  events. Liveness and recovery now wait for resources to be running, so
+  intentionally stopped resources are not probed for liveness or automatically
+  restarted.
+- The Application Topology sample now enables recovery for its API web project
+  through a resource-builder recovery declaration so liveness and recovery can
+  be validated against a real application resource.
 - Added a service observability and degradation proposal for service-first,
   replica-aware local-development telemetry correlation, common views, load
   and capacity context, established telemetry interfaces, extension

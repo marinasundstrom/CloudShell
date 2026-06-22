@@ -24,6 +24,7 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         IReadOnlyList<ServicePort>? endpointPorts = null,
         string? resourceType = null,
         IReadOnlyList<ResourceHealthCheck>? healthChecks = null,
+        IReadOnlyList<ResourceRecoveryPolicy>? recoveryPolicies = null,
         ResourceObservability? observability = null,
         string? projectPath = null,
         string? projectArguments = null,
@@ -63,6 +64,7 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
             ? ApplicationResourceTypes.ExecutableApplication
             : resourceType;
         HealthChecks = healthChecks ?? [];
+        RecoveryPolicies = recoveryPolicies ?? [];
         Observability = observability;
         ProjectPath = projectPath;
         ProjectArguments = projectArguments;
@@ -119,6 +121,8 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
     public string ResourceType { get; init; }
 
     public IReadOnlyList<ResourceHealthCheck> HealthChecks { get; init; }
+
+    public IReadOnlyList<ResourceRecoveryPolicy> RecoveryPolicies { get; init; }
 
     public ResourceObservability? Observability { get; init; }
 

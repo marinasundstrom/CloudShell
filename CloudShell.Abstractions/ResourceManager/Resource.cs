@@ -18,6 +18,7 @@ public sealed record Resource(
     string? TypeId = null,
     IReadOnlyList<ResourceAction>? Actions = null,
     IReadOnlyList<ResourceHealthCheck>? HealthChecks = null,
+    IReadOnlyList<ResourceRecoveryPolicy>? RecoveryPolicies = null,
     ResourceObservability? Observability = null,
     ResourceClass ResourceClass = ResourceClass.Generic,
     IReadOnlyDictionary<string, string>? Attributes = null,
@@ -62,6 +63,8 @@ public sealed record Resource(
     public ResourceAction? RestartAction => GetAction(ResourceActionIds.Restart);
 
     public IReadOnlyList<ResourceHealthCheck> ResourceHealthChecks => HealthChecks ?? [];
+
+    public IReadOnlyList<ResourceRecoveryPolicy> ResourceRecoveryPolicies => RecoveryPolicies ?? [];
 
     public IReadOnlyList<ResourceLogSource> ResourceLogSources => LogSources ?? [];
 

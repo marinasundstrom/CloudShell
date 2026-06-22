@@ -55,12 +55,17 @@ public static class ResourceEventTypes
             public const string Restarting = "event.lifecycle.restarting";
             public const string Restarted = "event.lifecycle.restarted";
             public const string RestartFailed = "event.lifecycle.restart.failed";
+            public const string Degraded = "event.lifecycle.degraded";
+            public const string StoppedUnexpectedly = "event.lifecycle.stopped.unexpectedly";
         }
 
         public static class Recovery
         {
             public const string SignalFailed = "event.recovery.signal.failed";
+            public const string RestartAttempted = "event.recovery.restart.attempted";
             public const string RestartScheduled = "event.recovery.restart.scheduled";
+            public const string RestartSucceeded = "event.recovery.restart.succeeded";
+            public const string RestartFailed = "event.recovery.restart.failed";
             public const string RestartSkipped = "event.recovery.restart.skipped";
             public const string RestartExhausted = "event.recovery.restart.exhausted";
             public const string Reset = "event.recovery.reset";

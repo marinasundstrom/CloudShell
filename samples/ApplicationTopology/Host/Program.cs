@@ -168,6 +168,13 @@ cloudShell.Resources(resources =>
         .WithIdentity(identityProvider, name: "application-topology-api")
         .WithHttpHealthCheck("/health")
         .WithHttpProbe(ResourceProbeType.Liveness, "/alive")
+        .WithRecovery(new ResourceRecoveryPolicy(
+            Enabled: true,
+            ProbeType: ResourceProbeType.Liveness,
+            FailureThreshold: 3,
+            InitialBackoffSeconds: 5,
+            MaxBackoffSeconds: 60,
+            MaxAttempts: 3))
         .WithOtlpExporter(otlpEndpoint, otlpProtocol)
         .WithEnvironment("CLOUDSHELL_TRACE_INGEST_ENDPOINT", traceIngestEndpoint ?? string.Empty)
         .WithEnvironment("CLOUDSHELL_METRIC_INGEST_ENDPOINT", metricIngestEndpoint ?? string.Empty)

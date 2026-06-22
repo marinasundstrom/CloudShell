@@ -34,6 +34,13 @@ public sealed class ResourceHealthProbeService(IEnumerable<IResourceProbeEvaluat
         var checks = new List<ResourceHealthCheckResult>();
         foreach (var check in resource.ResourceHealthChecks)
         {
+            if (check.Type == ResourceProbeType.Liveness &&
+                !IsLivenessActive(resource))
+            {
+                checks.Add(CreateInactiveLivenessResult(resource, check));
+                continue;
+            }
+
             var evaluator = evaluators.FirstOrDefault(candidate => candidate.CanEvaluate(resource, check));
             checks.Add(evaluator is null
                 ? CreateUnsupportedSourceResult(check)
@@ -60,6 +67,19 @@ public sealed class ResourceHealthProbeService(IEnumerable<IResourceProbeEvaluat
             $"Unsupported probe source '{check.EffectiveSource.Kind}'",
             null,
             ResourceHealthCheckOutcome.Unsupported);
+
+    private static ResourceHealthCheckResult CreateInactiveLivenessResult(
+        Resource resource,
+        ResourceHealthCheck check) =>
+        new(
+            check,
+            ResourceHealthStatus.Unknown,
+            $"Liveness check is inactive while resource state is {resource.State?.ToString() ?? "Unknown"}.",
+            null,
+            ResourceHealthCheckOutcome.Unknown);
+
+    private static bool IsLivenessActive(Resource resource) =>
+        resource.State == ResourceState.Running;
 }
 
 public sealed class HttpResourceProbeEvaluator(IHttpClientFactory httpClientFactory) : IResourceProbeEvaluator

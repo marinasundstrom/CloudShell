@@ -42,6 +42,17 @@ public sealed class ResourceRecoveryPollingService(
 
     private async Task RefreshAsync(CancellationToken cancellationToken)
     {
+        using var scope = scopes.CreateScope();
+        var recovery = scope.ServiceProvider.GetRequiredService<IResourceRecoveryManager>();
+        var resourceManager = scope.ServiceProvider.GetRequiredService<IResourceManager>();
+        foreach (var resource in await resourceManager.ListResourcesAsync(cancellationToken: cancellationToken))
+        {
+            if (resource.ResourceRecoveryPolicies.Count > 0)
+            {
+                await recovery.GetResourceRecoveryPolicyAsync(resource.Id, cancellationToken);
+            }
+        }
+
         var resourceIds = recoveryStore.GetPolicies()
             .Where(policy => policy.Value.Enabled)
             .Select(policy => policy.Key)
@@ -53,8 +64,6 @@ public sealed class ResourceRecoveryPollingService(
 
         try
         {
-            using var scope = scopes.CreateScope();
-            var recovery = scope.ServiceProvider.GetRequiredService<IResourceRecoveryManager>();
             foreach (var resourceId in resourceIds)
             {
                 await RefreshResourceAsync(recovery, resourceId, cancellationToken);

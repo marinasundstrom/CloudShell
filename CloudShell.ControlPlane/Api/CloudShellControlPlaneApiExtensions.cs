@@ -664,6 +664,7 @@ public static class CloudShellControlPlaneApiExtensions
         bool? ignoreDependentWarning,
         DependencyStartFailureBehavior? dependencyStartFailureBehavior,
         string? triggeredBy,
+        string? cause,
         string? actingIdentityResourceId,
         string? actingIdentityName,
         IResourceManager resourceManager,
@@ -702,7 +703,8 @@ public static class CloudShellControlPlaneApiExtensions
                     ignoreDependentWarning.GetValueOrDefault(),
                     NormalizeOptional(triggeredBy),
                     CreateActingIdentity(actingIdentityResourceId, actingIdentityName),
-                    dependencyStartFailureBehavior),
+                    dependencyStartFailureBehavior,
+                    NormalizeOptional(cause)),
                 cancellationToken);
 
             return Results.Ok(ToResponse(result));

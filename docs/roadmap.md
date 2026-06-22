@@ -925,9 +925,9 @@ listed here before pulling in broader proposal work.
 - Use [Resource recovery](proposals/core/resource-recovery.md) to track
   liveness-signal-driven restart policy, exponential backoff, separate
   liveness and recovery capabilities, structured liveness outcomes, provider
-  probe evaluators, future operational notifications, and dashboard
-  degradation summaries while keeping the Health UI wording and normal
-  lifecycle action path.
+  probe evaluators, future operational notifications, dashboard degradation
+  summaries, and resource-builder recovery declarations while keeping the
+  Health UI wording and normal lifecycle action path.
 - Use [Logging infrastructure](proposals/core/logging-infrastructure.md) to
   track structured logging, non-text operational payloads, resource events,
   audit records, diagnostics, metrics, and traces without prematurely merging
