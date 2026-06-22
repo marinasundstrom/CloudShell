@@ -82,6 +82,15 @@ public enum ResourceHealthStatus
     Unknown
 }
 
+public enum ResourceHealthCheckOutcome
+{
+    Unknown,
+    Responded,
+    NoResponse,
+    Unresolved,
+    Unsupported
+}
+
 public sealed record ResourceHealthSummary(
     string ResourceId,
     ResourceHealthStatus Status,
@@ -92,7 +101,8 @@ public sealed record ResourceHealthCheckResult(
     ResourceHealthCheck Check,
     ResourceHealthStatus Status,
     string Detail,
-    Uri? Uri);
+    Uri? Uri,
+    ResourceHealthCheckOutcome Outcome = ResourceHealthCheckOutcome.Responded);
 
 public sealed class ResourceHealthOptions
 {

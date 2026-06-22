@@ -157,6 +157,11 @@ Those state-trigger sections can still share default backoff settings, but
 the policy should allow a resource or operator to treat "responding but
 unhealthy" differently from "not responding and probably stopped."
 
+Liveness check results should carry structured outcome data so the Control
+Plane does not need to parse transport or provider messages. The initial
+outcomes distinguish real responses, no response, unresolved probe targets,
+unsupported probe sources, and unknown synthetic observations.
+
 ## Signals
 
 CloudShell already has:
@@ -270,6 +275,11 @@ For resources where a provider owns richer behavior, the provider can replace
 or extend the generated Recovery view. The provider-owned UI should still use
 the same domain policy and status APIs when CloudShell owns recovery.
 
+Dashboard and Health summary surfaces should also expose liveness and
+degradation state when those signals exist. The detailed configuration belongs
+in Recovery, but operators should not need to open a resource detail page to
+notice that liveness is failing or that a resource has degraded.
+
 ## Events And Diagnostics
 
 Recovery events should be separate from lifecycle action events. A recovery
@@ -287,6 +297,13 @@ Potential event types:
 
 These event names are illustrative. The implementation should align them with
 the resource event taxonomy before landing.
+
+Future operational notifications should be published for liveness failures,
+degradation transitions, recovery attempts, skipped attempts, exhausted
+attempts, and reset-after-healthy transitions. That belongs to the broader
+notifications story rather than the first recovery controller slices, but the
+event taxonomy should preserve enough structure for notifications to consume
+later.
 
 Skipped recovery should preserve the reason:
 
@@ -382,6 +399,19 @@ The sixth landed slice connects liveness to lifecycle status:
 - This makes recovery policy able to build on the normal lifecycle status
   model instead of treating failed liveness as a private recovery-only fact.
 
+The seventh landed slice adds structured liveness outcomes:
+
+- `ResourceHealthCheckResult` now carries a `ResourceHealthCheckOutcome` so
+  Control Plane logic can distinguish a real unhealthy response from no
+  response, unsupported sources, unresolved probe targets, and synthetic
+  unknown observations.
+- HTTP probe failures from non-2xx/3xx responses remain
+  responding-but-unhealthy results, while timeouts and request failures are
+  no-response results.
+- Latest unhealthy liveness results with a no-response outcome project
+  otherwise active resources as `Stopped`; responding-but-unhealthy liveness
+  continues to project active resources as `Degraded`.
+
 The next recovery slice should stay narrow:
 
 1. Show generated Recovery configuration and status in Resource Manager under
@@ -394,14 +424,10 @@ The next recovery slice should stay narrow:
 4. Decide whether a separate liveness state or resource condition is still
    needed alongside the primary lifecycle status for resources where providers
    own more nuanced alive/not-alive semantics.
-5. Add structured liveness outcome data that distinguishes an unhealthy
-   response from no response at all, so the Control Plane can model transition
-   paths such as `Running` to `Degraded` for responding-but-unhealthy resources
-   and `Running` to `Stopped` when the liveness signal is unreachable.
-6. Track resource state transitions together with liveness observations so
+5. Track resource state transitions together with liveness observations so
    recovery policy can decide whether to wait, restart, or leave provider
    state authoritative based on the observed transition path.
-7. Split recovery policy trigger configuration so degraded recovery and
+6. Split recovery policy trigger configuration so degraded recovery and
    stopped recovery can each opt into restart behavior and define their own
    maximum attempts.
 
@@ -421,9 +447,6 @@ local-development loop proves the model.
   health checks, or remain a typed probe with separate capability metadata?
 - Do resources also need a separate liveness state or condition for cases
   where liveness should not directly degrade the primary lifecycle status?
-- What structured outcome should liveness checks return so CloudShell can
-  distinguish "responded unhealthy" from "did not respond at all" without
-  parsing provider or transport error messages?
 - Which state transitions should recovery policy react to directly, and which
   transitions should be left to provider-owned lifecycle reconciliation?
 - Should degraded recovery and stopped recovery share one backoff schedule, or

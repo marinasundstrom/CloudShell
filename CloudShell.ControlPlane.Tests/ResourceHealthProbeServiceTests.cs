@@ -87,8 +87,88 @@ public sealed class ResourceHealthProbeServiceTests
         var result = Assert.Single(Assert.Single(health).Value.Checks);
 
         Assert.Equal(ResourceHealthStatus.Unknown, result.Status);
+        Assert.Equal(ResourceHealthCheckOutcome.Unsupported, result.Outcome);
         Assert.Equal("Unsupported probe source 'provider.process'", result.Detail);
         Assert.Null(factory.ClientName);
+    }
+
+    [Fact]
+    public async Task CheckAsync_ClassifiesHttpErrorAsResponded()
+    {
+        var factory = new RecordingHttpClientFactory();
+        factory.Handler.StatusCode = HttpStatusCode.ServiceUnavailable;
+        var service = new ResourceHealthProbeService([new HttpResourceProbeEvaluator(factory)]);
+        var resource = new Resource(
+            "application:api",
+            "API",
+            "Application",
+            "Applications",
+            "local",
+            ResourceState.Running,
+            [],
+            "1.0",
+            DateTimeOffset.UtcNow,
+            [],
+            HealthChecks: [new ResourceHealthCheck("http://localhost/health")]);
+
+        var health = await service.CheckAsync([resource]);
+        var result = Assert.Single(Assert.Single(health).Value.Checks);
+
+        Assert.Equal(ResourceHealthStatus.Unhealthy, result.Status);
+        Assert.Equal(ResourceHealthCheckOutcome.Responded, result.Outcome);
+    }
+
+    [Fact]
+    public async Task CheckAsync_ClassifiesHttpRequestFailureAsNoResponse()
+    {
+        var factory = new RecordingHttpClientFactory();
+        factory.Handler.Exception = new HttpRequestException("Connection refused");
+        var service = new ResourceHealthProbeService([new HttpResourceProbeEvaluator(factory)]);
+        var resource = new Resource(
+            "application:api",
+            "API",
+            "Application",
+            "Applications",
+            "local",
+            ResourceState.Running,
+            [],
+            "1.0",
+            DateTimeOffset.UtcNow,
+            [],
+            HealthChecks: [new ResourceHealthCheck("http://localhost/health")]);
+
+        var health = await service.CheckAsync([resource]);
+        var result = Assert.Single(Assert.Single(health).Value.Checks);
+
+        Assert.Equal(ResourceHealthStatus.Unhealthy, result.Status);
+        Assert.Equal(ResourceHealthCheckOutcome.NoResponse, result.Outcome);
+        Assert.Equal("Connection refused", result.Detail);
+    }
+
+    [Fact]
+    public async Task CheckAsync_ClassifiesMissingHttpEndpointAsUnresolved()
+    {
+        var factory = new RecordingHttpClientFactory();
+        var service = new ResourceHealthProbeService([new HttpResourceProbeEvaluator(factory)]);
+        var resource = new Resource(
+            "application:api",
+            "API",
+            "Application",
+            "Applications",
+            "local",
+            ResourceState.Running,
+            [],
+            "1.0",
+            DateTimeOffset.UtcNow,
+            [],
+            HealthChecks: [new ResourceHealthCheck("/health")]);
+
+        var health = await service.CheckAsync([resource]);
+        var result = Assert.Single(Assert.Single(health).Value.Checks);
+
+        Assert.Equal(ResourceHealthStatus.Unknown, result.Status);
+        Assert.Equal(ResourceHealthCheckOutcome.Unresolved, result.Outcome);
+        Assert.Equal("No matching HTTP endpoint", result.Detail);
     }
 
     [Fact]
@@ -140,12 +220,18 @@ public sealed class ResourceHealthProbeServiceTests
     {
         public Uri? RequestUri { get; private set; }
 
+        public HttpStatusCode StatusCode { get; set; } = HttpStatusCode.OK;
+
+        public HttpRequestException? Exception { get; set; }
+
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
             RequestUri = request.RequestUri;
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+            return Exception is not null
+                ? Task.FromException<HttpResponseMessage>(Exception)
+                : Task.FromResult(new HttpResponseMessage(StatusCode));
         }
     }
 

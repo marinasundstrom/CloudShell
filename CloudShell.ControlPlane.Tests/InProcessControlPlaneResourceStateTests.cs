@@ -1690,6 +1690,33 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task ListResourcesAsync_ProjectsRunningResourceAsStoppedWhenLivenessDoesNotRespond()
+    {
+        var resource = CreateResource("target", ResourceState.Running) with
+        {
+            HealthChecks = [CreateLivenessCheck()]
+        };
+        var controlPlane = CreateControlPlane(
+            [resource],
+            probeEvaluators:
+            [
+                new StaticProbeEvaluator(
+                    ResourceHealthStatus.Unhealthy,
+                    "No response",
+                    ResourceHealthCheckOutcome.NoResponse)
+            ]);
+
+        await controlPlane.RefreshResourceHealthAsync("target");
+
+        var projected = Assert.Single(await controlPlane.ListResourcesAsync());
+        var loaded = await controlPlane.GetResourceAsync("target");
+
+        Assert.Equal(ResourceState.Stopped, projected.State);
+        Assert.NotNull(loaded);
+        Assert.Equal(ResourceState.Stopped, loaded.State);
+    }
+
+    [Fact]
     public async Task RefreshResourceRecoveryAsync_TracksFailedLivenessBeforeThreshold()
     {
         var provider = new TestResourceProvider();
@@ -2864,7 +2891,8 @@ public sealed class InProcessControlPlaneResourceStateTests
 
     private sealed class StaticProbeEvaluator(
         ResourceHealthStatus status,
-        string detail) : IResourceProbeEvaluator
+        string detail,
+        ResourceHealthCheckOutcome outcome = ResourceHealthCheckOutcome.Responded) : IResourceProbeEvaluator
     {
         public bool CanEvaluate(Resource resource, ResourceHealthCheck check) =>
             string.Equals(check.EffectiveSource.Kind, "test", StringComparison.OrdinalIgnoreCase);
@@ -2873,7 +2901,7 @@ public sealed class InProcessControlPlaneResourceStateTests
             Resource resource,
             ResourceHealthCheck check,
             CancellationToken cancellationToken = default) =>
-            Task.FromResult(new ResourceHealthCheckResult(check, status, detail, null));
+            Task.FromResult(new ResourceHealthCheckResult(check, status, detail, null, outcome));
     }
 
     private sealed class StaticWorkloadDescriptorProvider(

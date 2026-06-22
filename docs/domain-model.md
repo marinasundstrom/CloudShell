@@ -157,8 +157,9 @@ but the provider cannot currently determine the value.
 
 Liveness is a resource-owned signal that can affect lifecycle status. When the
 Control Plane has a latest unhealthy liveness observation for a resource that
-is otherwise reported as active, the projected resource status can become
-`Degraded`. Generic health and readiness checks do not imply that lifecycle
+is otherwise reported as active, a responding-but-unhealthy signal can project
+the resource as `Degraded`, while a no-response signal can project it as
+`Stopped`. Generic health and readiness checks do not imply lifecycle
 degradation by default. Providers can still project a more specific lifecycle
 state when they own a better runtime signal.
 

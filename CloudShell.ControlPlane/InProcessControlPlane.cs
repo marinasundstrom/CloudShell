@@ -1537,7 +1537,8 @@ public sealed class InProcessControlPlane(
                     check,
                     ResourceHealthStatus.Unknown,
                     "No cached health result",
-                    null))
+                    null,
+                    ResourceHealthCheckOutcome.Unknown))
                 .ToArray());
 
     private IReadOnlyList<Resource> ApplyLivenessStatus(IReadOnlyList<Resource> resources)
@@ -1555,19 +1556,24 @@ public sealed class InProcessControlPlane(
 
     private static Resource ApplyLivenessStatus(Resource resource, ResourceHealthSummary? summary)
     {
+        var failedLiveness = GetUnhealthyLiveness(summary);
         if (resource.State is not (ResourceState.Running or ResourceState.Starting) ||
-            !HasUnhealthyLiveness(summary))
+            failedLiveness is null)
         {
             return resource;
         }
 
-        return resource with { State = ResourceState.Degraded };
+        var state = failedLiveness.Outcome == ResourceHealthCheckOutcome.NoResponse
+            ? ResourceState.Stopped
+            : ResourceState.Degraded;
+
+        return resource with { State = state };
     }
 
-    private static bool HasUnhealthyLiveness(ResourceHealthSummary? summary) =>
-        summary?.Checks.Any(check =>
+    private static ResourceHealthCheckResult? GetUnhealthyLiveness(ResourceHealthSummary? summary) =>
+        summary?.Checks.FirstOrDefault(check =>
             check.Check.Type == ResourceProbeType.Liveness &&
-            check.Status == ResourceHealthStatus.Unhealthy) == true;
+            check.Status == ResourceHealthStatus.Unhealthy);
 
     private static bool ShouldWarnDependents(ResourceAction action) =>
         action.Kind is ResourceActionKind.Stop or ResourceActionKind.Restart or ResourceActionKind.Pause;

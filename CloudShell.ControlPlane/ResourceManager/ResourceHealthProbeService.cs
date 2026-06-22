@@ -58,7 +58,8 @@ public sealed class ResourceHealthProbeService(IEnumerable<IResourceProbeEvaluat
             check,
             ResourceHealthStatus.Unknown,
             $"Unsupported probe source '{check.EffectiveSource.Kind}'",
-            null);
+            null,
+            ResourceHealthCheckOutcome.Unsupported);
 }
 
 public sealed class HttpResourceProbeEvaluator(IHttpClientFactory httpClientFactory) : IResourceProbeEvaluator
@@ -81,7 +82,8 @@ public sealed class HttpResourceProbeEvaluator(IHttpClientFactory httpClientFact
                 check,
                 ResourceHealthStatus.Unknown,
                 "No matching HTTP endpoint",
-                null);
+                null,
+                ResourceHealthCheckOutcome.Unresolved);
         }
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -100,7 +102,8 @@ public sealed class HttpResourceProbeEvaluator(IHttpClientFactory httpClientFact
                 check,
                 status,
                 $"{(int)response.StatusCode} {response.ReasonPhrase}".Trim(),
-                uri);
+                uri,
+                ResourceHealthCheckOutcome.Responded);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -108,7 +111,8 @@ public sealed class HttpResourceProbeEvaluator(IHttpClientFactory httpClientFact
                 check,
                 ResourceHealthStatus.Unhealthy,
                 "Timed out",
-                uri);
+                uri,
+                ResourceHealthCheckOutcome.NoResponse);
         }
         catch (HttpRequestException exception)
         {
@@ -116,7 +120,8 @@ public sealed class HttpResourceProbeEvaluator(IHttpClientFactory httpClientFact
                 check,
                 ResourceHealthStatus.Unhealthy,
                 exception.Message,
-                uri);
+                uri,
+                ResourceHealthCheckOutcome.NoResponse);
         }
     }
 
