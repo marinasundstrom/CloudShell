@@ -300,6 +300,27 @@ an effective database grant into a provider-owned SQL authentication path. That
 translation must stay behind provider contracts and must not expose the SQL
 administrator credential to workloads.
 
+This identity-backed path is primarily a service-to-database path inside the
+CloudShell-managed environment. In cloud deployments, managed identity is most
+valuable when application services connect to private database endpoints
+without carrying long-lived SQL credentials. The database should not have to
+be public for the workload to use identity-backed access; networking,
+endpoint exposure, and database authorization remain separate concerns. This
+also makes the audit story clearer: CloudShell can record which workload
+principal requested access, which grant allowed it, and which provider bridge
+materialized the database credential.
+
+Credential resolution should produce resource activity. When a workload
+requests database access, CloudShell should be able to record the calling
+principal, the SQL Server resource, the database name, the requested
+permission, whether the request was allowed or denied, and the provider that
+issued or refused the credential. The activity must not include the generated
+SQL password, bearer token, connection string, or other credential material.
+The first implementation can log provider diagnostics, but the durable model
+should surface these as resource-scoped activity events so local development
+and hosted environments can answer who or what requested database access and
+which grant authorized it.
+
 The CloudShell implementation should be staged around that boundary:
 
 1. Resource Manager records requested grants as it does today.
@@ -348,6 +369,130 @@ delivery: a local broker or provider-owned credential path that lets a
 resource identity use the reconciled SQL-side authorization without exposing
 administrator credentials or long-lived generated SQL passwords in resource
 metadata.
+
+### Experimental Workload Connection Path
+
+The first workload-facing experiment is about bridging CloudShell resource
+identity into the SQL Server authentication world for a managed SQL Server
+resource. Containers, Docker, or other runtimes are only provider-owned
+materialization details; the workload contract should feel like connecting to
+a managed database service with identity-backed access.
+
+The experiment is scoped to service workloads running within the local or
+hosted CloudShell environment. It is not a requirement that the SQL Server
+endpoint be publicly exposed. A frontend, API, worker, or other managed
+resource should be able to reach a private SQL endpoint through the
+environment's networking model and authenticate through its CloudShell
+principal.
+
+The first client shape is a connection factory over a provider-owned
+credential resolver:
+
+```csharp
+builder.Services.AddCloudShellSqlServerClient(options =>
+{
+    options.SqlServerResourceName = "application-topology-sql-server";
+});
+
+await using var connection =
+    await cloudShellSql.OpenConnectionAsync(
+        "application-topology-sql-server",
+        "application_topology");
+```
+
+The factory does not replace ordinary SQL Server connection strings. It is an
+opt-in path for workloads that have a CloudShell resource identity and want
+database access resolved through CloudShell grants. A resolver authenticates
+the current workload to CloudShell, asks the SQL Server provider for a
+short-lived SQL-native credential, and returns a connection string that
+`Microsoft.Data.SqlClient` can use normally.
+
+The DI registration is intentionally light. It reads the broker endpoint from
+the CloudShell SQL endpoint environment variables by default and uses the
+default CloudShell resource credential chain unless the workload passes an
+explicit endpoint or credential. Application code should usually inject
+`CloudShellSqlConnectionFactory` instead of constructing the resolver at the
+call site.
+
+The experimental client resolves the credential broker endpoint from either a
+generic environment variable:
+
+```text
+CLOUDSHELL_SQL_CREDENTIAL_ENDPOINT
+```
+
+or a resource-specific variable:
+
+```text
+CLOUDSHELL_SQL_{RESOURCE_NAME}_CREDENTIAL_ENDPOINT
+```
+
+where `{RESOURCE_NAME}` is normalized the same way as other CloudShell client
+environment segments. The broker request is intentionally small:
+
+```http
+POST /api/sql-server/v1/credentials
+Authorization: Bearer {CloudShell resource identity token}
+Content-Type: application/json
+
+{
+  "sqlServerResourceName": "application-topology-sql-server",
+  "databaseName": "application_topology",
+  "permission": "CloudShell.Database/databases/readWrite/action"
+}
+```
+
+and the response is provider-owned credential material:
+
+```json
+{
+  "connectionString": "Server=...;Database=...;User Id=...;Password=...",
+  "expiresOn": "2026-06-21T12:00:00Z"
+}
+```
+
+The endpoint must authenticate the bearer token, identify the calling
+CloudShell principal, evaluate the effective grant against the managed SQL
+Server or database resource, reconcile SQL-side authorization if needed, and
+only then return SQL-native credential material.
+
+Every broker request should also be auditable as a resource activity. A
+successful request means the workload attempted to establish SQL access and
+CloudShell issued a provider-owned credential. A denied request means a
+principal attempted access without a matching effective grant or without a
+valid workload identity. Both outcomes are useful for local troubleshooting
+and for future hosted audit trails.
+
+The target experience should be at least as familiar and safe as Azure SQL
+with Azure managed identity:
+
+* application code opts into identity-backed SQL access explicitly;
+* the app does not carry an administrator password or long-lived SQL password;
+* CloudShell grants determine whether the current workload principal may
+  connect to the managed SQL Server resource or database;
+* the SQL Server provider performs the necessary bridge into SQL-native
+  users, logins, roles, external identities, or brokered tokens;
+* ordinary SqlClient usage remains possible once the provider has resolved
+  credential material.
+
+This deliberately keeps the provider boundary intact:
+
+* SQL Server administrator credentials remain provider-owned.
+* Short-lived generated credentials are not stored in resource metadata.
+* The local Docker SQL Server path can still use ordinary SQL authentication.
+* Applications can keep direct connection strings for bootstrap, migration, or
+  debugging scenarios where identity-backed access is not desired.
+
+`SqlAuthenticationProvider` remains a spike candidate for making that
+experience feel closer to SqlClient's built-in managed identity modes. The
+extension point is token-shaped: it can acquire an access token for
+SqlClient-supported authentication modes, but it does not by itself make a SQL
+Server instance accept a CloudShell token or return a username/password pair.
+It may become useful for a future broker, proxy, or token-validating SQL
+provider where the database endpoint can validate a CloudShell-compatible
+access token. Until then, the portable bridge is a CloudShell-authenticated
+credential resolver that produces SQL-native credential material behind a
+narrow client API.
 
 ## Programmatic API Direction
 
@@ -423,8 +568,16 @@ MVP container app, storage, networking, and identity primitives are stable.
   local contained-user and role-membership reconciliation slice.
 * Define stable database permission names and map them to SQL Server logins,
   database users, roles, and provider-specific identity integration.
-* Add workload credential delivery or a broker path so resource identities can
-  use reconciled SQL-side authorization without configured SQL credentials.
+* Harden the experimental workload credential broker path so resource
+  identities can use reconciled SQL-side authorization without configured SQL
+  credentials.
+* Add rotation cleanup, revocation reconciliation, and explicit credential
+  lifetime diagnostics to the provider-backed SQL credential resolver flow.
+* Replace direct host endpoint mapping with a provider-owned HTTP endpoint
+  registration surface for SQL Server credential broker endpoints.
+* Spike whether `SqlAuthenticationProvider` can participate in a future
+  token-validating SQL broker path without coupling the MVP to SqlClient
+  internals.
 * Define provider-owned backup/restore and maintenance operations.
 * Split runtime container diagnostics from the SQL Server managed resource
   surface.

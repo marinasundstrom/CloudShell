@@ -794,6 +794,9 @@ public sealed class SampleSmokeTests
         Assert.Contains("Declared by code for this host process.", apiEnvironmentHtml);
         Assert.Contains("ApplicationTopology__SqlServer__Database", apiEnvironmentHtml);
         Assert.Contains("application_topology", apiEnvironmentHtml);
+        Assert.Contains("ApplicationTopology__SqlServer__Authentication", apiEnvironmentHtml);
+        Assert.Contains("CloudShell", apiEnvironmentHtml);
+        Assert.Contains("CLOUDSHELL_SQL_CREDENTIAL_ENDPOINT", apiEnvironmentHtml);
         Assert.Contains("ApplicationTopology__SqlServer__Password", apiEnvironmentHtml);
         Assert.Contains("Stored value hidden", apiEnvironmentHtml);
         Assert.DoesNotContain("CloudShell-Passw0rd!", apiEnvironmentHtml);
@@ -949,9 +952,14 @@ public sealed class SampleSmokeTests
         var databasesTabId = new ResourceViewId(ResourceTabGroupIds.Application, "databases");
         var sqlDatabasesHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(databasesTabId.Value)}");
+        Assert.Contains("<th>Database</th>", sqlDatabasesHtml);
+        Assert.Contains("<th>Type</th>", sqlDatabasesHtml);
+        Assert.Contains("<th>State</th>", sqlDatabasesHtml);
+        Assert.Contains("<th>Verification</th>", sqlDatabasesHtml);
         Assert.Contains("Application Topology", sqlDatabasesHtml);
         Assert.Contains("Declared database", sqlDatabasesHtml);
-        Assert.Contains("Database: application_topology", sqlDatabasesHtml);
+        Assert.Contains("application_topology", sqlDatabasesHtml);
+        Assert.Contains("not reported", sqlDatabasesHtml);
         Assert.Contains("Existence not verified", sqlDatabasesHtml);
         Assert.Contains("Declared databases are shown until the SQL Server instance is running.", sqlDatabasesHtml);
 
@@ -1150,6 +1158,27 @@ public sealed class SampleSmokeTests
             Assert.Equal("ok", upstream.GetProperty("database").GetProperty("status").GetString());
             Assert.Equal("mssql", upstream.GetProperty("database").GetProperty("provider").GetString());
             Assert.Equal("application_topology", upstream.GetProperty("database").GetProperty("database").GetString());
+
+            var eventsJson = await host.GetStringAsync(
+                "/api/control-plane/v1/resource-events?resourceId=application%3Aapplication-topology-sql-server");
+            using var eventsDocument = JsonDocument.Parse(eventsJson);
+            var credentialEvent = Assert.Single(
+                eventsDocument.RootElement.EnumerateArray(),
+                resourceEvent => string.Equals(
+                    resourceEvent.GetProperty("eventType").GetString(),
+                    "event.provider.applications.sql-server.credential.resolved",
+                    StringComparison.OrdinalIgnoreCase));
+            Assert.Equal(
+                "application:application-topology-sql-server",
+                credentialEvent.GetProperty("resourceId").GetString());
+            Assert.Equal("Information", credentialEvent.GetProperty("severity").GetString());
+            Assert.Contains(
+                "application_topology",
+                credentialEvent.GetProperty("message").GetString() ?? string.Empty);
+            Assert.DoesNotContain(
+                "Password=",
+                credentialEvent.GetProperty("message").GetString() ?? string.Empty,
+                StringComparison.OrdinalIgnoreCase);
 
             var databasesTabId = new ResourceViewId(ResourceTabGroupIds.Application, "databases");
             var sqlDatabasesHtml = await host.GetStringAsync(

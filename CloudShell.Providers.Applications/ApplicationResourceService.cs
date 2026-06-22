@@ -11,6 +11,7 @@ using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -1370,6 +1371,126 @@ public sealed partial class ApplicationResourceService(
         return databases;
     }
 
+    public async Task<SqlServerCredentialResolutionResult> ResolveSqlServerCredentialAsync(
+        string sqlServerResourceName,
+        string databaseName,
+        string permission,
+        ClaimsPrincipal principal,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sqlServerResourceName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(databaseName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(permission);
+        ArgumentNullException.ThrowIfNull(principal);
+
+        if (principal.Identity?.IsAuthenticated != true)
+        {
+            throw new UnauthorizedAccessException("A CloudShell resource identity token is required.");
+        }
+
+        var application = ResolveSqlServerApplication(sqlServerResourceName);
+        if (application is null)
+        {
+            throw new InvalidOperationException(
+                $"SQL Server resource '{sqlServerResourceName}' could not be found.");
+        }
+
+        var subject = GetPrincipalSubject(principal);
+
+        if (!application.SqlDatabases.Any(database =>
+                string.Equals(database.Name, databaseName, StringComparison.OrdinalIgnoreCase)))
+        {
+            AppendSqlServerCredentialEvent(
+                application,
+                "credential.request.denied",
+                $"Credential request for database '{databaseName}' was denied because the database is not declared.",
+                subject,
+                ResourceSignalSeverity.Warning);
+            throw new InvalidOperationException(
+                $"SQL Server resource '{application.Name}' does not declare database '{databaseName}'.");
+        }
+
+        if (!ResourcePermissionClaimAuthorization.HasResourcePermission(
+                principal,
+                application.Id,
+                permission))
+        {
+            AppendSqlServerCredentialEvent(
+                application,
+                "credential.request.denied",
+                $"Credential request for database '{databaseName}' was denied because principal '{subject}' does not have '{permission}'.",
+                subject,
+                ResourceSignalSeverity.Warning);
+            throw new UnauthorizedAccessException(
+                $"The current CloudShell principal cannot resolve SQL credentials for resource '{application.Name}'.");
+        }
+
+        if (!IsRunning(application.Id))
+        {
+            AppendSqlServerCredentialEvent(
+                application,
+                "credential.request.failed",
+                $"Credential request for database '{databaseName}' failed because the SQL Server resource is not running.",
+                subject,
+                ResourceSignalSeverity.Warning);
+            throw new InvalidOperationException(
+                $"SQL Server resource '{application.Name}' must be running before credentials can be resolved.");
+        }
+
+        var serverResource = GetResources().FirstOrDefault(resource =>
+            string.Equals(resource.Id, application.Id, StringComparison.OrdinalIgnoreCase));
+        if (serverResource is null ||
+            !serverResource.TryGetResolvedEndpointUri("tds", out var endpoint) ||
+            !TryCreateSqlServerConnectionString(application, serverResource, "master", out var masterConnectionString))
+        {
+            AppendSqlServerCredentialEvent(
+                application,
+                "credential.request.failed",
+                $"Credential request for database '{databaseName}' failed because the TDS endpoint or administrator password is not available.",
+                subject,
+                ResourceSignalSeverity.Warning);
+            throw new InvalidOperationException(
+                $"SQL Server resource '{application.Name}' cannot resolve credentials because its TDS endpoint or administrator password is not available.");
+        }
+
+        var userName = CreateSqlServerManagedUserNameFromPrincipalSubject(subject, application.Id, permission);
+        var password = CreateSqlServerCredentialPassword();
+        var expiresOn = DateTimeOffset.UtcNow.AddMinutes(15);
+
+        await EnsureSqlServerCredentialLoginAsync(
+            application,
+            masterConnectionString,
+            userName,
+            password,
+            cancellationToken);
+        await EnsureSqlServerCredentialDatabaseUserAsync(
+            application,
+            serverResource,
+            databaseName,
+            userName,
+            cancellationToken);
+
+        var connectionString = new SqlConnectionStringBuilder
+        {
+            DataSource = CreateSqlDataSource(endpoint),
+            InitialCatalog = databaseName.Trim(),
+            UserID = userName,
+            Password = password,
+            Encrypt = false,
+            TrustServerCertificate = true,
+            ConnectTimeout = 5
+        }.ConnectionString;
+
+        AppendSqlServerCredentialEvent(
+            application,
+            "credential.resolved",
+            $"Credential resolved for database '{databaseName}' for principal '{subject}' with permission '{permission}'.",
+            subject,
+            ResourceSignalSeverity.Info);
+
+        return new SqlServerCredentialResolutionResult(connectionString, expiresOn);
+    }
+
     public bool CanDescribe(Resource resource) =>
         ApplicationResourceTypes.IsApplication(resource.EffectiveTypeId) &&
         store.GetApplication(resource.Id) is not null;
@@ -2336,7 +2457,7 @@ public sealed partial class ApplicationResourceService(
                 ? new ResourcePermissionGrantStatus(
                     request.Grant,
                     ResourcePermissionGrantEffectivenessState.Applied,
-                    "SQL Server database users and read/write role memberships are present for declared databases. Workload credential delivery remains provider-owned future work.",
+                    "SQL Server database users and read/write role memberships are present for declared databases. Provider-owned credential delivery is available through the SQL Server credential broker.",
                     ApplicationResourceProviderIds.SqlServer,
                     observedAt)
                 : new ResourcePermissionGrantStatus(
@@ -2555,9 +2676,192 @@ public sealed partial class ApplicationResourceService(
         var identity = grant.ResourceIdentity
             ?? throw new InvalidOperationException("SQL Server managed user names require a resource identity grant.");
         var key = $"{identity.ResourceId}\u001f{identity.Name}\u001f{grant.TargetResourceId}\u001f{grant.Permission}";
+        return CreateSqlServerManagedUserName(key);
+    }
+
+    private static string CreateSqlServerManagedUserNameFromPrincipalSubject(
+        string subject,
+        string targetResourceId,
+        string permission)
+    {
+        var key = TryCreateBuiltInResourceIdentityGrantKey(
+            subject,
+            targetResourceId,
+            permission) ?? $"{subject}\u001f{targetResourceId}\u001f{permission}";
+        return CreateSqlServerManagedUserName(key);
+    }
+
+    private static string? TryCreateBuiltInResourceIdentityGrantKey(
+        string subject,
+        string targetResourceId,
+        string permission)
+    {
+        var separatorIndex = subject.IndexOf('/');
+        if (separatorIndex <= 0 || separatorIndex == subject.Length - 1)
+        {
+            return null;
+        }
+
+        var resourceId = subject[..separatorIndex];
+        var identityName = subject[(separatorIndex + 1)..];
+        return $"{resourceId}\u001f{identityName}\u001f{targetResourceId}\u001f{permission}";
+    }
+
+    private static string CreateSqlServerManagedUserName(string key)
+    {
         Span<byte> hash = stackalloc byte[32];
         SHA256.HashData(Encoding.UTF8.GetBytes(key), hash);
         return $"{SqlServerManagedUserPrefix}{Convert.ToHexString(hash[..10]).ToLowerInvariant()}";
+    }
+
+    private static string CreateSqlServerCredentialPassword()
+    {
+        Span<byte> bytes = stackalloc byte[24];
+        RandomNumberGenerator.Fill(bytes);
+        return $"Cs1!{Convert.ToBase64String(bytes).Replace('+', 'A').Replace('/', 'b')}";
+    }
+
+    private static string GetPrincipalSubject(ClaimsPrincipal principal)
+    {
+        var subject =
+            principal.FindFirstValue(ClaimTypes.NameIdentifier) ??
+            principal.FindFirstValue("sub") ??
+            principal.Identity?.Name;
+
+        return string.IsNullOrWhiteSpace(subject)
+            ? throw new UnauthorizedAccessException("The CloudShell resource identity token does not include a subject.")
+            : subject;
+    }
+
+    private ApplicationResourceDefinition? ResolveSqlServerApplication(string resourceNameOrId) =>
+        store.GetApplications()
+            .FirstOrDefault(application =>
+                string.Equals(application.ResourceType, ApplicationResourceTypes.SqlServer, StringComparison.OrdinalIgnoreCase) &&
+                (string.Equals(application.Id, resourceNameOrId, StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(application.Name, resourceNameOrId, StringComparison.OrdinalIgnoreCase)));
+
+    private void AppendSqlServerCredentialEvent(
+        ApplicationResourceDefinition application,
+        string eventName,
+        string message,
+        string? triggeredBy,
+        ResourceSignalSeverity severity)
+    {
+        resourceEvents?.Append(new ResourceEvent(
+            application.Id,
+            ResourceEventTypes.Events.Provider.ForEvent(ApplicationResourceProviderIds.SqlServer, eventName),
+            message,
+            DateTimeOffset.UtcNow,
+            TriggeredBy: triggeredBy,
+            Severity: severity));
+    }
+
+    private static async Task EnsureSqlServerCredentialLoginAsync(
+        ApplicationResourceDefinition server,
+        string masterConnectionString,
+        string loginName,
+        string password,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = await OpenSqlServerConnectionWithRetryAsync(
+            server,
+            masterConnectionString,
+            cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            DECLARE @sql nvarchar(max);
+
+            IF SUSER_ID(@loginName) IS NULL
+            BEGIN
+                SET @sql = N'CREATE LOGIN ' + QUOTENAME(@loginName) +
+                    N' WITH PASSWORD = ' + QUOTENAME(@password, '''') +
+                    N', CHECK_POLICY = OFF, CHECK_EXPIRATION = OFF';
+            END
+            ELSE
+            BEGIN
+                SET @sql = N'ALTER LOGIN ' + QUOTENAME(@loginName) +
+                    N' WITH PASSWORD = ' + QUOTENAME(@password, '''') +
+                    N', CHECK_POLICY = OFF, CHECK_EXPIRATION = OFF';
+            END
+
+            EXEC sp_executesql @sql;
+            """;
+        command.Parameters.AddWithValue("@loginName", loginName);
+        command.Parameters.AddWithValue("@password", password);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private async Task EnsureSqlServerCredentialDatabaseUserAsync(
+        ApplicationResourceDefinition server,
+        Resource serverResource,
+        string databaseName,
+        string userName,
+        CancellationToken cancellationToken)
+    {
+        if (!TryCreateSqlServerConnectionString(server, serverResource, databaseName, out var connectionString))
+        {
+            throw new InvalidOperationException(
+                $"SQL Server resource '{server.Name}' cannot map database access for '{databaseName}' because its TDS endpoint or administrator password is not available.");
+        }
+
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            DECLARE @authenticationType nvarchar(60) =
+            (
+                SELECT [authentication_type_desc]
+                FROM sys.database_principals
+                WHERE [name] = @userName
+            );
+
+            IF @authenticationType = N'NONE'
+            BEGIN
+                IF ISNULL(IS_ROLEMEMBER(N'db_datareader', @userName), 0) = 1
+                BEGIN
+                    DECLARE @dropReaderSql nvarchar(max) = N'ALTER ROLE [db_datareader] DROP MEMBER ' + QUOTENAME(@userName);
+                    EXEC sp_executesql @dropReaderSql;
+                END
+
+                IF ISNULL(IS_ROLEMEMBER(N'db_datawriter', @userName), 0) = 1
+                BEGIN
+                    DECLARE @dropWriterSql nvarchar(max) = N'ALTER ROLE [db_datawriter] DROP MEMBER ' + QUOTENAME(@userName);
+                    EXEC sp_executesql @dropWriterSql;
+                END
+
+                DECLARE @dropUserSql nvarchar(max) = N'DROP USER ' + QUOTENAME(@userName);
+                EXEC sp_executesql @dropUserSql;
+            END
+
+            IF USER_ID(@userName) IS NULL
+            BEGIN
+                DECLARE @createUserSql nvarchar(max) =
+                    N'CREATE USER ' + QUOTENAME(@userName) + N' FOR LOGIN ' + QUOTENAME(@userName);
+                EXEC sp_executesql @createUserSql;
+            END
+            ELSE
+            BEGIN
+                DECLARE @alterUserSql nvarchar(max) =
+                    N'ALTER USER ' + QUOTENAME(@userName) + N' WITH LOGIN = ' + QUOTENAME(@userName);
+                EXEC sp_executesql @alterUserSql;
+            END
+
+            IF ISNULL(IS_ROLEMEMBER(N'db_datareader', @userName), 0) <> 1
+            BEGIN
+                DECLARE @readerSql nvarchar(max) = N'ALTER ROLE [db_datareader] ADD MEMBER ' + QUOTENAME(@userName);
+                EXEC sp_executesql @readerSql;
+            END
+
+            IF ISNULL(IS_ROLEMEMBER(N'db_datawriter', @userName), 0) <> 1
+            BEGIN
+                DECLARE @writerSql nvarchar(max) = N'ALTER ROLE [db_datawriter] ADD MEMBER ' + QUOTENAME(@userName);
+                EXEC sp_executesql @writerSql;
+            END
+            """;
+        command.Parameters.AddWithValue("@userName", userName);
+        await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     private static string FormatSqlDatabaseList(IReadOnlyList<string> databases) =>

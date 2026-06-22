@@ -67,9 +67,12 @@ and whether the secret value was injected without returning the secret itself.
 The sample provisions the backend API and SQL Server built-in development
 resource identities on startup. It grants the API identity read access to the
 Configuration Store and Secrets Vault resources, and records a database
-read/write grant on the SQL Server resource. The current SQL runtime still uses
-the bootstrap SQL password; provider-side SQL login/user materialization from
-CloudShell grants is a future SQL Server provider capability.
+read/write grant on the SQL Server resource. The API is configured to request
+brokered SQL credentials from CloudShell at runtime, so `/database` exercises
+the CloudShell resource identity, grant check, provider-owned SQL login/user
+reconciliation, and normal `SqlConnection` flow. The API registers
+`AddCloudShellSqlServerClient(...)` and injects `CloudShellSqlConnectionFactory`
+so endpoint code does not construct the broker resolver directly.
 
 ## Run
 
@@ -236,7 +239,7 @@ Already covered by the sample:
 - Configuration Store and Secrets Vault references injected into the API
   without leaking secret values.
 - Built-in development resource identity and access grants for settings,
-  secrets, and SQL Server grant intent.
+  secrets, and SQL Server database access.
 - Local DNS/name mapping through the `local-hostnames` publisher.
 - Resource health checks, logs, traces, and the intentional failed request
   path.
@@ -251,9 +254,9 @@ Already covered by the sample:
 
 Remaining useful additions:
 
-- Provider-side SQL Server database reconciliation and grant materialization,
-  so the API can use its CloudShell resource identity to access the database
-  in an Azure-like flow.
+- Harden the experimental SQL credential broker with rotation cleanup,
+  provider-owned revocation reconciliation, and explicit credential lifetime
+  diagnostics.
 - Optional container-app variants for the frontend and API only when they prove
   a distinct local-development workflow instead of duplicating the
   project-backed path.

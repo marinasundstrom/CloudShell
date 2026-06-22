@@ -13,6 +13,9 @@ internal static class ResourceEventDisplayNames
     private const string LifecycleEventPrefix = "event.lifecycle.";
     private const string ConfigurationEventPrefix = "event.configuration.";
     private const string DeploymentEventPrefix = "event.deployment.";
+    private const string SqlCredentialResolvedEvent = "event.provider.applications.sql-server.credential.resolved";
+    private const string SqlCredentialRequestDeniedEvent = "event.provider.applications.sql-server.credential.request.denied";
+    private const string SqlCredentialRequestFailedEvent = "event.provider.applications.sql-server.credential.request.failed";
 
     public static string GetDisplayName(
         string eventType,
@@ -136,6 +139,21 @@ internal static class ResourceEventDisplayNames
         if (string.Equals(eventType, ResourceEventTypes.Events.Deployment.ReplicasUpdated, StringComparison.OrdinalIgnoreCase))
         {
             return localizer["Replicas updated"].Value;
+        }
+
+        if (string.Equals(eventType, SqlCredentialResolvedEvent, StringComparison.OrdinalIgnoreCase))
+        {
+            return localizer["SQL credential resolved"].Value;
+        }
+
+        if (string.Equals(eventType, SqlCredentialRequestDeniedEvent, StringComparison.OrdinalIgnoreCase))
+        {
+            return localizer["SQL credential request denied"].Value;
+        }
+
+        if (string.Equals(eventType, SqlCredentialRequestFailedEvent, StringComparison.OrdinalIgnoreCase))
+        {
+            return localizer["SQL credential request failed"].Value;
         }
 
         return FormatCustomEventDisplayName(eventType);

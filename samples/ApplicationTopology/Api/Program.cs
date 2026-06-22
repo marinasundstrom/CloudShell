@@ -1,9 +1,14 @@
 using CloudShell.ApplicationTopology.ServiceDefaults;
+using CloudShell.SqlServer.Client;
 using Microsoft.Data.SqlClient;
 using System.Diagnostics;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
+builder.Services.AddCloudShellSqlServerClient(options =>
+{
+    options.SqlServerResourceName = "application-topology-sql-server";
+});
 
 var app = builder.Build();
 
@@ -60,6 +65,7 @@ app.MapGet("/settings", (IConfiguration configuration) =>
 
 app.MapGet("/database", async (
     IConfiguration configuration,
+    CloudShellSqlConnectionFactory sqlConnections,
     ILoggerFactory loggerFactory,
     CancellationToken cancellationToken) =>
 {
@@ -77,8 +83,11 @@ app.MapGet("/database", async (
         "Checking SQL Server dependency at {SqlEndpoint}",
         endpoint);
 
-    await using var connection = new SqlConnection(CreateSqlConnectionString(configuration, endpoint));
-    await connection.OpenAsync(cancellationToken);
+    await using var connection = await CreateSqlConnectionAsync(
+        configuration,
+        endpoint,
+        sqlConnections,
+        cancellationToken);
     await using var command = connection.CreateCommand();
     command.CommandText = "SELECT DB_NAME(), SYSDATETIMEOFFSET()";
     await using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -131,6 +140,26 @@ app.MapGet("/failure", (ILoggerFactory loggerFactory) =>
 
 app.Run();
 
+static async ValueTask<SqlConnection> CreateSqlConnectionAsync(
+    IConfiguration configuration,
+    Uri endpoint,
+    CloudShellSqlConnectionFactory sqlConnections,
+    CancellationToken cancellationToken)
+{
+    if (UsesCloudShellSqlAuthentication(configuration))
+    {
+        var databaseName = GetSqlDatabaseName(configuration);
+        return await sqlConnections.OpenConnectionAsync(
+            "application-topology-sql-server",
+            databaseName,
+            cancellationToken);
+    }
+
+    var connection = new SqlConnection(CreateSqlConnectionString(configuration, endpoint));
+    await connection.OpenAsync(cancellationToken);
+    return connection;
+}
+
 static string CreateSqlConnectionString(IConfiguration configuration, Uri endpoint)
 {
     var builder = new SqlConnectionStringBuilder
@@ -140,13 +169,22 @@ static string CreateSqlConnectionString(IConfiguration configuration, Uri endpoi
         Password = configuration["ApplicationTopology:SqlServer:Password"]
             ?? throw new InvalidOperationException(
                 "ApplicationTopology:SqlServer:Password is required."),
-        InitialCatalog = configuration["ApplicationTopology:SqlServer:Database"] ?? "application_topology",
+        InitialCatalog = GetSqlDatabaseName(configuration),
         Encrypt = false,
         TrustServerCertificate = true,
         ConnectTimeout = 5
     };
     return builder.ConnectionString;
 }
+
+static bool UsesCloudShellSqlAuthentication(IConfiguration configuration) =>
+    string.Equals(
+        configuration["ApplicationTopology:SqlServer:Authentication"],
+        "CloudShell",
+        StringComparison.OrdinalIgnoreCase);
+
+static string GetSqlDatabaseName(IConfiguration configuration) =>
+    configuration["ApplicationTopology:SqlServer:Database"] ?? "application_topology";
 
 static string CreateSqlDataSource(Uri endpoint)
 {

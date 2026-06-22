@@ -17,6 +17,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Application Topology request-count metric panels now show a cumulative
+  `http.server.requests.total` counter instead of summing the most recent 100
+  per-request samples.
 - SQL Server overview connection strings now omit the SA password while
   keeping the password available only through the masked password field.
 - Resource Manager resource relationship cards, resource-reference pills, and

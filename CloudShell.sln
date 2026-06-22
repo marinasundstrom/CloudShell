@@ -133,6 +133,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.CompositionSandb
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.UI.Composition.Tests", "CloudShell.UI.Composition.Tests\CloudShell.UI.Composition.Tests.csproj", "{6A4600BD-37D5-4E73-937D-99CEE1646C64}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.SqlServer.Client", "CloudShell.SqlServer.Client\CloudShell.SqlServer.Client.csproj", "{2ABC6C75-FCCB-47B6-B2BB-8013AC96C10A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -671,6 +673,18 @@ Global
 		{6A4600BD-37D5-4E73-937D-99CEE1646C64}.Release|x64.Build.0 = Release|Any CPU
 		{6A4600BD-37D5-4E73-937D-99CEE1646C64}.Release|x86.ActiveCfg = Release|Any CPU
 		{6A4600BD-37D5-4E73-937D-99CEE1646C64}.Release|x86.Build.0 = Release|Any CPU
+		{2ABC6C75-FCCB-47B6-B2BB-8013AC96C10A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2ABC6C75-FCCB-47B6-B2BB-8013AC96C10A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2ABC6C75-FCCB-47B6-B2BB-8013AC96C10A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{2ABC6C75-FCCB-47B6-B2BB-8013AC96C10A}.Debug|x64.Build.0 = Debug|Any CPU
+		{2ABC6C75-FCCB-47B6-B2BB-8013AC96C10A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{2ABC6C75-FCCB-47B6-B2BB-8013AC96C10A}.Debug|x86.Build.0 = Debug|Any CPU
+		{2ABC6C75-FCCB-47B6-B2BB-8013AC96C10A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2ABC6C75-FCCB-47B6-B2BB-8013AC96C10A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2ABC6C75-FCCB-47B6-B2BB-8013AC96C10A}.Release|x64.ActiveCfg = Release|Any CPU
+		{2ABC6C75-FCCB-47B6-B2BB-8013AC96C10A}.Release|x64.Build.0 = Release|Any CPU
+		{2ABC6C75-FCCB-47B6-B2BB-8013AC96C10A}.Release|x86.ActiveCfg = Release|Any CPU
+		{2ABC6C75-FCCB-47B6-B2BB-8013AC96C10A}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
