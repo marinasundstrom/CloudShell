@@ -3265,6 +3265,50 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void ApplicationProvider_AppliesCustomApplicationDefinitionNormalizationRules()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services.AddSingleton<
+            IApplicationResourceDefinitionNormalizationRule,
+            CustomApplicationDefinitionNormalizationRule>();
+        services
+            .AddControlPlane()
+            .AddApplicationProvider(options =>
+            {
+                options.DefinitionsPath = "application-resources.json";
+                options.RuntimeStatePath = "application-runtime-state.json";
+                options.LogDirectory = "application-logs";
+            })
+            .Resources(resources =>
+            {
+                resources.AddApplicationResource(
+                    CustomApplicationResourceProvider.ProviderId,
+                    new ApplicationResourceDefinition(
+                        "application:custom-worker",
+                        "Custom Worker",
+                        "dotnet",
+                        resourceType: CustomApplicationResourceProvider.ResourceType));
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var applications = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var application = applications.GetApplication("application:custom-worker");
+        Assert.NotNull(application);
+        Assert.Contains(
+            application.EnvironmentVariables,
+            variable => variable.Name == "CUSTOM_RULE" && variable.Value == "applied");
+        Assert.Equal(["configuration:external"], application.DependsOn);
+        var endpoint = Assert.Single(application.EndpointPorts);
+        Assert.Equal("custom", endpoint.Name);
+        Assert.Equal("http", endpoint.Protocol);
+        Assert.Equal(9000, endpoint.TargetPort);
+        Assert.Equal(5900, endpoint.Port);
+    }
+
+    [Fact]
     public void ApplicationResourceDefinitionBuilder_ProducesContainerBackedDefinition()
     {
         var definition = ApplicationResourceDefinitionBuilder
@@ -11390,6 +11434,39 @@ public sealed class ResourceDeclarationTests
             ApplicationResourceProjectionSupport.FirstNonEmpty(application.Name, application.Id)?
                 .ToLowerInvariant()
                 .Replace(' ', '-') ?? "custom";
+    }
+
+    private sealed class CustomApplicationDefinitionNormalizationRule :
+        IApplicationResourceDefinitionNormalizationRule
+    {
+        public bool AppliesTo(ApplicationResourceDefinition definition) =>
+            string.Equals(
+                definition.ResourceType,
+                CustomApplicationResourceProvider.ResourceType,
+                StringComparison.OrdinalIgnoreCase);
+
+        public ApplicationResourceDefinition Normalize(
+            ApplicationResourceDefinition definition,
+            ApplicationResourceDefinitionNormalizationContext context) =>
+            definition with
+            {
+                DependsOn =
+                [
+                    ..definition.DependsOn,
+                    " configuration:external ",
+                    definition.Id
+                ],
+                EnvironmentVariables =
+                [
+                    ..definition.EnvironmentVariables,
+                    new EnvironmentVariableAssignment("CUSTOM_RULE", "applied")
+                ],
+                EndpointPorts =
+                [
+                    ..definition.EndpointPorts,
+                    new ServicePort("custom", 9000, 5900, "HTTP")
+                ]
+            };
     }
 
     private sealed class TestHostEnvironment(string contentRootPath) : IHostEnvironment

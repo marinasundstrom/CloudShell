@@ -92,6 +92,10 @@ on `git blame --follow`, and then by the broad type of change.
   definition normalization isolated in `ApplicationResourceDefinitionNormalizer`
   while Resource Manager registration, grouping, and dependency synchronization
   remain on the same path used by other resources.
+- Application definition normalization now supports provider/type-specific
+  `IApplicationResourceDefinitionNormalizationRule` implementations, with the
+  built-in project, ASP.NET Core endpoint, container-backed, and SQL Server
+  defaults moved out of the shared normalizer.
 - Application resource docs now frame the provider direction as a composable
   toolkit for custom resources backed by local executables, ad-hoc containers,
   or Resource Manager-managed sub-resources with default lifecycle,

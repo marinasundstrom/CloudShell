@@ -625,11 +625,11 @@ listed here before pulling in broader proposal work.
    `ApplicationResourceDefinitionRegistrationService`, while resource identity,
    grouping, and dependency synchronization still flow through the normal
    Resource Manager registration model used by every resource. Definition
-   normalization is isolated in `ApplicationResourceDefinitionNormalizer`.
-   That normalizer is still hardcoded for built-in application resource types;
-   before this becomes a public toolkit surface, replace those conditionals
-   with provider/type normalization rules that external providers can
-   contribute.
+   normalization is isolated in `ApplicationResourceDefinitionNormalizer`, with
+   provider/type-specific defaults contributed through
+   `IApplicationResourceDefinitionNormalizationRule` implementations. Future
+   slices should continue tightening the built-in rules into provider-owned
+   services where they need runtime dependencies or provider-private behavior.
    The destination is a composable application-resource toolkit: external
    providers should be able to declare their own stable resource type, choose a
    local executable, ad-hoc container, or Resource Manager-managed sub-resource

@@ -1,248 +1,94 @@
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.Hosting;
-using System.Globalization;
-using System.Text.Json;
 
 namespace CloudShell.Providers.Applications;
 
-public sealed class ApplicationResourceDefinitionNormalizer(IHostEnvironment environment)
+public sealed class ApplicationResourceDefinitionNormalizer(
+    IHostEnvironment environment,
+    IEnumerable<IApplicationResourceDefinitionNormalizationRule>? rules = null)
 {
+    private readonly ApplicationResourceDefinitionNormalizationContext context = new(environment);
+    private readonly IReadOnlyList<IApplicationResourceDefinitionNormalizationRule> rules = CreateRules(rules);
+
     public ApplicationResourceDefinition Normalize(ApplicationResourceDefinition definition)
     {
         var id = NormalizeApplicationId(definition.Id, definition.Name);
         var resourceType = NormalizeResourceType(definition.ResourceType);
-        var isAspNetCoreProject = string.Equals(
-            resourceType,
-            ApplicationResourceTypes.AspNetCoreProject,
-            StringComparison.OrdinalIgnoreCase);
-        var isProjectBacked = isAspNetCoreProject || definition.ProjectContainerBuild;
-        var legacyProjectPath = isAspNetCoreProject
-            ? ApplicationProcessDefinitions.TryExtractProjectPathFromDotNetArguments(definition.Arguments)
-            : null;
-        var projectPath = isProjectBacked
-            ? NormalizeNullable(definition.ProjectPath) ?? legacyProjectPath
-            : null;
-        var replicasEnabled = IsContainerBacked(definition) &&
-            (definition.ReplicasEnabled || definition.Replicas > 1);
 
-        return definition with
+        var normalized = definition with
         {
             Id = id,
             Name = definition.Name.Trim(),
-            ExecutablePath = isProjectBacked ? string.Empty : definition.ExecutablePath.Trim(),
-            Arguments = isProjectBacked ? null : NormalizeNullable(definition.Arguments),
+            ExecutablePath = definition.ExecutablePath.Trim(),
+            Arguments = NormalizeNullable(definition.Arguments),
             WorkingDirectory = NormalizeNullable(definition.WorkingDirectory),
             Endpoint = NormalizeNullable(definition.Endpoint),
             Lifetime = definition.Lifetime,
             UseServiceDiscovery = definition.UseServiceDiscovery,
             ContainerImage = NormalizeNullable(definition.ContainerImage),
-            ContainerRegistry = IsContainerBacked(definition)
-                ? NormalizeContainerRegistry(definition.ContainerRegistry)
-                : null,
-            ContainerRegistryCredentials = IsContainerBacked(definition)
-                ? ContainerRegistryCredentials.Normalize(definition.ContainerRegistryCredentials)
-                : null,
+            ContainerRegistry = NormalizeNullable(definition.ContainerRegistry),
+            ContainerRegistryCredentials = definition.ContainerRegistryCredentials,
             ContainerBuildContext = NormalizeNullable(definition.ContainerBuildContext),
             ContainerDockerfile = NormalizeNullable(definition.ContainerDockerfile),
-            ProjectContainerBuild = isProjectBacked &&
-                string.IsNullOrWhiteSpace(definition.ContainerImage) &&
-                definition.ProjectContainerBuild,
+            ProjectContainerBuild = definition.ProjectContainerBuild,
             ContainerHostId = NormalizeNullable(definition.ContainerHostId),
-            ContainerRevision = NormalizeNullable(definition.ContainerRevision) ??
-                (IsContainerBacked(definition) ? CreateContainerRevision() : null),
+            ContainerRevision = NormalizeNullable(definition.ContainerRevision),
             Replicas = Math.Max(1, definition.Replicas),
-            ReplicasEnabled = replicasEnabled,
+            ReplicasEnabled = definition.ReplicasEnabled,
             ResourceType = resourceType,
-            ProjectPath = projectPath,
-            ProjectArguments = isProjectBacked
-                ? NormalizeNullable(definition.ProjectArguments) ??
-                    ApplicationProcessDefinitions.TryExtractApplicationArgumentsFromDotNetArguments(definition.Arguments)
-                : null,
-            AspNetCoreHotReload = isProjectBacked
-                ? ApplicationProcessDefinitions.ResolveAspNetCoreHotReload(definition)
-                : definition.AspNetCoreHotReload,
-            UseLaunchSettingsEndpoints = isAspNetCoreProject &&
-                definition.UseLaunchSettingsEndpoints,
-            DependsOn = NormalizeDependencies(definition.DependsOn, id),
-            References = NormalizeReferences(definition.References, id),
-            EndpointPorts = ResolveEndpointPorts(
-                definition.EndpointPorts,
-                resourceType,
-                definition.Endpoint,
-                projectPath,
-                definition.UseLaunchSettingsEndpoints),
-            HealthChecks = ApplicationHealthRecoveryDeclarations.NormalizeHealthChecks(definition.HealthChecks),
-            RecoveryPolicies = ApplicationHealthRecoveryDeclarations.NormalizeRecoveryPolicies(definition.RecoveryPolicies),
-            Observability = NormalizeObservability(definition.Observability),
-            AppSettings = ApplicationConfigurationReferences.NormalizeAppSettings(definition.AppSettings),
-            EnvironmentVariables = ApplicationConfigurationReferences.NormalizeEnvironmentVariables(definition.EnvironmentVariables),
-            VolumeMounts = NormalizeVolumeMounts(definition.VolumeMounts),
-            SqlDatabases = NormalizeSqlDatabases(definition.SqlDatabases),
-            LogSources = ApplicationLogSources.Normalize(definition.LogSources)
+            ProjectPath = NormalizeNullable(definition.ProjectPath),
+            ProjectArguments = NormalizeNullable(definition.ProjectArguments),
+            AspNetCoreHotReload = definition.AspNetCoreHotReload,
+            UseLaunchSettingsEndpoints = definition.UseLaunchSettingsEndpoints,
+            EndpointPorts = NormalizeEndpointPorts(definition.EndpointPorts),
+            SqlDatabases = definition.SqlDatabases,
+        };
+
+        normalized = ApplyRules(normalized);
+
+        return normalized with
+        {
+            DependsOn = NormalizeDependencies(normalized.DependsOn, normalized.Id),
+            References = NormalizeReferences(normalized.References, normalized.Id),
+            EndpointPorts = NormalizeEndpointPorts(normalized.EndpointPorts),
+            HealthChecks = ApplicationHealthRecoveryDeclarations.NormalizeHealthChecks(normalized.HealthChecks),
+            RecoveryPolicies = ApplicationHealthRecoveryDeclarations.NormalizeRecoveryPolicies(normalized.RecoveryPolicies),
+            Observability = NormalizeObservability(normalized.Observability),
+            AppSettings = ApplicationConfigurationReferences.NormalizeAppSettings(normalized.AppSettings),
+            EnvironmentVariables = ApplicationConfigurationReferences.NormalizeEnvironmentVariables(normalized.EnvironmentVariables),
+            VolumeMounts = NormalizeVolumeMounts(normalized.VolumeMounts),
+            SqlDatabases = normalized.SqlDatabases,
+            LogSources = ApplicationLogSources.Normalize(normalized.LogSources)
         };
     }
 
     public ApplicationResourceDefinition Resolve(ApplicationResourceDefinition definition)
     {
-        if (!ApplicationResourceTypes.IsAspNetCoreProject(definition.ResourceType) ||
-            definition.EndpointPorts.Count > 0)
+        var resolved = definition;
+        foreach (var rule in rules)
         {
-            return definition;
-        }
-
-        var endpointPorts = definition.UseLaunchSettingsEndpoints
-            ? TryReadLaunchSettingsEndpointPorts(definition.ProjectPath)
-            : [];
-        return endpointPorts.Count == 0
-            ? definition with
+            if (rule.AppliesTo(resolved))
             {
-                EndpointPorts = ApplicationProviderServiceCollectionExtensions.CreateAspNetCoreProjectEndpointPorts(definition.Endpoint)
-            }
-            : definition with { EndpointPorts = endpointPorts };
-    }
-
-    private IReadOnlyList<ServicePort> ResolveEndpointPorts(
-        IReadOnlyList<ServicePort> ports,
-        string resourceType,
-        string? endpoint,
-        string? projectPath,
-        bool useLaunchSettingsEndpoints)
-    {
-        var normalized = NormalizeEndpointPorts(ports);
-        if (normalized.Count > 0 ||
-            !string.Equals(resourceType, ApplicationResourceTypes.AspNetCoreProject, StringComparison.OrdinalIgnoreCase))
-        {
-            return normalized;
-        }
-
-        if (useLaunchSettingsEndpoints)
-        {
-            var launchSettingsPorts = TryReadLaunchSettingsEndpointPorts(projectPath);
-            if (launchSettingsPorts.Count > 0)
-            {
-                return launchSettingsPorts;
+                resolved = rule.Resolve(resolved, context);
             }
         }
 
-        return ApplicationProviderServiceCollectionExtensions.CreateAspNetCoreProjectEndpointPorts(endpoint);
+        return resolved;
     }
 
-    private IReadOnlyList<ServicePort> TryReadLaunchSettingsEndpointPorts(string? projectPath)
+    private ApplicationResourceDefinition ApplyRules(ApplicationResourceDefinition definition)
     {
-        var launchSettingsPath = ResolveLaunchSettingsPath(projectPath);
-        if (launchSettingsPath is null ||
-            !File.Exists(launchSettingsPath))
+        var normalized = definition;
+        foreach (var rule in rules)
         {
-            return [];
-        }
-
-        try
-        {
-            using var document = JsonDocument.Parse(File.ReadAllText(launchSettingsPath));
-            if (!document.RootElement.TryGetProperty("profiles", out var profiles) ||
-                profiles.ValueKind != JsonValueKind.Object)
+            if (rule.AppliesTo(normalized))
             {
-                return [];
-            }
-
-            var profileElements = profiles
-                .EnumerateObject()
-                .Select(profile => profile.Value)
-                .Where(profile => profile.ValueKind == JsonValueKind.Object)
-                .ToArray();
-            var orderedProfiles = profileElements
-                .Where(IsProjectLaunchProfile)
-                .Concat(profileElements.Where(profile => !IsProjectLaunchProfile(profile)));
-            foreach (var profile in orderedProfiles)
-            {
-                if (!profile.TryGetProperty("applicationUrl", out var applicationUrl) ||
-                    applicationUrl.ValueKind != JsonValueKind.String)
-                {
-                    continue;
-                }
-
-                var endpointPorts = CreateLaunchSettingsEndpointPorts(applicationUrl.GetString());
-                if (endpointPorts.Count > 0)
-                {
-                    return endpointPorts;
-                }
+                normalized = rule.Normalize(normalized, context);
             }
         }
-        catch (JsonException)
-        {
-            return [];
-        }
-        catch (IOException)
-        {
-            return [];
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return [];
-        }
 
-        return [];
-    }
-
-    private string? ResolveLaunchSettingsPath(string? projectPath)
-    {
-        if (string.IsNullOrWhiteSpace(projectPath))
-        {
-            return null;
-        }
-
-        var resolvedProjectPath = Path.IsPathRooted(projectPath)
-            ? projectPath
-            : Path.GetFullPath(projectPath, environment.ContentRootPath);
-        var projectDirectory = Directory.Exists(resolvedProjectPath)
-            ? resolvedProjectPath
-            : Path.GetDirectoryName(resolvedProjectPath);
-        return string.IsNullOrWhiteSpace(projectDirectory)
-            ? null
-            : Path.Combine(projectDirectory, "Properties", "launchSettings.json");
-    }
-
-    private static bool IsProjectLaunchProfile(JsonElement profile) =>
-        profile.TryGetProperty("commandName", out var commandName) &&
-        commandName.ValueKind == JsonValueKind.String &&
-        string.Equals(commandName.GetString(), "Project", StringComparison.OrdinalIgnoreCase);
-
-    private static IReadOnlyList<ServicePort> CreateLaunchSettingsEndpointPorts(string? applicationUrl)
-    {
-        if (string.IsNullOrWhiteSpace(applicationUrl))
-        {
-            return [];
-        }
-
-        var ports = new List<ServicePort>();
-        var names = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        foreach (var value in applicationUrl.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-        {
-            if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) ||
-                uri.Port <= 0)
-            {
-                continue;
-            }
-
-            var protocol = string.IsNullOrWhiteSpace(uri.Scheme) ? "http" : uri.Scheme;
-            var name = CreateLaunchSettingsEndpointName(protocol, names);
-            ports.Add(new ServicePort(name, uri.Port, uri.Port, protocol, ResourceExposureScope.Local));
-        }
-
-        return ports;
-    }
-
-    private static string CreateLaunchSettingsEndpointName(
-        string protocol,
-        Dictionary<string, int> names)
-    {
-        names.TryGetValue(protocol, out var count);
-        count++;
-        names[protocol] = count;
-        return count == 1
-            ? protocol
-            : $"{protocol}-{count.ToString(CultureInfo.InvariantCulture)}";
+        return normalized;
     }
 
     private static IReadOnlyList<ServicePort> NormalizeEndpointPorts(IReadOnlyList<ServicePort> ports) =>
@@ -276,17 +122,6 @@ public sealed class ApplicationResourceDefinitionNormalizer(IHostEnvironment env
             })
             .ToArray();
 
-    private static IReadOnlyList<SqlServerDatabaseDefinition> NormalizeSqlDatabases(
-        IReadOnlyList<SqlServerDatabaseDefinition> databases) =>
-        databases
-            .Where(database => !string.IsNullOrWhiteSpace(database.Name))
-            .Select(database => new SqlServerDatabaseDefinition(
-                database.Name.Trim(),
-                NormalizeNullable(database.DisplayName)))
-            .GroupBy(database => database.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.First())
-            .ToArray();
-
     private static ResourceObservability? NormalizeObservability(ResourceObservability? observability)
     {
         if (observability is null)
@@ -311,18 +146,10 @@ public sealed class ApplicationResourceDefinitionNormalizer(IHostEnvironment env
         };
     }
 
-    private static bool IsContainerBacked(ApplicationResourceDefinition application) =>
-        !string.IsNullOrWhiteSpace(application.ContainerImage) ||
-        application.ProjectContainerBuild ||
-        !string.IsNullOrWhiteSpace(application.ContainerBuildContext);
-
-    private static string NormalizeContainerRegistry(string? registry) =>
-        NormalizeNullable(registry) ?? ContainerRegistryDefaults.Default;
-
     private static string NormalizeResourceType(string? resourceType) =>
-        ApplicationResourceTypes.IsApplication(resourceType)
-            ? resourceType!.Trim()
-            : ApplicationResourceTypes.ExecutableApplication;
+        string.IsNullOrWhiteSpace(resourceType)
+            ? ApplicationResourceTypes.ExecutableApplication
+            : resourceType.Trim();
 
     private static string NormalizeApplicationId(string? id, string name)
     {
@@ -366,6 +193,21 @@ public sealed class ApplicationResourceDefinitionNormalizer(IHostEnvironment env
     private static string? NormalizeNullable(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
-    private static string CreateContainerRevision() =>
-        $"rev-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..27];
+    private static IReadOnlyList<IApplicationResourceDefinitionNormalizationRule> CreateRules(
+        IEnumerable<IApplicationResourceDefinitionNormalizationRule>? rules)
+    {
+        var configuredRules = rules?.ToArray();
+        if (configuredRules is { Length: > 0 })
+        {
+            return configuredRules;
+        }
+
+        return
+        [
+            new ProjectBackedApplicationResourceDefinitionNormalizationRule(),
+            new AspNetCoreProjectEndpointNormalizationRule(),
+            new ContainerBackedApplicationResourceDefinitionNormalizationRule(),
+            new SqlServerApplicationResourceDefinitionNormalizationRule()
+        ];
+    }
 }

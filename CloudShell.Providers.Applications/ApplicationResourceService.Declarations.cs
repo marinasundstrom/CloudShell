@@ -43,8 +43,15 @@ public sealed partial class ApplicationResourceService
             return Task.CompletedTask;
         }
 
+        var dependencies = declaredApplication.Definition.DependsOn
+            .Concat(declaration.DependsOn)
+            .Where(dependency => !string.IsNullOrWhiteSpace(dependency))
+            .Select(dependency => dependency.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
         return SetupApplicationAsync(
-            declaredApplication.Definition with { DependsOn = declaration.DependsOn },
+            declaredApplication.Definition with { DependsOn = dependencies },
             declaration.ResourceGroupId,
             registrations,
             cancellationToken);

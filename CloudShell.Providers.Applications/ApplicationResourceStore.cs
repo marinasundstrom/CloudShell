@@ -12,14 +12,19 @@ public sealed class ApplicationResourceStore
 
     private readonly object _gate = new();
     private readonly string _definitionsPath;
+    private readonly ApplicationResourceDefinitionNormalizer _normalizer;
     private List<ApplicationResourceDefinition> _definitions;
 
     public ApplicationResourceStore(
         ApplicationProviderOptions options,
-        IHostEnvironment environment)
+        IHostEnvironment environment,
+        ApplicationResourceDefinitionNormalizer? normalizer = null)
     {
         _definitionsPath = ResolvePath(options.DefinitionsPath, environment.ContentRootPath);
-        _definitions = LoadDefinitions();
+        _normalizer = normalizer ?? new ApplicationResourceDefinitionNormalizer(environment);
+        _definitions = LoadDefinitions()
+            .Select(_normalizer.Normalize)
+            .ToList();
 
         foreach (var application in options.InitialApplications)
         {
@@ -59,6 +64,7 @@ public sealed class ApplicationResourceStore
     {
         lock (_gate)
         {
+            definition = _normalizer.Normalize(definition);
             var index = _definitions.FindIndex(application =>
                 string.Equals(application.Id, definition.Id, StringComparison.OrdinalIgnoreCase));
             if (index >= 0)
@@ -115,6 +121,7 @@ public sealed class ApplicationResourceStore
         bool mergeEnvironment,
         bool replaceExisting = true)
     {
+        definition = _normalizer.Normalize(definition);
         var index = _definitions.FindIndex(item =>
             string.Equals(item.Id, definition.Id, StringComparison.OrdinalIgnoreCase));
         if (index >= 0)
@@ -127,6 +134,7 @@ public sealed class ApplicationResourceStore
             var updated = mergeEnvironment
                 ? MergeInitialApplication(_definitions[index], definition)
                 : definition;
+            updated = _normalizer.Normalize(updated);
             if (!Equals(_definitions[index], updated))
             {
                 _definitions[index] = updated;

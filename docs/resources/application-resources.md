@@ -168,14 +168,16 @@ behind dedicated services and adapters only when a concrete external resource
 author would otherwise need to duplicate behavior or depend on provider-private
 details.
 
-`ApplicationResourceDefinitionNormalizer` is a transitional extraction. It
-currently centralizes several hardcoded resource-type branches for executable,
-ASP.NET Core project, container app, and SQL Server definitions. Before the
-application-resource package becomes a public toolkit, these branches should
-move behind provider/type-specific normalization rules so external resource
-authors can contribute their own defaults without editing the built-in
-application provider facade or making application-backed resources behave
-differently at registration time.
+`ApplicationResourceDefinitionNormalizer` owns the shared hygiene pass for
+application-backed definitions, such as identity, dependencies, endpoints, log
+sources, health declarations, storage mounts, and configuration references.
+Provider/type-specific defaults are applied through
+`IApplicationResourceDefinitionNormalizationRule` implementations. The built-in
+rules currently cover project-backed applications, ASP.NET Core project
+endpoint discovery, container-backed defaults, and SQL Server database
+metadata. External providers can contribute their own rules without editing
+the built-in application provider facade or making application-backed
+resources behave differently at registration time.
 
 ## Endpoint And Exposure Model
 
