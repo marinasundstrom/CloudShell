@@ -1,0 +1,66 @@
+<section class="@CssClass" @attributes="AdditionalAttributes">
+    @if (HeadingContent is not null)
+    {
+        @HeadingContent
+    }
+    else
+    {
+        <div>
+            @if (!string.IsNullOrWhiteSpace(Eyebrow))
+            {
+                <span class="eyebrow">@Eyebrow</span>
+            }
+            <h1>@Title</h1>
+            @if (!string.IsNullOrWhiteSpace(Description))
+            {
+                <p>@Description</p>
+            }
+        </div>
+    }
+    @if (ShowActions && Actions is not null)
+    {
+        @if (string.IsNullOrWhiteSpace(ActionsClass))
+        {
+            @Actions
+        }
+        else
+        {
+            <div class="@ActionsClass">
+                @Actions
+            </div>
+        }
+    }
+</section>
+
+@code {
+    [Parameter]
+    public string? Eyebrow { get; set; }
+
+    [Parameter]
+    public string? Title { get; set; }
+
+    [Parameter]
+    public string? Description { get; set; }
+
+    [Parameter]
+    public RenderFragment? HeadingContent { get; set; }
+
+    [Parameter]
+    public RenderFragment? Actions { get; set; }
+
+    [Parameter]
+    public bool ShowActions { get; set; } = true;
+
+    [Parameter]
+    public string? ActionsClass { get; set; } = "heading-actions";
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string CssClass => string.IsNullOrWhiteSpace(Class)
+        ? "page-heading compact"
+        : $"page-heading compact {Class}";
+}

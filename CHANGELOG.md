@@ -46,6 +46,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource-scoped activity, telemetry, monitoring, health, and service graph
   views now share a small resource activity header component instead of
   repeating the same inline title and action layout.
+- Shell, observability, and Resource Manager pages now use a shared compact
+  page heading component for standard eyebrow, title, description, and action
+  layouts.
 - Summary metric cards now support compact rendering, and summary metric cards
   and grids own their styling through component-scoped CSS instead of
   page-level hand-coded markup.

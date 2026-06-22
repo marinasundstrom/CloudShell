@@ -9,15 +9,11 @@
 
 <PageTitle>@L["Create resource group"]</PageTitle>
 
-<section class="page-heading compact">
-    <div>
-        <span class="eyebrow">@L["Resource Manager"]</span>
-        <h1>@L["Create resource group"]</h1>
-        <p>@(IsReadOnly
-            ? L["Resource Manager is in read-only mode. Resource group creation is disabled in this UI."]
-            : L["Create a project boundary for organizing resources across resource types."])</p>
-    </div>
-</section>
+<PageHeading Eyebrow="@L["Resource Manager"].Value"
+             Title="@L["Create resource group"].Value"
+             Description="@(IsReadOnly
+                 ? L["Resource Manager is in read-only mode. Resource group creation is disabled in this UI."].Value
+                 : L["Create a project boundary for organizing resources across resource types."].Value)" />
 
 @if (IsReadOnly)
 {

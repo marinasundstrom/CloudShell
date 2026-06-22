@@ -6,13 +6,9 @@
 
 <PageTitle>@L["Settings"]</PageTitle>
 
-<section class="page-heading compact">
-    <div>
-        <span class="eyebrow">@L["Platform"]</span>
-        <h1>@L["Settings"]</h1>
-        <p>@L["Configure CloudShell shell behavior and platform extension surfaces from one place."]</p>
-    </div>
-</section>
+<PageHeading Eyebrow="@L["Platform"].Value"
+             Title="@L["Settings"].Value"
+             Description="@L["Configure CloudShell shell behavior and platform extension surfaces from one place."].Value" />
 
 <CloudShellCompositionSectionTabbedLayout Page="@ShellCompositionIds.SettingsPage"
                                           Outlet="@ShellCompositionIds.SettingsMainOutlet"

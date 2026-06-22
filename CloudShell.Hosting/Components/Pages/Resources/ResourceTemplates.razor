@@ -21,18 +21,15 @@
             CloudShellPermissions.ResourceGroups.Create);
 }
 
-<section class="page-heading compact">
-    <div>
-        <span class="eyebrow">@L["Resource Manager"]</span>
-        <h1>@L["Resource templates"]</h1>
-        <p>@L["Export resource groups as portable templates and import templates through providers that support the resource type."]</p>
-    </div>
-    <div class="heading-actions">
+<PageHeading Eyebrow="@L["Resource Manager"].Value"
+             Title="@L["Resource templates"].Value"
+             Description="@L["Export resource groups as portable templates and import templates through providers that support the resource type."].Value">
+    <Actions>
         <FluentButton Appearance="Appearance.Neutral" OnClick="BackToResources">
             @L["Back to resources"]
         </FluentButton>
-    </div>
-</section>
+    </Actions>
+</PageHeading>
 
 @if (StatusMessage is not null)
 {

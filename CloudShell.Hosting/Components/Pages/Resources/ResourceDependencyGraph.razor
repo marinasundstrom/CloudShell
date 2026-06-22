@@ -10,13 +10,10 @@
 
 <PageTitle>@L["Resource graph"]</PageTitle>
 
-<section class="page-heading compact">
-    <div>
-        <span class="eyebrow">@L["Resource Manager"]</span>
-        <h1>@L["Resource graph"]</h1>
-        <p>@L["Visualize registered resources and their dependency relationships."]</p>
-    </div>
-    <div class="heading-actions">
+<PageHeading Eyebrow="@L["Resource Manager"].Value"
+             Title="@L["Resource graph"].Value"
+             Description="@L["Visualize registered resources and their dependency relationships."].Value">
+    <Actions>
         <FluentAnchor Appearance="Appearance.Neutral"
                       IconStart="@(new Icons.Regular.Size20.Table())"
                       Href="@GetResourcesRoute()">
@@ -26,8 +23,8 @@
                       OnClick="RefreshAsync">
             @L["Refresh"]
         </FluentButton>
-    </div>
-</section>
+    </Actions>
+</PageHeading>
 
 <section class="resource-graph-page panel">
     @if (GraphResources.Count == 0)

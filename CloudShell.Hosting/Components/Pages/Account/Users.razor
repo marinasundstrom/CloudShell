@@ -18,20 +18,17 @@ else if (!Accounts.SupportsLocalUserAdministration)
 }
 else
 {
-    <section class="page-heading compact">
-        <div>
-            <span class="eyebrow">@L["Identity"]</span>
-            <h1>@L["Users"]</h1>
-            <p>@L["Create local test users for exercising CloudShell UI permissions with the built-in identity provider."]</p>
-        </div>
-        <div class="heading-actions">
+    <PageHeading Eyebrow="@L["Identity"].Value"
+                 Title="@L["Users"].Value"
+                 Description="@L["Create local test users for exercising CloudShell UI permissions with the built-in identity provider."].Value">
+        <Actions>
             <FluentButton Appearance="Appearance.Neutral"
                           IconStart="@(new Icons.Regular.Size20.ArrowSyncCircle())"
                           OnClick="LoadUsersAsync">
                 @L["Refresh"]
             </FluentButton>
-        </div>
-    </section>
+        </Actions>
+    </PageHeading>
 
     @if (Accounts.LocalUserStoreKind == CloudShellLocalUserStoreKind.InMemory)
     {

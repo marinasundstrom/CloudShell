@@ -9,13 +9,10 @@
 
 <PageTitle>@L["Health"]</PageTitle>
 
-<section class="page-heading compact">
-    <div>
-        <span class="eyebrow">@L["Workspace"]</span>
-        <h1>@L["Health"]</h1>
-        <p>@L["Review configured resource health checks and their latest probe results across the environment."]</p>
-    </div>
-    <div class="heading-actions">
+<PageHeading Eyebrow="@L["Workspace"].Value"
+             Title="@L["Health"].Value"
+             Description="@L["Review configured resource health checks and their latest probe results across the environment."].Value">
+    <Actions>
         <span class="toolbar-meta">@GetHealthCheckIntervalLabel()</span>
         @if (GetSettingsRoute() is { } settingsRoute)
         {
@@ -31,8 +28,8 @@
                       OnClick="RefreshHealthAsync">
             @(IsCheckingHealth ? L["Checking"] : L["Refresh"])
         </FluentButton>
-    </div>
-</section>
+    </Actions>
+</PageHeading>
 
 <SummaryMetricGrid AriaLabel="@L["Health summary"].Value">
     <SummaryMetricCard Title="@L["Resources with checks"].Value"

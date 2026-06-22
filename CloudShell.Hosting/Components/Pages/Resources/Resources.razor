@@ -34,13 +34,10 @@
     var selected = SelectedResource;
 }
 
-<section class="page-heading compact">
-    <div>
-        <span class="eyebrow">@L["Resource Manager"]</span>
-        <h1>@L["Resources"]</h1>
-        <p>@L["Explore registered resources, project groups, endpoints, dependencies, and nested sub-resources."]</p>
-    </div>
-    <div class="heading-actions">
+<PageHeading Eyebrow="@L["Resource Manager"].Value"
+             Title="@L["Resources"].Value"
+             Description="@L["Explore registered resources, project groups, endpoints, dependencies, and nested sub-resources."].Value">
+    <Actions>
         <FluentAnchor Appearance="Appearance.Neutral"
                       IconStart="@(new Icons.Regular.Size20.ShareAndroid())"
                       Href="@GetResourceGraphRoute()">
@@ -75,8 +72,8 @@
                 @L["Add resource"]
             </FluentButton>
         }
-    </div>
-</section>
+    </Actions>
+</PageHeading>
 
 @if (ProcedureMessage is not null)
 {

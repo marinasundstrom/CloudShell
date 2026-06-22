@@ -26,16 +26,9 @@ else
 {
     <PageTitle>@view.Title</PageTitle>
 
-    <section class="page-heading compact">
-        <div>
-            <span class="eyebrow">@view.Group</span>
-            <h1>@view.Title</h1>
-            @if (!string.IsNullOrWhiteSpace(view.Description))
-            {
-                <p>@view.Description</p>
-            }
-        </div>
-    </section>
+    <PageHeading Eyebrow="@view.Group"
+                 Title="@view.Title"
+                 Description="@view.Description" />
 
     <CloudShellTabbedLayout Items="@BuildItems(view.Route, menuItems)"
                             SelectedItemId="@selectedItem?.Id"

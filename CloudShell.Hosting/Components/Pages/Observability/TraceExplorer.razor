@@ -37,13 +37,10 @@
 }
 else if (ShowHeading)
 {
-    <section class="page-heading compact">
-        <div>
-            <span class="eyebrow">@L["Observability"]</span>
-            <h1>@L["Traces"]</h1>
-            <p>@L["Inspect resources that are configured to export distributed traces."]</p>
-        </div>
-        <div class="heading-actions">
+    <PageHeading Eyebrow="@L["Observability"].Value"
+                 Title="@L["Traces"].Value"
+                 Description="@L["Inspect resources that are configured to export distributed traces."].Value">
+        <Actions>
             @if (!string.IsNullOrWhiteSpace(TraceId))
             {
                 <FluentButton Appearance="Appearance.Neutral" OnClick="ClearTraceFilter">
@@ -57,8 +54,8 @@ else if (ShowHeading)
                           OnClick="RefreshSpansAsync">
                 @L["Refresh"]
             </FluentButton>
-        </div>
-    </section>
+        </Actions>
+    </PageHeading>
 }
 
 <section class="trace-workspace">

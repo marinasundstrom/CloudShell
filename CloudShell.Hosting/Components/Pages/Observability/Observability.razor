@@ -17,24 +17,19 @@
 }
 else
 {
-    <section class="page-heading compact">
-        <div>
-            <span class="eyebrow">@L["Observability"]</span>
-            <h1>@L["Telemetry workspace"]</h1>
-            <p>@L["Review telemetry coverage, recent service signals, and the shared observability views for this CloudShell environment."]</p>
-        </div>
-        @if (Authorization.CanReadTraces())
-        {
-            <div class="heading-actions">
-                <FluentAnchor Appearance="Appearance.Neutral" Href="/observability/dependencies">
-                    @L["Dependencies"]
-                </FluentAnchor>
-                <FluentAnchor Appearance="Appearance.Accent" Href="/observability/service-map">
-                    @L["Service map"]
-                </FluentAnchor>
-            </div>
-        }
-    </section>
+    <PageHeading Eyebrow="@L["Observability"].Value"
+                 Title="@L["Telemetry workspace"].Value"
+                 Description="@L["Review telemetry coverage, recent service signals, and the shared observability views for this CloudShell environment."].Value"
+                 ShowActions="@Authorization.CanReadTraces()">
+        <Actions>
+            <FluentAnchor Appearance="Appearance.Neutral" Href="/observability/dependencies">
+                @L["Dependencies"]
+            </FluentAnchor>
+            <FluentAnchor Appearance="Appearance.Accent" Href="/observability/service-map">
+                @L["Service map"]
+            </FluentAnchor>
+        </Actions>
+    </PageHeading>
 
     <SummaryMetricGrid AriaLabel="@L["Observability summary"].Value">
         <SummaryMetricCard Title="@L["Telemetry resources"].Value"

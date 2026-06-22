@@ -12,13 +12,10 @@
 
 @if (ShowHeading)
 {
-    <section class="page-heading compact">
-        <div>
-            <span class="eyebrow">@L["Observability"]</span>
-            <h1>@HeadingTitle</h1>
-            <p>@HeadingDescription</p>
-        </div>
-        <div class="heading-actions">
+    <PageHeading Eyebrow="@L["Observability"].Value"
+                 Title="@HeadingTitle"
+                 Description="@HeadingDescription">
+        <Actions>
             <label class="trace-source-filter" for="@GraphModeSelectId">
                 <span>@L["Graph source"]</span>
                 <select id="@GraphModeSelectId"
@@ -35,8 +32,8 @@
                           OnClick="RefreshAsync">
                 @L["Refresh"]
             </FluentButton>
-        </div>
-    </section>
+        </Actions>
+    </PageHeading>
 }
 else
 {

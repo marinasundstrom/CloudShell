@@ -5,18 +5,15 @@
 
 <PageTitle>@L["Resource not found"]</PageTitle>
 
-<section class="page-heading compact">
-    <div>
-        <span class="eyebrow">@L["Resource Manager"]</span>
-        <h1>@L["Resource not found"]</h1>
-        <p>@L["The requested resource could not be found in this CloudShell environment."]</p>
-    </div>
-    <div class="heading-actions">
+<PageHeading Eyebrow="@L["Resource Manager"].Value"
+             Title="@L["Resource not found"].Value"
+             Description="@L["The requested resource could not be found in this CloudShell environment."].Value">
+    <Actions>
         <FluentAnchor Appearance="Appearance.Neutral" Href="@GetResourcesRoute()">
             @L["Open Resources"]
         </FluentAnchor>
-    </div>
-</section>
+    </Actions>
+</PageHeading>
 
 <section class="panel">
     <EmptyState Title="@L["Resource not found"].Value"

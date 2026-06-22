@@ -18,18 +18,19 @@
         : null;
 }
 
-<section class="page-heading compact add-resource-heading">
-    <div>
-        <span class="eyebrow">@L["Resource Manager"]</span>
-        <h1>@L["Add resource"]</h1>
-        <p>@(IsReadOnly
-            ? L["Resource Manager is in read-only mode. Resource registration is disabled in this UI."]
-            : L["Select the type of resource to register. Extensions own the registration experience for their resource types."])</p>
-    </div>
-    <FluentButton Appearance="Appearance.Neutral" OnClick="Cancel">
-        @L["Cancel"]
-    </FluentButton>
-</section>
+<PageHeading Eyebrow="@L["Resource Manager"].Value"
+             Title="@L["Add resource"].Value"
+             Description="@(IsReadOnly
+                 ? L["Resource Manager is in read-only mode. Resource registration is disabled in this UI."].Value
+                 : L["Select the type of resource to register. Extensions own the registration experience for their resource types."].Value)"
+             Class="add-resource-heading"
+             ActionsClass="">
+    <Actions>
+        <FluentButton Appearance="Appearance.Neutral" OnClick="Cancel">
+            @L["Cancel"]
+        </FluentButton>
+    </Actions>
+</PageHeading>
 
 @if (IsReadOnly)
 {

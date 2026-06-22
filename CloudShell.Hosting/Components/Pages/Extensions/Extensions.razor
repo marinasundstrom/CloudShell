@@ -15,18 +15,15 @@
 }
 else
 {
-    <section class="page-heading compact">
-        <div>
-            <span class="eyebrow">@L["Platform"]</span>
-            <h1>@L["Extensions"]</h1>
-            <p>@L["Extensions registered through the service container. Host configuration or this UI can activate their contributions."]</p>
-        </div>
-        <div class="heading-actions">
+    <PageHeading Eyebrow="@L["Platform"].Value"
+                 Title="@L["Extensions"].Value"
+                 Description="@L["Extensions registered through the service container. Host configuration or this UI can activate their contributions."].Value">
+        <Actions>
             <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSyncCircle())">
                 @L["Reload"]
             </FluentButton>
-        </div>
-    </section>
+        </Actions>
+    </PageHeading>
 
     <section class="dashboard-grid">
         <article class="panel panel-wide">

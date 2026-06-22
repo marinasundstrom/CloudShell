@@ -17,18 +17,18 @@
 
 @if (!IsEmbedded)
 {
-    <section class="page-heading compact">
-        <div>
-            <span class="eyebrow">@L["Resource Manager"]</span>
-            <h1>@L["Settings"]</h1>
-            <p>@(IsReadOnly
-                ? L["Resource Manager is in read-only mode. Settings changes are disabled in this UI."]
-                : L["Choose which orchestrator handles lifecycle actions for the resource graph."])</p>
-        </div>
-        <FluentButton Appearance="Appearance.Neutral" OnClick="Cancel">
-            @L["Close"]
-        </FluentButton>
-    </section>
+    <PageHeading Eyebrow="@L["Resource Manager"].Value"
+                 Title="@L["Settings"].Value"
+                 Description="@(IsReadOnly
+                     ? L["Resource Manager is in read-only mode. Settings changes are disabled in this UI."].Value
+                     : L["Choose which orchestrator handles lifecycle actions for the resource graph."].Value)"
+                 ActionsClass="">
+        <Actions>
+            <FluentButton Appearance="Appearance.Neutral" OnClick="Cancel">
+                @L["Close"]
+            </FluentButton>
+        </Actions>
+    </PageHeading>
 }
 
 <section class="@GetSettingsHostClass()">

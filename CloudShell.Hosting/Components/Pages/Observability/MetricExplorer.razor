@@ -36,13 +36,10 @@
 }
 else if (ShowHeading)
 {
-    <section class="page-heading compact">
-        <div>
-            <span class="eyebrow">@L["Observability"]</span>
-            <h1>@L["Metrics"]</h1>
-            <p>@L["Inspect application/runtime metric points retained by CloudShell."]</p>
-        </div>
-        <div class="heading-actions">
+    <PageHeading Eyebrow="@L["Observability"].Value"
+                 Title="@L["Metrics"].Value"
+                 Description="@L["Inspect application/runtime metric points retained by CloudShell."].Value">
+        <Actions>
             <FluentButton Appearance="Appearance.Neutral" OnClick="ShowAllResources">
                 @L["All metric resources"]
             </FluentButton>
@@ -50,8 +47,8 @@ else if (ShowHeading)
                           OnClick="RefreshPointsAsync">
                 @L["Refresh"]
             </FluentButton>
-        </div>
-    </section>
+        </Actions>
+    </PageHeading>
 }
 
 <section class="trace-workspace">
