@@ -86,6 +86,7 @@ public static class Extensions
             Environment.GetEnvironmentVariable("CLOUDSHELL_RESOURCE_ID"),
             Environment.GetEnvironmentVariable("OTEL_SERVICE_NAME"),
             app.Environment.ApplicationName);
+        var requestCount = 0L;
 
         app.Use(async (context, next) =>
         {
@@ -93,6 +94,7 @@ public static class Extensions
             await next(context);
             stopwatch.Stop();
 
+            var totalRequests = System.Threading.Interlocked.Increment(ref requestCount);
             var route = context.GetEndpoint()?.DisplayName ?? context.Request.Path.Value ?? "/";
             var timestamp = DateTimeOffset.UtcNow;
             var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -111,6 +113,13 @@ public static class Extensions
                     timestamp,
                     "count",
                     attributes),
+                new CloudShellMetricPoint(
+                    "http.server.requests.total",
+                    resourceId,
+                    serviceName,
+                    totalRequests,
+                    timestamp,
+                    "count"),
                 new CloudShellMetricPoint(
                     "http.server.duration",
                     resourceId,
