@@ -196,14 +196,14 @@ and Degradation views. When exactly one replica is running, the aggregate
 result and the runtime-scope result can be the same observation.
 
 The first container app slices keep the declaration on the container app
-definition, project replicated HTTP checks onto hidden runtime replica
-resources, and materialize an aggregate health summary on the stable container
-app resource from the observed replica checks. The declaration is separate
-from the materialized probe target. Active local Docker replicas can expose
-probe-only endpoint mappings for the Control Plane to poll, while stopped
-replicas or providers without a concrete target should report unresolved
-observations. The parent assessment still shows which runtime scopes
-contributed to the result.
+definition, materialize hidden runtime replica resources, project replicated
+HTTP checks onto those replicas, and materialize an aggregate health summary on
+the stable container app resource from the observed replica checks. The
+declaration is separate from the materialized probe target. Active local Docker
+replicas can expose probe-only endpoint mappings for the Control Plane to poll,
+while stopped replicas or providers without a concrete target should report
+unresolved observations. The parent assessment still shows which runtime
+scopes contributed to the result.
 
 Replica probe targets must preserve containment. They are runtime-scope
 diagnostics under the container app, not independent app endpoints or normal
@@ -215,11 +215,11 @@ This should be expressed in the shared application resource toolkit rather
 than as a one-off container app exception. Every declared resource can
 participate in liveness observations and health assessments regardless of
 whether it is user-managed, platform-owned, or provider-managed. The special
-case is projected runtime resources: executable applications, project-backed
-applications, and single-process service resources may expose health and
-liveness directly on the declared resource, while replicated container apps
-project the declared checks onto runtime replicas and aggregate the replica
-state back to the stable application resource.
+case is materialized runtime resources: executable applications,
+project-backed applications, and single-process service resources may expose
+health and liveness directly on the declared resource, while replicated
+container apps project the declared checks onto materialized runtime replicas
+and aggregate the replica state back to the stable application resource.
 
 The aggregation policy is provider-owned. One failed replica might degrade the
 container app while enough healthy replicas remain to serve traffic, while all

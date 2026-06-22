@@ -77,7 +77,7 @@ The generic snapshot contract is intentionally per resource. Multi-instance
 resources such as `application.container-app` can still use resource metric
 samples with replica/container attributes, but their primary Resource Manager
 Monitoring experience should be provider-owned. A container app Monitoring tab
-needs to summarize app-level usage and show each projected runtime replica or
+needs to summarize app-level usage and show each materialized runtime replica or
 container separately without forcing users into the global runtime-managed
 inventory or treating implementation containers as the stable app surface.
 
@@ -121,7 +121,7 @@ The first implementation slice adds:
   I/O, block I/O, and process count snapshots from container-host stats when
   the application provider can resolve a static/default container host
 - container app provider-owned Monitoring tab that summarizes single-instance
-  app metrics or replicated app metrics by projected runtime replica/container
+  app metrics or replicated app metrics by materialized runtime replica/container
 - configuration store and Secrets Vault service process CPU, CPU time, memory,
   thread count, process count, and uptime snapshots
 

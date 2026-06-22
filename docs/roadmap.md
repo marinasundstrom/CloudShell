@@ -515,7 +515,7 @@ listed here before pulling in broader proposal work.
    application resources can use container-host stats when a static/default
    container host can be resolved. A provider-owned container app
    Monitoring dashboard under Management that summarizes app-level resource
-   usage and breaks down metrics by projected runtime replica/container for
+   usage and breaks down metrics by materialized runtime replica/container for
    replicated apps is now in place for current snapshots. Durable
    resource-metric history, charts, richer replica diagnostics, and additional
    provider implementations remain separate work. Keep the near-term focus on
@@ -831,7 +831,7 @@ listed here before pulling in broader proposal work.
   static/default container host can be resolved. The generated tab is not
   enough for replicated container apps; those need a provider-owned
   Monitoring dashboard that keeps users on the container app resource while
-  summarizing app usage and showing each projected replica/container
+  summarizing app usage and showing each materialized replica/container
   separately. Split-hosted live monitoring and telemetry should flow through
   Control Plane streaming subscriptions rather than provider-local UI calls
   when CloudShell moves past basic snapshot/list monitoring.

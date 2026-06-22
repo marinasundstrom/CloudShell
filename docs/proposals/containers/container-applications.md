@@ -169,7 +169,7 @@ Implemented pieces include:
 * Resource Manager Application > Scale and replicas tab for enabling replicas
   and setting desired replica count
 * app-owned internal deployment projection with status, service id, workload
-  version, desired replicas, and projected runtime replicas. This is the
+  version, desired replicas, and materialized runtime replicas. This is the
   container app use of the broader default-deployment rule: a resource remains
   directly manageable while the orchestrator derives a deployment for
   deployment-relevant changes.
@@ -179,9 +179,9 @@ Implemented pieces include:
   visibility, owner resource, and cleanup behavior
 * internal orchestrator deployment/revision data contracts for future
   container app runtime materialization
-* hidden runtime-managed child resources for container app replica/container
-  projections, parented to and owned by the stable container app resource,
-  with deployment/service/revision correlation metadata
+* hidden runtime-managed child resources for container app replicas, parented
+  to and owned by the stable container app resource, with
+  deployment/service/revision correlation metadata
 * containment-aware operational projection where the container app resource
   lists contained runtime replica log sources, telemetry scopes, monitoring
   samples, and expandable health rows without merging the underlying signals
@@ -191,7 +191,7 @@ Implemented pieces include:
   probe-only endpoint mappings and the stable container app receiving the
   aggregate health assessment while remaining the lifecycle, recovery, and
   management boundary
-* app-scoped Scale and replicas diagnostics that list projected runtime
+* app-scoped Scale and replicas diagnostics that list materialized runtime
   replicas without requiring global hidden/runtime-managed inventory settings;
   single-instance apps explain that replicas are not enabled instead of
   projecting a single-instance container as a replica set

@@ -532,7 +532,7 @@ models it that way.
 For container app style resources, the health declaration belongs to the
 stable container app resource, not to each replica as an independent top-level
 resource. For replicated container apps, that declaration is a template for
-the checks that should run against the runtime replica containers. The
+the checks that should run against the materialized runtime replicas. The
 container app resource remains the stable workload, exposure, and projection
 boundary, while the runtime replica resources carry the concrete health and
 liveness checks that CloudShell polls. The Control Plane can then derive the
@@ -549,11 +549,11 @@ runtime scope has a declaration but no materialized target, the result should
 be unresolved instead of being treated as an unhealthy response.
 
 The current container app implementation projects replicated HTTP checks onto
-the hidden runtime replica resources. Active local Docker replicas project
-probe-only endpoint mappings for the declared HTTP probe endpoints, while the
-stable container app keeps the user-facing service endpoint and ingress
-mapping. Stopped replicas keep the declared check contracts but do not project
-reachable endpoint mappings. The Control Plane materializes an aggregate
+the materialized hidden runtime replica resources. Active local Docker replicas
+project probe-only endpoint mappings for the declared HTTP probe endpoints,
+while the stable container app keeps the user-facing service endpoint and
+ingress mapping. Stopped replicas keep the declared check contracts but do not
+project reachable endpoint mappings. The Control Plane materializes an aggregate
 health summary on the stable container app resource from the observed replica
 checks, including unresolved observations when a provider cannot materialize a
 probe target.

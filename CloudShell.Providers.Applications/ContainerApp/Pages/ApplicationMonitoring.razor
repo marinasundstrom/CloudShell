@@ -86,8 +86,8 @@ else
             <h3>Replica summary</h3>
             @if (Rows.Count == 0)
             {
-                <EmptyState Title="No replicas are projected"
-                            Message="The provider has not projected runtime replica artifacts for this app."
+                <EmptyState Title="No replicas are materialized"
+                            Message="The provider has not materialized runtime replica resources for this app."
                             Compact="true" />
             }
             else
