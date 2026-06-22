@@ -57,6 +57,15 @@ public static class ResourceEventTypes
             public const string RestartFailed = "event.lifecycle.restart.failed";
         }
 
+        public static class Recovery
+        {
+            public const string SignalFailed = "event.recovery.signal.failed";
+            public const string RestartScheduled = "event.recovery.restart.scheduled";
+            public const string RestartSkipped = "event.recovery.restart.skipped";
+            public const string RestartExhausted = "event.recovery.restart.exhausted";
+            public const string Reset = "event.recovery.reset";
+        }
+
         public static class Configuration
         {
             public const string AppSettingsUpdated = "event.configuration.appSettings.updated";

@@ -244,6 +244,9 @@ public static class CloudShellControlPlaneApiExtensions
         api.MapGet("/resources/{resourceId}/recovery-status", GetResourceRecoveryStatus)
             .WithName("CloudShellControlPlane_GetResourceRecoveryStatus");
 
+        api.MapPost("/resources/{resourceId}/recovery-status/refresh", RefreshResourceRecovery)
+            .WithName("CloudShellControlPlane_RefreshResourceRecovery");
+
         api.MapGet("/resources/{resourceId}/monitoring/availability", HasResourceMonitoring)
             .WithName("CloudShellControlPlane_HasResourceMonitoring");
 
@@ -1413,6 +1416,15 @@ public static class CloudShellControlPlaneApiExtensions
         CancellationToken cancellationToken)
     {
         var status = await recovery.GetResourceRecoveryStatusAsync(resourceId, cancellationToken);
+        return status is null ? Results.NotFound() : Results.Ok(status);
+    }
+
+    private static async Task<IResult> RefreshResourceRecovery(
+        string resourceId,
+        IResourceRecoveryManager recovery,
+        CancellationToken cancellationToken)
+    {
+        var status = await recovery.RefreshResourceRecoveryAsync(resourceId, cancellationToken);
         return status is null ? Results.NotFound() : Results.Ok(status);
     }
 

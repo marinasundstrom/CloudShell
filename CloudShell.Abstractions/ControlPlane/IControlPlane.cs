@@ -266,6 +266,10 @@ public interface IResourceRecoveryManager
     Task<ResourceRecoveryStatus?> GetResourceRecoveryStatusAsync(
         string resourceId,
         CancellationToken cancellationToken = default);
+
+    Task<ResourceRecoveryStatus?> RefreshResourceRecoveryAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed record ResourceQuery(

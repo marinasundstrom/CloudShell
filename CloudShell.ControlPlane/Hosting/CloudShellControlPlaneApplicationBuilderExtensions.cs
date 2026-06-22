@@ -90,6 +90,7 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
         });
         builder.Services.TryAddSingleton<ResourceHealthRefreshCoordinator>();
         builder.Services.TryAddSingleton<InMemoryResourceHealthStore>();
+        builder.Services.TryAddSingleton<IResourceRecoveryStore, InMemoryResourceRecoveryStore>();
         builder.Services.AddSingleton<IResourceHealthStore>(serviceProvider =>
         {
             var options = serviceProvider.GetRequiredService<IOptions<ResourceHealthOptions>>().Value;

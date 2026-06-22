@@ -201,10 +201,12 @@ The Control Plane owns the reusable recovery behavior:
 - Expose policy and runtime recovery status through domain managers and the
   Control Plane API for split hosting.
 
-For the local-development MVP, the recovery controller can be an in-process
-background service. For shared or on-premise deployments, it should follow the
-primary-controller and worker direction already documented for Control Plane
-scale-out so multiple API replicas do not run competing restart loops.
+For the local-development MVP, the recovery controller can expose an explicit
+refresh/evaluation operation that the combined host can call. The periodic
+polling loop should remain separable from request-serving Control Plane APIs:
+future shared or on-premise deployments should let a primary controller or
+separate worker process periodically request resource health state and recovery
+evaluation so multiple API replicas do not run competing restart loops.
 
 ## Resource Manager UX
 
@@ -297,13 +299,27 @@ The second landed slice adds the first policy/status surface:
 - Stored policy is currently in-memory Control Plane state. Durable persistence
   should land with or before the recovery controller.
 
+The third landed slice adds the controller core as an explicit refresh path:
+
+- `RefreshResourceRecoveryAsync` evaluates the configured liveness signal
+  through the shared health probe evaluator path.
+- Failed liveness results update consecutive failure state, backoff timing,
+  and attempt counts.
+- When the failure threshold and backoff policy allow it, recovery invokes the
+  normal `Restart` lifecycle action with `TriggeredBy` set to `recovery`.
+- `Unknown` liveness results do not trigger restart because CloudShell cannot
+  prove the resource is dead.
+- The controller core is callable through the in-process manager and
+  Control Plane API/client. A hosted background polling loop remains deferred.
+- The periodic scheduler remains deliberately separate so future deployments
+  can move polling to a primary controller or worker process.
+
 The next recovery slice should stay narrow:
 
-1. Evaluate `ResourceProbeType.Liveness` results from the shared probe
-   evaluator path as the first restart trigger.
-2. Invoke `Restart` through existing lifecycle orchestration.
-3. Show generated Recovery configuration and status in Resource Manager.
-4. Add sample coverage for one application resource with a liveness probe and
+1. Add a local-development polling host over enabled policies without making
+   API replicas the long-term owner of polling.
+2. Show generated Recovery configuration and status in Resource Manager.
+3. Add sample coverage for one application resource with a liveness probe and
    automatic restart policy.
 
 Provider-native signal contracts, external orchestrator policy projection,

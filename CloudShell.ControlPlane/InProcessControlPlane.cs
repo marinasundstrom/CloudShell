@@ -5,7 +5,6 @@ using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager;
 using Microsoft.AspNetCore.Http;
-using System.Collections.Concurrent;
 using System.Security.Claims;
 using System.Text.Json;
 
@@ -24,6 +23,7 @@ public sealed class InProcessControlPlane(
     ITraceStore traces,
     IMetricStore metrics,
     IResourceHealthStore resourceHealth,
+    IResourceRecoveryStore resourceRecovery,
     ResourceHealthProbeService healthProbes,
     ResourceHealthRefreshCoordinator healthRefreshes,
     IResourceOrchestrationSettings orchestrationSettings,
@@ -37,6 +37,7 @@ public sealed class InProcessControlPlane(
 {
     private const string PreferredUsernameClaimType = "preferred_username";
     private const string UnauthenticatedRequestActor = "user";
+    private const string RecoveryTriggeredBy = "recovery";
 
     public event EventHandler<ResourceChangeNotification>? ResourcesChanged;
 
@@ -48,9 +49,6 @@ public sealed class InProcessControlPlane(
 
     private readonly IReadOnlyList<IResourcePermissionGrantStatusProvider> permissionGrantStatusProviders =
         (permissionGrantStatusProviders ?? []).ToArray();
-
-    private readonly ConcurrentDictionary<string, ResourceRecoveryPolicy> recoveryPolicies =
-        new(StringComparer.OrdinalIgnoreCase);
 
     public Task<IReadOnlyList<ResourceGroup>> ListResourceGroupsAsync(
         CancellationToken cancellationToken = default)
@@ -1062,7 +1060,7 @@ public sealed class InProcessControlPlane(
             return Task.FromResult<ResourceRecoveryPolicy?>(null);
         }
 
-        return Task.FromResult(recoveryPolicies.GetValueOrDefault(resource.Id));
+        return Task.FromResult(resourceRecovery.GetPolicy(resource.Id));
     }
 
     public Task<ResourceRecoveryPolicy> SetResourceRecoveryPolicyAsync(
@@ -1075,7 +1073,7 @@ public sealed class InProcessControlPlane(
 
         var resource = GetRecoveryResourceForManage(resourceId);
         var normalized = NormalizeRecoveryPolicy(policy);
-        recoveryPolicies[resource.Id] = normalized;
+        resourceRecovery.SetPolicy(resource.Id, normalized);
         return Task.FromResult(normalized);
     }
 
@@ -1085,7 +1083,7 @@ public sealed class InProcessControlPlane(
     {
         cancellationToken.ThrowIfCancellationRequested();
         var resource = GetRecoveryResourceForManage(resourceId);
-        recoveryPolicies.TryRemove(resource.Id, out _);
+        resourceRecovery.ClearPolicy(resource.Id);
         return Task.CompletedTask;
     }
 
@@ -1100,15 +1098,181 @@ public sealed class InProcessControlPlane(
             return Task.FromResult<ResourceRecoveryStatus?>(null);
         }
 
-        var policy = recoveryPolicies.GetValueOrDefault(resource.Id) ?? ResourceRecoveryPolicy.Disabled;
-        var state = policy.Enabled
-            ? ResourceRecoveryState.WaitingForSignal
-            : ResourceRecoveryState.Disabled;
+        var policy = resourceRecovery.GetPolicy(resource.Id) ?? ResourceRecoveryPolicy.Disabled;
+        var runtime = resourceRecovery.GetRuntimeState(resource.Id);
+        var state = policy.Enabled ? runtime.State : ResourceRecoveryState.Disabled;
+        if (policy.Enabled && state == ResourceRecoveryState.Disabled)
+        {
+            state = ResourceRecoveryState.WaitingForSignal;
+        }
 
         return Task.FromResult<ResourceRecoveryStatus?>(new ResourceRecoveryStatus(
             resource.Id,
             policy,
-            state));
+            state,
+            runtime.ConsecutiveFailures,
+            runtime.AttemptCount,
+            runtime.LastCheckedAt,
+            runtime.LastAttemptAt,
+            runtime.NextAttemptAt,
+            runtime.LastDetail));
+    }
+
+    public async Task<ResourceRecoveryStatus?> RefreshResourceRecoveryAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var resource = GetRecoveryResourceForRead(resourceId);
+        if (resource is null)
+        {
+            return null;
+        }
+
+        var policy = resourceRecovery.GetPolicy(resource.Id) ?? ResourceRecoveryPolicy.Disabled;
+        if (!policy.Enabled)
+        {
+            resourceRecovery.ClearRuntimeState(resource.Id);
+            return new ResourceRecoveryStatus(resource.Id, policy, ResourceRecoveryState.Disabled);
+        }
+
+        var summary = await RefreshResourceHealthAsync(resource.Id, cancellationToken);
+        if (summary is null)
+        {
+            return SetRecoveryRuntimeState(
+                resource,
+                policy,
+                resourceRecovery.GetRuntimeState(resource.Id) with
+                {
+                    State = ResourceRecoveryState.Unavailable,
+                    LastCheckedAt = DateTimeOffset.UtcNow,
+                    LastDetail = "No health checks are configured."
+                });
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var runtime = resourceRecovery.GetRuntimeState(resource.Id);
+        var result = SelectRecoverySignal(summary, policy);
+        if (result is null)
+        {
+            return SetRecoveryRuntimeState(
+                resource,
+                policy,
+                runtime with
+                {
+                    State = ResourceRecoveryState.Unavailable,
+                    LastCheckedAt = now,
+                    LastDetail = "No matching liveness signal was found."
+                });
+        }
+
+        if (result.Status == ResourceHealthStatus.Healthy)
+        {
+            return HandleHealthyRecoverySignal(resource, policy, runtime, result, now);
+        }
+
+        if (result.Status == ResourceHealthStatus.Unknown)
+        {
+            return SetRecoveryRuntimeState(
+                resource,
+                policy,
+                runtime with
+                {
+                    State = ResourceRecoveryState.Unavailable,
+                    LastCheckedAt = now,
+                    LastDetail = result.Detail
+                });
+        }
+
+        var failures = runtime.ConsecutiveFailures + 1;
+        AppendRecoveryEvent(
+            resource,
+            ResourceEventTypes.Events.Recovery.SignalFailed,
+            $"Recovery signal '{result.Check.Name}' failed: {result.Detail}",
+            ResourceSignalSeverity.Warning);
+
+        var failing = runtime with
+        {
+            State = ResourceRecoveryState.Failing,
+            ConsecutiveFailures = failures,
+            LastCheckedAt = now,
+            LastHealthyAt = null,
+            LastDetail = result.Detail
+        };
+
+        if (failures < policy.FailureThreshold)
+        {
+            return SetRecoveryRuntimeState(resource, policy, failing);
+        }
+
+        if (failing.AttemptCount >= policy.MaxAttempts)
+        {
+            var exhausted = failing with
+            {
+                State = ResourceRecoveryState.Exhausted,
+                LastDetail = $"Maximum recovery attempts reached after {failing.AttemptCount} attempt(s)."
+            };
+            AppendRecoveryEvent(
+                resource,
+                ResourceEventTypes.Events.Recovery.RestartExhausted,
+                exhausted.LastDetail,
+                ResourceSignalSeverity.Error);
+            return SetRecoveryRuntimeState(resource, policy, exhausted);
+        }
+
+        if (failing.NextAttemptAt is not null && failing.NextAttemptAt > now)
+        {
+            return SetRecoveryRuntimeState(resource, policy, failing with
+            {
+                State = ResourceRecoveryState.Scheduled
+            });
+        }
+
+        var attempt = failing.AttemptCount + 1;
+        var backoff = CalculateRecoveryBackoff(policy, attempt);
+        var nextAttemptAt = now + backoff;
+        AppendRecoveryEvent(
+            resource,
+            ResourceEventTypes.Events.Recovery.RestartScheduled,
+            $"Recovery restart attempt {attempt} scheduled after {failures} failed signal(s).",
+            ResourceSignalSeverity.Warning);
+
+        try
+        {
+            var procedure = await ExecuteResourceActionAsync(
+                new ExecuteResourceActionCommand(
+                    resource.Id,
+                    ResourceActionIds.Restart,
+                    IgnoreDependentWarning: true,
+                    TriggeredBy: RecoveryTriggeredBy),
+                cancellationToken);
+
+            return SetRecoveryRuntimeState(resource, policy, failing with
+            {
+                State = ResourceRecoveryState.Restarting,
+                AttemptCount = attempt,
+                LastAttemptAt = now,
+                NextAttemptAt = nextAttemptAt,
+                LastDetail = procedure.Message
+            });
+        }
+        catch (Exception exception) when (exception is ControlPlaneException or ControlPlaneAccessDeniedException)
+        {
+            AppendRecoveryEvent(
+                resource,
+                ResourceEventTypes.Events.Recovery.RestartSkipped,
+                $"Recovery restart was skipped: {exception.Message}",
+                ResourceSignalSeverity.Warning);
+
+            return SetRecoveryRuntimeState(resource, policy, failing with
+            {
+                State = ResourceRecoveryState.Unavailable,
+                AttemptCount = attempt,
+                LastAttemptAt = now,
+                NextAttemptAt = nextAttemptAt,
+                LastDetail = exception.Message
+            });
+        }
     }
 
     public Task<bool> HasResourceMonitoringAsync(
@@ -1251,6 +1415,99 @@ public sealed class InProcessControlPlane(
         }
 
         return resource;
+    }
+
+    private ResourceRecoveryStatus HandleHealthyRecoverySignal(
+        Resource resource,
+        ResourceRecoveryPolicy policy,
+        ResourceRecoveryRuntimeState runtime,
+        ResourceHealthCheckResult result,
+        DateTimeOffset now)
+    {
+        var lastHealthyAt = runtime.LastHealthyAt ?? now;
+        var resetAfter = TimeSpan.FromSeconds(policy.ResetAfterHealthySeconds);
+        var shouldReset = runtime.AttemptCount == 0 ||
+            policy.ResetAfterHealthySeconds == 0 ||
+            now - lastHealthyAt >= resetAfter;
+
+        var next = shouldReset
+            ? new ResourceRecoveryRuntimeState(
+                ResourceRecoveryState.Healthy,
+                LastCheckedAt: now,
+                LastHealthyAt: now,
+                LastDetail: result.Detail)
+            : runtime with
+            {
+                State = ResourceRecoveryState.Healthy,
+                ConsecutiveFailures = 0,
+                LastCheckedAt = now,
+                LastHealthyAt = lastHealthyAt,
+                LastDetail = result.Detail
+            };
+
+        if (shouldReset && (runtime.ConsecutiveFailures > 0 || runtime.AttemptCount > 0))
+        {
+            AppendRecoveryEvent(
+                resource,
+                ResourceEventTypes.Events.Recovery.Reset,
+                $"Recovery state reset after signal '{result.Check.Name}' became healthy.",
+                ResourceSignalSeverity.Info);
+        }
+
+        return SetRecoveryRuntimeState(resource, policy, next);
+    }
+
+    private static ResourceHealthCheckResult? SelectRecoverySignal(
+        ResourceHealthSummary summary,
+        ResourceRecoveryPolicy policy)
+    {
+        if (!string.IsNullOrWhiteSpace(policy.ProbeName))
+        {
+            return summary.Checks.FirstOrDefault(result =>
+                string.Equals(result.Check.Name, policy.ProbeName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return summary.Checks.FirstOrDefault(result => result.Check.Type == policy.ProbeType);
+    }
+
+    private ResourceRecoveryStatus SetRecoveryRuntimeState(
+        Resource resource,
+        ResourceRecoveryPolicy policy,
+        ResourceRecoveryRuntimeState state)
+    {
+        resourceRecovery.SetRuntimeState(resource.Id, state);
+        return new ResourceRecoveryStatus(
+            resource.Id,
+            policy,
+            state.State,
+            state.ConsecutiveFailures,
+            state.AttemptCount,
+            state.LastCheckedAt,
+            state.LastAttemptAt,
+            state.NextAttemptAt,
+            state.LastDetail);
+    }
+
+    private void AppendRecoveryEvent(
+        Resource resource,
+        string eventType,
+        string message,
+        ResourceSignalSeverity severity)
+    {
+        resourceEvents?.Append(new ResourceEvent(
+            resource.Id,
+            eventType,
+            message,
+            DateTimeOffset.UtcNow,
+            RecoveryTriggeredBy,
+            severity));
+    }
+
+    private static TimeSpan CalculateRecoveryBackoff(ResourceRecoveryPolicy policy, int attempt)
+    {
+        var multiplier = Math.Pow(policy.BackoffMultiplier, Math.Max(0, attempt - 1));
+        var seconds = policy.InitialBackoffSeconds * multiplier;
+        return TimeSpan.FromSeconds(Math.Min(policy.MaxBackoffSeconds, seconds));
     }
 
     private static ResourceRecoveryPolicy NormalizeRecoveryPolicy(ResourceRecoveryPolicy policy) =>

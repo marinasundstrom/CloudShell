@@ -23,6 +23,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource recovery now has an initial Control Plane policy and status surface
   for resource-scoped automatic restart configuration, with restart execution
   deferred to a later recovery controller slice.
+- Resource recovery refresh now evaluates liveness health signals, tracks
+  failure thresholds and backoff state, and invokes the normal Restart
+  lifecycle action when recovery is due.
 - Added a service observability and degradation proposal for service-first,
   replica-aware local-development telemetry correlation, common views, load
   and capacity context, established telemetry interfaces, extension

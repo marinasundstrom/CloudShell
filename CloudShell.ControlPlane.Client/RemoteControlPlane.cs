@@ -820,6 +820,23 @@ public sealed class RemoteControlPlane : IControlPlane
             $"resources/{Escape(resourceId)}/recovery-status",
             cancellationToken);
 
+    public async Task<ResourceRecoveryStatus?> RefreshResourceRecoveryAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.PostAsync(
+            BuildUri($"resources/{Escape(resourceId)}/recovery-status/refresh"),
+            null,
+            cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await ReadRequiredAsync<ResourceRecoveryStatus>(response, cancellationToken);
+    }
+
     public Task<bool> HasResourceMonitoringAsync(
         string resourceId,
         CancellationToken cancellationToken = default) =>

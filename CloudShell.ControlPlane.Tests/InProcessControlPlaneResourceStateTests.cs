@@ -1612,6 +1612,89 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task RefreshResourceRecoveryAsync_TracksFailedLivenessBeforeThreshold()
+    {
+        var provider = new TestResourceProvider();
+        var resource = CreateResource("target", ResourceState.Running) with
+        {
+            HealthChecks = [CreateLivenessCheck()]
+        };
+        var controlPlane = CreateControlPlane(
+            [resource],
+            provider,
+            probeEvaluators: [new StaticProbeEvaluator(ResourceHealthStatus.Unhealthy, "Not alive")]);
+
+        await controlPlane.SetResourceRecoveryPolicyAsync(
+            "target",
+            new ResourceRecoveryPolicy(Enabled: true, FailureThreshold: 2));
+
+        var status = await controlPlane.RefreshResourceRecoveryAsync("target");
+
+        Assert.NotNull(status);
+        Assert.Equal(ResourceRecoveryState.Failing, status.State);
+        Assert.Equal(1, status.ConsecutiveFailures);
+        Assert.Equal(0, status.AttemptCount);
+        Assert.Empty(provider.ExecutedActions);
+    }
+
+    [Fact]
+    public async Task RefreshResourceRecoveryAsync_RestartsWhenFailureThresholdIsReached()
+    {
+        var provider = new TestResourceProvider();
+        var resource = CreateResource("target", ResourceState.Running) with
+        {
+            HealthChecks = [CreateLivenessCheck()]
+        };
+        var controlPlane = CreateControlPlane(
+            [resource],
+            provider,
+            probeEvaluators: [new StaticProbeEvaluator(ResourceHealthStatus.Unhealthy, "Not alive")]);
+
+        await controlPlane.SetResourceRecoveryPolicyAsync(
+            "target",
+            new ResourceRecoveryPolicy(
+                Enabled: true,
+                FailureThreshold: 1,
+                InitialBackoffSeconds: 10,
+                MaxBackoffSeconds: 10));
+
+        var status = await controlPlane.RefreshResourceRecoveryAsync("target");
+
+        Assert.NotNull(status);
+        Assert.Equal(ResourceRecoveryState.Restarting, status.State);
+        Assert.Equal(1, status.ConsecutiveFailures);
+        Assert.Equal(1, status.AttemptCount);
+        Assert.NotNull(status.LastAttemptAt);
+        Assert.NotNull(status.NextAttemptAt);
+        Assert.Equal(["target:restart"], provider.ExecutedActions);
+    }
+
+    [Fact]
+    public async Task RefreshResourceRecoveryAsync_DoesNotRestartUnknownLiveness()
+    {
+        var provider = new TestResourceProvider();
+        var resource = CreateResource("target", ResourceState.Running) with
+        {
+            HealthChecks = [CreateLivenessCheck()]
+        };
+        var controlPlane = CreateControlPlane(
+            [resource],
+            provider,
+            probeEvaluators: [new StaticProbeEvaluator(ResourceHealthStatus.Unknown, "No signal")]);
+
+        await controlPlane.SetResourceRecoveryPolicyAsync(
+            "target",
+            new ResourceRecoveryPolicy(Enabled: true, FailureThreshold: 1));
+
+        var status = await controlPlane.RefreshResourceRecoveryAsync("target");
+
+        Assert.NotNull(status);
+        Assert.Equal(ResourceRecoveryState.Unavailable, status.State);
+        Assert.Equal("No signal", status.LastDetail);
+        Assert.Empty(provider.ExecutedActions);
+    }
+
+    [Fact]
     public async Task DeleteResourceAsync_RejectsUnknownResource()
     {
         var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)]);
@@ -2357,7 +2440,9 @@ public sealed class InProcessControlPlaneResourceStateTests
         IHttpContextAccessor? httpContextAccessor = null,
         ILogStore? logStore = null,
         ITraceStore? traceStore = null,
-        IMetricStore? metricStore = null)
+        IMetricStore? metricStore = null,
+        IReadOnlyList<IResourceProbeEvaluator>? probeEvaluators = null,
+        IResourceRecoveryStore? resourceRecoveryStore = null)
     {
         provider ??= new TestResourceProvider();
         var registrations = new TestResourceRegistrationStore(resources.Select(resource =>
@@ -2415,7 +2500,9 @@ public sealed class InProcessControlPlaneResourceStateTests
             traceStore ?? new EmptyTraceStore(),
             metricStore ?? new EmptyMetricStore(),
             new InMemoryResourceHealthStore(Options.Create(new ResourceHealthOptions())),
-            new ResourceHealthProbeService([new HttpResourceProbeEvaluator(new TestHttpClientFactory())]),
+            resourceRecoveryStore ?? new InMemoryResourceRecoveryStore(),
+            new ResourceHealthProbeService(
+                probeEvaluators ?? [new HttpResourceProbeEvaluator(new TestHttpClientFactory())]),
             new ResourceHealthRefreshCoordinator(),
             CreateSelectionStore(),
             [],
@@ -2471,6 +2558,12 @@ public sealed class InProcessControlPlaneResourceStateTests
                 ResourceAction.Restart
             ],
             DisplayName: displayName);
+
+    private static ResourceHealthCheck CreateLivenessCheck() =>
+        new(
+            new ResourceProbeSource("test"),
+            ResourceProbeType.Liveness,
+            "alive");
 
     private static TraceSpan CreateTraceSpan(string traceId, string resourceId) =>
         new(
@@ -2689,6 +2782,20 @@ public sealed class InProcessControlPlaneResourceStateTests
             ResourceAction action,
             CancellationToken cancellationToken = default) =>
             Task.FromResult<string?>(reason);
+    }
+
+    private sealed class StaticProbeEvaluator(
+        ResourceHealthStatus status,
+        string detail) : IResourceProbeEvaluator
+    {
+        public bool CanEvaluate(Resource resource, ResourceHealthCheck check) =>
+            string.Equals(check.EffectiveSource.Kind, "test", StringComparison.OrdinalIgnoreCase);
+
+        public Task<ResourceHealthCheckResult> EvaluateAsync(
+            Resource resource,
+            ResourceHealthCheck check,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new ResourceHealthCheckResult(check, status, detail, null));
     }
 
     private sealed class StaticWorkloadDescriptorProvider(
