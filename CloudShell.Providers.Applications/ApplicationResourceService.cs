@@ -26,6 +26,7 @@ namespace CloudShell.Providers.Applications;
 public sealed partial class ApplicationResourceService(
     ApplicationResourceStore store,
     ApplicationRuntimeStateStore runtimeStates,
+    ApplicationContainerDeploymentStore containerDeployments,
     LocalProcessRunner localProcesses,
     ApplicationProviderOptions options,
     IHostEnvironment environment,
@@ -171,6 +172,7 @@ public sealed partial class ApplicationResourceService(
             cancellationToken);
         store.Remove(context.Resource.Id);
         runtimeStates.Remove(context.Resource.Id);
+        containerDeployments.RemoveApplication(context.Resource.Id);
         await context.Registrations.RemoveAsync(context.Resource.Id, cancellationToken);
         return ResourceProcedureResult.Completed("Application registration removed.");
     }
@@ -458,6 +460,7 @@ public sealed partial class ApplicationResourceService(
         }
 
         var nextRevision = CreateContainerRevision();
+        var deploymentId = CreateContainerDeploymentId();
         var updated = NormalizeDefinition(application with
         {
             ContainerImage = normalizedImage,
@@ -477,6 +480,18 @@ public sealed partial class ApplicationResourceService(
                 triggeredBy)
         });
         store.Save(updated);
+        containerDeployments.Save(new ApplicationContainerDeployment(
+            deploymentId,
+            application.Id,
+            nextRevision,
+            NormalizeNullable(application.ContainerRevision),
+            normalizedImage,
+            requestedReplicaCount,
+            DateTimeOffset.UtcNow,
+            ApplicationContainerDeploymentStatuses.Completed,
+            ApplicationContainerRevisionChangeKinds.ImageDeployment,
+            NormalizeNullable(triggeredBy),
+            CreateDefaultContainerOrchestratorDeploymentId(application.Id)));
 
         resourceEvents?.Append(new ResourceEvent(
             application.Id,
@@ -4943,6 +4958,9 @@ public sealed partial class ApplicationResourceService(
 
     private static string CreateContainerRevision() =>
         $"rev-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..27];
+
+    private static string CreateContainerDeploymentId() =>
+        $"dep-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..27];
 
     private static ResourceLifetime ToResourceLifetime(ApplicationLifetime lifetime) =>
         lifetime switch

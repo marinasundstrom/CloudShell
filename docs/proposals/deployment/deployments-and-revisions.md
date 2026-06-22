@@ -40,6 +40,11 @@ required, asks the Control Plane to apply the provider-described orchestrator
 deployment spec. The default orchestrator now records deployment activity
 events for service reconciliation and replica materialization so Resource
 Manager activity can trace what the orchestrator is doing during apply.
+Container apps also keep provider-owned app deployment history separately from
+the desired application definition. Those app deployment records correlate the
+deployment request to the produced container app revision and to the
+orchestrator deployment used to materialize runtime state, but they are not the
+same entity as orchestrator deployments or orchestrator revisions.
 The intended general rule is broader than container apps: when an orchestrator
 handles a resource state change that has runtime workload intent, it may derive
 a default deployment for that change even when the user manages the resource
@@ -226,6 +231,8 @@ For container apps, the container app infrastructure owns:
 * producing and tracking container app revisions
 * recording source revision, trigger, requested replica count, and revision
   status in the container app domain model
+* recording app deployment history in provider-owned operational state rather
+  than embedding unbounded rollout history in the desired app definition
 * asking the selected orchestrator to materialize the requested app revision
 
 The orchestrator owns the mechanics required to apply that request:

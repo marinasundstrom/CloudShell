@@ -85,6 +85,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Container app deployments now track app-owned revision history entries with
   image, requested replicas, source revision, timestamp, and trigger metadata,
   and the Deployment tab surfaces that history.
+- Container app image deployments now also record provider-owned app
+  deployment history outside the desired application definition, correlating
+  each deployment request to the produced app revision and orchestrator
+  deployment metadata for the Deployment tab.
 - The Control Plane now has an internal orchestrator deployment-apply boundary
   so deployment specs can be dispatched to the selected orchestrator without
   resource domains directly manipulating runtime replicas, ingress, or cleanup.

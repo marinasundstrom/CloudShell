@@ -10566,12 +10566,23 @@ public sealed class ResourceDeclarationTests
         var currentRevisionRecord = Assert.Single(
             updated.ContainerRevisions,
             revision => revision.Id == updated.ContainerRevision);
+        var currentDeployment = Assert.Single(provider.GetContainerDeployments("application:api"));
         Assert.Equal(ApplicationContainerRevisionChangeKinds.Initial, originalRevisionRecord.ChangeKind);
         Assert.Equal(ApplicationContainerRevisionChangeKinds.ImageDeployment, currentRevisionRecord.ChangeKind);
         Assert.Equal("example/api:20260608", currentRevisionRecord.Image);
         Assert.Equal(2, currentRevisionRecord.RequestedReplicas);
         Assert.Equal(originalRevision, currentRevisionRecord.SourceRevisionId);
         Assert.Equal("build-server", currentRevisionRecord.TriggeredBy);
+        Assert.StartsWith("dep-", currentDeployment.Id);
+        Assert.Equal("application:api", currentDeployment.ApplicationId);
+        Assert.Equal(updated.ContainerRevision, currentDeployment.RevisionId);
+        Assert.Equal(originalRevision, currentDeployment.SourceRevisionId);
+        Assert.Equal("example/api:20260608", currentDeployment.Image);
+        Assert.Equal(2, currentDeployment.RequestedReplicas);
+        Assert.Equal(ApplicationContainerDeploymentStatuses.Completed, currentDeployment.Status);
+        Assert.Equal(ApplicationContainerRevisionChangeKinds.ImageDeployment, currentDeployment.ChangeKind);
+        Assert.Equal("build-server", currentDeployment.TriggeredBy);
+        Assert.Equal("cloudshell-application-api-deployment", currentDeployment.OrchestratorDeploymentId);
         Assert.Equal(
             $"Deployed api image 'example/api:20260608' and produced revision '{updated.ContainerRevision}'.",
             result.Message);

@@ -33,6 +33,7 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
         builder.Services.AddLocalProcessRunner();
         builder.Services.TryAddSingleton<ApplicationResourceStore>();
         builder.Services.TryAddSingleton<ApplicationRuntimeStateStore>();
+        builder.Services.TryAddSingleton<ApplicationContainerDeploymentStore>();
         builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<
             IApplicationResourceDefinitionNormalizationRule,
             ProjectBackedApplicationResourceDefinitionNormalizationRule>());

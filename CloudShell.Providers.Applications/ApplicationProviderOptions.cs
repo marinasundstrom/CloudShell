@@ -6,6 +6,8 @@ public sealed class ApplicationProviderOptions
 
     public string RuntimeStatePath { get; set; } = "Data/application-runtime-state.json";
 
+    public string ContainerDeploymentHistoryPath { get; set; } = "Data/application-container-deployments.json";
+
     public string LogStore { get; set; } = ApplicationLogStores.InMemory;
 
     public string LogDirectory { get; set; } = "Data/application-logs";

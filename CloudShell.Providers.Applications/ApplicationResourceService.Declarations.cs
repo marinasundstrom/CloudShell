@@ -14,6 +14,9 @@ public sealed partial class ApplicationResourceService
         .Select(ResolveDefinition)
         .ToArray();
 
+    public IReadOnlyList<ApplicationContainerDeployment> GetContainerDeployments(string applicationId) =>
+        containerDeployments.List(applicationId);
+
     public bool CanApplyDeclaration(ResourceDeclaration declaration) =>
         ApplicationResourceProviderIds.IsApplicationProvider(declaration.ProviderId);
 

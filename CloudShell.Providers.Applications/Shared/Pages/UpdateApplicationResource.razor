@@ -382,6 +382,7 @@ else
             .WithAspNetCoreHotReload(CanConfigureProjectSettings ? UseHotReload : Application.AspNetCoreHotReload)
             .WithLaunchSettingsEndpoints(CanConfigureEndpoint ? false : Application.UseLaunchSettingsEndpoints)
             .WithContainerRevision(Application.ContainerRevision)
+            .WithContainerRevisions(Application.ContainerRevisions)
             .WithContainerRegistry(CanConfigureContainerImage ? NormalizeRegistry(ContainerRegistry) : Application.ContainerRegistry)
             .WithContainerRegistryCredentials(CanConfigureContainerImage
                 ? BuildRegistryCredentials()

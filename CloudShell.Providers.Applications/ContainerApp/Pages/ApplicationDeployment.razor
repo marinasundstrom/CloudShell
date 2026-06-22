@@ -79,6 +79,25 @@ else
         </div>
     </section>
 
+    @if (Deployments.Count > 0)
+    {
+        <section class="blade-section">
+            <h3>Container app deployments</h3>
+            <div class="generated-list">
+                @foreach (var deployment in Deployments)
+                {
+                    <div class="generated-diagnostic-info">
+                        <strong>@deployment.Id</strong>
+                        <span>@deployment.Image</span>
+                        <small>
+                            @FormatDeploymentMetadata(deployment)
+                        </small>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+
     @if (Application?.ContainerRevisions.Count > 0)
     {
         <section class="blade-section">
@@ -105,6 +124,7 @@ else
     public string? ResourceId { get; set; }
 
     private ApplicationResourceDefinition? Application { get; set; }
+    private IReadOnlyList<ApplicationContainerDeployment> Deployments { get; set; } = [];
     private Resource? Resource { get; set; }
     private ResourceOperationCapabilities Capabilities { get; set; } =
         ResourceOperationCapabilities.None(string.Empty);
@@ -132,6 +152,9 @@ else
         Application = string.IsNullOrWhiteSpace(ResourceId)
             ? null
             : ApplicationProvider.GetApplication(ResourceId);
+        Deployments = string.IsNullOrWhiteSpace(ResourceId)
+            ? []
+            : ApplicationProvider.GetContainerDeployments(ResourceId);
         Capabilities = Resource is null
             ? ResourceOperationCapabilities.None(ResourceId ?? string.Empty)
             : await ResourceManager.GetResourceOperationCapabilitiesAsync(Resource);
@@ -197,6 +220,7 @@ else
             {
                 Resource = updatedResource;
                 Application = ApplicationProvider.GetApplication(updatedResource.Id);
+                Deployments = ApplicationProvider.GetContainerDeployments(updatedResource.Id);
                 DeploymentImage = GetCurrentContainerImage(Resource);
                 DeploymentRequestedReplicas = GetDeploymentRequestedReplicasValue(Resource);
                 CurrentDeploymentResourceId = Resource.Id;
@@ -230,6 +254,32 @@ else
         if (!string.IsNullOrWhiteSpace(revision.TriggeredBy))
         {
             parts.Add($"By: {revision.TriggeredBy}");
+        }
+
+        return string.Join(" | ", parts);
+    }
+
+    private static string FormatDeploymentMetadata(ApplicationContainerDeployment deployment)
+    {
+        var parts = new List<string>
+        {
+            $"Revision: {deployment.RevisionId}",
+            $"Status: {deployment.Status}",
+            $"Requested replicas: {deployment.RequestedReplicas.ToString(CultureInfo.InvariantCulture)}",
+            $"Change: {deployment.ChangeKind}",
+            $"Created: {deployment.CreatedAt.LocalDateTime:g}"
+        };
+        if (!string.IsNullOrWhiteSpace(deployment.SourceRevisionId))
+        {
+            parts.Add($"From: {deployment.SourceRevisionId}");
+        }
+        if (!string.IsNullOrWhiteSpace(deployment.OrchestratorDeploymentId))
+        {
+            parts.Add($"Orchestrator deployment: {deployment.OrchestratorDeploymentId}");
+        }
+        if (!string.IsNullOrWhiteSpace(deployment.TriggeredBy))
+        {
+            parts.Add($"By: {deployment.TriggeredBy}");
         }
 
         return string.Join(" | ", parts);

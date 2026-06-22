@@ -455,6 +455,7 @@ public sealed class ResourceTemplateTests
             {
                 DefinitionsPath = "application-resources.json",
                 RuntimeStatePath = "application-runtime-state.json",
+                ContainerDeploymentHistoryPath = "application-container-deployments.json",
                 LogDirectory = "application-logs"
             };
             var environment = new TestHostEnvironment(_contentRoot);
@@ -465,11 +466,13 @@ public sealed class ResourceTemplateTests
                 LogDirectory = options.LogDirectory
             };
             var runtimeStates = new ApplicationRuntimeStateStore(processOptions, environment);
+            var containerDeployments = new ApplicationContainerDeploymentStore(options, environment);
             var localProcesses = new LocalProcessRunner(runtimeStates, processOptions, environment);
             var services = new ServiceCollection().BuildServiceProvider();
             Provider = new ApplicationResourceService(
                 store,
                 runtimeStates,
+                containerDeployments,
                 localProcesses,
                 options,
                 environment,
