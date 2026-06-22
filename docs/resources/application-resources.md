@@ -95,11 +95,11 @@ Containment exists at more than one level:
 - The application resource contains the runtime behavior it owns.
 - The shared application infrastructure manages process and container
   lifecycles for that resource.
-- Providers can materialize child or internal resources, such as SQL databases
-  or container app replicas, when they are real resources owned by the parent.
-- Providers can also project provider-observed resources, such as Docker host
-  containers, when the backing platform exposes resources that are useful to
-  inspect.
+- Providers can materialize child or internal resources, such as container app
+  replicas, when they are real runtime-managed resources owned by the parent.
+- Providers can project declared or provider-observed child resources, such as
+  SQL databases or Docker host containers, when the backing platform exposes
+  resources that are useful to inspect.
 - Providers can create Resource Manager-managed sub-resources when the
   materialized artifact should participate in the normal resource graph rather
   than remain provider-owned runtime state.

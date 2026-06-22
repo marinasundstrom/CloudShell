@@ -95,6 +95,10 @@ on `git blame --follow`, and then by the broad type of change.
   start-info helpers left behind by the `LocalProcessRunner` split were
   removed as the shared provider primitives continue moving away from
   provider-specific service concerns.
+- SQL Server startup no longer creates missing declared databases. Declared
+  databases are projected expected child resources; database creation remains
+  an application or migration responsibility until an explicit SQL
+  management action is added.
 - Resource-scoped Logs views now keep navigation anchored on the selected
   parent resource when choosing projected runtime replica log sources.
 - The global Health page now includes visible resources with aggregate health

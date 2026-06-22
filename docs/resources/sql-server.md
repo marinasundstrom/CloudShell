@@ -93,17 +93,26 @@ The application provider projects each declared database as an
 diagnostic visibility. The child resource records its parent SQL Server
 resource, database name, and projection source.
 
+Declared SQL databases are expected database resources, not app-owned runtime
+replicas. The declaration says the database should be present for the SQL
+Server resource and gives CloudShell a child resource to show in Resource
+Manager, attach grants to, and correlate with provider observations. That is
+different from a container app replica, which is a runtime-managed resource
+materialized by the container app when scaling is enabled.
+
 Resource Manager displays declared databases in the SQL Server **Databases**
 tab even when the SQL Server instance is stopped. When the instance is running,
 the provider uses the configured instance password to connect to SQL Server,
-create any missing declared databases, and list `sys.databases`; the tab
-merges those live rows with the declared databases and indicates whether each
-declaration exists on the server.
+inspect `sys.databases`, and report whether each declaration exists on the
+server.
 
-The **Databases** tab is read-only. CloudShell creates missing declared
-databases during local SQL Server startup, but does not yet drop databases,
-materialize SQL users and roles from access grants, or project database
-connection strings for workloads.
+The **Databases** tab is read-only. CloudShell does not create missing
+declared databases during SQL Server startup; creating the database schema is
+currently an application or migration responsibility. A future SQL
+Server-specific management capability may add explicit database create/drop
+operations, but those operations should not be implied by child resource
+projection. CloudShell does not yet drop databases, materialize SQL users and
+roles from access grants, or project database connection strings for workloads.
 
 Access grants on SQL Server resources are modeled in CloudShell today so the
 Resource Manager can show intended access. They are not yet enforced inside
