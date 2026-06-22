@@ -539,11 +539,33 @@ liveness checks that CloudShell polls. The Control Plane can then derive the
 container app's health assessment or liveness result from the per-replica
 observations, with per-replica details available for Health, Monitoring, and
 Degradation drill-downs.
+
+A declared health check is not the same thing as a materialized probe target.
+The declaration says which signal should be observed. The materialized target
+is the runtime-specific way the Control Plane can evaluate that signal now:
+an endpoint network mapping, an absolute URL, a provider-native evaluator, or
+a future worker-owned target inside the runtime network. If a resource or
+runtime scope has a declaration but no materialized target, the result should
+be unresolved instead of being treated as an unhealthy response.
+
 The current container app implementation projects replicated HTTP checks onto
-the hidden runtime replica resources and materializes an aggregate health
-summary on the stable container app resource. Until replica-specific probe
-addresses are available, those checks may remain unresolved, but the aggregate
-still records the per-replica observations and assessment status.
+the hidden runtime replica resources. Active local Docker replicas project
+probe-only endpoint mappings for the declared HTTP probe endpoints, while the
+stable container app keeps the user-facing service endpoint and ingress
+mapping. Stopped replicas keep the declared check contracts but do not project
+reachable endpoint mappings. The Control Plane materializes an aggregate
+health summary on the stable container app resource from the observed replica
+checks, including unresolved observations when a provider cannot materialize a
+probe target.
+
+Those runtime-scope probe targets do not change the containment boundary.
+Replicas remain hidden, runtime-managed child resources owned by the container
+app. They can contribute liveness observations and health details, but the
+container app remains the lifecycle, recovery, exposure, configuration, and
+normal management target. A failed replica observation can degrade the
+container app aggregate, while recovery policy should act on the stable
+container app unless a future provider explicitly models replica-scoped
+recovery operations.
 
 Application-like resources share much of the same provider toolkit, and every
 declared resource can participate in liveness observations and health

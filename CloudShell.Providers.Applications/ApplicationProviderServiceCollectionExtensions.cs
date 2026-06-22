@@ -165,7 +165,8 @@ public static class ApplicationProviderServiceCollectionExtensions
         string? buildContext = null,
         string? dockerfile = null,
         string? registry = null,
-        int? replicas = null)
+        int? replicas = null,
+        string? tag = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
 
@@ -173,7 +174,7 @@ public static class ApplicationProviderServiceCollectionExtensions
         {
             if (builder is IProjectContainerBuildResourceBuilder containerBuildBuilder)
             {
-                containerBuildBuilder.AsProjectContainerBuild(buildContext, dockerfile);
+                containerBuildBuilder.AsProjectContainerBuild(buildContext, dockerfile, tag);
             }
             else
             {
@@ -502,7 +503,8 @@ internal interface IProjectContainerBuildResourceBuilder
 {
     IProjectResourceBuilder AsProjectContainerBuild(
         string? buildContext,
-        string? dockerfile = null);
+        string? dockerfile = null,
+        string? tag = null);
 }
 
 internal sealed class ExecutableApplicationResourceBuilder(
@@ -1009,7 +1011,8 @@ internal sealed class ExecutableApplicationResourceBuilder(
 
     public IProjectResourceBuilder AsProjectContainerBuild(
         string? buildContext,
-        string? dockerfile = null)
+        string? dockerfile = null,
+        string? tag = null)
     {
         if (!string.Equals(
                 declared.Definition.ResourceType,
@@ -1024,6 +1027,7 @@ internal sealed class ExecutableApplicationResourceBuilder(
             ContainerBuildContext = NormalizeNullable(buildContext),
             ContainerDockerfile = NormalizeNullable(dockerfile),
             ContainerImage = null,
+            ContainerRevision = NormalizeNullable(tag) ?? declared.Definition.ContainerRevision,
             ProjectContainerBuild = true,
             ResourceType = ApplicationResourceTypes.ContainerApp
         };

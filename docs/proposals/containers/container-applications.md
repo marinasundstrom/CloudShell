@@ -173,6 +173,11 @@ Implemented pieces include:
 * hidden runtime-managed child resources for container app replica/container
   projections, parented to and owned by the stable container app resource,
   with deployment/service/revision correlation metadata
+* replicated HTTP health and liveness declarations projected onto hidden
+  runtime replica resources, with active local Docker replicas materializing
+  probe-only endpoint mappings and the stable container app receiving the
+  aggregate health assessment while remaining the lifecycle, recovery, and
+  management boundary
 * app-scoped Scale and replicas diagnostics that list projected runtime
   replicas without requiring global hidden/runtime-managed inventory settings;
   single-instance apps explain that replicas are not enabled instead of

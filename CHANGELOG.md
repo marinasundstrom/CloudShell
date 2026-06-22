@@ -76,6 +76,13 @@ on `git blame --follow`, and then by the broad type of change.
   resource-owned Scale and replicas view when the resource type exposes one.
 - The global Health page now links resources directly to their resource-scoped
   Health tab instead of sending users back to the resource overview.
+- Replicated container app runtime replicas now materialize probe-only
+  endpoint mappings for active local Docker replica health checks, allowing
+  HTTP health and liveness probes to be evaluated per replica while the stable
+  app endpoint remains the normal traffic ingress.
+- ASP.NET Core project-to-container declarations can now pass an explicit
+  `AsContainer(tag: "...")` image tag, and the Replicated Container Health
+  sample uses an explicit local registry and tag for its test web app image.
 - Health status pills now have a shared `HealthPill` component used by the
   resource Health views, dashboard issue list, resource inventory, and
   container app replica table.

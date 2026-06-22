@@ -66,7 +66,9 @@ resources
 The converted resource projects as `application.container-app`, but its
 workload descriptor retains `ProjectPath`. The default local runner uses that
 shape to build the container image with the .NET SDK when no Dockerfile is
-supplied, or with the project's Dockerfile when one is specified.
+supplied, or with the project's Dockerfile when one is specified. Use
+`AsContainer(tag: "...")` when the generated image reference should use a
+stable tag.
 
 ## Lifetime
 

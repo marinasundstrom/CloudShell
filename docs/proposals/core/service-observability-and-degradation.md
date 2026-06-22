@@ -198,10 +198,18 @@ result and the runtime-scope result can be the same observation.
 The first container app slices keep the declaration on the container app
 definition, project replicated HTTP checks onto hidden runtime replica
 resources, and materialize an aggregate health summary on the stable container
-app resource from the observed replica checks. Those checks may remain
-unresolved until the provider model can expose replica-specific probe
-addresses or provider-native replica health, but the parent assessment can
-still show which runtime scopes contributed to the result.
+app resource from the observed replica checks. The declaration is separate
+from the materialized probe target. Active local Docker replicas can expose
+probe-only endpoint mappings for the Control Plane to poll, while stopped
+replicas or providers without a concrete target should report unresolved
+observations. The parent assessment still shows which runtime scopes
+contributed to the result.
+
+Replica probe targets must preserve containment. They are runtime-scope
+diagnostics under the container app, not independent app endpoints or normal
+management resources. The stable container app remains the lifecycle,
+recovery, exposure, and configuration boundary; per-replica observations feed
+the aggregate health and liveness assessment that the container app exposes.
 
 This should be expressed in the shared application resource toolkit rather
 than as a one-off container app exception. Every declared resource can

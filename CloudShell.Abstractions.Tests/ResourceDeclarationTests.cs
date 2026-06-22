@@ -8627,7 +8627,7 @@ public sealed class ResourceDeclarationTests
                         "application:api",
                         "src/API/API.csproj")
                     .WithIdentity(identityProvider, name: "api-service")
-                    .AsContainer(registry: "registry.local:5000", replicas: 2)
+                    .AsContainer(registry: "registry.local:5000", replicas: 2, tag: "20260622.1")
                     .WithContainerHost("docker:dev");
             });
 
@@ -8669,6 +8669,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("2", resource.ResourceAttributes[ResourceAttributeNames.ContainerReplicas]);
         Assert.Equal("true", resource.ResourceAttributes[ResourceAttributeNames.ContainerReplicasEnabled]);
         Assert.Equal("registry.local:5000", resource.ResourceAttributes[ResourceAttributeNames.ContainerRegistry]);
+        Assert.Equal("20260622.1", resource.ResourceAttributes[ResourceAttributeNames.ContainerRevision]);
         Assert.Equal("docker:dev", resource.ResourceAttributes[ResourceAttributeNames.ContainerHostId]);
         Assert.Equal(ResourceWorkloadKind.ContainerBuild, workload?.Kind);
         Assert.Equal("src/API/API.csproj", workload?.ProjectPath);
@@ -9066,7 +9067,70 @@ public sealed class ResourceDeclarationTests
             Assert.Equal(ResourceProbeSourceKinds.Http, check.EffectiveSource.Kind);
             Assert.Equal("/health", check.EffectiveSource.Http?.Path);
             Assert.Equal("http", check.EffectiveSource.Http?.EndpointName);
+
+            var endpoint = Assert.Single(replica.Endpoints);
+            Assert.Equal("http", endpoint.Name);
+            Assert.Equal("http", endpoint.Protocol);
+            Assert.Equal(8080, endpoint.TargetPort);
+            Assert.Empty(replica.ResourceEndpointNetworkMappings);
         });
+    }
+
+    [Fact]
+    public void ContainerApplicationProvider_MaterializesReplicaProbeEndpointMappingsWhenRuntimeIsActive()
+    {
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        services
+            .AddControlPlane()
+            .AddExtension<ApplicationProviderExtension>()
+            .Resources(resources =>
+            {
+                resources
+                    .AddContainer(
+                        "api",
+                        "example/api:latest",
+                        replicas: 2,
+                        endpoints:
+                        [
+                            ResourceEndpoint.Http("http", "127.0.0.1", 8080)
+                        ])
+                    .WithHttpHealthCheck("/health", "http")
+                    .WithHttpProbe(ResourceProbeType.Liveness, "/alive", "http", "alive");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        serviceProvider.GetRequiredService<ApplicationRuntimeStateStore>().Save(
+            new ApplicationRuntimeState(
+                "application:api",
+                null,
+                DateTimeOffset.UtcNow,
+                DateTimeOffset.UtcNow,
+                State: ResourceState.Starting));
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var resources = provider.GetResources();
+        var replicas = resources
+            .Where(resource => string.Equals(resource.ParentResourceId, "application:api", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(resource => resource.ResourceAttributes[ResourceAttributeNames.RuntimeReplicaOrdinal])
+            .ToArray();
+
+        Assert.Equal(2, replicas.Length);
+        Assert.All(replicas, replica =>
+        {
+            Assert.Equal(ResourceState.Starting, replica.State);
+            Assert.Equal(2, replica.ResourceHealthChecks.Count);
+            var mapping = Assert.Single(replica.ResourceEndpointNetworkMappings);
+            Assert.Equal("http", mapping.Name);
+            Assert.Equal(replica.Id, mapping.Target.ResourceId);
+            Assert.Equal("http", mapping.Target.EndpointName);
+            Assert.StartsWith("http://localhost:", mapping.Address, StringComparison.OrdinalIgnoreCase);
+        });
+
+        Assert.NotEqual(
+            replicas[0].ResourceEndpointNetworkMappings[0].Address,
+            replicas[1].ResourceEndpointNetworkMappings[0].Address);
     }
 
     [Fact]

@@ -3056,6 +3056,13 @@ public sealed partial class ApplicationResourceService(
             }
         }
 
+        foreach (var port in GetRuntimeContainerProbePorts(definition, service))
+        {
+            var hostPort = ResolveReplicaProbeLocalPort(definition.Id, port, instance.ReplicaOrdinal);
+            startInfo.ArgumentList.Add("-p");
+            startInfo.ArgumentList.Add($"{hostPort}:{port.TargetPort}/{NormalizeContainerPublishProtocol(port.Protocol)}");
+        }
+
         foreach (var variable in await ResolveApplicationEnvironmentVariablesAsync(
                      definition,
                      dependsOn,
@@ -3999,7 +4006,7 @@ public sealed partial class ApplicationResourceService(
             .ToArray();
     }
 
-    private static Resource CreateRuntimeContainerResource(
+    private Resource CreateRuntimeContainerResource(
         ApplicationResourceDefinition application,
         ResourceOrchestratorDeployment deployment,
         ResourceOrchestratorServiceInstance instance,
@@ -4029,7 +4036,7 @@ public sealed partial class ApplicationResourceService(
             "Applications",
             "local",
             state,
-            [],
+            CreateRuntimeContainerEndpoints(application, service),
             deployment.RevisionId,
             DateTimeOffset.UtcNow,
             [],
@@ -4039,6 +4046,7 @@ public sealed partial class ApplicationResourceService(
             ResourceClass: ResourceClass.Container,
             Attributes: attributes,
             Capabilities: [new(ResourceCapabilityIds.Monitoring)],
+            EndpointNetworkMappings: CreateRuntimeContainerEndpointNetworkMappings(application, service, instance, state),
             Source: ResourceSource.Orchestrator,
             ManagementMode: ResourceManagementMode.RuntimeManaged,
             Visibility: ResourceVisibility.Hidden,
@@ -4058,6 +4066,47 @@ public sealed partial class ApplicationResourceService(
         }
 
         return application.HealthChecks;
+    }
+
+    private static IReadOnlyList<ResourceEndpoint> CreateRuntimeContainerEndpoints(
+        ApplicationResourceDefinition application,
+        ResourceOrchestratorService service)
+    {
+        if (!ShouldProjectRuntimeContainerProbeTargets(application))
+        {
+            return [];
+        }
+
+        return GetRuntimeContainerProbePorts(application, service)
+            .Select(port => ResourceEndpoint.Contract(
+                port.Name,
+                NormalizeProtocol(port.Protocol),
+                ResourceExposureScope.Local,
+                Math.Max(1, port.TargetPort)))
+            .ToArray();
+    }
+
+    private IReadOnlyList<ResourceEndpointNetworkMapping> CreateRuntimeContainerEndpointNetworkMappings(
+        ApplicationResourceDefinition application,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorServiceInstance instance,
+        ResourceState state)
+    {
+        if (!ShouldProjectActiveRuntimeContainerProbeTargets(application, state))
+        {
+            return [];
+        }
+
+        var resourceId = CreateRuntimeContainerResourceId(application.Id, instance.ReplicaOrdinal);
+        return GetRuntimeContainerProbePorts(application, service)
+            .Select(port => ResourceEndpointNetworkMapping.ForEndpoint(
+                resourceId,
+                port.Name,
+                CreateRuntimeContainerProbeEndpointAddress(application.Id, port, instance.ReplicaOrdinal),
+                ResourceExposureScope.Local,
+                networkResourceId: NormalizeNullable(port.NetworkResourceId),
+                sourceEndpointName: port.Name))
+            .ToArray();
     }
 
     private static IReadOnlyList<Resource> CreateSqlDatabaseResources(ApplicationResourceDefinition application) =>
@@ -4491,6 +4540,16 @@ public sealed partial class ApplicationResourceService(
         return $"{protocol}://{host}:{ResolveLocalPort(resourceId, port).ToString(CultureInfo.InvariantCulture)}";
     }
 
+    private string CreateRuntimeContainerProbeEndpointAddress(
+        string resourceId,
+        ServicePort port,
+        int replicaOrdinal)
+    {
+        var protocol = NormalizeProtocol(port.Protocol);
+        var host = FirstNonEmpty(port.IPAddress, port.Host, "localhost")!;
+        return $"{protocol}://{host}:{ResolveReplicaProbeLocalPort(resourceId, port, replicaOrdinal).ToString(CultureInfo.InvariantCulture)}";
+    }
+
     private string? GetEndpointUnavailableReason(
         ApplicationResourceDefinition application,
         ResourceActionKind actionKind)
@@ -4528,7 +4587,8 @@ public sealed partial class ApplicationResourceService(
     private string? GetContainerEndpointUnavailableReason(ApplicationResourceDefinition application)
     {
         var occupiedPorts = new HashSet<int>();
-        foreach (var port in CreateDefaultContainerOrchestratorService(application).ServicePorts)
+        var service = CreateDefaultContainerOrchestratorService(application);
+        foreach (var port in service.ServicePorts)
         {
             var localPort = ResolveLocalPort(application.Id, port);
             if (!occupiedPorts.Add(localPort))
@@ -4539,6 +4599,23 @@ public sealed partial class ApplicationResourceService(
             if (!IsLocalHostPortAvailable(localPort))
             {
                 return $"Endpoint '{port.Name}' for container app resource '{application.Id}' cannot use local port {localPort.ToString(CultureInfo.InvariantCulture)} because the address is already in use.";
+            }
+        }
+
+        foreach (var instance in CreateDefaultContainerServiceInstances(service))
+        {
+            foreach (var port in GetRuntimeContainerProbePorts(application, service))
+            {
+                var localPort = ResolveReplicaProbeLocalPort(application.Id, port, instance.ReplicaOrdinal);
+                if (!occupiedPorts.Add(localPort))
+                {
+                    return $"Replica probe endpoint '{port.Name}' for container app resource '{application.Id}' cannot use local port {localPort.ToString(CultureInfo.InvariantCulture)} because another endpoint on the resource already uses that port.";
+                }
+
+                if (!IsLocalHostPortAvailable(localPort))
+                {
+                    return $"Replica probe endpoint '{port.Name}' for container app resource '{application.Id}' cannot use local port {localPort.ToString(CultureInfo.InvariantCulture)} because the address is already in use.";
+                }
             }
         }
 
@@ -5938,6 +6015,20 @@ public sealed partial class ApplicationResourceService(
         return start + (int)(StableHash($"{resourceId}:{port.Name}") % (uint)range);
     }
 
+    private int ResolveReplicaProbeLocalPort(
+        string resourceId,
+        ServicePort port,
+        int replicaOrdinal)
+    {
+        var start = Math.Max(1, options.AutoLocalPortStart);
+        var end = Math.Max(start, options.AutoLocalPortEnd);
+        var range = end - start + 1;
+        var normalizedReplicaOrdinal = Math.Max(1, replicaOrdinal);
+        return start + (int)(StableHash(
+            $"{resourceId}:replica:{normalizedReplicaOrdinal.ToString(CultureInfo.InvariantCulture)}:{port.Name}") %
+            (uint)range);
+    }
+
     private static IReadOnlyList<ServicePort> NormalizeEndpointPorts(
         IReadOnlyList<ServicePort> ports,
         string resourceType,
@@ -6046,8 +6137,49 @@ public sealed partial class ApplicationResourceService(
         service.Replicas > 1 &&
         service.ServicePorts.Any(IsContainerAppIngressPort);
 
+    private static IReadOnlyList<ServicePort> GetRuntimeContainerProbePorts(
+        ApplicationResourceDefinition application,
+        ResourceOrchestratorService service)
+    {
+        if (!ShouldProjectRuntimeContainerProbeTargets(application))
+        {
+            return [];
+        }
+
+        var namedEndpoints = application.HealthChecks
+            .Select(check => NormalizeNullable(check.HttpSource?.EndpointName))
+            .OfType<string>()
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var hasUnnamedHttpProbe = application.HealthChecks.Any(check =>
+            check.HttpSource is not null &&
+            string.IsNullOrWhiteSpace(check.HttpSource.EndpointName));
+
+        return service.ServicePorts
+            .Where(IsHttpProbePort)
+            .Where(port =>
+                namedEndpoints.Contains(port.Name) ||
+                hasUnnamedHttpProbe)
+            .DistinctBy(port => port.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static bool ShouldProjectRuntimeContainerProbeTargets(
+        ApplicationResourceDefinition application) =>
+        ApplicationResourceTypes.IsContainerApp(application.ResourceType) &&
+        IsReplicaModeEnabled(application) &&
+        application.HealthChecks.Any(check => check.HttpSource is not null);
+
+    private static bool ShouldProjectActiveRuntimeContainerProbeTargets(
+        ApplicationResourceDefinition application,
+        ResourceState state) =>
+        ShouldProjectRuntimeContainerProbeTargets(application) &&
+        state is ResourceState.Running or ResourceState.Starting or ResourceState.Degraded;
+
     private static bool IsContainerAppIngressPort(ServicePort port) =>
         NormalizeProtocol(port.Protocol) is "http" or "tcp";
+
+    private static bool IsHttpProbePort(ServicePort port) =>
+        NormalizeProtocol(port.Protocol) is "http" or "https";
 
     private static string GetContainerAppIngressName(ResourceOrchestratorService service) =>
         $"{service.Name}-ingress";

@@ -627,7 +627,9 @@ is supplied, the default local runner uses the .NET SDK container publish path
 (`dotnet publish /t:PublishContainer`) for the project before running the
 resulting image. If the project owns a Dockerfile, pass it through
 `AsContainer(dockerfile: "Dockerfile")` and the selected container host builds
-that Dockerfile before running the image.
+that Dockerfile before running the image. Pass `tag: "..."` when the project
+container image should use a predictable tag instead of the generated
+container-app revision value.
 
 Low-level project builders still expose `AsContainerImage(...)` and
 `WithContainerBuild(...)` for advanced provider code that wants to set image or

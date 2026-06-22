@@ -236,6 +236,18 @@ checks, liveness signals, and recovery policy. `ResourceProbeType.Liveness`
 is the first bridge from existing health-check declarations to recovery, not a
 decision that liveness must remain only a subtype of health forever.
 
+Probe declarations should be interpreted separately from materialized probe
+targets. A resource can declare that an HTTP liveness signal exists before the
+provider has projected a currently reachable endpoint, provider-native signal,
+or worker-executed target for the Control Plane to evaluate. Unresolved probe
+targets are diagnostic `Unknown` results and should not trigger recovery by
+themselves. For replicated container apps, the stable resource owns the
+declaration and recovery policy, while active runtime replicas may project
+probe-only endpoint mappings that feed the aggregate liveness result consumed
+by recovery. Those runtime replica probe targets remain contained by the
+container app: recovery acts on the stable container app resource unless a
+provider later exposes explicit replica-scoped recovery operations.
+
 Recommended first signal behavior:
 
 - `Liveness`: eligible to trigger recovery when policy is enabled.
