@@ -32,10 +32,8 @@
 <section class="resource-graph-page panel">
     @if (GraphResources.Count == 0)
     {
-        <div class="empty-state">
-            <strong>@L["No resources in this scope"]</strong>
-            <span>@L["Resources that match Resource Manager display settings will appear here."]</span>
-        </div>
+        <EmptyState Title="@L["No resources in this scope"].Value"
+                    Message="@L["Resources that match Resource Manager display settings will appear here."].Value" />
     }
     else
     {

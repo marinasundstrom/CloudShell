@@ -35,6 +35,8 @@ on `git blame --follow`, and then by the broad type of change.
 - SQL Server database rows, container replica tables, and the common Health
   table now use a shared resource table identity component for consistent
   icon, title, and secondary-label rendering.
+- Resource Manager pages now use the shared empty-state component instead of
+  locally hand-coded empty-state markup for simple empty and not-found states.
 
 ### 2026-06-21
 

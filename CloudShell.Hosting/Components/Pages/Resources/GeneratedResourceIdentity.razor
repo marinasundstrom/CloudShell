@@ -13,10 +13,8 @@
 
     @if (Resource is null)
     {
-        <div class="empty-state">
-            <strong>@L["Resource not found"]</strong>
-            <span>@L["The resource may have been removed or is no longer visible."]</span>
-        </div>
+        <EmptyState Title="@L["Resource not found"].Value"
+                    Message="@L["The resource may have been removed or is no longer visible."].Value" />
     }
     else
     {
@@ -133,10 +131,8 @@
         }
         else
         {
-            <div class="empty-state">
-                <strong>@L["Identity not enabled"]</strong>
-                <span>@L["Enable identity for this resource before provisioning identity or assigning access permissions."]</span>
-            </div>
+            <EmptyState Title="@L["Identity not enabled"].Value"
+                        Message="@L["Enable identity for this resource before provisioning identity or assigning access permissions."].Value" />
             @if (IsReadOnly)
             {
                 <ProcedureMessage Compact="true">

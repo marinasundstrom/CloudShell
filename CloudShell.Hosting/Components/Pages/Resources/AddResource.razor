@@ -115,10 +115,8 @@ else
             }
             else if (selectedType is null)
             {
-                <div class="empty-state">
-                    <strong>@L["No resource types are installed"]</strong>
-                    <span>@L["Install an extension that contributes at least one resource type."]</span>
-                </div>
+                <EmptyState Title="@L["No resource types are installed"].Value"
+                            Message="@L["Install an extension that contributes at least one resource type."].Value" />
             }
             else
             {

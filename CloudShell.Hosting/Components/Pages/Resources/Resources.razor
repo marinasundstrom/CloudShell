@@ -259,10 +259,8 @@
 
             @if (rows.Count == 0)
             {
-                <div class="empty-state">
-                    <strong>@L["No resources in this scope"]</strong>
-                    <span>@L["Change the scope or filter to view other resources."]</span>
-                </div>
+                <EmptyState Title="@L["No resources in this scope"].Value"
+                            Message="@L["Change the scope or filter to view other resources."].Value" />
             }
         </div>
 

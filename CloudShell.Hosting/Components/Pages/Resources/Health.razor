@@ -66,10 +66,9 @@
 
         @if (ResourcesWithHealthChecks.Count == 0)
         {
-            <div class="empty-state compact">
-                <strong>@L["No health checks configured"]</strong>
-                <span>@L["Resources can opt into health checks through their resource configuration or provider probe options."]</span>
-            </div>
+            <EmptyState Title="@L["No health checks configured"].Value"
+                        Message="@L["Resources can opt into health checks through their resource configuration or provider probe options."].Value"
+                        Compact="true" />
         }
         else
         {
@@ -157,10 +156,9 @@
 
         @if (ResourcesWithHealthChecks.Count == 0)
         {
-            <div class="empty-state compact">
-                <strong>@L["Nothing to check"]</strong>
-                <span>@L["No projected resources currently advertise health checks."]</span>
-            </div>
+            <EmptyState Title="@L["Nothing to check"].Value"
+                        Message="@L["No projected resources currently advertise health checks."].Value"
+                        Compact="true" />
         }
         else
         {

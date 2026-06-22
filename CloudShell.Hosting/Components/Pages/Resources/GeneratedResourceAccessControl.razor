@@ -15,10 +15,8 @@
 
     @if (Resource is null)
     {
-        <div class="empty-state">
-            <strong>@L["Resource not found"]</strong>
-            <span>@L["The resource may have been removed or is no longer visible."]</span>
-        </div>
+        <EmptyState Title="@L["Resource not found"].Value"
+                    Message="@L["The resource may have been removed or is no longer visible."].Value" />
     }
     else
     {
