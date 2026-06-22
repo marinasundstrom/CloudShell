@@ -108,45 +108,38 @@ else
     }
     else
     {
-        <div class="table-wrap">
-            <table class="resource-table">
-                <thead>
+        <ResourceTable AriaLabel="Docker containers">
+            <thead>
+                <tr>
+                    <th>Container</th>
+                    <th>Image</th>
+                    <th>State</th>
+                    <th>Endpoint</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var container in containers)
+                {
                     <tr>
-                        <th>Name</th>
-                        <th>Image</th>
-                        <th>State</th>
-                        <th>Endpoint</th>
-                        <th>Actions</th>
+                        <td>
+                            <ResourceTableIdentity IconName="container"
+                                                   IconTitle="Container"
+                                                   Title="@container.Name"
+                                                   Summary="@ShortId(container.Id)" />
+                        </td>
+                        <td>@container.Version</td>
+                        <td>
+                            <ResourceStateIndicator State="container.State" Variant="pill" />
+                        </td>
+                        <td class="endpoint">@EndpointLink(container.PrimaryEndpoint)</td>
+                        <td>
+                            @ContainerActionControls(container)
+                        </td>
                     </tr>
-                </thead>
-                <tbody>
-                    @foreach (var container in containers)
-                    {
-                        <tr>
-                            <td>
-                                <div class="resource-table-identity">
-                                    <span class="resource-kind-icon">
-                                        <FluentIcon Value="@(new Icons.Regular.Size20.CubeTree())" />
-                                    </span>
-                                    <span>
-                                        <strong>@container.Name</strong>
-                                        <span>@ShortId(container.Id)</span>
-                                    </span>
-                                </div>
-                            </td>
-                            <td>@container.Version</td>
-                            <td>
-                                <span class="state-pill @GetStateClass(container.State)">@GetStateLabel(container)</span>
-                            </td>
-                            <td class="endpoint">@EndpointLink(container.PrimaryEndpoint)</td>
-                            <td>
-                                @ContainerActionControls(container)
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
+                }
+            </tbody>
+        </ResourceTable>
     }
 </section>
 }
@@ -533,20 +526,6 @@ else
 
     private static string ShortId(string value) =>
         value.Length <= 24 ? value : value[^12..];
-
-    private static string GetStateLabel(Resource resource) =>
-        resource.State?.ToString() ?? ResourceState.Unknown.ToString();
-
-    private static string GetStateClass(ResourceState? state) => state switch
-    {
-        ResourceState.Running => "state-running",
-        ResourceState.Starting => "state-starting",
-        ResourceState.Stopping => "state-stopping",
-        ResourceState.Paused => "state-paused",
-        ResourceState.Degraded => "state-degraded",
-        ResourceState.Stopped => "state-stopped",
-        _ => "state-unknown"
-    };
 
     private sealed record PendingResourceAction(Resource Resource, ResourceAction Action);
 }
