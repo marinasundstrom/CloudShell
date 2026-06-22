@@ -101,6 +101,7 @@ Docker hosts are `Resource` projections with:
 - infrastructure kind: `Docker`
 - endpoints: the Docker Engine endpoint, with private exposure
 - children: Docker container resources discovered or declared under that host
+- liveness: provider-owned Docker API reachability observation
 - provider-owned actions and diagnostics
 
 The Docker provider should add non-secret attributes:
@@ -275,6 +276,15 @@ If the provider configuration is missing for a registered remote host, the
 resource should project as unavailable with a diagnostic that names the missing
 provider configuration, not as a local Docker fallback.
 
+Docker host liveness is observation-only in the first implementation. A
+reachable Docker API projects the host as `Running`; an unreachable Docker API
+projects the host as `Degraded` and records an unhealthy liveness result. The
+provider-owned liveness probe should continue to run while the host is
+degraded so a restarted Docker daemon can return the resource to `Running`
+without requiring CloudShell to model host recovery. Docker hosts should not
+project recovery support until CloudShell has explicit host start/stop
+semantics.
+
 ## API and Client Impact
 
 No new Control Plane platform primitive is required. The existing resource API
@@ -296,6 +306,7 @@ Add focused coverage for:
 - existing `docker.engine` registrations continue to resolve as Docker host
   resources during migration
 - remote host credentials are not projected as attributes or endpoints
+- Docker hosts project provider-owned liveness without recovery support
 - UI/provider registration rejects duplicate local host registration in the
   same resource group
 - UI/provider registration rejects duplicate remote endpoint registration in

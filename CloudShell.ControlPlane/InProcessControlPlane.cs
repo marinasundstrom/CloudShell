@@ -2044,7 +2044,7 @@ public sealed class InProcessControlPlane(
         GetUnhealthyLiveness(summary) is not null;
 
     private static bool IsLivenessActive(Resource resource) =>
-        resource.State == ResourceState.Running;
+        resource.State is ResourceState.Running or ResourceState.Degraded;
 
     private int GetLivenessFailureThreshold(Resource resource)
     {

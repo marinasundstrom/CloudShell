@@ -1746,6 +1746,27 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task ListResourcesAsync_ContinuesEvaluatingLivenessForDegradedResource()
+    {
+        var evaluator = new StaticProbeEvaluator(ResourceHealthStatus.Healthy, "Alive");
+        var resource = CreateResource("target", ResourceState.Degraded) with
+        {
+            HealthChecks = [CreateLivenessCheck()]
+        };
+        var controlPlane = CreateControlPlane(
+            [resource],
+            probeEvaluators: [evaluator]);
+
+        await controlPlane.RefreshResourceHealthAsync("target");
+
+        var summary = await controlPlane.GetResourceHealthAsync("target");
+
+        Assert.Equal(1, evaluator.CallCount);
+        Assert.NotNull(summary);
+        Assert.Equal(ResourceHealthStatus.Healthy, summary.Status);
+    }
+
+    [Fact]
     public async Task ListResourcesAsync_KeepsStoppedResourceStoppedWhenLivenessIsUnhealthy()
     {
         var resource = CreateResource("target", ResourceState.Stopped) with

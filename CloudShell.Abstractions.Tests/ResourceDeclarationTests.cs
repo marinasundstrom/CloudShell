@@ -5951,6 +5951,9 @@ public sealed class ResourceDeclarationTests
             definition.HostCapabilities.Order(StringComparer.OrdinalIgnoreCase));
         Assert.Equal(DockerContainerResourceProvider.HostResourceType, host.EffectiveTypeId);
         Assert.True(host.HasCapability(ResourceCapabilityIds.ContainerHost));
+        Assert.True(host.HasCapability(ResourceCapabilityIds.Liveness));
+        Assert.False(host.SupportsRecovery);
+        AssertDefaultDockerHostLivenessCheck(host);
         var endpoint = Assert.Single(host.Endpoints);
         Assert.Equal("host", endpoint.Name);
         Assert.Equal(provider.Endpoint.Scheme, endpoint.Protocol);
@@ -6088,8 +6091,11 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("tcp://build-01.example.com", endpointMapping.Address);
         Assert.DoesNotContain("secret", host.PrimaryEndpoint, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("DOCKER_HOST_PASSWORD", host.ResourceAttributes.Values);
+        Assert.True(host.HasCapability(ResourceCapabilityIds.Liveness));
+        Assert.False(host.SupportsRecovery);
         Assert.True(host.HasCapability(ResourceCapabilityIds.LogSources));
         Assert.True(container.HasCapability(ResourceCapabilityIds.LogSources));
+        AssertDefaultDockerHostLivenessCheck(host);
         AssertDefaultDockerHostLogSource(host);
         AssertDefaultContainerLogSource(container);
         Assert.Equal("docker:build-01", container.ParentResourceId);
@@ -11413,6 +11419,14 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(ResourceLogSourcePurpose.Default, source.Purpose);
         Assert.Equal(LogSourceAvailability.ProviderDefined, source.Availability);
         Assert.True(source.Capabilities.HasFlag(LogSourceCapabilities.Read));
+    }
+
+    private static void AssertDefaultDockerHostLivenessCheck(Resource resource)
+    {
+        var check = Assert.Single(resource.ResourceHealthChecks);
+        Assert.Equal(ResourceProbeType.Liveness, check.Type);
+        Assert.Equal("liveness", check.Name);
+        Assert.Equal("docker.host", check.EffectiveSource.Kind);
     }
 
     private static void AssertDefaultServiceLogSource(

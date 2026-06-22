@@ -71,6 +71,30 @@ public sealed partial class DockerContainerResourceProvider :
 
     public DockerConnectionStatus ConnectionStatus => GetSnapshot().ConnectionStatus;
 
+    internal DockerConnectionStatus GetHostConnectionStatus(string hostResourceId)
+    {
+        var snapshot = GetSnapshot();
+        var normalized = CreateDockerResourceId(hostResourceId);
+        if (snapshot.HostConnectionStatuses.TryGetValue(normalized, out var status))
+        {
+            return status;
+        }
+
+        return string.Equals(normalized, DefaultHostResourceId, StringComparison.OrdinalIgnoreCase)
+            ? snapshot.ConnectionStatus
+            : new DockerConnectionStatus(
+                GetHostDefinition(normalized).Endpoint,
+                false,
+                "Docker host has not been checked yet.",
+                DateTimeOffset.MinValue);
+    }
+
+    public static ResourceHealthCheck CreateHostLivenessCheck() =>
+        new(
+            new ResourceProbeSource(DockerHostResourceProbeEvaluator.SourceKind),
+            ResourceProbeType.Liveness,
+            "liveness");
+
     public IReadOnlyList<Resource> GetResources() => GetSnapshot().Resources;
 
     public IReadOnlyList<Resource> GetContainers() => GetSnapshot().Resources
@@ -915,6 +939,7 @@ public sealed partial class DockerContainerResourceProvider :
         }
 
         var resources = new List<Resource>();
+        var hostStatuses = new Dictionary<string, DockerConnectionStatus>(StringComparer.OrdinalIgnoreCase);
         DockerConnectionStatus? defaultStatus = null;
 
         foreach (var host in GetConfiguredHosts())
@@ -939,6 +964,7 @@ public sealed partial class DockerContainerResourceProvider :
                     .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase));
 
                 var status = new DockerConnectionStatus(host.Host.Endpoint, true, null, checkedAt);
+                hostStatuses[host.Id] = status;
                 if (string.Equals(host.Id, DefaultHostResourceId, StringComparison.OrdinalIgnoreCase))
                 {
                     defaultStatus = status;
@@ -950,7 +976,7 @@ public sealed partial class DockerContainerResourceProvider :
             }
             catch (Exception exception)
             {
-                resources.Add(CreateHost(host, ResourceState.Stopped, "Unavailable", checkedAt));
+                resources.Add(CreateHost(host, ResourceState.Degraded, "Unavailable", checkedAt));
                 resources.AddRange(GetDeclaredContainerResources(host.Id, [], checkedAt));
                 resources.AddRange(previousSnapshot.Resources
                     .Where(resource => resource.Kind == "Docker Container")
@@ -960,6 +986,7 @@ public sealed partial class DockerContainerResourceProvider :
                     .Select(resource => resource with { State = ResourceState.Unknown }));
 
                 var status = new DockerConnectionStatus(host.Host.Endpoint, false, GetErrorMessage(exception), checkedAt);
+                hostStatuses[host.Id] = status;
                 if (string.Equals(host.Id, DefaultHostResourceId, StringComparison.OrdinalIgnoreCase))
                 {
                     defaultStatus = status;
@@ -972,7 +999,8 @@ public sealed partial class DockerContainerResourceProvider :
                 .GroupBy(resource => resource.Id, StringComparer.OrdinalIgnoreCase)
                 .Select(group => group.First())
                 .ToArray(),
-            defaultStatus ?? new DockerConnectionStatus(Endpoint, false, "Docker host unavailable.", checkedAt));
+            defaultStatus ?? new DockerConnectionStatus(Endpoint, false, "Docker host unavailable.", checkedAt),
+            hostStatuses);
 
         lock (_gate)
         {
@@ -1012,7 +1040,7 @@ public sealed partial class DockerContainerResourceProvider :
             [],
             "/resources/container-hosts",
             TypeId: HostResourceType,
-            HealthChecks: configured.HealthChecks,
+            HealthChecks: CreateHostHealthChecks(configured.HealthChecks),
             ResourceClass: ResourceClass.Infrastructure,
             Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
@@ -1024,6 +1052,7 @@ public sealed partial class DockerContainerResourceProvider :
             Capabilities:
             [
                 new(ResourceCapabilityIds.ContainerHost),
+                new(ResourceCapabilityIds.Liveness),
                 new(ResourceCapabilityIds.LogSources)
             ],
             EndpointNetworkMappings:
@@ -1037,6 +1066,17 @@ public sealed partial class DockerContainerResourceProvider :
                     sourceEndpointName: "host")
             ],
             LogSources: CreateHostLogSources());
+
+    private static IReadOnlyList<ResourceHealthCheck> CreateHostHealthChecks(
+        IReadOnlyList<ResourceHealthCheck> configured) =>
+        configured.Any(IsHostLivenessCheck)
+            ? configured
+            : [CreateHostLivenessCheck(), .. configured];
+
+    private static bool IsHostLivenessCheck(ResourceHealthCheck check) =>
+        check.Type == ResourceProbeType.Liveness &&
+        string.Equals(check.Name, "liveness", StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(check.EffectiveSource.Kind, DockerHostResourceProbeEvaluator.SourceKind, StringComparison.OrdinalIgnoreCase);
 
     private static IReadOnlyList<LogDescriptor> CreateLogDescriptors(Resource resource) =>
         resource.EffectiveTypeId switch
@@ -1905,12 +1945,19 @@ public sealed partial class DockerContainerResourceProvider :
 
     private sealed record DockerSnapshot(
         IReadOnlyList<Resource> Resources,
-        DockerConnectionStatus ConnectionStatus)
+        DockerConnectionStatus ConnectionStatus,
+        IReadOnlyDictionary<string, DockerConnectionStatus> HostConnectionStatuses)
     {
         public static DockerSnapshot Pending(Uri endpoint, IReadOnlyList<Resource> resources) =>
             new(
                 resources,
-                new DockerConnectionStatus(endpoint, false, "Connecting to Docker.", DateTimeOffset.MinValue));
+                new DockerConnectionStatus(endpoint, false, "Connecting to Docker.", DateTimeOffset.MinValue),
+                resources
+                    .Where(IsHostResource)
+                    .ToDictionary(
+                        resource => resource.Id,
+                        _ => new DockerConnectionStatus(endpoint, false, "Connecting to Docker.", DateTimeOffset.MinValue),
+                        StringComparer.OrdinalIgnoreCase));
     }
 
     private sealed record ConfiguredDockerHost(

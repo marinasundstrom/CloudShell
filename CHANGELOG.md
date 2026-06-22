@@ -44,6 +44,10 @@ on `git blame --follow`, and then by the broad type of change.
   events. Liveness and recovery now wait for resources to be running, so
   intentionally stopped resources are not probed for liveness or automatically
   restarted.
+- Docker host resources now project provider-owned liveness for Docker API
+  reachability. Unavailable Docker hosts are observed as `Degraded` rather than
+  recovered by CloudShell, and degraded resources continue liveness probing so
+  restarting Docker can return the host to `Running`.
 - The Application Topology sample now enables recovery for its API web project
   through a resource-builder recovery declaration so liveness and recovery can
   be validated against a real application resource.

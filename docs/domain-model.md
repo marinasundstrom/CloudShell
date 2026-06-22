@@ -159,17 +159,18 @@ but the provider cannot currently determine the value.
 
 Liveness is a resource-owned signal that can affect lifecycle status. Because
 liveness checks are best-effort observations, a single failed observation is
-kept as health history. Liveness is active only when the resource is running;
-resources intentionally stopped through lifecycle actions should not be probed
-for liveness or recovered from that stopped state. If recovery has already
-observed the resource healthy and the provider later projects it as `Stopped`,
-CloudShell treats that as an unexpected runtime loss and recovery may start it
-again when policy allows. When consecutive unhealthy liveness observations
-meet the configured failure threshold for a running resource, a
-responding-but-unhealthy signal can project the resource as `Degraded`, while
-a no-response signal can project it as `Stopped`. Generic health and readiness
-checks do not imply lifecycle degradation by default. Providers can still
-project a more specific lifecycle state when they own a better runtime signal.
+kept as health history. Liveness is active when the resource is running or
+already degraded; resources intentionally stopped through lifecycle actions
+should not be probed for liveness or recovered from that stopped state. If
+recovery has already observed the resource healthy and the provider later
+projects it as `Stopped`, CloudShell treats that as an unexpected runtime loss
+and recovery may start it again when policy allows. When consecutive unhealthy
+liveness observations meet the configured failure threshold for a running or
+degraded resource, a responding-but-unhealthy signal can project the resource
+as `Degraded`, while a no-response signal can project it as `Stopped`. Generic
+health and readiness checks do not imply lifecycle degradation by default.
+Providers can still project a more specific lifecycle state when they own a
+better runtime signal.
 
 A storage volume resource represents allocated physical storage that can be
 referenced and mounted by another resource. A simple local volume can be

@@ -126,7 +126,7 @@ public sealed class ResourceHealthProbeService(IEnumerable<IResourceProbeEvaluat
     }
 
     private static bool IsLivenessActive(Resource resource) =>
-        resource.State == ResourceState.Running;
+        resource.State is ResourceState.Running or ResourceState.Degraded;
 
     private static ResourceHealthCheckResult? FindPreviousResult(
         ResourceHealthSummary? previousSummary,

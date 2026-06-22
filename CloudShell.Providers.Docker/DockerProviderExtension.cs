@@ -28,6 +28,8 @@ public sealed class DockerProviderExtension : ICloudShellExtension
             serviceProvider => serviceProvider.GetRequiredService<DockerContainerResourceProvider>());
         builder.Services.AddSingleton<IResourceMonitoringProvider>(
             serviceProvider => serviceProvider.GetRequiredService<DockerContainerResourceProvider>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceProbeEvaluator, DockerHostResourceProbeEvaluator>());
 
         builder
             .AddResourceProvider<DockerContainerResourceProvider>()
@@ -41,11 +43,7 @@ public sealed class DockerProviderExtension : ICloudShellExtension
                 probeOptions: new ResourceTypeProbeOptions(
                     HealthChecks:
                     [
-                        new ResourceHealthCheck(
-                            "/_ping",
-                            EndpointName: "host",
-                            Name: "host",
-                            Source: ResourceProbeSource.ForHttp("/_ping", "host"))
+                        DockerContainerResourceProvider.CreateHostLivenessCheck()
                     ],
                     EnableHealthChecksByDefault: false),
                 resourceClass: ResourceClass.Infrastructure)
