@@ -52,7 +52,7 @@
 </SummaryMetricGrid>
 
 <section class="dashboard-grid">
-    <article class="panel panel-wide">
+    <ShellPanel Wide="true">
         <ShellPanelHeader Title="@L["Health checks"].Value"
                           Description="@L["Configured probes resolved from resource endpoint mappings."].Value">
             <Actions>
@@ -138,9 +138,9 @@
                 }
             </div>
         }
-    </article>
+    </ShellPanel>
 
-    <article class="panel">
+    <ShellPanel>
         <ShellPanelHeader Title="@L["Resources"].Value"
                           Description="@L["Latest aggregate health by resource."].Value" />
 
@@ -171,7 +171,7 @@
                 }
             </ShellActivityList>
         }
-    </article>
+    </ShellPanel>
 </section>
 
 @code {

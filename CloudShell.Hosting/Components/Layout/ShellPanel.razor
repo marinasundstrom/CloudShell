@@ -1,0 +1,31 @@
+<article class="@CssClass" @attributes="AdditionalAttributes">
+    @ChildContent
+</article>
+
+@code {
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public bool Wide { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string CssClass
+    {
+        get
+        {
+            var classes = Wide
+                ? "shell-panel wide"
+                : "shell-panel";
+
+            return string.IsNullOrWhiteSpace(Class)
+                ? classes
+                : $"{classes} {Class}";
+        }
+    }
+}

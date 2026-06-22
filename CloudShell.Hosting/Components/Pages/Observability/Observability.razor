@@ -60,52 +60,52 @@ else
     </SummaryMetricGrid>
 
     <section class="dashboard-grid">
-    <article class="panel panel-wide">
-        <ShellPanelHeader Title="@L["Workspace views"].Value"
-                          Description="@L["Open the shared telemetry surfaces for logs, traces, metrics, and service request relationships."].Value" />
+        <ShellPanel Wide="true">
+            <ShellPanelHeader Title="@L["Workspace views"].Value"
+                              Description="@L["Open the shared telemetry surfaces for logs, traces, metrics, and service request relationships."].Value" />
 
-        <ShellActivityList>
-            @foreach (var view in WorkspaceViews)
-            {
-                <ShellActivityLink Href="@view.Href"
-                                   Title="@L[view.Title].Value"
-                                   Summary="@L[view.Description].Value"
-                                   TrailingText="@view.Summary">
-                    <Leading>
-                        <ShellNavigationIcon Icon="@view.Icon" />
-                    </Leading>
-                </ShellActivityLink>
-            }
-        </ShellActivityList>
-    </article>
-
-    <article class="panel">
-        <ShellPanelHeader Title="@L["Observed services"].Value"
-                          Description="@L["Services with trace spans or metric points in the current telemetry window."].Value" />
-
-        @if (ObservedServices.Count == 0)
-        {
-            <EmptyState Title="@L["No telemetry observed"].Value"
-                        Message="@L["Start resources and send traffic to populate traces and metrics."].Value"
-                        Compact="true" />
-        }
-        else
-        {
             <ShellActivityList>
-                @foreach (var service in ObservedServices.Take(8))
+                @foreach (var view in WorkspaceViews)
                 {
-                    <ShellActivityLink Href="@BuildObservedServiceHref(service)"
-                                       Title="@service.ServiceName"
-                                       Summary="@FormatObservedServiceSummary(service)"
-                                       TrailingText="@FormatLastSeen(service.LastSeen)">
+                    <ShellActivityLink Href="@view.Href"
+                                       Title="@L[view.Title].Value"
+                                       Summary="@L[view.Description].Value"
+                                       TrailingText="@view.Summary">
                         <Leading>
-                            <ShellNavigationIcon Icon="observability" />
+                            <ShellNavigationIcon Icon="@view.Icon" />
                         </Leading>
                     </ShellActivityLink>
                 }
             </ShellActivityList>
-        }
-    </article>
+        </ShellPanel>
+
+        <ShellPanel>
+            <ShellPanelHeader Title="@L["Observed services"].Value"
+                              Description="@L["Services with trace spans or metric points in the current telemetry window."].Value" />
+
+            @if (ObservedServices.Count == 0)
+            {
+                <EmptyState Title="@L["No telemetry observed"].Value"
+                            Message="@L["Start resources and send traffic to populate traces and metrics."].Value"
+                            Compact="true" />
+            }
+            else
+            {
+                <ShellActivityList>
+                    @foreach (var service in ObservedServices.Take(8))
+                    {
+                        <ShellActivityLink Href="@BuildObservedServiceHref(service)"
+                                           Title="@service.ServiceName"
+                                           Summary="@FormatObservedServiceSummary(service)"
+                                           TrailingText="@FormatLastSeen(service.LastSeen)">
+                            <Leading>
+                                <ShellNavigationIcon Icon="observability" />
+                            </Leading>
+                        </ShellActivityLink>
+                    }
+                </ShellActivityList>
+            }
+        </ShellPanel>
     </section>
 }
 

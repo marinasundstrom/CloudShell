@@ -65,7 +65,7 @@
 </SummaryMetricGrid>
 
 <section class="dashboard-grid">
-    <article class="panel panel-wide">
+    <ShellPanel Wide="true">
         <ShellPanelHeader Title="@L["System state"].Value"
                           Description="@L["Resources that need attention based on lifecycle failures, health checks, or degraded state."].Value" />
 
@@ -95,9 +95,9 @@
                 }
             </ShellActivityList>
         }
-    </article>
+    </ShellPanel>
 
-    <article class="panel">
+    <ShellPanel>
         <ShellPanelHeader Title="@L["Resource state"].Value"
                           Description="@L["Current resource inventory by lifecycle state."].Value" />
 
@@ -122,11 +122,11 @@
                 }
             </ShellActivityList>
         }
-    </article>
+    </ShellPanel>
 </section>
 
 <section class="dashboard-grid">
-    <article class="panel panel-wide">
+    <ShellPanel Wide="true">
         <ShellPanelHeader Title="@L["Failed requests"].Value"
                           Description="@L["Open failed traces to inspect request flow and related application logs."].Value" />
 
@@ -155,9 +155,9 @@
                 }
             </ShellActivityList>
         }
-    </article>
+    </ShellPanel>
 
-    <article class="panel">
+    <ShellPanel>
         <ShellPanelHeader Title="@L["Quick views"].Value"
                           Description="@L["Open the main operational workspaces."].Value" />
 
@@ -191,7 +191,7 @@
                 </Leading>
             </ShellActivityLink>
         </ShellActivityList>
-    </article>
+    </ShellPanel>
 </section>
 
 @code {

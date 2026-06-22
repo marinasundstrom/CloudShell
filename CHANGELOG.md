@@ -53,6 +53,8 @@ on `git blame --follow`, and then by the broad type of change.
   with component-scoped styling instead of repeated selected-type card markup.
 - Dashboard, Health, and Observability navigation rows now use shared activity
   list and link components with row-state styling contained in component CSS.
+- Dashboard, Health, and Observability panels now use a shared shell panel
+  component with component-scoped card styling.
 - Local user and resource-type lists now use shared shell entity row and tag
   list components instead of global provider-row and tag-row markup.
 - Resource Manager, Docker provider, application provider, configuration
