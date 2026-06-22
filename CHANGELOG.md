@@ -45,9 +45,13 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource table identity and health history chart styles now live with their
   components through scoped CSS instead of the global app stylesheet.
 - Added a Resource Manager project-structure proposal for separating shell
-  hosting, Resource Manager UI, Resource Manager UI abstractions, host
-  installation, Control Plane services, and provider UI/runtime integration
-  boundaries.
+  hosting, Resource Manager shared concepts, Resource Manager UI, Resource
+  Manager UI abstractions, host installation, Control Plane services, and
+  provider UI/runtime integration boundaries.
+- Added a CloudShell architecture document describing CloudShell UI as the
+  extensible shell application, the Control Plane as the backend application,
+  and extensions such as Resource Manager as integrations that can plug into
+  both layers through shared concepts.
 
 ### 2026-06-21
 

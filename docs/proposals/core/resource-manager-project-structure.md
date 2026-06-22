@@ -4,8 +4,10 @@
 
 Proposed.
 
-This proposal describes the desired logical and physical structure for
-Resource Manager assemblies, extension contracts, and provider integrations.
+This proposal applies the general CloudShell application-layer model from
+[CloudShell architecture](../../architecture.md) to Resource Manager. It
+describes the desired logical and physical structure for Resource Manager
+assemblies, shared concepts, extension contracts, and provider integrations.
 It is not an immediate MVP refactor. The current priority remains stabilizing
 the local-development Resource Manager experience, then using that experience
 to guide the eventual split.
@@ -16,10 +18,18 @@ Resource Manager is currently implemented mostly inside `CloudShell.Hosting`.
 That made sense while the shell and Resource Manager evolved together, but it
 no longer reflects the product structure:
 
-- CloudShell Hosting is the shell UI host.
-- Resource Manager is a built-in shell product area.
+- CloudShell UI is an extensible Blazor application. It may act as a shell for
+  integrations and may run inside a host application by itself or together
+  with the Control Plane.
+- The Control Plane is a backend application. It may be hosted with
+  CloudShell UI for local development, or independently in split and
+  on-premise deployments.
+- Resource Manager is an extension/product area that integrates with both
+  CloudShell UI and the Control Plane.
 - The Control Plane owns resource inventory, lifecycle, activity, logs,
   providers, persistence, and API behavior.
+- Resource Manager owns common concepts that must be shared across its UI and
+  Control Plane integrations.
 - Provider packages can contribute both Control Plane behavior and Resource
   Manager UI, but those are separate extension surfaces.
 
@@ -33,6 +43,9 @@ less obvious.
 
 - Make Resource Manager a product area that plugs into CloudShell UI, not an
   accidental part of the shell host project.
+- Define Resource Manager common concepts in a layer that can be shared by its
+  UI and Control Plane integrations without forcing either host surface to
+  depend on the other's implementation.
 - Separate Resource Manager UI integration contracts from Control Plane
   provider contracts.
 - Keep CloudShell UI deployable independently from the Control Plane.
@@ -59,9 +72,11 @@ less obvious.
 
 ## Desired logical layers
 
-### CloudShell shell
+### CloudShell UI
 
-The shell owns common application chrome and shell-level services:
+CloudShell UI is the extensible Blazor application. It may run in a host
+application by itself, or alongside the Control Plane in a combined local
+development host. It owns common application chrome and shell-level services:
 
 - main layout and top bar
 - main navigation presenter
@@ -70,8 +85,30 @@ The shell owns common application chrome and shell-level services:
 - shell-owned composition adapters and Fluent UI presenters
 - generic shell pages that are not Resource Manager-specific
 
-The shell should depend on Resource Manager UI only when the host wants to
-install the Resource Manager product area.
+CloudShell UI should depend on Resource Manager UI only when the host wants to
+install Resource Manager as one of its product areas.
+
+### Control Plane
+
+The Control Plane is the backend application. It can run with CloudShell UI or
+independently. It owns backend services for resource inventory, provider
+coordination, lifecycle operations, logs, templates, API projection,
+persistence, validation, and authorization. CloudShell UI talks to it through
+public domain managers and remote adapters instead of relying on in-process
+stores.
+
+### Resource Manager common concepts
+
+Resource Manager needs a common concepts layer that is shared across its UI
+and Control Plane integrations. This layer should define stable names, IDs,
+capabilities, route/link targets, contribution descriptors, and host
+installation concepts that both sides need to agree on.
+
+This common layer should not contain Blazor components, Fluent UI presenters,
+Control Plane stores, provider execution, or persistence code. It exists so a
+Resource Manager UI integration and a Resource Manager Control Plane
+integration can describe the same resource-management concepts without sharing
+implementation details.
 
 ### Resource Manager UI
 
@@ -93,9 +130,10 @@ Resource Manager UI should consume public domain managers such as
 abstractions. It should not depend directly on Control Plane stores or
 provider runtime internals.
 
-### Resource Manager Control Plane
+### Resource Manager Control Plane integration
 
-Resource Manager Control Plane owns resource state and resource operations:
+The Resource Manager Control Plane integration owns or installs backend
+resource-management behavior:
 
 - resource inventory and registration
 - groups, dependencies, relationships, and resource source metadata
@@ -125,6 +163,11 @@ the contracts should make the boundary clear. Longer term, a provider can ship
 separate packages such as a runtime/provider package and a Resource Manager UI
 package, plus an optional convenience package that installs both.
 
+Both halves can depend on Resource Manager common concepts. The UI half should
+depend on Resource Manager UI abstractions; the Control Plane half should
+depend on Control Plane/provider abstractions. Neither half should require the
+other to be installed in the same process.
+
 ## Candidate physical assemblies
 
 The exact names can still change, but the desired split is:
@@ -132,7 +175,8 @@ The exact names can still change, but the desired split is:
 | Project | Responsibility |
 | --- | --- |
 | `CloudShell.Hosting` | CloudShell shell host, shell chrome, shell services, shell composition adapters, and non-Resource-Manager pages. |
-| `CloudShell.ResourceManager.UI.Abstractions` | Public Resource Manager UI contracts: resource view contribution descriptors, create/update view contracts, route/link targets, Resource Manager composition IDs, UI capability descriptors, and extension registration builders. |
+| `CloudShell.ResourceManager.Abstractions` | Shared Resource Manager concepts used across UI and Control Plane integrations: stable IDs, names, contribution descriptors, capability descriptors, route/link target concepts, installation concepts, and extension registration primitives that are not tied to Blazor or Control Plane stores. |
+| `CloudShell.ResourceManager.UI.Abstractions` | Public Resource Manager UI contracts: resource view contribution descriptors, create/update view contracts, Resource Manager composition IDs, UI capability descriptors, and UI registration builders. This should depend on shared Resource Manager abstractions, not Control Plane implementation. |
 | `CloudShell.ResourceManager.UI` | Built-in Resource Manager UI implementation: pages, Resource Manager Fluent presenters, generated resource views, Resource Manager settings sections, and adapters from Resource Manager UI contracts into shell composition. |
 | `CloudShell.ResourceManager.Hosting.Abstractions` | Host-level Resource Manager installation contracts shared by combined hosts, split UI hosts, and split Control Plane hosts. This should describe how a host opts into Resource Manager capabilities without forcing both UI and Control Plane into one process. |
 | `CloudShell.ResourceManager.Hosting` | Host registration helpers that install Resource Manager services into the appropriate host shape. In a UI host, this installs Resource Manager UI and remote-client dependencies. In a Control Plane host, this installs resource manager services, API endpoints, stores, providers, and orchestration. In a combined host, it can install both through explicit options. |

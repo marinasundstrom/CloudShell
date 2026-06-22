@@ -41,7 +41,8 @@ way.
 
 The WebUI is the shell surface. The Control Plane owns resource inventory,
 registrations, lifecycle procedures, logs, templates, and provider-backed
-operational data.
+operational data. For the full application-layer model, see
+[CloudShell architecture](architecture.md).
 
 CloudShell uses the following topology terms when describing environment
 hosting and extension packaging:
