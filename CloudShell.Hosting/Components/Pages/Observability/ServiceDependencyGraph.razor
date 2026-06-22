@@ -86,12 +86,8 @@ else
 </section>
 
 <section class="panel panel-wide">
-    <div class="panel-header">
-        <div>
-            <h2>@PanelTitle</h2>
-            <p>@GetGraphSummary(graph)</p>
-        </div>
-    </div>
+    <ShellPanelHeader Title="@PanelTitle"
+                      Description="@GetGraphSummary(graph)" />
 
     @if (graph.Edges.Count == 0)
     {

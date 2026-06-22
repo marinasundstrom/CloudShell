@@ -66,12 +66,8 @@ else
 
     <section class="dashboard-grid">
     <article class="panel panel-wide">
-        <div class="panel-header">
-            <div>
-                <h2>@L["Workspace views"]</h2>
-                <p>@L["Open the shared telemetry surfaces for logs, traces, metrics, and service request relationships."]</p>
-            </div>
-        </div>
+        <ShellPanelHeader Title="@L["Workspace views"].Value"
+                          Description="@L["Open the shared telemetry surfaces for logs, traces, metrics, and service request relationships."].Value" />
 
         <div class="activity-list">
             @foreach (var view in WorkspaceViews)
@@ -89,12 +85,8 @@ else
     </article>
 
     <article class="panel">
-        <div class="panel-header">
-            <div>
-                <h2>@L["Observed services"]</h2>
-                <p>@L["Services with trace spans or metric points in the current telemetry window."]</p>
-            </div>
-        </div>
+        <ShellPanelHeader Title="@L["Observed services"].Value"
+                          Description="@L["Services with trace spans or metric points in the current telemetry window."].Value" />
 
         @if (ObservedServices.Count == 0)
         {

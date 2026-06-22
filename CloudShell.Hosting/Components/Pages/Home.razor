@@ -66,12 +66,8 @@
 
 <section class="dashboard-grid">
     <article class="panel panel-wide">
-        <div class="panel-header">
-            <div>
-                <h2>@L["System state"]</h2>
-                <p>@L["Resources that need attention based on lifecycle failures, health checks, or degraded state."]</p>
-            </div>
-        </div>
+        <ShellPanelHeader Title="@L["System state"].Value"
+                          Description="@L["Resources that need attention based on lifecycle failures, health checks, or degraded state."].Value" />
 
         @if (SystemIssues.Count == 0)
         {
@@ -101,12 +97,8 @@
     </article>
 
     <article class="panel">
-        <div class="panel-header">
-            <div>
-                <h2>@L["Resource state"]</h2>
-                <p>@L["Current resource inventory by lifecycle state."]</p>
-            </div>
-        </div>
+        <ShellPanelHeader Title="@L["Resource state"].Value"
+                          Description="@L["Current resource inventory by lifecycle state."].Value" />
 
         @if (ResourceStateSummaries.Count == 0)
         {
@@ -135,12 +127,8 @@
 
 <section class="dashboard-grid">
     <article class="panel panel-wide">
-        <div class="panel-header">
-            <div>
-                <h2>@L["Failed requests"]</h2>
-                <p>@L["Open failed traces to inspect request flow and related application logs."]</p>
-            </div>
-        </div>
+        <ShellPanelHeader Title="@L["Failed requests"].Value"
+                          Description="@L["Open failed traces to inspect request flow and related application logs."].Value" />
 
         @if (ActiveRequestFailures.Count == 0)
         {
@@ -170,12 +158,8 @@
     </article>
 
     <article class="panel">
-        <div class="panel-header">
-            <div>
-                <h2>@L["Quick views"]</h2>
-                <p>@L["Open the main operational workspaces."]</p>
-            </div>
-        </div>
+        <ShellPanelHeader Title="@L["Quick views"].Value"
+                          Description="@L["Open the main operational workspaces."].Value" />
 
         <div class="activity-list">
             <a class="activity-row" href="/resources">

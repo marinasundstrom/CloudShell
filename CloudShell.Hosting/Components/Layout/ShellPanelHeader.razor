@@ -1,0 +1,41 @@
+<div class="@CssClass" @attributes="AdditionalAttributes">
+    <div>
+        @if (HeaderContent is not null)
+        {
+            @HeaderContent
+        }
+        else
+        {
+            <h2>@Title</h2>
+            @if (!string.IsNullOrWhiteSpace(Description))
+            {
+                <p>@Description</p>
+            }
+        }
+    </div>
+    @Actions
+</div>
+
+@code {
+    [Parameter]
+    public string? Title { get; set; }
+
+    [Parameter]
+    public string? Description { get; set; }
+
+    [Parameter]
+    public RenderFragment? HeaderContent { get; set; }
+
+    [Parameter]
+    public RenderFragment? Actions { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string CssClass => string.IsNullOrWhiteSpace(Class)
+        ? "panel-header"
+        : $"panel-header {Class}";
+}
