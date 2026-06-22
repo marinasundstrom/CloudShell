@@ -135,15 +135,18 @@ Server-side UI forms and provider helpers should construct definitions through
 `ApplicationResourceDefinitionBuilder` so callers describe executable,
 project, container, endpoint, health, observability, storage, and dependency
 intent without depending on the full constructor shape.
-Application registration is materialized by
-`ApplicationResourceRegistrationService`, which normalizes the definition,
-saves it, and synchronizes the Resource Manager registration, group, and
+Application resources still use the same Resource Manager registration model
+as any other resource. `ApplicationResourceDefinition` is provider-owned
+configuration for an application-backed resource, not a parallel resource
+registration. `ApplicationResourceDefinitionRegistrationService` materializes
+that definition by normalizing it, saving it in the application provider store,
+and synchronizing the normal Resource Manager registration, group, and
 dependencies.
 
 This is an initial shared application-resource provider contract, not the full
 toolkit. The goal is for any resource author to be able to use the application
-resource primitives to implement their own resource type when the runtime is
-backed by a local executable, an ad-hoc container, or Resource
+resource primitives to implement their own normal resource type when the
+runtime is backed by a local executable, an ad-hoc container, or Resource
 Manager-managed sub-resources such as replicas. The provider should be able to
 declare the stable resource identity and choose the backing runtime shape, then
 opt into default wiring for lifecycle actions, endpoint projection, log
@@ -171,7 +174,8 @@ ASP.NET Core project, container app, and SQL Server definitions. Before the
 application-resource package becomes a public toolkit, these branches should
 move behind provider/type-specific normalization rules so external resource
 authors can contribute their own defaults without editing the built-in
-application provider facade.
+application provider facade or making application-backed resources behave
+differently at registration time.
 
 ## Endpoint And Exposure Model
 

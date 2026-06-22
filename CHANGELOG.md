@@ -87,10 +87,11 @@ on `git blame --follow`, and then by the broad type of change.
   through `ApplicationResourceDefinitionBuilder` instead of directly invoking
   the definition constructor, reducing UI coupling to the full definition
   shape.
-- Application setup/update registration is now handled by
-  `ApplicationResourceRegistrationService`, with definition normalization
-  isolated in `ApplicationResourceDefinitionNormalizer` so registration
-  synchronization is no longer embedded directly in `ApplicationResourceService`.
+- Application setup/update now materializes provider-owned application
+  definitions through `ApplicationResourceDefinitionRegistrationService`, with
+  definition normalization isolated in `ApplicationResourceDefinitionNormalizer`
+  while Resource Manager registration, grouping, and dependency synchronization
+  remain on the same path used by other resources.
 - Application resource docs now frame the provider direction as a composable
   toolkit for custom resources backed by local executables, ad-hoc containers,
   or Resource Manager-managed sub-resources with default lifecycle,

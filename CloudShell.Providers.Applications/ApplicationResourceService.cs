@@ -38,7 +38,7 @@ public sealed partial class ApplicationResourceService(
     IResourceEventSink? resourceEvents = null,
     ILoggerFactory? loggerFactory = null,
     ApplicationResourceDefinitionNormalizer? definitionNormalizer = null,
-    ApplicationResourceRegistrationService? applicationRegistrations = null) :
+    ApplicationResourceDefinitionRegistrationService? applicationDefinitionRegistrations = null) :
     ILogProvider,
     IResourceMonitoringProvider,
     IResourceAppSettingConfigurationProvider,
@@ -78,8 +78,8 @@ public sealed partial class ApplicationResourceService(
         NullLogger.Instance;
     private readonly ApplicationResourceDefinitionNormalizer _definitionNormalizer =
         definitionNormalizer ?? new ApplicationResourceDefinitionNormalizer(environment);
-    private readonly ApplicationResourceRegistrationService _applicationRegistrations =
-        applicationRegistrations ?? new ApplicationResourceRegistrationService(
+    private readonly ApplicationResourceDefinitionRegistrationService _applicationDefinitionRegistrations =
+        applicationDefinitionRegistrations ?? new ApplicationResourceDefinitionRegistrationService(
             store,
             definitionNormalizer ?? new ApplicationResourceDefinitionNormalizer(environment));
 
@@ -141,7 +141,7 @@ public sealed partial class ApplicationResourceService(
         string? resourceGroupId,
         IResourceRegistrationStore registrations,
         CancellationToken cancellationToken = default) =>
-        _applicationRegistrations.SetupApplicationAsync(
+        _applicationDefinitionRegistrations.SetupApplicationAsync(
             definition,
             resourceGroupId,
             registrations,
@@ -152,7 +152,7 @@ public sealed partial class ApplicationResourceService(
         string? resourceGroupId,
         IResourceRegistrationStore registrations,
         CancellationToken cancellationToken = default) =>
-        _applicationRegistrations.UpdateApplicationAsync(
+        _applicationDefinitionRegistrations.UpdateApplicationAsync(
             definition,
             resourceGroupId,
             registrations,
@@ -4685,10 +4685,10 @@ public sealed partial class ApplicationResourceService(
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
 
     private string CreateUniqueImportId(string name) =>
-        _applicationRegistrations.CreateUniqueImportId(name);
+        _applicationDefinitionRegistrations.CreateUniqueImportId(name);
 
     private string ValidateAvailableImportId(string resourceId) =>
-        _applicationRegistrations.ValidateAvailableImportId(resourceId);
+        _applicationDefinitionRegistrations.ValidateAvailableImportId(resourceId);
 
     private static string ResolveWorkingDirectory(ApplicationResourceDefinition definition)
     {

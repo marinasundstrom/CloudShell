@@ -2,7 +2,7 @@ using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.Providers.Applications;
 
-public sealed class ApplicationResourceRegistrationService(
+public sealed class ApplicationResourceDefinitionRegistrationService(
     ApplicationResourceStore store,
     ApplicationResourceDefinitionNormalizer normalizer)
 {
