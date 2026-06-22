@@ -82,6 +82,10 @@ public static class ResourceEventTypes
             public const string ImageUpdated = "event.deployment.image.updated";
             public const string ReplicasUpdated = "event.deployment.replicas.updated";
             public const string Applying = "event.deployment.applying";
+            public const string ServiceReconciling = "event.deployment.service.reconciling";
+            public const string ServiceReconciled = "event.deployment.service.reconciled";
+            public const string ReplicaMaterializing = "event.deployment.replica.materializing";
+            public const string ReplicaMaterialized = "event.deployment.replica.materialized";
             public const string Applied = "event.deployment.applied";
             public const string Failed = "event.deployment.failed";
         }

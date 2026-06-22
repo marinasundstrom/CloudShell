@@ -44,6 +44,18 @@ public sealed class ResourceEventTypesTests
             "event.deployment.applying",
             ResourceEventTypes.Events.Deployment.Applying);
         Assert.Equal(
+            "event.deployment.service.reconciling",
+            ResourceEventTypes.Events.Deployment.ServiceReconciling);
+        Assert.Equal(
+            "event.deployment.service.reconciled",
+            ResourceEventTypes.Events.Deployment.ServiceReconciled);
+        Assert.Equal(
+            "event.deployment.replica.materializing",
+            ResourceEventTypes.Events.Deployment.ReplicaMaterializing);
+        Assert.Equal(
+            "event.deployment.replica.materialized",
+            ResourceEventTypes.Events.Deployment.ReplicaMaterialized);
+        Assert.Equal(
             "event.deployment.applied",
             ResourceEventTypes.Events.Deployment.Applied);
         Assert.Equal(

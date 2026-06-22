@@ -1,5 +1,7 @@
 using CloudShell.Abstractions.ControlPlane;
+using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
+using System.Globalization;
 
 namespace CloudShell.ControlPlane.ResourceManager;
 
@@ -78,7 +80,8 @@ public sealed class DefaultResourceOrchestrator :
             resourceContext,
             deployment.Spec.Service,
             ResourceAction.Start,
-            cancellationToken);
+            cancellationToken,
+            deployment);
 
         var applied = deployment with { Status = ResourceOrchestratorDeploymentStatus.Active };
         return new ResourceOrchestratorDeploymentApplyResult(
@@ -134,20 +137,76 @@ public sealed class DefaultResourceOrchestrator :
         ResourceProcedureContext resourceContext,
         ResourceOrchestratorService service,
         ResourceAction action,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ResourceOrchestratorDeployment? deployment = null)
     {
+        if (deployment is not null)
+        {
+            AppendDeploymentEvent(
+                resourceContext,
+                ResourceEventTypes.Events.Deployment.ServiceReconciling,
+                $"Reconciling orchestrator service '{deployment.ServiceId}' for deployment '{deployment.Id}'.");
+        }
+
         await provider.PrepareOrchestratorServiceAsync(
             new ResourceOrchestratorServiceProcedureContext(resourceContext, service),
             action,
             cancellationToken);
 
+        if (deployment is not null)
+        {
+            AppendDeploymentEvent(
+                resourceContext,
+                ResourceEventTypes.Events.Deployment.ServiceReconciled,
+                $"Reconciled orchestrator service '{deployment.ServiceId}' for deployment '{deployment.Id}'.");
+        }
+
         foreach (var instance in ResourceOrchestratorServiceInstances.CreateDefaultInstances(service))
         {
+            var replicaPosition = FormatReplicaPosition(instance);
+            if (deployment is not null)
+            {
+                AppendDeploymentEvent(
+                    resourceContext,
+                    ResourceEventTypes.Events.Deployment.ReplicaMaterializing,
+                    $"Materializing replica {replicaPosition} '{instance.Name}' for deployment '{deployment.Id}'.");
+            }
+
             await provider.ExecuteOrchestratorServiceInstanceAsync(
                 new ResourceOrchestratorServiceInstanceContext(resourceContext, service, instance),
                 action,
                 cancellationToken);
+
+            if (deployment is not null)
+            {
+                AppendDeploymentEvent(
+                    resourceContext,
+                    ResourceEventTypes.Events.Deployment.ReplicaMaterialized,
+                    $"Materialized replica {replicaPosition} '{instance.Name}' for deployment '{deployment.Id}'.");
+            }
         }
+    }
+
+    private static string FormatReplicaPosition(ResourceOrchestratorServiceInstance instance) =>
+        string.Create(
+            CultureInfo.InvariantCulture,
+            $"{instance.ReplicaOrdinal}/{instance.ReplicaCount}");
+
+    private static void AppendDeploymentEvent(
+        ResourceProcedureContext context,
+        string eventType,
+        string message)
+    {
+        var effectiveMessage = string.IsNullOrWhiteSpace(context.Cause)
+            ? message.Trim()
+            : $"{message.Trim().TrimEnd('.')} Cause: {context.Cause.Trim().TrimEnd('.')}.";
+
+        context.ResourceEvents?.Append(new ResourceEvent(
+            context.Resource.Id,
+            eventType,
+            effectiveMessage,
+            DateTimeOffset.UtcNow,
+            context.TriggeredBy));
     }
 
     private static ResourceProcedureContext CreateProcedureContext(

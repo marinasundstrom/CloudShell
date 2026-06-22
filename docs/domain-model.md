@@ -734,7 +734,10 @@ Event types describe facts that happened. Standard lifecycle events use
 `event.lifecycle.started`, `event.lifecycle.stopping`, and
 `event.lifecycle.stopped`. Standard deployment events use
 `event.deployment.*`, for example `event.deployment.image.updated` and
-`event.deployment.replicas.updated`. Authors may define their own event
+`event.deployment.replicas.updated`. Deployment apply events can also record
+orchestrator milestones such as service reconciliation and replica
+materialization using `event.deployment.service.*` and
+`event.deployment.replica.*`. Authors may define their own event
 namespaces under `event.*`, such as `event.database.backup.completed`.
 Provider-scoped activity events use `event.provider.<provider-id>.*` and are
 attached to the resource whose procedure the provider is fulfilling. They let

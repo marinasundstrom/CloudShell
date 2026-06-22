@@ -37,7 +37,9 @@ resources also carry the deployment id, service id, and deployment revision
 they implement for traceability. Container app image deployment now records
 the app revision through the app provider and, when runtime reconciliation is
 required, asks the Control Plane to apply the provider-described orchestrator
-deployment spec.
+deployment spec. The default orchestrator now records deployment activity
+events for service reconciliation and replica materialization so Resource
+Manager activity can trace what the orchestrator is doing during apply.
 The intended general rule is broader than container apps: when an orchestrator
 handles a resource state change that has runtime workload intent, it may derive
 a default deployment for that change even when the user manages the resource

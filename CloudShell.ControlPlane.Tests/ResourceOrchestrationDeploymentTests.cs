@@ -38,16 +38,39 @@ public sealed class ResourceOrchestrationDeploymentTests
         Assert.All(
             provider.ExecutedInstances,
             instance => Assert.Equal(deployment.Spec.Service.Name, instance.Service.Name));
+        var events = resourceEvents
+            .GetEvents(new ResourceEventQuery(ResourceId: resource.Id))
+            .Reverse()
+            .ToArray();
+        Assert.Equal(
+            [
+                ResourceEventTypes.Events.Deployment.Applying,
+                ResourceEventTypes.Events.Deployment.ServiceReconciling,
+                ResourceEventTypes.Events.Deployment.ServiceReconciled,
+                ResourceEventTypes.Events.Deployment.ReplicaMaterializing,
+                ResourceEventTypes.Events.Deployment.ReplicaMaterialized,
+                ResourceEventTypes.Events.Deployment.ReplicaMaterializing,
+                ResourceEventTypes.Events.Deployment.ReplicaMaterialized,
+                ResourceEventTypes.Events.Deployment.ReplicaMaterializing,
+                ResourceEventTypes.Events.Deployment.ReplicaMaterialized,
+                ResourceEventTypes.Events.Deployment.Applied
+            ],
+            events.Select(resourceEvent => resourceEvent.EventType).ToArray());
+        Assert.All(
+            events,
+            resourceEvent => Assert.Equal("tests", resourceEvent.TriggeredBy));
+        Assert.All(
+            events.Where(resourceEvent =>
+                resourceEvent.EventType != ResourceEventTypes.Events.Deployment.Applied),
+            resourceEvent => Assert.Contains(
+                "Cause: Container app deployment.",
+                resourceEvent.Message,
+                StringComparison.Ordinal));
         Assert.Contains(
-            resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: resource.Id)),
+            events,
             resourceEvent =>
-                resourceEvent.EventType == ResourceEventTypes.Events.Deployment.Applying &&
-                resourceEvent.Message.Contains("Cause: Container app deployment.", StringComparison.Ordinal));
-        Assert.Contains(
-            resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: resource.Id)),
-            resourceEvent =>
-                resourceEvent.EventType == ResourceEventTypes.Events.Deployment.Applied &&
-                resourceEvent.TriggeredBy == "tests");
+                resourceEvent.EventType == ResourceEventTypes.Events.Deployment.ReplicaMaterializing &&
+                resourceEvent.Message.Contains("replica 2/3", StringComparison.Ordinal));
     }
 
     [Fact]

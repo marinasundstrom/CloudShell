@@ -141,6 +141,41 @@ internal static class ResourceEventDisplayNames
             return localizer["Replicas updated"].Value;
         }
 
+        if (string.Equals(eventType, ResourceEventTypes.Events.Deployment.Applying, StringComparison.OrdinalIgnoreCase))
+        {
+            return localizer["Deployment applying"].Value;
+        }
+
+        if (string.Equals(eventType, ResourceEventTypes.Events.Deployment.ServiceReconciling, StringComparison.OrdinalIgnoreCase))
+        {
+            return localizer["Service reconciling"].Value;
+        }
+
+        if (string.Equals(eventType, ResourceEventTypes.Events.Deployment.ServiceReconciled, StringComparison.OrdinalIgnoreCase))
+        {
+            return localizer["Service reconciled"].Value;
+        }
+
+        if (string.Equals(eventType, ResourceEventTypes.Events.Deployment.ReplicaMaterializing, StringComparison.OrdinalIgnoreCase))
+        {
+            return localizer["Replica materializing"].Value;
+        }
+
+        if (string.Equals(eventType, ResourceEventTypes.Events.Deployment.ReplicaMaterialized, StringComparison.OrdinalIgnoreCase))
+        {
+            return localizer["Replica materialized"].Value;
+        }
+
+        if (string.Equals(eventType, ResourceEventTypes.Events.Deployment.Applied, StringComparison.OrdinalIgnoreCase))
+        {
+            return localizer["Deployment applied"].Value;
+        }
+
+        if (string.Equals(eventType, ResourceEventTypes.Events.Deployment.Failed, StringComparison.OrdinalIgnoreCase))
+        {
+            return localizer["Deployment failed"].Value;
+        }
+
         if (string.Equals(eventType, SqlCredentialResolvedEvent, StringComparison.OrdinalIgnoreCase))
         {
             return localizer["SQL credential resolved"].Value;

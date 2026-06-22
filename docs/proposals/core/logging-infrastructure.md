@@ -339,7 +339,7 @@ types describe resource lifecycle facts, such as `event.lifecycle.starting`,
 `event.lifecycle.started`, `event.lifecycle.stopping`, and
 `event.lifecycle.stopped`. Standard deployment events use
 `event.deployment.*` for resource deployment changes such as image and replica
-updates. Authorization-denied resource action attempts use the failed action
+updates, service reconciliation, and replica materialization. Authorization-denied resource action attempts use the failed action
 event type, such as `action.lifecycle.stop.failed`, with warning severity and
 trigger metadata when available. Authors can still define custom resource
 actions and custom resource event types under `event.*`; only standard
