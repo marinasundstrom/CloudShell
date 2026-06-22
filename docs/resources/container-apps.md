@@ -123,25 +123,21 @@ setting for Docker child-container resources; that setting also defaults to
 
 ## Resource Manager Deployment
 
-Container app resources expose image rollout controls on the Deployment tab.
-Enter a new image tag and choose whether CloudShell should restart a running app
-after the update. The tab calls the same domain
-`UpdateResourceImageAsync` operation used by remote clients, then refreshes the
-projected container image and revision.
+Container app resources expose container app deployment controls on the
+Deployment tab. Enter a new image tag, and optionally a requested replica count
+for replicated apps. The tab calls the same container app deployment path used
+by remote clients, then refreshes the projected container image, app revision,
+and revision history.
 
-The Deployment tab also shows update readiness before enabling the deploy
-command. It reports missing manage permission, missing image input, no-op image
-updates, and restart blockers such as a missing or unavailable restart action.
-The provider runs the same restart readiness checks before saving a new image
-or replica count when automatic restart is requested for a running app, so a
-known restart blocker does not leave the app on a partially applied deployment
-change.
+The Deployment tab also shows deployment readiness before enabling the deploy
+command. It reports missing manage permission, missing image input, no-op
+deployments, and invalid requested replica counts.
 
 The same tab shows the app's current internal deployment projection: deployment
-status, orchestrator service id, scaling mode, desired replicas, and
+status, orchestrator service id, scaling mode, requested replicas, and
 materialized runtime replica resources. This is an inspection surface over
 CloudShell's internal orchestrator deployment model, not a public
-rollout-history or rollback API.
+rollout-history or restore API.
 
 ## Service Discovery
 
@@ -214,7 +210,7 @@ then the selected provider or orchestrator maps those replicas to runtime
 implementation details: a default local container group, Docker containers, a
 Docker Compose service, a Kubernetes Service or Deployment, or another
 runtime-specific management shape. The provider configures that implementation
-with the app's current image or revision and desired replica count, then
+with the app's current image or revision and requested replica count, then
 creates, updates, inspects, or replaces the backing runtime containers as
 needed.
 
@@ -239,8 +235,9 @@ runtime artifacts with the current Deployment tab projection without enabling
 global hidden runtime-managed inventory.
 
 Revision management is a separate future Application view. The current
-Deployment tab projects the latest revision and image update operation, but
-CloudShell does not yet expose rollout history, rollback, activation, or
+Deployment tab projects the latest revision, container app deployment
+operation, and revision history, but
+CloudShell does not yet expose rollout history, restore, activation, or
 traffic splitting.
 
 A `cloudshell.service` resource can still be
@@ -338,22 +335,22 @@ The proposed deployment flow for CloudShell-hosted dev environments is:
 2. The build server tags the image with an immutable value, usually the commit
    SHA, build number, or release version.
 3. The build server pushes the image to the configured registry.
-4. The build action calls the authenticated Container Apps API to create a new
-   container app revision that points at the pushed image tag.
+4. The build action calls the authenticated Container Apps API to create a
+   deployment for the pushed image tag.
 5. The Control Plane updates the container app, records a resource event with
-   the actor/trigger, creates a new revision value, and asks the provider to
-   restart the app when requested.
+   the actor/trigger, and records the app-owned revision produced by the
+   deployment.
 
 The API call targets the container app, not an underlying Docker container:
 
 ```http
-POST /api/container-apps/v1/{containerAppId}/revisions
+POST /api/container-apps/v1/{containerAppId}/deployments
 Authorization: Bearer <control-plane-access-token>
 Content-Type: application/json
 
 {
   "image": "team/api:20260608.42",
-  "restartIfRunning": true,
+  "requestedReplicas": 3,
   "triggeredBy": "build:20260608.42"
 }
 ```
@@ -367,9 +364,9 @@ resource group.
 
 ## Revisions
 
-The image tag update creates a new app-owned revision. The revision is projected
-on the container app resource through `container.revision`; runtime containers
-or replicas implement that revision but do not define it.
+The deployment creates a new app-owned revision. The revision is projected on
+the container app resource through `container.revision`; runtime containers or
+replicas implement that revision but do not define it.
 
 The Resource Manager overview shows the latest projected revision. A richer
 revision history needs a dedicated design because revisions represent commits
@@ -378,7 +375,7 @@ of changes to the container app configuration, not just image tags.
 This is intentionally similar to Azure Container Apps at the basic concept
 level: a deployment produces a revision of the app. CloudShell's MVP keeps the
 revision model simple and does not yet model traffic splitting, activation
-state, or rollout history as first-class concepts.
+state, restore deployments, or rollout history as first-class concepts.
 
 ## Logs And Events
 

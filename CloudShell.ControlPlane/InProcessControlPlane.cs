@@ -5,6 +5,7 @@ using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager;
 using Microsoft.AspNetCore.Http;
+using System.Globalization;
 using System.Security.Claims;
 using System.Text.Json;
 
@@ -719,7 +720,8 @@ public sealed class InProcessControlPlane(
                 image,
                 command.RestartIfRunning,
                 triggeredBy,
-                cancellationToken);
+                cancellationToken,
+                command.RequestedReplicas);
         }
         catch (InvalidOperationException exception) when (exception is not ControlPlaneException)
         {
@@ -734,8 +736,8 @@ public sealed class InProcessControlPlane(
             resource.Id,
             ResourceEventTypes.Events.Deployment.ImageUpdated,
             string.IsNullOrWhiteSpace(revision)
-                ? $"Updated image to '{image}'. Restart if running: {command.RestartIfRunning.ToString().ToLowerInvariant()}."
-                : $"Updated image to '{image}' and created revision '{revision}'. Restart if running: {command.RestartIfRunning.ToString().ToLowerInvariant()}.",
+                ? $"Updated image to '{image}'."
+                : $"Updated image to '{image}' and produced revision '{revision}'. Requested replicas: {FormatRequestedReplicas(command.RequestedReplicas)}.",
             DateTimeOffset.UtcNow,
             triggeredBy));
 
@@ -746,6 +748,11 @@ public sealed class InProcessControlPlane(
 
         return result;
     }
+
+    private static string FormatRequestedReplicas(int? requestedReplicas) =>
+        requestedReplicas is { } value
+            ? value.ToString(CultureInfo.InvariantCulture)
+            : "unchanged";
 
     public async Task<ResourceProcedureResult> UpdateResourceReplicasAsync(
         UpdateResourceReplicasCommand command,

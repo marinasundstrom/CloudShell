@@ -86,13 +86,18 @@ public sealed class ResourceManagerClientExtensionsTests
         var resourceManager = new RecordingResourceManager();
         var resource = CreateResource();
 
-        await resourceManager.UpdateResourceImageAsync(resource, "example/api:20260608", restartIfRunning: false);
+        await resourceManager.UpdateResourceImageAsync(
+            resource,
+            "example/api:20260608",
+            restartIfRunning: false,
+            requestedReplicas: 2);
 
         Assert.Equal(
             new UpdateResourceImageCommand(
                 "sample:resource",
                 "example/api:20260608",
-                RestartIfRunning: false),
+                RestartIfRunning: false,
+                RequestedReplicas: 2),
             resourceManager.LastImageCommand);
     }
 

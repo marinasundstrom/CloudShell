@@ -80,11 +80,11 @@ samples/ContainerAppDeployment/deploy-mock-image.sh application:sample-api 20260
 The script posts to:
 
 ```text
-POST /api/container-apps/v1/{containerAppId}/revisions
+POST /api/container-apps/v1/{containerAppId}/deployments
 ```
 
-with a new image tag and `restartIfRunning=false`. The Control Plane updates the
-container app image, creates a new app-owned revision, and records resource
+with a new image tag. The Control Plane creates a container app deployment,
+records the app-owned revision produced by that deployment, and writes resource
 events for traceability.
 
 Future on-premise validation should cover the same image-update flow through

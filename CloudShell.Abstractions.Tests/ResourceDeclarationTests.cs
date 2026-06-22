@@ -10378,7 +10378,9 @@ public sealed class ResourceDeclarationTests
         var result = await provider.UpdateImageAsync(
             new ResourceProcedureContext(resource, registrations.GetRegistration(resource.Id), null, registrations),
             "example/api:20260608",
-            restartIfRunning: false);
+            restartIfRunning: false,
+            triggeredBy: "build-server",
+            requestedReplicas: 2);
 
         var updated = provider.GetApplication("application:api");
         Assert.NotNull(updated);
@@ -10390,9 +10392,24 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("Container app", resource.Kind);
         Assert.True(log.SupportsStreaming);
         Assert.Equal("example/api:20260608", updated.ContainerImage);
+        Assert.Equal(2, updated.Replicas);
         Assert.StartsWith("rev-", updated.ContainerRevision);
         Assert.NotEqual(originalRevision, updated.ContainerRevision);
-        Assert.Equal("Updated api to image 'example/api:20260608'.", result.Message);
+        var originalRevisionRecord = Assert.Single(
+            updated.ContainerRevisions,
+            revision => revision.Id == originalRevision);
+        var currentRevisionRecord = Assert.Single(
+            updated.ContainerRevisions,
+            revision => revision.Id == updated.ContainerRevision);
+        Assert.Equal(ApplicationContainerRevisionChangeKinds.Initial, originalRevisionRecord.ChangeKind);
+        Assert.Equal(ApplicationContainerRevisionChangeKinds.ImageDeployment, currentRevisionRecord.ChangeKind);
+        Assert.Equal("example/api:20260608", currentRevisionRecord.Image);
+        Assert.Equal(2, currentRevisionRecord.RequestedReplicas);
+        Assert.Equal(originalRevision, currentRevisionRecord.SourceRevisionId);
+        Assert.Equal("build-server", currentRevisionRecord.TriggeredBy);
+        Assert.Equal(
+            $"Deployed api image 'example/api:20260608' and produced revision '{updated.ContainerRevision}'.",
+            result.Message);
     }
 
     [Fact]

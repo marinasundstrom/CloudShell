@@ -285,10 +285,10 @@ public sealed record SetResourceDependenciesRequest(IReadOnlyList<string> Depend
 
 public sealed record SetResourceIdentityRequest(ResourceIdentityBindingResponse? Identity);
 
-public sealed record UpdateResourceImageRequest(
+public sealed record CreateContainerAppDeploymentRequest(
     string Image,
-    bool RestartIfRunning = true,
-    string? TriggeredBy = null);
+    string? TriggeredBy = null,
+    int? RequestedReplicas = null);
 
 public sealed record UpdateResourceReplicasRequest(
     int Replicas,

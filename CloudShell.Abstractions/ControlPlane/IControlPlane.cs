@@ -429,7 +429,8 @@ public sealed record UpdateResourceImageCommand(
     string ResourceId,
     string Image,
     bool RestartIfRunning = true,
-    string? TriggeredBy = null);
+    string? TriggeredBy = null,
+    int? RequestedReplicas = null);
 
 public sealed record UpdateResourceReplicasCommand(
     string ResourceId,

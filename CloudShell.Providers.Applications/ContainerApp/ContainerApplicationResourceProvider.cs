@@ -42,8 +42,15 @@ internal sealed class ContainerApplicationResourceProvider(
         string image,
         bool restartIfRunning,
         string? triggeredBy = null,
-        CancellationToken cancellationToken = default) =>
-        containerApplications.UpdateImageAsync(context, image, restartIfRunning, triggeredBy, cancellationToken);
+        CancellationToken cancellationToken = default,
+        int? requestedReplicas = null) =>
+        containerApplications.UpdateImageAsync(
+            context,
+            image,
+            restartIfRunning,
+            triggeredBy,
+            cancellationToken,
+            requestedReplicas);
 
     public bool CanUpdateReplicas(Resource resource) =>
         containerApplications.CanUpdateReplicas(resource);

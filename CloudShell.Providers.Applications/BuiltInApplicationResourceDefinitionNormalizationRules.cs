@@ -99,18 +99,56 @@ public sealed class ContainerBackedApplicationResourceDefinitionNormalizationRul
                 ContainerRegistry = null,
                 ContainerRegistryCredentials = null,
                 ContainerRevision = null,
+                ContainerRevisions = [],
                 ReplicasEnabled = false
             };
         }
 
         var replicasEnabled = definition.ReplicasEnabled || definition.Replicas > 1;
+        var containerRevision = NormalizeNullable(definition.ContainerRevision) ?? CreateContainerRevision();
         return definition with
         {
             ContainerRegistry = NormalizeContainerRegistry(definition.ContainerRegistry),
             ContainerRegistryCredentials = ContainerRegistryCredentials.Normalize(definition.ContainerRegistryCredentials),
-            ContainerRevision = NormalizeNullable(definition.ContainerRevision) ?? CreateContainerRevision(),
+            ContainerRevision = containerRevision,
+            ContainerRevisions = NormalizeContainerRevisions(definition, containerRevision),
             ReplicasEnabled = replicasEnabled
         };
+    }
+
+    private static IReadOnlyList<ApplicationContainerRevision> NormalizeContainerRevisions(
+        ApplicationResourceDefinition definition,
+        string containerRevision)
+    {
+        var revisions = definition.ContainerRevisions
+            .Where(revision => !string.IsNullOrWhiteSpace(revision.Id))
+            .Select(revision => revision with
+            {
+                Id = revision.Id.Trim(),
+                Image = NormalizeNullable(revision.Image) ?? NormalizeNullable(definition.ContainerImage) ?? "unresolved",
+                RequestedReplicas = Math.Max(1, revision.RequestedReplicas),
+                ChangeKind = NormalizeNullable(revision.ChangeKind) ?? ApplicationContainerRevisionChangeKinds.ImageDeployment,
+                SourceRevisionId = NormalizeNullable(revision.SourceRevisionId),
+                TriggeredBy = NormalizeNullable(revision.TriggeredBy)
+            })
+            .DistinctBy(revision => revision.Id, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (revisions.Any(revision => string.Equals(revision.Id, containerRevision, StringComparison.OrdinalIgnoreCase)))
+        {
+            return revisions;
+        }
+
+        return
+        [
+            ..revisions,
+            new ApplicationContainerRevision(
+                containerRevision,
+                NormalizeNullable(definition.ContainerImage) ?? "unresolved",
+                Math.Max(1, definition.Replicas),
+                DateTimeOffset.UtcNow,
+                ApplicationContainerRevisionChangeKinds.Initial)
+        ];
     }
 
     private static bool IsContainerBacked(ApplicationResourceDefinition application) =>

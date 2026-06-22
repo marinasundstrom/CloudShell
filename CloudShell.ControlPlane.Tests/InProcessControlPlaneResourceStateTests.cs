@@ -2313,10 +2313,11 @@ public sealed class InProcessControlPlaneResourceStateTests
                 "target",
                 "example/api:20260608",
                 RestartIfRunning: false,
-                TriggeredBy: "build-server"));
+                TriggeredBy: "build-server",
+                RequestedReplicas: 2));
 
         Assert.Equal("Updated target.", result.Message);
-        Assert.Equal(["target:example/api:20260608:False:build-server"], provider.UpdatedImages);
+        Assert.Equal(["target:example/api:20260608:False:build-server:2"], provider.UpdatedImages);
         var resourceEvent = Assert.Single(resourceEvents.GetEvents(new ResourceEventQuery(
             ResourceId: "target",
             EventType: ResourceEventTypes.Events.Deployment.ImageUpdated,
@@ -3498,14 +3499,15 @@ public sealed class InProcessControlPlaneResourceStateTests
             string image,
             bool restartIfRunning,
             string? triggeredBy = null,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            int? requestedReplicas = null)
         {
             if (!string.IsNullOrWhiteSpace(FailureMessage))
             {
                 throw new InvalidOperationException(FailureMessage);
             }
 
-            UpdatedImages.Add($"{context.Resource.Id}:{image}:{restartIfRunning}:{triggeredBy}");
+            UpdatedImages.Add($"{context.Resource.Id}:{image}:{restartIfRunning}:{triggeredBy}:{requestedReplicas?.ToString(CultureInfo.InvariantCulture) ?? "unchanged"}");
             return Task.FromResult(ResourceProcedureResult.Completed($"Updated {context.Resource.Id}."));
         }
     }

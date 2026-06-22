@@ -30,11 +30,11 @@ tokens instead of user/session authentication. See
 
 Resource-type API groups can exist when a domain operation needs a specialized
 contract surface. For example, container app image deployment is exposed as a
-Container Apps revision operation, and container app replica count updates use
+Container Apps deployment operation, and container app replica count updates use
 the same resource-type API group:
 
 ```text
-POST /api/container-apps/v1/{containerAppId}/revisions
+POST /api/container-apps/v1/{containerAppId}/deployments
 PUT /api/container-apps/v1/{containerAppId}/replicas
 ```
 

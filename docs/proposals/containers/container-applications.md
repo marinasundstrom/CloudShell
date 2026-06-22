@@ -173,10 +173,10 @@ Implemented pieces include:
   current revision, verifies readiness, then switches traffic or endpoint
   routing before retiring the old revision.
 * Resource Manager Application > Scale and replicas tab for enabling replicas
-  and setting desired replica count through a dedicated update command. This
+  and setting requested replica count through a dedicated update command. This
   is active-revision capacity management, not image deployment.
 * app-owned internal deployment projection with status, service id, workload
-  version, desired replicas, and materialized runtime replicas. This is the
+  version, requested replicas, and materialized runtime replicas. This is the
   container app use of the broader default-deployment rule: a resource remains
   directly manageable while the orchestrator derives a deployment for
   deployment-relevant changes.
@@ -232,7 +232,7 @@ Implemented pieces include:
   application overview host placement/readiness display
 
 Automatic scaling policies remain deferred. The current model supports manual
-desired replica count changes. A future scaling policy should be declared on
+requested replica count changes. A future scaling policy should be declared on
 the container app and materialized by an orchestrator or provider using load,
 capacity, schedule, or provider-owned signals. That policy is separate from
 resource recovery: recovery restores a failed or degraded workload from
@@ -266,11 +266,11 @@ liveness/lifecycle signals, while scaling changes desired capacity.
    declaration. Scale and replicas now prompts endpoint-bearing apps to create
    a load-balancer route when replicas are enabled. Treat image update as the
    bridge to Deployments and revisions: the long-term operation is to deploy a
-   new revision for the image, optionally with a desired replica count, start
+   new revision for the image, optionally with a requested replica count, start
    that revision next to the current revision, verify readiness, switch
    routing, and then retire the old revision. Use the internal orchestrator
    deployment/revision contracts for container app implementation work, but
-   defer public rollout history, rollback, revision management, traffic
+   defer public rollout history, restore, revision management, traffic
    splitting, and advanced rollout controls to later deployment/revision
    slices.
 7. Keep container app replica diagnostics app-scoped in Scale and replicas. It
@@ -338,7 +338,7 @@ liveness/lifecycle signals, while scaling changes desired capacity.
   registry-backed providers should also suggest or allocate alternate ports
   when a default is unavailable.
 * Replace the current image-update-and-restart-required bridge with a
-  revision-based Deploy image operation that can include desired replica count,
+  revision-based Deploy image operation that can include requested replica count,
   materialize new revision containers next to the current revision, verify
   readiness, switch traffic or endpoint routing, retain failed revisions for
   diagnostics, and retire the old revision according to policy.

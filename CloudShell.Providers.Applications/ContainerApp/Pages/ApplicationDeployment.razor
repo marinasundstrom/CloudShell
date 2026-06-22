@@ -1,29 +1,31 @@
 @using Microsoft.JSInterop
+@using System.Globalization
+@inject ApplicationResourceService ApplicationProvider
 @inject IResourceManager ResourceManager
 @inject IJSRuntime JS
 
 @if (Resource is null)
 {
-    <EmptyState Title="Deployment is unavailable"
+    <EmptyState Title="Container app deployment is unavailable"
                 Message="The resource may have been removed or is no longer visible." />
 }
 else
 {
     <section class="blade-section">
-        <h3>Current deployment</h3>
+        <h3>Runtime projection</h3>
         <dl class="detail-list">
             <dt>Image</dt>
             <dd>@GetCurrentContainerImage(Resource)</dd>
-            <dt>Revision</dt>
+            <dt>App revision</dt>
             <dd>@GetDeploymentRevision(Resource)</dd>
             <dt>Status</dt>
             <dd>@GetDeploymentStatusLabel(Resource)</dd>
-            <dt>Service</dt>
+            <dt>Orchestrator service</dt>
             <dd>@GetDeploymentService(Resource)</dd>
             <dt>Scaling</dt>
             <dd>@GetScalingMode(Resource)</dd>
-            <dt>Desired replicas</dt>
-            <dd>@GetDeploymentDesiredReplicas(Resource)</dd>
+            <dt>Requested replicas</dt>
+            <dd>@GetDeploymentRequestedReplicas(Resource)</dd>
             <dt>Materialized replicas</dt>
             <dd>@GetDeploymentMaterializedReplicas(Resource)</dd>
         </dl>
@@ -36,7 +38,7 @@ else
     </section>
 
     <section class="blade-section">
-        <h3>Deploy image</h3>
+        <h3>Create deployment</h3>
         <div class="generated-deploy-form">
             <label for="application-deploy-image">New image</label>
             <FluentTextField Id="application-deploy-image"
@@ -44,9 +46,15 @@ else
                              Immediate="true"
                              Placeholder="example/api:20260608"
                              Disabled="@(!CanEditDeployment)" />
-            <FluentCheckbox @bind-Value="RestartIfRunning" Disabled="@(!CanEditDeployment)">
-                Restart if running
-            </FluentCheckbox>
+            @if (Resource is not null && IsReplicaModeEnabled(Resource))
+            {
+                <label for="application-deploy-replicas">Requested replicas</label>
+                <FluentNumberField TValue="int"
+                                   Id="application-deploy-replicas"
+                                   Min="1"
+                                   Disabled="@(!CanEditDeployment)"
+                                   @bind-Value="DeploymentRequestedReplicas" />
+            }
 
             @if (GetDeploymentReadiness() is { } readiness)
             {
@@ -70,19 +78,40 @@ else
                                OnClick="DeployImage" />
         </div>
     </section>
+
+    @if (Application?.ContainerRevisions.Count > 0)
+    {
+        <section class="blade-section">
+            <h3>Container app revisions</h3>
+            <div class="generated-list">
+                @foreach (var revision in Application.ContainerRevisions
+                    .OrderByDescending(revision => revision.CreatedAt))
+                {
+                    <div class="generated-diagnostic-info">
+                        <strong>@revision.Id</strong>
+                        <span>@revision.Image</span>
+                        <small>
+                            @FormatRevisionMetadata(revision)
+                        </small>
+                    </div>
+                }
+            </div>
+        </section>
+    }
 }
 
 @code {
     [Parameter]
     public string? ResourceId { get; set; }
 
+    private ApplicationResourceDefinition? Application { get; set; }
     private Resource? Resource { get; set; }
     private ResourceOperationCapabilities Capabilities { get; set; } =
         ResourceOperationCapabilities.None(string.Empty);
     private string? CurrentDeploymentResourceId { get; set; }
     private string? DeploymentImage { get; set; }
+    private int DeploymentRequestedReplicas { get; set; } = 1;
     private string? ImageDeploymentMessage { get; set; }
-    private bool RestartIfRunning { get; set; } = true;
     private bool IsDeploying { get; set; }
 
     private bool CanEditDeployment =>
@@ -100,6 +129,9 @@ else
         Resource = string.IsNullOrWhiteSpace(ResourceId)
             ? null
             : await ResourceManager.GetResourceAsync(ResourceId);
+        Application = string.IsNullOrWhiteSpace(ResourceId)
+            ? null
+            : ApplicationProvider.GetApplication(ResourceId);
         Capabilities = Resource is null
             ? ResourceOperationCapabilities.None(ResourceId ?? string.Empty)
             : await ResourceManager.GetResourceOperationCapabilitiesAsync(Resource);
@@ -112,6 +144,7 @@ else
         {
             CurrentDeploymentResourceId = null;
             DeploymentImage = null;
+            DeploymentRequestedReplicas = 1;
             ImageDeploymentMessage = null;
             return;
         }
@@ -124,6 +157,7 @@ else
 
         CurrentDeploymentResourceId = Resource.Id;
         DeploymentImage = GetCurrentContainerImage(Resource);
+        DeploymentRequestedReplicas = GetDeploymentRequestedReplicasValue(Resource);
         ImageDeploymentMessage = null;
     }
 
@@ -153,15 +187,18 @@ else
             var result = await ResourceManager.UpdateResourceImageAsync(
                 Resource,
                 requestedImage,
-                RestartIfRunning,
-                triggeredBy: "Resource Manager");
+                restartIfRunning: false,
+                triggeredBy: "Resource Manager",
+                requestedReplicas: IsReplicaModeEnabled(Resource) ? DeploymentRequestedReplicas : null);
             ImageDeploymentMessage = result.Message;
 
             var updatedResource = await ResourceManager.GetResourceAsync(Resource.Id);
             if (updatedResource is not null)
             {
                 Resource = updatedResource;
+                Application = ApplicationProvider.GetApplication(updatedResource.Id);
                 DeploymentImage = GetCurrentContainerImage(Resource);
+                DeploymentRequestedReplicas = GetDeploymentRequestedReplicasValue(Resource);
                 CurrentDeploymentResourceId = Resource.Id;
             }
         }
@@ -178,6 +215,26 @@ else
     private static string GetCurrentContainerImage(Resource resource) =>
         resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerImage) ?? string.Empty;
 
+    private static string FormatRevisionMetadata(ApplicationContainerRevision revision)
+    {
+        var parts = new List<string>
+        {
+            $"Requested replicas: {revision.RequestedReplicas.ToString(CultureInfo.InvariantCulture)}",
+            $"Change: {revision.ChangeKind}",
+            $"Created: {revision.CreatedAt.LocalDateTime:g}"
+        };
+        if (!string.IsNullOrWhiteSpace(revision.SourceRevisionId))
+        {
+            parts.Add($"From: {revision.SourceRevisionId}");
+        }
+        if (!string.IsNullOrWhiteSpace(revision.TriggeredBy))
+        {
+            parts.Add($"By: {revision.TriggeredBy}");
+        }
+
+        return string.Join(" | ", parts);
+    }
+
     private static string GetDeploymentRevision(Resource resource) =>
         resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentRevision) ??
         resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerRevision) ??
@@ -189,12 +246,21 @@ else
     private static string GetScalingMode(Resource resource) =>
         IsReplicaModeEnabled(resource) ? "Replicated" : "Single instance";
 
-    private static string GetDeploymentDesiredReplicas(Resource resource) =>
+    private static string GetDeploymentRequestedReplicas(Resource resource) =>
         IsReplicaModeEnabled(resource)
-            ? resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentDesiredReplicas) ??
-                resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerReplicas) ??
-                "1"
+            ? GetDeploymentRequestedReplicasValue(resource).ToString(CultureInfo.InvariantCulture)
             : "not enabled";
+
+    private static int GetDeploymentRequestedReplicasValue(Resource resource) =>
+        TryGetReplicaCount(resource, ResourceAttributeNames.DeploymentDesiredReplicas) ??
+        TryGetReplicaCount(resource, ResourceAttributeNames.ContainerReplicas) ??
+        1;
+
+    private static int? TryGetReplicaCount(Resource resource, string attributeName) =>
+        resource.ResourceAttributes.TryGetValue(attributeName, out var value) &&
+        int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var replicas)
+            ? Math.Max(1, replicas)
+            : null;
 
     private static string GetDeploymentMaterializedReplicas(Resource resource) =>
         IsReplicaModeEnabled(resource)
@@ -256,50 +322,30 @@ else
         }
 
         var currentImage = GetCurrentContainerImage(Resource);
-        if (string.Equals(currentImage, requestedImage, StringComparison.Ordinal))
+        var replicaChangeRequested =
+            IsReplicaModeEnabled(Resource) &&
+            DeploymentRequestedReplicas != GetDeploymentRequestedReplicasValue(Resource);
+        if (string.Equals(currentImage, requestedImage, StringComparison.Ordinal) &&
+            !replicaChangeRequested)
         {
             return DeploymentReadinessView.Blocked(
-                "No image change",
+                "No deployment change",
                 $"This resource already uses image '{currentImage}'.",
-                "Image update preflight");
+                "Container app deployment preflight");
         }
 
-        if (!RestartIfRunning || Resource.State != ResourceState.Running)
-        {
-            return DeploymentReadinessView.Ready(
-                "Update readiness",
-                RestartIfRunning
-                    ? "The image update can be saved. The app is not running, so no restart is required."
-                    : "The image update can be saved. Restart the app later to use the new image.",
-                "Image update preflight");
-        }
-
-        var restartAction = Resource.ResourceActions.FirstOrDefault(action =>
-            action.Kind == ResourceActionKind.Restart);
-        if (restartAction is null)
+        if (IsReplicaModeEnabled(Resource) && DeploymentRequestedReplicas < 1)
         {
             return DeploymentReadinessView.Blocked(
-                "Restart unavailable",
-                "The image update can be saved only if restart is not requested. This resource does not expose a restart action.",
-                "Restart preflight");
+                "Replica count unavailable",
+                "Requested replicas must be greater than or equal to 1.",
+                "Container app deployment preflight");
         }
 
-        var reason = Capabilities.GetActionUnavailableReason(restartAction.Id);
-        if (Capabilities.CanExecuteAction(restartAction.Id) &&
-            string.IsNullOrWhiteSpace(reason))
-        {
-            return DeploymentReadinessView.Ready(
-                "Restart readiness",
-                "Restart preflight checks passed. The running app can restart after the image update.",
-                "Restart preflight");
-        }
-
-        return DeploymentReadinessView.Blocked(
-            "Restart blocked",
-            string.IsNullOrWhiteSpace(reason)
-                ? "Restart is unavailable for this resource. Clear Restart if running to save the image without restarting."
-                : reason,
-            "Restart preflight");
+        return DeploymentReadinessView.Ready(
+            "Container app deployment readiness",
+            "The container app deployment can be created and will produce a new app revision.",
+            "Container app deployment preflight");
     }
 
     private async Task<string> ReadDeploymentImageAsync()

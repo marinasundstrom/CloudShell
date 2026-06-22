@@ -39,7 +39,8 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         IReadOnlyList<ResourceVolumeMount>? volumeMounts = null,
         bool replicasEnabled = false,
         IReadOnlyList<SqlServerDatabaseDefinition>? sqlDatabases = null,
-        IReadOnlyList<ResourceLogSource>? logSources = null)
+        IReadOnlyList<ResourceLogSource>? logSources = null,
+        IReadOnlyList<ApplicationContainerRevision>? containerRevisions = null)
     {
         Id = id;
         Name = name;
@@ -77,6 +78,7 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         VolumeMounts = volumeMounts ?? [];
         SqlDatabases = sqlDatabases ?? [];
         LogSources = logSources ?? [];
+        ContainerRevisions = containerRevisions ?? [];
     }
 
     public string Id { get; init; }
@@ -146,6 +148,24 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
     public IReadOnlyList<SqlServerDatabaseDefinition> SqlDatabases { get; init; }
 
     public IReadOnlyList<ResourceLogSource> LogSources { get; init; }
+
+    public IReadOnlyList<ApplicationContainerRevision> ContainerRevisions { get; init; }
+}
+
+public sealed record ApplicationContainerRevision(
+    string Id,
+    string Image,
+    int RequestedReplicas,
+    DateTimeOffset CreatedAt,
+    string ChangeKind,
+    string? SourceRevisionId = null,
+    string? TriggeredBy = null);
+
+public static class ApplicationContainerRevisionChangeKinds
+{
+    public const string Initial = "initial";
+    public const string ImageDeployment = "image-deployment";
+    public const string RestoreDeployment = "restore-deployment";
 }
 
 public sealed record SqlServerDatabaseDefinition(

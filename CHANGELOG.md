@@ -68,6 +68,9 @@ on `git blame --follow`, and then by the broad type of change.
   on the stable container app resource while projecting contained runtime
   replica log sources, telemetry scopes, and replica-tagged resource metrics
   for overview and drill-down.
+- Container app deployments now track app-owned revision history entries with
+  image, requested replicas, source revision, timestamp, and trigger metadata,
+  and the Deployment tab surfaces that history.
 - The shared application-resource projection seam is now public: custom
   application-like providers can subclass `ApplicationResourceTypeProvider`
   and provide an `ApplicationResourceProjection` while reusing the common
@@ -2269,7 +2272,7 @@ on `git blame --follow`, and then by the broad type of change.
   resource with applied runtime workload versions before rollout history and
   public deployment management APIs are introduced.
   Decision: [ADR-20260615-002](ADR.md#adr-20260615-002).
-- Container apps now project desired replica/container runtime artifacts as
+- Container apps now project requested replica/container runtime artifacts as
   hidden runtime-managed child resources. The child resources are parented to
   and owned by the stable container app, carry replica ordinal/count,
   container-name, revision, and materialization metadata, and stay out of the
@@ -2293,12 +2296,12 @@ on `git blame --follow`, and then by the broad type of change.
   Decision: [ADR-20260615-002](ADR.md#adr-20260615-002).
 - Container app image deployment moved from the generic Overview surface into a
   provider-owned Deployment tab. The tab shows the current image, revision, and
-  desired replica count, and keeps the deploy-image operation grouped with
+  requested replica count, and keeps the deploy-image operation grouped with
   deployment-specific state.
   Decision: [ADR-20260615-002](ADR.md#adr-20260615-002).
 - Container apps now project an internal orchestrator deployment view onto the
   stable app resource. The projection includes deployment id, service id,
-  status, revision/workload version, desired replicas, and projected runtime
+  status, revision/workload version, requested replicas, and projected runtime
   replicas, and the Deployment tab renders that state without exposing public
   rollout-history or rollback APIs yet.
   Decision: [ADR-20260615-002](ADR.md#adr-20260615-002).

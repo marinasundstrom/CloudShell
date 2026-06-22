@@ -76,7 +76,8 @@ public interface IContainerApplicationResourceProviderOperations
         string image,
         bool restartIfRunning,
         string? triggeredBy = null,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        int? requestedReplicas = null);
 
     bool CanUpdateReplicas(Resource resource);
 

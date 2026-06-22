@@ -449,8 +449,11 @@ public sealed class RemoteControlPlane : IControlPlane
         CancellationToken cancellationToken = default)
     {
         var response = await httpClient.PostAsJsonAsync(
-            BuildUri(ContainerAppsRoutePrefix, $"{Escape(command.ResourceId)}/revisions"),
-            new UpdateResourceImageRequest(command.Image, command.RestartIfRunning, command.TriggeredBy),
+            BuildUri(ContainerAppsRoutePrefix, $"{Escape(command.ResourceId)}/deployments"),
+            new CreateContainerAppDeploymentRequest(
+                command.Image,
+                command.TriggeredBy,
+                command.RequestedReplicas),
             SerializerOptions,
             cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
@@ -1275,10 +1278,10 @@ file sealed record SetResourceDependenciesRequest(IReadOnlyList<string> DependsO
 
 file sealed record SetResourceIdentityRequest(ResourceIdentityBindingResponse? Identity);
 
-file sealed record UpdateResourceImageRequest(
+file sealed record CreateContainerAppDeploymentRequest(
     string Image,
-    bool RestartIfRunning = true,
-    string? TriggeredBy = null);
+    string? TriggeredBy = null,
+    int? RequestedReplicas = null);
 
 file sealed record UpdateResourceReplicasRequest(
     int Replicas,

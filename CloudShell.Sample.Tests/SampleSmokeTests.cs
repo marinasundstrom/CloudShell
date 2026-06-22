@@ -1868,7 +1868,7 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
-    public async Task ContainerAppDeploymentSample_UpdatesMockImageTagThroughRevisionApi()
+    public async Task ContainerAppDeploymentSample_UpdatesMockImageTagThroughDeploymentApi()
     {
         var registryPort = await GetFreePortAsync();
         using var host = await SampleProcess.StartAsync(
@@ -1914,11 +1914,10 @@ public sealed class SampleSmokeTests
 
         var updateJson = await host.SendJsonAsync(
             HttpMethod.Post,
-            "/api/container-apps/v1/application%3Asample-api/revisions",
+            "/api/container-apps/v1/application%3Asample-api/deployments",
             """
             {
               "image": "cloudshell/mock-api:20260608.2",
-              "restartIfRunning": false,
               "triggeredBy": "sample-smoke-test"
             }
             """);

@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 
@@ -739,7 +740,8 @@ public sealed class RemoteControlPlaneContractTests
             ContractImageResourceProvider.ResourceId,
             "example/api:20260608",
             restartIfRunning: false,
-            triggeredBy: "build-server");
+            triggeredBy: "build-server",
+            requestedReplicas: 2);
         var eventLogs = await controlPlane.ListLogSourcesAsync(
             new LogQuery(ResourceId: ContractImageResourceProvider.ResourceId));
         var eventLog = Assert.Single(eventLogs, log => log.Name == "Activity");
@@ -752,7 +754,7 @@ public sealed class RemoteControlPlaneContractTests
 
         Assert.Equal("Updated contract:container-app to example/api:20260608.", result.Message);
         var provider = app.Services.GetRequiredService<ContractImageResourceProvider>();
-        Assert.Equal(["example/api:20260608:False:user"], provider.UpdatedImages);
+        Assert.Equal(["example/api:20260608:False:user:2"], provider.UpdatedImages);
         var resourceEvent = Assert.Single(resourceEvents);
         Assert.Equal(ContractImageResourceProvider.ResourceId, resourceEvent.ResourceId);
         Assert.Equal(ResourceEventTypes.Events.Deployment.ImageUpdated, resourceEvent.EventType);
@@ -957,7 +959,7 @@ public sealed class RemoteControlPlaneContractTests
         Assert.True(paths.TryGetProperty("/api/control-plane/v1/log-sources/{logSourceId}/entries", out _));
         Assert.True(paths.TryGetProperty("/api/control-plane/v1/log-sources/{logSourceId}/stream", out _));
         Assert.False(paths.TryGetProperty("/api/control-plane/v1/resources/{resourceId}/image", out _));
-        Assert.True(paths.TryGetProperty("/api/container-apps/v1/{containerAppId}/revisions", out _));
+        Assert.True(paths.TryGetProperty("/api/container-apps/v1/{containerAppId}/deployments", out _));
         Assert.True(paths.TryGetProperty("/api/container-apps/v1/{containerAppId}/replicas", out _));
         Assert.True(paths.TryGetProperty("/api/control-plane/v1/resource-principals", out _));
         Assert.True(paths.TryGetProperty("/api/control-plane/v1/resource-permission-grants", out _));
@@ -1999,9 +2001,10 @@ public sealed class RemoteControlPlaneContractTests
             string image,
             bool restartIfRunning,
             string? triggeredBy = null,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            int? requestedReplicas = null)
         {
-            UpdatedImages.Add($"{image}:{restartIfRunning}:{triggeredBy}");
+            UpdatedImages.Add($"{image}:{restartIfRunning}:{triggeredBy}:{requestedReplicas?.ToString(CultureInfo.InvariantCulture) ?? "unchanged"}");
             return Task.FromResult(ResourceProcedureResult.Completed(
                 $"Updated {context.Resource.Id} to {image}."));
         }

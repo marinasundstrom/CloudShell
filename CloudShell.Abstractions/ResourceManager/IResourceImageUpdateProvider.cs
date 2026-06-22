@@ -9,5 +9,6 @@ public interface IResourceImageUpdateProvider
         string image,
         bool restartIfRunning,
         string? triggeredBy = null,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        int? requestedReplicas = null);
 }

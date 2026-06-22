@@ -39,6 +39,7 @@ public sealed class ApplicationResourceDefinitionBuilder
     private bool _replicasEnabled;
     private IReadOnlyList<SqlServerDatabaseDefinition> _sqlDatabases = [];
     private IReadOnlyList<ResourceLogSource> _logSources = [];
+    private IReadOnlyList<ApplicationContainerRevision> _containerRevisions = [];
 
     private ApplicationResourceDefinitionBuilder(
         string id,
@@ -266,6 +267,13 @@ public sealed class ApplicationResourceDefinitionBuilder
         return this;
     }
 
+    public ApplicationResourceDefinitionBuilder WithContainerRevisions(
+        IReadOnlyList<ApplicationContainerRevision> revisions)
+    {
+        _containerRevisions = revisions;
+        return this;
+    }
+
     public ApplicationResourceDefinition Build() =>
         new(
             _id,
@@ -301,5 +309,6 @@ public sealed class ApplicationResourceDefinitionBuilder
             _volumeMounts,
             _replicasEnabled,
             _sqlDatabases,
-            _logSources);
+            _logSources,
+            _containerRevisions);
 }

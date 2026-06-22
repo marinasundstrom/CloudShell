@@ -394,9 +394,17 @@ public sealed partial class ApplicationResourceService(
         string image,
         bool restartIfRunning,
         string? triggeredBy = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        int? requestedReplicas = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(image);
+        if (requestedReplicas is < 1)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(requestedReplicas),
+                requestedReplicas,
+                "Requested replicas must be greater than or equal to 1.");
+        }
 
         var application = store.GetApplication(context.Resource.Id)
             ?? throw new InvalidOperationException(
@@ -408,7 +416,9 @@ public sealed partial class ApplicationResourceService(
         }
 
         var normalizedImage = image.Trim();
-        if (string.Equals(application.ContainerImage, normalizedImage, StringComparison.Ordinal))
+        var requestedReplicaCount = requestedReplicas ?? application.Replicas;
+        if (string.Equals(application.ContainerImage, normalizedImage, StringComparison.Ordinal) &&
+            requestedReplicaCount == application.Replicas)
         {
             return ResourceProcedureResult.Completed(
                 $"Container app '{application.Name}' already uses image '{normalizedImage}'.");
@@ -429,14 +439,25 @@ public sealed partial class ApplicationResourceService(
             ContainerImage = normalizedImage,
             ContainerBuildContext = null,
             ContainerDockerfile = null,
-            ContainerRevision = nextRevision
+            ContainerRevision = nextRevision,
+            Replicas = requestedReplicaCount,
+            ReplicasEnabled = requestedReplicas.HasValue
+                ? application.ReplicasEnabled || requestedReplicas.Value > 1
+                : application.ReplicasEnabled,
+            ContainerRevisions = AppendContainerRevision(
+                application,
+                nextRevision,
+                normalizedImage,
+                requestedReplicaCount,
+                ApplicationContainerRevisionChangeKinds.ImageDeployment,
+                triggeredBy)
         });
         store.Save(updated);
 
         resourceEvents?.Append(new ResourceEvent(
             application.Id,
             ResourceEventTypes.Events.Deployment.ImageUpdated,
-            $"Changed container image from '{application.ContainerImage ?? "none"}' to '{normalizedImage}' and created revision '{updated.ContainerRevision}'.",
+            $"Deployed container image '{normalizedImage}' from '{application.ContainerImage ?? "none"}' and produced revision '{updated.ContainerRevision}' with requested replicas '{FormatRequestedReplicas(requestedReplicas)}'.",
             DateTimeOffset.UtcNow,
             triggeredBy));
 
@@ -466,16 +487,16 @@ public sealed partial class ApplicationResourceService(
                 triggeredBy));
 
             return ResourceProcedureResult.Completed(
-                $"Updated {application.Name} to image '{normalizedImage}' and restarted it.");
+                $"Deployed {application.Name} image '{normalizedImage}', produced revision '{updated.ContainerRevision}', and restarted it.");
         }
 
         return wasRunning
             ? ResourceProcedureResult.CompletedWithRestartRequired(
-                $"Updated {application.Name} to image '{normalizedImage}'.",
+                $"Deployed {application.Name} image '{normalizedImage}' and produced revision '{updated.ContainerRevision}'.",
                 application.Id,
-                "The container app is running. Restart it to use the new image.")
+                "The container app is running. Runtime cutover for this deployment is not yet automated.")
             : ResourceProcedureResult.Completed(
-                $"Updated {application.Name} to image '{normalizedImage}'.");
+                $"Deployed {application.Name} image '{normalizedImage}' and produced revision '{updated.ContainerRevision}'.");
     }
 
     public async Task<ResourceProcedureResult> UpdateReplicasAsync(
@@ -4591,6 +4612,45 @@ public sealed partial class ApplicationResourceService(
     private static bool IsReplicaModeEnabled(ApplicationResourceDefinition application) =>
         ApplicationResourceTypes.IsContainerApp(application.ResourceType) &&
         application.ReplicasEnabled;
+
+    private static string FormatRequestedReplicas(int? requestedReplicas) =>
+        requestedReplicas is { } value
+            ? value.ToString(CultureInfo.InvariantCulture)
+            : "unchanged";
+
+    private static IReadOnlyList<ApplicationContainerRevision> AppendContainerRevision(
+        ApplicationResourceDefinition application,
+        string revisionId,
+        string image,
+        int requestedReplicas,
+        string changeKind,
+        string? triggeredBy)
+    {
+        var revisions = application.ContainerRevisions.ToList();
+        var sourceRevisionId = NormalizeNullable(application.ContainerRevision);
+        if (!string.IsNullOrWhiteSpace(sourceRevisionId) &&
+            revisions.All(revision => !string.Equals(revision.Id, sourceRevisionId, StringComparison.OrdinalIgnoreCase)))
+        {
+            revisions.Add(new ApplicationContainerRevision(
+                sourceRevisionId,
+                NormalizeNullable(application.ContainerImage) ?? "unresolved",
+                Math.Max(1, application.Replicas),
+                DateTimeOffset.UtcNow,
+                ApplicationContainerRevisionChangeKinds.Initial));
+        }
+
+        revisions.RemoveAll(revision =>
+            string.Equals(revision.Id, revisionId, StringComparison.OrdinalIgnoreCase));
+        revisions.Add(new ApplicationContainerRevision(
+            revisionId,
+            image,
+            Math.Max(1, requestedReplicas),
+            DateTimeOffset.UtcNow,
+            changeKind,
+            sourceRevisionId,
+            NormalizeNullable(triggeredBy)));
+        return revisions;
+    }
 
     private static string GetEffectiveContainerRevision(ApplicationResourceDefinition application) =>
         NormalizeNullable(application.ContainerRevision) ?? "unrevisioned";

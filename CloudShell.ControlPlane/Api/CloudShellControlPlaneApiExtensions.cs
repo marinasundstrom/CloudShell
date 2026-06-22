@@ -276,9 +276,9 @@ public static class CloudShellControlPlaneApiExtensions
             .WithTags("Container Apps")
             .WithGroupName(CloudShellControlPlaneApiDefaults.DocumentName);
 
-        api.MapPost("/{containerAppId}/revisions", CreateContainerAppRevision)
-            .WithName("CloudShellContainerApps_CreateRevision")
-            .Accepts<UpdateResourceImageRequest>("application/json")
+        api.MapPost("/{containerAppId}/deployments", DeployContainerApp)
+            .WithName("CloudShellContainerApps_Deploy")
+            .Accepts<CreateContainerAppDeploymentRequest>("application/json")
             .Produces<ResourceProcedureResponse>(StatusCodes.Status200OK)
             .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
             .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
@@ -733,9 +733,9 @@ public static class CloudShellControlPlaneApiExtensions
         }
     }
 
-    private static async Task<IResult> CreateContainerAppRevision(
+    private static async Task<IResult> DeployContainerApp(
         string containerAppId,
-        [FromBody] UpdateResourceImageRequest request,
+        [FromBody] CreateContainerAppDeploymentRequest request,
         IResourceManager resourceManager,
         CancellationToken cancellationToken)
     {
@@ -755,8 +755,9 @@ public static class CloudShellControlPlaneApiExtensions
                 new UpdateResourceImageCommand(
                     containerAppId,
                     RequireValue(request.Image, nameof(request.Image)),
-                    request.RestartIfRunning,
-                    NormalizeOptional(request.TriggeredBy)),
+                    RestartIfRunning: false,
+                    NormalizeOptional(request.TriggeredBy),
+                    request.RequestedReplicas),
                 cancellationToken);
 
             return Results.Ok(ToResponse(result));

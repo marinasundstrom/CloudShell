@@ -90,12 +90,13 @@ public static class ResourceManagerClientExtensions
         string image,
         bool restartIfRunning = true,
         string? triggeredBy = null,
+        int? requestedReplicas = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(resourceManager);
 
         return resourceManager.UpdateResourceImageAsync(
-            new UpdateResourceImageCommand(resourceId, image, restartIfRunning, triggeredBy),
+            new UpdateResourceImageCommand(resourceId, image, restartIfRunning, triggeredBy, requestedReplicas),
             cancellationToken);
     }
 
@@ -105,6 +106,7 @@ public static class ResourceManagerClientExtensions
         string image,
         bool restartIfRunning = true,
         string? triggeredBy = null,
+        int? requestedReplicas = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(resource);
@@ -114,6 +116,7 @@ public static class ResourceManagerClientExtensions
             image,
             restartIfRunning,
             triggeredBy,
+            requestedReplicas,
             cancellationToken);
     }
 

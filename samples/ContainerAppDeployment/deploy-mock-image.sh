@@ -14,7 +14,7 @@ printf 'Updating %s through %s\n' "$APP_ID" "$BASE_URL"
 curl -fsS \
   -X POST \
   -H 'Content-Type: application/json' \
-  -d "{\"image\":\"${IMAGE}\",\"restartIfRunning\":false,\"triggeredBy\":\"mock-build-script\"}" \
-  "${BASE_URL}/api/container-apps/v1/${APP_ID}/revisions"
+  -d "{\"image\":\"${IMAGE}\",\"triggeredBy\":\"mock-build-script\"}" \
+  "${BASE_URL}/api/container-apps/v1/${APP_ID}/deployments"
 
 printf '\n'
