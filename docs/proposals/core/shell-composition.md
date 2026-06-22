@@ -1017,11 +1017,22 @@ them without declaring a separate menu.
 
 ## Notifications
 
-CloudShell should provide a notification system owned by the shell UI layer and
-backed by a platform abstraction. The shell should own the common notification
-model, presenters, user-facing interaction patterns, and persistence contract
-instead of leaving every feature or extension to invent its own notification
-surface.
+CloudShell should provide shell-owned notification presentation and a common
+notification shape, but the shell should not necessarily own durable
+notification storage. The shell owns the user-facing contract: notification
+records, severity, source metadata, targets, action affordances, presenter
+behavior, user-facing interaction patterns, and the interfaces the
+notification UI uses to fetch current notifications and receive updates.
+Product areas that use the shell, such as Resource Manager, own the
+operational logic that produces notifications and can plug in their own
+persistence or delivery services when they need durable history.
+
+The stable abstraction should be a notification source. A source is the owner
+of a stream or collection of notifications, such as a future Resource Manager
+notification source backed by resource events, lifecycle procedures, health
+state, provider diagnostics, and asynchronous task results. The shell can later
+aggregate several sources into one notification center, but aggregation should
+not erase source ownership or force all producers through one store.
 
 The system should provide two presentation modes:
 
@@ -1029,26 +1040,50 @@ The system should provide two presentation modes:
 - An off-canvas notification center for durable notification history,
   unread state, and operator review.
 
-Notification records should identify their source extension, severity,
-timestamp, optional resource or route target, and optional action affordances.
-Resource lifecycle events, permission denials, provider diagnostics, and
-long-running operation results can feed this system without every feature
-building its own notification UI.
+Notification records should identify their source extension or product area,
+severity, timestamp, optional resource or route target, optional action
+affordances, and whether the notification is transient, durable, or backed by a
+source-specific history. Resource lifecycle events, permission denials,
+provider diagnostics, and long-running asynchronous operation results can feed
+this system without every feature building its own notification UI.
 
-Durable notifications should be persisted independently from transient toast
-state. Persistence should track the notification payload, source module,
-audience, delivery state, read/dismissed state, and timestamps. The shell should
-support fan-out so one source event can produce per-user notification records
-for every user or principal that should receive it, rather than treating a
-notification as a single global banner. Recipient selection can initially be
-based on explicit users or roles, and later expand to policies, claims,
-resource ownership, environment membership, or subscription preferences.
+The shell can define contracts for notification sources, unread state,
+dismissal, action dispatch, and update subscriptions, but implementations
+should live with the area that owns the events. Resource Manager might expose a
+source backed by resource events, lifecycle procedures, health transitions, or
+provider diagnostics. Observability could expose a source for alerts or
+degraded-service findings. Another shell extension might provide a completely
+different source. Each source can decide whether history is transient,
+in-memory, Control Plane-backed, provider-backed, or
+external-service-backed.
+
+CloudShell Shell should not prescribe the data flow behind those providers. A
+notification source can poll its backing service, listen to Control Plane or
+provider events, maintain an event aggregator, project an existing event store,
+or call an external service. The shell UI should only depend on the source
+interfaces for listing notifications, receiving change notifications, marking
+items read or dismissed, and dispatching declared actions. That avoids forcing
+CloudShell to decide how every consumer pushes updates into a shared in-memory
+store.
+
+Durable notification storage should therefore be pluggable. A source that
+needs durable history can expose a provider that tracks payloads, audience,
+delivery state, read/dismissed state, and timestamps. A source that only needs
+toasts can publish transient records with no persistence. Fan-out should also
+belong to the source or backing service that understands the audience:
+explicit users, roles, policies, claims, resource ownership, environment
+membership, subscriptions, or another product-specific rule.
 
 The composition model should not become the notification domain model. It can
 provide addressable pages, notification-center layout areas, and extension
-contribution points, while CloudShell owns a higher-level notification service,
-store, delivery/fan-out pipeline, and Fluent UI presenters on top of those
-primitives.
+contribution points, while CloudShell Shell owns the shared notification shape
+and Fluent UI presenters. Product areas plug in notification sources and
+optional stores behind that shape. CloudShell can provide reference
+implementations, such as a simple in-memory source and a default persistent
+source for hosts that want local notification storage. A common aggregate store
+can also be useful in simple deployments, but it should be an implementation
+choice based on ownership and use-case requirements rather than a shell
+requirement.
 
 ## Slots and extension areas
 
@@ -1099,13 +1134,19 @@ before broad new shell surfaces become release blockers.
   based child address values are not enough, and how should pages or section
   outlets customize the projection of parent-addressed or child-addressed
   sections?
-- Which notification records belong in the Control Plane event stream, and
-  which are UI-local shell state?
-- What is the minimum persisted notification schema for per-recipient delivery,
-  unread state, dismissal, source-module tracking, and target links?
-- How should notification fan-out decide the recipient set: explicit users,
-  roles, policies, claims, resource ownership, environment membership,
-  subscriptions, or a combination?
+- Which stable notification source abstractions should Resource Manager
+  provide from Control Plane events, lifecycle procedures, health transitions,
+  provider diagnostics, and asynchronous task results?
+- What is the minimum shell notification source contract for transient toasts,
+  durable history, unread state, dismissal, update subscription, and action
+  dispatch without requiring the shell to own persistence or an in-memory
+  update store?
+- How should a source-owned notification store declare its audience and
+  fan-out model: explicit users, roles, policies, claims, resource ownership,
+  environment membership, subscriptions, or a product-specific rule?
+- Which reference implementations should CloudShell provide, such as
+  in-memory, persistent, or aggregate-source providers, and which should remain
+  Resource Manager-owned or extension-owned?
 - Should shell layout configuration be stored in the UI host, the Control
   Plane, or a separate shell configuration service for split hosting?
 - What is the minimum slot and section-container API that supports useful
