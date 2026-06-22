@@ -85,9 +85,8 @@ else if (ShowHeading)
 
             @if (ShouldShowSourceHeader(scopes))
             {
-                <div class="panel-header log-viewer-header @(ShowSourceSummary ? null : "controls-only")">
-                    @if (ShowSourceSummary)
-                    {
+                <TelemetryExplorerHeader ShowSummary="@ShowSourceSummary">
+                    <SummaryContent>
                         <div>
                             @if (selected is null)
                             {
@@ -100,8 +99,8 @@ else if (ShowHeading)
                                 <p>@selected.Kind / @selected.Provider@GetStateSuffix(selected)</p>
                             }
                         </div>
-                    }
-                    <div class="log-viewer-actions">
+                    </SummaryContent>
+                    <Actions>
                         @if (!ShowHeading && !string.IsNullOrWhiteSpace(TraceId))
                         {
                             <FluentButton Appearance="Appearance.Neutral" OnClick="ClearTraceFilter">
@@ -139,8 +138,8 @@ else if (ShowHeading)
                                 @L["Open resource"]
                             </FluentAnchor>
                         }
-                    </div>
-                </div>
+                    </Actions>
+                </TelemetryExplorerHeader>
             }
 
             @if (ShowResourceDetails && selected is not null && string.IsNullOrWhiteSpace(TraceId))
@@ -168,28 +167,23 @@ else if (ShowHeading)
                 </dl>
             }
 
-            <div class="panel-header log-viewer-header">
-                <div>
-                    <h2>@(string.IsNullOrWhiteSpace(TraceId) ? L["Recent spans"] : L["Trace chart"])</h2>
-                    <p>@GetSpanSummary(spans.Count)</p>
-                </div>
-                @if (string.IsNullOrWhiteSpace(TraceId))
-                {
-                    <div class="log-viewer-actions">
-                        <label class="trace-source-filter compact" for="trace-sort-mode">
-                            <span>@L["Sort"]</span>
-                            <select id="trace-sort-mode"
-                                    class="trace-source-select compact"
-                                    value="@TraceSortMode"
-                                    @onchange="SelectTraceSortMode">
-                                <option value="@TraceSortModes.Newest">@L["Newest"]</option>
-                                <option value="@TraceSortModes.LongestDuration">@L["Longest duration"]</option>
-                                <option value="@TraceSortModes.ErrorsFirst">@L["Errors first"]</option>
-                            </select>
-                        </label>
-                    </div>
-                }
-            </div>
+            <TelemetryExplorerHeader Title="@(string.IsNullOrWhiteSpace(TraceId) ? L["Recent spans"].Value : L["Trace chart"].Value)"
+                                     Description="@GetSpanSummary(spans.Count)"
+                                     ShowActions="@string.IsNullOrWhiteSpace(TraceId)">
+                <Actions>
+                    <label class="trace-source-filter compact" for="trace-sort-mode">
+                        <span>@L["Sort"]</span>
+                        <select id="trace-sort-mode"
+                                class="trace-source-select compact"
+                                value="@TraceSortMode"
+                                @onchange="SelectTraceSortMode">
+                            <option value="@TraceSortModes.Newest">@L["Newest"]</option>
+                            <option value="@TraceSortModes.LongestDuration">@L["Longest duration"]</option>
+                            <option value="@TraceSortModes.ErrorsFirst">@L["Errors first"]</option>
+                        </select>
+                    </label>
+                </Actions>
+            </TelemetryExplorerHeader>
 
             @if (spans.Count == 0)
             {

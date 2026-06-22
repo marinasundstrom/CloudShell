@@ -41,6 +41,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Users, Extensions, Settings, Health, Resource Templates, custom shell views,
   Resource Manager settings, and tabbed resource panels now use the shared
   shell panel header component instead of repeated local header markup.
+- Log, trace, and metric explorers now share a telemetry explorer header
+  component for source summaries and toolbar controls.
 - Summary metric cards now support compact rendering, and summary metric cards
   and grids own their styling through component-scoped CSS instead of
   page-level hand-coded markup.

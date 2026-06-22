@@ -77,15 +77,10 @@ else if (ShowHeading)
 
             @if (ShouldShowSourceHeader(scopes))
             {
-                <div class="panel-header log-viewer-header @(ShowSourceSummary ? null : "controls-only")">
-                    @if (ShowSourceSummary)
-                    {
-                        <div>
-                            <h2>@GetResourceLabel(selected)</h2>
-                            <p>@selected.Kind / @selected.Provider@GetStateSuffix(selected)</p>
-                        </div>
-                    }
-                    <div class="log-viewer-actions">
+                <TelemetryExplorerHeader ShowSummary="@ShowSourceSummary"
+                                         Title="@GetResourceLabel(selected)"
+                                         Description="@($"{selected.Kind} / {selected.Provider}{GetStateSuffix(selected)}")">
+                    <Actions>
                         @if (ShowResourceSelector)
                         {
                             <ResourceSourceSelect Id="metric-source-filter"
@@ -116,8 +111,8 @@ else if (ShowHeading)
                                 @L["Open resource"]
                             </FluentAnchor>
                         }
-                    </div>
-                </div>
+                    </Actions>
+                </TelemetryExplorerHeader>
             }
 
             @if (ShowResourceDetails)

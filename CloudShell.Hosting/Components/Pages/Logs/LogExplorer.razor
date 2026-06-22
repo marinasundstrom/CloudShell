@@ -92,15 +92,10 @@ else if (ShowHeading)
 
             @if (selectedLogView == LogSourcesView)
             {
-                <div class="panel-header log-viewer-header @(ShowSourceSummary ? null : "controls-only")">
-                    @if (ShowSourceSummary)
-                    {
-                        <div>
-                            <h2>@L["Log sources"]</h2>
-                            <p>@L["{0} source(s) available", GetInventoryLogSources().Count]</p>
-                        </div>
-                    }
-                    <div class="log-viewer-actions">
+                <TelemetryExplorerHeader ShowSummary="@ShowSourceSummary"
+                                         Title="@L["Log sources"].Value"
+                                         Description="@L["{0} source(s) available", GetInventoryLogSources().Count].Value">
+                    <Actions>
                         @if (!Inline)
                         {
                             <ResourceSourceSelect Id="log-resource-filter"
@@ -110,8 +105,8 @@ else if (ShowHeading)
                                                   SelectedResourceIdChanged="SelectResourceFilter"
                                                   AllOptionLabel="@L["All resources"].Value" />
                         }
-                    </div>
-                </div>
+                    </Actions>
+                </TelemetryExplorerHeader>
 
                 var inventorySources = GetInventoryLogSources();
                 @if (ShowSourceInventory && inventorySources.Count > 0)
@@ -189,15 +184,10 @@ else if (ShowHeading)
             }
             else
             {
-                <div class="panel-header log-viewer-header @(ShowSourceSummary ? null : "controls-only")">
-                    @if (ShowSourceSummary)
-                    {
-                        <div>
-                            <h2>@GetLogSourceLabel(selected)</h2>
-                            <p>@GetLogMetadataLabel(selected)</p>
-                        </div>
-                    }
-                    <div class="log-viewer-actions">
+                <TelemetryExplorerHeader ShowSummary="@ShowSourceSummary"
+                                         Title="@GetLogSourceLabel(selected)"
+                                         Description="@GetLogMetadataLabel(selected)">
+                    <Actions>
                         @if (!ShowHeading && !string.IsNullOrWhiteSpace(TraceId))
                         {
                             <FluentButton Appearance="Appearance.Neutral" OnClick="ClearTraceFilter">
@@ -263,8 +253,8 @@ else if (ShowHeading)
                                 @(IsSelectedLogStreaming(selected) ? L["Streaming"] : L["Stream"])
                             </FluentCheckbox>
                         }
-                    </div>
-                </div>
+                    </Actions>
+                </TelemetryExplorerHeader>
 
                 @if (ShowSourceDescription && !string.IsNullOrWhiteSpace(selected.Description))
                 {
