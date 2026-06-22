@@ -16,9 +16,12 @@ public static class ApplicationResourceTypes
 
     public static bool IsApplication(string? resourceType) =>
         string.Equals(resourceType, ExecutableApplication, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(resourceType, AspNetCoreProject, StringComparison.OrdinalIgnoreCase) ||
+        IsAspNetCoreProject(resourceType) ||
         IsContainerApp(resourceType) ||
         string.Equals(resourceType, SqlServer, StringComparison.OrdinalIgnoreCase);
+
+    public static bool IsAspNetCoreProject(string? resourceType) =>
+        string.Equals(resourceType, AspNetCoreProject, StringComparison.OrdinalIgnoreCase);
 
     public static bool IsContainerApp(string? resourceType) =>
         string.Equals(resourceType, ContainerApp, StringComparison.OrdinalIgnoreCase) ||

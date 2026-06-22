@@ -402,7 +402,7 @@ public sealed partial class ApplicationResourceService(
         }
 
         var processSnapshot = await localProcesses.GetMonitoringSnapshotAsync(
-            CreateLocalProcessDefinition(application),
+            ApplicationProcessDefinitions.Create(application),
             cancellationToken);
         if (processSnapshot is null)
         {
@@ -1604,7 +1604,7 @@ public sealed partial class ApplicationResourceService(
         GetApplication(applicationId) is { } application &&
         (IsContainerBacked(application)
             ? TryGetRunningProcess(application, out _)
-            : localProcesses.IsRunning(CreateLocalProcessDefinition(application)));
+            : localProcesses.IsRunning(ApplicationProcessDefinitions.Create(application)));
 
     public async Task<IReadOnlyList<SqlServerDatabaseInfo>> QuerySqlServerDatabasesAsync(
         string sqlServerResourceId,
@@ -1786,7 +1786,7 @@ public sealed partial class ApplicationResourceService(
             }
 
             await localProcesses.CleanupHostScopedProcessAsync(
-                CreateLocalProcessDefinition(application),
+                ApplicationProcessDefinitions.Create(application),
                 cancellationToken);
         }
     }
@@ -1914,7 +1914,7 @@ public sealed partial class ApplicationResourceService(
             "application.environment.resolved",
             $"Application provider resolved {resolvedEnvironmentVariables.Count.ToString(CultureInfo.InvariantCulture)} environment variable{Pluralize(resolvedEnvironmentVariables.Count)} for '{definition.Name}'.");
 
-        var localProcess = CreateLocalProcessDefinition(
+        var localProcess = ApplicationProcessDefinitions.Create(
             definition,
             resolvedEnvironmentVariables);
         if (localProcesses.IsRunning(localProcess))
@@ -1929,7 +1929,7 @@ public sealed partial class ApplicationResourceService(
         MarkStarting(definition.Id);
         try
         {
-            if (IsAspNetCoreProject(definition) && !definition.AspNetCoreHotReload)
+            if (ApplicationResourceTypes.IsAspNetCoreProject(definition.ResourceType) && !definition.AspNetCoreHotReload)
             {
                 await BuildAspNetCoreProjectAsync(
                     definition,
@@ -3607,7 +3607,7 @@ public sealed partial class ApplicationResourceService(
                 "application.process.stopping",
                 $"Application provider is stopping local process for '{application.Name}'.");
             await localProcesses.StopAsync(
-                CreateLocalProcessDefinition(application),
+                ApplicationProcessDefinitions.Create(application),
                 force,
                 cancellationToken);
             procedureContext?.AppendProviderEvent(
@@ -4554,14 +4554,8 @@ public sealed partial class ApplicationResourceService(
             ? application.Id
             : application.Name;
 
-    private static bool IsAspNetCoreProject(ApplicationResourceDefinition application) =>
-        string.Equals(
-            application.ResourceType,
-            ApplicationResourceTypes.AspNetCoreProject,
-            StringComparison.OrdinalIgnoreCase);
-
     private static bool IsProjectBacked(ApplicationResourceDefinition application) =>
-        IsAspNetCoreProject(application) ||
+        ApplicationResourceTypes.IsAspNetCoreProject(application.ResourceType) ||
         !string.IsNullOrWhiteSpace(application.ProjectPath);
 
     private ResourceState GetState(string applicationId)
@@ -4880,101 +4874,6 @@ public sealed partial class ApplicationResourceService(
         IsTcpPortAvailable(IPAddress.Loopback, port) &&
         IsTcpPortAvailable(IPAddress.IPv6Loopback, port);
 
-    private static ProcessStartInfo CreateScopedStartInfo(ApplicationResourceDefinition definition)
-    {
-        var command = CreateProcessCommand(definition);
-        return new ProcessStartInfo
-        {
-            FileName = ResolveExecutablePath(command.ExecutablePath),
-            Arguments = command.Arguments ?? string.Empty,
-            WorkingDirectory = ResolveWorkingDirectory(definition),
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true
-        };
-    }
-
-    private static ProcessStartInfo CreateDetachedStartInfo(
-        ApplicationResourceDefinition definition,
-        string logPath)
-    {
-        var command = CreateProcessCommand(definition);
-        var workingDirectory = ResolveWorkingDirectory(definition);
-        var executablePath = ResolveExecutablePath(command.ExecutablePath);
-        var arguments = command.Arguments ?? string.Empty;
-
-        if (OperatingSystem.IsWindows())
-        {
-            var windowsShellCommand = $"\"{EscapeWindowsCommandArgument(executablePath)}\" {arguments} >> \"{EscapeWindowsCommandArgument(logPath)}\" 2>&1";
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = Environment.GetEnvironmentVariable("COMSPEC") ?? "cmd.exe",
-                WorkingDirectory = workingDirectory,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-            startInfo.ArgumentList.Add("/d");
-            startInfo.ArgumentList.Add("/s");
-            startInfo.ArgumentList.Add("/c");
-            startInfo.ArgumentList.Add(windowsShellCommand);
-            return startInfo;
-        }
-
-        var shellCommand = $"exec {QuoteUnixShellArgument(executablePath)} {arguments} >> {QuoteUnixShellArgument(logPath)} 2>&1";
-        var unixStartInfo = new ProcessStartInfo
-        {
-            FileName = "/bin/sh",
-            WorkingDirectory = workingDirectory,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-        unixStartInfo.ArgumentList.Add("-c");
-        unixStartInfo.ArgumentList.Add(shellCommand);
-        return unixStartInfo;
-    }
-
-    private static string ResolveExecutablePath(string executablePath)
-    {
-        if (!IsDotNetCommand(executablePath))
-        {
-            return executablePath;
-        }
-
-        var hostPath = AppContext.GetData("DOTNET_HOST_PATH") as string ??
-            Environment.GetEnvironmentVariable("DOTNET_HOST_PATH");
-        if (IsUsableDotNetPath(hostPath))
-        {
-            return hostPath!;
-        }
-
-        var processPath = Environment.ProcessPath;
-        if (IsUsableDotNetPath(processPath))
-        {
-            return processPath!;
-        }
-
-        var dotnetRoot = Environment.GetEnvironmentVariable("DOTNET_ROOT");
-        if (!string.IsNullOrWhiteSpace(dotnetRoot))
-        {
-            var rootDotNet = Path.Combine(dotnetRoot, OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet");
-            if (IsUsableDotNetPath(rootDotNet))
-            {
-                return rootDotNet;
-            }
-        }
-
-        return executablePath;
-    }
-
-    private static bool IsDotNetCommand(string executablePath) =>
-        string.Equals(executablePath, "dotnet", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(executablePath, "dotnet.exe", StringComparison.OrdinalIgnoreCase);
-
-    private static bool IsUsableDotNetPath(string? executablePath) =>
-        !string.IsNullOrWhiteSpace(executablePath) &&
-        IsDotNetCommand(Path.GetFileName(executablePath)) &&
-        File.Exists(executablePath);
-
     private bool TryGetRunningProcess(
         ApplicationResourceDefinition? definition,
         [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Process? process)
@@ -5172,7 +5071,7 @@ public sealed partial class ApplicationResourceService(
             StringComparison.OrdinalIgnoreCase);
         var isProjectBacked = isAspNetCoreProject || definition.ProjectContainerBuild;
         var legacyProjectPath = isAspNetCoreProject
-            ? TryExtractProjectPathFromDotNetArguments(definition.Arguments)
+            ? ApplicationProcessDefinitions.TryExtractProjectPathFromDotNetArguments(definition.Arguments)
             : null;
         var projectPath = isProjectBacked
             ? NormalizeNullable(definition.ProjectPath) ?? legacyProjectPath
@@ -5211,10 +5110,10 @@ public sealed partial class ApplicationResourceService(
             ProjectPath = projectPath,
             ProjectArguments = isProjectBacked
                 ? NormalizeNullable(definition.ProjectArguments) ??
-                    TryExtractApplicationArgumentsFromDotNetArguments(definition.Arguments)
+                    ApplicationProcessDefinitions.TryExtractApplicationArgumentsFromDotNetArguments(definition.Arguments)
                 : null,
             AspNetCoreHotReload = isProjectBacked
-                ? ResolveAspNetCoreHotReload(definition)
+                ? ApplicationProcessDefinitions.ResolveAspNetCoreHotReload(definition)
                 : definition.AspNetCoreHotReload,
             UseLaunchSettingsEndpoints = isAspNetCoreProject &&
                 definition.UseLaunchSettingsEndpoints,
@@ -5239,7 +5138,7 @@ public sealed partial class ApplicationResourceService(
 
     private ApplicationResourceDefinition ResolveDefinition(ApplicationResourceDefinition definition)
     {
-        if (!IsAspNetCoreProject(definition) ||
+        if (!ApplicationResourceTypes.IsAspNetCoreProject(definition.ResourceType) ||
             definition.EndpointPorts.Count > 0)
         {
             return definition;
@@ -5494,95 +5393,6 @@ public sealed partial class ApplicationResourceService(
                 Version = NormalizeNullable(reference.Version)
             };
 
-    private static bool ResolveAspNetCoreHotReload(ApplicationResourceDefinition definition)
-    {
-        if (!string.IsNullOrWhiteSpace(definition.ProjectPath))
-        {
-            return definition.AspNetCoreHotReload;
-        }
-
-        return definition.Arguments?.TrimStart().StartsWith("watch ", StringComparison.OrdinalIgnoreCase) ?? false;
-    }
-
-    private static string? TryExtractProjectPathFromDotNetArguments(string? arguments)
-    {
-        var tokens = SplitCommandLine(arguments);
-        for (var index = 0; index < tokens.Count - 1; index++)
-        {
-            if (string.Equals(tokens[index], "--project", StringComparison.OrdinalIgnoreCase))
-            {
-                return tokens[index + 1];
-            }
-        }
-
-        return null;
-    }
-
-    private static string? TryExtractApplicationArgumentsFromDotNetArguments(string? arguments)
-    {
-        var separatorIndex = arguments?.IndexOf(" -- ", StringComparison.Ordinal);
-        if (separatorIndex is null or < 0)
-        {
-            return null;
-        }
-
-        return NormalizeNullable(arguments![(separatorIndex.Value + 4)..]);
-    }
-
-    private static IReadOnlyList<string> SplitCommandLine(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return [];
-        }
-
-        var tokens = new List<string>();
-        var current = new StringBuilder();
-        var inQuotes = false;
-        var escaping = false;
-        foreach (var character in value)
-        {
-            if (escaping)
-            {
-                current.Append(character);
-                escaping = false;
-                continue;
-            }
-
-            if (character == '\\')
-            {
-                escaping = true;
-                continue;
-            }
-
-            if (character == '"')
-            {
-                inQuotes = !inQuotes;
-                continue;
-            }
-
-            if (char.IsWhiteSpace(character) && !inQuotes)
-            {
-                if (current.Length > 0)
-                {
-                    tokens.Add(current.ToString());
-                    current.Clear();
-                }
-
-                continue;
-            }
-
-            current.Append(character);
-        }
-
-        if (current.Length > 0)
-        {
-            tokens.Add(current.ToString());
-        }
-
-        return tokens;
-    }
-
     private ResourceObservability GetEffectiveObservability(ApplicationResourceDefinition definition) =>
         definition.Observability ??
         (options.EnableObservabilityByDefault
@@ -5741,57 +5551,14 @@ public sealed partial class ApplicationResourceService(
             .Replace(",", "\\,", StringComparison.Ordinal)
             .Replace("=", "\\=", StringComparison.Ordinal);
 
-    private static LocalProcessDefinition CreateLocalProcessDefinition(
-        ApplicationResourceDefinition definition,
-        IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables = null)
-    {
-        var command = CreateProcessCommand(definition);
-        return new LocalProcessDefinition(
-            definition.Id,
-            command.ExecutablePath,
-            command.Arguments,
-            definition.WorkingDirectory,
-            environmentVariables ?? definition.EnvironmentVariables,
-            ToLocalProcessLifetime(definition.Lifetime));
-    }
-
-    private static ApplicationProcessCommand CreateProcessCommand(ApplicationResourceDefinition definition)
-    {
-        if (!IsAspNetCoreProject(definition))
-        {
-            return new ApplicationProcessCommand(
-                definition.ExecutablePath,
-                definition.Arguments);
-        }
-
-        if (string.IsNullOrWhiteSpace(definition.ProjectPath))
-        {
-            return new ApplicationProcessCommand(
-                string.IsNullOrWhiteSpace(definition.ExecutablePath) ? "dotnet" : definition.ExecutablePath,
-                definition.Arguments);
-        }
-
-        return new ApplicationProcessCommand(
-            "dotnet",
-            BuildDotNetAspNetCoreProjectArguments(
-                definition.ProjectPath,
-                definition.AspNetCoreHotReload,
-                definition.ProjectArguments));
-    }
-
     private static string BuildDotNetAspNetCoreProjectArguments(
         string projectPath,
         bool hotReload,
-        string? applicationArguments)
-    {
-        var runnerArguments = hotReload
-            ? $"watch --non-interactive --project {QuoteCommandArgument(projectPath)} run --no-launch-profile"
-            : $"run --project {QuoteCommandArgument(projectPath)} --no-build --no-launch-profile";
-
-        return string.IsNullOrWhiteSpace(applicationArguments)
-            ? runnerArguments
-            : $"{runnerArguments} -- {applicationArguments.Trim()}";
-    }
+        string? applicationArguments) =>
+        ApplicationProcessDefinitions.BuildDotNetAspNetCoreProjectArguments(
+            projectPath,
+            hotReload,
+            applicationArguments);
 
     private async Task BuildAspNetCoreProjectAsync(
         ApplicationResourceDefinition definition,
@@ -5871,13 +5638,6 @@ public sealed partial class ApplicationResourceService(
         executablePath.Contains(Path.DirectorySeparatorChar) ||
         executablePath.Contains(Path.AltDirectorySeparatorChar);
 
-    private static LocalProcessLifetime ToLocalProcessLifetime(ApplicationLifetime lifetime) =>
-        lifetime switch
-        {
-            ApplicationLifetime.ControlPlaneScoped => LocalProcessLifetime.ControlPlaneScoped,
-            _ => LocalProcessLifetime.Detached
-        };
-
     private ResourceWorkloadConfiguration CreateWorkloadConfiguration(
         ApplicationResourceDefinition application,
         string? resourceGroupId = null,
@@ -5942,7 +5702,7 @@ public sealed partial class ApplicationResourceService(
                 VolumeMounts: application.VolumeMounts);
         }
 
-        if (IsAspNetCoreProject(application))
+        if (ApplicationResourceTypes.IsAspNetCoreProject(application.ResourceType))
         {
             return new ResourceWorkloadConfiguration(
                 ResourceWorkloadKind.AspNetCoreProject,
@@ -7222,7 +6982,7 @@ public sealed partial class ApplicationResourceService(
             return definition.WorkingDirectory;
         }
 
-        var executableDirectory = IsAspNetCoreProject(definition)
+        var executableDirectory = ApplicationResourceTypes.IsAspNetCoreProject(definition.ResourceType)
             ? null
             : Path.GetDirectoryName(definition.ExecutablePath);
         return string.IsNullOrWhiteSpace(executableDirectory)
@@ -7255,17 +7015,6 @@ public sealed partial class ApplicationResourceService(
             .Where(reference => !string.Equals(reference, resourceId, StringComparison.OrdinalIgnoreCase))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
-
-    private static string QuoteUnixShellArgument(string value) =>
-        "'" + value.Replace("'", "'\"'\"'", StringComparison.Ordinal) + "'";
-
-    private static string QuoteCommandArgument(string argument) =>
-        argument.Any(char.IsWhiteSpace)
-            ? $"\"{argument.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal)}\""
-            : argument;
-
-    private static string EscapeWindowsCommandArgument(string value) =>
-        value.Replace("\"", "\\\"", StringComparison.Ordinal);
 
     private static string GetResourceName(string resourceId) =>
         ResourceId.TryParse(resourceId, out var id) && !string.IsNullOrWhiteSpace(id.Name)
@@ -7313,10 +7062,6 @@ public sealed partial class ApplicationResourceService(
     private sealed record LocalContainerVolumeMaterialization(
         string Argument,
         ResourceVolumeMountMaterialization RuntimeState);
-
-    private sealed record ApplicationProcessCommand(
-        string ExecutablePath,
-        string? Arguments);
 
     private sealed record RuntimeContainerLogTarget(
         ApplicationResourceDefinition Application,

@@ -89,7 +89,12 @@ on `git blame --follow`, and then by the broad type of change.
 - Container-host command execution and capture are now factored out of
   `ApplicationResourceService`, keeping Docker/Podman process invocation,
   environment setup, command logging, and output capture behind a smaller
-  application-provider helper.
+  application infrastructure helper.
+- Local process definition construction for application resources is now
+  factored out of `ApplicationResourceService`, and obsolete process
+  start-info helpers left behind by the `LocalProcessRunner` split were
+  removed as the shared provider primitives continue moving away from
+  provider-specific service concerns.
 - Resource-scoped Logs views now keep navigation anchored on the selected
   parent resource when choosing projected runtime replica log sources.
 - The global Health page now includes visible resources with aggregate health
