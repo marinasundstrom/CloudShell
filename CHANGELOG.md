@@ -30,8 +30,8 @@ on `git blame --follow`, and then by the broad type of change.
   enabled recovery policies and calls the shared recovery refresh path without
   making request-serving Control Plane hosts the long-term polling owner.
 - Resources now project separate liveness and recovery capabilities, with
-  recovery derived only when a resource has a liveness signal and Restart
-  action support.
+  recovery derived only when a resource has a liveness signal and lifecycle
+  action support that can restore it.
 - Unhealthy liveness now projects active resources as `Degraded`, keeping
   liveness visible in the resource lifecycle status that recovery policy can
   react to.
@@ -53,6 +53,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource health checks now support per-check polling interval overrides and
   per-check result timestamps, and SQL Server resources declare a
   provider-native liveness check through their TDS endpoint.
+- Recovery remains available for stopped resources that can be started, and an
+  enabled recovery policy can start a stopped resource after it previously
+  observed a healthy signal.
 - Added a service observability and degradation proposal for service-first,
   replica-aware local-development telemetry correlation, common views, load
   and capacity context, established telemetry interfaces, extension

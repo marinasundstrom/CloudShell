@@ -302,6 +302,28 @@ public sealed class ResourceManagerStoreProjectionTests
     }
 
     [Fact]
+    public void GetAvailableResources_ProjectsRecoveryCapabilityWhenLivenessAndStartAreSupported()
+    {
+        var resource = CreateResource(
+            "api",
+            "API",
+            actions: [ResourceAction.Start],
+            healthChecks:
+            [
+                new ResourceHealthCheck(
+                    ResourceProbeSource.ForHttp("/alive", "http"),
+                    ResourceProbeType.Liveness,
+                    "liveness")
+            ]);
+        var store = CreateStore([resource]);
+
+        var projected = Assert.Single(store.GetAvailableResources());
+
+        Assert.True(projected.SupportsLiveness);
+        Assert.True(projected.SupportsRecovery);
+    }
+
+    [Fact]
     public void GetAvailableResources_DoesNotProjectRecoveryCapabilityFromGenericHealthCheck()
     {
         var resource = CreateResource(

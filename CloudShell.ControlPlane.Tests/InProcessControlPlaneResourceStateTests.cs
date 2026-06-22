@@ -2020,6 +2020,97 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task RefreshResourceRecoveryAsync_StartsStoppedResourceAfterPriorHealthySignal()
+    {
+        var recoveryStore = new InMemoryResourceRecoveryStore();
+        var running = CreateResource("target", ResourceState.Running) with
+        {
+            HealthChecks = [CreateLivenessCheck()]
+        };
+        var runningControlPlane = CreateControlPlane(
+            [running],
+            probeEvaluators: [new StaticProbeEvaluator(ResourceHealthStatus.Healthy, "Alive")],
+            resourceRecoveryStore: recoveryStore);
+        await runningControlPlane.SetResourceRecoveryPolicyAsync(
+            "target",
+            new ResourceRecoveryPolicy(Enabled: true, FailureThreshold: 1));
+
+        var healthyStatus = await runningControlPlane.RefreshResourceRecoveryAsync("target");
+
+        Assert.NotNull(healthyStatus);
+        Assert.Equal(ResourceRecoveryState.Healthy, healthyStatus.State);
+
+        var provider = new TestResourceProvider();
+        var stopped = CreateResource(
+            "target",
+            ResourceState.Stopped,
+            actions: [ResourceAction.Start]) with
+        {
+            HealthChecks = [CreateLivenessCheck()]
+        };
+        var stoppedControlPlane = CreateControlPlane(
+            [stopped],
+            provider,
+            probeEvaluators: [new StaticProbeEvaluator(ResourceHealthStatus.Unhealthy, "Should not be checked")],
+            resourceRecoveryStore: recoveryStore);
+
+        var recoveredStatus = await stoppedControlPlane.RefreshResourceRecoveryAsync("target");
+
+        Assert.NotNull(recoveredStatus);
+        Assert.Equal(ResourceRecoveryState.Restarting, recoveredStatus.State);
+        Assert.Equal(1, recoveredStatus.ConsecutiveFailures);
+        Assert.Equal(1, recoveredStatus.AttemptCount);
+        Assert.Equal(["target:start"], provider.ExecutedActions);
+        Assert.Contains("Executed start", recoveredStatus.LastDetail, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RefreshResourceRecoveryAsync_DoesNotStartStoppedResourceAfterCloudShellStop()
+    {
+        var recoveryStore = new InMemoryResourceRecoveryStore();
+        var runningProvider = new TestResourceProvider();
+        var running = CreateResource("target", ResourceState.Running) with
+        {
+            HealthChecks = [CreateLivenessCheck()]
+        };
+        var runningControlPlane = CreateControlPlane(
+            [running],
+            runningProvider,
+            probeEvaluators: [new StaticProbeEvaluator(ResourceHealthStatus.Healthy, "Alive")],
+            resourceRecoveryStore: recoveryStore);
+        await runningControlPlane.SetResourceRecoveryPolicyAsync(
+            "target",
+            new ResourceRecoveryPolicy(Enabled: true, FailureThreshold: 1));
+        await runningControlPlane.RefreshResourceRecoveryAsync("target");
+
+        await runningControlPlane.ExecuteResourceActionAsync(
+            new ExecuteResourceActionCommand("target", ResourceActionIds.Stop));
+
+        var stoppedProvider = new TestResourceProvider();
+        var stopped = CreateResource(
+            "target",
+            ResourceState.Stopped,
+            actions: [ResourceAction.Start]) with
+        {
+            HealthChecks = [CreateLivenessCheck()]
+        };
+        var stoppedControlPlane = CreateControlPlane(
+            [stopped],
+            stoppedProvider,
+            probeEvaluators: [new StaticProbeEvaluator(ResourceHealthStatus.Unhealthy, "Should not be checked")],
+            resourceRecoveryStore: recoveryStore);
+
+        var status = await stoppedControlPlane.RefreshResourceRecoveryAsync("target");
+
+        Assert.NotNull(status);
+        Assert.Equal(ResourceRecoveryState.WaitingForSignal, status.State);
+        Assert.Equal(0, status.ConsecutiveFailures);
+        Assert.Equal(0, status.AttemptCount);
+        Assert.Equal(["target:stop"], runningProvider.ExecutedActions);
+        Assert.Empty(stoppedProvider.ExecutedActions);
+    }
+
+    [Fact]
     public async Task DeleteResourceAsync_RejectsUnknownResource()
     {
         var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)]);

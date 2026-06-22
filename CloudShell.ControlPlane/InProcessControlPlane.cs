@@ -629,6 +629,11 @@ public sealed class InProcessControlPlane(
             dependencyStartFailureBehavior:
                 command.DependencyStartFailureBehavior ?? orchestration.DependencyStartFailureBehavior);
 
+        if (action.Kind == ResourceActionKind.Stop)
+        {
+            resourceRecovery.ClearRuntimeState(resource.Id);
+        }
+
         return result;
     }
 
@@ -1139,14 +1144,28 @@ public sealed class InProcessControlPlane(
             return new ResourceRecoveryStatus(resource.Id, policy, ResourceRecoveryState.Disabled);
         }
 
+        var now = DateTimeOffset.UtcNow;
+        var runtime = resourceRecovery.GetRuntimeState(resource.Id);
         if (!IsLivenessActive(resource))
         {
+            if (CanRecoverStoppedResource(resource, runtime))
+            {
+                return await HandleFailedRecoverySignalAsync(
+                    resource,
+                    policy,
+                    runtime,
+                    CreateStoppedRecoverySignal(resource, policy),
+                    now,
+                    ResourceActionIds.Start,
+                    cancellationToken);
+            }
+
             return SetRecoveryRuntimeState(
                 resource,
                 policy,
                 new ResourceRecoveryRuntimeState(
                     ResourceRecoveryState.WaitingForSignal,
-                    LastCheckedAt: DateTimeOffset.UtcNow,
+                    LastCheckedAt: now,
                     LastDetail: $"Recovery is waiting for resource state to become {ResourceState.Running}."));
         }
 
@@ -1164,8 +1183,6 @@ public sealed class InProcessControlPlane(
                 });
         }
 
-        var now = DateTimeOffset.UtcNow;
-        var runtime = resourceRecovery.GetRuntimeState(resource.Id);
         var result = SelectRecoverySignal(summary, policy);
         if (result is null)
         {
@@ -1198,6 +1215,25 @@ public sealed class InProcessControlPlane(
                 });
         }
 
+        return await HandleFailedRecoverySignalAsync(
+            resource,
+            policy,
+            runtime,
+            result,
+            now,
+            ResourceActionIds.Restart,
+            cancellationToken);
+    }
+
+    private async Task<ResourceRecoveryStatus> HandleFailedRecoverySignalAsync(
+        Resource resource,
+        ResourceRecoveryPolicy policy,
+        ResourceRecoveryRuntimeState runtime,
+        ResourceHealthCheckResult result,
+        DateTimeOffset now,
+        string actionId,
+        CancellationToken cancellationToken)
+    {
         var failures = runtime.ConsecutiveFailures + 1;
         var failing = runtime with
         {
@@ -1213,6 +1249,9 @@ public sealed class InProcessControlPlane(
             return SetRecoveryRuntimeState(resource, policy, failing);
         }
 
+        var actionLabel = string.Equals(actionId, ResourceActionIds.Start, StringComparison.OrdinalIgnoreCase)
+            ? "start"
+            : "restart";
         AppendRecoveryEvent(
             resource,
             ResourceEventTypes.Events.Recovery.SignalFailed,
@@ -1249,12 +1288,12 @@ public sealed class InProcessControlPlane(
         AppendRecoveryEvent(
             resource,
             ResourceEventTypes.Events.Recovery.RestartScheduled,
-            $"Recovery restart attempt {attempt} scheduled after {failures} failed signal(s).",
+            $"Recovery {actionLabel} attempt {attempt} scheduled after {failures} failed signal(s).",
             ResourceSignalSeverity.Warning);
         AppendRecoveryEvent(
             resource,
             ResourceEventTypes.Events.Recovery.RestartAttempted,
-            $"Recovery restart attempt {attempt} started. {restartCause}",
+            $"Recovery {actionLabel} attempt {attempt} started. {restartCause}",
             ResourceSignalSeverity.Warning);
 
         try
@@ -1262,7 +1301,7 @@ public sealed class InProcessControlPlane(
             var procedure = await ExecuteResourceActionAsync(
                 new ExecuteResourceActionCommand(
                     resource.Id,
-                    ResourceActionIds.Restart,
+                    actionId,
                     IgnoreDependentWarning: true,
                     TriggeredBy: RecoveryTriggeredBy,
                     Cause: restartCause),
@@ -1271,7 +1310,7 @@ public sealed class InProcessControlPlane(
             AppendRecoveryEvent(
                 resource,
                 ResourceEventTypes.Events.Recovery.RestartSucceeded,
-                $"Recovery restart attempt {attempt} completed. Result: {procedure.Message}",
+                $"Recovery {actionLabel} attempt {attempt} completed. Result: {procedure.Message}",
                 ResourceSignalSeverity.Success);
 
             return SetRecoveryRuntimeState(resource, policy, failing with
@@ -1288,7 +1327,7 @@ public sealed class InProcessControlPlane(
             AppendRecoveryEvent(
                 resource,
                 ResourceEventTypes.Events.Recovery.RestartSkipped,
-                $"Recovery restart was skipped: {exception.Message}",
+                $"Recovery {actionLabel} was skipped: {exception.Message}",
                 ResourceSignalSeverity.Warning);
 
             return SetRecoveryRuntimeState(resource, policy, failing with
@@ -1305,7 +1344,7 @@ public sealed class InProcessControlPlane(
             AppendRecoveryEvent(
                 resource,
                 ResourceEventTypes.Events.Recovery.RestartFailed,
-                $"Recovery restart attempt {attempt} failed: {exception.Message}",
+                $"Recovery {actionLabel} attempt {attempt} failed: {exception.Message}",
                 ResourceSignalSeverity.Error);
 
             return SetRecoveryRuntimeState(resource, policy, failing with
@@ -1317,6 +1356,31 @@ public sealed class InProcessControlPlane(
                 LastDetail = exception.Message
             });
         }
+    }
+
+    private static bool CanRecoverStoppedResource(
+        Resource resource,
+        ResourceRecoveryRuntimeState runtime) =>
+        resource.State == ResourceState.Stopped &&
+        resource.HasAction(ResourceActionIds.Start) &&
+        runtime.LastHealthyAt is not null;
+
+    private static ResourceHealthCheckResult CreateStoppedRecoverySignal(
+        Resource resource,
+        ResourceRecoveryPolicy policy)
+    {
+        var check = SelectRecoveryCheck(resource, policy) ??
+            new ResourceHealthCheck(
+                new ResourceProbeSource("resource-state"),
+                ResourceProbeType.Liveness,
+                "liveness");
+        return new ResourceHealthCheckResult(
+            check,
+            ResourceHealthStatus.Unhealthy,
+            "Resource stopped unexpectedly.",
+            null,
+            ResourceHealthCheckOutcome.NoResponse,
+            DateTimeOffset.UtcNow);
     }
 
     public Task<bool> HasResourceMonitoringAsync(
@@ -1568,6 +1632,19 @@ public sealed class InProcessControlPlane(
         }
 
         return summary.Checks.FirstOrDefault(result => result.Check.Type == policy.ProbeType);
+    }
+
+    private static ResourceHealthCheck? SelectRecoveryCheck(
+        Resource resource,
+        ResourceRecoveryPolicy policy)
+    {
+        if (!string.IsNullOrWhiteSpace(policy.ProbeName))
+        {
+            return resource.ResourceHealthChecks.FirstOrDefault(check =>
+                string.Equals(check.Name, policy.ProbeName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return resource.ResourceHealthChecks.FirstOrDefault(check => check.Type == policy.ProbeType);
     }
 
     private ResourceRecoveryStatus SetRecoveryRuntimeState(

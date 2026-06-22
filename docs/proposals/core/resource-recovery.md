@@ -23,8 +23,8 @@ but it does not have a shared policy that answers:
 
 - which signal means the resource is no longer alive
 - how many failed observations are needed before recovery starts
-- whether CloudShell should restart the resource automatically
-- how restart attempts back off after repeated failures
+- whether CloudShell should restore the resource automatically
+- how recovery attempts back off after repeated failures
 - where users configure and inspect that behavior
 - how providers participate without owning Control Plane policy
 
@@ -38,8 +38,8 @@ Plane deployments harder to reason about.
 - Define resource recovery as a Control Plane concern over resource-owned
   signals and standard lifecycle actions.
 - Treat recovery as an explicit per-resource management capability that can be
-  enabled only when the resource has a suitable liveness signal and restart
-  support.
+  enabled only when the resource has a suitable liveness signal and lifecycle
+  action support that can restore it.
 - Reuse existing `ResourceHealthCheck`, `ResourceProbeType`, and
   `ResourceProbeSource` concepts where they fit, especially `Liveness`,
   `Readiness`, `Startup`, and HTTP as the first source.
@@ -98,7 +98,8 @@ making HTTP the only source type.
 Recovery is a capability that depends on a liveness signal, not on broad
 Health status. A resource can expose health checks without supporting
 automatic recovery, and recovery should not appear as configurable until
-CloudShell can identify both a liveness-capable signal and a restart path.
+CloudShell can identify both a liveness-capable signal and a lifecycle action
+that can restore the resource.
 The resource model should represent liveness support and recovery support as
 separate capabilities, with recovery declaring its dependency on liveness.
 The first capability IDs are `liveness` and `recovery`; `recovery` describes
@@ -137,9 +138,11 @@ The first policy shape should be per resource:
 - backoff multiplier
 - maximum restart attempts
 - healthy duration required to reset attempts
-- recovery action, initially constrained to `restart`
-- restart cause, so lifecycle events can explain why the resource is being
-  restarted
+- recovery action, initially `Restart` for running or degraded resources and
+  `Start` for an unexpected stopped runtime after recovery has already
+  observed the resource healthy
+- recovery cause, so lifecycle events can explain why the resource is being
+  restored
 
 The first implementation can keep this policy platform-owned and resource
 scoped. Provider-specific resource configuration should not store the generic
@@ -150,7 +153,7 @@ Programmatic authoring should declare recovery on the resource builder beside
 health and liveness probe declarations, such as `WithRecovery(...)` on an
 application resource. The resource model carries recovery policy declarations;
 the Control Plane materializes the currently supported policy into operational
-recovery state for polling, status, and restart decisions.
+recovery state for polling, status, and restore decisions.
 
 As the liveness model matures, recovery policy should split trigger behavior
 by observed state transition instead of treating every failed liveness signal
@@ -180,6 +183,15 @@ Liveness and recovery should be active only for running resources. If a
 resource is stopped intentionally through a lifecycle action, CloudShell should
 not keep polling its liveness signal and should not treat that stopped state
 as a recovery trigger.
+
+Provider-observed stopped state is different when recovery already saw the
+resource healthy under an enabled policy. If a container-backed resource was
+running and its container disappears, the provider can project the resource as
+`Stopped` before the liveness check gets another response. Recovery should
+treat that as an unexpected runtime loss and use the normal `Start` action
+when policy allows it. For SQL Server, the TDS liveness signal still describes
+the SQL service, while the container stopped/deleted state describes the
+runtime backing that service.
 
 During normal local development, recovery is usually not enabled by default:
 the developer controls the host process and can recreate or restart the whole
@@ -266,10 +278,10 @@ The Control Plane owns the reusable recovery behavior:
 - Evaluate liveness signals on a background cadence.
 - Track consecutive failures, backoff state, next attempt time, last attempt
   result, and reset-after-healthy state.
-- Invoke `Restart` through `IResourceManager` or the internal equivalent
-  lifecycle orchestration boundary.
-- Skip and record recovery attempts when action capability checks make restart
-  unavailable.
+- Invoke the selected lifecycle action through `IResourceManager` or the
+  internal equivalent lifecycle orchestration boundary.
+- Skip and record recovery attempts when action capability checks make the
+  selected lifecycle action unavailable.
 - Record resource events for recovery decisions, attempts, skipped attempts,
   exhausted attempts, and reset-after-healthy transitions.
 - Expose policy and runtime recovery status through domain managers and the
@@ -282,11 +294,35 @@ future shared or on-premise deployments should let a primary controller or
 separate worker process periodically request resource health state and recovery
 evaluation so multiple API replicas do not run competing restart loops.
 
+## Recovery States And Transitions
+
+The first recovery controller uses `ResourceRecoveryState` to describe the
+policy runtime state, and the resource lifecycle state to describe the
+resource itself. The important scenarios are:
+
+| Scenario | Resource state | Health/liveness behavior | Recovery state | Lifecycle action |
+| --- | --- | --- | --- | --- |
+| Policy disabled | Any | No recovery evaluation | `Disabled` | None |
+| Initial or intentionally stopped resource | `Stopped` | Liveness is inactive | `WaitingForSignal` | None |
+| Running and healthy | `Running` | Selected liveness signal is healthy | `Healthy` | None |
+| Running with failed liveness below threshold | `Running` | Failure count is recorded | `Failing` | None |
+| Running with failed liveness at threshold | `Running` or `Degraded` | Failure count reaches policy threshold | `Restarting` or `Scheduled` | `Restart` |
+| Provider observes runtime loss after healthy recovery signal | `Stopped` | Liveness is inactive because the resource is already stopped | `Restarting` or `Scheduled` | `Start` |
+| Recovery attempts exhausted | Any recoverable failure state | Failure threshold is met but attempts are exhausted | `Exhausted` | None |
+| Matching liveness signal cannot be found or evaluated | Any active state | Signal is unknown, unsupported, or unresolved | `Unavailable` | None |
+
+This keeps manual stop and unexpected runtime loss separate. A CloudShell Stop
+action intentionally moves the resource out of liveness and recovery, and
+clears the recovery runtime observation while leaving the declared policy in
+place. A provider-observed `Stopped` state after recovery previously saw the
+resource healthy is treated as unexpected runtime loss, such as a deleted
+container, and recovery can use `Start` to recreate the backing runtime.
+
 ## Resource Manager UX
 
 Resource Manager should show Recovery configuration only when the resource has
-a liveness-capable signal and supports restart, or when a provider projects a
-provider-native recovery policy.
+a liveness-capable signal and supports a lifecycle action that can restore it,
+or when a provider projects a provider-native recovery policy.
 
 The generated Resource Manager view should place Recovery under the resource
 Management area. The Health tab remains the health-check and health-state
@@ -306,7 +342,7 @@ The generated Recovery surface should support:
 - current recovery status
 - last failed signal and detail
 - next scheduled attempt
-- restart capability warnings
+- restore-action capability warnings
 - recent recovery-related activity
 
 For resources where a provider owns richer behavior, the provider can replace
@@ -501,6 +537,16 @@ liveness support:
   fresh evaluation.
 - SQL Server resources declare a provider-native liveness check backed by a
   short TDS connection through the projected `tds` endpoint.
+
+The eleventh landed slice stabilizes stopped-state recovery:
+
+- Recovery remains visible for resources that have a liveness signal and a
+  `Start` action, so stopped-but-startable resources do not lose the Recovery
+  tab.
+- Recovery starts a stopped resource only after an enabled recovery policy has
+  previously observed a healthy signal for that resource. Initial or
+  intentionally stopped resources still wait for the resource to become
+  running instead of being probed or recovered.
 
 The next recovery slice should stay narrow:
 

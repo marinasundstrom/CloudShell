@@ -241,7 +241,8 @@ public sealed class ResourceManagerStore(
 
         if (capabilities.Any(capability =>
                 string.Equals(capability.Id, ResourceCapabilityIds.Liveness, StringComparison.OrdinalIgnoreCase)) &&
-            resource.HasAction(ResourceActionIds.Restart))
+            (resource.HasAction(ResourceActionIds.Restart) ||
+             resource.HasAction(ResourceActionIds.Start)))
         {
             AddCapabilityIfMissing(
                 capabilities,
