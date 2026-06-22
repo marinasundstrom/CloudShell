@@ -45,12 +45,8 @@
                     Message="@L["No settings sections are registered for this CloudShell host."].Value" />
     </EmptyContent>
     <HeaderContent Context="section">
-        <div class="panel-header">
-            <div>
-                <h2>@L[section.Section.Title]</h2>
-                <p>@L["Settings section"]</p>
-            </div>
-        </div>
+        <ShellPanelHeader Title="@L[section.Section.Title].Value"
+                          Description="@L["Settings section"].Value" />
     </HeaderContent>
 </CloudShellCompositionSectionTabbedLayout>
 

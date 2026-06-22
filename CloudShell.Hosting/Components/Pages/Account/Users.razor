@@ -45,12 +45,8 @@ else
 
     <section class="dashboard-grid">
         <article class="panel">
-            <div class="panel-header">
-                <div>
-                    <h2>@L["Create user"]</h2>
-                    <p>@L["Assign a role and optional CloudShell claims."]</p>
-                </div>
-            </div>
+            <ShellPanelHeader Title="@L["Create user"].Value"
+                              Description="@L["Assign a role and optional CloudShell claims."].Value" />
 
             <EditForm Model="@Input"
                       method="post"
@@ -141,12 +137,8 @@ else
         </article>
 
         <article class="panel panel-wide">
-            <div class="panel-header">
-                <div>
-                    <h2>@L["Local users"]</h2>
-                    <p>@L["{0} users", LocalUsers.Count]</p>
-                </div>
-            </div>
+            <ShellPanelHeader Title="@L["Local users"].Value"
+                              Description="@L["{0} users", LocalUsers.Count].Value" />
 
             @if (LocalUsers.Count == 0)
             {

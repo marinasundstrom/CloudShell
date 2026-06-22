@@ -30,12 +30,8 @@ else
 
     <section class="dashboard-grid">
         <article class="panel panel-wide">
-            <div class="panel-header">
-                <div>
-                    <h2>@L["Shell extensions"]</h2>
-                    <p>@L["{0} supported extensions", ShellCatalog.SupportedExtensions.Count]</p>
-                </div>
-            </div>
+            <ShellPanelHeader Title="@L["Shell extensions"].Value"
+                              Description="@L["{0} supported extensions", ShellCatalog.SupportedExtensions.Count].Value" />
 
             <div class="extension-grid">
                 @foreach (var status in ShellCatalog.ExtensionStatuses)
@@ -98,12 +94,8 @@ else
         </article>
 
         <article class="panel">
-            <div class="panel-header">
-                <div>
-                    <h2>@L["Resource types"]</h2>
-                    <p>@L["{0} available", ShellCatalog.ResourceTypes.Count]</p>
-                </div>
-            </div>
+            <ShellPanelHeader Title="@L["Resource types"].Value"
+                              Description="@L["{0} available", ShellCatalog.ResourceTypes.Count].Value" />
 
             <div class="provider-list">
                 @foreach (var resourceType in ShellCatalog.ResourceTypes)
