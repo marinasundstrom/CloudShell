@@ -73,6 +73,12 @@ on `git blame --follow`, and then by the broad type of change.
   and provide an `ApplicationResourceProjection` while reusing the common
   application declaration, template, lifecycle, descriptor, and action
   availability path.
+- The Replicated Container Health sample now configures replica-aware logs,
+  trace spans, and request metrics so the container app's Logs, Traces,
+  Metrics, and Monitoring views can be verified against a realistic demo API.
+- Runtime replica log sources now resolve before generic application log
+  sources and parse JSON console records into structured log entries, so
+  replica Logs views can show app-emitted structured fields.
 - The global Health page now includes visible resources with aggregate health
   assessments even when the concrete probe declarations live on projected
   runtime resources, while default summary counts stay focused on visible

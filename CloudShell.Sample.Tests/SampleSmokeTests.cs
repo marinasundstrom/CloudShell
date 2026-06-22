@@ -1959,8 +1959,12 @@ public sealed class SampleSmokeTests
         Assert.Equal("true", appAttributes.GetProperty(ResourceAttributeNames.ContainerReplicasEnabled).GetString());
         Assert.Equal("3", appAttributes.GetProperty(ResourceAttributeNames.ContainerReplicas).GetString());
         Assert.Equal("3", appAttributes.GetProperty(ResourceAttributeNames.DeploymentProjectedReplicas).GetString());
-        var telemetryScopes = app
-            .GetProperty("observability")
+        var observability = app.GetProperty("observability");
+        Assert.True(observability.GetProperty("logs").GetBoolean());
+        Assert.True(observability.GetProperty("traces").GetBoolean());
+        Assert.True(observability.GetProperty("metrics").GetBoolean());
+        Assert.Equal("http", observability.GetProperty("otlpEndpoint").GetString()?[..4]);
+        var telemetryScopes = observability
             .GetProperty("scopes")
             .EnumerateArray()
             .OrderBy(scope => scope.GetProperty("scopeResourceId").GetString(), StringComparer.OrdinalIgnoreCase)
@@ -2019,6 +2023,27 @@ public sealed class SampleSmokeTests
                 Assert.Equal("Replica 3 logs", source.GetProperty("name").GetString());
                 Assert.Equal("runtime-container:application-api:replica-3", source.GetProperty("resourceId").GetString());
             });
+
+        var logsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application:api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Logs.Value)}");
+        Assert.Contains("Telemetry", logsHtml);
+        Assert.Contains("Replica 1 logs", logsHtml);
+        Assert.Contains("Replica 2 logs", logsHtml);
+        Assert.Contains("Replica 3 logs", logsHtml);
+
+        var tracesHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application:api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Traces.Value)}");
+        Assert.Contains("Telemetry", tracesHtml);
+        Assert.Contains("Replica 1", tracesHtml);
+        Assert.Contains("Replica 2", tracesHtml);
+        Assert.Contains("Replica 3", tracesHtml);
+
+        var metricsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application:api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Metrics.Value)}");
+        Assert.Contains("Telemetry", metricsHtml);
+        Assert.Contains("Replica 1", metricsHtml);
+        Assert.Contains("Replica 2", metricsHtml);
+        Assert.Contains("Replica 3", metricsHtml);
 
         var summaryJson = await host.SendAsync(
             HttpMethod.Post,

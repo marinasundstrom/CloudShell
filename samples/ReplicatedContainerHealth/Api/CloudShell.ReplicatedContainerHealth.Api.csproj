@@ -6,4 +6,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\ServiceDefaults\CloudShell.ReplicatedContainerHealth.ServiceDefaults.csproj" />
+  </ItemGroup>
+
 </Project>

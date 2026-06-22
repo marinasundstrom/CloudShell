@@ -426,6 +426,11 @@ that are independent of the physical producer. A single visible resource may
 project sources produced by multiple processes, containers, sidecars, hidden
 sub-resources, or provider subsystems.
 
+Console output is one useful local-development source, not the production
+logging model. Providers and resource authors should be able to project
+structured file sinks, OpenTelemetry log exporters, platform log APIs, and
+worker-collected runtime streams through the same log source model.
+
 ### Structured Log Entries
 
 The first structured `LogEntry` slice is in place through optional `category`,
@@ -455,6 +460,17 @@ formatting, activity tracking options, service discovery, OpenTelemetry spans,
 and normal structured log properties. A single `/upstream` request now
 produces correlated spans and structured application logs for both the
 frontend and API resources.
+
+The Replicated Container Health sample uses the same provider-side structured
+parsing for runtime replica console streams so each projected replica log
+source can expose structured app log entries while still remaining a source
+under the stable container app resource.
+
+Container apps should eventually own the log source definition that is
+projected to their replicas. That definition should include the expected
+format or parser, source kind, read/stream capabilities, and whether the
+source is a local-development console stream, a file sink, an OpenTelemetry
+logs exporter, or a provider-native logging API.
 
 The shell Logs view treats structured metadata as inspectable entry detail, not
 as inline text noise. Log source selection lives in the page header, structured

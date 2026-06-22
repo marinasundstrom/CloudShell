@@ -9140,18 +9140,24 @@ public sealed class ResourceDeclarationTests
             {
                 Assert.Equal("runtime-container:application-api:replica-1", log.ResourceId);
                 Assert.Equal("Replica 1 logs", log.Name);
+                Assert.Equal(LogFormat.JsonConsole, log.Format);
+                Assert.True(log.Capabilities.HasFlag(LogSourceCapabilities.StructuredFields));
                 Assert.Equal(ResourceLogSourceOrigin.ProviderProjected, log.Origin);
             },
             log =>
             {
                 Assert.Equal("runtime-container:application-api:replica-2", log.ResourceId);
                 Assert.Equal("Replica 2 logs", log.Name);
+                Assert.Equal(LogFormat.JsonConsole, log.Format);
+                Assert.True(log.Capabilities.HasFlag(LogSourceCapabilities.StructuredFields));
                 Assert.Equal(ResourceLogSourceOrigin.ProviderProjected, log.Origin);
             },
             log =>
             {
                 Assert.Equal("runtime-container:application-api:replica-3", log.ResourceId);
                 Assert.Equal("Replica 3 logs", log.Name);
+                Assert.Equal(LogFormat.JsonConsole, log.Format);
+                Assert.True(log.Capabilities.HasFlag(LogSourceCapabilities.StructuredFields));
                 Assert.Equal(ResourceLogSourceOrigin.ProviderProjected, log.Origin);
             });
     }
