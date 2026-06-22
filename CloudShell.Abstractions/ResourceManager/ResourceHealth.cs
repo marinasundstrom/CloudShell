@@ -42,19 +42,22 @@ public sealed record ResourceHealthCheck(
     string? EndpointName = null,
     string Name = "health",
     TimeSpan? Timeout = null,
-    ResourceProbeSource? Source = null)
+    ResourceProbeSource? Source = null,
+    int? IntervalSeconds = null)
 {
     public ResourceHealthCheck(
         ResourceProbeSource source,
         ResourceProbeType type = ResourceProbeType.Health,
-        string name = "health")
+        string name = "health",
+        int? intervalSeconds = null)
         : this(
             source.Http?.Path ?? string.Empty,
             type,
             source.Http?.EndpointName,
             name,
             source.Http?.Timeout,
-            source)
+            source,
+            intervalSeconds)
     {
     }
 
@@ -102,7 +105,8 @@ public sealed record ResourceHealthCheckResult(
     ResourceHealthStatus Status,
     string Detail,
     Uri? Uri,
-    ResourceHealthCheckOutcome Outcome = ResourceHealthCheckOutcome.Responded);
+    ResourceHealthCheckOutcome Outcome = ResourceHealthCheckOutcome.Responded,
+    DateTimeOffset? CheckedAt = null);
 
 public sealed class ResourceHealthOptions
 {

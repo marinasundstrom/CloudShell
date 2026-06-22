@@ -181,6 +181,25 @@ resource is stopped intentionally through a lifecycle action, CloudShell should
 not keep polling its liveness signal and should not treat that stopped state
 as a recovery trigger.
 
+During normal local development, recovery is usually not enabled by default:
+the developer controls the host process and can recreate or restart the whole
+resource graph from programmatic declarations. Recovery is still useful for
+resilience testing, demonstrations, and managed or shared environments where
+CloudShell is expected to keep selected resources alive without operator
+intervention.
+
+Health and liveness checks should use the shared polling cadence by default so
+resources are sampled predictably and operators can compare results from the
+same polling window. Individual checks can override that interval when the
+target or development scenario calls for a different cadence. For example, a
+SQL Server liveness check should not need to open a database connection as
+often as a cheap in-process HTTP endpoint.
+
+Intervals and per-check timestamps should also feed future visualization. The
+dashboard can show freshness per health or liveness signal, render
+cadence-aware timelines, and explain which liveness signal drove a lifecycle or
+recovery decision.
+
 ## Signals
 
 CloudShell already has:
@@ -468,10 +487,26 @@ The ninth landed slice adds the first Resource Manager recovery surface:
 - The Recovery UI reads status only; invoking recovery refresh remains owned by
   the recovery controller or polling loop because refresh can act on policy.
 
+The tenth landed slice adds per-check polling cadence and built-in SQL Server
+liveness support:
+
+- `ResourceHealthCheck` can carry an optional interval override so different
+  resources and checks can be sampled at different cadences while the global
+  health interval remains the fallback.
+- Health check results now keep per-check `CheckedAt` timestamps, allowing
+  later Health and Recovery visualizations to show mixed-cadence samples
+  without implying every check was evaluated at the summary timestamp.
+- Background health refresh respects per-check intervals and reuses previous
+  results for checks that are not due; explicit refresh requests still force a
+  fresh evaluation.
+- SQL Server resources declare a provider-native liveness check backed by a
+  short TDS connection through the projected `tds` endpoint.
+
 The next recovery slice should stay narrow:
 
-1. Add liveness support for built-in resource types where CloudShell can
-   produce a meaningful signal, with SQL Server as an explicit early target.
+1. Add integration validation that kills the process behind an ASP.NET Core
+   project resource or the container behind a SQL Server resource, then
+   observes liveness-driven lifecycle transition and recovery behavior.
 2. Decide whether a separate liveness state or resource condition is still
    needed alongside the primary lifecycle status for resources where providers
    own more nuanced alive/not-alive semantics.

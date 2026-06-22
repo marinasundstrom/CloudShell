@@ -131,14 +131,16 @@ public interface IExecutableResourceBuilder :
         string path,
         string? endpointName = null,
         string name = "health",
-        TimeSpan? timeout = null);
+        TimeSpan? timeout = null,
+        TimeSpan? interval = null);
 
     IExecutableResourceBuilder WithHttpProbe(
         ResourceProbeType type,
         string path,
         string? endpointName = null,
         string? name = null,
-        TimeSpan? timeout = null);
+        TimeSpan? timeout = null,
+        TimeSpan? interval = null);
 
     IExecutableResourceBuilder WithRecovery(ResourceRecoveryPolicy policy);
 
@@ -233,14 +235,16 @@ public interface IProjectResourceBuilder :
         string path,
         string? endpointName = null,
         string name = "health",
-        TimeSpan? timeout = null);
+        TimeSpan? timeout = null,
+        TimeSpan? interval = null);
 
     IProjectResourceBuilder WithHttpProbe(
         ResourceProbeType type,
         string path,
         string? endpointName = null,
         string? name = null,
-        TimeSpan? timeout = null);
+        TimeSpan? timeout = null,
+        TimeSpan? interval = null);
 
     IProjectResourceBuilder WithRecovery(ResourceRecoveryPolicy policy);
 
@@ -379,14 +383,16 @@ public interface IContainerResourceBuilder :
         string path,
         string? endpointName = null,
         string name = "health",
-        TimeSpan? timeout = null);
+        TimeSpan? timeout = null,
+        TimeSpan? interval = null);
 
     IContainerResourceBuilder WithHttpProbe(
         ResourceProbeType type,
         string path,
         string? endpointName = null,
         string? name = null,
-        TimeSpan? timeout = null);
+        TimeSpan? timeout = null,
+        TimeSpan? interval = null);
 
     IContainerResourceBuilder WithRecovery(ResourceRecoveryPolicy policy);
 

@@ -3085,7 +3085,10 @@ public sealed class PlatformResourceProvider(
             {
                 Path = check.Path.Trim(),
                 EndpointName = string.IsNullOrWhiteSpace(check.EndpointName) ? null : check.EndpointName.Trim(),
-                Name = string.IsNullOrWhiteSpace(check.Name) ? check.Type.ToString().ToLowerInvariant() : check.Name.Trim()
+                Name = string.IsNullOrWhiteSpace(check.Name) ? check.Type.ToString().ToLowerInvariant() : check.Name.Trim(),
+                IntervalSeconds = check.IntervalSeconds is null
+                    ? null
+                    : ResourceOrchestratorSelectionDefaults.NormalizeHealthCheckInterval(check.IntervalSeconds.Value)
             })
             .ToArray();
 

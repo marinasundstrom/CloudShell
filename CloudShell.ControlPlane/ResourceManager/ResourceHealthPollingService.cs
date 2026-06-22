@@ -22,11 +22,11 @@ public sealed class ResourceHealthPollingService(
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            await RefreshAsync(stoppingToken);
+            var interval = await RefreshAsync(stoppingToken);
 
             try
             {
-                await Task.Delay(GetInterval(), stoppingToken);
+                await Task.Delay(interval, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -34,17 +34,21 @@ public sealed class ResourceHealthPollingService(
         }
     }
 
-    private async Task RefreshAsync(CancellationToken cancellationToken)
+    private async Task<TimeSpan> RefreshAsync(CancellationToken cancellationToken)
     {
         try
         {
             using var scope = scopes.CreateScope();
             var health = scope.ServiceProvider.GetRequiredService<IResourceHealthManager>();
+            var resourceManager = scope.ServiceProvider.GetRequiredService<IResourceManager>();
             await health.ListResourceHealthAsync(cancellationToken);
+            var resources = await resourceManager.ListResourcesAsync(cancellationToken: cancellationToken);
             pollingFailureLogged = false;
+            return GetPollingInterval(resources);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            return GetDefaultInterval();
         }
         catch (Exception exception)
         {
@@ -55,6 +59,8 @@ public sealed class ResourceHealthPollingService(
                     exception.Message);
                 pollingFailureLogged = true;
             }
+
+            return GetDefaultInterval();
         }
     }
 
@@ -79,6 +85,22 @@ public sealed class ResourceHealthPollingService(
         }
     }
 
-    private TimeSpan GetInterval() =>
+    private TimeSpan GetDefaultInterval() =>
         TimeSpan.FromSeconds(orchestrationSettings.GetHealthCheckIntervalSettings().Seconds);
+
+    private TimeSpan GetPollingInterval(IReadOnlyList<Resource> resources)
+    {
+        var defaultInterval = orchestrationSettings.GetHealthCheckIntervalSettings().Seconds;
+        var intervalSeconds = defaultInterval;
+
+        foreach (var check in resources.SelectMany(resource => resource.ResourceHealthChecks))
+        {
+            var checkInterval = check.IntervalSeconds is null
+                ? defaultInterval
+                : ResourceOrchestratorSelectionDefaults.NormalizeHealthCheckInterval(check.IntervalSeconds.Value);
+            intervalSeconds = Math.Min(intervalSeconds, checkInterval);
+        }
+
+        return TimeSpan.FromSeconds(intervalSeconds);
+    }
 }

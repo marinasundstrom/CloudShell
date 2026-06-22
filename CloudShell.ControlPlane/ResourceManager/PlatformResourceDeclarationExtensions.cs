@@ -434,14 +434,16 @@ public interface IServiceResourceBuilder : IResourceBuilder
         string path,
         string? endpointName = null,
         string name = "health",
-        TimeSpan? timeout = null);
+        TimeSpan? timeout = null,
+        TimeSpan? interval = null);
 
     IServiceResourceBuilder WithHttpProbe(
         ResourceProbeType type,
         string path,
         string? endpointName = null,
         string? name = null,
-        TimeSpan? timeout = null);
+        TimeSpan? timeout = null,
+        TimeSpan? interval = null);
 
     IServiceResourceBuilder WithNetwork(INetworkResourceBuilder network);
 
@@ -1158,15 +1160,17 @@ internal sealed class ServiceResourceBuilder(
         string path,
         string? endpointName = null,
         string name = "health",
-        TimeSpan? timeout = null) =>
-        WithHttpProbe(ResourceProbeType.Health, path, endpointName, name, timeout);
+        TimeSpan? timeout = null,
+        TimeSpan? interval = null) =>
+        WithHttpProbe(ResourceProbeType.Health, path, endpointName, name, timeout, interval);
 
     public IServiceResourceBuilder WithHttpProbe(
         ResourceProbeType type,
         string path,
         string? endpointName = null,
         string? name = null,
-        TimeSpan? timeout = null)
+        TimeSpan? timeout = null,
+        TimeSpan? interval = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         declared.Definition = declared.Definition with
@@ -1178,7 +1182,8 @@ internal sealed class ServiceResourceBuilder(
                     NormalizeNullable(endpointName),
                     NormalizeNullable(name) ?? type.ToString().ToLowerInvariant(),
                     timeout,
-                    ResourceProbeSource.ForHttp(path, NormalizeNullable(endpointName), timeout)))
+                    ResourceProbeSource.ForHttp(path, NormalizeNullable(endpointName), timeout),
+                    NormalizeHealthCheckInterval(interval)))
                 .ToArray()
         };
         return this;
@@ -1204,6 +1209,12 @@ internal sealed class ServiceResourceBuilder(
 
     private static string? NormalizeNullable(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static int? NormalizeHealthCheckInterval(TimeSpan? interval) =>
+        interval is null
+            ? null
+            : ResourceOrchestratorSelectionDefaults.NormalizeHealthCheckInterval(
+                (int)Math.Ceiling(interval.Value.TotalSeconds));
 
     public IServiceResourceBuilder WithResourceGroup(string? resourceGroupId)
     {

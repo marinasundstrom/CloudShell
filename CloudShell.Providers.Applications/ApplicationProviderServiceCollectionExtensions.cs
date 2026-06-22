@@ -2,6 +2,7 @@ using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace CloudShell.Providers.Applications;
 
@@ -46,6 +47,8 @@ public static class ApplicationProviderServiceCollectionExtensions
             processes.RetainedLogEntries = options.RetainedLogEntries;
             processes.SplitLogFilesByDay = options.SplitLogFilesByDay;
         });
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<IResourceProbeEvaluator, SqlServerResourceProbeEvaluator>());
     }
 
     public static IExecutableResourceBuilder AddExecutable(
@@ -257,6 +260,13 @@ public static class ApplicationProviderServiceCollectionExtensions
             containerImage: DefaultSqlServerImage,
             endpointPorts: endpointPorts,
             resourceType: ApplicationResourceTypes.SqlServer,
+            healthChecks:
+            [
+                new ResourceHealthCheck(
+                    ApplicationResourceProbeSources.SqlServer,
+                    ResourceProbeType.Liveness,
+                    "liveness")
+            ],
             volumeMounts: dataVolume is null
                 ? []
                 : [new ResourceVolumeMount(dataVolume.ResourceId, DefaultSqlServerDataPath, Name: "data")]);
@@ -592,15 +602,17 @@ internal sealed class ExecutableApplicationResourceBuilder(
         string path,
         string? endpointName = null,
         string name = "health",
-        TimeSpan? timeout = null) =>
-        WithHttpProbe(ResourceProbeType.Health, path, endpointName, name, timeout);
+        TimeSpan? timeout = null,
+        TimeSpan? interval = null) =>
+        WithHttpProbe(ResourceProbeType.Health, path, endpointName, name, timeout, interval);
 
     public IExecutableResourceBuilder WithHttpProbe(
         ResourceProbeType type,
         string path,
         string? endpointName = null,
         string? name = null,
-        TimeSpan? timeout = null)
+        TimeSpan? timeout = null,
+        TimeSpan? interval = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         declared.Definition = declared.Definition with
@@ -612,7 +624,8 @@ internal sealed class ExecutableApplicationResourceBuilder(
                     NormalizeNullable(endpointName),
                     NormalizeNullable(name) ?? type.ToString().ToLowerInvariant(),
                     timeout,
-                    ResourceProbeSource.ForHttp(path, NormalizeNullable(endpointName), timeout)))
+                    ResourceProbeSource.ForHttp(path, NormalizeNullable(endpointName), timeout),
+                    NormalizeHealthCheckInterval(interval)))
                 .ToArray()
         };
         return this;
@@ -1230,9 +1243,10 @@ internal sealed class ExecutableApplicationResourceBuilder(
         string path,
         string? endpointName,
         string name,
-        TimeSpan? timeout)
+        TimeSpan? timeout,
+        TimeSpan? interval)
     {
-        WithHttpHealthCheck(path, endpointName, name, timeout);
+        WithHttpHealthCheck(path, endpointName, name, timeout, interval);
         return this;
     }
 
@@ -1241,9 +1255,10 @@ internal sealed class ExecutableApplicationResourceBuilder(
         string path,
         string? endpointName,
         string? name,
-        TimeSpan? timeout)
+        TimeSpan? timeout,
+        TimeSpan? interval)
     {
-        WithHttpProbe(type, path, endpointName, name, timeout);
+        WithHttpProbe(type, path, endpointName, name, timeout, interval);
         return this;
     }
 
@@ -1486,6 +1501,12 @@ internal sealed class ExecutableApplicationResourceBuilder(
     private static string? NormalizeNullable(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
+    private static int? NormalizeHealthCheckInterval(TimeSpan? interval) =>
+        interval is null
+            ? null
+            : ResourceOrchestratorSelectionDefaults.NormalizeHealthCheckInterval(
+                (int)Math.Ceiling(interval.Value.TotalSeconds));
+
     IResourceBuilder IResourceBuilder.Persist(bool overwrite) =>
         Persist(overwrite);
 
@@ -1548,9 +1569,10 @@ internal sealed class ExecutableApplicationResourceBuilder(
         string path,
         string? endpointName,
         string name,
-        TimeSpan? timeout)
+        TimeSpan? timeout,
+        TimeSpan? interval)
     {
-        WithHttpHealthCheck(path, endpointName, name, timeout);
+        WithHttpHealthCheck(path, endpointName, name, timeout, interval);
         return this;
     }
 
@@ -1559,9 +1581,10 @@ internal sealed class ExecutableApplicationResourceBuilder(
         string path,
         string? endpointName,
         string? name,
-        TimeSpan? timeout)
+        TimeSpan? timeout,
+        TimeSpan? interval)
     {
-        WithHttpProbe(type, path, endpointName, name, timeout);
+        WithHttpProbe(type, path, endpointName, name, timeout, interval);
         return this;
     }
 

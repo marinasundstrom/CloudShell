@@ -2,6 +2,7 @@
 @implements IDisposable
 @inject IResourceManager ResourceManager
 @inject IResourceRecoveryManager RecoveryManager
+@inject IResourceOrchestrationSettings OrchestrationSettings
 @inject CloudShell.UI.Composition.CompositionRegistry Composition
 @inject IStringLocalizer<SharedResource> L
 
@@ -167,6 +168,8 @@
             <dl class="detail-list">
                 <dt>@L["Liveness signal"]</dt>
                 <dd>@FormatSignal(policy)</dd>
+                <dt>@L["Check interval"]</dt>
+                <dd>@FormatInterval(FindRecoveryCheck(policy))</dd>
                 <dt>@L["Failure threshold"]</dt>
                 <dd>@L["{0} consecutive failed observation(s)", policy.FailureThreshold]</dd>
                 <dt>@L["Startup grace"]</dt>
@@ -214,11 +217,33 @@
             return L["{0} ({1})", policy.ProbeName, policy.ProbeType].Value;
         }
 
-        var check = Resource?.ResourceHealthChecks.FirstOrDefault(item => item.Type == policy.ProbeType);
+        var check = FindRecoveryCheck(policy);
         return check is null
             ? policy.ProbeType.ToString()
             : L["{0} ({1})", check.Name, check.Type].Value;
     }
+
+    private ResourceHealthCheck? FindRecoveryCheck(ResourceRecoveryPolicy policy)
+    {
+        if (Resource is null)
+        {
+            return null;
+        }
+
+        if (!string.IsNullOrWhiteSpace(policy.ProbeName))
+        {
+            return Resource.ResourceHealthChecks.FirstOrDefault(item =>
+                item.Type == policy.ProbeType &&
+                string.Equals(item.Name, policy.ProbeName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return Resource.ResourceHealthChecks.FirstOrDefault(item => item.Type == policy.ProbeType);
+    }
+
+    private string FormatInterval(ResourceHealthCheck? check) =>
+        check?.IntervalSeconds is { } interval
+            ? L["every {0}s", interval].Value
+            : L["shared interval ({0}s)", OrchestrationSettings.GetHealthCheckIntervalSettings().Seconds].Value;
 
     private string FormatBackoff(ResourceRecoveryPolicy policy) =>
         L["{0}s initial, {1}s max, multiplier {2}",

@@ -112,6 +112,13 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 "Register a local SQL Server service with a TDS endpoint for direct access and service discovery.",
                 "database-server",
                 23,
+                probeOptions: new ResourceTypeProbeOptions(
+                    [
+                        new ResourceHealthCheck(
+                            ApplicationResourceProbeSources.SqlServer,
+                            ResourceProbeType.Liveness,
+                            "liveness")
+                    ]),
                 resourceClass: ResourceClass.Service)
             .AddResourceTypeEndpoint(
                 ApplicationResourceTypes.AspNetCoreProject,

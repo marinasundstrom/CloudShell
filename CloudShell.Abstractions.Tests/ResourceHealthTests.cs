@@ -12,13 +12,15 @@ public sealed class ResourceHealthTests
             ResourceProbeType.Liveness,
             "http",
             "alive",
-            TimeSpan.FromSeconds(2));
+            TimeSpan.FromSeconds(2),
+            IntervalSeconds: 15);
 
         Assert.Equal("/healthz", check.Path);
         Assert.Equal(ResourceProbeType.Liveness, check.Type);
         Assert.Equal("http", check.EndpointName);
         Assert.Equal("alive", check.Name);
         Assert.Equal(TimeSpan.FromSeconds(2), check.Timeout);
+        Assert.Equal(15, check.IntervalSeconds);
         Assert.True(check.EffectiveSource.IsHttp);
         Assert.Equal("/healthz", check.HttpSource?.Path);
         Assert.Equal("http", check.HttpSource?.EndpointName);
@@ -34,13 +36,15 @@ public sealed class ResourceHealthTests
                 Metadata: new Dictionary<string, string>
                 {
                     ["provider"] = "applications"
-                }),
+            }),
             ResourceProbeType.Liveness,
-            "process");
+            "process",
+            intervalSeconds: 30);
 
         Assert.Equal(string.Empty, check.Path);
         Assert.Equal(ResourceProbeType.Liveness, check.Type);
         Assert.Equal("process", check.Name);
+        Assert.Equal(30, check.IntervalSeconds);
         Assert.Equal("provider.process", check.EffectiveSource.Kind);
         Assert.False(check.EffectiveSource.IsHttp);
         Assert.Equal("applications", check.EffectiveSource.Metadata?["provider"]);

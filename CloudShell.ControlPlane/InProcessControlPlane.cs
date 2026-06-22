@@ -1398,7 +1398,7 @@ public sealed class InProcessControlPlane(
             return;
         }
 
-        await RefreshResourceHealthCoreUnlockedAsync(staleResources, cancellationToken);
+        await RefreshResourceHealthCoreUnlockedAsync(staleResources, respectCheckIntervals: true, cancellationToken);
     }
 
     private async Task RefreshResourceHealthCoreAsync(
@@ -1407,34 +1407,79 @@ public sealed class InProcessControlPlane(
     {
         using var refresh = await healthRefreshes.EnterAsync(cancellationToken);
 
-        await RefreshResourceHealthCoreUnlockedAsync(resources, cancellationToken);
+        await RefreshResourceHealthCoreUnlockedAsync(resources, respectCheckIntervals: false, cancellationToken);
     }
 
     private async Task RefreshResourceHealthCoreUnlockedAsync(
         IReadOnlyList<Resource> resources,
+        bool respectCheckIntervals,
         CancellationToken cancellationToken)
     {
         var previousLivenessStates = resources.ToDictionary(
             resource => resource.Id,
             resource => GetLivenessLifecycleProjection(resource)?.State,
             StringComparer.OrdinalIgnoreCase);
-        var summaries = await healthProbes.CheckAsync(resources, cancellationToken);
+        var previousSummaries = resourceHealth.GetLatest(resources.Select(resource => resource.Id));
+        var summaries = await healthProbes.CheckAsync(
+            resources,
+            respectCheckIntervals ? previousSummaries : null,
+            respectCheckIntervals ? ShouldEvaluateHealthCheck : null,
+            cancellationToken);
         resourceHealth.AddRange(summaries.Values);
         RecordLivenessLifecycleTransitions(resources, previousLivenessStates);
     }
 
     private IReadOnlyList<Resource> GetStaleHealthResources(IReadOnlyList<Resource> resources)
     {
-        var interval = TimeSpan.FromSeconds(orchestrationSettings.GetHealthCheckIntervalSettings().Seconds);
         var now = DateTimeOffset.UtcNow;
         return resources
             .Where(resource =>
             {
                 var summary = resourceHealth.GetLatest(resource.Id);
-                return summary is null || now - summary.CheckedAt >= interval;
+                return summary is null ||
+                    resource.ResourceHealthChecks.Any(check =>
+                        ShouldEvaluateHealthCheck(
+                            resource,
+                            check,
+                            FindHealthCheckResult(summary, check)?.CheckedAt ?? summary.CheckedAt,
+                            now));
             })
             .ToArray();
     }
+
+    private bool ShouldEvaluateHealthCheck(
+        Resource resource,
+        ResourceHealthCheck check,
+        DateTimeOffset? lastCheckedAt) =>
+        ShouldEvaluateHealthCheck(resource, check, lastCheckedAt, DateTimeOffset.UtcNow);
+
+    private bool ShouldEvaluateHealthCheck(
+        Resource resource,
+        ResourceHealthCheck check,
+        DateTimeOffset? lastCheckedAt,
+        DateTimeOffset now)
+    {
+        if (lastCheckedAt is null)
+        {
+            return true;
+        }
+
+        return now - lastCheckedAt.Value >= GetHealthCheckInterval(check);
+    }
+
+    private TimeSpan GetHealthCheckInterval(ResourceHealthCheck check) =>
+        TimeSpan.FromSeconds(
+            check.IntervalSeconds ??
+            orchestrationSettings.GetHealthCheckIntervalSettings().Seconds);
+
+    private static ResourceHealthCheckResult? FindHealthCheckResult(
+        ResourceHealthSummary summary,
+        ResourceHealthCheck check) =>
+        summary.Checks.FirstOrDefault(result =>
+            ReferenceEquals(result.Check, check) ||
+            result.Check == check ||
+            (string.Equals(result.Check.Name, check.Name, StringComparison.OrdinalIgnoreCase) &&
+             result.Check.Type == check.Type));
 
     private Resource? GetRecoveryResourceForRead(string resourceId)
     {

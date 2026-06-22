@@ -236,6 +236,72 @@ public sealed class ResourceHealthProbeServiceTests
         Assert.Contains("Liveness check is inactive", result.Detail, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task CheckAsync_PreservesPreviousResultWhenCheckIsNotDue()
+    {
+        var evaluator = new ProviderProcessProbeEvaluator();
+        var service = new ResourceHealthProbeService([evaluator]);
+        var due = new ResourceHealthCheck(
+            new ResourceProbeSource("provider.process"),
+            ResourceProbeType.Liveness,
+            "fast",
+            intervalSeconds: 5);
+        var notDue = new ResourceHealthCheck(
+            new ResourceProbeSource("provider.process"),
+            ResourceProbeType.Health,
+            "slow",
+            intervalSeconds: 60);
+        var resource = new Resource(
+            "application:api",
+            "API",
+            "Application",
+            "Applications",
+            "local",
+            ResourceState.Running,
+            [],
+            "1.0",
+            DateTimeOffset.UtcNow,
+            [],
+            HealthChecks: [due, notDue]);
+        var previousCheckedAt = DateTimeOffset.UtcNow.AddSeconds(-10);
+        var previousSummary = new ResourceHealthSummary(
+            resource.Id,
+            ResourceHealthStatus.Unhealthy,
+            previousCheckedAt,
+            [
+                new ResourceHealthCheckResult(
+                    due,
+                    ResourceHealthStatus.Unhealthy,
+                    "Previous fast result",
+                    null,
+                    CheckedAt: previousCheckedAt),
+                new ResourceHealthCheckResult(
+                    notDue,
+                    ResourceHealthStatus.Unhealthy,
+                    "Previous slow result",
+                    null,
+                    CheckedAt: previousCheckedAt)
+            ]);
+
+        var health = await service.CheckAsync(
+            [resource],
+            new Dictionary<string, ResourceHealthSummary>(StringComparer.OrdinalIgnoreCase)
+            {
+                [resource.Id] = previousSummary
+            },
+            (_, check, _) => check.IntervalSeconds == 5);
+        var summary = Assert.Single(health).Value;
+
+        Assert.Equal(1, evaluator.CallCount);
+        var fast = Assert.Single(summary.Checks, check => check.Check.Name == "fast");
+        var slow = Assert.Single(summary.Checks, check => check.Check.Name == "slow");
+        Assert.Equal(ResourceHealthStatus.Healthy, fast.Status);
+        Assert.NotEqual(previousCheckedAt, fast.CheckedAt);
+        Assert.Equal(ResourceHealthStatus.Unhealthy, slow.Status);
+        Assert.Equal("Previous slow result", slow.Detail);
+        Assert.Equal(previousCheckedAt, slow.CheckedAt);
+    }
+
     private sealed class RecordingHttpClientFactory : IHttpClientFactory
     {
         public RecordingHandler Handler { get; } = new();
@@ -272,6 +338,8 @@ public sealed class ResourceHealthProbeServiceTests
     {
         public bool Called { get; private set; }
 
+        public int CallCount { get; private set; }
+
         public bool CanEvaluate(Resource resource, ResourceHealthCheck check) =>
             string.Equals(check.EffectiveSource.Kind, "provider.process", StringComparison.OrdinalIgnoreCase);
 
@@ -281,6 +349,7 @@ public sealed class ResourceHealthProbeServiceTests
             CancellationToken cancellationToken = default)
         {
             Called = true;
+            CallCount++;
             return Task.FromResult(new ResourceHealthCheckResult(
                 check,
                 ResourceHealthStatus.Healthy,

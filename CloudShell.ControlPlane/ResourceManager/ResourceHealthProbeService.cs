@@ -10,6 +10,8 @@ public sealed class ResourceHealthProbeService(IEnumerable<IResourceProbeEvaluat
 
     public async Task<IReadOnlyDictionary<string, ResourceHealthSummary>> CheckAsync(
         IReadOnlyList<Resource> resources,
+        IReadOnlyDictionary<string, ResourceHealthSummary>? previousSummaries = null,
+        Func<Resource, ResourceHealthCheck, DateTimeOffset?, bool>? shouldEvaluate = null,
         CancellationToken cancellationToken = default)
     {
         var probeable = resources
@@ -21,7 +23,12 @@ public sealed class ResourceHealthProbeService(IEnumerable<IResourceProbeEvaluat
             return new Dictionary<string, ResourceHealthSummary>(StringComparer.OrdinalIgnoreCase);
         }
 
-        var results = await Task.WhenAll(probeable.Select(resource => CheckResourceAsync(resource, cancellationToken)));
+        var results = await Task.WhenAll(probeable.Select(resource =>
+            CheckResourceAsync(
+                resource,
+                previousSummaries?.GetValueOrDefault(resource.Id),
+                shouldEvaluate,
+                cancellationToken)));
         return results.ToDictionary(
             result => result.ResourceId,
             StringComparer.OrdinalIgnoreCase);
@@ -29,22 +36,35 @@ public sealed class ResourceHealthProbeService(IEnumerable<IResourceProbeEvaluat
 
     private async Task<ResourceHealthSummary> CheckResourceAsync(
         Resource resource,
+        ResourceHealthSummary? previousSummary,
+        Func<Resource, ResourceHealthCheck, DateTimeOffset?, bool>? shouldEvaluate,
         CancellationToken cancellationToken)
     {
         var checks = new List<ResourceHealthCheckResult>();
+        var now = DateTimeOffset.UtcNow;
         foreach (var check in resource.ResourceHealthChecks)
         {
+            var previousResult = FindPreviousResult(previousSummary, check);
+            if (previousResult is not null &&
+                shouldEvaluate is not null &&
+                !shouldEvaluate(resource, check, previousResult.CheckedAt ?? previousSummary!.CheckedAt))
+            {
+                checks.Add(previousResult);
+                continue;
+            }
+
             if (check.Type == ResourceProbeType.Liveness &&
                 !IsLivenessActive(resource))
             {
-                checks.Add(CreateInactiveLivenessResult(resource, check));
+                checks.Add(CreateInactiveLivenessResult(resource, check, now));
                 continue;
             }
 
             var evaluator = evaluators.FirstOrDefault(candidate => candidate.CanEvaluate(resource, check));
-            checks.Add(evaluator is null
-                ? CreateUnsupportedSourceResult(check)
-                : await evaluator.EvaluateAsync(resource, check, cancellationToken));
+            var result = evaluator is null
+                ? CreateUnsupportedSourceResult(check, now)
+                : await evaluator.EvaluateAsync(resource, check, cancellationToken);
+            checks.Add(result.CheckedAt is null ? result with { CheckedAt = now } : result);
         }
 
         var status = checks.Any(check => check.Status == ResourceHealthStatus.Unhealthy)
@@ -56,30 +76,44 @@ public sealed class ResourceHealthProbeService(IEnumerable<IResourceProbeEvaluat
         return new ResourceHealthSummary(
             resource.Id,
             status,
-            DateTimeOffset.UtcNow,
+            now,
             checks);
     }
 
-    private static ResourceHealthCheckResult CreateUnsupportedSourceResult(ResourceHealthCheck check) =>
+    private static ResourceHealthCheckResult CreateUnsupportedSourceResult(
+        ResourceHealthCheck check,
+        DateTimeOffset checkedAt) =>
         new(
             check,
             ResourceHealthStatus.Unknown,
             $"Unsupported probe source '{check.EffectiveSource.Kind}'",
             null,
-            ResourceHealthCheckOutcome.Unsupported);
+            ResourceHealthCheckOutcome.Unsupported,
+            checkedAt);
 
     private static ResourceHealthCheckResult CreateInactiveLivenessResult(
         Resource resource,
-        ResourceHealthCheck check) =>
+        ResourceHealthCheck check,
+        DateTimeOffset checkedAt) =>
         new(
             check,
             ResourceHealthStatus.Unknown,
             $"Liveness check is inactive while resource state is {resource.State?.ToString() ?? "Unknown"}.",
             null,
-            ResourceHealthCheckOutcome.Unknown);
+            ResourceHealthCheckOutcome.Unknown,
+            checkedAt);
 
     private static bool IsLivenessActive(Resource resource) =>
         resource.State == ResourceState.Running;
+
+    private static ResourceHealthCheckResult? FindPreviousResult(
+        ResourceHealthSummary? previousSummary,
+        ResourceHealthCheck check) =>
+        previousSummary?.Checks.FirstOrDefault(result =>
+            ReferenceEquals(result.Check, check) ||
+            result.Check == check ||
+            (string.Equals(result.Check.Name, check.Name, StringComparison.OrdinalIgnoreCase) &&
+             result.Check.Type == check.Type));
 }
 
 public sealed class HttpResourceProbeEvaluator(IHttpClientFactory httpClientFactory) : IResourceProbeEvaluator

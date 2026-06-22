@@ -1270,6 +1270,10 @@ public sealed class ResourceDeclarationTests
         AssertApplicationExposureSection(containerAppType);
         var sqlServerType = resourceTypes[ApplicationResourceTypes.SqlServer];
         Assert.Equal(ResourceClass.Service, sqlServerType.ResourceClass);
+        var sqlServerLiveness = Assert.Single(sqlServerType.ResourceHealthChecks);
+        Assert.Equal(ResourceProbeType.Liveness, sqlServerLiveness.Type);
+        Assert.Equal("liveness", sqlServerLiveness.Name);
+        Assert.Equal("application.sql-server", sqlServerLiveness.EffectiveSource.Kind);
         AssertStorageTab(sqlServerType);
         AssertApplicationExposureSection(sqlServerType);
         AssertApplicationExposureSection(resourceTypes[ApplicationResourceTypes.ExecutableApplication]);
@@ -4894,8 +4898,8 @@ public sealed class ResourceDeclarationTests
                     .AddAspNetCoreProject(
                         "application:api",
                         "src/API/API.csproj")
-                    .WithHttpHealthCheck("/health")
-                    .WithHttpProbe(ResourceProbeType.Liveness, "/alive");
+                    .WithHttpHealthCheck("/health", interval: TimeSpan.FromSeconds(20))
+                    .WithHttpProbe(ResourceProbeType.Liveness, "/alive", interval: TimeSpan.FromSeconds(5));
             });
 
         using var serviceProvider = services.BuildServiceProvider();
@@ -4918,12 +4922,14 @@ public sealed class ResourceDeclarationTests
                 Assert.Equal("/health", check.Path);
                 Assert.Equal(ResourceProbeType.Health, check.Type);
                 Assert.Equal("health", check.Name);
+                Assert.Equal(20, check.IntervalSeconds);
             },
             check =>
             {
                 Assert.Equal("/alive", check.Path);
                 Assert.Equal(ResourceProbeType.Liveness, check.Type);
                 Assert.Equal("liveness", check.Name);
+                Assert.Equal(5, check.IntervalSeconds);
             });
     }
 
@@ -8872,6 +8878,10 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("1", resource.ResourceAttributes[ResourceAttributeNames.VolumeMountCount]);
         Assert.Equal("1", resource.ResourceAttributes[ResourceAttributeNames.DatabaseCount]);
         Assert.True(resource.HasCapability(ResourceCapabilityIds.StorageVolumeConsumer));
+        var liveness = Assert.Single(resource.ResourceHealthChecks);
+        Assert.Equal(ResourceProbeType.Liveness, liveness.Type);
+        Assert.Equal("liveness", liveness.Name);
+        Assert.Equal("application.sql-server", liveness.EffectiveSource.Kind);
         Assert.Empty(liveDatabases);
         var application = provider.GetApplication("application:sql");
         Assert.Equal(ApplicationLifetime.Detached, application?.Lifetime);

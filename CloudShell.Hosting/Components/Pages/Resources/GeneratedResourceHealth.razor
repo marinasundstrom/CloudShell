@@ -196,6 +196,7 @@
                         <footer>
                             <span>@FormatEndpoint(row.Check)</span>
                             <span>@FormatPath(row.Check)</span>
+                            <span>@FormatInterval(row.Check)</span>
                         </footer>
                         @if (row.Result?.Uri is not null)
                         {
@@ -334,6 +335,11 @@
             ? path
             : $"{path} / {check.Timeout.Value.TotalSeconds:0.#}s";
     }
+
+    private string FormatInterval(ResourceHealthCheck check) =>
+        check.IntervalSeconds is null
+            ? L["shared interval"].Value
+            : L["every {0}s", check.IntervalSeconds].Value;
 
     private sealed record HealthCheckRow(
         ResourceHealthCheck Check,

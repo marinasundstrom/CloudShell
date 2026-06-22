@@ -50,6 +50,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager generated details now include a Management > Recovery tab
   for resources with recovery support, showing recovery policy and runtime
   status, with the resource Health tab linking to Recovery.
+- Resource health checks now support per-check polling interval overrides and
+  per-check result timestamps, and SQL Server resources declare a
+  provider-native liveness check through their TDS endpoint.
 - Added a service observability and degradation proposal for service-first,
   replica-aware local-development telemetry correlation, common views, load
   and capacity context, established telemetry interfaces, extension
