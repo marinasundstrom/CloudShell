@@ -40,7 +40,7 @@
                               Description="@L["Configure Resource Manager display behavior and inventory visibility."].Value" />
         }
 
-        <div class="form-panel">
+        <FormPanel>
             @if (IsReadOnly)
             {
                 <ProcedureMessage>
@@ -90,7 +90,7 @@
                     </small>
                 </div>
             </fieldset>
-        </div>
+        </FormPanel>
     }
 
     @if (ShowOrchestrationSettings)
@@ -101,7 +101,7 @@
                               Description="@L["Configure how Resource Manager applies lifecycle, dependency, and host orchestration."].Value" />
         }
 
-        <div class="form-panel">
+        <FormPanel>
             <ProcedureMessage>
                 <strong>@L["CloudShell modes"]</strong>
                 <span>@L["Local dev mode uses the default orchestrator for Aspire-like local resources and resource-owned endpoints. On-premise mode selects an orchestrator such as Docker Compose to own lifecycle, networking, and exposure. Container host registration is independent from orchestrator selection."]</span>
@@ -190,10 +190,10 @@
                     @L["Controls whether Start and Restart stop when dependency auto-start fails, or continue after recording a warning."]
                 }
             </small>
-        </div>
+        </FormPanel>
     }
 
-    <div class="form-panel">
+    <FormPanel>
         @if (PendingChange)
         {
             <div class="procedure-confirmation">
@@ -216,7 +216,7 @@
                                Disabled="@(!CanApply)"
                                OnClick="RequestChange" />
         }
-    </div>
+    </FormPanel>
 </section>
 
 @code {

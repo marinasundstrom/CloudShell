@@ -16,7 +16,7 @@ else
     }
 
     <div class="type-registration">
-        <div class="form-panel">
+        <FormPanel>
             <label for="local-storage-update-name">Name</label>
             <FluentTextField Id="local-storage-update-name" @bind-Value="Name" />
 
@@ -29,7 +29,7 @@ else
                              Disabled="@IsStorageShapeLocked"
                              @bind-Value="Location"
                              Placeholder="Optional local storage root" />
-        </div>
+        </FormPanel>
     </div>
 }
 

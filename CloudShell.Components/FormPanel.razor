@@ -1,0 +1,30 @@
+@if (RenderAsSection)
+{
+    <section class="@CssClass" @attributes="AdditionalAttributes">
+        @ChildContent
+    </section>
+}
+else
+{
+    <div class="@CssClass" @attributes="AdditionalAttributes">
+        @ChildContent
+    </div>
+}
+
+@code {
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public bool RenderAsSection { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string CssClass => string.IsNullOrWhiteSpace(Class)
+        ? "form-panel"
+        : $"form-panel {Class}";
+}

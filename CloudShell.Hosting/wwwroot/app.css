@@ -1751,17 +1751,6 @@ h3 {
     color: var(--cloudshell-text-subtle);
 }
 
-.form-panel {
-    display: grid;
-    gap: .55rem;
-    width: min(38rem, 100%);
-}
-
-.form-panel label {
-    margin-top: .35rem;
-    font-weight: 650;
-}
-
 .environment-editor {
     display: grid;
     gap: .45rem;

@@ -23,7 +23,7 @@
 }
 else
 {
-    <section class="form-panel panel">
+    <FormPanel RenderAsSection="true" Class="panel">
         <label for="group-name">@L["Name"]</label>
         <FluentTextField Id="group-name" @bind-Value="Name" Placeholder="@L["Project development"]" />
 
@@ -41,7 +41,7 @@ else
                 @L["Create"]
             </FluentButton>
         </FormActions>
-    </section>
+    </FormPanel>
 }
 
 @code {

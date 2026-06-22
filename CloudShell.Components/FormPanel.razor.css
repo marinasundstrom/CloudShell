@@ -1,0 +1,10 @@
+.form-panel {
+    display: grid;
+    gap: .55rem;
+    width: min(38rem, 100%);
+}
+
+.form-panel ::deep(label) {
+    margin-top: .35rem;
+    font-weight: 650;
+}

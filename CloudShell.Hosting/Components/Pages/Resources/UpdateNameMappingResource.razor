@@ -14,7 +14,7 @@ else if (DnsZone is null)
 else
 {
     <div class="type-registration">
-        <div class="form-panel">
+        <FormPanel>
             <label for="name-mapping-update-zone">DNS zone</label>
             <FluentTextField Id="name-mapping-update-zone"
                              Disabled="true"
@@ -94,7 +94,7 @@ else
             {
                 <div class="provider-error">@ErrorMessage</div>
             }
-        </div>
+        </FormPanel>
     </div>
 }
 

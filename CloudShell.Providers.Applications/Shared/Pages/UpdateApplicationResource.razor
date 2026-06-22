@@ -14,7 +14,7 @@
 else
 {
     <div class="type-registration">
-        <div class="form-panel">
+        <FormPanel>
             <label for="application-update-name">Name</label>
             <FluentTextField Id="application-update-name" @bind-Value="Name" Disabled="@IsReadOnly" />
 
@@ -166,7 +166,7 @@ else
                 </ResourceEditorSection>
             }
 
-        </div>
+        </FormPanel>
     </div>
 }
 

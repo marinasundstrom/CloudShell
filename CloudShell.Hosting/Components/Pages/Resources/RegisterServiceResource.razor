@@ -3,7 +3,7 @@
 @inject NavigationManager Navigation
 
 <div class="type-registration">
-    <div class="form-panel">
+    <FormPanel>
         <p class="muted">
             Use a Service when you need an explicit service unit or facade over target resources.
             Container apps can expose app-owned endpoints without a Service resource.
@@ -60,7 +60,7 @@
 
         <FormPrimaryAction IconStart="@(new Icons.Regular.Size20.AddCircle())"
                            OnClick="Register" />
-    </div>
+    </FormPanel>
 </div>
 
 @code {

@@ -6,7 +6,7 @@
 @inject IStringLocalizer<SharedResource> L
 
 <div class="type-registration">
-    <div class="form-panel">
+    <FormPanel>
         <ResourceIdentityFields ResourceIdInputId="volume-resource-id"
                                 ResourceIdPlaceholder="data"
                                 @bind-ResourceId="ResourceId" />
@@ -56,7 +56,7 @@
 
         <FormPrimaryAction IconStart="@(new Icons.Regular.Size20.AddCircle())"
                            OnClick="Register" />
-    </div>
+    </FormPanel>
 </div>
 
 @code {

@@ -8,8 +8,7 @@
 .add-resource-layout,
 .add-resource-layout .registration-options,
 .add-resource-layout .registration-host,
-.add-resource-layout .type-registration,
-.add-resource-layout .form-panel {
+.add-resource-layout .type-registration {
     min-width: 0;
 }
 
@@ -155,9 +154,4 @@
 .add-resource-type-actions {
     display: flex;
     justify-content: flex-start;
-}
-
-.add-resource-layout .form-panel {
-    width: min(100%, 48rem);
-    max-width: 100%;
 }

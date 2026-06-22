@@ -17,7 +17,7 @@ else
     }
 
     <div class="type-registration">
-        <div class="form-panel">
+        <FormPanel>
             <label for="volume-update-name">Name</label>
             <FluentTextField Id="volume-update-name" @bind-Value="Name" />
 
@@ -60,7 +60,7 @@ else
             <FluentCheckbox Disabled="@IsStorageShapeLocked" @bind-Value="Persistent">
                 Persistent
             </FluentCheckbox>
-        </div>
+        </FormPanel>
     </div>
 }
 

@@ -14,7 +14,7 @@
 else
 {
     <div class="type-registration">
-        <div class="form-panel">
+        <FormPanel>
             <label for="sql-update-name">Name</label>
             <FluentTextField Id="sql-update-name" @bind-Value="Name" Disabled="@IsReadOnly" />
 
@@ -72,7 +72,7 @@ else
                     }
                 </FluentSelect>
             </details>
-        </div>
+        </FormPanel>
     </div>
 }
 

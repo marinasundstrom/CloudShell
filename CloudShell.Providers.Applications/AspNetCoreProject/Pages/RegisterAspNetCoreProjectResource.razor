@@ -6,7 +6,7 @@
 @inject NavigationManager Navigation
 
 <div class="type-registration">
-    <div class="form-panel">
+    <FormPanel>
         <ResourceIdentityFields ResourceIdInputId="web-application-resource-id"
                                 ResourceIdPlaceholder="example-web-api"
                                 @bind-ResourceId="ResourceId" />
@@ -80,7 +80,7 @@
         </FluentCheckbox>
 
         <FormPrimaryAction OnClick="Register" />
-    </div>
+    </FormPanel>
 </div>
 
 @code {

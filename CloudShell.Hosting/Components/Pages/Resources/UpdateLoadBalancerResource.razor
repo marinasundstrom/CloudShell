@@ -11,7 +11,7 @@
 else
 {
     <div class="type-registration">
-        <div class="form-panel">
+        <FormPanel>
             <label for="load-balancer-update-name">Name</label>
             <FluentTextField Id="load-balancer-update-name" @bind-Value="Name" />
 
@@ -154,7 +154,7 @@ else
             {
                 <div class="provider-error">@ErrorMessage</div>
             }
-        </div>
+        </FormPanel>
     </div>
 }
 
