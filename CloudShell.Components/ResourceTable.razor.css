@@ -1,0 +1,73 @@
+.table-wrap {
+    overflow: auto;
+}
+
+.resource-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .84rem;
+}
+
+.resource-table ::deep th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: .55rem .6rem;
+    border-bottom: 1px solid var(--cloudshell-stroke);
+    background: var(--cloudshell-surface-muted);
+    color: var(--cloudshell-text-muted);
+    font-weight: 650;
+    text-align: left;
+}
+
+.resource-table ::deep td {
+    padding: .48rem .6rem;
+    border-bottom: 1px solid var(--cloudshell-divider);
+    vertical-align: middle;
+}
+
+.resource-table ::deep th:last-child,
+.resource-table ::deep td:last-child {
+    width: 8rem;
+    min-width: 8rem;
+    white-space: nowrap;
+}
+
+.resource-table ::deep tr {
+    cursor: pointer;
+}
+
+.resource-table ::deep tbody tr:hover,
+.resource-table ::deep tbody tr.selected {
+    background: var(--cloudshell-selected);
+}
+
+.resource-table ::deep td strong,
+.resource-table ::deep td span {
+    display: block;
+}
+
+.resource-table ::deep td span {
+    color: var(--cloudshell-text-muted);
+    font-size: .76rem;
+}
+
+.resource-table ::deep td .health-pill,
+.resource-table ::deep td .state-pill {
+    display: inline-flex;
+    color: white;
+    font-size: .76rem;
+}
+
+.resource-table ::deep td .health-pill {
+    color: var(--cloudshell-health-pill-foreground, white);
+}
+
+.resource-table ::deep td .menu-action-content,
+.resource-table ::deep td .menu-action-content span {
+    display: inline-flex;
+}
+
+.resource-table ::deep td .menu-action-content .action-icon {
+    display: inline-flex;
+}

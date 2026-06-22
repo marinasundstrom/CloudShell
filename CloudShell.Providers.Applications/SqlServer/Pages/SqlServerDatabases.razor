@@ -173,8 +173,7 @@ else
 
     private static RenderFragment RenderDatabaseTable(
         IReadOnlyList<SqlServerDatabaseRow> databases,
-        string label) => @<div class="table-wrap">
-            <table class="resource-table" aria-label="@label">
+        string label) => @<ResourceTable AriaLabel="@label">
                 <thead>
                     <tr>
                         <th>Database</th>
@@ -199,6 +198,5 @@ else
                         </tr>
                     }
                 </tbody>
-            </table>
-        </div>;
+        </ResourceTable>;
 }

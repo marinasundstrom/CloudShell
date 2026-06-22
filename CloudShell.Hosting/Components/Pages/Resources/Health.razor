@@ -72,8 +72,7 @@
         }
         else
         {
-            <div class="table-wrap">
-                <table class="resource-table">
+            <ResourceTable>
                     <thead>
                         <tr>
                             <th>@L["Resource"]</th>
@@ -126,8 +125,7 @@
                             }
                         }
                     </tbody>
-                </table>
-            </div>
+            </ResourceTable>
 
             <div class="health-history-grid" aria-label="@L["Recent health polling history"]">
                 @foreach (var resource in ResourcesWithHealthChecks)
