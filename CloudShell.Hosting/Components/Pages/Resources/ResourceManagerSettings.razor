@@ -36,12 +36,8 @@
     {
         @if (!IsEmbedded)
         {
-            <div class="panel-header">
-                <div>
-                    <h2>@L["General"]</h2>
-                    <p>@L["Configure Resource Manager display behavior and inventory visibility."]</p>
-                </div>
-            </div>
+            <ShellPanelHeader Title="@L["General"].Value"
+                              Description="@L["Configure Resource Manager display behavior and inventory visibility."].Value" />
         }
 
         <div class="form-panel">
@@ -101,12 +97,8 @@
     {
         @if (!IsEmbedded)
         {
-            <div class="panel-header">
-                <div>
-                    <h2>@L["Orchestration"]</h2>
-                    <p>@L["Configure how Resource Manager applies lifecycle, dependency, and host orchestration."]</p>
-                </div>
-            </div>
+            <ShellPanelHeader Title="@L["Orchestration"].Value"
+                              Description="@L["Configure how Resource Manager applies lifecycle, dependency, and host orchestration."].Value" />
         }
 
         <div class="form-panel">

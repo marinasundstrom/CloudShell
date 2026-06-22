@@ -60,15 +60,8 @@ else
                         Message="This shell view does not have any registered menu items." />
         </EmptyContent>
         <HeaderContent Context="item">
-            <div class="panel-header">
-                <div>
-                    <h2>@item.Title</h2>
-                    @if (!string.IsNullOrWhiteSpace(item.Description))
-                    {
-                        <p>@item.Description</p>
-                    }
-                </div>
-            </div>
+            <ShellPanelHeader Title="@item.Title"
+                              Description="@item.Description" />
         </HeaderContent>
         <ChildContent Context="item">
             @if (selectedItem is not null)
