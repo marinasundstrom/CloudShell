@@ -36,10 +36,11 @@ changes. Milestone scope remains authoritative in [Roadmap](../roadmap.md).
 | 15 | [Provider-created and runtime-managed resources](core/provider-created-and-runtime-managed-resources.md) | In progress | MVP foundation for container app diagnostics; broader runtime projection later | Resource source, management mode, visibility, owner, and cleanup metadata now project through Resource, API, remote client, and Resource Manager inventory filtering. Container apps now project desired replica/container children as hidden runtime-managed resources, and Resource Manager can opt into hidden/runtime-managed views separately; next work is provider-observed IDs, health, placement, and materialization diagnostics. |
 | 16 | [Deployments and revisions](deployment/deployments-and-revisions.md) | In progress | MVP internal foundation, with current-revision support | Internal orchestrator deployment/revision data contracts exist for container app/provider/orchestrator use. Rich rollout history, rollback, retention, traffic splitting, and public management APIs remain deferred. |
 | 17 | [Deployment projection](deployment/deployment-projection.md) | In progress | Later portability | Tracks external deployment artifact projection and should not displace the MVP control-plane milestone. |
-| 18 | [Shell composition](core/shell-composition.md) | Proposed | Post-MVP extensible shell platform | Tracks the future CloudShell UI direction: reusable core and Blazor composition libraries with separate navigation and addressable content hierarchies, content-ID link resolution, Razor-owned routing, slots, section containers, standard settings, notifications, optional future graph persistence, and Resource Manager alignment with generic shell primitives. The current MVP should consume the landed composition work only to stabilize existing shell, Settings, and Resource Manager surfaces. |
-| 19 | [Resource graph import and code generation](core/resource-graph-import.md) | Proposed | Later portability and advanced authoring | Tracks external file import into CloudShell graph drafts, starting with Docker Compose YAML, with generated programmatic declarations as the preferred first output. |
-| 20 | [Managed SQL Server resource](resources/managed-sql-server.md) | Partially implemented | Post-MVP managed database resource shape | Tracks the future SQL Server managed resource surface. The current `application.sql-server` implementation remains a local-development container-backed bridge, but now has a provider-owned builder, projects as a service resource, displays declared database children, reports requested-versus-effective grant status, and avoids generic container-app deployment controls by default. |
-| 21 | [IoT device provisioning](core/iot-device-provisioning.md) | Proposed future direction | Later device and edge integration | Tracks a future IoT/edge story where devices bootstrap with pre-issued credentials, are reconciled into the CloudShell resource graph, receive principals and service access through the existing identity/access model, and publish health, activity, and telemetry without requiring a separate Azure-like service catalog. |
+| 18 | [UI composition library](core/ui-composition.md) | Current implementation working document | Post-MVP reusable UI foundation | Tracks the standalone `CloudShell.UI.Composition` and `CloudShell.UI.Composition.Blazor` library direction: generic graph primitives, typed IDs, modules, menus, pages, section containers, sections, route metadata, renderer hints, plain Blazor renderers, descriptor projection, and future graph persistence. This is separate from the CloudShell Shell product experience and extension API. |
+| 19 | [Shell composition](core/shell-composition.md) | Proposed | Post-MVP extensible shell platform | Tracks the future CloudShell Shell direction above the UI composition library: formal main navigation, common Settings hierarchy, notifications, provider workspaces, documented extension areas, shell-owned validation, Fluent UI presenters, and adapters from CloudShell product abstractions into generic composition primitives. The current MVP should consume the landed composition work only to stabilize existing shell, Settings, and Resource Manager surfaces. |
+| 20 | [Resource graph import and code generation](core/resource-graph-import.md) | Proposed | Later portability and advanced authoring | Tracks external file import into CloudShell graph drafts, starting with Docker Compose YAML, with generated programmatic declarations as the preferred first output. |
+| 21 | [Managed SQL Server resource](resources/managed-sql-server.md) | Partially implemented | Post-MVP managed database resource shape | Tracks the future SQL Server managed resource surface. The current `application.sql-server` implementation remains a local-development container-backed bridge, but now has a provider-owned builder, projects as a service resource, displays declared database children, reports requested-versus-effective grant status, and avoids generic container-app deployment controls by default. |
+| 22 | [IoT device provisioning](core/iot-device-provisioning.md) | Proposed future direction | Later device and edge integration | Tracks a future IoT/edge story where devices bootstrap with pre-issued credentials, are reconciled into the CloudShell resource graph, receive principals and service access through the existing identity/access model, and publish health, activity, and telemetry without requiring a separate Azure-like service catalog. |
 
 ## Current proposal order
 
@@ -89,11 +90,13 @@ hardening.
 10. Runtime ownership decisions through
    [Runtime-managed resources](core/provider-created-and-runtime-managed-resources.md)
 11. [Deployments and revisions](deployment/deployments-and-revisions.md)
-12. [Shell composition](core/shell-composition.md), after Resource Manager and
+12. [UI composition library](core/ui-composition.md) and
+    [Shell composition](core/shell-composition.md), after Resource Manager and
     supported local-development samples are stable enough to generalize the
-    shell primitives. During MVP convergence, only take shell-composition work
-    that fixes regressions or directly supports the current Resource Manager
-    and Settings experience.
+    reusable library primitives and CloudShell-owned shell experience
+    contracts. During MVP convergence, only take composition work that fixes
+    regressions or directly supports the current shell, Resource Manager, and
+    Settings experience.
 13. Advanced app and environment concepts, including external-format resource
     graph import and code generation, IoT device provisioning, and edge/device
     resource management

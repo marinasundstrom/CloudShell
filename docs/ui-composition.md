@@ -9,6 +9,8 @@ standalone sample remains the place to prove layout patterns without coupling
 them to the shell.
 
 For future direction, see the
+[UI composition library proposal](proposals/core/ui-composition.md). For the
+CloudShell product layer built on top of the library, see the
 [shell composition proposal](proposals/core/shell-composition.md).
 
 ## Packages
@@ -816,12 +818,15 @@ conflicts, permission metadata, and route conflicts.
 
 The current composition engine does not yet include:
 
-- CloudShell extension adapter APIs
-- Resource Manager adapters
+- CloudShell Shell adapter APIs that project shell-owned contribution
+  contracts into composition modules
+- Resource Manager adapters that project resource-specific contracts into
+  composition modules
 - persisted composition graph metadata
-- `CompositionModuleBuilder` integration with the CloudShell extension
+- `CompositionModuleBuilder` integration with a host or shell-owned
   activation/deactivation lifecycle
-- CloudShell extension discovery and activation rules for module mount/unmount
+- CloudShell extension discovery and activation rules that decide which
+  modules are mounted or unmounted by the shell adapter
 - artifact-level module diagnostics beyond basic module ownership projections
 - integration points for extensions, host modules, renderer outlets, metadata,
   visibility, and future persisted graph loading
