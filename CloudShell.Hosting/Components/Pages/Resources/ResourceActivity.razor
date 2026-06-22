@@ -47,16 +47,14 @@
     ];
 
     private RenderFragment RenderActivity() => @<text>
-        <div class="resource-activity-header">
-            <div>
-                <h3>@L["Activity"]</h3>
-                <span>@GetEventCountLabel()</span>
-            </div>
-            <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSync())"
-                          Disabled="@IsLoading" OnClick="Refresh">
-                @(IsLoading ? L["Refreshing"] : L["Refresh"])
-            </FluentButton>
-        </div>
+        <ResourceActivityHeader Title="@L["Activity"].Value" Subtitle="@GetEventCountLabel()">
+            <Actions>
+                <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                              Disabled="@IsLoading" OnClick="Refresh">
+                    @(IsLoading ? L["Refreshing"] : L["Refresh"])
+                </FluentButton>
+            </Actions>
+        </ResourceActivityHeader>
 
         <div class="resource-activity-filters">
             <div>

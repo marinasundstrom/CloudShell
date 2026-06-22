@@ -23,18 +23,16 @@
 
 @if (ShowHeading && Inline)
 {
-    <div class="resource-activity-header">
-        <div>
-            <h3>@L["Metrics"]</h3>
-            <span>@L["Resource telemetry"]</span>
-        </div>
-        <div class="heading-actions">
+    <ResourceActivityHeader Title="@L["Metrics"].Value"
+                            Subtitle="@L["Resource telemetry"].Value"
+                            ActionsClass="heading-actions">
+        <Actions>
             <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSync())"
                           OnClick="RefreshPointsAsync">
                 @L["Refresh"]
             </FluentButton>
-        </div>
-    </div>
+        </Actions>
+    </ResourceActivityHeader>
 }
 else if (ShowHeading)
 {

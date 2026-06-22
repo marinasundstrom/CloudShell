@@ -40,12 +40,10 @@
 }
 else
 {
-    <div class="resource-activity-header">
-        <div>
-            <h3>@HeadingTitle</h3>
-            <span>@L["OpenTelemetry service requests"]</span>
-        </div>
-        <div class="heading-actions">
+    <ResourceActivityHeader Title="@HeadingTitle"
+                            Subtitle="@L["OpenTelemetry service requests"].Value"
+                            ActionsClass="heading-actions">
+        <Actions>
             <label class="trace-source-filter" for="@GraphModeSelectId">
                 <span>@L["Graph source"]</span>
                 <select id="@GraphModeSelectId"
@@ -62,8 +60,8 @@ else
                           OnClick="RefreshAsync">
                 @L["Refresh"]
             </FluentButton>
-        </div>
-    </div>
+        </Actions>
+    </ResourceActivityHeader>
 }
 
 <section class="dependency-map-summary" aria-label="@L["Service graph summary"]">

@@ -16,12 +16,10 @@
 
 @if (ShowHeading && Inline)
 {
-    <div class="resource-activity-header">
-        <div>
-            <h3>@L["Logs"]</h3>
-            <span>@L["Resource telemetry"]</span>
-        </div>
-        <div class="heading-actions">
+    <ResourceActivityHeader Title="@L["Logs"].Value"
+                            Subtitle="@L["Resource telemetry"].Value"
+                            ActionsClass="heading-actions">
+        <Actions>
             @if (!string.IsNullOrWhiteSpace(TraceId))
             {
                 <FluentButton Appearance="Appearance.Neutral" OnClick="ClearTraceFilter">
@@ -32,8 +30,8 @@
                           OnClick="RefreshSelectedLog">
                 @L["Refresh"]
             </FluentButton>
-        </div>
-    </div>
+        </Actions>
+    </ResourceActivityHeader>
 }
 else if (ShowHeading)
 {

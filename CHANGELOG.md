@@ -43,6 +43,9 @@ on `git blame --follow`, and then by the broad type of change.
   shell panel header component instead of repeated local header markup.
 - Log, trace, and metric explorers now share a telemetry explorer header
   component for source summaries and toolbar controls.
+- Resource-scoped activity, telemetry, monitoring, health, and service graph
+  views now share a small resource activity header component instead of
+  repeating the same inline title and action layout.
 - Summary metric cards now support compact rendering, and summary metric cards
   and grids own their styling through component-scoped CSS instead of
   page-level hand-coded markup.

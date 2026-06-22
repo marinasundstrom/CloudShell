@@ -76,12 +76,10 @@
     ];
 
     private RenderFragment RenderMonitoring() => @<text>
-        <div class="resource-activity-header">
-            <div>
-                <h3>@L["Monitoring"]</h3>
-                <span>@GetStatusText()</span>
-            </div>
-            <div class="resource-monitoring-actions">
+        <ResourceActivityHeader Title="@L["Monitoring"].Value"
+                                Subtitle="@GetStatusText()"
+                                ActionsClass="resource-monitoring-actions">
+            <Actions>
                 <FluentCheckbox @bind-Value="AutoRefresh">
                     @L["Auto-refresh"]
                 </FluentCheckbox>
@@ -92,8 +90,8 @@
                         @(IsLoading ? L["Refreshing"] : L["Refresh"])
                     </FluentButton>
                 }
-            </div>
-        </div>
+            </Actions>
+        </ResourceActivityHeader>
 
         @if (Snapshot is null)
         {

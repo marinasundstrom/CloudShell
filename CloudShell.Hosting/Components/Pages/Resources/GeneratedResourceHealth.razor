@@ -111,12 +111,10 @@
     ];
 
     private RenderFragment RenderHealth() => @<text>
-        <div class="resource-activity-header">
-            <div>
-                <h3>@L["Health"]</h3>
-                <span>@GetStatusText()</span>
-            </div>
-            <div class="resource-monitoring-actions">
+        <ResourceActivityHeader Title="@L["Health"].Value"
+                                Subtitle="@GetStatusText()"
+                                ActionsClass="resource-monitoring-actions">
+            <Actions>
                 <FluentCheckbox @bind-Value="AutoRefresh">
                     @L["Auto-refresh"]
                 </FluentCheckbox>
@@ -129,8 +127,8 @@
                         @(IsCheckingHealth ? L["Checking"] : L["Refresh"])
                     </FluentButton>
                 }
-            </div>
-        </div>
+            </Actions>
+        </ResourceActivityHeader>
 
         @if (Resource is null)
         {
