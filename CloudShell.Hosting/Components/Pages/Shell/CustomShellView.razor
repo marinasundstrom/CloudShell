@@ -19,10 +19,8 @@
 @if (view is null)
 {
     <PageTitle>Not found</PageTitle>
-    <div class="empty-state">
-        <strong>Page not found</strong>
-        <span>The requested shell view is not registered.</span>
-    </div>
+    <EmptyState Title="Page not found"
+                Message="The requested shell view is not registered." />
 }
 else
 {
@@ -58,10 +56,8 @@ else
             </div>
         </SummaryContent>
         <EmptyContent>
-            <div class="empty-state">
-                <strong>No view selected</strong>
-                <span>This shell view does not have any registered menu items.</span>
-            </div>
+            <EmptyState Title="No view selected"
+                        Message="This shell view does not have any registered menu items." />
         </EmptyContent>
         <HeaderContent Context="item">
             <div class="panel-header">

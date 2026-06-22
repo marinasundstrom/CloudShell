@@ -8,17 +8,13 @@
 
 @if (!CanConfigureUsers)
 {
-    <section class="empty-state">
-        <strong>@L["Access denied"]</strong>
-        <span>@L["Your identity does not have permission to configure local users."]</span>
-    </section>
+    <EmptyState Title="@L["Access denied"].Value"
+                Message="@L["Your identity does not have permission to configure local users."].Value" />
 }
 else if (!Accounts.SupportsLocalUserAdministration)
 {
-    <section class="empty-state">
-        <strong>@L["Local users unavailable"]</strong>
-        <span>@L["The current authentication mode does not use the built-in local identity provider."]</span>
-    </section>
+    <EmptyState Title="@L["Local users unavailable"].Value"
+                Message="@L["The current authentication mode does not use the built-in local identity provider."].Value" />
 }
 else
 {

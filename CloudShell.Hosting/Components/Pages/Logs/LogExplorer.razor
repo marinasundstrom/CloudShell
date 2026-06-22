@@ -62,20 +62,16 @@ else if (ShowHeading)
     <div class="log-viewer @(UsePanel ? "panel" : null)">
         @if (selectionIssue is not null)
         {
-            <div class="empty-state">
-                <strong>@selectionIssue.Title</strong>
-                <span>@selectionIssue.Message</span>
+            <EmptyState Title="@selectionIssue.Title" Message="@selectionIssue.Message">
                 <FluentAnchor Appearance="Appearance.Neutral" Href="@selectionIssue.RecoveryHref">
                     @selectionIssue.RecoveryLabel
                 </FluentAnchor>
-            </div>
+            </EmptyState>
         }
         else if (selected is null)
         {
-            <div class="empty-state">
-                <strong>@L["No log selected"]</strong>
-                <span>@L["Select a log source to inspect recent entries."]</span>
-            </div>
+            <EmptyState Title="@L["No log selected"].Value"
+                        Message="@L["Select a log source to inspect recent entries."].Value" />
         }
         else
         {

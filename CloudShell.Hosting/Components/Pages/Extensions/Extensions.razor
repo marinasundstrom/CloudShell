@@ -10,10 +10,8 @@
 
 @if (!CanReadShell)
 {
-    <section class="empty-state">
-        <strong>@L["Access denied"]</strong>
-        <span>@L["Your identity does not have permission to view shell configuration."]</span>
-    </section>
+    <EmptyState Title="@L["Access denied"].Value"
+                Message="@L["Your identity does not have permission to view shell configuration."].Value" />
 }
 else
 {

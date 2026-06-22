@@ -12,10 +12,8 @@
 
 @if (!Authorization.CanReadAnyObservability())
 {
-    <section class="empty-state">
-        <strong>@L["Access denied"]</strong>
-        <span>@L["Your identity does not have permission to view observability data."]</span>
-    </section>
+    <EmptyState Title="@L["Access denied"].Value"
+                Message="@L["Your identity does not have permission to view observability data."].Value" />
 }
 else
 {

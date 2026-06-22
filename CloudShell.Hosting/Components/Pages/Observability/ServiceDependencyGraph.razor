@@ -95,10 +95,8 @@ else
 
     @if (graph.Edges.Count == 0)
     {
-        <div class="empty-state">
-            <strong>@L["No service edges"]</strong>
-            <span>@L["Start traced services and send traffic between them to populate this map."]</span>
-        </div>
+        <EmptyState Title="@L["No service edges"].Value"
+                    Message="@L["Start traced services and send traffic between them to populate this map."].Value" />
     }
     else
     {

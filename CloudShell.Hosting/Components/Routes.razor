@@ -11,10 +11,8 @@
         else
         {
             <LayoutView Layout="typeof(Layout.MainLayout)">
-                <div class="empty-state">
-                    <strong>Extension disabled</strong>
-                    <span>The extension that owns this page is not active.</span>
-                </div>
+                <EmptyState Title="Extension disabled"
+                            Message="The extension that owns this page is not active." />
             </LayoutView>
         }
     </Found>
