@@ -1861,9 +1861,10 @@ public sealed partial class DockerContainerResourceProvider :
         state?.ToLowerInvariant() switch
         {
             "running" => ResourceState.Running,
-            "created" or "restarting" => ResourceState.Starting,
+            "restarting" => ResourceState.Starting,
+            "removing" => ResourceState.Stopping,
             "paused" => ResourceState.Paused,
-            "exited" or "dead" => ResourceState.Stopped,
+            "created" or "exited" or "dead" => ResourceState.Stopped,
             _ => ResourceState.Unknown
         };
 

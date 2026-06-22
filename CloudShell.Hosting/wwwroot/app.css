@@ -2010,6 +2010,26 @@ h3 {
     color: var(--cloudshell-accent-foreground);
 }
 
+.health-resource-title {
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+}
+
+.contained-health-summary {
+    margin-top: .15rem;
+    color: var(--cloudshell-text-muted);
+    font-size: .74rem;
+}
+
+.contained-health-row {
+    background: color-mix(in srgb, var(--cloudshell-surface-muted) 58%, transparent);
+}
+
+.health-history-resource.contained {
+    margin-left: 1rem;
+}
+
 .endpoint-overview,
 .inline-resource-reference {
     display: inline-flex;

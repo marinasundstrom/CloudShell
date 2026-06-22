@@ -3682,9 +3682,13 @@ public sealed class ResourceDeclarationTests
             .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
             .First();
 
-        Assert.False(provider.CanMonitor(resource));
+        Assert.True(provider.CanMonitor(resource));
         Assert.True(resource.HasCapability(ResourceCapabilityIds.Monitoring));
-        Assert.Null(await provider.GetMonitoringSnapshotAsync(resource));
+        var parentSnapshot = await provider.GetMonitoringSnapshotAsync(resource);
+        Assert.NotNull(parentSnapshot);
+        Assert.Equal(resource.Id, parentSnapshot.ResourceId);
+        Assert.Equal("Unavailable", parentSnapshot.Status);
+        Assert.Empty(parentSnapshot.Metrics);
         Assert.True(replica.HasCapability(ResourceCapabilityIds.Monitoring));
         Assert.True(provider.CanMonitor(replica));
 
@@ -5562,6 +5566,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(ResourceSource.RuntimeController, resource.Source);
         Assert.Equal(ResourceManagementMode.RuntimeManaged, resource.ManagementMode);
         Assert.Equal(ResourceVisibility.Hidden, resource.Visibility);
+        Assert.Equal(ResourceState.Running, resource.State);
         Assert.Equal(ResourceCleanupBehavior.None, resource.CleanupBehavior);
         Assert.True(resource.HasCapability(ResourceCapabilityIds.LogSources));
         AssertDefaultContainerLogSource(resource);
@@ -5572,6 +5577,34 @@ public sealed class ResourceDeclarationTests
         var mapping = Assert.Single(resource.ResourceEndpointNetworkMappings);
         Assert.Equal("tcp://localhost:16379", mapping.Address);
         Assert.Equal(new ResourceEndpointReference(resource.Id, endpoint.Name), mapping.Target);
+    }
+
+    [Theory]
+    [InlineData("created", ResourceState.Stopped)]
+    [InlineData("restarting", ResourceState.Starting)]
+    [InlineData("removing", ResourceState.Stopping)]
+    [InlineData("exited", ResourceState.Stopped)]
+    [InlineData("dead", ResourceState.Stopped)]
+    public void DockerProvider_MapsDiscoveredContainerRuntimeState(
+        string dockerState,
+        ResourceState expectedState)
+    {
+        var mapContainer = typeof(DockerContainerResourceProvider)
+            .GetMethod("MapContainer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        var container = new DockerContainerListResponse
+        {
+            ID = $"container-{dockerState}",
+            Names = [$"/sample-{dockerState}"],
+            Image = "sample:latest",
+            State = dockerState,
+            Created = DateTime.UtcNow
+        };
+
+        var resource = Assert.IsType<Resource>(mapContainer?.Invoke(
+            null,
+            [container, DockerContainerResourceProvider.DefaultHostResourceId]));
+
+        Assert.Equal(expectedState, resource.State);
     }
 
     [Fact]
@@ -8987,6 +9020,31 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(
             app.ResourceAttributes[ResourceAttributeNames.ContainerRevision],
             app.ResourceAttributes[ResourceAttributeNames.DeploymentWorkloadVersion]);
+        Assert.True(app.EffectiveObservability.Metrics);
+        Assert.True(app.EffectiveObservability.Traces);
+        Assert.Collection(
+            app.EffectiveObservability.TelemetryScopes.OrderBy(scope => scope.ScopeResourceId, StringComparer.OrdinalIgnoreCase),
+            scope =>
+            {
+                Assert.Equal("runtime-container:application-api:replica-1", scope.ScopeResourceId);
+                Assert.Equal("Replica 1", scope.Name);
+                Assert.Equal("runtime", scope.Kind);
+                Assert.Equal("1", scope.ScopeAttributes[TelemetryAttributeNames.RuntimeReplicaOrdinal]);
+            },
+            scope =>
+            {
+                Assert.Equal("runtime-container:application-api:replica-2", scope.ScopeResourceId);
+                Assert.Equal("Replica 2", scope.Name);
+                Assert.Equal("runtime", scope.Kind);
+                Assert.Equal("2", scope.ScopeAttributes[TelemetryAttributeNames.RuntimeReplicaOrdinal]);
+            },
+            scope =>
+            {
+                Assert.Equal("runtime-container:application-api:replica-3", scope.ScopeResourceId);
+                Assert.Equal("Replica 3", scope.Name);
+                Assert.Equal("runtime", scope.Kind);
+                Assert.Equal("3", scope.ScopeAttributes[TelemetryAttributeNames.RuntimeReplicaOrdinal]);
+            });
         Assert.Equal(3, replicas.Length);
         Assert.All(replicas, replica =>
         {
@@ -8999,6 +9057,11 @@ public sealed class ResourceDeclarationTests
             Assert.Equal("runtime.container", replica.EffectiveTypeId);
             Assert.Equal(ResourceClass.Container, replica.ResourceClass);
             Assert.True(replica.HasCapability(ResourceCapabilityIds.Monitoring));
+            Assert.True(replica.HasCapability(ResourceCapabilityIds.LogSources));
+            var logSource = Assert.Single(replica.ResourceLogSources);
+            Assert.Equal("logs", logSource.Id);
+            Assert.Equal(ResourceLogSourceKind.Container, logSource.Kind);
+            Assert.Equal(ResourceLogSourceOrigin.ProviderProjected, logSource.Origin);
             Assert.Equal("containerReplica", replica.ResourceAttributes[ResourceAttributeNames.RuntimeKind]);
             Assert.Equal("3", replica.ResourceAttributes[ResourceAttributeNames.RuntimeReplicaCount]);
             Assert.Equal(
@@ -9022,6 +9085,32 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("1", replicas[0].ResourceAttributes[ResourceAttributeNames.RuntimeReplicaOrdinal]);
         Assert.Equal("2", replicas[1].ResourceAttributes[ResourceAttributeNames.RuntimeReplicaOrdinal]);
         Assert.Equal("3", replicas[2].ResourceAttributes[ResourceAttributeNames.RuntimeReplicaOrdinal]);
+
+        var logs = provider.GetLogs()
+            .Where(log => string.Equals(log.ProducerResourceId, app.Id, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(log => log.ResourceId, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        Assert.Collection(
+            logs,
+            log =>
+            {
+                Assert.Equal("runtime-container:application-api:replica-1", log.ResourceId);
+                Assert.Equal("Replica 1 logs", log.Name);
+                Assert.Equal(ResourceLogSourceOrigin.ProviderProjected, log.Origin);
+            },
+            log =>
+            {
+                Assert.Equal("runtime-container:application-api:replica-2", log.ResourceId);
+                Assert.Equal("Replica 2 logs", log.Name);
+                Assert.Equal(ResourceLogSourceOrigin.ProviderProjected, log.Origin);
+            },
+            log =>
+            {
+                Assert.Equal("runtime-container:application-api:replica-3", log.ResourceId);
+                Assert.Equal("Replica 3 logs", log.Name);
+                Assert.Equal(ResourceLogSourceOrigin.ProviderProjected, log.Origin);
+            });
     }
 
     [Fact]

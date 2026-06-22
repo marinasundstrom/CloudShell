@@ -140,7 +140,78 @@ public sealed partial class ApplicationResourceService(
                 .ToArray();
         }
 
+        if (TryGetRuntimeContainerLogTarget(logId, out var target))
+        {
+            return await ReadRuntimeContainerLogAsync(target, maxEntries, before, cancellationToken);
+        }
+
         return [];
+    }
+
+    private async Task<IReadOnlyList<LogEntry>> ReadRuntimeContainerLogAsync(
+        RuntimeContainerLogTarget target,
+        int maxEntries,
+        DateTimeOffset? before,
+        CancellationToken cancellationToken)
+    {
+        var engine = ResolveStaticContainerHost(target.Application);
+        if (engine is null)
+        {
+            return
+            [
+                new LogEntry(
+                    DateTimeOffset.UtcNow,
+                    "Runtime replica logs require a configured container host that the application provider can resolve without Resource Manager context.",
+                    "Error",
+                    target.Instance.Name)
+            ];
+        }
+
+        var arguments = new List<string>
+        {
+            "logs",
+            "--timestamps",
+            "--tail",
+            Math.Max(1, maxEntries).ToString(CultureInfo.InvariantCulture)
+        };
+        if (before is not null)
+        {
+            arguments.Add("--until");
+            arguments.Add(before.Value.AddTicks(-1).UtcDateTime.ToString("O", CultureInfo.InvariantCulture));
+        }
+
+        arguments.Add(target.Instance.Name);
+        var result = await CaptureContainerHostCommandAsync(
+            engine,
+            arguments,
+            cancellationToken,
+            dockerHostLogger);
+
+        var entries = ParseRuntimeContainerLogOutput(
+                result.Output,
+                target.Instance.Name,
+                null)
+            .Concat(ParseRuntimeContainerLogOutput(
+                result.Error,
+                target.Instance.Name,
+                result.ExitCode == 0 ? "Error" : null))
+            .ToArray();
+        if (result.ExitCode != 0 && entries.Length == 0)
+        {
+            return
+            [
+                new LogEntry(
+                    DateTimeOffset.UtcNow,
+                    "Container runtime did not return logs for the replica.",
+                    "Error",
+                    target.Instance.Name)
+            ];
+        }
+
+        return entries
+            .OrderBy(entry => entry.Timestamp)
+            .TakeLast(Math.Max(1, maxEntries))
+            .ToArray();
     }
 
     public async IAsyncEnumerable<LogEntry> StreamLogAsync(
@@ -165,7 +236,13 @@ public sealed partial class ApplicationResourceService(
         }
     }
 
-    private static IReadOnlyList<LogDescriptor> CreateLogDescriptors(ApplicationResourceDefinition application)
+    private IReadOnlyList<LogDescriptor> CreateLogDescriptors(ApplicationResourceDefinition application) =>
+    [
+        .. CreateApplicationLogDescriptors(application),
+        .. CreateRuntimeContainerLogDescriptors(application)
+    ];
+
+    private static IReadOnlyList<LogDescriptor> CreateApplicationLogDescriptors(ApplicationResourceDefinition application)
     {
         return
         [
@@ -185,6 +262,101 @@ public sealed partial class ApplicationResourceService(
                     LogSourceCapabilities.StructuredFields,
                 Purpose: ResourceLogSourcePurpose.Default)
         ];
+    }
+
+    private IReadOnlyList<LogDescriptor> CreateRuntimeContainerLogDescriptors(
+        ApplicationResourceDefinition application)
+    {
+        if (!IsReplicaModeEnabled(application))
+        {
+            return [];
+        }
+
+        var deployment = CreateDefaultContainerOrchestratorDeployment(application, ResourceState.Unknown);
+        return CreateDefaultContainerServiceInstances(deployment.Spec.Service)
+            .Select(instance =>
+            {
+                var resourceId = CreateRuntimeContainerResourceId(application.Id, instance.ReplicaOrdinal);
+                return new LogDescriptor(
+                    GetRuntimeContainerLogId(application.Id, instance.ReplicaOrdinal),
+                    $"Replica {instance.ReplicaOrdinal.ToString(CultureInfo.InvariantCulture)} logs",
+                    "Applications",
+                    instance.Name,
+                    LogSourceKind.Resource,
+                    ResourceId: resourceId,
+                    Description: "Runtime container stdout and stderr for this container app replica.",
+                    Kind: ResourceLogSourceKind.Container,
+                    Format: LogFormat.PlainText,
+                    Capabilities: LogSourceCapabilities.Read,
+                    ProducerResourceId: application.Id,
+                    Origin: ResourceLogSourceOrigin.ProviderProjected,
+                    Purpose: ResourceLogSourcePurpose.Default,
+                    Availability: LogSourceAvailability.ProducerRunning);
+            })
+            .ToArray();
+    }
+
+    private bool TryGetRuntimeContainerLogTarget(
+        string logId,
+        out RuntimeContainerLogTarget target)
+    {
+        foreach (var application in store.GetApplications().Select(ResolveDefinition).Where(IsReplicaModeEnabled))
+        {
+            var service = CreateDefaultContainerOrchestratorService(application);
+            foreach (var instance in CreateDefaultContainerServiceInstances(service))
+            {
+                if (string.Equals(
+                        logId,
+                        GetRuntimeContainerLogId(application.Id, instance.ReplicaOrdinal),
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    target = new RuntimeContainerLogTarget(application, instance);
+                    return true;
+                }
+            }
+        }
+
+        target = null!;
+        return false;
+    }
+
+    private static IReadOnlyList<LogEntry> ParseRuntimeContainerLogOutput(
+        string output,
+        string source,
+        string? severity)
+    {
+        if (string.IsNullOrWhiteSpace(output))
+        {
+            return [];
+        }
+
+        return output
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Select(line => ParseRuntimeContainerLogLine(line, source, severity))
+            .ToArray();
+    }
+
+    private static LogEntry ParseRuntimeContainerLogLine(
+        string line,
+        string source,
+        string? severity)
+    {
+        var normalized = line.TrimEnd('\r');
+        var timestamp = DateTimeOffset.UtcNow;
+        var message = normalized;
+        var separatorIndex = normalized.IndexOf(' ');
+        if (separatorIndex > 0 &&
+            DateTimeOffset.TryParse(
+                normalized[..separatorIndex],
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal,
+                out var parsedTimestamp))
+        {
+            timestamp = parsedTimestamp;
+            message = normalized[(separatorIndex + 1)..];
+        }
+
+        return new LogEntry(timestamp, message, severity, source);
     }
 
     public bool CanMonitor(Resource resource)
@@ -207,8 +379,7 @@ public sealed partial class ApplicationResourceService(
             return false;
         }
 
-        var resolved = ResolveDefinition(application);
-        return !IsContainerBacked(resolved) || !IsReplicaModeEnabled(resolved);
+        return true;
     }
 
     public async Task<ResourceMonitoringSnapshot?> GetMonitoringSnapshotAsync(
@@ -308,6 +479,16 @@ public sealed partial class ApplicationResourceService(
         }
 
         var service = CreateDefaultContainerOrchestratorService(application);
+        if (IsReplicaModeEnabled(application))
+        {
+            return await GetReplicatedContainerMonitoringSnapshotAsync(
+                resource,
+                application,
+                engine,
+                timestamp,
+                cancellationToken);
+        }
+
         return await GetContainerMonitoringSnapshotAsync(
             resource,
             engine,
@@ -316,6 +497,76 @@ public sealed partial class ApplicationResourceService(
             "Container runtime metrics.",
             "The container runtime did not return a stats snapshot.",
             cancellationToken);
+    }
+
+    private async Task<ResourceMonitoringSnapshot> GetReplicatedContainerMonitoringSnapshotAsync(
+        Resource resource,
+        ApplicationResourceDefinition application,
+        ContainerHostDescriptor engine,
+        DateTimeOffset timestamp,
+        CancellationToken cancellationToken)
+    {
+        var state = resource.State ?? ResourceState.Unknown;
+        var deployment = CreateDefaultContainerOrchestratorDeployment(application, state);
+        var metrics = new List<ResourceMetricSample>();
+        var unavailableMessages = new List<string>();
+        var available = 0;
+        var instances = CreateDefaultContainerServiceInstances(deployment.Spec.Service).ToArray();
+
+        foreach (var instance in instances)
+        {
+            var replicaResource = CreateRuntimeContainerResource(application, deployment, instance, state);
+            var snapshot = await GetContainerMonitoringSnapshotAsync(
+                replicaResource,
+                engine,
+                instance.Name,
+                timestamp,
+                "Container replica runtime metrics.",
+                "The container runtime did not return a stats snapshot for the replica.",
+                cancellationToken);
+
+            if (string.Equals(snapshot.Status, "Available", StringComparison.OrdinalIgnoreCase))
+            {
+                available++;
+                metrics.AddRange(snapshot.Metrics.Select(metric => ApplyRuntimeContainerMetricScope(metric, instance, deployment.RevisionId)));
+            }
+            else if (!string.IsNullOrWhiteSpace(snapshot.Message))
+            {
+                unavailableMessages.Add($"Replica {instance.ReplicaOrdinal.ToString(CultureInfo.InvariantCulture)}: {snapshot.Message}");
+            }
+        }
+
+        if (available == instances.Length)
+        {
+            return new ResourceMonitoringSnapshot(
+                resource.Id,
+                DisplayName,
+                DateTimeOffset.UtcNow,
+                metrics,
+                "Available",
+                $"{available.ToString(CultureInfo.InvariantCulture)}/{instances.Length.ToString(CultureInfo.InvariantCulture)} replica monitoring snapshots are available.");
+        }
+
+        if (available > 0)
+        {
+            return new ResourceMonitoringSnapshot(
+                resource.Id,
+                DisplayName,
+                DateTimeOffset.UtcNow,
+                metrics,
+                "Degraded",
+                $"{available.ToString(CultureInfo.InvariantCulture)}/{instances.Length.ToString(CultureInfo.InvariantCulture)} replica monitoring snapshots are available.");
+        }
+
+        return new ResourceMonitoringSnapshot(
+            resource.Id,
+            DisplayName,
+            timestamp,
+            [],
+            "Unavailable",
+            unavailableMessages.Count == 0
+                ? "The container runtime did not return stats snapshots for any replica."
+                : string.Join(' ', unavailableMessages));
     }
 
     private async Task<ResourceMonitoringSnapshot?> GetRuntimeContainerMonitoringSnapshotAsync(
@@ -420,6 +671,27 @@ public sealed partial class ApplicationResourceService(
             "Available",
             availableMessage);
     }
+
+    private static ResourceMetricSample ApplyRuntimeContainerMetricScope(
+        ResourceMetricSample metric,
+        ResourceOrchestratorServiceInstance instance,
+        string revision)
+    {
+        var attributes = new Dictionary<string, string>(metric.Attributes ?? new Dictionary<string, string>(), StringComparer.OrdinalIgnoreCase)
+        {
+            [TelemetryAttributeNames.RuntimeReplicaOrdinal] = instance.ReplicaOrdinal.ToString(CultureInfo.InvariantCulture),
+            [TelemetryAttributeNames.RuntimeReplicaCount] = instance.ReplicaCount.ToString(CultureInfo.InvariantCulture),
+            [TelemetryAttributeNames.RuntimeContainerName] = instance.Name,
+            [TelemetryAttributeNames.DeploymentRevision] = revision
+        };
+
+        return metric with
+        {
+            DisplayName = $"Replica {instance.ReplicaOrdinal.ToString(CultureInfo.InvariantCulture)} {metric.DisplayName ?? metric.Name}",
+            Attributes = attributes
+        };
+    }
+
 
     public async Task SetupApplicationAsync(
         ApplicationResourceDefinition definition,
@@ -3173,13 +3445,18 @@ public sealed partial class ApplicationResourceService(
             startInfo.ArgumentList.Add($"{hostPort}:{port.TargetPort}/{NormalizeContainerPublishProtocol(port.Protocol)}");
         }
 
-        foreach (var variable in await ResolveApplicationEnvironmentVariablesAsync(
-                     definition,
-                     dependsOn,
-                     resourceGroupId,
-                     resourceManager,
-                     includeAspNetCoreProjectVariables: false,
-                     cancellationToken))
+        var environmentVariables = await ResolveApplicationEnvironmentVariablesAsync(
+            definition,
+            dependsOn,
+            resourceGroupId,
+            resourceManager,
+            includeAspNetCoreProjectVariables: false,
+            cancellationToken);
+        environmentVariables = ApplyRuntimeContainerTelemetryScopeEnvironmentVariables(
+            definition,
+            instance,
+            environmentVariables);
+        foreach (var variable in environmentVariables)
         {
             startInfo.ArgumentList.Add("-e");
             startInfo.ArgumentList.Add($"{variable.Name}={variable.Value}");
@@ -4008,7 +4285,7 @@ public sealed partial class ApplicationResourceService(
             Actions: CreateActions(application, state),
             HealthChecks: CreateHealthChecks(application),
             RecoveryPolicies: application.RecoveryPolicies,
-            Observability: GetEffectiveObservability(application),
+            Observability: CreateResourceObservability(application),
             ResourceClass: projection.GetResourceClass(application),
             Attributes: CreateAttributes(application, state, projection),
             Capabilities: CreateCapabilities(application, endpoints),
@@ -4043,6 +4320,23 @@ public sealed partial class ApplicationResourceService(
                 Origin: ResourceLogSourceOrigin.ProviderDefault,
                 Purpose: ResourceLogSourcePurpose.Default,
                 Availability: LogSourceAvailability.ResourceRunning)
+        ];
+
+    private static IReadOnlyList<ResourceLogSource> CreateRuntimeContainerLogSources(
+        string producerResourceId,
+        ResourceOrchestratorServiceInstance instance) =>
+        [
+            new ResourceLogSource(
+                "logs",
+                $"Replica {instance.ReplicaOrdinal.ToString(CultureInfo.InvariantCulture)} logs",
+                ResourceLogSourceKind.Container,
+                Format: LogFormat.PlainText,
+                Capabilities: LogSourceCapabilities.Read,
+                ProducerResourceId: producerResourceId,
+                Description: "Runtime container stdout and stderr for this container app replica.",
+                Origin: ResourceLogSourceOrigin.ProviderProjected,
+                Purpose: ResourceLogSourcePurpose.Default,
+                Availability: LogSourceAvailability.ProducerRunning)
         ];
 
     private static ApplicationResourceProjection CreateInfrastructureProjection(
@@ -4155,7 +4449,12 @@ public sealed partial class ApplicationResourceService(
             HealthChecks: CreateRuntimeContainerHealthChecks(application, instance),
             ResourceClass: ResourceClass.Container,
             Attributes: attributes,
-            Capabilities: [new(ResourceCapabilityIds.Monitoring)],
+            Capabilities:
+            [
+                new(ResourceCapabilityIds.Monitoring),
+                new(ResourceCapabilityIds.LogSources)
+            ],
+            LogSources: CreateRuntimeContainerLogSources(application.Id, instance),
             EndpointNetworkMappings: CreateRuntimeContainerEndpointNetworkMappings(application, service, instance, state),
             Source: ResourceSource.Orchestrator,
             ManagementMode: ResourceManagementMode.RuntimeManaged,
@@ -5498,6 +5797,44 @@ public sealed partial class ApplicationResourceService(
             ? ResourceObservability.Default
             : ResourceObservability.None);
 
+    private ResourceObservability CreateResourceObservability(ApplicationResourceDefinition definition)
+    {
+        var observability = GetEffectiveObservability(definition);
+        if (!ApplicationResourceTypes.IsContainerApp(definition.ResourceType) ||
+            !IsReplicaModeEnabled(definition) ||
+            !observability.HasAnySignal)
+        {
+            return observability;
+        }
+
+        var deployment = CreateDefaultContainerOrchestratorDeployment(definition, GetState(definition.Id));
+        var scopes = CreateDefaultContainerServiceInstances(deployment.Spec.Service)
+            .Select(instance =>
+            {
+                var scopeAttributes = CreateRuntimeContainerTelemetryAttributes(
+                    definition,
+                    instance,
+                    deployment.RevisionId);
+                return new TelemetryScopeDescriptor(
+                    CreateRuntimeContainerResourceId(definition.Id, instance.ReplicaOrdinal),
+                    $"Replica {instance.ReplicaOrdinal.ToString(CultureInfo.InvariantCulture)}",
+                    "runtime",
+                    $"Runtime container replica {instance.ReplicaOrdinal.ToString(CultureInfo.InvariantCulture)} of {instance.ReplicaCount.ToString(CultureInfo.InvariantCulture)}.",
+                    deployment.RevisionId,
+                    scopeAttributes);
+            })
+            .ToArray();
+
+        return observability with
+        {
+            Scopes = observability.TelemetryScopes
+                .Concat(scopes)
+                .GroupBy(scope => scope.ScopeResourceId, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.Last())
+                .ToArray()
+        };
+    }
+
     private static ResourceObservability? NormalizeObservability(ResourceObservability? observability)
     {
         if (observability is null)
@@ -5545,7 +5882,65 @@ public sealed partial class ApplicationResourceService(
             ',',
             attributes
                 .Where(attribute => !string.IsNullOrWhiteSpace(attribute.Key))
-                .Select(attribute => $"{attribute.Key}={EscapeOtelAttributeValue(attribute.Value)}"));
+            .Select(attribute => $"{attribute.Key}={EscapeOtelAttributeValue(attribute.Value)}"));
+    }
+
+    private static IReadOnlyDictionary<string, string> CreateRuntimeContainerTelemetryAttributes(
+        ApplicationResourceDefinition definition,
+        ResourceOrchestratorServiceInstance instance,
+        string revision)
+    {
+        var resourceId = CreateRuntimeContainerResourceId(definition.Id, instance.ReplicaOrdinal);
+        return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [TelemetryAttributeNames.ScopeResourceId] = resourceId,
+            [TelemetryAttributeNames.ScopeName] = $"Replica {instance.ReplicaOrdinal.ToString(CultureInfo.InvariantCulture)}",
+            [TelemetryAttributeNames.ScopeKind] = "runtime",
+            [TelemetryAttributeNames.RuntimeReplicaOrdinal] = instance.ReplicaOrdinal.ToString(CultureInfo.InvariantCulture),
+            [TelemetryAttributeNames.RuntimeReplicaCount] = instance.ReplicaCount.ToString(CultureInfo.InvariantCulture),
+            [TelemetryAttributeNames.RuntimeContainerName] = instance.Name,
+            [TelemetryAttributeNames.DeploymentRevision] = revision
+        };
+    }
+
+    private IReadOnlyList<EnvironmentVariableAssignment> ApplyRuntimeContainerTelemetryScopeEnvironmentVariables(
+        ApplicationResourceDefinition definition,
+        ResourceOrchestratorServiceInstance instance,
+        IReadOnlyList<EnvironmentVariableAssignment> variables)
+    {
+        var observability = GetEffectiveObservability(definition);
+        if (!observability.HasAnySignal ||
+            !ApplicationResourceTypes.IsContainerApp(definition.ResourceType) ||
+            !IsReplicaModeEnabled(definition))
+        {
+            return variables;
+        }
+
+        var scopeAttributes = CreateRuntimeContainerTelemetryAttributes(
+            definition,
+            instance,
+            GetEffectiveContainerRevision(definition));
+        var encodedScopeAttributes = string.Join(
+            ',',
+            scopeAttributes.Select(attribute => $"{attribute.Key}={EscapeOtelAttributeValue(attribute.Value)}"));
+        var merged = variables.ToList();
+        var existingIndex = merged.FindIndex(variable =>
+            string.Equals(variable.Name, "OTEL_RESOURCE_ATTRIBUTES", StringComparison.OrdinalIgnoreCase));
+        if (existingIndex >= 0)
+        {
+            merged[existingIndex] = merged[existingIndex] with
+            {
+                Value = string.IsNullOrWhiteSpace(merged[existingIndex].Value)
+                    ? encodedScopeAttributes
+                    : $"{merged[existingIndex].Value},{encodedScopeAttributes}"
+            };
+        }
+        else
+        {
+            merged.Add(new EnvironmentVariableAssignment("OTEL_RESOURCE_ATTRIBUTES", encodedScopeAttributes));
+        }
+
+        return merged;
     }
 
     private static string EscapeOtelAttributeValue(string? value) =>
@@ -7182,6 +7577,9 @@ public sealed partial class ApplicationResourceService(
 
     private static string GetLogId(string applicationId) => $"{applicationId}:logs";
 
+    private static string GetRuntimeContainerLogId(string applicationId, int replica) =>
+        $"{CreateRuntimeContainerResourceId(applicationId, replica)}:logs";
+
     private static bool TryGetApplicationLogId(
         string logId,
         [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? applicationId) =>
@@ -7227,6 +7625,10 @@ public sealed partial class ApplicationResourceService(
         int ExitCode,
         string Output,
         string Error);
+
+    private sealed record RuntimeContainerLogTarget(
+        ApplicationResourceDefinition Application,
+        ResourceOrchestratorServiceInstance Instance);
 
     private sealed record ApplicationResourceTemplateConfiguration(
         string ExecutablePath,

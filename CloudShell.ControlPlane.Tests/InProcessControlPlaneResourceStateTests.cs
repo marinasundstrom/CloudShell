@@ -2907,6 +2907,61 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.Empty(hiddenStreamEntries);
     }
 
+    [Fact]
+    public async Task LogSourceReads_IncludeContainedResourceSourcesWhenParentIsReadable()
+    {
+        var parentId = "application:api";
+        var replicaId = "runtime-container:api:replica-1";
+        var logStore = new TestLogStore(
+            new LogDescriptor(
+                "parent-log",
+                "Parent",
+                "test",
+                "parent",
+                LogSourceKind.Resource,
+                parentId),
+            new LogDescriptor(
+                "replica-log",
+                "Replica",
+                "test",
+                "replica",
+                LogSourceKind.Resource,
+                replicaId),
+            new LogDescriptor(
+                "unrelated-log",
+                "Unrelated",
+                "test",
+                "unrelated",
+                LogSourceKind.Resource,
+                "hidden"));
+        var controlPlane = CreateControlPlane(
+            [
+                CreateResource(parentId, ResourceState.Running),
+                CreateRuntimeReplicaResource(parentId, 1),
+                CreateResource("hidden", ResourceState.Running)
+            ],
+            authorization: new PermissionAndResourceAuthorizationService(
+                [CloudShellPermissions.Observability.Logs.Read],
+                (parentId, CloudShellPermissions.Resources.Read)),
+            logStore: logStore);
+
+        var parentSources = await controlPlane.ListLogSourcesAsync(new LogQuery(ResourceId: parentId));
+        var allSources = await controlPlane.ListLogSourcesAsync();
+
+        Assert.Equal(
+            ["parent-log", "replica-log"],
+            parentSources
+                .Select(source => source.Id)
+                .OrderBy(id => id, StringComparer.OrdinalIgnoreCase)
+                .ToArray());
+        Assert.Equal(
+            ["parent-log", "replica-log"],
+            allSources
+                .Select(source => source.Id)
+                .OrderBy(id => id, StringComparer.OrdinalIgnoreCase)
+                .ToArray());
+    }
+
     private static IControlPlane CreateControlPlane(
         IReadOnlyList<Resource> resources,
         IResourceProvider? provider = null,

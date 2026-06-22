@@ -64,10 +64,17 @@ on `git blame --follow`, and then by the broad type of change.
 - Runtime replica health observations now roll up into an aggregate health
   assessment on the stable container app resource, and a Replicated Container
   Health sample verifies the parent assessment and scoped replica observations.
+- Container app Logs, Traces, Metrics, and Monitoring views now stay anchored
+  on the stable container app resource while projecting contained runtime
+  replica log sources, telemetry scopes, and replica-tagged resource metrics
+  for overview and drill-down.
 - The global Health page now includes visible resources with aggregate health
   assessments even when the concrete probe declarations live on projected
   runtime resources, while default summary counts stay focused on visible
   resources instead of hidden runtime projections.
+- The global Health page now groups contained runtime resources under their
+  parent resource with an expand affordance, keeping container apps as the
+  primary row while still allowing replica health inspection.
 - Container app Scale and replicas now shows each projected replica's health
   assessment, most relevant check detail, contributing check counts, and last
   observation time so runtime observations are visible next to replica state
@@ -86,6 +93,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Container application starts now materialize project-backed images before
   preparing the runtime service, and container app stops remove the replicated
   ingress container from the service-provider path.
+- Runtime-discovered Docker containers now map Docker `created` and terminal
+  states to `Stopped`, `restarting` to `Starting`, and `removing` to
+  `Stopping`, avoiding misleading startup status for projected containers.
 - Health status pills now have a shared `HealthPill` component used by the
   resource Health views, dashboard issue list, resource inventory, and
   container app replica table.

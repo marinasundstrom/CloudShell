@@ -826,7 +826,7 @@ public sealed class InProcessControlPlane(
     {
         cancellationToken.ThrowIfCancellationRequested();
         EnsureCanReadLogs();
-        return Task.FromResult(ApplyQuery(GetReadableLogs(), query));
+        return Task.FromResult(ApplyQuery(GetReadableLogs(), query, GetScopedResourceIds(query?.ResourceId)));
     }
 
     public Task<IReadOnlyList<LogSource>> ListLogSourcesAsync(
@@ -835,7 +835,7 @@ public sealed class InProcessControlPlane(
     {
         cancellationToken.ThrowIfCancellationRequested();
         EnsureCanReadLogs();
-        return Task.FromResult(ApplyQuery(GetReadableLogSources(), query));
+        return Task.FromResult(ApplyQuery(GetReadableLogSources(), query, GetScopedResourceIds(query?.ResourceId)));
     }
 
     public Task<LogSource?> GetLogSourceAsync(
@@ -2185,8 +2185,10 @@ public sealed class InProcessControlPlane(
         GetReadableLogSources()
             .FirstOrDefault(source => string.Equals(source.Id, logSourceId, StringComparison.OrdinalIgnoreCase));
 
-    private HashSet<string> GetReadableResourceIds() =>
-        resourceManager.GetResources()
+    private HashSet<string> GetReadableResourceIds()
+    {
+        var resources = resourceManager.GetResources();
+        var readable = resources
             .Where(resource =>
                 authorization.GetResourceAccessLevel(
                     resource.Id,
@@ -2194,6 +2196,18 @@ public sealed class InProcessControlPlane(
                     .AllowsRead())
             .Select(resource => resource.Id)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var resource in resources)
+        {
+            if ((!string.IsNullOrWhiteSpace(resource.ParentResourceId) && readable.Contains(resource.ParentResourceId)) ||
+                (!string.IsNullOrWhiteSpace(resource.OwnerResourceId) && readable.Contains(resource.OwnerResourceId)))
+            {
+                readable.Add(resource.Id);
+            }
+        }
+
+        return readable;
+    }
 
     private void AuthorizeResourceIdentityProvisioning(ResourceIdentityProvisioningPlan plan)
     {
@@ -2856,9 +2870,34 @@ public sealed class InProcessControlPlane(
             .ToArray();
     }
 
+    private IReadOnlySet<string>? GetScopedResourceIds(string? resourceId)
+    {
+        if (string.IsNullOrWhiteSpace(resourceId))
+        {
+            return null;
+        }
+
+        var normalizedResourceId = resourceId.Trim();
+        var scoped = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            normalizedResourceId
+        };
+        foreach (var resource in resourceManager.GetResources())
+        {
+            if (string.Equals(resource.ParentResourceId, normalizedResourceId, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(resource.OwnerResourceId, normalizedResourceId, StringComparison.OrdinalIgnoreCase))
+            {
+                scoped.Add(resource.Id);
+            }
+        }
+
+        return scoped;
+    }
+
     private static IReadOnlyList<LogDescriptor> ApplyQuery(
         IReadOnlyList<LogDescriptor> descriptors,
-        LogQuery? query)
+        LogQuery? query,
+        IReadOnlySet<string>? scopedResourceIds = null)
     {
         if (query is null)
         {
@@ -2869,7 +2908,9 @@ public sealed class InProcessControlPlane(
         if (!string.IsNullOrWhiteSpace(query.ResourceId))
         {
             filtered = filtered.Where(log =>
-                string.Equals(log.ResourceId, query.ResourceId, StringComparison.OrdinalIgnoreCase));
+                !string.IsNullOrWhiteSpace(log.ResourceId) &&
+                (scopedResourceIds?.Contains(log.ResourceId) == true ||
+                    string.Equals(log.ResourceId, query.ResourceId, StringComparison.OrdinalIgnoreCase)));
         }
 
         if (!string.IsNullOrWhiteSpace(query.ArtifactId))
@@ -2888,7 +2929,8 @@ public sealed class InProcessControlPlane(
 
     private static IReadOnlyList<LogSource> ApplyQuery(
         IReadOnlyList<LogSource> sources,
-        LogQuery? query)
+        LogQuery? query,
+        IReadOnlySet<string>? scopedResourceIds = null)
     {
         if (query is null)
         {
@@ -2899,7 +2941,9 @@ public sealed class InProcessControlPlane(
         if (!string.IsNullOrWhiteSpace(query.ResourceId))
         {
             filtered = filtered.Where(source =>
-                string.Equals(source.ResourceId, query.ResourceId, StringComparison.OrdinalIgnoreCase));
+                !string.IsNullOrWhiteSpace(source.ResourceId) &&
+                (scopedResourceIds?.Contains(source.ResourceId) == true ||
+                    string.Equals(source.ResourceId, query.ResourceId, StringComparison.OrdinalIgnoreCase)));
         }
 
         if (!string.IsNullOrWhiteSpace(query.ArtifactId))

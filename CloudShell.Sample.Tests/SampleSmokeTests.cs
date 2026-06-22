@@ -1959,6 +1959,17 @@ public sealed class SampleSmokeTests
         Assert.Equal("true", appAttributes.GetProperty(ResourceAttributeNames.ContainerReplicasEnabled).GetString());
         Assert.Equal("3", appAttributes.GetProperty(ResourceAttributeNames.ContainerReplicas).GetString());
         Assert.Equal("3", appAttributes.GetProperty(ResourceAttributeNames.DeploymentProjectedReplicas).GetString());
+        var telemetryScopes = app
+            .GetProperty("observability")
+            .GetProperty("scopes")
+            .EnumerateArray()
+            .OrderBy(scope => scope.GetProperty("scopeResourceId").GetString(), StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        Assert.Collection(
+            telemetryScopes,
+            scope => Assert.Equal("runtime-container:application-api:replica-1", scope.GetProperty("scopeResourceId").GetString()),
+            scope => Assert.Equal("runtime-container:application-api:replica-2", scope.GetProperty("scopeResourceId").GetString()),
+            scope => Assert.Equal("runtime-container:application-api:replica-3", scope.GetProperty("scopeResourceId").GetString()));
 
         var childrenJson = await host.GetStringAsync(
             $"/api/control-plane/v1/resources/{Uri.EscapeDataString("application:api")}/children");
@@ -1980,6 +1991,34 @@ public sealed class SampleSmokeTests
             Assert.Equal((int)ResourceManagementMode.RuntimeManaged, replica.GetProperty("managementMode").GetInt32());
             Assert.Equal((int)ResourceVisibility.Hidden, replica.GetProperty("visibility").GetInt32());
         });
+
+        var logSourcesJson = await host.GetStringAsync(
+            $"/api/control-plane/v1/log-sources?resourceId={Uri.EscapeDataString("application:api")}");
+        using var logSourcesDocument = JsonDocument.Parse(logSourcesJson);
+        var replicaLogSources = logSourcesDocument.RootElement.EnumerateArray()
+            .Where(source =>
+                source.TryGetProperty("producerResourceId", out var producer) &&
+                producer.GetString() == "application:api")
+            .OrderBy(source => source.GetProperty("resourceId").GetString(), StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        Assert.Collection(
+            replicaLogSources,
+            source =>
+            {
+                Assert.Equal("Replica 1 logs", source.GetProperty("name").GetString());
+                Assert.Equal("runtime-container:application-api:replica-1", source.GetProperty("resourceId").GetString());
+            },
+            source =>
+            {
+                Assert.Equal("Replica 2 logs", source.GetProperty("name").GetString());
+                Assert.Equal("runtime-container:application-api:replica-2", source.GetProperty("resourceId").GetString());
+            },
+            source =>
+            {
+                Assert.Equal("Replica 3 logs", source.GetProperty("name").GetString());
+                Assert.Equal("runtime-container:application-api:replica-3", source.GetProperty("resourceId").GetString());
+            });
 
         var summaryJson = await host.SendAsync(
             HttpMethod.Post,

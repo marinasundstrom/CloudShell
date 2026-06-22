@@ -139,6 +139,15 @@ surface for:
   events
 * resource monitoring summaries and per-replica runtime metrics
 
+When a container app is implemented by replicas, Resource Manager should keep
+users on the stable container app by default. Runtime replicas remain contained
+resources for diagnostics and provider correlation, but app-scoped Logs,
+Traces, Metrics, Monitoring, and Health views should list or filter the
+replica-owned signals under the container app instead of requiring users to
+navigate into each hidden replica. This containment presentation should be
+generic enough to apply to future service-like grouping resources when they
+own runtime children.
+
 Related resources should still be visible and navigable. A load balancer,
 virtual network, volume, DNS zone, or name mapping remains its own resource
 when it has independent lifecycle, provider configuration, diagnostics, or
@@ -173,6 +182,10 @@ Implemented pieces include:
 * hidden runtime-managed child resources for container app replica/container
   projections, parented to and owned by the stable container app resource,
   with deployment/service/revision correlation metadata
+* containment-aware operational projection where the container app resource
+  lists contained runtime replica log sources, telemetry scopes, monitoring
+  samples, and expandable health rows without merging the underlying signals
+  into a single artificial source
 * replicated HTTP health and liveness declarations projected onto hidden
   runtime replica resources, with active local Docker replicas materializing
   probe-only endpoint mappings and the stable container app receiving the
@@ -210,6 +223,13 @@ Implemented pieces include:
   deployment samples
 * local/default container-host path, host capability diagnostics, and
   application overview host placement/readiness display
+
+Automatic scaling policies remain deferred. The current model supports manual
+desired replica count changes. A future scaling policy should be declared on
+the container app and materialized by an orchestrator or provider using load,
+capacity, schedule, or provider-owned signals. That policy is separate from
+resource recovery: recovery restores a failed or degraded workload from
+liveness/lifecycle signals, while scaling changes desired capacity.
 
 ## MVP Implementation Plan
 

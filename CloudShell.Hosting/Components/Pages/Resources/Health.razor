@@ -79,23 +79,37 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var resource in ResourcesWithHealthChecks)
+                        @foreach (var resource in HealthResourceRows)
                         {
-                            var rows = GetHealthCheckRows(resource);
+                            var rows = GetHealthCheckRows(resource.Resource);
                             for (var index = 0; index < rows.Count; index++)
                             {
                                 var row = rows[index];
-                                <tr>
+                                <tr class="@(resource.Depth > 0 ? "contained-health-row" : null)">
                                     @if (index == 0)
                                     {
                                         <td rowspan="@rows.Count">
-                                            <ResourceTableIdentity IconName="@resource.EffectiveTypeId"
-                                                                   IconTitle="@resource.Kind"
-                                                                   Summary="@resource.Kind">
+                                            <ResourceTableIdentity IconName="@resource.Resource.EffectiveTypeId"
+                                                                   IconTitle="@resource.Resource.Kind"
+                                                                   Summary="@GetResourceSummary(resource)">
                                                 <TitleContent>
-                                                    <a class="resource-link" href="@BuildResourceRoute(resource.Id)">
-                                                        @resource.EffectiveDisplayName
-                                                    </a>
+                                                    <span class="health-resource-title" style="@GetResourceTitleIndent(resource.Depth)">
+                                                        @if (resource.Children.Count > 0)
+                                                        {
+                                                            <FluentButton Appearance="Appearance.Stealth"
+                                                                          Title="@GetContainmentToggleLabel(resource)"
+                                                                          AriaLabel="@GetContainmentToggleLabel(resource)"
+                                                                          IconStart="@GetContainmentToggleIcon(resource)"
+                                                                          OnClick="@(() => ToggleContainedResources(resource.Resource.Id))" />
+                                                        }
+                                                        <a class="resource-link" href="@BuildResourceRoute(resource.Resource.Id)">
+                                                            @resource.Resource.EffectiveDisplayName
+                                                        </a>
+                                                    </span>
+                                                    @if (resource.Children.Count > 0)
+                                                    {
+                                                        <span class="contained-health-summary">@GetContainedResourceSummary(resource.Children.Count)</span>
+                                                    }
                                                 </TitleContent>
                                             </ResourceTableIdentity>
                                         </td>
@@ -122,15 +136,15 @@
             </ResourceTable>
 
             <div class="health-history-grid" aria-label="@L["Recent health polling history"]">
-                @foreach (var resource in ResourcesWithHealthChecks)
+                @foreach (var resource in HealthResourceRows)
                 {
-                    <div class="health-history-resource">
-                        <a class="resource-link" href="@BuildResourceRoute(resource.Id)">
-                            <strong>@resource.EffectiveDisplayName</strong>
+                    <div class="health-history-resource @(resource.Depth > 0 ? "contained" : null)">
+                        <a class="resource-link" href="@BuildResourceRoute(resource.Resource.Id)">
+                            <strong>@resource.Resource.EffectiveDisplayName</strong>
                         </a>
                         <ResourceHealthHistoryChart Compact="true"
-                                                    Checks="GetChartChecks(resource)"
-                                                    Snapshots="GetHealthSnapshots(resource)"
+                                                    Checks="GetChartChecks(resource.Resource)"
+                                                    Snapshots="GetHealthSnapshots(resource.Resource)"
                                                     Title="@L["Recent polling"].Value" />
                     </div>
                 }
@@ -151,14 +165,14 @@
         else
         {
             <ShellActivityList>
-                @foreach (var resource in ResourcesWithHealthChecks)
+                @foreach (var resource in HealthResourceRows)
                 {
-                    var summary = GetHealthSummary(resource);
-                    <ShellActivityLink Href="@BuildResourceRoute(resource.Id)"
-                                       Title="@resource.EffectiveDisplayName"
-                                       Summary="@L["{0} check(s)", GetHealthCheckCount(resource)].Value">
+                    var summary = GetHealthSummary(resource.Resource);
+                    <ShellActivityLink Href="@BuildResourceRoute(resource.Resource.Id)"
+                                       Title="@resource.Resource.EffectiveDisplayName"
+                                       Summary="@GetActivitySummary(resource)">
                         <Leading>
-                            <ResourceKindIcon Resource="resource" />
+                            <ResourceKindIcon Resource="@resource.Resource" />
                         </Leading>
                         <Trailing>
                             <HealthPill Status="summary?.Status" Label="@GetHealthLabel(summary?.Status)" />
@@ -179,6 +193,9 @@
     private IReadOnlyDictionary<string, IReadOnlyList<ResourceHealthSummary>> HealthSnapshotsByResourceId { get; set; } =
         new Dictionary<string, IReadOnlyList<ResourceHealthSummary>>(StringComparer.OrdinalIgnoreCase);
 
+    private HashSet<string> ExpandedContainedResourceIds { get; } =
+        new(StringComparer.OrdinalIgnoreCase);
+
     private bool IsCheckingHealth { get; set; }
 
     private CancellationTokenSource? PollingCancellation { get; set; }
@@ -189,6 +206,8 @@
             .OrderBy(resource => GetHealthRank(GetHealthSummary(resource)?.Status))
             .ThenBy(resource => resource.EffectiveDisplayName, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+
+    private IReadOnlyList<HealthResourceRow> HealthResourceRows => BuildHealthResourceRows();
 
     private int TotalConfiguredChecks =>
         ResourcesWithHealthChecks.Sum(GetHealthCheckCount);
@@ -271,6 +290,85 @@
         {
         }
     }
+
+    private IReadOnlyList<HealthResourceRow> BuildHealthResourceRows()
+    {
+        var resources = ResourcesWithHealthChecks;
+        var resourceIds = resources
+            .Select(resource => resource.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var childrenByContainer = resources
+            .Where(resource => GetContainingResourceId(resource) is { } containerId && resourceIds.Contains(containerId))
+            .GroupBy(resource => GetContainingResourceId(resource)!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => group
+                    .OrderBy(resource => GetHealthRank(GetHealthSummary(resource)?.Status))
+                    .ThenBy(resource => resource.EffectiveDisplayName, StringComparer.OrdinalIgnoreCase)
+                    .ToArray(),
+                StringComparer.OrdinalIgnoreCase);
+        var rows = new List<HealthResourceRow>();
+        foreach (var resource in resources)
+        {
+            if (GetContainingResourceId(resource) is { } containerId && resourceIds.Contains(containerId))
+            {
+                continue;
+            }
+
+            var children = childrenByContainer.GetValueOrDefault(resource.Id) ?? [];
+            rows.Add(new HealthResourceRow(resource, 0, children));
+            if (ExpandedContainedResourceIds.Contains(resource.Id))
+            {
+                rows.AddRange(children.Select(child => new HealthResourceRow(child, 1, [])));
+            }
+        }
+
+        return rows;
+    }
+
+    private static string? GetContainingResourceId(Resource resource) =>
+        !string.IsNullOrWhiteSpace(resource.ParentResourceId)
+            ? resource.ParentResourceId
+            : resource.OwnerResourceId;
+
+    private void ToggleContainedResources(string resourceId)
+    {
+        if (!ExpandedContainedResourceIds.Add(resourceId))
+        {
+            ExpandedContainedResourceIds.Remove(resourceId);
+        }
+    }
+
+    private Icon GetContainmentToggleIcon(HealthResourceRow row) =>
+        ExpandedContainedResourceIds.Contains(row.Resource.Id)
+            ? new Icons.Regular.Size16.ChevronDown()
+            : new Icons.Regular.Size16.ChevronRight();
+
+    private string GetContainmentToggleLabel(HealthResourceRow row) =>
+        ExpandedContainedResourceIds.Contains(row.Resource.Id)
+            ? L["Collapse contained resources"].Value
+            : L["Expand contained resources"].Value;
+
+    private string GetResourceSummary(HealthResourceRow row) =>
+        row.Depth > 0
+            ? L["Contained resource"].Value
+            : row.Resource.Kind;
+
+    private string GetActivitySummary(HealthResourceRow row)
+    {
+        var summary = L["{0} check(s)", GetHealthCheckCount(row.Resource)].Value;
+        return row.Children.Count == 0
+            ? summary
+            : L["{0}; {1} contained resource(s)", summary, row.Children.Count].Value;
+    }
+
+    private string GetContainedResourceSummary(int count) =>
+        L["{0} contained resource(s)", count].Value;
+
+    private static string GetResourceTitleIndent(int depth) =>
+        depth <= 0
+            ? string.Empty
+            : $"padding-left: {(depth * 1.25).ToString(System.Globalization.CultureInfo.InvariantCulture)}rem";
 
     private TimeSpan GetHealthCheckInterval() =>
         TimeSpan.FromSeconds(GetHealthCheckIntervalSeconds());
@@ -406,6 +504,11 @@
         PollingCancellation?.Cancel();
         PollingCancellation?.Dispose();
     }
+
+    private sealed record HealthResourceRow(
+        Resource Resource,
+        int Depth,
+        IReadOnlyList<Resource> Children);
 
     private sealed record HealthCheckRow(
         ResourceHealthCheck Check,

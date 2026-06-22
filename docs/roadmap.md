@@ -596,6 +596,12 @@ listed here before pulling in broader proposal work.
    those children only where container apps need provider-observed container
    IDs, health, placement, or materialization diagnostics, not as a broad
    public deployment product surface.
+   Operational views should remain containment-aware: the stable resource is
+   the default row or page, while hidden runtime children such as container app
+   replicas appear as expandable details, log sources, telemetry scopes, or
+   metric dimensions. The same pattern should be reusable for future
+   containment resources such as `cloudshell.service` if they project runtime
+   children.
 15. Advanced app and environment concepts: defer autoscaling, backend pools,
    traffic splitting, provider-backed network-level service discovery,
    provider-backed DNS propagation, external deployment projection,
@@ -1152,8 +1158,11 @@ listed here before pulling in broader proposal work.
 
 ### Later: Advanced App and Environment Concepts
 
-- Defer container app autoscaling beyond the current explicit replica-count
-  API.
+- Defer container app scaling policies beyond the current explicit
+  replica-count API. A future policy can decide when to expand or shrink
+  desired replicas from load, capacity, schedule, or provider signals, but it
+  should remain separate from recovery policy, which reacts to liveness and
+  lifecycle failure.
 - Defer backend pools, TLS binding, traffic splitting, advanced service
   exposure, DNS/name mapping, external deployment projection, and container
   application environments until host, routing, identity, runtime ownership,
