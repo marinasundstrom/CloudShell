@@ -42,7 +42,7 @@
     </div>
 </section>
 
-<section class="metric-grid">
+<SummaryMetricGrid AriaLabel="@L["Dashboard summary"].Value">
     <SummaryMetricCard Title="@L["Resources"].Value"
                        Value="@Resources.Count"
                        Summary="@L["{0} with lifecycle state", StatefulResourceCount].Value"
@@ -62,7 +62,7 @@
                        Summary="@L["Failed traces in recent telemetry"].Value"
                        IconName="request-failures"
                        Warning="@(RequestFailureCount > 0)" />
-</section>
+</SummaryMetricGrid>
 
 <section class="dashboard-grid">
     <article class="panel panel-wide">

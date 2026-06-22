@@ -34,7 +34,7 @@
     </div>
 </section>
 
-<section class="metric-grid">
+<SummaryMetricGrid AriaLabel="@L["Health summary"].Value">
     <SummaryMetricCard Title="@L["Resources with checks"].Value"
                        Value="@ResourcesWithHealthChecks.Count"
                        Summary="@L["{0} configured check(s)", TotalConfiguredChecks].Value"
@@ -52,7 +52,7 @@
                        Value="@UnknownResourceCount"
                        Summary="@L["Missing endpoint or inconclusive result"].Value"
                        IconName="unknown" />
-</section>
+</SummaryMetricGrid>
 
 <section class="dashboard-grid">
     <article class="panel panel-wide">

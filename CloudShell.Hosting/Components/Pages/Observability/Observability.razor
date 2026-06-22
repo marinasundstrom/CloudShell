@@ -36,7 +36,7 @@ else
         }
     </section>
 
-    <section class="metric-grid">
+    <SummaryMetricGrid AriaLabel="@L["Observability summary"].Value">
         <SummaryMetricCard Title="@L["Telemetry resources"].Value"
                            Value="@TelemetryResourceCount"
                            Summary="@L["Resources declaring logs, traces, or metrics"].Value"
@@ -62,7 +62,7 @@ else
                                Summary="@L["{0} observed service(s)", ObservedServices.Count].Value"
                                IconName="metrics" />
         }
-    </section>
+    </SummaryMetricGrid>
 
     <section class="dashboard-grid">
     <article class="panel panel-wide">
