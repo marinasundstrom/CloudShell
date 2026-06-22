@@ -48,6 +48,17 @@ add Fluent UI presenters for shell navigation, settings, and Resource Manager
 surfaces, while the standalone sample can continue proving generic behavior
 with plain Bootstrap or custom CSS.
 
+Extensions can still use their own UI or component stack for extension-owned
+surfaces. Shell composition does not require every extension component to be a
+CloudShell Fluent component. It requires that shell-owned surfaces are
+integrated through shell contracts: menu contributions, page registrations,
+section outlets, settings sections, notifications, and future layout services.
+The active shell renders those contracts through its presenters. From an
+extension author's point of view this should feel like using native shell
+services such as a `NotificationsManager`, `LayoutManager`, or composition
+manager while leaving the extension free to own custom UI where the shell has
+only provided a host area.
+
 ## Status
 
 Proposed. This is post-MVP platform direction. MVP work should keep Resource

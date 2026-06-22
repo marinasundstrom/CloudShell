@@ -69,6 +69,16 @@ integrations should consume `IControlPlane` and other public domain managers so
 the same UI code works with either an in-process Control Plane or a remote
 adapter.
 
+UI extensions do not have to use the same component stack everywhere. They can
+render extension-owned pages or tools with their own presenters when they own
+that surface. Shell-owned areas are different: menus, pages, sections,
+settings, notifications, and other CMS-like shell surfaces should be integrated
+through CloudShell extension services and public contracts. A concrete shell
+implementation then renders those contributions with its chosen presenters.
+This lets an extension call a layout, notification, or composition service as a
+normal integration point without depending on `CloudShell.Hosting` internals or
+the Fluent UI presenters used by the built-in shell.
+
 ## Entry Point
 
 Implement one `ICloudShellExtension`:

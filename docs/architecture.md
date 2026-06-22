@@ -45,6 +45,12 @@ using a different UI component stack. Extension-facing contracts should be
 defined through public abstractions and services first. A concrete CloudShell
 UI package then adapts those contracts into its chosen rendering stack,
 whether Fluent UI, plain Blazor components, or another presenter set.
+An extension can still implement its own presenters and component stack for
+surfaces it owns. The boundary is that shell-owned areas such as menus, pages,
+sections, notifications, and settings are integrated through shell contracts
+and services. From the extension's perspective those services should feel like
+normal product services, such as a notification manager or layout manager,
+even though the active shell decides how the result is rendered.
 
 ### Control Plane
 
@@ -205,7 +211,9 @@ an abstraction for producers and consumers, while CloudShell UI can provide an
 optional integration package that renders those notifications in the shell.
 Extensions should be able to hook into the notification service or another
 shell-owned service without referencing the UI components that happen to render
-it.
+it. The same pattern applies to composition: extension authors should be able
+to target menu, page, section, and settings contracts without depending on the
+CloudShell UI presenters that render those artifacts.
 
 ## Hosting shapes
 
