@@ -2,7 +2,7 @@ using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.Providers.Applications;
 
-internal static class ApplicationResourceProjectionSupport
+public static class ApplicationResourceProjectionSupport
 {
     public static string? FirstNonEmpty(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();

@@ -70,6 +70,14 @@ remain contained under the application resource unless the user intentionally
 models them as independent resources. See
 [Application resources](resources/application-resources.md).
 
+Application-like provider packages can reuse the first shared application
+provider seam by subclassing `ApplicationResourceTypeProvider` and supplying an
+`ApplicationResourceProjection` for their own resource type. The shared
+projection source keeps custom application resources on the same declaration,
+template, lifecycle, log, monitoring, and orchestration descriptor path as the
+built-in application providers while the custom provider keeps its own provider
+identity and resource type.
+
 ## Declarative Resource Graph
 
 Programmatic resources can also be used in an Aspire-like style for local

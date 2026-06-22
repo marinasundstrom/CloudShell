@@ -84,13 +84,27 @@ the containing application as the normal management surface. The orchestrator,
 not the application provider author, owns the lifecycle of orchestrator-managed
 replicas, runtime services, and other materialized implementation artifacts.
 
-The long-term direction is to promote the reusable application-resource base
-into a stable extension point for CloudShell-owned and third-party application
-resource providers. The current shared service and type-provider base are still
-built-in infrastructure, not a stable public API. Until the abstractions are
-documented, tested as extension contracts, and marked stable, provider authors
-should treat them as dogfooded internal infrastructure rather than a supported
-NuGet extension surface.
+The first reusable extension seam is now explicit. Provider authors that want
+to project application-like resources can reference
+`CloudShell.Providers.Applications`, create `ApplicationResourceDefinition`
+instances for their authored resource type, and subclass
+`ApplicationResourceTypeProvider` with an `ApplicationResourceProjection`. The
+base provider forwards common resource-provider responsibilities to
+`ApplicationResourceService`, including projection, templates, declarations,
+lifecycle actions, orchestration descriptors, auto-start policy, and action
+availability. `IApplicationResourceProjectionSource` and
+`ApplicationResourceProjectionSupport` let custom providers reuse the same
+definition-to-resource projection path and workload-kind conventions as the
+built-in executable, ASP.NET Core project, container app, and SQL Server
+providers.
+
+This is an initial shared application-resource provider contract, not the full
+toolkit. Runtime execution, environment variable resolution, app settings,
+container-host materialization, process tracking, and host-scoped cleanup are
+still implemented by the built-in application provider service. Future slices
+should split those responsibilities into smaller provider-facing services only
+when a concrete external resource author would otherwise need to duplicate
+them or depend on provider-private details.
 
 ## Endpoint And Exposure Model
 

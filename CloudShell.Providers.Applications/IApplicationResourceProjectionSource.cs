@@ -2,12 +2,12 @@ using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.Providers.Applications;
 
-internal interface IApplicationResourceProjectionSource
+public interface IApplicationResourceProjectionSource
 {
     IReadOnlyList<Resource> GetResources(ApplicationResourceProjection projection);
 }
 
-internal sealed record ApplicationResourceProjection(
+public sealed record ApplicationResourceProjection(
     Func<ApplicationResourceDefinition, bool> CanProject,
     Func<ApplicationResourceDefinition, string> GetResourceKind,
     Func<ApplicationResourceDefinition, string> GetResourceVersion,

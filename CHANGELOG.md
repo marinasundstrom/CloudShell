@@ -68,6 +68,11 @@ on `git blame --follow`, and then by the broad type of change.
   on the stable container app resource while projecting contained runtime
   replica log sources, telemetry scopes, and replica-tagged resource metrics
   for overview and drill-down.
+- The shared application-resource projection seam is now public: custom
+  application-like providers can subclass `ApplicationResourceTypeProvider`
+  and provide an `ApplicationResourceProjection` while reusing the common
+  application declaration, template, lifecycle, descriptor, and action
+  availability path.
 - The global Health page now includes visible resources with aggregate health
   assessments even when the concrete probe declarations live on projected
   runtime resources, while default summary counts stay focused on visible

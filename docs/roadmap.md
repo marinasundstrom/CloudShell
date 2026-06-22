@@ -602,6 +602,14 @@ listed here before pulling in broader proposal work.
    metric dimensions. The same pattern should be reusable for future
    containment resources such as `cloudshell.service` if they project runtime
    children.
+   The first shared application-resource provider seam is public, allowing
+   custom application-like providers to reuse common projection, declaration,
+   template, lifecycle, descriptor, and action-availability forwarding through
+   `ApplicationResourceTypeProvider`. Next slices should audit the remaining
+   `ApplicationResourceService` responsibilities and extract smaller
+   provider-facing services for runtime execution, environment resolution,
+   container materialization, log projection, and host-scoped cleanup only
+   where extension authors need stable reuse.
 15. Advanced app and environment concepts: defer autoscaling, backend pools,
    traffic splitting, provider-backed network-level service discovery,
    provider-backed DNS propagation, external deployment projection,

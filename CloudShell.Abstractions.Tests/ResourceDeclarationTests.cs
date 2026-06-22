@@ -3157,6 +3157,49 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void ApplicationProvider_AllowsCustomTypeProvidersToReuseSharedProjection()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider(options =>
+            {
+                options.DefinitionsPath = "application-resources.json";
+                options.RuntimeStatePath = "application-runtime-state.json";
+                options.LogDirectory = "application-logs";
+                options.InitialApplications.Add(new ApplicationResourceDefinition(
+                    "application:custom-worker",
+                    "Custom Worker",
+                    "dotnet",
+                    resourceType: CustomApplicationResourceProvider.ResourceType));
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = new CustomApplicationResourceProvider(
+            serviceProvider.GetRequiredService<IApplicationResourceProjectionSource>(),
+            serviceProvider.GetRequiredService<ApplicationResourceService>());
+
+        var resource = Assert.Single(provider.GetResources());
+
+        Assert.Equal(CustomApplicationResourceProvider.ProviderId, provider.Id);
+        Assert.IsAssignableFrom<IResourceProvider>(provider);
+        Assert.IsAssignableFrom<IResourceProcedureProvider>(provider);
+        Assert.IsAssignableFrom<IResourceTemplateProvider>(provider);
+        Assert.IsAssignableFrom<IProgrammaticResourceDeclarationProvider>(provider);
+        Assert.IsAssignableFrom<IResourceOrchestrationDescriptorProvider>(provider);
+        Assert.IsAssignableFrom<IResourceActionAvailabilityProvider>(provider);
+        Assert.Equal("application:custom-worker", resource.Id);
+        Assert.Equal(CustomApplicationResourceProvider.ResourceType, resource.EffectiveTypeId);
+        Assert.Equal("Custom application", resource.Kind);
+        Assert.Equal(ResourceClass.Service, resource.ResourceClass);
+        Assert.Equal("custom-worker", resource.Version);
+        Assert.Equal("custom-worker", resource.ResourceAttributes[ResourceAttributeNames.WorkloadKind]);
+    }
+
+    [Fact]
     [Trait("Category", "Integration")]
     public async Task ApplicationProvider_ThrowsWhenContainerHostProcessExitsDuringStartup()
     {
@@ -11125,6 +11168,32 @@ public sealed class ResourceDeclarationTests
             string description,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
+    }
+
+    private sealed class CustomApplicationResourceProvider(
+        IApplicationResourceProjectionSource projections,
+        ApplicationResourceService applications)
+        : ApplicationResourceTypeProvider(projections, applications)
+    {
+        public const string ProviderId = "custom.application";
+
+        public const string ResourceType = "custom.application-worker";
+
+        public override string Id => ProviderId;
+
+        protected override ApplicationResourceProjection Projection { get; } = new(
+            application => string.Equals(application.ResourceType, ResourceType, StringComparison.OrdinalIgnoreCase),
+            _ => "Custom application",
+            application => NormalizeCustomName(application),
+            application => ApplicationResourceProjectionSupport.FirstNonEmpty(
+                NormalizeCustomName(application),
+                "custom") ?? "custom",
+            _ => ResourceClass.Service);
+
+        private static string NormalizeCustomName(ApplicationResourceDefinition application) =>
+            ApplicationResourceProjectionSupport.FirstNonEmpty(application.Name, application.Id)?
+                .ToLowerInvariant()
+                .Replace(' ', '-') ?? "custom";
     }
 
     private sealed class TestHostEnvironment(string contentRootPath) : IHostEnvironment

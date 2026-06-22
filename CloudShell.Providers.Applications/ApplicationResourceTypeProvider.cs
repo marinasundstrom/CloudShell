@@ -2,7 +2,7 @@ using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.Providers.Applications;
 
-internal abstract class ApplicationResourceTypeProvider(
+public abstract class ApplicationResourceTypeProvider(
     IApplicationResourceProjectionSource projections,
     ApplicationResourceService applications) :
     IResourceProvider,
