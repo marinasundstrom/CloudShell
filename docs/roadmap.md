@@ -606,11 +606,15 @@ listed here before pulling in broader proposal work.
    The first shared application-resource provider seam is public, allowing
    custom application-like providers to reuse common projection, declaration,
    template, lifecycle, descriptor, and action-availability forwarding through
-   `ApplicationResourceTypeProvider`. Next slices should audit the remaining
-   `ApplicationResourceService` responsibilities and extract smaller
-   provider-facing services for runtime execution, environment resolution,
-   container materialization, log projection, and host-scoped cleanup only
-   where extension authors need stable reuse. Treat application runtime
+   `ApplicationResourceTypeProvider`. `ApplicationResourceService` remains the
+   built-in provider facade rather than the desired final abstraction: it still
+   coordinates projection, lifecycle, templates, declarations, descriptors,
+   logging, monitoring, configuration updates, SQL access, runtime execution,
+   container materialization, process tracking, and host-scoped cleanup. Next
+   slices should extract role-specific provider-facing services and adapters
+   for runtime execution, environment resolution, container materialization,
+   log projection, monitoring, endpoint/volume helpers, and host-scoped cleanup
+   only where extension authors need stable reuse. Treat application runtime
    materialization as broader than projection: an application resource may own
    local processes, ad-hoc containers, and Resource Manager-managed
    sub-resources, while projecting only the artifacts whose resource identity

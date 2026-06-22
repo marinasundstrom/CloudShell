@@ -86,6 +86,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Application runtime log parsing and resource log source projection are now
   factored out of `ApplicationResourceService`, starting the shared
   application infrastructure cleanup without changing provider behavior.
+- `ApplicationResourceService` is now documented as the built-in application
+  provider facade rather than the desired final abstraction; future shared
+  application infrastructure should split role-specific provider-facing
+  services only where extension authors need stable reuse.
 - Container-host command execution and capture are now factored out of
   `ApplicationResourceService`, keeping Docker/Podman process invocation,
   environment setup, command logging, and output capture behind a smaller

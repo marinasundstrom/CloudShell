@@ -128,16 +128,19 @@ built-in executable, ASP.NET Core project, container app, and SQL Server
 providers.
 
 This is an initial shared application-resource provider contract, not the full
-toolkit. The direction is to separate provider-neutral primitives from the
-built-in provider's concrete implementation details, so external resource
-authors can reuse common declaration, projection, process-definition, logging,
-and container-host command infrastructure without depending on
-`ApplicationResourceService` internals. Runtime execution, environment variable
-resolution, app settings, container-host materialization, process tracking, and
-host-scoped cleanup are still mostly implemented by the built-in application
-provider service. Future slices should keep extracting smaller provider-facing
-services only when a concrete external resource author would otherwise need to
-duplicate them or depend on provider-private details.
+toolkit. `ApplicationResourceService` is currently the built-in application
+provider facade and coordinates several roles: projection source, lifecycle
+actions, templates, declarations, descriptors, logs, monitoring,
+configuration updates, SQL access, runtime execution, container
+materialization, process tracking, and host-scoped cleanup. The direction is
+to separate provider-neutral primitives from the built-in provider's concrete
+implementation details, so external resource authors can reuse common
+declaration, projection, process-definition, logging, monitoring, endpoint,
+volume, and container-host command infrastructure without depending on
+`ApplicationResourceService` internals. Future slices should extract
+role-specific provider-facing services and adapters only when a concrete
+external resource author would otherwise need to duplicate behavior or depend
+on provider-private details.
 
 ## Endpoint And Exposure Model
 
