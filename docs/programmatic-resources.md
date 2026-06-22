@@ -76,7 +76,10 @@ provider seam by subclassing `ApplicationResourceTypeProvider` and supplying an
 projection source keeps custom application resources on the same declaration,
 template, lifecycle, log, monitoring, and orchestration descriptor path as the
 built-in application providers while the custom provider keeps its own provider
-identity and resource type.
+identity and resource type. The base provider depends on
+`IApplicationResourceProviderOperations`; specialized providers can add only the
+role-specific contracts they need instead of depending on the whole built-in
+application provider facade.
 
 ## Declarative Resource Graph
 

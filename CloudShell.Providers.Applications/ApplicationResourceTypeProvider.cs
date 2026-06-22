@@ -4,7 +4,7 @@ namespace CloudShell.Providers.Applications;
 
 public abstract class ApplicationResourceTypeProvider(
     IApplicationResourceProjectionSource projections,
-    ApplicationResourceService applications) :
+    IApplicationResourceProviderOperations applications) :
     IResourceProvider,
     IResourceProcedureProvider,
     IResourceTemplateProvider,
@@ -17,7 +17,7 @@ public abstract class ApplicationResourceTypeProvider(
 
     public string DisplayName => "Applications";
 
-    protected ApplicationResourceService Applications { get; } = applications;
+    protected IApplicationResourceProviderOperations Applications { get; } = applications;
 
     protected abstract ApplicationResourceProjection Projection { get; }
 

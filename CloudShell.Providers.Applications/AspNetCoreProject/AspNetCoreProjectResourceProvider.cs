@@ -4,7 +4,7 @@ namespace CloudShell.Providers.Applications;
 
 internal sealed class AspNetCoreProjectResourceProvider(
     IApplicationResourceProjectionSource projections,
-    ApplicationResourceService applications)
+    IApplicationResourceProviderOperations applications)
     : ApplicationResourceTypeProvider(projections, applications)
 {
     public const string ProviderId = ApplicationResourceProviderIds.AspNetCoreProject;

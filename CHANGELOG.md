@@ -73,6 +73,10 @@ on `git blame --follow`, and then by the broad type of change.
   and provide an `ApplicationResourceProjection` while reusing the common
   application declaration, template, lifecycle, descriptor, and action
   availability path.
+- Built-in application resource providers now consume narrower provider-facing
+  operation contracts for common application behavior, container-app behavior,
+  and SQL Server permission status instead of taking a direct dependency on the
+  full application provider facade.
 - The Replicated Container Health sample now configures replica-aware logs,
   trace spans, and request metrics so the container app's Logs, Traces,
   Metrics, and Monitoring views can be verified against a realistic demo API.

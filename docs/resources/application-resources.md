@@ -118,14 +118,16 @@ to project application-like resources can reference
 `CloudShell.Providers.Applications`, create `ApplicationResourceDefinition`
 instances for their authored resource type, and subclass
 `ApplicationResourceTypeProvider` with an `ApplicationResourceProjection`. The
-base provider forwards common resource-provider responsibilities to
-`ApplicationResourceService`, including projection, templates, declarations,
+base provider forwards common resource-provider responsibilities through
+`IApplicationResourceProviderOperations`, including templates, declarations,
 lifecycle actions, orchestration descriptors, auto-start policy, and action
 availability. `IApplicationResourceProjectionSource` and
 `ApplicationResourceProjectionSupport` let custom providers reuse the same
 definition-to-resource projection path and workload-kind conventions as the
 built-in executable, ASP.NET Core project, container app, and SQL Server
-providers.
+providers. Built-in container app and SQL Server providers consume additional
+role-specific contracts for container-app operations and SQL permission status
+instead of taking a dependency on the whole application provider facade.
 
 This is an initial shared application-resource provider contract, not the full
 toolkit. `ApplicationResourceService` is currently the built-in application
@@ -137,10 +139,11 @@ to separate provider-neutral primitives from the built-in provider's concrete
 implementation details, so external resource authors can reuse common
 declaration, projection, process-definition, logging, monitoring, endpoint,
 volume, and container-host command infrastructure without depending on
-`ApplicationResourceService` internals. Future slices should extract
-role-specific provider-facing services and adapters only when a concrete
-external resource author would otherwise need to duplicate behavior or depend
-on provider-private details.
+`ApplicationResourceService` internals. The current provider-facing operations
+contracts are still backed by `ApplicationResourceService`; future slices
+should move concrete behavior behind dedicated services and adapters only when
+a concrete external resource author would otherwise need to duplicate behavior
+or depend on provider-private details.
 
 ## Endpoint And Exposure Model
 

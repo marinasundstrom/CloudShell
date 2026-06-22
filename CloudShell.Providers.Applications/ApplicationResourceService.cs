@@ -43,6 +43,9 @@ public sealed partial class ApplicationResourceService(
     IResourceEnvironmentVariableConfigurationProvider,
     IApplicationResourceProjectionSource,
     IHostScopedResourceCleanupProvider,
+    IApplicationResourceProviderOperations,
+    IContainerApplicationResourceProviderOperations,
+    ISqlServerApplicationResourceProviderOperations,
     IDisposable
 {
     public const string ReconcileSqlServerAccessActionId = "application.sql-server.reconcile-access";

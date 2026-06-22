@@ -4,7 +4,8 @@ namespace CloudShell.Providers.Applications;
 
 internal sealed class ContainerApplicationResourceProvider(
     IApplicationResourceProjectionSource projections,
-    ApplicationResourceService applications)
+    IApplicationResourceProviderOperations applications,
+    IContainerApplicationResourceProviderOperations containerApplications)
     : ApplicationResourceTypeProvider(projections, applications),
     IResourceImageUpdateProvider,
     IResourceReplicaUpdateProvider,
@@ -22,7 +23,7 @@ internal sealed class ContainerApplicationResourceProvider(
         _ => ResourceClass.Container);
 
     public bool CanUpdateImage(Resource resource) =>
-        Applications.CanUpdateImage(resource);
+        containerApplications.CanUpdateImage(resource);
 
     public Task<ResourceProcedureResult> UpdateImageAsync(
         ResourceProcedureContext context,
@@ -30,10 +31,10 @@ internal sealed class ContainerApplicationResourceProvider(
         bool restartIfRunning,
         string? triggeredBy = null,
         CancellationToken cancellationToken = default) =>
-        Applications.UpdateImageAsync(context, image, restartIfRunning, triggeredBy, cancellationToken);
+        containerApplications.UpdateImageAsync(context, image, restartIfRunning, triggeredBy, cancellationToken);
 
     public bool CanUpdateReplicas(Resource resource) =>
-        Applications.CanUpdateReplicas(resource);
+        containerApplications.CanUpdateReplicas(resource);
 
     public Task<ResourceProcedureResult> UpdateReplicasAsync(
         ResourceProcedureContext context,
@@ -41,27 +42,27 @@ internal sealed class ContainerApplicationResourceProvider(
         bool restartIfRunning,
         string? triggeredBy = null,
         CancellationToken cancellationToken = default) =>
-        Applications.UpdateReplicasAsync(context, replicas, restartIfRunning, triggeredBy, cancellationToken);
+        containerApplications.UpdateReplicasAsync(context, replicas, restartIfRunning, triggeredBy, cancellationToken);
 
     public bool CanExecuteOrchestratorService(
         Resource resource,
         ResourceAction action) =>
-        Applications.CanExecuteOrchestratorService(resource, action);
+        containerApplications.CanExecuteOrchestratorService(resource, action);
 
     public Task<ResourceOrchestratorService> CreateOrchestratorServiceAsync(
         ResourceProcedureContext context,
         CancellationToken cancellationToken = default) =>
-        Applications.CreateOrchestratorServiceAsync(context, cancellationToken);
+        containerApplications.CreateOrchestratorServiceAsync(context, cancellationToken);
 
     public Task PrepareOrchestratorServiceAsync(
         ResourceOrchestratorServiceProcedureContext context,
         ResourceAction action,
         CancellationToken cancellationToken = default) =>
-        Applications.PrepareOrchestratorServiceAsync(context, action, cancellationToken);
+        containerApplications.PrepareOrchestratorServiceAsync(context, action, cancellationToken);
 
     public Task ExecuteOrchestratorServiceInstanceAsync(
         ResourceOrchestratorServiceInstanceContext context,
         ResourceAction action,
         CancellationToken cancellationToken = default) =>
-        Applications.ExecuteOrchestratorServiceInstanceAsync(context, action, cancellationToken);
+        containerApplications.ExecuteOrchestratorServiceInstanceAsync(context, action, cancellationToken);
 }

@@ -5,7 +5,8 @@ namespace CloudShell.Providers.Applications;
 
 internal sealed class SqlServerApplicationResourceProvider(
     IApplicationResourceProjectionSource projections,
-    ApplicationResourceService applications)
+    IApplicationResourceProviderOperations applications,
+    ISqlServerApplicationResourceProviderOperations sqlServerApplications)
     : ApplicationResourceTypeProvider(projections, applications),
     IResourcePermissionGrantStatusProvider
 {
@@ -32,5 +33,5 @@ internal sealed class SqlServerApplicationResourceProvider(
     public Task<ResourcePermissionGrantStatus> GetStatusAsync(
         ResourcePermissionGrantStatusRequest request,
         CancellationToken cancellationToken = default) =>
-        Applications.GetSqlServerPermissionGrantStatusAsync(request, cancellationToken);
+        sqlServerApplications.GetSqlServerPermissionGrantStatusAsync(request, cancellationToken);
 }

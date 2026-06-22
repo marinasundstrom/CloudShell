@@ -610,11 +610,17 @@ listed here before pulling in broader proposal work.
    built-in provider facade rather than the desired final abstraction: it still
    coordinates projection, lifecycle, templates, declarations, descriptors,
    logging, monitoring, configuration updates, SQL access, runtime execution,
-   container materialization, process tracking, and host-scoped cleanup. Next
-   slices should extract role-specific provider-facing services and adapters
-   for runtime execution, environment resolution, container materialization,
-   log projection, monitoring, endpoint/volume helpers, and host-scoped cleanup
-   only where extension authors need stable reuse. Treat application runtime
+   container materialization, process tracking, and host-scoped cleanup.
+   The built-in application providers now consume narrower provider-facing
+   operation contracts for common application behavior, container-app behavior,
+   and SQL Server permission status, while those contracts are still backed by
+   `ApplicationResourceService`. Future slices should continue moving concrete
+   behavior behind dedicated implementations rather than expanding the facade.
+   Next slices should extract role-specific provider-facing services and
+   adapters for runtime execution, environment resolution, container
+   materialization, log projection, monitoring, endpoint/volume helpers, and
+   host-scoped cleanup only where extension authors need stable reuse.
+   Treat application runtime
    materialization as broader than projection: an application resource may own
    local processes, ad-hoc containers, and Resource Manager-managed
    sub-resources, while projecting only the artifacts whose resource identity
