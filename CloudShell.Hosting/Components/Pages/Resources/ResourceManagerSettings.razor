@@ -199,14 +199,14 @@
             <div class="procedure-confirmation">
                 <strong>@L["Apply resource settings?"]</strong>
                 <span>@L["Existing resources are not migrated automatically when the orchestrator changes. The new settings apply to inventory display, future lifecycle actions, and health checks."]</span>
-                <div class="form-actions">
+                <FormActions>
                     <FluentButton Appearance="Appearance.Neutral" OnClick="CancelChange">
                         @L["Cancel"]
                     </FluentButton>
                     <FluentButton Appearance="Appearance.Accent" OnClick="ConfirmChange">
                         @L["Apply settings"]
                     </FluentButton>
-                </div>
+                </FormActions>
             </div>
         }
         else

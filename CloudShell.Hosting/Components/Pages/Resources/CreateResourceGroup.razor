@@ -30,7 +30,7 @@ else
         <label for="group-description">@L["Description"]</label>
         <FluentTextArea Id="group-description" @bind-Value="Description" Rows="4" Placeholder="@L["Resources for the project development environment."]" />
 
-        <div class="form-actions">
+        <FormActions>
             <FluentButton Appearance="Appearance.Neutral" OnClick="Cancel">
                 @L["Cancel"]
             </FluentButton>
@@ -40,7 +40,7 @@ else
                           OnClick="CreateGroup">
                 @L["Create"]
             </FluentButton>
-        </div>
+        </FormActions>
     </section>
 }
 

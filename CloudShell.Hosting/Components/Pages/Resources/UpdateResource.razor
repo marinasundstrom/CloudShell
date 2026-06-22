@@ -119,14 +119,14 @@
         <div class="procedure-confirmation">
             <strong>@L["Delete registration?"]</strong>
             <span>@L["The provider will commit the delete procedure for this resource."]</span>
-            <div class="form-actions">
+            <FormActions>
                 <FluentButton Appearance="Appearance.Neutral" Disabled="@IsDeleting" OnClick="CancelDelete">
                     @L["Cancel"]
                 </FluentButton>
                 <FluentButton Appearance="Appearance.Accent" Disabled="@IsDeleting" OnClick="DeleteResource">
                     @(IsDeleting ? L["Deleting"] : L["Delete"])
                 </FluentButton>
-            </div>
+            </FormActions>
         </div>
     }
 
@@ -135,7 +135,7 @@
         <div class="procedure-confirmation" role="alert">
             <strong>@L["Restart {0}?", PendingRestart.ResourceName]</strong>
             <span>@PendingRestart.Message</span>
-            <div class="form-actions">
+            <FormActions>
                 <FluentButton Appearance="Appearance.Accent" Disabled="@(IsRestarting || IsReadOnly)"
                               OnClick="RestartPendingResource">
                     @(IsRestarting ? L["Restarting"] : L["Restart now"])
@@ -143,7 +143,7 @@
                 <FluentButton Appearance="Appearance.Neutral" Disabled="@IsRestarting" OnClick="DismissRestartPrompt">
                     @L["Later"]
                 </FluentButton>
-            </div>
+            </FormActions>
         </div>
     }
 

@@ -95,7 +95,7 @@
                         ReadOnly="@isReadOnly"
                         @bind-Value="ImportJson" />
 
-        <div class="form-actions">
+        <FormActions>
             <FluentButton Appearance="Appearance.Neutral" OnClick="ClearImport">
                 @L["Clear"]
             </FluentButton>
@@ -105,7 +105,7 @@
                           OnClick="ImportTemplate">
                 @L["Import group"]
             </FluentButton>
-        </div>
+        </FormActions>
 
         @if (isReadOnly)
         {

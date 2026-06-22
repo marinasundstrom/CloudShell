@@ -77,14 +77,14 @@ else
     <div class="procedure-confirmation">
         <strong>@PendingAction.Action.DisplayName @PendingAction.Resource.Name?</strong>
         <span>@GetConfirmationMessage(PendingAction.Resource, PendingAction.Action)</span>
-        <div class="form-actions">
+        <FormActions>
             <FluentButton Appearance="Appearance.Neutral" OnClick="CancelContainerAction">
                 Cancel
             </FluentButton>
             <FluentButton Appearance="Appearance.Accent" OnClick="ConfirmContainerAction">
                 @PendingAction.Action.DisplayName
             </FluentButton>
-        </div>
+        </FormActions>
     </div>
 }
 

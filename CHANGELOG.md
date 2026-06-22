@@ -55,6 +55,9 @@ on `git blame --follow`, and then by the broad type of change.
   list and link components with row-state styling contained in component CSS.
 - Local user and resource-type lists now use shared shell entity row and tag
   list components instead of global provider-row and tag-row markup.
+- Resource Manager, Docker provider, and shared primary-action forms now use
+  the shared `FormActions` component instead of repeated form action wrappers
+  and global action CSS.
 - Summary metric cards now support compact rendering, and summary metric cards
   and grids own their styling through component-scoped CSS instead of
   page-level hand-coded markup.

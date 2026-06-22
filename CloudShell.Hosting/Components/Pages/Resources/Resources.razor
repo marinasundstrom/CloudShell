@@ -95,40 +95,40 @@
         {
             <strong>@PendingAction.Action.DisplayName @GetResourceLabel(PendingAction.Resource)?</strong>
             <span>@GetDependencyConfirmationMessage(PendingAction)</span>
-            <div class="form-actions">
+            <FormActions>
                 <FluentButton Appearance="Appearance.Accent" OnClick="() => ConfirmResourceAction(startDependencies: true)">
                     @L["Yes"]
                 </FluentButton>
                 <FluentButton Appearance="Appearance.Neutral" OnClick="() => ConfirmResourceAction(startDependencies: false)">
                     @L["No, only this resource"]
                 </FluentButton>
-            </div>
+            </FormActions>
         }
         else if (PendingAction.RequiresDependentWarning)
         {
             <strong>@PendingAction.Action.DisplayName @GetResourceLabel(PendingAction.Resource)?</strong>
             <span>@GetDependentWarningMessage(PendingAction)</span>
-            <div class="form-actions">
+            <FormActions>
                 <FluentButton Appearance="Appearance.Neutral" OnClick="CancelResourceAction">
                     @L["No"]
                 </FluentButton>
                 <FluentButton Appearance="Appearance.Accent" OnClick="ConfirmDependentWarning">
                     @L["Yes, I'm sure"]
                 </FluentButton>
-            </div>
+            </FormActions>
         }
         else
         {
             <strong>@PendingAction.Action.DisplayName @GetResourceLabel(PendingAction.Resource)?</strong>
             <span>@GetConfirmationMessage(PendingAction.Resource, PendingAction.Action)</span>
-            <div class="form-actions">
+            <FormActions>
                 <FluentButton Appearance="Appearance.Neutral" OnClick="CancelResourceAction">
                     @L["Cancel"]
                 </FluentButton>
                 <FluentButton Appearance="Appearance.Accent" OnClick="() => ConfirmResourceAction()">
                     @PendingAction.Action.DisplayName
                 </FluentButton>
-            </div>
+            </FormActions>
         }
     </div>
 }
@@ -390,14 +390,14 @@
                 <div class="procedure-confirmation">
                     <strong>@L["Delete registration?"]</strong>
                     <span>@L["The provider will commit the delete procedure for this resource."]</span>
-                    <div class="form-actions">
+                    <FormActions>
                         <FluentButton Appearance="Appearance.Neutral" OnClick="CancelDelete">
                             @L["Cancel"]
                         </FluentButton>
                         <FluentButton Appearance="Appearance.Accent" OnClick="() => DeleteResource(selected)">
                             @L["Delete"]
                         </FluentButton>
-                    </div>
+                    </FormActions>
                 </div>
             }
 
