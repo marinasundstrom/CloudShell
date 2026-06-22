@@ -36,7 +36,7 @@ public sealed partial class ApplicationResourceService
             [ResourceAttributeNames.RuntimeReplicaOrdinal] = instance.ReplicaOrdinal.ToString(CultureInfo.InvariantCulture),
             [ResourceAttributeNames.RuntimeReplicaCount] = instance.ReplicaCount.ToString(CultureInfo.InvariantCulture),
             [ResourceAttributeNames.RuntimeRevision] = deployment.RevisionId,
-            [ResourceAttributeNames.RuntimeMaterialization] = "orchestratorProjection"
+            [ResourceAttributeNames.RuntimeMaterialization] = "orchestratorMaterialized"
         };
 
         AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerImage, service.Workload.Image);

@@ -9121,7 +9121,7 @@ public sealed class ResourceDeclarationTests
                 app.ResourceAttributes[ResourceAttributeNames.ContainerRevision],
                 replica.ResourceAttributes[ResourceAttributeNames.RuntimeRevision]);
             Assert.Equal(
-                "orchestratorProjection",
+                "orchestratorMaterialized",
                 replica.ResourceAttributes[ResourceAttributeNames.RuntimeMaterialization]);
             Assert.False(replica.IsNormalResource);
             Assert.True(replica.IsRuntimeManaged);

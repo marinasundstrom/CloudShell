@@ -299,6 +299,7 @@ else
     private static string GetMaterializationLabel(Resource resource) =>
         GetAttribute(resource, ResourceAttributeNames.RuntimeMaterialization, "unknown") switch
         {
+            "orchestratorMaterialized" => "materialized by orchestrator",
             "orchestratorProjection" => "projected by orchestrator",
             { Length: > 0 } value => value,
             _ => "unknown"

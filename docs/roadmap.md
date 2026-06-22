@@ -592,7 +592,7 @@ listed here before pulling in broader proposal work.
    Docker containers remain normal user-managed resources. Generic
    child-resource UI should honor visibility settings; providers should expose
    deliberate host/app-scoped tabs when those artifacts need first-class
-   inspection. Container apps now have app-scoped projected runtime-child
+   inspection. Container apps now have app-scoped materialized runtime-child
    diagnostics in Application > Scale and replicas. Next slices should enrich
    those children only where container apps need provider-observed container
    IDs, health, placement, or materialization diagnostics, not as a broad

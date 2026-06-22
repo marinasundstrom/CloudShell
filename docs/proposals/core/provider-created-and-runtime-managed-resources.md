@@ -173,6 +173,12 @@ container-app UI flows. A Docker container observed by a Docker host provider
 may be a projected provider observation rather than the container app's replica
 resource. A health probe may be runtime-created, runtime-managed, and internal.
 
+Projected resources can remain useful facades even when they are not owned
+runtime children. Future support may allow providers or the Control Plane to
+reference a projected resource by ID convention plus metadata, resolve it, and
+materialize an operational facade out of its original context. That should stay
+separate from resources that a parent provider actively materializes and owns.
+
 Every non-internal resource remains:
 
 * addressable
@@ -603,6 +609,8 @@ ContainerApp
 * Define event and history projection for provider-created and runtime-created
   resources.
 * Add provider guidance for resource registration patterns.
+* Define projected-resource facade references and out-of-context
+  materialization/resolution semantics.
 * Define whether source and management mode should be extensible by providers.
 
 ## Open Questions

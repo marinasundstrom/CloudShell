@@ -138,7 +138,7 @@ process count, and uptime when the local application process is running.
 Single-instance container-backed application resources can use container-host
 `stats` output when the application provider can resolve a static/default
 container host without Resource Manager context. Replica-mode container app
-resources use a provider-owned Monitoring tab. Their projected runtime
+resources use a provider-owned Monitoring tab. Their materialized runtime
 replica/container child resources can return container-host metric snapshots
 when their owner application and static/default container host can be
 resolved, letting the tab aggregate app-level CPU, memory, network, and
