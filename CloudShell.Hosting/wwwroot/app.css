@@ -193,14 +193,12 @@ h3 {
     font-size: .86rem;
 }
 
-.group-list,
-.provider-list {
+.group-list {
     display: grid;
     gap: .55rem;
 }
 
-.group-row,
-.provider-row {
+.group-row {
     display: flex;
     align-items: center;
     justify-content: flex-start;
@@ -212,14 +210,11 @@ h3 {
 }
 
 .group-row strong,
-.group-row span,
-.provider-row strong,
-.provider-row span {
+.group-row span {
     display: block;
 }
 
 .group-row span,
-.provider-row span,
 .muted {
     color: var(--cloudshell-text-muted);
     font-size: .82rem;
@@ -2268,16 +2263,14 @@ h3 {
     margin-top: 1rem;
 }
 
-.dependency-list,
-.tag-row {
+.dependency-list {
     display: flex;
     flex-wrap: wrap;
     gap: .4rem;
     margin-top: .55rem;
 }
 
-.dependency-list span,
-.tag-row span {
+.dependency-list span {
     border: 1px solid var(--cloudshell-divider);
     border-radius: 999px;
     padding: .2rem .5rem;

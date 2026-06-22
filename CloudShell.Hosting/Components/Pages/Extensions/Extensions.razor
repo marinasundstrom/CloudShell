@@ -40,15 +40,15 @@ else
                             <span>@extension.Id · v@(extension.Version)</span>
                         </div>
                         <p>@extension.Description</p>
-                        <div class="tag-row">
+                        <ShellTagList>
                             <span>@GetStatusText(status)</span>
-                        </div>
-                        <div class="tag-row">
+                        </ShellTagList>
+                        <ShellTagList>
                             @foreach (var capability in extension.Provides)
                             {
                                 <span>@capability</span>
                             }
-                        </div>
+                        </ShellTagList>
                         @if (status.IsActive &&
                             (extension.NavigationItems.Any(item => item.ShowInNavigation) ||
                             extension.CustomViews.Any(view => view.ShowInNavigation)))
@@ -94,23 +94,18 @@ else
             <ShellPanelHeader Title="@L["Resource types"].Value"
                               Description="@L["{0} available", ShellCatalog.ResourceTypes.Count].Value" />
 
-            <div class="provider-list">
+            <ShellEntityList>
                 @foreach (var resourceType in ShellCatalog.ResourceTypes)
                 {
-                    <div class="provider-row">
-                        <div>
-                            <span class="resource-kind-icon" aria-hidden="true">
-                                <FluentIcon Value="@ResourceTypeIcons.FromName(resourceType.Icon)" />
-                            </span>
-                            <span>@L["type"]</span>
-                        </div>
-                        <div>
-                            <strong>@resourceType.DisplayName</strong>
-                            <span>@resourceType.Id</span>
-                        </div>
-                    </div>
+                    <ShellEntityRow Label="@L["type"].Value"
+                                    Title="@resourceType.DisplayName"
+                                    Description="@resourceType.Id">
+                        <Icon>
+                            <FluentIcon Value="@ResourceTypeIcons.FromName(resourceType.Icon)" />
+                        </Icon>
+                    </ShellEntityRow>
                 }
-            </div>
+            </ShellEntityList>
         </article>
     </section>
 }

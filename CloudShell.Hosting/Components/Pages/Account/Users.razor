@@ -145,20 +145,17 @@ else
             }
             else
             {
-                <div class="provider-list">
+                <ShellEntityList>
                     @foreach (var user in LocalUsers)
                     {
-                        <div class="provider-row">
-                            <div>
-                                <span class="resource-kind-icon" aria-hidden="true">
-                                    <FluentIcon Value="@(new Icons.Regular.Size20.Person())" />
-                                </span>
-                                <span>@L["user"]</span>
-                            </div>
-                            <div>
-                                <strong>@(user.Email ?? user.UserName)</strong>
-                                <span>@user.Id</span>
-                                <div class="tag-row">
+                        <ShellEntityRow Label="@L["user"].Value"
+                                        Title="@(user.Email ?? user.UserName)"
+                                        Description="@user.Id">
+                            <Icon>
+                                <FluentIcon Value="@(new Icons.Regular.Size20.Person())" />
+                            </Icon>
+                            <ChildContent>
+                                <ShellTagList>
                                     @foreach (var role in user.Roles)
                                     {
                                         <span>@role</span>
@@ -167,11 +164,11 @@ else
                                     {
                                         <span>@FormatClaim(claim)</span>
                                     }
-                                </div>
-                            </div>
-                        </div>
+                                </ShellTagList>
+                            </ChildContent>
+                        </ShellEntityRow>
                     }
-                </div>
+                </ShellEntityList>
             }
         </article>
     </section>

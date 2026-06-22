@@ -1,0 +1,4 @@
+.shell-entity-list {
+    display: grid;
+    gap: .55rem;
+}
