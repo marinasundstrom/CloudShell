@@ -99,6 +99,10 @@ on `git blame --follow`, and then by the broad type of change.
   databases are projected expected child resources; database creation remains
   an application or migration responsibility until an explicit SQL
   management action is added.
+- Container app deployment attributes now include
+  `deployment.replicas.materialized` for app-owned runtime replica resources,
+  while the previous `deployment.replicas.projected` attribute remains
+  populated as a compatibility alias.
 - Resource-scoped Logs views now keep navigation anchored on the selected
   parent resource when choosing projected runtime replica log sources.
 - The global Health page now includes visible resources with aggregate health

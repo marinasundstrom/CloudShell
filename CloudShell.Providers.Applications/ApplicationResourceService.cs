@@ -4409,7 +4409,7 @@ public sealed partial class ApplicationResourceService(
         if (IsContainerBacked(application))
         {
             var deployment = CreateDefaultContainerOrchestratorDeployment(application, state);
-            var projectedReplicas = IsReplicaModeEnabled(application)
+            var materializedReplicas = IsReplicaModeEnabled(application)
                 ? CreateDefaultContainerServiceInstances(deployment.Spec.Service).Count()
                 : 0;
 
@@ -4430,8 +4430,10 @@ public sealed partial class ApplicationResourceService(
             attributes[ResourceAttributeNames.DeploymentWorkloadVersion] = deployment.Spec.WorkloadVersion;
             attributes[ResourceAttributeNames.DeploymentDesiredReplicas] =
                 deployment.Spec.Service.Replicas.ToString(CultureInfo.InvariantCulture);
+            attributes[ResourceAttributeNames.DeploymentMaterializedReplicas] =
+                materializedReplicas.ToString(CultureInfo.InvariantCulture);
             attributes[ResourceAttributeNames.DeploymentProjectedReplicas] =
-                projectedReplicas.ToString(CultureInfo.InvariantCulture);
+                materializedReplicas.ToString(CultureInfo.InvariantCulture);
         }
 
         if (!IsProjectBacked(application) && !IsContainerBacked(application))

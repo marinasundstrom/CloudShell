@@ -1958,6 +1958,7 @@ public sealed class SampleSmokeTests
 
         Assert.Equal("true", appAttributes.GetProperty(ResourceAttributeNames.ContainerReplicasEnabled).GetString());
         Assert.Equal("3", appAttributes.GetProperty(ResourceAttributeNames.ContainerReplicas).GetString());
+        Assert.Equal("3", appAttributes.GetProperty(ResourceAttributeNames.DeploymentMaterializedReplicas).GetString());
         Assert.Equal("3", appAttributes.GetProperty(ResourceAttributeNames.DeploymentProjectedReplicas).GetString());
         var observability = app.GetProperty("observability");
         Assert.True(observability.GetProperty("logs").GetBoolean());

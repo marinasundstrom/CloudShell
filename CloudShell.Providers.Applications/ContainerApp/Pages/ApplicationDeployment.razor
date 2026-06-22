@@ -24,8 +24,8 @@ else
             <dd>@GetScalingMode(Resource)</dd>
             <dt>Desired replicas</dt>
             <dd>@GetDeploymentDesiredReplicas(Resource)</dd>
-            <dt>Projected replicas</dt>
-            <dd>@GetDeploymentProjectedReplicas(Resource)</dd>
+            <dt>Materialized replicas</dt>
+            <dd>@GetDeploymentMaterializedReplicas(Resource)</dd>
         </dl>
 
         @if (GetDeploymentStatusDescription(Resource) is { Length: > 0 } statusDescription)
@@ -196,9 +196,11 @@ else
                 "1"
             : "not enabled";
 
-    private static string GetDeploymentProjectedReplicas(Resource resource) =>
+    private static string GetDeploymentMaterializedReplicas(Resource resource) =>
         IsReplicaModeEnabled(resource)
-            ? resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentProjectedReplicas) ?? "0"
+            ? resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentMaterializedReplicas) ??
+                resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentProjectedReplicas) ??
+                "0"
             : "not enabled";
 
     private static bool IsReplicaModeEnabled(Resource resource) =>

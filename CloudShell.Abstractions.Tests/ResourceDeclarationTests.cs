@@ -9022,7 +9022,7 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
-    public void ContainerApplicationProvider_ProjectsHiddenRuntimeReplicaResources()
+    public void ContainerApplicationProvider_MaterializesHiddenRuntimeReplicaResources()
     {
         var services = new ServiceCollection();
 
@@ -9055,6 +9055,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("cloudshell-application-api", app.ResourceAttributes[ResourceAttributeNames.DeploymentServiceId]);
         Assert.Equal("pending", app.ResourceAttributes[ResourceAttributeNames.DeploymentStatus]);
         Assert.Equal("3", app.ResourceAttributes[ResourceAttributeNames.DeploymentDesiredReplicas]);
+        Assert.Equal("3", app.ResourceAttributes[ResourceAttributeNames.DeploymentMaterializedReplicas]);
         Assert.Equal("3", app.ResourceAttributes[ResourceAttributeNames.DeploymentProjectedReplicas]);
         Assert.Equal("true", app.ResourceAttributes[ResourceAttributeNames.ContainerReplicasEnabled]);
         Assert.Equal(
@@ -9364,6 +9365,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("1", app.ResourceAttributes[ResourceAttributeNames.ContainerReplicas]);
         Assert.Equal("false", app.ResourceAttributes[ResourceAttributeNames.ContainerReplicasEnabled]);
         Assert.Equal("1", app.ResourceAttributes[ResourceAttributeNames.DeploymentDesiredReplicas]);
+        Assert.Equal("0", app.ResourceAttributes[ResourceAttributeNames.DeploymentMaterializedReplicas]);
         Assert.Equal("0", app.ResourceAttributes[ResourceAttributeNames.DeploymentProjectedReplicas]);
         Assert.DoesNotContain(
             resources,

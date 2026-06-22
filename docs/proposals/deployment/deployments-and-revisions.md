@@ -18,10 +18,10 @@ Initial implementation now adds internal data contracts for
 `ResourceOrchestratorRevision` in the orchestration abstractions. These are
 intended for container apps, providers, and orchestrators to build on first.
 Container apps now use the deployment contract to project deployment status,
-service id, workload version, desired replicas, and projected replicas onto the
-stable app resource and Deployment tab. Projected runtime replica resources
-also carry the deployment id, service id, and deployment revision they
-implement for traceability.
+service id, workload version, desired replicas, and materialized replica count
+onto the stable app resource and Deployment tab. Materialized runtime replica
+resources also carry the deployment id, service id, and deployment revision
+they implement for traceability.
 The intended general rule is broader than container apps: when an orchestrator
 handles a resource state change that has runtime workload intent, it may derive
 a default deployment for that change even when the user manages the resource

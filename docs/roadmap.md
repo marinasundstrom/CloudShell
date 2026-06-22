@@ -993,7 +993,7 @@ listed here before pulling in broader proposal work.
   host, and configuration/secrets service processes. Container app resource
   monitoring now has a custom Management > Monitoring dashboard that aggregates
   app-level usage and breaks metrics down by runtime replica/container when the
-  application provider can observe projected replicas.
+  application provider can observe materialized replicas.
   Separate telemetry storage/query backends from the Resource Manager UI before
   expanding retention. The in-memory CloudShell store is the MVP local backend,
   but Trace and Metric views should consume provider-neutral manager/query
