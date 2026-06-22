@@ -13,6 +13,15 @@ through services, but there is no formal deployment and revision model for
 representing versioned workload changes, rollout history, replica changes, or
 traceability across orchestrator implementations.
 
+Container app image updates are the clearest motivating case. Updating the
+image for a running container app should not be modeled as "restart this
+resource." It should deploy a new revision for the requested image, optionally
+with a new desired replica count. That revision starts its containers next to
+the currently serving revision. Once the new revision is ready, CloudShell can
+switch traffic or endpoint routing to it and then retire the old revision.
+Scaling the currently active revision is a separate operation that adjusts
+desired capacity without necessarily creating another revision.
+
 Initial implementation now adds internal data contracts for
 `ResourceOrchestratorDeployment`, `ResourceOrchestratorDeploymentSpec`, and
 `ResourceOrchestratorRevision` in the orchestration abstractions. These are
@@ -56,6 +65,8 @@ Today, these changes can be applied by orchestrators, but CloudShell lacks a uni
 * which replicas were created
 * which runtime resources belong to the applied version
 * what revision was produced by the change
+* how traffic or endpoint routing moved from the previous revision to the new
+  revision
 
 Without deployments and revisions, several problems appear:
 
@@ -248,6 +259,7 @@ It may include:
 * identity references
 * endpoint requirements
 * rollout strategy
+* traffic or endpoint cutover policy
 * revision policy
 * ownership metadata
 
@@ -277,6 +289,13 @@ Examples:
 * scale template changed
 * endpoint configuration changed
 * resource template changed
+
+Replica count changes need more nuance. A manual scale operation against the
+currently active revision can reconcile the service replica count while
+preserving that revision association. A deployment operation can also include
+a desired replica count for the new revision, in which case the new revision
+should be materialized at that target capacity before cutover when the rollout
+strategy requires availability.
 
 A revision should allow CloudShell to determine:
 
@@ -407,11 +426,51 @@ For image or template changes:
 ```text
 Deployment updated
 New revision created
-New replicas created
-Old replicas drained or stopped
+New revision replicas created to the desired count next to current replicas
+Startup/readiness checks pass for the new replicas
+Traffic or endpoint routing switches to the new revision
+Old replicas drained or stopped after cutover
 Revision marked active
 Previous revision retained for history
 ```
+
+## Rollout and Availability Semantics
+
+Deployment-relevant updates to a running service should be revision-based.
+They should not mutate or restart the active revision in place. The old
+revision remains the serving version until the new revision is ready, unless
+the user explicitly chooses a disruptive strategy.
+
+The baseline rollout strategy for a container app should be:
+
+1. Deploy a new revision from the requested image, environment, endpoint,
+   storage, identity, and desired replica settings.
+2. Materialize the new revision's runtime resources without deactivating the
+   current serving revision.
+3. Wait for the new revision to provision, reach the desired minimum serving
+   capacity, and pass startup/readiness or liveness gates that are relevant to
+   routing.
+4. Switch traffic, ingress configuration, or endpoint routing to the new
+   revision.
+5. Drain or stop the old revision according to the rollout and retention
+   policy.
+
+This model allows image updates to be combined with a desired replica count.
+For example, deploying `api:v2` with three replicas should create a new
+revision at three replicas, verify that enough replicas are ready, then switch
+serving traffic from the old revision to the new revision. If the new revision
+fails readiness, the old revision remains active and the failed revision stays
+inspectable for diagnostics.
+
+Advanced strategies such as blue/green, canary percentages, labels, gradual
+traffic shifting, and automatic rollback can build on the same deployment and
+revision model. They are not required for the first implementation, but the
+baseline model should not force a full resource restart for image updates.
+
+Scale-only operations remain different. Increasing or decreasing replicas for
+the active revision reconciles runtime capacity and should not require traffic
+cutover or replacement of healthy existing replicas unless an orchestrator's
+backend requires it.
 
 ## Docker Compose Orchestrator Behavior
 
@@ -482,14 +541,16 @@ Replicas created
 Runtime resources started
 ```
 
-### Update
+### Deploy Revision
 
 ```text
-Resource changed
-Deployment updated
-New revision created if revision-relevant fields changed
-Service reconciled
-Runtime resources updated
+Revision-relevant resource intent changed
+Deployment updated with new revision spec
+New revision created
+New revision replicas started next to active revision replicas
+New revision readiness verified
+Traffic or endpoint routing switched to new revision
+Previous revision retained, drained, or stopped according to policy
 ```
 
 ### Scale Up
@@ -601,7 +662,8 @@ ContainerApp
 2. Define deployment status and revision status models.
 3. Define how deployments relate to orchestrator services.
 4. Define how deployments relate back to source resources.
-5. Add orchestrator APIs for creating, updating, applying, and deleting deployments.
+5. Add orchestrator APIs for deploying new revisions, scaling active
+   revisions, applying cutover, and deleting deployments.
 6. Add revision creation rules for deployment-relevant changes.
 7. Add active revision tracking.
 8. Add revision history storage.
@@ -610,7 +672,8 @@ ContainerApp
 11. Associate replicas and runtime-managed resources with revisions.
 12. Add diagnostics APIs for deployment and revision inspection.
 13. Add Resource Manager projection for active deployment state.
-14. Add lifecycle tests for create, update, scale, rollback, and delete.
+14. Add lifecycle tests for create, deploy revision, scale active revision,
+    rollback, and delete.
 15. Add UI support for active revision and revision history.
 16. Add traceability events for deployment and revision changes.
 
@@ -618,11 +681,15 @@ ContainerApp
 
 * Define the exact boundary between Deployment, Service, and Resource.
 * Decide which fields are revision-relevant.
-* Define whether scale changes always create revisions.
+* Define the boundary between scale-only operations that preserve the active
+  revision and deployment operations that include desired replica count in a
+  new revision.
 * Define how long revisions are retained.
 * Define rollback behavior for each orchestrator.
 * Define revision diff format.
-* Define failure handling during rollout.
+* Define the first rollout strategy for container app image updates, including
+  readiness gates, traffic or endpoint cutover, drain behavior, and failure
+  handling.
 * Define whether revisions are represented as runtime-managed resources or orchestrator metadata.
 * Define how deployment events integrate with traceability.
 * Define how deployment state is persisted across orchestrator restarts.
@@ -631,7 +698,8 @@ ContainerApp
 
 * Should Deployment be represented as a runtime-managed resource, orchestrator metadata, or both?
 * Should Revision be represented as a runtime-managed resource, orchestrator metadata, or both?
-* Should scaling create a new revision, or should only template changes create revisions?
+* Which scale changes are active-revision capacity changes, and which scale
+  changes are revision-scoped template changes?
 * Should failed revisions remain visible by default?
 * Should rollbacks create new revisions or reactivate previous revisions?
 * How should Docker Compose revisions be represented when Compose has no native revision concept?
@@ -640,5 +708,7 @@ ContainerApp
 * How should authorization work for inspecting revisions and runtime-managed resources?
 * What minimum deployment behavior must every orchestrator implement?
 * Should advanced rollout strategies be part of the first version?
+* What is the minimum readiness gate for switching traffic to a new revision
+  when no explicit health checks are declared?
 * How should deployment and revision events appear in audit logs?
 * How should deployment state be reconciled if runtime state has drifted?

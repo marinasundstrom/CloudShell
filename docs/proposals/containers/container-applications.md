@@ -81,7 +81,9 @@ model provider-neutral and self-hosted.
 * Do not standardize Kubernetes, Docker Compose, or Docker implementation
   details in the public container app resource model.
 * Do not implement autoscaling, traffic splitting, blue/green rollout, or rich
-  revision history in the MVP.
+  revision history in the MVP. Image deployment should still move toward the
+  revision-based deployment model instead of being treated as an in-place
+  resource restart.
 * Do not make public DNS propagation, certificate automation, or provider-backed
   service registries part of the first container app slice.
 * Do not make every local-development app use containers. Executables and
@@ -165,9 +167,14 @@ Implemented pieces include:
   container-host configuration, including create and update host selection
 * `AsContainer(...)` conversion for ASP.NET Core project resources
 * current revision projection when a container app image is updated
-* Resource Manager Deployment tab with image update action
+* Resource Manager Deployment tab with image update action. This is the
+  current bridge to the deployment model; the desired direction is a Deploy
+  image command that creates a new revision, starts its containers next to the
+  current revision, verifies readiness, then switches traffic or endpoint
+  routing before retiring the old revision.
 * Resource Manager Application > Scale and replicas tab for enabling replicas
-  and setting desired replica count
+  and setting desired replica count through a dedicated update command. This
+  is active-revision capacity management, not image deployment.
 * app-owned internal deployment projection with status, service id, workload
   version, desired replicas, and materialized runtime replicas. This is the
   container app use of the broader default-deployment rule: a resource remains
@@ -257,10 +264,15 @@ liveness/lifecycle signals, while scaling changes desired capacity.
    default to single-instance mode; enabling replicas is a deliberate
    Application > Scale and replicas action or programmatic `WithReplicas(...)`
    declaration. Scale and replicas now prompts endpoint-bearing apps to create
-   a load-balancer route when replicas are enabled. Use the internal
-   orchestrator deployment/revision contracts for container app implementation
-   work, but defer public rollout history, rollback, revision management, and
-   traffic splitting to later deployment/revision slices.
+   a load-balancer route when replicas are enabled. Treat image update as the
+   bridge to Deployments and revisions: the long-term operation is to deploy a
+   new revision for the image, optionally with a desired replica count, start
+   that revision next to the current revision, verify readiness, switch
+   routing, and then retire the old revision. Use the internal orchestrator
+   deployment/revision contracts for container app implementation work, but
+   defer public rollout history, rollback, revision management, traffic
+   splitting, and advanced rollout controls to later deployment/revision
+   slices.
 7. Keep container app replica diagnostics app-scoped in Scale and replicas. It
    shows app-owned replica/runtime diagnostics to users who can view or manage
    the container app without requiring the global runtime-managed inventory
@@ -325,8 +337,14 @@ liveness/lifecycle signals, while scaling changes desired capacity.
   preflight occupied local TCP/HTTP endpoint ports before Start. Future
   registry-backed providers should also suggest or allocate alternate ports
   when a default is unavailable.
-* Improve restart/update behavior around image, replica, environment, endpoint,
-  identity, and storage changes.
+* Replace the current image-update-and-restart-required bridge with a
+  revision-based Deploy image operation that can include desired replica count,
+  materialize new revision containers next to the current revision, verify
+  readiness, switch traffic or endpoint routing, retain failed revisions for
+  diagnostics, and retire the old revision according to policy.
+* Continue improving update behavior around replica, environment, endpoint,
+  identity, and storage changes, deciding which changes belong to active
+  revision capacity/configuration and which require a new deployment revision.
 * Keep supported samples green with a broad container app scenario that uses
   SQL Server, mounted storage, service discovery, secrets/configuration,
   identity, structured logs, traces, and name/public exposure.
@@ -345,5 +363,7 @@ liveness/lifecycle signals, while scaling changes desired capacity.
   TLS/certificate automation exists?
 * What is the smallest useful revision history that belongs to the container
   app before the richer orchestrator deployment/revision model lands?
+* What readiness signal is sufficient for switching a local container app to a
+  newly deployed revision when no explicit health checks are declared?
 * Which telemetry scope dimension names should become stable contract
   fields versus provider-owned attributes on logs, spans, and metric points?
