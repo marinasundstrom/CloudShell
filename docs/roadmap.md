@@ -1007,7 +1007,7 @@ listed here before pulling in broader proposal work.
   and older-history queries; live merged streaming should wait for log sessions
   to support provider-owned multi-source fan-in, shared readers, and disposal
   semantics instead of faking it in the UI. Use
-  [Service observability and degradation](proposals/core/service-observability-and-degradation.md)
+  [Service telemetry and degradation](proposals/core/service-observability-and-degradation.md)
   to track the service-first local-development experience that correlates
   load, recent exceptions, structured logs, traces, health, resource
   monitoring, replica scopes, and host/provider capacity context through

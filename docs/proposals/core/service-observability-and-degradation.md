@@ -1,13 +1,13 @@
-# Service Observability and Degradation Proposal
+# Service Telemetry and Degradation Proposal
 
 ## Status
 
 Proposed.
 
-This proposal defines the MVP service-level observability experience for local
-development. It connects existing logs, traces, telemetry metrics, health, and
-resource monitoring into a resource-centered degradation view without turning
-CloudShell into a full observability platform.
+This proposal defines the MVP service-level telemetry and degradation
+experience for local development. It connects existing logs, traces, telemetry
+metrics, health, and resource monitoring into a resource-centered degradation
+view without turning CloudShell into a full observability platform.
 
 ## Problem
 
@@ -50,6 +50,15 @@ metrics, service names, resource attributes, trace/span correlation, and
 telemetry export where they fit. Structured logs should use familiar level,
 category, event, trace ID, span ID, exception, route, status, and attributes
 fields where a source can provide them.
+
+Use Telemetry as the product and API surface name for emitted operational data
+such as logs, traces, metrics, telemetry scopes, and telemetry events.
+Observability remains the broader capability and architecture concept: making
+resources observable by combining telemetry with health, liveness, recovery,
+resource monitoring, degradation summaries, and correlations. Resource Manager
+surfaces should prefer Telemetry when users are inspecting emitted data and use
+more specific names such as Health, Recovery, or Monitoring for non-telemetry
+operational signals.
 
 CloudShell's job is to project those signals into Resource Manager through
 resource-centered abstractions. Extension authors should be able to contribute

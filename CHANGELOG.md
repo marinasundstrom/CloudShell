@@ -153,6 +153,11 @@ on `git blame --follow`, and then by the broad type of change.
   replica-aware local-development telemetry correlation, common views, load
   and capacity context, established telemetry interfaces, extension
   abstractions, and redacted public reports.
+- The service observability proposal is now framed as service telemetry and
+  degradation: Telemetry is the product/API surface for emitted logs, traces,
+  metrics, scopes, and events, while observability remains the broader
+  capability that also includes health, liveness, recovery, monitoring, and
+  correlations.
 - Application Topology request-count metric panels now show a cumulative
   `http.server.requests.total` counter instead of summing the most recent 100
   per-request samples.
