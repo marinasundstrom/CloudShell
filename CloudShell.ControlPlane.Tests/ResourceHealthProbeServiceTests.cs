@@ -204,6 +204,45 @@ public sealed class ResourceHealthProbeServiceTests
     }
 
     [Fact]
+    public async Task CheckAsync_PreservesScopedObservationsFromProviderProbeEvaluator()
+    {
+        var evaluator = new ScopedProviderProbeEvaluator();
+        var service = new ResourceHealthProbeService([evaluator]);
+        var resource = new Resource(
+            "application:api",
+            "API",
+            "Application",
+            "Applications",
+            "local",
+            ResourceState.Running,
+            [],
+            "1.0",
+            DateTimeOffset.UtcNow,
+            [],
+            HealthChecks:
+            [
+                new ResourceHealthCheck(
+                    new ResourceProbeSource("provider.container-app"),
+                    ResourceProbeType.Liveness,
+                    "liveness")
+            ]);
+
+        var health = await service.CheckAsync([resource]);
+        var result = Assert.Single(Assert.Single(health).Value.Checks);
+        var observations = result.ScopeObservations;
+
+        Assert.Equal(ResourceHealthStatus.Unhealthy, result.Status);
+        Assert.NotNull(result.CheckedAt);
+        Assert.Equal(2, observations.Count);
+        Assert.All(observations, observation => Assert.Equal(result.CheckedAt, observation.CheckedAt));
+        Assert.Equal(ResourceHealthScopeKinds.Runtime, observations[0].ScopeKind);
+        Assert.Equal("application:api/runtime:replica-1", observations[0].ResourceId);
+        Assert.Equal(ResourceHealthStatus.Healthy, observations[0].Status);
+        Assert.Equal(ResourceHealthStatus.Unhealthy, observations[1].Status);
+        Assert.Equal(ResourceHealthCheckOutcome.NoResponse, observations[1].Outcome);
+    }
+
+    [Fact]
     public async Task CheckAsync_DoesNotEvaluateLivenessWhenResourceIsStopped()
     {
         var evaluator = new ProviderProcessProbeEvaluator();
@@ -356,5 +395,39 @@ public sealed class ResourceHealthProbeServiceTests
                 "Process is running",
                 null));
         }
+    }
+
+    private sealed class ScopedProviderProbeEvaluator : IResourceProbeEvaluator
+    {
+        public bool CanEvaluate(Resource resource, ResourceHealthCheck check) =>
+            string.Equals(check.EffectiveSource.Kind, "provider.container-app", StringComparison.OrdinalIgnoreCase);
+
+        public Task<ResourceHealthCheckResult> EvaluateAsync(
+            Resource resource,
+            ResourceHealthCheck check,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new ResourceHealthCheckResult(
+                check,
+                ResourceHealthStatus.Unhealthy,
+                "One replica is unhealthy.",
+                null,
+                Observations:
+                [
+                    new ResourceHealthScopeObservation(
+                        "replica-1",
+                        ResourceHealthScopeKinds.Runtime,
+                        ResourceHealthStatus.Healthy,
+                        "Replica is running.",
+                        DisplayName: "Replica 1",
+                        ResourceId: "application:api/runtime:replica-1"),
+                    new ResourceHealthScopeObservation(
+                        "replica-2",
+                        ResourceHealthScopeKinds.Runtime,
+                        ResourceHealthStatus.Unhealthy,
+                        "Replica did not respond.",
+                        ResourceHealthCheckOutcome.NoResponse,
+                        DisplayName: "Replica 2",
+                        ResourceId: "application:api/runtime:replica-2")
+                ]));
     }
 }

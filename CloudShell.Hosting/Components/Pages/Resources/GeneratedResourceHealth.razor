@@ -205,6 +205,16 @@
                                 <span>@row.Result.Uri</span>
                             </footer>
                         }
+                        @if (row.Result?.ScopeObservations.Count > 0)
+                        {
+                            @foreach (var observation in row.Result.ScopeObservations)
+                            {
+                                <footer>
+                                    <span>@FormatScope(observation)</span>
+                                    <span>@FormatScopeDetail(observation)</span>
+                                </footer>
+                            }
+                        }
                     </article>
                 }
             </div>
@@ -340,6 +350,17 @@
         check.IntervalSeconds is null
             ? L["shared interval"].Value
             : L["every {0}s", check.IntervalSeconds].Value;
+
+    private string FormatScope(ResourceHealthScopeObservation observation)
+    {
+        var displayName = string.IsNullOrWhiteSpace(observation.DisplayName)
+            ? observation.ScopeId
+            : observation.DisplayName;
+        return L["{0} ({1})", displayName, observation.ScopeKind].Value;
+    }
+
+    private string FormatScopeDetail(ResourceHealthScopeObservation observation) =>
+        L["{0} - {1}", GetHealthLabel(observation.Status), observation.Detail].Value;
 
     private sealed record HealthCheckRow(
         ResourceHealthCheck Check,

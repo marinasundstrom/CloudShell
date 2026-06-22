@@ -64,7 +64,7 @@ public sealed class ResourceHealthProbeService(IEnumerable<IResourceProbeEvaluat
             var result = evaluator is null
                 ? CreateUnsupportedSourceResult(check, now)
                 : await evaluator.EvaluateAsync(resource, check, cancellationToken);
-            checks.Add(result.CheckedAt is null ? result with { CheckedAt = now } : result);
+            checks.Add(NormalizeResult(result, now));
         }
 
         var status = checks.Any(check => check.Status == ResourceHealthStatus.Unhealthy)
@@ -102,6 +102,28 @@ public sealed class ResourceHealthProbeService(IEnumerable<IResourceProbeEvaluat
             null,
             ResourceHealthCheckOutcome.Unknown,
             checkedAt);
+
+    private static ResourceHealthCheckResult NormalizeResult(
+        ResourceHealthCheckResult result,
+        DateTimeOffset checkedAt)
+    {
+        var normalized = result.CheckedAt is null ? result with { CheckedAt = checkedAt } : result;
+        var observationCheckedAt = normalized.CheckedAt ?? checkedAt;
+        if (normalized.ScopeObservations.Count == 0 ||
+            normalized.ScopeObservations.All(observation => observation.CheckedAt is not null))
+        {
+            return normalized;
+        }
+
+        return normalized with
+        {
+            Observations = normalized.ScopeObservations
+                .Select(observation => observation.CheckedAt is null
+                    ? observation with { CheckedAt = observationCheckedAt }
+                    : observation)
+                .ToArray()
+        };
+    }
 
     private static bool IsLivenessActive(Resource resource) =>
         resource.State == ResourceState.Running;

@@ -50,4 +50,47 @@ public sealed class ResourceHealthTests
         Assert.Equal("applications", check.EffectiveSource.Metadata?["provider"]);
         Assert.Null(check.HttpSource);
     }
+
+    [Fact]
+    public void ResourceHealthCheckResult_CanCarryScopedObservations()
+    {
+        var check = new ResourceHealthCheck(
+            new ResourceProbeSource("provider.container-app"),
+            ResourceProbeType.Liveness,
+            "liveness");
+        var result = new ResourceHealthCheckResult(
+            check,
+            ResourceHealthStatus.Unhealthy,
+            "One replica is unhealthy.",
+            null,
+            Observations:
+            [
+                new ResourceHealthScopeObservation(
+                    "replica-1",
+                    ResourceHealthScopeKinds.Runtime,
+                    ResourceHealthStatus.Healthy,
+                    "Replica is running.",
+                    DisplayName: "Replica 1",
+                    ResourceId: "application:api/runtime:replica-1",
+                    Attributes: new Dictionary<string, string>
+                    {
+                        [ResourceAttributeNames.RuntimeReplicaOrdinal] = "1"
+                    }),
+                new ResourceHealthScopeObservation(
+                    "replica-2",
+                    ResourceHealthScopeKinds.Runtime,
+                    ResourceHealthStatus.Unhealthy,
+                    "Replica did not respond.",
+                    ResourceHealthCheckOutcome.NoResponse,
+                    DisplayName: "Replica 2",
+                    ResourceId: "application:api/runtime:replica-2")
+            ]);
+
+        Assert.Equal(ResourceHealthStatus.Unhealthy, result.Status);
+        Assert.Equal(2, result.ScopeObservations.Count);
+        Assert.Equal(ResourceHealthScopeKinds.Runtime, result.ScopeObservations[0].ScopeKind);
+        Assert.Equal("application:api/runtime:replica-1", result.ScopeObservations[0].ResourceId);
+        Assert.Equal("1", result.ScopeObservations[0].ObservationAttributes[ResourceAttributeNames.RuntimeReplicaOrdinal]);
+        Assert.Equal(ResourceHealthCheckOutcome.NoResponse, result.ScopeObservations[1].Outcome);
+    }
 }

@@ -53,6 +53,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource health checks now support per-check polling interval overrides and
   per-check result timestamps, and SQL Server resources declare a
   provider-native liveness check through their TDS endpoint.
+- Resource health check results can now include scoped observations so
+  provider-owned aggregate checks can report per-replica, dependency, route,
+  or runtime-scope details without adding scope metadata to resource health
+  declarations.
 - Recovery remains available for stopped resources that can be started, and an
   enabled recovery policy can start a stopped resource after it previously
   observed a healthy signal.

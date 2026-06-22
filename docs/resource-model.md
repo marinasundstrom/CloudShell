@@ -543,9 +543,12 @@ or provider-specific implementation can decide which observed signals
 contribute to the aggregate result.
 
 Managed health scopes can later be configured from the global Health surface.
-An operator could create a scope, add resources to that scope, choose which
-signals or provider factors contribute, and let the Control Plane expose the
-computed aggregate through a CloudShell-provided health endpoint.
+An operator could create a scope, add resources or resource health checks to
+that scope, choose which observed signals or provider factors contribute, and
+let the Control Plane expose the computed aggregate through a
+CloudShell-provided health endpoint. Resource-owned health checks remain
+visible on their individual resources; scopes are a higher-level grouping over
+those observed resource checks and related signals.
 
 `ResourceHealthCheck` is the shared health-signal declaration. Its
 `ResourceProbeType` says how the signal should be interpreted, such as health,
@@ -553,6 +556,11 @@ liveness, readiness, or startup. Its `ResourceProbeSource` says where the
 signal comes from. HTTP is the built-in source today, but providers can add
 non-HTTP evaluators for process, container, runtime, or provider-native
 signals without turning every resource health check into an HTTP endpoint.
+`ResourceHealthCheckResult` can carry scoped observations returned by the
+evaluator. Scoped observations describe the boundaries that contributed to an
+aggregate result, such as runtime replicas, dependencies, routes, selected
+resource sets, or provider-defined service scopes. They are observation data
+from polling, not declaration metadata on the resource health check.
 
 `Observability` contains resource observability metadata. If missing, it
 defaults to `ResourceObservability.None` through `EffectiveObservability`.

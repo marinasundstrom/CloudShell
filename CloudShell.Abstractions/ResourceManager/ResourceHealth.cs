@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace CloudShell.Abstractions.ResourceManager;
 
 public enum ResourceProbeType
@@ -94,11 +96,45 @@ public enum ResourceHealthCheckOutcome
     Unsupported
 }
 
+public static class ResourceHealthScopeKinds
+{
+    public const string Resource = "resource";
+
+    public const string ResourceSet = "resourceSet";
+
+    public const string Dependency = "dependency";
+
+    public const string Service = "service";
+
+    public const string Route = "route";
+
+    public const string Runtime = "runtime";
+}
+
 public sealed record ResourceHealthSummary(
     string ResourceId,
     ResourceHealthStatus Status,
     DateTimeOffset CheckedAt,
     IReadOnlyList<ResourceHealthCheckResult> Checks);
+
+public sealed record ResourceHealthScopeObservation(
+    string ScopeId,
+    string ScopeKind,
+    ResourceHealthStatus Status,
+    string Detail,
+    ResourceHealthCheckOutcome Outcome = ResourceHealthCheckOutcome.Responded,
+    string? DisplayName = null,
+    string? ResourceId = null,
+    DateTimeOffset? CheckedAt = null,
+    IReadOnlyDictionary<string, string>? Attributes = null)
+{
+    private static readonly IReadOnlyDictionary<string, string> EmptyAttributes =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+    [JsonIgnore]
+    public IReadOnlyDictionary<string, string> ObservationAttributes =>
+        Attributes ?? EmptyAttributes;
+}
 
 public sealed record ResourceHealthCheckResult(
     ResourceHealthCheck Check,
@@ -106,7 +142,13 @@ public sealed record ResourceHealthCheckResult(
     string Detail,
     Uri? Uri,
     ResourceHealthCheckOutcome Outcome = ResourceHealthCheckOutcome.Responded,
-    DateTimeOffset? CheckedAt = null);
+    DateTimeOffset? CheckedAt = null,
+    IReadOnlyList<ResourceHealthScopeObservation>? Observations = null)
+{
+    [JsonIgnore]
+    public IReadOnlyList<ResourceHealthScopeObservation> ScopeObservations =>
+        Observations ?? [];
+}
 
 public sealed class ResourceHealthOptions
 {
