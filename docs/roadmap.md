@@ -923,9 +923,9 @@ listed here before pulling in broader proposal work.
   keep dependency startup, lifecycle action execution, resource activity, and
   future event-triggered automation on one common orchestration model.
 - Use [Resource recovery](proposals/core/resource-recovery.md) to track
-  liveness-signal-driven restart policy, exponential backoff, and provider
-  probe evaluators while keeping the Health UI wording and normal lifecycle
-  action path.
+  liveness-signal-driven restart policy, exponential backoff, separate
+  liveness and recovery capabilities, and provider probe evaluators while
+  keeping the Health UI wording and normal lifecycle action path.
 - Use [Logging infrastructure](proposals/core/logging-infrastructure.md) to
   track structured logging, non-text operational payloads, resource events,
   audit records, diagnostics, metrics, and traces without prematurely merging

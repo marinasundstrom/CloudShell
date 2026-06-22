@@ -37,3 +37,12 @@ public sealed record ResourceRecoveryStatus(
     DateTimeOffset? LastAttemptAt = null,
     DateTimeOffset? NextAttemptAt = null,
     string? LastDetail = null);
+
+public sealed class ResourceRecoveryOptions
+{
+    public const string SectionName = "ResourceManager:Recovery";
+
+    public bool EnableLocalPolling { get; set; }
+
+    public int? PollIntervalSeconds { get; set; }
+}

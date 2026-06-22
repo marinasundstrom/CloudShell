@@ -7,6 +7,8 @@ public interface IResourceRecoveryStore
 {
     ResourceRecoveryPolicy? GetPolicy(string resourceId);
 
+    IReadOnlyDictionary<string, ResourceRecoveryPolicy> GetPolicies();
+
     void SetPolicy(string resourceId, ResourceRecoveryPolicy policy);
 
     void ClearPolicy(string resourceId);
@@ -38,6 +40,9 @@ public sealed class InMemoryResourceRecoveryStore : IResourceRecoveryStore
 
     public ResourceRecoveryPolicy? GetPolicy(string resourceId) =>
         policies.GetValueOrDefault(resourceId);
+
+    public IReadOnlyDictionary<string, ResourceRecoveryPolicy> GetPolicies() =>
+        new Dictionary<string, ResourceRecoveryPolicy>(policies, StringComparer.OrdinalIgnoreCase);
 
     public void SetPolicy(string resourceId, ResourceRecoveryPolicy policy) =>
         policies[resourceId] = policy;

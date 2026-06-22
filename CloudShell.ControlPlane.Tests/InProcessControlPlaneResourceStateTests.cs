@@ -1583,6 +1583,21 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public void InMemoryResourceRecoveryStore_GetPolicies_ReturnsPolicySnapshot()
+    {
+        var store = new InMemoryResourceRecoveryStore();
+        store.SetPolicy("enabled", new ResourceRecoveryPolicy(Enabled: true));
+        store.SetPolicy("disabled", ResourceRecoveryPolicy.Disabled);
+
+        var policies = store.GetPolicies();
+        store.ClearPolicy("enabled");
+
+        Assert.Equal(2, policies.Count);
+        Assert.True(policies["enabled"].Enabled);
+        Assert.False(policies["disabled"].Enabled);
+    }
+
+    [Fact]
     public async Task GetResourceRecoveryStatusAsync_ReturnsPolicyState()
     {
         var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)]);

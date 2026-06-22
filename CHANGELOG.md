@@ -26,6 +26,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource recovery refresh now evaluates liveness health signals, tracks
   failure thresholds and backoff state, and invokes the normal Restart
   lifecycle action when recovery is due.
+- Resource recovery now has an opt-in local polling host that enumerates
+  enabled recovery policies and calls the shared recovery refresh path without
+  making request-serving Control Plane hosts the long-term polling owner.
 - Added a service observability and degradation proposal for service-first,
   replica-aware local-development telemetry correlation, common views, load
   and capacity context, established telemetry interfaces, extension

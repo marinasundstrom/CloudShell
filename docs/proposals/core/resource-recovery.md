@@ -37,6 +37,9 @@ Plane deployments harder to reason about.
 
 - Define resource recovery as a Control Plane concern over resource-owned
   signals and standard lifecycle actions.
+- Treat recovery as an explicit per-resource management capability that can be
+  enabled only when the resource has a suitable liveness signal and restart
+  support.
 - Reuse existing `ResourceHealthCheck`, `ResourceProbeType`, and
   `ResourceProbeSource` concepts where they fit, especially `Liveness`,
   `Readiness`, `Startup`, and HTTP as the first source.
@@ -92,6 +95,13 @@ The existing Health UI should keep calling these declarations health checks.
 extension concepts that let Resource Manager poll signals consistently without
 making HTTP the only source type.
 
+Recovery is a capability that depends on a liveness signal, not on broad
+Health status. A resource can expose health checks without supporting
+automatic recovery, and recovery should not appear as configurable until
+CloudShell can identify both a liveness-capable signal and a restart path.
+The resource model should represent liveness support and recovery support as
+separate capabilities, with recovery declaring its dependency on liveness.
+
 ## Model
 
 The recovery flow should be:
@@ -145,10 +155,15 @@ public enum ResourceProbeType
 }
 ```
 
-The first recovery implementation should reuse this vocabulary and the shared
-probe source/evaluator model. Existing HTTP health checks can become recovery
-inputs when their type is `Liveness`. Provider-native signals can be evaluated
+The first recovery implementation reuses this vocabulary and the shared probe
+source/evaluator model. Existing HTTP health checks can become recovery inputs
+when their type is `Liveness`. Provider-native signals can be evaluated
 through `IResourceProbeEvaluator` implementations registered by providers.
+
+The model should still move toward separate resource capabilities for health
+checks, liveness signals, and recovery policy. `ResourceProbeType.Liveness`
+is the first bridge from existing health-check declarations to recovery, not a
+decision that liveness must remain only a subtype of health forever.
 
 Recommended first signal behavior:
 
@@ -213,6 +228,12 @@ evaluation so multiple API replicas do not run competing restart loops.
 Resource Manager should show Recovery configuration only when the resource has
 a liveness-capable signal and supports restart, or when a provider projects a
 provider-native recovery policy.
+
+The generated Resource Manager view should place Recovery under the resource
+Management area. The Health tab remains the health-check and health-state
+surface, and should link to the Recovery tab when recovery is available so
+users can move from a failed liveness signal to the automatic restart policy
+that consumes it.
 
 The generated Recovery surface should support:
 
@@ -314,13 +335,30 @@ The third landed slice adds the controller core as an explicit refresh path:
 - The periodic scheduler remains deliberately separate so future deployments
   can move polling to a primary controller or worker process.
 
+The fourth landed slice adds opt-in local-development polling:
+
+- `ResourceManager:Recovery:EnableLocalPolling` allows a combined host to run
+  the recovery refresh loop locally.
+- `ResourceManager:Recovery:PollIntervalSeconds` can override the recovery
+  polling cadence; otherwise recovery uses the configured health-check
+  interval.
+- The polling host enumerates enabled resource recovery policies and calls the
+  same `RefreshResourceRecoveryAsync` path exposed through the Control Plane.
+- Local polling is disabled by default so request-serving Control Plane hosts
+  do not implicitly become the long-term owner of singleton recovery work.
+
 The next recovery slice should stay narrow:
 
-1. Add a local-development polling host over enabled policies without making
-   API replicas the long-term owner of polling.
-2. Show generated Recovery configuration and status in Resource Manager.
-3. Add sample coverage for one application resource with a liveness probe and
+1. Show generated Recovery configuration and status in Resource Manager under
+   the Management area, with Health linking to Recovery when recovery is
+   available.
+2. Add sample coverage for one application resource with a liveness probe and
    automatic restart policy.
+3. Add provider-facing capability metadata so resources can advertise Recovery
+   support separately from liveness support while still declaring the required
+   signal dependency.
+4. Add liveness support for built-in resource types where CloudShell can
+   produce a meaningful signal, with SQL Server as an explicit early target.
 
 Provider-native signal contracts, external orchestrator policy projection,
 durable controller leases, and advanced event schemas can follow after the
@@ -334,6 +372,8 @@ local-development loop proves the model.
   or should restart remain liveness-only?
 - Should recovery policy be configured on resource types as defaults, then
   copied to resource instances like health-check defaults?
+- Should liveness become a first-class resource-model concept separate from
+  health checks, or remain a typed probe with separate capability metadata?
 - Should maximum attempts disable the policy until a user resets it, or pause
   until the resource becomes healthy again?
 - Should recovery state be stored as operational cache, durable Control Plane

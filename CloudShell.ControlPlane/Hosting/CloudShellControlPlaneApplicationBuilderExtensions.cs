@@ -40,6 +40,8 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
             builder.Configuration.GetSection(ResourceManagerOptions.SectionName));
         builder.Services.Configure<ResourceHealthOptions>(
             builder.Configuration.GetSection(ResourceHealthOptions.SectionName));
+        builder.Services.Configure<ResourceRecoveryOptions>(
+            builder.Configuration.GetSection(ResourceRecoveryOptions.SectionName));
         builder.Services.Configure<ResourceIdentityOptions>(
             builder.Configuration.GetSection(ResourceIdentityOptions.SectionName));
         builder.Services.Configure<TelemetryOptions>(
@@ -185,6 +187,8 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
             ServiceDescriptor.Singleton<IHostedService, HostScopedResourceShutdownService>());
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, ResourceHealthPollingService>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IHostedService, ResourceRecoveryPollingService>());
 
         return controlPlane;
     }

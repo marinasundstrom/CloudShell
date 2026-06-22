@@ -9,6 +9,8 @@ public static class CloudShellLogCategories
     public const string ResourceHealthPolling = ResourceHealth + ".Polling";
     public const string ResourceHealthProbes = ResourceHealth + ".Probes";
     public const string ResourceHealthProbeHttpClient = "System.Net.Http.HttpClient." + ResourceHealthProbes;
+    public const string ResourceRecovery = ResourceManager + ".ResourceRecovery";
+    public const string ResourceRecoveryPolling = ResourceRecovery + ".Polling";
     public const string ProgrammaticResourceStartup = ResourceManager + ".ProgrammaticResourceStartup";
     public const string HostScopedResourceShutdown = ResourceManager + ".HostScopedResourceShutdown";
     public const string ResourceLifecycle = ResourceManager + ".Lifecycle";
