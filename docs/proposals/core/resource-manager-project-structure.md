@@ -152,6 +152,11 @@ rendering. Resource Manager UI abstractions should describe what can be
 contributed, while the concrete shell decides how those contributions are
 validated, composed, authorized, localized, and rendered.
 
+Those contracts should not require the current Fluent UI-based CloudShell host.
+Another CloudShell UI implementation should be able to consume the same
+Resource Manager UI contribution descriptors and public services, then render
+them with a different component stack or presenter package.
+
 CloudShell UI may also provide optional integration packages that bind shared
 abstractions to the concrete shell experience. For example, a future
 notification abstraction should let extensions publish or subscribe to

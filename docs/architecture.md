@@ -40,6 +40,12 @@ concrete CloudShell UI host implementation or reach into shell internals to
 participate in navigation, settings, notifications, Resource Manager views, or
 other shell-owned surfaces.
 
+The structure should not prevent another CloudShell UI implementation from
+using a different UI component stack. Extension-facing contracts should be
+defined through public abstractions and services first. A concrete CloudShell
+UI package then adapts those contracts into its chosen rendering stack,
+whether Fluent UI, plain Blazor components, or another presenter set.
+
 ### Control Plane
 
 The Control Plane is the backend application. It may be hosted with
@@ -153,6 +159,11 @@ Plane services, and decides which surfaces are active. Even when extensions
 run in-process for the current implementation, the architectural dependency
 should point toward abstractions and host-provided services, not toward
 CloudShell UI implementation details.
+
+This keeps the extension model portable across shell implementations. A
+different CloudShell UI can honor the same contribution descriptors and service
+contracts while rendering them with its own layout, navigation, settings,
+notification, or Resource Manager presenters.
 
 For example, Resource Manager integrates with:
 

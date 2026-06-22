@@ -62,6 +62,10 @@ on `git blame --follow`, and then by the broad type of change.
   implementations, consuming contributions through extension points,
   abstractions, shell services, and adapter layers rather than exposing shell
   internals as the integration model.
+- Clarified that extension-facing UI contracts should remain above the
+  concrete component stack so another CloudShell UI implementation can consume
+  the same public abstractions and services, then render them with its own
+  presenters.
 
 ### 2026-06-21
 

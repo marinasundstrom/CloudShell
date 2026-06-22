@@ -74,6 +74,11 @@ and services. Extension components can render inside shell-owned outlets, but
 they should not require direct access to shell internals or host-only helper
 types unless the integration package explicitly owns that adapter boundary.
 
+Avoid making Fluent UI or the current CloudShell host implementation part of
+an extension-facing contract unless the package is explicitly a Fluent
+presenter package. Another CloudShell UI implementation should be able to use
+the same public abstractions and services, then provide its own presenters.
+
 When the extension point is behavioral rather than visual, prefer a shared
 abstraction plus an optional CloudShell UI integration package over exposing a
 component as the contract. Notifications are the model case: extensions should
