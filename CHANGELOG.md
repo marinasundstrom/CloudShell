@@ -83,6 +83,9 @@ on `git blame --follow`, and then by the broad type of change.
   expose programmatic source-format remapping; replicated container apps
   project the parent source format to runtime replica log sources and only
   parse replica JSON console output when that format is declared.
+- Application runtime log parsing and resource log source projection are now
+  factored out of `ApplicationResourceService`, starting the shared
+  application infrastructure cleanup without changing provider behavior.
 - Resource-scoped Logs views now keep navigation anchored on the selected
   parent resource when choosing projected runtime replica log sources.
 - The global Health page now includes visible resources with aggregate health

@@ -187,13 +187,13 @@ public sealed partial class ApplicationResourceService(
             cancellationToken,
             dockerHostLogger);
 
-        var sourceFormat = GetPrimaryApplicationLogSource(target.Application).Format;
-        var entries = ParseRuntimeContainerLogOutput(
+        var sourceFormat = ApplicationLogSources.GetPrimaryApplicationLogSource(target.Application).Format;
+        var entries = ApplicationRuntimeLogParser.ParseContainerLogOutput(
                 result.Output,
                 target.Instance.Name,
                 null,
                 sourceFormat)
-            .Concat(ParseRuntimeContainerLogOutput(
+            .Concat(ApplicationRuntimeLogParser.ParseContainerLogOutput(
                 result.Error,
                 target.Instance.Name,
                 result.ExitCode == 0 ? "Error" : null,
@@ -247,7 +247,7 @@ public sealed partial class ApplicationResourceService(
 
     private static IReadOnlyList<LogDescriptor> CreateApplicationLogDescriptors(ApplicationResourceDefinition application)
     {
-        var source = GetPrimaryApplicationLogSource(application);
+        var source = ApplicationLogSources.GetPrimaryApplicationLogSource(application);
         return
         [
             new LogDescriptor(
@@ -285,10 +285,10 @@ public sealed partial class ApplicationResourceService(
             .Select(instance =>
             {
                 var resourceId = CreateRuntimeContainerResourceId(application.Id, instance.ReplicaOrdinal);
-                var source = CreateRuntimeContainerLogSource(
+                var source = ApplicationLogSources.CreateRuntimeContainerLogSource(
                     application.Id,
                     instance,
-                    GetPrimaryApplicationLogSource(application));
+                    ApplicationLogSources.GetPrimaryApplicationLogSource(application));
                 return new LogDescriptor(
                     GetRuntimeContainerLogId(application.Id, instance.ReplicaOrdinal),
                     source.Name,
@@ -332,298 +332,6 @@ public sealed partial class ApplicationResourceService(
         }
 
         target = null!;
-        return false;
-    }
-
-    private static IReadOnlyList<LogEntry> ParseRuntimeContainerLogOutput(
-        string output,
-        string source,
-        string? severity,
-        LogFormat format)
-    {
-        if (string.IsNullOrWhiteSpace(output))
-        {
-            return [];
-        }
-
-        return output
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Select(line => ParseRuntimeContainerLogLine(line, source, severity, format))
-            .ToArray();
-    }
-
-    private static LogEntry ParseRuntimeContainerLogLine(
-        string line,
-        string source,
-        string? severity,
-        LogFormat format)
-    {
-        var normalized = line.TrimEnd('\r');
-        var timestamp = DateTimeOffset.UtcNow;
-        var message = normalized;
-        var separatorIndex = normalized.IndexOf(' ');
-        if (separatorIndex > 0 &&
-            DateTimeOffset.TryParse(
-                normalized[..separatorIndex],
-                CultureInfo.InvariantCulture,
-                DateTimeStyles.AssumeUniversal,
-                out var parsedTimestamp))
-        {
-            timestamp = parsedTimestamp;
-            message = normalized[(separatorIndex + 1)..];
-        }
-
-        if (ShouldParseStructuredJson(format) &&
-            TryParseStructuredJsonLog(message, source, severity, timestamp) is { } structured)
-        {
-            return structured;
-        }
-
-        return new LogEntry(timestamp, message, severity, source);
-    }
-
-    private static bool ShouldParseStructuredJson(LogFormat format) =>
-        format is LogFormat.JsonConsole or
-            LogFormat.SerilogCompactJson or
-            LogFormat.Structured;
-
-    private static LogEntry? TryParseStructuredJsonLog(
-        string line,
-        string? fallbackSource,
-        string? fallbackSeverity,
-        DateTimeOffset fallbackTimestamp)
-    {
-        if (!line.TrimStart().StartsWith('{'))
-        {
-            return null;
-        }
-
-        JsonDocument document;
-        try
-        {
-            document = JsonDocument.Parse(line);
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
-
-        using (document)
-        {
-            var root = document.RootElement;
-            if (root.ValueKind != JsonValueKind.Object)
-            {
-                return null;
-            }
-
-            var timestamp = TryGetDateTimeOffset(root, "timestamp") ??
-                TryGetDateTimeOffset(root, "Timestamp") ??
-                TryGetDateTimeOffset(root, "@timestamp") ??
-                fallbackTimestamp;
-            var message = FirstNonEmpty(
-                TryGetString(root, "message"),
-                TryGetString(root, "Message"),
-                TryGetString(root, "renderedMessage"),
-                TryGetString(root, "body"),
-                line) ?? line;
-            var severity = FirstNonEmpty(
-                TryGetString(root, "severity"),
-                TryGetString(root, "Severity"),
-                TryGetString(root, "logLevel"),
-                TryGetString(root, "LogLevel"),
-                TryGetString(root, "level"),
-                fallbackSeverity);
-            var source = FirstNonEmpty(
-                TryGetString(root, "source"),
-                TryGetString(root, "Source"),
-                TryGetString(root, "sourceContext"),
-                TryGetString(root, "SourceContext"),
-                fallbackSource);
-            var category = FirstNonEmpty(
-                TryGetString(root, "category"),
-                TryGetString(root, "Category"),
-                TryGetString(root, "logger"),
-                TryGetString(root, "Logger"),
-                TryGetString(root, "loggerName"),
-                TryGetString(root, "LoggerName"));
-            var eventId = FirstNonEmpty(
-                TryGetScalar(root, "eventId"),
-                TryGetScalar(root, "EventId"),
-                TryGetEventId(root, "EventId"),
-                TryGetEventId(root, "eventId"));
-            var traceId = FirstNonEmpty(
-                TryGetString(root, "traceId"),
-                TryGetString(root, "TraceId"));
-            var spanId = FirstNonEmpty(
-                TryGetString(root, "spanId"),
-                TryGetString(root, "SpanId"));
-            var exceptionSummary = FirstNonEmpty(
-                TryGetString(root, "exceptionSummary"),
-                TryGetString(root, "ExceptionSummary"),
-                TryGetString(root, "exception"),
-                TryGetString(root, "Exception"));
-
-            var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            AddStructuredAttributes(root, "attributes", attributes);
-            AddStructuredAttributes(root, "Attributes", attributes);
-            AddStructuredAttributes(root, "state", attributes);
-            AddStructuredAttributes(root, "State", attributes);
-            ReadScopeCorrelation(root, ref traceId, ref spanId, attributes);
-
-            return new LogEntry(
-                timestamp,
-                message.TrimEnd(),
-                severity,
-                source,
-                eventId,
-                category,
-                traceId,
-                spanId,
-                exceptionSummary,
-                attributes.Count == 0 ? null : attributes);
-        }
-    }
-
-    private static void ReadScopeCorrelation(
-        JsonElement root,
-        ref string? traceId,
-        ref string? spanId,
-        Dictionary<string, string> attributes)
-    {
-        foreach (var propertyName in new[] { "scopes", "Scopes" })
-        {
-            if (!TryGetProperty(root, propertyName, out var scopes) ||
-                scopes.ValueKind != JsonValueKind.Array)
-            {
-                continue;
-            }
-
-            var index = 0;
-            foreach (var scope in scopes.EnumerateArray())
-            {
-                if (scope.ValueKind != JsonValueKind.Object)
-                {
-                    continue;
-                }
-
-                traceId = FirstNonEmpty(traceId, TryGetString(scope, "traceId"), TryGetString(scope, "TraceId"));
-                spanId = FirstNonEmpty(spanId, TryGetString(scope, "spanId"), TryGetString(scope, "SpanId"));
-
-                foreach (var property in scope.EnumerateObject())
-                {
-                    if (IsMessageProperty(property.Name) ||
-                        IsCorrelationProperty(property.Name))
-                    {
-                        continue;
-                    }
-
-                    var value = GetScalarString(property.Value);
-                    if (!string.IsNullOrWhiteSpace(value))
-                    {
-                        attributes[$"scope.{index}.{NormalizeAttributeName(property.Name)}"] = value;
-                    }
-                }
-
-                index++;
-            }
-        }
-    }
-
-    private static void AddStructuredAttributes(
-        JsonElement root,
-        string propertyName,
-        Dictionary<string, string> attributes)
-    {
-        if (!TryGetProperty(root, propertyName, out var state) ||
-            state.ValueKind != JsonValueKind.Object)
-        {
-            return;
-        }
-
-        foreach (var property in state.EnumerateObject())
-        {
-            var value = GetScalarString(property.Value);
-            if (!string.IsNullOrWhiteSpace(value))
-            {
-                attributes[NormalizeAttributeName(property.Name)] = value;
-            }
-        }
-    }
-
-    private static string NormalizeAttributeName(string name) =>
-        string.Equals(name, "{OriginalFormat}", StringComparison.Ordinal)
-            ? "log.originalFormat"
-            : name;
-
-    private static bool IsMessageProperty(string name) =>
-        string.Equals(name, "message", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(name, "{OriginalFormat}", StringComparison.Ordinal);
-
-    private static bool IsCorrelationProperty(string name) =>
-        string.Equals(name, "traceId", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(name, "spanId", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(name, "parentId", StringComparison.OrdinalIgnoreCase);
-
-    private static DateTimeOffset? TryGetDateTimeOffset(JsonElement root, string propertyName)
-    {
-        var value = TryGetString(root, propertyName);
-        return DateTimeOffset.TryParse(value, out var timestamp)
-            ? timestamp
-            : null;
-    }
-
-    private static string? TryGetEventId(JsonElement root, string propertyName)
-    {
-        if (!TryGetProperty(root, propertyName, out var eventId) ||
-            eventId.ValueKind != JsonValueKind.Object)
-        {
-            return null;
-        }
-
-        return FirstNonEmpty(
-            TryGetScalar(eventId, "name"),
-            TryGetScalar(eventId, "Name"),
-            TryGetScalar(eventId, "id"),
-            TryGetScalar(eventId, "Id"));
-    }
-
-    private static string? TryGetString(JsonElement root, string propertyName) =>
-        TryGetProperty(root, propertyName, out var property) && property.ValueKind == JsonValueKind.String
-            ? property.GetString()
-            : null;
-
-    private static string? TryGetScalar(JsonElement root, string propertyName) =>
-        TryGetProperty(root, propertyName, out var property)
-            ? GetScalarString(property)
-            : null;
-
-    private static string? GetScalarString(JsonElement value) =>
-        value.ValueKind switch
-        {
-            JsonValueKind.String => value.GetString(),
-            JsonValueKind.Number => value.GetRawText(),
-            JsonValueKind.True => "true",
-            JsonValueKind.False => "false",
-            _ => null
-        };
-
-    private static bool TryGetProperty(JsonElement root, string propertyName, out JsonElement property)
-    {
-        if (root.TryGetProperty(propertyName, out property))
-        {
-            return true;
-        }
-
-        foreach (var candidate in root.EnumerateObject())
-        {
-            if (string.Equals(candidate.Name, propertyName, StringComparison.OrdinalIgnoreCase))
-            {
-                property = candidate.Value;
-                return true;
-            }
-        }
-
-        property = default;
         return false;
     }
 
@@ -4559,7 +4267,7 @@ public sealed partial class ApplicationResourceService(
             Capabilities: CreateCapabilities(application, endpoints),
             EndpointNetworkMappings: CreateEndpointNetworkMappings(application),
             DisplayName: application.Name,
-            LogSources: GetApplicationLogSources(application));
+            LogSources: ApplicationLogSources.GetApplicationLogSources(application));
     }
 
     private static IReadOnlyList<ResourceHealthCheck> CreateHealthChecks(
@@ -4573,68 +4281,6 @@ public sealed partial class ApplicationResourceService(
 
         return [];
     }
-
-    private static IReadOnlyList<ResourceLogSource> CreateDefaultResourceLogSources() =>
-        [
-            new ResourceLogSource(
-                "console",
-                "Console logs",
-                ResourceLogSourceKind.ProcessOutput,
-                Format: LogFormat.PlainText,
-                Capabilities: LogSourceCapabilities.Read |
-                    LogSourceCapabilities.Stream,
-                Description: "Container app or process stdout and stderr.",
-                Origin: ResourceLogSourceOrigin.ProviderDefault,
-                Configuration: new LogSourceConfiguration(IsConfigurable: true, SchemaId: "cloudshell.logSource.format"),
-                Purpose: ResourceLogSourcePurpose.Default,
-                Availability: LogSourceAvailability.ResourceRunning)
-        ];
-
-    private static IReadOnlyList<ResourceLogSource> GetApplicationLogSources(
-        ApplicationResourceDefinition application) =>
-        application.LogSources.Count == 0
-            ? CreateDefaultResourceLogSources()
-            : application.LogSources;
-
-    private static ResourceLogSource GetPrimaryApplicationLogSource(
-        ApplicationResourceDefinition application)
-    {
-        var sources = GetApplicationLogSources(application);
-        return sources.FirstOrDefault(source => source.Purpose == ResourceLogSourcePurpose.Default) ??
-            sources[0];
-    }
-
-    private static IReadOnlyList<ResourceLogSource> CreateRuntimeContainerLogSources(
-        string producerResourceId,
-        ResourceOrchestratorServiceInstance instance,
-        ResourceLogSource source) =>
-        [
-            CreateRuntimeContainerLogSource(producerResourceId, instance, source)
-        ];
-
-    private static ResourceLogSource CreateRuntimeContainerLogSource(
-        string producerResourceId,
-        ResourceOrchestratorServiceInstance instance,
-        ResourceLogSource source) =>
-        new(
-                "logs",
-                $"Replica {instance.ReplicaOrdinal.ToString(CultureInfo.InvariantCulture)} logs",
-                ResourceLogSourceKind.Container,
-                Format: source.Format,
-                Storage: source.Storage,
-                Capabilities: ProjectRuntimeContainerLogSourceCapabilities(source.Capabilities),
-                ProducerResourceId: producerResourceId,
-                Description: "Runtime container stdout and stderr for this container app replica.",
-                Origin: ResourceLogSourceOrigin.ProviderProjected,
-                Configuration: source.Configuration,
-                Purpose: source.Purpose,
-                Availability: LogSourceAvailability.ProducerRunning);
-
-    private static LogSourceCapabilities ProjectRuntimeContainerLogSourceCapabilities(
-        LogSourceCapabilities capabilities) =>
-        ((capabilities == LogSourceCapabilities.None ? LogSourceCapabilities.Read : capabilities) |
-            LogSourceCapabilities.Read) &
-        ~LogSourceCapabilities.Stream;
 
     private static ApplicationResourceProjection CreateInfrastructureProjection(
         ApplicationResourceDefinition application)
@@ -4751,10 +4397,10 @@ public sealed partial class ApplicationResourceService(
                 new(ResourceCapabilityIds.Monitoring),
                 new(ResourceCapabilityIds.LogSources)
             ],
-            LogSources: CreateRuntimeContainerLogSources(
+            LogSources: ApplicationLogSources.CreateRuntimeContainerLogSources(
                 application.Id,
                 instance,
-                GetPrimaryApplicationLogSource(application)),
+                ApplicationLogSources.GetPrimaryApplicationLogSource(application)),
             EndpointNetworkMappings: CreateRuntimeContainerEndpointNetworkMappings(application, service, instance, state),
             Source: ResourceSource.Orchestrator,
             ManagementMode: ResourceManagementMode.RuntimeManaged,
