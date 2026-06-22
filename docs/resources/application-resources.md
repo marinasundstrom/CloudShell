@@ -135,6 +135,10 @@ Server-side UI forms and provider helpers should construct definitions through
 `ApplicationResourceDefinitionBuilder` so callers describe executable,
 project, container, endpoint, health, observability, storage, and dependency
 intent without depending on the full constructor shape.
+Application registration is materialized by
+`ApplicationResourceRegistrationService`, which normalizes the definition,
+saves it, and synchronizes the Resource Manager registration, group, and
+dependencies.
 
 This is an initial shared application-resource provider contract, not the full
 toolkit. The goal is for any resource author to be able to use the application
@@ -160,6 +164,14 @@ by `ApplicationResourceService`; future slices should move concrete behavior
 behind dedicated services and adapters only when a concrete external resource
 author would otherwise need to duplicate behavior or depend on provider-private
 details.
+
+`ApplicationResourceDefinitionNormalizer` is a transitional extraction. It
+currently centralizes several hardcoded resource-type branches for executable,
+ASP.NET Core project, container app, and SQL Server definitions. Before the
+application-resource package becomes a public toolkit, these branches should
+move behind provider/type-specific normalization rules so external resource
+authors can contribute their own defaults without editing the built-in
+application provider facade.
 
 ## Endpoint And Exposure Model
 

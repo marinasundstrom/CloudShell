@@ -620,6 +620,12 @@ listed here before pulling in broader proposal work.
    the shared application resource declaration helper and reuse the common
    builder defaults. Future slices should continue moving concrete behavior
    behind dedicated implementations rather than expanding the facade.
+   Application setup/update registration now lives in
+   `ApplicationResourceRegistrationService`, and definition normalization is
+   isolated in `ApplicationResourceDefinitionNormalizer`. That normalizer is
+   still hardcoded for built-in application resource types; before this becomes
+   a public toolkit surface, replace those conditionals with provider/type
+   normalization rules that external providers can contribute.
    The destination is a composable application-resource toolkit: external
    providers should be able to declare their own stable resource type, choose a
    local executable, ad-hoc container, or Resource Manager-managed sub-resource

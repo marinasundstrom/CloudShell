@@ -36,7 +36,9 @@ public sealed partial class ApplicationResourceService(
     IEnumerable<ISecretReferenceResolver> secretResolvers,
     ResourceDeclarationStore declarations,
     IResourceEventSink? resourceEvents = null,
-    ILoggerFactory? loggerFactory = null) :
+    ILoggerFactory? loggerFactory = null,
+    ApplicationResourceDefinitionNormalizer? definitionNormalizer = null,
+    ApplicationResourceRegistrationService? applicationRegistrations = null) :
     ILogProvider,
     IResourceMonitoringProvider,
     IResourceAppSettingConfigurationProvider,
@@ -74,6 +76,12 @@ public sealed partial class ApplicationResourceService(
     private readonly ILogger dockerHostLogger =
         loggerFactory?.CreateLogger(CloudShellLogCategories.DockerHostLifecycle) ??
         NullLogger.Instance;
+    private readonly ApplicationResourceDefinitionNormalizer _definitionNormalizer =
+        definitionNormalizer ?? new ApplicationResourceDefinitionNormalizer(environment);
+    private readonly ApplicationResourceRegistrationService _applicationRegistrations =
+        applicationRegistrations ?? new ApplicationResourceRegistrationService(
+            store,
+            definitionNormalizer ?? new ApplicationResourceDefinitionNormalizer(environment));
 
     public string Id => ApplicationResourceProviderIds.Applications;
 
@@ -128,47 +136,27 @@ public sealed partial class ApplicationResourceService(
         }
     }
 
-    public async Task SetupApplicationAsync(
+    public Task SetupApplicationAsync(
         ApplicationResourceDefinition definition,
         string? resourceGroupId,
         IResourceRegistrationStore registrations,
-        CancellationToken cancellationToken = default)
-    {
-        var normalized = NormalizeDefinition(
-            string.IsNullOrWhiteSpace(definition.Id)
-                ? definition with { Id = CreateUniqueImportId(definition.Name) }
-                : definition);
-        store.Save(normalized);
-
-        await registrations.RegisterAsync(
-            ApplicationResourceProviderIds.ForResourceType(normalized.ResourceType),
-            normalized.Id,
-            NormalizeGroupId(resourceGroupId),
-            normalized.DependsOn,
+        CancellationToken cancellationToken = default) =>
+        _applicationRegistrations.SetupApplicationAsync(
+            definition,
+            resourceGroupId,
+            registrations,
             cancellationToken);
-    }
 
-    public async Task UpdateApplicationAsync(
+    public Task UpdateApplicationAsync(
         ApplicationResourceDefinition definition,
         string? resourceGroupId,
         IResourceRegistrationStore registrations,
-        CancellationToken cancellationToken = default)
-    {
-        var existing = store.GetApplication(definition.Id);
-        if (existing is null)
-        {
-            throw new InvalidOperationException($"Application resource '{definition.Id}' is not configured.");
-        }
-
-        var normalized = NormalizeDefinition(definition);
-
-        store.Save(normalized);
-        await registrations.AssignToGroupAsync(
-            normalized.Id,
-            NormalizeGroupId(resourceGroupId),
-            normalized.DependsOn,
+        CancellationToken cancellationToken = default) =>
+        _applicationRegistrations.UpdateApplicationAsync(
+            definition,
+            resourceGroupId,
+            registrations,
             cancellationToken);
-    }
 
     public async Task<ResourceProcedureResult> DeleteAsync(
         ResourceProcedureContext context,
@@ -3796,99 +3784,11 @@ public sealed partial class ApplicationResourceService(
         }
     }
 
-    private ApplicationResourceDefinition NormalizeDefinition(ApplicationResourceDefinition definition)
-    {
-        var id = NormalizeApplicationId(definition.Id, definition.Name);
-        var resourceType = NormalizeResourceType(definition.ResourceType);
-        var isAspNetCoreProject = string.Equals(
-            resourceType,
-            ApplicationResourceTypes.AspNetCoreProject,
-            StringComparison.OrdinalIgnoreCase);
-        var isProjectBacked = isAspNetCoreProject || definition.ProjectContainerBuild;
-        var legacyProjectPath = isAspNetCoreProject
-            ? ApplicationProcessDefinitions.TryExtractProjectPathFromDotNetArguments(definition.Arguments)
-            : null;
-        var projectPath = isProjectBacked
-            ? NormalizeNullable(definition.ProjectPath) ?? legacyProjectPath
-            : null;
-        var replicasEnabled = IsContainerBacked(definition) &&
-            (definition.ReplicasEnabled || definition.Replicas > 1);
+    private ApplicationResourceDefinition NormalizeDefinition(ApplicationResourceDefinition definition) =>
+        _definitionNormalizer.Normalize(definition);
 
-        return definition with
-        {
-            Id = id,
-            Name = definition.Name.Trim(),
-            ExecutablePath = isProjectBacked ? string.Empty : definition.ExecutablePath.Trim(),
-            Arguments = isProjectBacked ? null : NormalizeNullable(definition.Arguments),
-            WorkingDirectory = NormalizeNullable(definition.WorkingDirectory),
-            Endpoint = NormalizeNullable(definition.Endpoint),
-            Lifetime = definition.Lifetime,
-            UseServiceDiscovery = definition.UseServiceDiscovery,
-            ContainerImage = NormalizeNullable(definition.ContainerImage),
-            ContainerRegistry = IsContainerBacked(definition)
-                ? NormalizeContainerRegistry(definition.ContainerRegistry)
-                : null,
-            ContainerRegistryCredentials = IsContainerBacked(definition)
-                ? ContainerRegistryCredentials.Normalize(definition.ContainerRegistryCredentials)
-                : null,
-            ContainerBuildContext = NormalizeNullable(definition.ContainerBuildContext),
-            ContainerDockerfile = NormalizeNullable(definition.ContainerDockerfile),
-            ProjectContainerBuild = isProjectBacked &&
-                string.IsNullOrWhiteSpace(definition.ContainerImage) &&
-                definition.ProjectContainerBuild,
-            ContainerHostId = NormalizeNullable(definition.ContainerHostId),
-            ContainerRevision = NormalizeNullable(definition.ContainerRevision) ??
-                (IsContainerBacked(definition) ? CreateContainerRevision() : null),
-            Replicas = Math.Max(1, definition.Replicas),
-            ReplicasEnabled = replicasEnabled,
-            ResourceType = resourceType,
-            ProjectPath = projectPath,
-            ProjectArguments = isProjectBacked
-                ? NormalizeNullable(definition.ProjectArguments) ??
-                    ApplicationProcessDefinitions.TryExtractApplicationArgumentsFromDotNetArguments(definition.Arguments)
-                : null,
-            AspNetCoreHotReload = isProjectBacked
-                ? ApplicationProcessDefinitions.ResolveAspNetCoreHotReload(definition)
-                : definition.AspNetCoreHotReload,
-            UseLaunchSettingsEndpoints = isAspNetCoreProject &&
-                definition.UseLaunchSettingsEndpoints,
-            DependsOn = NormalizeDependencies(definition.DependsOn, id),
-            References = NormalizeReferences(definition.References, id),
-            EndpointPorts = ResolveEndpointPorts(
-                definition.EndpointPorts,
-                resourceType,
-                definition.Endpoint,
-                projectPath,
-                definition.UseLaunchSettingsEndpoints),
-            HealthChecks = ApplicationHealthRecoveryDeclarations.NormalizeHealthChecks(definition.HealthChecks),
-            RecoveryPolicies = ApplicationHealthRecoveryDeclarations.NormalizeRecoveryPolicies(definition.RecoveryPolicies),
-            Observability = NormalizeObservability(definition.Observability),
-            AppSettings = ApplicationConfigurationReferences.NormalizeAppSettings(definition.AppSettings),
-            EnvironmentVariables = ApplicationConfigurationReferences.NormalizeEnvironmentVariables(definition.EnvironmentVariables),
-            VolumeMounts = NormalizeVolumeMounts(definition.VolumeMounts),
-            SqlDatabases = NormalizeSqlDatabases(definition.SqlDatabases),
-            LogSources = ApplicationLogSources.Normalize(definition.LogSources)
-        };
-    }
-
-    private ApplicationResourceDefinition ResolveDefinition(ApplicationResourceDefinition definition)
-    {
-        if (!ApplicationResourceTypes.IsAspNetCoreProject(definition.ResourceType) ||
-            definition.EndpointPorts.Count > 0)
-        {
-            return definition;
-        }
-
-        var endpointPorts = definition.UseLaunchSettingsEndpoints
-            ? TryReadLaunchSettingsEndpointPorts(definition.ProjectPath)
-            : [];
-        return endpointPorts.Count == 0
-            ? definition with
-            {
-                EndpointPorts = ApplicationProviderServiceCollectionExtensions.CreateAspNetCoreProjectEndpointPorts(definition.Endpoint)
-            }
-            : definition with { EndpointPorts = endpointPorts };
-    }
+    private ApplicationResourceDefinition ResolveDefinition(ApplicationResourceDefinition definition) =>
+        _definitionNormalizer.Resolve(definition);
 
     private static string BuildDotNetAspNetCoreProjectArguments(
         string projectPath,
@@ -4768,11 +4668,6 @@ public sealed partial class ApplicationResourceService(
     private static string CreateContainerRevision() =>
         $"rev-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..27];
 
-    private static string NormalizeResourceType(string? resourceType) =>
-        ApplicationResourceTypes.IsApplication(resourceType)
-            ? resourceType!.Trim()
-            : ApplicationResourceTypes.ExecutableApplication;
-
     private static ResourceLifetime ToResourceLifetime(ApplicationLifetime lifetime) =>
         lifetime switch
         {
@@ -4789,52 +4684,11 @@ public sealed partial class ApplicationResourceService(
     private static string? FirstNonEmpty(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
 
-    private static string CreateId(string name)
-        => ResourceId.FromName("application", name).Value;
-
-    private static string NormalizeApplicationId(string? id, string name)
-    {
-        if (string.IsNullOrWhiteSpace(id))
-        {
-            return CreateId(name);
-        }
-
-        var normalized = id.Trim();
-        return normalized.Contains(':', StringComparison.Ordinal)
-            ? normalized
-            : CreateId(normalized);
-    }
-
     private string CreateUniqueImportId(string name) =>
-        CreateUniqueId(name, resourceId => store.GetApplication(resourceId) is not null);
+        _applicationRegistrations.CreateUniqueImportId(name);
 
-    private string ValidateAvailableImportId(string resourceId)
-    {
-        var normalized = resourceId.Trim();
-        if (store.GetApplication(normalized) is not null)
-        {
-            throw new InvalidOperationException($"Resource id '{normalized}' is already in use.");
-        }
-
-        return normalized;
-    }
-
-    private static string CreateUniqueId(string name, Func<string, bool> exists)
-    {
-        var candidate = CreateId(name);
-        if (!exists(candidate))
-        {
-            return candidate;
-        }
-
-        var suffix = 2;
-        while (exists($"{candidate}-{suffix}"))
-        {
-            suffix++;
-        }
-
-        return $"{candidate}-{suffix}";
-    }
+    private string ValidateAvailableImportId(string resourceId) =>
+        _applicationRegistrations.ValidateAvailableImportId(resourceId);
 
     private static string ResolveWorkingDirectory(ApplicationResourceDefinition definition)
     {
@@ -4856,26 +4710,6 @@ public sealed partial class ApplicationResourceService(
 
     private static string? NormalizeGroupId(string? resourceGroupId) =>
         string.IsNullOrWhiteSpace(resourceGroupId) ? null : resourceGroupId;
-
-    private static IReadOnlyList<string> NormalizeDependencies(
-        IReadOnlyList<string> dependsOn,
-        string resourceId) =>
-        dependsOn
-            .Where(dependency => !string.IsNullOrWhiteSpace(dependency))
-            .Select(dependency => dependency.Trim())
-            .Where(dependency => !string.Equals(dependency, resourceId, StringComparison.OrdinalIgnoreCase))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-
-    private static IReadOnlyList<string> NormalizeReferences(
-        IReadOnlyList<string> references,
-        string resourceId) =>
-        references
-            .Where(reference => !string.IsNullOrWhiteSpace(reference))
-            .Select(reference => reference.Trim())
-            .Where(reference => !string.Equals(reference, resourceId, StringComparison.OrdinalIgnoreCase))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
 
     private static string GetResourceName(string resourceId) =>
         ResourceId.TryParse(resourceId, out var id) && !string.IsNullOrWhiteSpace(id.Name)
