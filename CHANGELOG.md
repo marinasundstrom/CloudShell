@@ -19,7 +19,8 @@ on `git blame --follow`, and then by the broad type of change.
 
 - Added a service observability and degradation proposal for service-first,
   replica-aware local-development telemetry correlation, common views, load
-  and capacity context, and redacted public reports.
+  and capacity context, established telemetry interfaces, extension
+  abstractions, and redacted public reports.
 - Application Topology request-count metric panels now show a cumulative
   `http.server.requests.total` counter instead of summing the most recent 100
   per-request samples.

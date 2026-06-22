@@ -41,10 +41,29 @@ is relative to the local Docker host, a remote Docker container is relative to
 that remote host, and future orchestrators may report node or runtime-specific
 capacity.
 
+## Design Principles
+
+CloudShell should build on established telemetry technologies and interfaces
+instead of inventing private formats for common operational signals. The
+default integration path should use OpenTelemetry concepts for traces,
+metrics, service names, resource attributes, trace/span correlation, and
+telemetry export where they fit. Structured logs should use familiar level,
+category, event, trace ID, span ID, exception, route, status, and attributes
+fields where a source can provide them.
+
+CloudShell's job is to project those signals into Resource Manager through
+resource-centered abstractions. Extension authors should be able to contribute
+or consume logs, traces, telemetry metrics, monitoring snapshots, health, and
+degradation summaries through CloudShell manager/query contracts without
+binding their UI directly to one storage backend, generated HTTP client, or
+provider implementation detail.
+
 ## Goals
 
 - Provide a service-first overview that answers "what is degraded?" before
   asking users to choose logs, traces, metrics, or monitoring manually.
+- Reuse established observability concepts such as OpenTelemetry traces,
+  metrics, service names, resource attributes, and structured log fields.
 - Keep the stable service, container app, or application resource as the
   primary investigation entry point.
 - Treat replicas as runtime scopes of a service, not as the default top-level
@@ -65,6 +84,8 @@ capacity.
 - Provide base Control Plane query/retrieval surfaces and common Resource
   Manager views for telemetry and metrics so local development works without
   requiring a separate observability stack.
+- Provide abstractions that Resource Manager extensions can use to surface
+  telemetry and monitoring signals consistently.
 
 ## Non-Goals
 
