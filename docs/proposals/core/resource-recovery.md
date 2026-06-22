@@ -287,15 +287,23 @@ The first landed slice keeps the scope to the shared signal foundation:
 - Existing `WithHttpHealthCheck(...)`, `WithHttpProbe(...)`, and Health UI
   wording remain in place.
 
+The second landed slice adds the first policy/status surface:
+
+- `ResourceRecoveryPolicy` records resource-scoped automatic restart intent.
+- `ResourceRecoveryStatus` gives Resource Manager a stable status shape before
+  the restart loop exists.
+- `IResourceRecoveryManager` exposes policy and status through the in-process
+  Control Plane and remote client/API.
+- Stored policy is currently in-memory Control Plane state. Durable persistence
+  should land with or before the recovery controller.
+
 The next recovery slice should stay narrow:
 
-1. Add the domain policy and status model.
-2. Persist resource-scoped recovery policy as Control Plane state.
-3. Evaluate `ResourceProbeType.Liveness` results from the shared probe
+1. Evaluate `ResourceProbeType.Liveness` results from the shared probe
    evaluator path as the first restart trigger.
-4. Invoke `Restart` through existing lifecycle orchestration.
-5. Show generated Recovery configuration and status in Resource Manager.
-6. Add sample coverage for one application resource with a liveness probe and
+2. Invoke `Restart` through existing lifecycle orchestration.
+3. Show generated Recovery configuration and status in Resource Manager.
+4. Add sample coverage for one application resource with a liveness probe and
    automatic restart policy.
 
 Provider-native signal contracts, external orchestrator policy projection,

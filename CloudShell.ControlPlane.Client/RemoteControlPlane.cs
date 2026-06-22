@@ -782,6 +782,44 @@ public sealed class RemoteControlPlane : IControlPlane
         return await ReadRequiredAsync<ResourceHealthSummary>(response, cancellationToken);
     }
 
+    public Task<ResourceRecoveryPolicy?> GetResourceRecoveryPolicyAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default) =>
+        GetOptionalAsync<ResourceRecoveryPolicy>(
+            $"resources/{Escape(resourceId)}/recovery-policy",
+            cancellationToken);
+
+    public async Task<ResourceRecoveryPolicy> SetResourceRecoveryPolicyAsync(
+        string resourceId,
+        ResourceRecoveryPolicy policy,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.PutAsJsonAsync(
+            BuildUri($"resources/{Escape(resourceId)}/recovery-policy"),
+            policy,
+            SerializerOptions,
+            cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await ReadRequiredAsync<ResourceRecoveryPolicy>(response, cancellationToken);
+    }
+
+    public async Task ClearResourceRecoveryPolicyAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.DeleteAsync(
+            BuildUri($"resources/{Escape(resourceId)}/recovery-policy"),
+            cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+    }
+
+    public Task<ResourceRecoveryStatus?> GetResourceRecoveryStatusAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default) =>
+        GetOptionalAsync<ResourceRecoveryStatus>(
+            $"resources/{Escape(resourceId)}/recovery-status",
+            cancellationToken);
+
     public Task<bool> HasResourceMonitoringAsync(
         string resourceId,
         CancellationToken cancellationToken = default) =>

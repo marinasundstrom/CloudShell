@@ -1557,6 +1557,61 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task SetResourceRecoveryPolicyAsync_StoresNormalizedPolicy()
+    {
+        var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)]);
+        var policy = new ResourceRecoveryPolicy(
+            Enabled: true,
+            ProbeName: " alive ",
+            FailureThreshold: 0,
+            InitialBackoffSeconds: 30,
+            MaxBackoffSeconds: 10,
+            BackoffMultiplier: 0.5,
+            MaxAttempts: 0);
+
+        var saved = await controlPlane.SetResourceRecoveryPolicyAsync("target", policy);
+        var loaded = await controlPlane.GetResourceRecoveryPolicyAsync("target");
+
+        Assert.True(saved.Enabled);
+        Assert.Equal("alive", saved.ProbeName);
+        Assert.Equal(1, saved.FailureThreshold);
+        Assert.Equal(30, saved.InitialBackoffSeconds);
+        Assert.Equal(30, saved.MaxBackoffSeconds);
+        Assert.Equal(1, saved.BackoffMultiplier);
+        Assert.Equal(1, saved.MaxAttempts);
+        Assert.Equal(saved, loaded);
+    }
+
+    [Fact]
+    public async Task GetResourceRecoveryStatusAsync_ReturnsPolicyState()
+    {
+        var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)]);
+
+        var disabled = await controlPlane.GetResourceRecoveryStatusAsync("target");
+        await controlPlane.SetResourceRecoveryPolicyAsync("target", new ResourceRecoveryPolicy(Enabled: true));
+        var enabled = await controlPlane.GetResourceRecoveryStatusAsync("target");
+
+        Assert.NotNull(disabled);
+        Assert.Equal(ResourceRecoveryState.Disabled, disabled.State);
+        Assert.NotNull(enabled);
+        Assert.Equal(ResourceRecoveryState.WaitingForSignal, enabled.State);
+    }
+
+    [Fact]
+    public async Task ClearResourceRecoveryPolicyAsync_RemovesPolicy()
+    {
+        var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)]);
+
+        await controlPlane.SetResourceRecoveryPolicyAsync("target", new ResourceRecoveryPolicy(Enabled: true));
+        await controlPlane.ClearResourceRecoveryPolicyAsync("target");
+
+        Assert.Null(await controlPlane.GetResourceRecoveryPolicyAsync("target"));
+        var status = await controlPlane.GetResourceRecoveryStatusAsync("target");
+        Assert.NotNull(status);
+        Assert.Equal(ResourceRecoveryState.Disabled, status.State);
+    }
+
+    [Fact]
     public async Task DeleteResourceAsync_RejectsUnknownResource()
     {
         var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)]);

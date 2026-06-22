@@ -20,6 +20,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource health checks now carry a shared probe source abstraction, with HTTP
   as the built-in source and a provider-facing probe evaluator interface for
   non-HTTP resource health signals.
+- Resource recovery now has an initial Control Plane policy and status surface
+  for resource-scoped automatic restart configuration, with restart execution
+  deferred to a later recovery controller slice.
 - Added a service observability and degradation proposal for service-first,
   replica-aware local-development telemetry correlation, common views, load
   and capacity context, established telemetry interfaces, extension

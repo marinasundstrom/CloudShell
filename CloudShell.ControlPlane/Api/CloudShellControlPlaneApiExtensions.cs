@@ -232,6 +232,18 @@ public static class CloudShellControlPlaneApiExtensions
         api.MapPost("/resources/{resourceId}/health/refresh", RefreshResourceHealthForResource)
             .WithName("CloudShellControlPlane_RefreshResourceHealthForResource");
 
+        api.MapGet("/resources/{resourceId}/recovery-policy", GetResourceRecoveryPolicy)
+            .WithName("CloudShellControlPlane_GetResourceRecoveryPolicy");
+
+        api.MapPut("/resources/{resourceId}/recovery-policy", SetResourceRecoveryPolicy)
+            .WithName("CloudShellControlPlane_SetResourceRecoveryPolicy");
+
+        api.MapDelete("/resources/{resourceId}/recovery-policy", ClearResourceRecoveryPolicy)
+            .WithName("CloudShellControlPlane_ClearResourceRecoveryPolicy");
+
+        api.MapGet("/resources/{resourceId}/recovery-status", GetResourceRecoveryStatus)
+            .WithName("CloudShellControlPlane_GetResourceRecoveryStatus");
+
         api.MapGet("/resources/{resourceId}/monitoring/availability", HasResourceMonitoring)
             .WithName("CloudShellControlPlane_HasResourceMonitoring");
 
@@ -1368,6 +1380,40 @@ public static class CloudShellControlPlaneApiExtensions
     {
         var summary = await health.RefreshResourceHealthAsync(resourceId, cancellationToken);
         return summary is null ? Results.NotFound() : Results.Ok(summary);
+    }
+
+    private static async Task<IResult> GetResourceRecoveryPolicy(
+        string resourceId,
+        IResourceRecoveryManager recovery,
+        CancellationToken cancellationToken)
+    {
+        var policy = await recovery.GetResourceRecoveryPolicyAsync(resourceId, cancellationToken);
+        return policy is null ? Results.NotFound() : Results.Ok(policy);
+    }
+
+    private static async Task<IResult> SetResourceRecoveryPolicy(
+        string resourceId,
+        ResourceRecoveryPolicy policy,
+        IResourceRecoveryManager recovery,
+        CancellationToken cancellationToken) =>
+        Results.Ok(await recovery.SetResourceRecoveryPolicyAsync(resourceId, policy, cancellationToken));
+
+    private static async Task<IResult> ClearResourceRecoveryPolicy(
+        string resourceId,
+        IResourceRecoveryManager recovery,
+        CancellationToken cancellationToken)
+    {
+        await recovery.ClearResourceRecoveryPolicyAsync(resourceId, cancellationToken);
+        return Results.NoContent();
+    }
+
+    private static async Task<IResult> GetResourceRecoveryStatus(
+        string resourceId,
+        IResourceRecoveryManager recovery,
+        CancellationToken cancellationToken)
+    {
+        var status = await recovery.GetResourceRecoveryStatusAsync(resourceId, cancellationToken);
+        return status is null ? Results.NotFound() : Results.Ok(status);
     }
 
     private static async Task<IResult> HasResourceMonitoring(

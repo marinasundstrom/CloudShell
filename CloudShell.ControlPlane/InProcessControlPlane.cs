@@ -5,6 +5,7 @@ using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager;
 using Microsoft.AspNetCore.Http;
+using System.Collections.Concurrent;
 using System.Security.Claims;
 using System.Text.Json;
 
@@ -47,6 +48,9 @@ public sealed class InProcessControlPlane(
 
     private readonly IReadOnlyList<IResourcePermissionGrantStatusProvider> permissionGrantStatusProviders =
         (permissionGrantStatusProviders ?? []).ToArray();
+
+    private readonly ConcurrentDictionary<string, ResourceRecoveryPolicy> recoveryPolicies =
+        new(StringComparer.OrdinalIgnoreCase);
 
     public Task<IReadOnlyList<ResourceGroup>> ListResourceGroupsAsync(
         CancellationToken cancellationToken = default)
@@ -1047,6 +1051,66 @@ public sealed class InProcessControlPlane(
         return resourceHealth.GetLatest(resource.Id);
     }
 
+    public Task<ResourceRecoveryPolicy?> GetResourceRecoveryPolicyAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var resource = GetRecoveryResourceForRead(resourceId);
+        if (resource is null)
+        {
+            return Task.FromResult<ResourceRecoveryPolicy?>(null);
+        }
+
+        return Task.FromResult(recoveryPolicies.GetValueOrDefault(resource.Id));
+    }
+
+    public Task<ResourceRecoveryPolicy> SetResourceRecoveryPolicyAsync(
+        string resourceId,
+        ResourceRecoveryPolicy policy,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(policy);
+
+        var resource = GetRecoveryResourceForManage(resourceId);
+        var normalized = NormalizeRecoveryPolicy(policy);
+        recoveryPolicies[resource.Id] = normalized;
+        return Task.FromResult(normalized);
+    }
+
+    public Task ClearResourceRecoveryPolicyAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var resource = GetRecoveryResourceForManage(resourceId);
+        recoveryPolicies.TryRemove(resource.Id, out _);
+        return Task.CompletedTask;
+    }
+
+    public Task<ResourceRecoveryStatus?> GetResourceRecoveryStatusAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var resource = GetRecoveryResourceForRead(resourceId);
+        if (resource is null)
+        {
+            return Task.FromResult<ResourceRecoveryStatus?>(null);
+        }
+
+        var policy = recoveryPolicies.GetValueOrDefault(resource.Id) ?? ResourceRecoveryPolicy.Disabled;
+        var state = policy.Enabled
+            ? ResourceRecoveryState.WaitingForSignal
+            : ResourceRecoveryState.Disabled;
+
+        return Task.FromResult<ResourceRecoveryStatus?>(new ResourceRecoveryStatus(
+            resource.Id,
+            policy,
+            state));
+    }
+
     public Task<bool> HasResourceMonitoringAsync(
         string resourceId,
         CancellationToken cancellationToken = default)
@@ -1152,6 +1216,58 @@ public sealed class InProcessControlPlane(
             })
             .ToArray();
     }
+
+    private Resource? GetRecoveryResourceForRead(string resourceId)
+    {
+        resourceId = RequireValue(resourceId, nameof(resourceId));
+        var resource = resourceManager.GetResource(resourceId);
+        if (resource is null)
+        {
+            return null;
+        }
+
+        var group = resourceManager.GetGroupForResource(resource.Id);
+        if (!CanAccessResource(resource.Id, group?.Id, CloudShellPermissions.Resources.Read))
+        {
+            throw ControlPlaneAccessDeniedException.ForResource(
+                resource.Id,
+                FormatPermissionRequirement(CloudShellPermissions.Resources.Read));
+        }
+
+        return resource;
+    }
+
+    private Resource GetRecoveryResourceForManage(string resourceId)
+    {
+        resourceId = RequireValue(resourceId, nameof(resourceId));
+        var resource = resourceManager.GetResource(resourceId)
+            ?? throw new ControlPlaneException(ControlPlaneError.ResourceNotRegistered(resourceId));
+        var group = resourceManager.GetGroupForResource(resource.Id);
+        if (!CanAccessResource(resource.Id, group?.Id, CloudShellPermissions.Resources.Manage))
+        {
+            throw ControlPlaneAccessDeniedException.ForResource(
+                resource.Id,
+                CloudShellPermissions.Resources.Manage);
+        }
+
+        return resource;
+    }
+
+    private static ResourceRecoveryPolicy NormalizeRecoveryPolicy(ResourceRecoveryPolicy policy) =>
+        policy with
+        {
+            ProbeName = NormalizeOptional(policy.ProbeName),
+            FailureThreshold = Math.Clamp(policy.FailureThreshold, 1, 100),
+            StartupGracePeriodSeconds = Math.Clamp(policy.StartupGracePeriodSeconds, 0, 86_400),
+            InitialBackoffSeconds = Math.Clamp(policy.InitialBackoffSeconds, 1, 86_400),
+            MaxBackoffSeconds = Math.Clamp(
+                Math.Max(policy.MaxBackoffSeconds, policy.InitialBackoffSeconds),
+                1,
+                86_400),
+            BackoffMultiplier = Math.Clamp(policy.BackoffMultiplier, 1, 100),
+            MaxAttempts = Math.Clamp(policy.MaxAttempts, 1, 10_000),
+            ResetAfterHealthySeconds = Math.Clamp(policy.ResetAfterHealthySeconds, 0, 86_400)
+        };
 
     private static ResourceHealthSummary CreateUnknownHealthSummary(Resource resource) =>
         new(

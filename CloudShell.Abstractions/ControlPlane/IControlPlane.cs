@@ -13,6 +13,7 @@ public interface IControlPlane :
     ITraceManager,
     IMetricManager,
     IResourceHealthManager,
+    IResourceRecoveryManager,
     IResourceMonitoringManager;
 
 public interface IResourceManager
@@ -243,6 +244,26 @@ public interface IResourceMonitoringManager
         CancellationToken cancellationToken = default);
 
     Task<ResourceMonitoringSnapshot?> GetResourceMonitoringAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IResourceRecoveryManager
+{
+    Task<ResourceRecoveryPolicy?> GetResourceRecoveryPolicyAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default);
+
+    Task<ResourceRecoveryPolicy> SetResourceRecoveryPolicyAsync(
+        string resourceId,
+        ResourceRecoveryPolicy policy,
+        CancellationToken cancellationToken = default);
+
+    Task ClearResourceRecoveryPolicyAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default);
+
+    Task<ResourceRecoveryStatus?> GetResourceRecoveryStatusAsync(
         string resourceId,
         CancellationToken cancellationToken = default);
 }
