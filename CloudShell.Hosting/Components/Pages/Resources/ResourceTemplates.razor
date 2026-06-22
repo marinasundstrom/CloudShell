@@ -41,12 +41,8 @@
 
 <section class="template-layout">
     <div class="panel template-panel">
-        <div class="panel-header">
-            <div>
-                <h2>@L["Export group"]</h2>
-                <p>@L["CloudShell writes the group envelope and asks each provider for its own configuration payload."]</p>
-            </div>
-        </div>
+        <ShellPanelHeader Title="@L["Export group"].Value"
+                          Description="@L["CloudShell writes the group envelope and asks each provider for its own configuration payload."].Value" />
 
         <label for="export-group">@L["Resource group"]</label>
         <FluentSelect TOption="string"
@@ -84,12 +80,8 @@
     </div>
 
     <div class="panel template-panel">
-        <div class="panel-header">
-            <div>
-                <h2>@L["Import group"]</h2>
-                <p>@L["Paste a resource group template. Unsupported resource types are reported and skipped."]</p>
-            </div>
-        </div>
+        <ShellPanelHeader Title="@L["Import group"].Value"
+                          Description="@L["Paste a resource group template. Unsupported resource types are reported and skipped."].Value" />
 
         @if (isReadOnly)
         {

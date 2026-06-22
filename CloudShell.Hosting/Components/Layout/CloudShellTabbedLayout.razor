@@ -59,15 +59,8 @@
             }
             else
             {
-                <div class="panel-header">
-                    <div>
-                        <h2>@SelectedItem.Title</h2>
-                        @if (PanelDescription is not null)
-                        {
-                            <p>@PanelDescription</p>
-                        }
-                    </div>
-                </div>
+                <ShellPanelHeader Title="@SelectedItem.Title"
+                                  Description="@PanelDescription" />
             }
 
             @if (ChildContent is not null)

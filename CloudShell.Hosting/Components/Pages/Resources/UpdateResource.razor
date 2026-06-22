@@ -187,12 +187,8 @@
         <HeaderContent Context="item">
             @if (selectedTab is not null && resource is not null)
             {
-                <div class="panel-header">
-                    <div>
-                        <h2>@selectedTab.Title</h2>
-                        <p>@(resourceType?.DisplayName ?? resource.EffectiveTypeId)</p>
-                    </div>
-                </div>
+                <ShellPanelHeader Title="@selectedTab.Title"
+                                  Description="@(resourceType?.DisplayName ?? resource.EffectiveTypeId)" />
             }
         </HeaderContent>
         <ChildContent Context="item">
