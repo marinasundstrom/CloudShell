@@ -540,6 +540,14 @@ public sealed partial class ApplicationResourceService(
             DateTimeOffset.UtcNow,
             triggeredBy));
 
+        if (!restartIfRunning &&
+            wasRunning &&
+            await TryApplyLiveReplicaUpdateAsync(application, updated, context, cancellationToken))
+        {
+            return ResourceProcedureResult.Completed(
+                $"Updated {application.Name} to {updated.Replicas} replica{Pluralize(updated.Replicas)}.");
+        }
+
         if (restartIfRunning && wasRunning)
         {
             await StartApplicationAsync(
@@ -569,6 +577,71 @@ public sealed partial class ApplicationResourceService(
                 "The container app is running. Restart it to apply the replica count.")
             : ResourceProcedureResult.Completed(
                 $"Updated {application.Name} to {updated.Replicas} replica{Pluralize(updated.Replicas)}.");
+    }
+
+    private async Task<bool> TryApplyLiveReplicaUpdateAsync(
+        ApplicationResourceDefinition previous,
+        ApplicationResourceDefinition updated,
+        ResourceProcedureContext context,
+        CancellationToken cancellationToken)
+    {
+        if (!IsContainerBacked(previous) ||
+            !IsContainerBacked(updated) ||
+            !IsReplicaModeEnabled(previous) ||
+            !IsReplicaModeEnabled(updated) ||
+            previous.Replicas <= 1 ||
+            updated.Replicas <= 1 ||
+            context.ResourceManager is null)
+        {
+            return false;
+        }
+
+        var previousReplicas = Math.Max(1, previous.Replicas);
+        var updatedReplicas = Math.Max(1, updated.Replicas);
+        if (updatedReplicas > previousReplicas)
+        {
+            var service = CreateDefaultContainerOrchestratorService(updated);
+            await PrepareOrchestratorServiceAsync(
+                new ResourceOrchestratorServiceProcedureContext(context, service),
+                ResourceAction.Start,
+                cancellationToken);
+
+            foreach (var instance in CreateDefaultContainerServiceInstances(service)
+                         .Where(instance => instance.ReplicaOrdinal > previousReplicas))
+            {
+                await ExecuteOrchestratorServiceInstanceAsync(
+                    new ResourceOrchestratorServiceInstanceContext(context, service, instance),
+                    ResourceAction.Start,
+                    cancellationToken);
+            }
+        }
+        else if (updatedReplicas < previousReplicas)
+        {
+            var previousService = CreateDefaultContainerOrchestratorService(previous);
+            foreach (var instance in CreateDefaultContainerServiceInstances(previousService)
+                         .Where(instance => instance.ReplicaOrdinal > updatedReplicas)
+                         .OrderByDescending(instance => instance.ReplicaOrdinal))
+            {
+                await StopContainerApplicationInstanceAsync(
+                    previous,
+                    context.ResourceManager,
+                    context.PreferredContainerHostId,
+                    instance,
+                    cancellationToken);
+            }
+        }
+
+        var updatedService = CreateDefaultContainerOrchestratorService(updated);
+        if (ShouldUseContainerAppIngress(updatedService))
+        {
+            await WriteContainerAppIngressConfigurationAsync(
+                updated,
+                updatedService,
+                cancellationToken,
+                context);
+        }
+
+        return true;
     }
 
     private async Task EnsureContainerRestartAvailableForUpdateAsync(
@@ -2676,17 +2749,11 @@ public sealed partial class ApplicationResourceService(
         }
 
         var ingressName = GetContainerAppIngressName(service);
-        var configurationDirectory = GetContainerAppIngressConfigurationDirectory(definition.Id);
-        Directory.CreateDirectory(configurationDirectory);
-        var configurationPath = Path.Combine(configurationDirectory, "dynamic.yml");
-        procedureContext?.AppendProviderEvent(
-            Id,
-            "application.container.ingress.configuring",
-            $"Application provider is writing ingress configuration for '{definition.Name}'.");
-        await File.WriteAllTextAsync(
-            configurationPath,
-            CreateContainerAppIngressConfiguration(service, ingressPorts),
-            cancellationToken);
+        var configurationDirectory = await WriteContainerAppIngressConfigurationAsync(
+            definition,
+            service,
+            cancellationToken,
+            procedureContext);
 
         await ApplicationContainerHostCommands.RunAsync(
             engine,
@@ -2743,6 +2810,30 @@ public sealed partial class ApplicationResourceService(
             Id,
             "application.container.ingress.started",
             $"Application provider started ingress '{ingressName}' for '{definition.Name}'.");
+    }
+
+    private async Task<string> WriteContainerAppIngressConfigurationAsync(
+        ApplicationResourceDefinition definition,
+        ResourceOrchestratorService service,
+        CancellationToken cancellationToken,
+        ResourceProcedureContext? procedureContext = null)
+    {
+        var ingressPorts = service.ServicePorts
+            .Where(IsContainerAppIngressPort)
+            .ToArray();
+        var configurationDirectory = GetContainerAppIngressConfigurationDirectory(definition.Id);
+        Directory.CreateDirectory(configurationDirectory);
+        var configurationPath = Path.Combine(configurationDirectory, "dynamic.yml");
+        procedureContext?.AppendProviderEvent(
+            Id,
+            "application.container.ingress.configuring",
+            $"Application provider is writing ingress configuration for '{definition.Name}'.");
+        await File.WriteAllTextAsync(
+            configurationPath,
+            CreateContainerAppIngressConfiguration(service, ingressPorts),
+            cancellationToken);
+
+        return configurationDirectory;
     }
 
     private async Task StopContainerAppIngressAsync(

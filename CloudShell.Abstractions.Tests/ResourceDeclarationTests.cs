@@ -10499,6 +10499,94 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
+    public async Task ContainerApplicationProvider_ScalesDownRunningReplicaSetWithoutRestart()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var services = new ServiceCollection();
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(contentRoot);
+        var commandLogPath = Path.Combine(contentRoot, "fake-docker-commands.log");
+        var fakeDocker = CreateRecordingContainerHostExecutable(contentRoot, commandLogPath);
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .UseContainerHost(new ContainerHostDescriptor(
+                "docker:test",
+                "Test Docker",
+                ContainerHostKind.Docker,
+                "unix:///var/run/docker.sock",
+                Metadata: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["cloudshell.executable"] = fakeDocker
+                },
+                Capabilities: [ContainerHostCapabilityIds.ContainerImage]))
+            .AddExtension<ApplicationProviderExtension>()
+            .Resources(resources =>
+            {
+                resources
+                    .AddContainer("api", "example/api:latest", replicas: 3)
+                    .WithContainerHost("docker:test");
+            });
+
+        try
+        {
+            using var serviceProvider = services.BuildServiceProvider();
+            var declarationStore = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+            var registrations = new DeclarationRegistrationStore(declarationStore);
+            var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+            var providers = serviceProvider.GetServices<IResourceProvider>().ToArray();
+            var resources = providers
+                .SelectMany(provider => provider.GetResources())
+                .ToArray();
+            var resourceManager = new StaticResourceManagerStore(resources, providers);
+            var resource = Assert.Single(provider.GetResources(), resource =>
+                resource.Id == "application:api");
+            var runtimeStates = serviceProvider.GetRequiredService<ApplicationRuntimeStateStore>();
+            var currentProcess = Process.GetCurrentProcess();
+            runtimeStates.Save(new ApplicationRuntimeState(
+                resource.Id,
+                currentProcess.Id,
+                currentProcess.StartTime,
+                DateTimeOffset.UtcNow));
+
+            var result = await provider.UpdateReplicasAsync(
+                new ResourceProcedureContext(
+                    resource,
+                    registrations.GetRegistration(resource.Id),
+                    null,
+                    registrations,
+                    resourceManager),
+                2,
+                restartIfRunning: false);
+
+            var updated = provider.GetApplication("application:api");
+            var commands = File.ReadAllLines(commandLogPath);
+
+            Assert.False(result.RestartRequired);
+            Assert.Equal("Updated api to 2 replicas.", result.Message);
+            Assert.NotNull(updated);
+            Assert.True(updated.ReplicasEnabled);
+            Assert.Equal(2, updated.Replicas);
+            Assert.Contains("rm -f cloudshell-application-api-replica-3", commands);
+            Assert.DoesNotContain("rm -f cloudshell-application-api-replica-1", commands);
+            Assert.DoesNotContain("rm -f cloudshell-application-api-replica-2", commands);
+        }
+        finally
+        {
+            if (Directory.Exists(contentRoot))
+            {
+                Directory.Delete(contentRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task ContainerApplicationProvider_PreflightsRestartBeforeReplicaUpdate()
     {
         var services = new ServiceCollection();

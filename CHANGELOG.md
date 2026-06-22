@@ -151,6 +151,9 @@ on `git blame --follow`, and then by the broad type of change.
   assessment, most relevant check detail, contributing check counts, and last
   observation time so runtime observations are visible next to replica state
   and placement.
+- Container app replica count changes now run through a dedicated Scale and
+  replicas command, and running replicated apps can scale between replica
+  counts without forcing a full resource restart.
 - Resource Health now links aggregate runtime-scope observations to the
   resource-owned Scale and replicas view when the resource type exposes one.
 - The global Health page now links resources directly to their resource-scoped

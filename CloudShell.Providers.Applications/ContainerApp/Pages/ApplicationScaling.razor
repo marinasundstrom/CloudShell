@@ -1,6 +1,7 @@
 @using System.Globalization
 @inject ApplicationResourceService ApplicationProvider
 @inject IResourceHealthManager HealthManager
+@inject IResourceManager ResourceActions
 @inject IResourceManagerStore ResourceManager
 @inject IResourceRegistrationStore Registrations
 
@@ -39,6 +40,23 @@ else
                                Min="1"
                                Disabled="@IsReadOnly"
                                @bind-Value="Replicas" />
+            <GeneratedRowActions>
+                <FluentButton Appearance="Appearance.Accent"
+                              IconStart="@(new Icons.Regular.Size20.ArrowSyncCircle())"
+                              Disabled="@(!CanUpdateReplicaCount)"
+                              OnClick="UpdateReplicasAsync">
+                    @(IsUpdatingReplicas ? "Updating replicas" : "Update replicas")
+                </FluentButton>
+            </GeneratedRowActions>
+
+            @if (!string.IsNullOrWhiteSpace(ReplicaUpdateMessage))
+            {
+                <ProcedureMessage Compact="true"
+                                  Severity="@ReplicaUpdateSeverity"
+                                  Role="status">
+                    @ReplicaUpdateMessage
+                </ProcedureMessage>
+            }
 
             @if (Application is not null &&
                 ApplicationVolumeMountReplicaWarning.ShouldShow(EnableReplicas, Application.VolumeMounts, GetVolumeResources()))
@@ -178,11 +196,22 @@ else
     private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
     private bool EnableReplicas { get; set; }
     private int Replicas { get; set; } = 2;
+    private bool IsUpdatingReplicas { get; set; }
+    private string? ReplicaUpdateMessage { get; set; }
+    private ResourceSignalSeverity? ReplicaUpdateSeverity { get; set; }
     private static readonly ResourceViewId ScalingViewId =
         new(ResourceTabGroupIds.Application, "scale-replicas");
 
     private bool HasInboundEndpoint =>
         Application?.EndpointPorts.Count > 0;
+
+    private bool CanUpdateReplicaCount =>
+        !IsReadOnly &&
+        !IsUpdatingReplicas &&
+        EnableReplicas &&
+        Application is not null &&
+        ApplicationResourceTypes.IsContainerApp(Application.ResourceType) &&
+        Math.Max(1, Replicas) != Math.Max(1, Application.Replicas);
 
     private string BuildAddLoadBalancerRoute() =>
         Application is null
@@ -255,6 +284,11 @@ else
             return ResourceProcedureResult.Completed("Scaling configuration is already up to date.");
         }
 
+        if (EnableReplicas)
+        {
+            return ResourceProcedureResult.Completed("Use Update replicas to apply replica count changes.");
+        }
+
         var wasRunning = ApplicationProvider.IsRunning(Application.Id);
         await ApplicationProvider.UpdateApplicationAsync(
             updated,
@@ -268,6 +302,68 @@ else
                 Application.Id,
                 "The container app is running. Restart it to apply scaling changes.")
             : ResourceProcedureResult.Completed("Scaling configuration updated.");
+    }
+
+    private async Task UpdateReplicasAsync()
+    {
+        if (IsUpdatingReplicas)
+        {
+            return;
+        }
+
+        if (IsReadOnly)
+        {
+            ReplicaUpdateSeverity = ResourceSignalSeverity.Warning;
+            ReplicaUpdateMessage = "Resource Manager is in read-only mode.";
+            return;
+        }
+
+        if (Application is null ||
+            !ApplicationResourceTypes.IsContainerApp(Application.ResourceType))
+        {
+            ReplicaUpdateSeverity = ResourceSignalSeverity.Warning;
+            ReplicaUpdateMessage = "Scaling is not supported for this resource.";
+            return;
+        }
+
+        IsUpdatingReplicas = true;
+        ReplicaUpdateMessage = null;
+        ReplicaUpdateSeverity = null;
+        try
+        {
+            var applicationId = Application.Id;
+            var result = await ResourceActions.UpdateResourceReplicasAsync(
+                applicationId,
+                Math.Max(1, Replicas),
+                restartIfRunning: false);
+
+            ReplicaUpdateSeverity = result.RestartRequired
+                ? ResourceSignalSeverity.Warning
+                : ResourceSignalSeverity.Success;
+            ReplicaUpdateMessage = result.RestartRequired &&
+                !string.IsNullOrWhiteSpace(result.RestartMessage)
+                    ? $"{result.Message} {result.RestartMessage}"
+                    : result.Message;
+
+            Application = ApplicationProvider.GetApplication(applicationId);
+            ProjectedResource = ResourceManager.GetResource(applicationId);
+            MaterializedReplicas = ProjectedResource is null
+                ? []
+                : ResourceManager.GetChildren(ProjectedResource.Id)
+                    .Where(IsReplicaResource)
+                    .OrderBy(GetReplicaOrdinal)
+                    .ThenBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            ReplicaUpdateSeverity = ResourceSignalSeverity.Error;
+            ReplicaUpdateMessage = $"Replica update failed: {exception.Message}";
+        }
+        finally
+        {
+            IsUpdatingReplicas = false;
+        }
     }
 
     private static bool IsReplicaResource(Resource resource) =>
