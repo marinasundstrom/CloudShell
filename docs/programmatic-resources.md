@@ -356,7 +356,7 @@ cloudShell.Resources(resources =>
 
     resources
         .AddSqlServer("main", dataVolume: sqlData, port: 14334)
-        .WithDatabase("appdb", "Application DB")
+        .DeclareDatabase("appdb", "Application DB")
         .WithDisplayName("Main SQL Server");
 });
 ```
@@ -365,10 +365,12 @@ The current local provider still uses a SQL Server container image internally,
 but callers receive an `application.sql-server` service resource rather than a
 container-app builder. Declared databases project as provider-managed
 `application.sql-database` children and appear on the SQL Server resource's
-Databases tab. When SQL Server starts, the local provider creates missing
-declared databases, then the tab connects to the instance and marks whether
-each declared database exists while also showing databases that exist on the
-server but were not declared. Future SQL Server builder slices should add
+Databases tab. Declaring a database records the assumption that it should exist
+on the SQL Server; it is not an operation and does not create it by default.
+Local development and test declarations can call
+`DeclareDatabase(...).EnsureCreated()` as a separate provider operation request
+to create the database if it is missing before access grants are reconciled.
+Future SQL Server builder slices should add
 validated SQL Server concepts such as version and edition instead of arbitrary
 image selection, and should materialize access grants into SQL users, roles, or
 provider-specific credentials. Top-level container applications are the place

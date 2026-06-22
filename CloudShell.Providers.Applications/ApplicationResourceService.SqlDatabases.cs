@@ -17,7 +17,8 @@ public sealed partial class ApplicationResourceService
         {
             [ResourceAttributeNames.DatabaseName] = database.Name,
             [ResourceAttributeNames.DatabaseServerResourceId] = application.Id,
-            [ResourceAttributeNames.DatabaseSource] = "declared"
+            [ResourceAttributeNames.DatabaseSource] = "declared",
+            [ResourceAttributeNames.DatabaseEnsureCreated] = database.EnsureCreated.ToString().ToLowerInvariant()
         };
 
         return new Resource(
@@ -51,7 +52,8 @@ public sealed partial class ApplicationResourceService
             .Where(database => !string.IsNullOrWhiteSpace(database.Name))
             .Select(database => new SqlServerDatabaseDefinition(
                 NormalizeDatabaseName(database.Name),
-                NormalizeNullable(database.DisplayName)))
+                NormalizeNullable(database.DisplayName),
+                database.EnsureCreated))
             .DistinctBy(database => database.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 

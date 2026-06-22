@@ -90,8 +90,9 @@ Implemented today:
 * SQL Server resources expose a **Reconcile database access** action that
   reapplies CloudShell database grants to declared SQL databases while the
   instance is running.
-* Programmatic declarations can add expected databases with
-  `WithDatabase(...)`; those project as provider-managed
+* Programmatic declarations can record the assumption that a database should
+  exist on a SQL Server with `DeclareDatabase(...)`; those project as
+  provider-managed
   `application.sql-database` child resources and display in a SQL Server
   **Databases** tab.
 
@@ -233,7 +234,7 @@ var sql = resources
     .WithVersion("2022")
     .WithEdition("Developer");
 
-var orders = sql.AddDatabase("orders");
+var orders = sql.DeclareDatabase("orders");
 ```
 
 or, when an existing server should be referenced by ID:
@@ -528,7 +529,7 @@ var api = resources
     .AddAspNetCoreProject("api", "../Api/Api.csproj")
     .RequireIdentity(name: "api-service");
 
-var orders = sql.AddDatabase("orders");
+var orders = sql.DeclareDatabase("orders");
 
 orders.Allow(api.Principal, "Database/databases/readWrite/action");
 ```

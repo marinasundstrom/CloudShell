@@ -192,7 +192,7 @@ public sealed partial class ApplicationResourceService(
                 action.Id,
                 ReconcileSqlServerAccessActionId,
                 StringComparison.OrdinalIgnoreCase):
-                var count = await ReconcileSqlServerAccessGrantsAsync(
+                var count = await ReconcileSqlServerDatabasesAsync(
                     context.Resource.Id,
                     cancellationToken,
                     context);
@@ -714,8 +714,10 @@ public sealed partial class ApplicationResourceService(
         }
 
         var databases = new List<SqlServerDatabaseInfo>();
-        await using var connection = new SqlConnection(connectionString);
-        await connection.OpenAsync(cancellationToken);
+        await using var connection = await OpenSqlServerConnectionWithRetryAsync(
+            application,
+            connectionString,
+            cancellationToken);
         await using var command = connection.CreateCommand();
         command.CommandText = """
             SELECT [name], [state_desc],
@@ -1632,7 +1634,7 @@ public sealed partial class ApplicationResourceService(
                 procedureContext);
         }
 
-        await ReconcileSqlServerAccessGrantsAsync(runtimeDefinition.Id, cancellationToken, procedureContext);
+        await ReconcileSqlServerDatabasesAsync(runtimeDefinition.Id, cancellationToken, procedureContext);
     }
 
     public async Task<ResourcePermissionGrantStatus> GetSqlServerPermissionGrantStatusAsync(
@@ -1738,7 +1740,7 @@ public sealed partial class ApplicationResourceService(
         }
     }
 
-    private async Task<int> ReconcileSqlServerAccessGrantsAsync(
+    private async Task<int> ReconcileSqlServerDatabasesAsync(
         string sqlServerResourceId,
         CancellationToken cancellationToken,
         ResourceProcedureContext? procedureContext)
@@ -1755,6 +1757,9 @@ public sealed partial class ApplicationResourceService(
             return 0;
         }
 
+        var ensureCreatedDatabases = definition.SqlDatabases
+            .Where(database => database.EnsureCreated)
+            .ToArray();
         var grants = declarations
             .GetPermissionGrants()
             .Where(grant =>
@@ -1763,13 +1768,29 @@ public sealed partial class ApplicationResourceService(
                 grant.ResourceIdentity is not null)
             .ToArray();
 
+        if (ensureCreatedDatabases.Length == 0 &&
+            grants.Length == 0)
+        {
+            return 0;
+        }
+
         var serverResource = GetResources().FirstOrDefault(resource =>
             string.Equals(resource.Id, definition.Id, StringComparison.OrdinalIgnoreCase));
         if (serverResource is null ||
-            !TryCreateSqlServerConnectionString(definition, serverResource, "master", out _))
+            !TryCreateSqlServerConnectionString(definition, serverResource, "master", out var masterConnectionString))
         {
             throw new InvalidOperationException(
-                $"SQL Server resource '{definition.Name}' cannot reconcile database access because its TDS endpoint or administrator password is not available.");
+                $"SQL Server resource '{definition.Name}' cannot reconcile databases because its TDS endpoint or administrator password is not available.");
+        }
+
+        if (ensureCreatedDatabases.Length > 0)
+        {
+            await ReconcileEnsureCreatedSqlServerDatabasesAsync(
+                definition,
+                masterConnectionString,
+                ensureCreatedDatabases,
+                cancellationToken,
+                procedureContext);
         }
 
         procedureContext?.AppendProviderEvent(
@@ -1799,6 +1820,52 @@ public sealed partial class ApplicationResourceService(
         return grants.Length;
     }
 
+    private async Task ReconcileEnsureCreatedSqlServerDatabasesAsync(
+        ApplicationResourceDefinition definition,
+        string masterConnectionString,
+        IReadOnlyList<SqlServerDatabaseDefinition> databases,
+        CancellationToken cancellationToken,
+        ResourceProcedureContext? procedureContext)
+    {
+        foreach (var database in databases)
+        {
+            if (database.Name.Length > 128)
+            {
+                throw new InvalidOperationException(
+                    $"SQL Server resource '{definition.Name}' declares database '{database.Name}' with a name longer than 128 characters.");
+            }
+        }
+
+        procedureContext?.AppendProviderEvent(
+            Id,
+            "application.sql.databases.reconciling",
+            $"Application provider is ensuring {databases.Count.ToString(CultureInfo.InvariantCulture)} SQL database{Pluralize(databases.Count)} exist for '{definition.Name}'.");
+
+        await using var connection = await OpenSqlServerConnectionWithRetryAsync(
+            definition,
+            masterConnectionString,
+            cancellationToken);
+
+        foreach (var database in databases)
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+                IF DB_ID(@databaseName) IS NULL
+                BEGIN
+                    DECLARE @sql nvarchar(max) = N'CREATE DATABASE ' + QUOTENAME(@databaseName);
+                    EXEC sp_executesql @sql;
+                END
+                """;
+            command.Parameters.AddWithValue("@databaseName", database.Name);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        procedureContext?.AppendProviderEvent(
+            Id,
+            "application.sql.databases.reconciled",
+            $"Application provider ensured declared SQL databases exist for '{definition.Name}'.");
+    }
+
     private async Task ReconcileSqlServerDatabaseAccessAsync(
         ApplicationResourceDefinition server,
         Resource serverResource,
@@ -1812,8 +1879,10 @@ public sealed partial class ApplicationResourceService(
                 $"SQL Server resource '{server.Name}' cannot reconcile database access for '{databaseName}' because its TDS endpoint or administrator password is not available.");
         }
 
-        await using var connection = new SqlConnection(connectionString);
-        await connection.OpenAsync(cancellationToken);
+        await using var connection = await OpenSqlServerConnectionWithRetryAsync(
+            server,
+            connectionString,
+            cancellationToken);
 
         foreach (var userName in managedUsers)
         {
@@ -2146,7 +2215,7 @@ public sealed partial class ApplicationResourceService(
                 await connection.OpenAsync(cancellationToken);
                 return connection;
             }
-            catch (SqlException exception)
+            catch (SqlException exception) when (ShouldRetrySqlServerConnection(exception))
             {
                 lastError = exception;
                 await connection.DisposeAsync();
@@ -2168,6 +2237,19 @@ public sealed partial class ApplicationResourceService(
         throw new InvalidOperationException(
             $"SQL Server resource '{definition.Name}' started, but declared database reconciliation could not connect to the instance within {SqlServerDatabaseReconciliationTimeout.TotalSeconds.ToString(CultureInfo.InvariantCulture)} seconds.",
             lastError);
+    }
+
+    private static bool ShouldRetrySqlServerConnection(SqlException exception)
+    {
+        foreach (SqlError error in exception.Errors)
+        {
+            if (error.Number == 4060)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private async Task<ApplicationResourceDefinition> MaterializeContainerImageAsync(

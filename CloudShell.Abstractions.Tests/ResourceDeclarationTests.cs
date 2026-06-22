@@ -9051,7 +9051,8 @@ public sealed class ResourceDeclarationTests
                         administratorPassword: "CloudShell-Passw0rd!",
                         dataVolume: volume,
                         port: 14333)
-                    .WithDatabase("appdb", "Application DB")
+                    .DeclareDatabase("appdb", "Application DB")
+                        .EnsureCreated(false)
                     .WithIdentity(identityProvider)
                     .WithContainerHost("docker:dev")
                     .WithLifetime(ResourceLifetime.Detached);
@@ -9107,6 +9108,7 @@ public sealed class ResourceDeclarationTests
         var declaredDatabase = Assert.Single(application?.SqlDatabases ?? []);
         Assert.Equal("appdb", declaredDatabase.Name);
         Assert.Equal("Application DB", declaredDatabase.DisplayName);
+        Assert.False(declaredDatabase.EnsureCreated);
         Assert.Equal(ResourceWorkloadKind.ContainerImage, workload?.Kind);
         Assert.Equal(ApplicationProviderServiceCollectionExtensions.DefaultSqlServerImage, workload?.Image);
         Assert.Equal("docker:dev", workload?.ContainerHostId);
@@ -9145,6 +9147,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("appdb", database.ResourceAttributes[ResourceAttributeNames.DatabaseName]);
         Assert.Equal("application:sql", database.ResourceAttributes[ResourceAttributeNames.DatabaseServerResourceId]);
         Assert.Equal("declared", database.ResourceAttributes[ResourceAttributeNames.DatabaseSource]);
+        Assert.Equal("false", database.ResourceAttributes[ResourceAttributeNames.DatabaseEnsureCreated]);
 
         var reconcileAction = Assert.Single(
             resource.ResourceActions,

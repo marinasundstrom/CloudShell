@@ -69,7 +69,7 @@ var sql = resources
         administratorPassword: "Your-strong-dev-password!",
         dataVolume: sqlData,
         port: 14334)
-    .WithDatabase("appdb", "Application DB")
+    .DeclareDatabase("appdb", "Application DB")
     .WithIdentity(identityProvider);
 ```
 
@@ -80,25 +80,26 @@ generic image deployment or replicas through the SQL Server API.
 
 ## Databases
 
-SQL Server resources can declare databases through the programmatic builder:
+SQL Server resources can declare database resources through the programmatic
+builder:
 
 ```csharp
 resources
     .AddSqlServer("main")
-    .WithDatabase("orders", "Orders");
+    .DeclareDatabase("orders", "Orders");
 ```
 
-The application provider projects each declared database as an
+The application provider projects each declared database resource as an
 `application.sql-database` child resource with `ProviderManaged` management and
 diagnostic visibility. The child resource records its parent SQL Server
 resource, database name, and projection source.
 
-Declared SQL databases are expected database resources, not app-owned runtime
-replicas. The declaration says the database should be present for the SQL
-Server resource and gives CloudShell a child resource to show in Resource
-Manager, attach grants to, and correlate with provider observations. That is
-different from a container app replica, which is a runtime-managed resource
-materialized by the container app when scaling is enabled.
+Declared SQL databases record the resource-model assumption that the database
+should exist on the SQL Server. The declaration itself is not an operation and
+does not create the database; it gives CloudShell a child resource to show in
+Resource Manager, attach grants to, and correlate with provider observations.
+That is different from a container app replica, which is a runtime-managed
+resource materialized by the container app when scaling is enabled.
 
 Resource Manager displays declared databases in the SQL Server **Databases**
 tab even when the SQL Server instance is stopped. When the instance is running,
@@ -107,12 +108,13 @@ inspect `sys.databases`, and report whether each declaration exists on the
 server.
 
 The **Databases** tab is read-only. CloudShell does not create missing
-declared databases during SQL Server startup; creating the database schema is
-currently an application or migration responsibility. A future SQL
-Server-specific management capability may add explicit database create/drop
-operations, but those operations should not be implied by child resource
-projection. CloudShell does not yet drop databases, materialize SQL users and
-roles from access grants, or project database connection strings for workloads.
+declared databases during SQL Server startup by default; the declaration states
+the assumption that the database should exist, while creating the database
+schema remains an application or migration responsibility. Local development
+and test resources can opt in with `DeclareDatabase(...).EnsureCreated()`,
+which is a separate provider operation request to create the database if it is
+missing before database grants are reconciled. CloudShell does not drop
+databases or project database connection strings for workloads.
 
 Access grants on SQL Server resources are modeled in CloudShell today so the
 Resource Manager can show intended access. They are not yet enforced inside

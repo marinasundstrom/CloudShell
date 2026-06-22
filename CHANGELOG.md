@@ -74,6 +74,10 @@ on `git blame --follow`, and then by the broad type of change.
 - The Control Plane now has an internal orchestrator deployment-apply boundary
   so deployment specs can be dispatched to the selected orchestrator without
   resource domains directly manipulating runtime replicas, ingress, or cleanup.
+- SQL Server database declarations now use `DeclareDatabase(...)`, and local
+  development or test resources can opt in to missing database creation with
+  `DeclareDatabase(...).EnsureCreated()` instead of creating declared
+  databases by default.
 - The shared application-resource projection seam is now public: custom
   application-like providers can subclass `ApplicationResourceTypeProvider`
   and provide an `ApplicationResourceProjection` while reusing the common
@@ -925,7 +929,7 @@ on `git blame --follow`, and then by the broad type of change.
   use distinct Resource Manager icons so the server and database levels are
   visually distinguishable.
 - SQL Server resources can now declare projected databases through
-  `WithDatabase(...)`. The application provider projects those databases as
+  `DeclareDatabase(...)`. The application provider projects those databases as
   provider-managed `application.sql-database` child resources and adds a SQL
   Server **Databases** tab so Resource Manager can display them without
   exposing generic container-app controls.

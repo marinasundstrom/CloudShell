@@ -461,11 +461,16 @@ public interface ISqlServerResourceBuilder :
         IResourceBuilder volume,
         string targetPath = ApplicationProviderServiceCollectionExtensions.DefaultSqlServerDataPath);
 
-    ISqlServerResourceBuilder WithDatabase(string name, string? displayName = null);
+    ISqlServerDatabaseResourceBuilder DeclareDatabase(string name, string? displayName = null);
 
     ISqlServerResourceBuilder WithContainerHost(string containerHostId);
 
     ISqlServerResourceBuilder WithContainerHost(IResourceBuilder containerHost);
+}
+
+public interface ISqlServerDatabaseResourceBuilder
+{
+    ISqlServerResourceBuilder EnsureCreated(bool enabled = true);
 }
 
 internal interface IProjectContainerBuildResourceBuilder
@@ -916,17 +921,54 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return this;
     }
 
-    ISqlServerResourceBuilder ISqlServerResourceBuilder.WithDatabase(string name, string? displayName)
+    ISqlServerDatabaseResourceBuilder ISqlServerResourceBuilder.DeclareDatabase(
+        string name,
+        string? displayName)
+    {
+        var databaseName = UpsertSqlDatabase(name, displayName, ensureCreated: null);
+        return new SqlServerDatabaseResourceBuilder(this, declared, databaseName);
+    }
+
+    private string UpsertSqlDatabase(
+        string name,
+        string? displayName,
+        bool? ensureCreated)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        var databaseName = name.Trim();
+        var existing = declared.Definition.SqlDatabases.FirstOrDefault(database =>
+            string.Equals(database.Name, databaseName, StringComparison.OrdinalIgnoreCase));
+        var updated = new SqlServerDatabaseDefinition(
+            databaseName,
+            NormalizeNullable(displayName) ?? existing?.DisplayName,
+            ensureCreated ?? existing?.EnsureCreated ?? false);
         declared.Definition = declared.Definition with
         {
             SqlDatabases = declared.Definition.SqlDatabases
-                .Append(new SqlServerDatabaseDefinition(name.Trim(), NormalizeNullable(displayName)))
-                .DistinctBy(database => database.Name, StringComparer.OrdinalIgnoreCase)
+                .Where(database => !string.Equals(database.Name, databaseName, StringComparison.OrdinalIgnoreCase))
+                .Append(updated)
                 .ToArray()
         };
-        return this;
+        return databaseName;
+    }
+
+    private sealed class SqlServerDatabaseResourceBuilder(
+        ISqlServerResourceBuilder server,
+        DeclaredApplicationResource declared,
+        string databaseName) : ISqlServerDatabaseResourceBuilder
+    {
+        public ISqlServerResourceBuilder EnsureCreated(bool enabled = true)
+        {
+            declared.Definition = declared.Definition with
+            {
+                SqlDatabases = declared.Definition.SqlDatabases
+                    .Select(database => string.Equals(database.Name, databaseName, StringComparison.OrdinalIgnoreCase)
+                        ? database with { EnsureCreated = enabled }
+                        : database)
+                    .ToArray()
+            };
+            return server;
+        }
     }
 
     public IContainerResourceBuilder WithEndpoint(

@@ -189,7 +189,8 @@ public sealed class SqlServerApplicationResourceDefinitionNormalizationRule :
                 .Where(database => !string.IsNullOrWhiteSpace(database.Name))
                 .Select(database => new SqlServerDatabaseDefinition(
                     database.Name.Trim(),
-                    NormalizeNullable(database.DisplayName)))
+                    NormalizeNullable(database.DisplayName),
+                    database.EnsureCreated))
                 .GroupBy(database => database.Name, StringComparer.OrdinalIgnoreCase)
                 .Select(group => group.First())
                 .ToArray()

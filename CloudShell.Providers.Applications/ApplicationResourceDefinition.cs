@@ -170,7 +170,8 @@ public static class ApplicationContainerRevisionChangeKinds
 
 public sealed record SqlServerDatabaseDefinition(
     string Name,
-    string? DisplayName = null);
+    string? DisplayName = null,
+    bool EnsureCreated = false);
 
 public enum ApplicationLifetime
 {

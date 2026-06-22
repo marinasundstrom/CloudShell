@@ -254,6 +254,7 @@ public static class ResourceAttributeNames
     public const string DatabaseName = "database.name";
     public const string DatabaseServerResourceId = "database.serverResourceId";
     public const string DatabaseSource = "database.source";
+    public const string DatabaseEnsureCreated = "database.ensureCreated";
     public const string EndpointCount = "endpoints.count";
     public const string ConfigurationEntryCount = "configuration.entries";
     public const string InfrastructureKind = "infrastructure.kind";
