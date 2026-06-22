@@ -78,6 +78,9 @@ on `git blame --follow`, and then by the broad type of change.
   orchestrator deployment spec and apply it through the selected orchestrator
   instead of surfacing a restart-required result when runtime reconciliation is
   available.
+- Container app orchestrator deployment description is now advertised only by
+  the container app provider boundary, keeping the shared application
+  infrastructure from registering provider-facing deployment facets directly.
 - SQL Server database declarations now use `DeclareDatabase(...)`, and local
   development or test resources can opt in to missing database creation with
   `DeclareDatabase(...).EnsureCreated()` instead of creating declared

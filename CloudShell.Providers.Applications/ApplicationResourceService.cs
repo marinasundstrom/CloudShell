@@ -51,7 +51,6 @@ public sealed partial class ApplicationResourceService(
     IApplicationResourceDeclarationOperations,
     IApplicationResourceDescriptorOperations,
     IApplicationResourceActionAvailabilityOperations,
-    IResourceOrchestratorDeploymentProvider,
     IContainerApplicationResourceProviderOperations,
     ISqlServerApplicationResourceProviderOperations,
     IDisposable

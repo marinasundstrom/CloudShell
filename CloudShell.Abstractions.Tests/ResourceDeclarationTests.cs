@@ -3113,7 +3113,7 @@ public sealed class ResourceDeclarationTests
         Assert.IsNotAssignableFrom<IProgrammaticResourceDeclarationProvider>(applications);
         Assert.IsNotAssignableFrom<IResourceOrchestrationDescriptorProvider>(applications);
         Assert.IsNotAssignableFrom<IResourceActionAvailabilityProvider>(applications);
-        Assert.IsAssignableFrom<IResourceOrchestratorDeploymentProvider>(applications);
+        Assert.IsNotAssignableFrom<IResourceOrchestratorDeploymentProvider>(applications);
         Assert.Equal(
             ["application:worker"],
             serviceProvider.GetRequiredService<ExecutableApplicationResourceProvider>()
