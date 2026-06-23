@@ -16,8 +16,17 @@ public sealed class ResourceOrchestratorReplicaGroupsTests
         Assert.Equal(service.Name, replicaGroup.ServiceId);
         Assert.Null(replicaGroup.RuntimeRevisionId);
         Assert.Equal(3, replicaGroup.RequestedReplicas);
+        Assert.Equal(3, replicaGroup.RequestedReplicaSlots);
         Assert.Equal(3, replicaGroup.MaterializedReplicas);
+        Assert.Equal(3, replicaGroup.OccupiedReplicaSlots);
+        Assert.True(replicaGroup.HasRequestedSlotsMaterialized);
+        Assert.Equal(
+            ResourceOrchestratorReplicaRestartMode.ReplaceOccupant,
+            replicaGroup.EffectiveManagementPolicy.RestartMode);
         Assert.Equal(replicaGroup.Instances, instances);
+        Assert.Equal([1, 2, 3], replicaGroup.Slots.Select(slot => slot.Ordinal).ToArray());
+        Assert.All(replicaGroup.Slots, slot => Assert.True(slot.IsOccupied));
+        Assert.All(replicaGroup.Slots, slot => Assert.Equal(3, slot.SlotCount));
         Assert.Equal(
             [
                 "cloudshell-application-api-replica-1",
@@ -26,6 +35,24 @@ public sealed class ResourceOrchestratorReplicaGroupsTests
             ],
             instances.Select(instance => instance.Name).ToArray());
         Assert.All(instances, instance => Assert.Null(instance.RuntimeRevisionId));
+    }
+
+    [Fact]
+    public void CreateDefaultReplicaGroup_UsesServiceReplicaManagementPolicy()
+    {
+        var policy = new ResourceOrchestratorReplicaManagementPolicy(
+            ResourceOrchestratorReplicaRestartMode.LeaveVacant,
+            FailureThreshold: 3,
+            MaxAttempts: 0);
+        var service = CreateService(replicas: 2) with
+        {
+            ReplicaManagementPolicy = policy
+        };
+
+        var replicaGroup = ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service);
+
+        Assert.Equal(policy, replicaGroup.ManagementPolicy);
+        Assert.Equal(policy, replicaGroup.EffectiveManagementPolicy);
     }
 
     [Fact]
@@ -43,8 +70,12 @@ public sealed class ResourceOrchestratorReplicaGroupsTests
         Assert.Equal(service.Name, replicaGroup.ServiceId);
         Assert.Equal("rev-20260623-1", replicaGroup.RuntimeRevisionId);
         Assert.Equal(3, replicaGroup.RequestedReplicas);
+        Assert.Equal(3, replicaGroup.RequestedReplicaSlots);
         Assert.Equal(3, replicaGroup.MaterializedReplicas);
+        Assert.Equal(3, replicaGroup.OccupiedReplicaSlots);
         Assert.Equal(replicaGroup.Instances, instances);
+        Assert.Equal([1, 2, 3], replicaGroup.Slots.Select(slot => slot.Occupant?.ReplicaOrdinal).ToArray());
+        Assert.All(replicaGroup.Slots, slot => Assert.Equal("rev-20260623-1", slot.RuntimeRevisionId));
         Assert.Equal(
             [
                 "cloudshell-application-api-rev-20260623-1-replica-1",
@@ -67,9 +98,38 @@ public sealed class ResourceOrchestratorReplicaGroupsTests
         Assert.Equal(service.Name, replicaGroup.ServiceId);
         Assert.Equal("rev-2", replicaGroup.RuntimeRevisionId);
         Assert.Equal(1, replicaGroup.RequestedReplicas);
+        Assert.Equal(1, replicaGroup.RequestedReplicaSlots);
         Assert.Equal(1, replicaGroup.MaterializedReplicas);
+        var slot = Assert.Single(replicaGroup.Slots);
+        Assert.Equal(1, slot.Ordinal);
+        Assert.Equal(instance, slot.Occupant);
         Assert.Equal("cloudshell-application-api-rev-2", instance.Name);
         Assert.Equal("rev-2", instance.RuntimeRevisionId);
+    }
+
+    [Fact]
+    public void ReplicaGroup_CanRepresentVacantRequestedSlot()
+    {
+        var occupant = new ResourceOrchestratorServiceInstance(
+            "cloudshell-application-api-replica-1",
+            1,
+            3);
+        var replicaGroup = new ResourceOrchestratorReplicaGroup(
+            "cloudshell-application-api-replicas",
+            "cloudshell-application-api",
+            RuntimeRevisionId: null,
+            RequestedReplicaSlots: 3,
+            Instances: [occupant]);
+
+        Assert.Equal(3, replicaGroup.RequestedReplicaSlots);
+        Assert.Equal(1, replicaGroup.MaterializedReplicas);
+        Assert.Equal(1, replicaGroup.OccupiedReplicaSlots);
+        Assert.False(replicaGroup.HasRequestedSlotsMaterialized);
+        Assert.Equal([true, false, false], replicaGroup.Slots.Select(slot => slot.IsOccupied).ToArray());
+        Assert.Equal([1, 2, 3], replicaGroup.Slots.Select(slot => slot.Ordinal).ToArray());
+        Assert.Equal(occupant, replicaGroup.Slots[0].Occupant);
+        Assert.Null(replicaGroup.Slots[1].Occupant);
+        Assert.Null(replicaGroup.Slots[2].Occupant);
     }
 
     [Fact]

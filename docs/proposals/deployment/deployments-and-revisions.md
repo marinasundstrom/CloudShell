@@ -62,15 +62,15 @@ for stopping or deleting the runtime resources that belong to an orchestration
 service. Tear-down is a separate operation over individual runtime resources,
 replica groups, or all resources belonging to an orchestration service.
 Workload resources can use the deployment contract to project deployment
-status, service id, workload version, requested replicas, and materialized
-replica count onto their own resource surfaces. Materialized runtime resources
-can also carry the deployment id, service id, and orchestrator revision id for
-traceability. In this model, the resource provider describes the desired
-runtime state it wants Resource Manager to apply. That deployment targets an
-identifiable orchestrator service or standalone runtime scope. The
-orchestrator service unit is the runtime boundary that can contain service
-routing or loader materialization plus a replica group with the requested
-number of replicas for a specific workload version and replicated
+status, service id, workload version, requested replica slots, materialized
+slot count, and occupied replica count onto their own resource surfaces.
+Materialized runtime resources can also carry the deployment id, service id,
+and orchestrator revision id for traceability. In this model, the resource
+provider describes the desired runtime state it wants Resource Manager to
+apply. That deployment targets an identifiable orchestrator service or
+standalone runtime scope. The orchestrator service unit is the runtime boundary
+that can contain service routing or loader materialization plus a replica
+group with requested slots for a specific workload version and replicated
 configuration.
 The Control Plane also records internal orchestrator deployment history for
 apply attempts, successful orchestrator revisions, and failed apply results.
@@ -247,14 +247,18 @@ The MVP must support:
 * Active runtime replica scaling through the replica-group change model without
   forcing a resource restart or creating a new domain revision when the
   provider treats the change as capacity management.
-* Projection of active deployment, requested replicas, materialized replica
-  count, deployment service id, orchestrator revision id, and replica-group id
-  onto the stable resource and runtime-managed resources. The first projection
-  target is the stable container app and its hidden runtime replica resources,
-  but the projection is not container-app-specific.
-  Requested replicas are the count requested by the resource/provider; the
-  orchestrator may materialize fewer replicas when capacity, placement, policy,
-  or runtime failures prevent granting the full request.
+* Projection of active deployment, requested replica slots, materialized slot
+  count, occupied replica count, deployment service id, orchestrator revision
+  id, and replica-group id onto the stable resource and runtime-managed
+  resources. The first projection target is the stable container app and its
+  hidden runtime replica resources, but the projection is not
+  container-app-specific.
+  Requested replica slots are the capacity requested by the resource/provider;
+  a deployment that cannot materialize the requested slots fails instead of
+  silently granting a lower count. After a successful deployment, runtime
+  failures can still make the occupied replica count lower than the
+  materialized slot count until reconciliation fills or leaves the slot
+  according to policy.
 * Focused tests for successful apply, failed apply, rollback logging,
   deployment with post-apply tear-down, cleanup warning behavior, active
   replica-group scaling, and concurrent deployments for different source
@@ -308,7 +312,7 @@ The target flow:
    for Resource Manager. The deployment specification contains the computed
    runtime intent: one orchestrator service for the app runtime boundary,
    service resources for the load-balancer or route, replica group, and
-   materialized replicas, workload version or image, requested replicas,
+   materialized replicas, workload version or image, requested replica slots,
    readiness or health requirements, and dependency, network, port, and volume
    intent needed by the runtime.
 4. Resource Manager deployment coordination records the apply attempt, selects
@@ -344,9 +348,9 @@ The POC is successful when:
   cutover
 * a scale-only replica update does not require a resource restart
 * a failed candidate deployment leaves the previous app state active
-* the resource surface shows active deployment, requested replicas,
-  materialized replicas, environment revision id, service id, and replica
-  group id
+* the resource surface shows active deployment, requested replica slots,
+  materialized slots, occupied replica count, environment revision id, service
+  id, and replica group id
 * the Revisions tab keeps app configuration revisions understandable without
   exposing orchestrator internals as the main user concept
 * deployment events show apply, readiness, routing, cleanup, success, and
@@ -694,7 +698,7 @@ Example:
 ```text
 Workload resource
  ├── workload version: v2
- ├── requested replicas: 3
+ ├── requested replica slots: 3
  └── port: 8080
 ```
 
@@ -1095,6 +1099,14 @@ environment changed. It should not create a new runtime revision or
 replacement replica group unless the selected orchestrator cannot scale the
 active group in place.
 
+Requested replica slots are an all-or-fail deployment request. If the
+orchestrator, provider, placement rules, or configured limits cannot
+materialize the requested slot count, the deployment fails and the previous
+active Environment revision remains active. CloudShell should not silently
+grant a lower slot count for a successful deployment. A later runtime failure
+can still leave a materialized group with fewer occupied slots than requested;
+that is replica-slot reconciliation state, not a partially granted deployment.
+
 The higher-level resource should ask the orchestrator to materialize the scale
 change rather than manually creating or deleting runtime replicas itself. On
 scale-up, the orchestrator adds requested slots, materializes occupants for
@@ -1157,12 +1169,12 @@ group no longer has a healthy occupant?" The initial behaviors should be:
   default direction for cheap, disposable container replicas.
 
 The restart policy describes the allowed slot behavior. Recovery policy
-describes the attempt rules around that behavior: failure threshold, backoff,
-maximum attempts, and reset-after-healthy timing. For MVP this can be modeled
-as replica-group-specific slot recovery rather than reusing the general
-resource recovery UI or API. The existing resource recovery policy remains the
-policy for a stable resource as a management unit; replica slot recovery is an
-orchestrator concern inside a replica group.
+language should not be reused for replica slots in the MVP. The replica group
+management policy should carry both the allowed behavior and its attempt
+rules: failure threshold, backoff, maximum attempts, and
+reset-after-healthy timing. The existing resource recovery policy remains the
+policy for a stable resource as a management unit; replica slot management is
+an orchestrator concern inside a replica group.
 
 Replica slot state needs a controller responsibility. In CloudShell terms this
 should be a Resource Manager orchestration reconciler, not a container-app
@@ -1181,6 +1193,20 @@ reconciler owns these responsibilities:
 * invoke orchestrator/provider operations to materialize that decision
 * record slot-level events and the resulting Environment revision or
   reconciliation observation
+
+Replica management activity should be logged separately from deployment apply
+activity. Deployment events answer "what happened while applying this desired
+runtime state?" Replica management events answer "what happened after the
+group was active while keeping requested slots aligned?" The reconciler should
+emit events such as slot vacant, slot unhealthy, occupant crashed, restart
+scheduled, restart attempted, replacement scheduled, replacement
+materializing, replacement materialized, slot left vacant, and reconciliation
+failed. Each event should identify the source resource, deployment id,
+environment revision id when known, replica group id, slot ordinal, occupant
+resource/container id when known, policy decision, attempt count, and provider
+operation result. These events should appear in resource activity and in the
+future Environment view so a user can debug why a replica was replaced or why
+a slot remained vacant.
 
 Providers should not silently invent this policy. They can project runtime
 resources, expose liveness signals, and execute provider-specific start,
@@ -1483,7 +1509,7 @@ The next MVP changes should stay focused:
 * Decide which resources should opt into deployment semantics after the first
   container app path proves the model.
 * Decide which fields are environment-revision-relevant beyond workload version
-  and requested replicas.
+  and requested replica slots.
 * Define which scale operations must preserve the active runtime group and
   which orchestrator backends require replacement-group materialization.
 * Decide how revision-scoped replica groups should be surfaced for richer

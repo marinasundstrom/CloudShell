@@ -100,6 +100,7 @@ public sealed class ContainerBackedApplicationResourceDefinitionNormalizationRul
                 ContainerRegistryCredentials = null,
                 ContainerRevision = null,
                 ContainerRevisions = [],
+                ReplicaManagementPolicy = null,
                 ReplicasEnabled = false
             };
         }

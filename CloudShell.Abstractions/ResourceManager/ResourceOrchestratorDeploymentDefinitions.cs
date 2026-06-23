@@ -30,11 +30,20 @@ public sealed record ResourceOrchestratorDeploymentDefinition(
         ArgumentException.ThrowIfNullOrWhiteSpace(workloadVersion);
 
         var replicaGroup = ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service);
+        var policy = replicaGroup.EffectiveManagementPolicy;
         var replicaAttributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             [ResourceAttributeNames.DeploymentWorkloadVersion] = workloadVersion,
+            [ResourceAttributeNames.DeploymentRequestedReplicaSlots] =
+                replicaGroup.RequestedReplicaSlots.ToString(CultureInfo.InvariantCulture),
             [ResourceAttributeNames.DeploymentRequestedReplicas] =
-                service.Replicas.ToString(CultureInfo.InvariantCulture)
+                replicaGroup.RequestedReplicas.ToString(CultureInfo.InvariantCulture),
+            [ResourceAttributeNames.DeploymentReplicaRestartMode] =
+                policy.RestartMode.ToString(),
+            [ResourceAttributeNames.DeploymentReplicaFailureThreshold] =
+                policy.FailureThreshold.ToString(CultureInfo.InvariantCulture),
+            [ResourceAttributeNames.DeploymentReplicaMaxAttempts] =
+                policy.MaxAttempts.ToString(CultureInfo.InvariantCulture)
         };
 
         return new ResourceOrchestratorDeploymentDefinition(

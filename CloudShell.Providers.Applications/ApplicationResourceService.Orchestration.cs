@@ -12,7 +12,8 @@ public sealed partial class ApplicationResourceService
             application.Id,
             GetContainerServiceName(application.Id),
             CreateWorkloadConfiguration(application),
-            Networks: [DefaultContainerNetworkName]);
+            Networks: [DefaultContainerNetworkName],
+            ReplicaManagementPolicy: application.ReplicaManagementPolicy);
 
     private ResourceOrchestratorService CreateActiveContainerOrchestratorService(
         ApplicationResourceDefinition application) =>
@@ -41,6 +42,8 @@ public sealed partial class ApplicationResourceService
 
         var inputs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
+            [ResourceAttributeNames.DeploymentRequestedReplicaSlots] =
+                service.Replicas.ToString(CultureInfo.InvariantCulture),
             [ResourceAttributeNames.DeploymentRequestedReplicas] =
                 service.Replicas.ToString(CultureInfo.InvariantCulture),
             [ResourceAttributeNames.ContainerRegistry] = GetEffectiveContainerRegistry(application)

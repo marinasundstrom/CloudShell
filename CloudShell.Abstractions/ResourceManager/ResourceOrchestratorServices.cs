@@ -9,14 +9,56 @@ public sealed record ResourceOrchestratorServiceInstance(
     int ReplicaCount,
     string? RuntimeRevisionId = null);
 
+public sealed record ResourceOrchestratorReplicaSlot(
+    int Ordinal,
+    int SlotCount,
+    ResourceOrchestratorServiceInstance? Occupant = null)
+{
+    public bool IsOccupied => Occupant is not null;
+
+    public string? RuntimeRevisionId => Occupant?.RuntimeRevisionId;
+}
+
 public sealed record ResourceOrchestratorReplicaGroup(
     string Id,
     string ServiceId,
     string? RuntimeRevisionId,
-    int RequestedReplicas,
-    IReadOnlyList<ResourceOrchestratorServiceInstance> Instances)
+    int RequestedReplicaSlots,
+    IReadOnlyList<ResourceOrchestratorServiceInstance> Instances,
+    ResourceOrchestratorReplicaManagementPolicy? ManagementPolicy = null)
 {
+    public ResourceOrchestratorReplicaManagementPolicy EffectiveManagementPolicy =>
+        ManagementPolicy ?? ResourceOrchestratorReplicaManagementPolicy.Default;
+
+    public int RequestedReplicas => RequestedReplicaSlots;
+
+    public IReadOnlyList<ResourceOrchestratorReplicaSlot> Slots => CreateSlots();
+
     public int MaterializedReplicas => Instances.Count;
+
+    public int OccupiedReplicaSlots => Slots.Count(slot => slot.IsOccupied);
+
+    public bool HasRequestedSlotsMaterialized =>
+        Slots.Count == RequestedReplicaSlots &&
+        OccupiedReplicaSlots == RequestedReplicaSlots;
+
+    private IReadOnlyList<ResourceOrchestratorReplicaSlot> CreateSlots()
+    {
+        var instances = Instances
+            .GroupBy(instance => instance.ReplicaOrdinal)
+            .ToDictionary(group => group.Key, group => group.First());
+        var slots = new ResourceOrchestratorReplicaSlot[Math.Max(0, RequestedReplicaSlots)];
+        for (var ordinal = 1; ordinal <= slots.Length; ordinal++)
+        {
+            instances.TryGetValue(ordinal, out var occupant);
+            slots[ordinal - 1] = new ResourceOrchestratorReplicaSlot(
+                ordinal,
+                slots.Length,
+                occupant);
+        }
+
+        return slots;
+    }
 }
 
 public sealed record ResourceOrchestratorReplicaGroupChange(
@@ -102,7 +144,8 @@ public static class ResourceOrchestratorReplicaGroups
             service.Name,
             runtimeRevisionId,
             service.Replicas,
-            instances);
+            instances,
+            service.EffectiveReplicaManagementPolicy);
     }
 
     public static string CreateDefaultServiceName(string resourceId)

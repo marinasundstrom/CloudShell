@@ -305,7 +305,7 @@ else
 
     private static string GetDeploymentCapacity(Resource resource) =>
         IsReplicaModeEnabled(resource)
-            ? $"{GetDeploymentMaterializedReplicas(resource)} of {GetDeploymentRequestedReplicas(resource)} replicas"
+            ? $"{GetDeploymentMaterializedReplicas(resource)} of {GetDeploymentRequestedReplicas(resource)} replica slots occupied"
             : "Single instance";
 
     private static string GetMaterializedSummary(Resource resource) =>
@@ -319,6 +319,7 @@ else
             : "not enabled";
 
     private static int GetDeploymentRequestedReplicasValue(Resource resource) =>
+        TryGetReplicaCount(resource, ResourceAttributeNames.DeploymentRequestedReplicaSlots) ??
         TryGetReplicaCount(resource, ResourceAttributeNames.DeploymentRequestedReplicas) ??
         TryGetReplicaCount(resource, ResourceAttributeNames.ContainerReplicas) ??
         1;

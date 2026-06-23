@@ -34,7 +34,36 @@ public sealed class ResourceOrchestratorDeploymentDefinitionTests
             ResourceOrchestratorDeploymentDefinitionTypes.ReplicaGroup,
             replicaGroup.Type);
         Assert.Equal("rev-2", replicaGroup.ResourceAttributes[ResourceAttributeNames.DeploymentWorkloadVersion]);
+        Assert.Equal("3", replicaGroup.ResourceAttributes[ResourceAttributeNames.DeploymentRequestedReplicaSlots]);
         Assert.Equal("3", replicaGroup.ResourceAttributes[ResourceAttributeNames.DeploymentRequestedReplicas]);
+        Assert.Equal(
+            ResourceOrchestratorReplicaRestartMode.ReplaceOccupant.ToString(),
+            replicaGroup.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaRestartMode]);
+        Assert.Equal("1", replicaGroup.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaFailureThreshold]);
+        Assert.Equal("10", replicaGroup.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaMaxAttempts]);
+    }
+
+    [Fact]
+    public void DeploymentDefinition_ProjectsReplicaManagementPolicy()
+    {
+        var service = CreateService(replicas: 2) with
+        {
+            ReplicaManagementPolicy = new ResourceOrchestratorReplicaManagementPolicy(
+                ResourceOrchestratorReplicaRestartMode.RestartOccupant,
+                FailureThreshold: 2,
+                MaxAttempts: 4)
+        };
+        var spec = new ResourceOrchestratorDeploymentSpec(service, "rev-2");
+
+        var replicaGroup = Assert.Single(
+            Assert.Single(spec.DeploymentDefinition.DeploymentServices).ServiceResources);
+
+        Assert.Equal("2", replicaGroup.ResourceAttributes[ResourceAttributeNames.DeploymentRequestedReplicaSlots]);
+        Assert.Equal(
+            ResourceOrchestratorReplicaRestartMode.RestartOccupant.ToString(),
+            replicaGroup.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaRestartMode]);
+        Assert.Equal("2", replicaGroup.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaFailureThreshold]);
+        Assert.Equal("4", replicaGroup.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaMaxAttempts]);
     }
 
     [Fact]

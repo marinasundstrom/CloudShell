@@ -172,6 +172,15 @@ whole container app as stopped. If other slots are still serving, the app may
 be degraded while the slot policy decides whether to fill the vacant or failed
 slot.
 
+A container app deployment that asks for a replica group asks for **requested
+replica slots**. That request is not a best-effort desired count: if the
+orchestrator cannot materialize the requested slots because of provider
+failure, placement limits, host capacity, or configuration policy, the
+deployment fails and the previous active runtime state remains authoritative.
+Once a group has been materialized, the app can distinguish requested slots,
+materialized slots, and occupied replica count so a missing occupant is
+handled as slot reconciliation rather than as the whole app stopping.
+
 The first container app policy should stay slot-focused:
 
 * A slot can be left vacant when automatic repair is disabled.
@@ -184,7 +193,7 @@ The first container app policy should stay slot-focused:
 
 This is distinct from general resource recovery. Resource recovery decides
 whether the stable container app resource should be recovered as a management
-unit. Replica slot recovery decides how the orchestrator maintains requested
+unit. Replica slot management decides how the orchestrator maintains requested
 capacity inside an already-active replica group. The container app UI can later
 surface this as replica behavior or slot repair policy without requiring users
 to understand environment revisions, deployment objects, or provider-native
@@ -199,6 +208,14 @@ replicas should exist or whether a failed slot should restart or be replaced.
 That decision belongs to the replica group reconciler because it has the active
 deployment, replica group, slot policy, liveness observations, and environment
 revision context.
+
+Container app activity should surface replica management events without making
+the user inspect orchestrator internals first. The app should show that a
+replica slot became vacant or unhealthy, which policy decision was selected,
+whether a restart or replacement was attempted, and whether the slot was filled
+or intentionally left vacant. The Environment view can expose the same events
+with deployment, Environment revision, replica group, slot, and occupant
+correlation for debugging.
 
 ## Container App Deployments and Configuration Revisions
 
@@ -364,10 +381,10 @@ Implemented pieces include:
   and setting requested replica count through a dedicated update command. This
   is active-revision capacity management, not image deployment.
 * app-owned internal deployment projection with status, service id, workload
-  version, requested replicas, and materialized runtime replicas. This is the
-  container app use of the broader default-deployment rule: a resource remains
-  directly manageable while the orchestrator derives a deployment for
-  deployment-relevant changes.
+  version, requested replica slots, materialized slots, and occupied runtime
+  replicas. This is the container app use of the broader default-deployment
+  rule: a resource remains directly manageable while the orchestrator derives a
+  deployment for deployment-relevant changes.
 * explicit replica count update API that also opts a container app into
   replica mode
 * shared resource metadata for provider/orchestrator/runtime ownership,

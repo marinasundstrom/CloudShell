@@ -40,6 +40,7 @@ public sealed class ApplicationResourceDefinitionBuilder
     private IReadOnlyList<SqlServerDatabaseDefinition> _sqlDatabases = [];
     private IReadOnlyList<ResourceLogSource> _logSources = [];
     private IReadOnlyList<ApplicationContainerRevision> _containerRevisions = [];
+    private ResourceOrchestratorReplicaManagementPolicy? _replicaManagementPolicy;
 
     private ApplicationResourceDefinitionBuilder(
         string id,
@@ -194,6 +195,13 @@ public sealed class ApplicationResourceDefinitionBuilder
         return this;
     }
 
+    public ApplicationResourceDefinitionBuilder WithReplicaManagementPolicy(
+        ResourceOrchestratorReplicaManagementPolicy? policy)
+    {
+        _replicaManagementPolicy = policy;
+        return this;
+    }
+
     public ApplicationResourceDefinitionBuilder WithEndpointPorts(IReadOnlyList<ServicePort> endpointPorts)
     {
         _endpointPorts = endpointPorts;
@@ -310,5 +318,6 @@ public sealed class ApplicationResourceDefinitionBuilder
             _replicasEnabled,
             _sqlDatabases,
             _logSources,
-            _containerRevisions);
+            _containerRevisions,
+            replicaManagementPolicy: _replicaManagementPolicy);
 }

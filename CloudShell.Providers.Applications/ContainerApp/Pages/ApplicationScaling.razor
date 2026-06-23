@@ -475,7 +475,7 @@ else
             ? "not projected"
             : string.Create(
                 CultureInfo.InvariantCulture,
-                $"{record.ReplicaGroup.MaterializedReplicas} of {record.ReplicaGroup.RequestedReplicas}");
+                $"{record.ReplicaGroup.OccupiedReplicaSlots} of {record.ReplicaGroup.RequestedReplicaSlots} slots");
 
     private static string GetEnvironmentRevisionLabel(ResourceDeploymentRecord record) =>
         record.EnvironmentRevisionNumber is { } revisionNumber

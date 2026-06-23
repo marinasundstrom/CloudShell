@@ -1787,6 +1787,17 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return this;
     }
 
+    IContainerResourceBuilder IContainerResourceBuilder.WithReplicaManagementPolicy(
+        ResourceOrchestratorReplicaManagementPolicy policy)
+    {
+        ArgumentNullException.ThrowIfNull(policy);
+        declared.Definition = declared.Definition with
+        {
+            ReplicaManagementPolicy = policy
+        };
+        return this;
+    }
+
     IContainerResourceBuilder IContainerResourceBuilder.WithServiceDiscovery(bool enabled)
     {
         WithServiceDiscovery(enabled);

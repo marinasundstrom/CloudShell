@@ -34,6 +34,7 @@ public sealed class ApplicationResourceDefinitionNormalizer(
             ProjectContainerBuild = definition.ProjectContainerBuild,
             ContainerHostId = NormalizeNullable(definition.ContainerHostId),
             ContainerRevision = NormalizeNullable(definition.ContainerRevision),
+            ReplicaManagementPolicy = NormalizeReplicaManagementPolicy(definition.ReplicaManagementPolicy),
             Replicas = Math.Max(1, definition.Replicas),
             ReplicasEnabled = definition.ReplicasEnabled,
             ResourceType = resourceType,
@@ -62,6 +63,20 @@ public sealed class ApplicationResourceDefinitionNormalizer(
             LogSources = ApplicationLogSources.Normalize(normalized.LogSources)
         };
     }
+
+    private static ResourceOrchestratorReplicaManagementPolicy? NormalizeReplicaManagementPolicy(
+        ResourceOrchestratorReplicaManagementPolicy? policy) =>
+        policy is null
+            ? null
+            : policy with
+            {
+                FailureThreshold = Math.Max(1, policy.FailureThreshold),
+                InitialBackoffSeconds = Math.Max(0, policy.InitialBackoffSeconds),
+                MaxBackoffSeconds = Math.Max(0, policy.MaxBackoffSeconds),
+                BackoffMultiplier = Math.Max(1, policy.BackoffMultiplier),
+                MaxAttempts = Math.Max(0, policy.MaxAttempts),
+                ResetAfterHealthySeconds = Math.Max(0, policy.ResetAfterHealthySeconds)
+            };
 
     public ApplicationResourceDefinition Resolve(ApplicationResourceDefinition definition)
     {

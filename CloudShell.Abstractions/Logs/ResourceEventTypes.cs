@@ -71,6 +71,21 @@ public static class ResourceEventTypes
             public const string Reset = "event.recovery.reset";
         }
 
+        public static class ReplicaManagement
+        {
+            public const string Prefix = "event.replica.";
+            public const string SlotVacant = "event.replica.slot.vacant";
+            public const string SlotUnhealthy = "event.replica.slot.unhealthy";
+            public const string OccupantCrashed = "event.replica.occupant.crashed";
+            public const string RestartScheduled = "event.replica.restart.scheduled";
+            public const string RestartAttempted = "event.replica.restart.attempted";
+            public const string ReplacementScheduled = "event.replica.replacement.scheduled";
+            public const string ReplacementMaterializing = "event.replica.replacement.materializing";
+            public const string ReplacementMaterialized = "event.replica.replacement.materialized";
+            public const string SlotLeftVacant = "event.replica.slot.leftVacant";
+            public const string ReconciliationFailed = "event.replica.reconciliation.failed";
+        }
+
         public static class Configuration
         {
             public const string AppSettingsUpdated = "event.configuration.appSettings.updated";

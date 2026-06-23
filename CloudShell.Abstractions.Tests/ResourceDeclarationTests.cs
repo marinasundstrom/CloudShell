@@ -9494,9 +9494,17 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("cloudshell-application-api-deployment", app.ResourceAttributes[ResourceAttributeNames.DeploymentId]);
         Assert.Equal("cloudshell-application-api", app.ResourceAttributes[ResourceAttributeNames.DeploymentServiceId]);
         Assert.Equal("pending", app.ResourceAttributes[ResourceAttributeNames.DeploymentStatus]);
+        Assert.Equal("3", app.ResourceAttributes[ResourceAttributeNames.DeploymentRequestedReplicaSlots]);
+        Assert.Equal("3", app.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaSlots]);
+        Assert.Equal("3", app.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaCount]);
         Assert.Equal("3", app.ResourceAttributes[ResourceAttributeNames.DeploymentRequestedReplicas]);
         Assert.Equal("3", app.ResourceAttributes[ResourceAttributeNames.DeploymentMaterializedReplicas]);
         Assert.Equal("3", app.ResourceAttributes[ResourceAttributeNames.DeploymentProjectedReplicas]);
+        Assert.Equal(
+            ResourceOrchestratorReplicaRestartMode.ReplaceOccupant.ToString(),
+            app.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaRestartMode]);
+        Assert.Equal("1", app.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaFailureThreshold]);
+        Assert.Equal("10", app.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaMaxAttempts]);
         Assert.False(string.IsNullOrWhiteSpace(app.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaGroupId]));
         Assert.Equal("true", app.ResourceAttributes[ResourceAttributeNames.ContainerReplicasEnabled]);
         Assert.Equal(
@@ -9871,12 +9879,51 @@ public sealed class ResourceDeclarationTests
 
         Assert.Equal("1", app.ResourceAttributes[ResourceAttributeNames.ContainerReplicas]);
         Assert.Equal("false", app.ResourceAttributes[ResourceAttributeNames.ContainerReplicasEnabled]);
+        Assert.Equal("1", app.ResourceAttributes[ResourceAttributeNames.DeploymentRequestedReplicaSlots]);
+        Assert.Equal("0", app.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaSlots]);
+        Assert.Equal("0", app.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaCount]);
         Assert.Equal("1", app.ResourceAttributes[ResourceAttributeNames.DeploymentRequestedReplicas]);
         Assert.Equal("0", app.ResourceAttributes[ResourceAttributeNames.DeploymentMaterializedReplicas]);
         Assert.Equal("0", app.ResourceAttributes[ResourceAttributeNames.DeploymentProjectedReplicas]);
         Assert.DoesNotContain(
             resources,
             resource => string.Equals(resource.ParentResourceId, app.Id, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void ContainerApplicationProvider_ProjectsConfiguredReplicaManagementPolicy()
+    {
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        services
+            .AddControlPlane()
+            .AddExtension<ApplicationProviderExtension>()
+            .Resources(resources =>
+            {
+                resources
+                    .AddContainer(
+                        "api",
+                        "example/api:latest",
+                        replicas: 2)
+                    .WithReplicaManagementPolicy(new ResourceOrchestratorReplicaManagementPolicy(
+                        ResourceOrchestratorReplicaRestartMode.RestartOccupant,
+                        FailureThreshold: 2,
+                        MaxAttempts: 4))
+                    .WithContainerHost("docker:dev");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var app = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
+
+        Assert.Equal("2", app.ResourceAttributes[ResourceAttributeNames.DeploymentRequestedReplicaSlots]);
+        Assert.Equal(
+            ResourceOrchestratorReplicaRestartMode.RestartOccupant.ToString(),
+            app.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaRestartMode]);
+        Assert.Equal("2", app.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaFailureThreshold]);
+        Assert.Equal("4", app.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaMaxAttempts]);
     }
 
     [Fact]

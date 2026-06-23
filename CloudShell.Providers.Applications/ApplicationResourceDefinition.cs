@@ -41,7 +41,8 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         IReadOnlyList<SqlServerDatabaseDefinition>? sqlDatabases = null,
         IReadOnlyList<ResourceLogSource>? logSources = null,
         IReadOnlyList<ApplicationContainerRevision>? containerRevisions = null,
-        string? deploymentEnvironmentRevisionId = null)
+        string? deploymentEnvironmentRevisionId = null,
+        ResourceOrchestratorReplicaManagementPolicy? replicaManagementPolicy = null)
     {
         Id = id;
         Name = name;
@@ -81,6 +82,7 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         LogSources = logSources ?? [];
         ContainerRevisions = containerRevisions ?? [];
         DeploymentEnvironmentRevisionId = deploymentEnvironmentRevisionId;
+        ReplicaManagementPolicy = replicaManagementPolicy;
     }
 
     public string Id { get; init; }
@@ -154,6 +156,8 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
     public IReadOnlyList<ResourceLogSource> LogSources { get; init; }
 
     public IReadOnlyList<ApplicationContainerRevision> ContainerRevisions { get; init; }
+
+    public ResourceOrchestratorReplicaManagementPolicy? ReplicaManagementPolicy { get; init; }
 }
 
 public sealed record ApplicationContainerRevision(

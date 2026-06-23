@@ -55,6 +55,8 @@ public sealed class DefaultResourceDeploymentService(
                     deployment,
                     replicaGroup);
             }
+
+            EnsureRequestedReplicaSlotsMaterialized(replicaGroup, deployment);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -168,7 +170,7 @@ public sealed class DefaultResourceDeploymentService(
         ResourceOrchestratorServiceExecutor.AppendDeploymentEvent(
             resourceContext,
             ResourceEventTypes.Events.Deployment.ServiceReconciling,
-            $"Reconciling orchestrator service '{deployment.ServiceId}' replica group '{targetReplicaGroup.Id}' from {previousReplicaGroup.MaterializedReplicas.ToString(CultureInfo.InvariantCulture)} to {targetReplicaGroup.RequestedReplicas.ToString(CultureInfo.InvariantCulture)} replicas for deployment '{deployment.Id}'.");
+            $"Reconciling orchestrator service '{deployment.ServiceId}' replica group '{targetReplicaGroup.Id}' from {previousReplicaGroup.RequestedReplicaSlots.ToString(CultureInfo.InvariantCulture)} to {targetReplicaGroup.RequestedReplicaSlots.ToString(CultureInfo.InvariantCulture)} requested replica slots for deployment '{deployment.Id}'.");
 
         if (change.AddedInstances.Count > 0)
         {
@@ -205,7 +207,21 @@ public sealed class DefaultResourceDeploymentService(
         ResourceOrchestratorServiceExecutor.AppendDeploymentEvent(
             resourceContext,
             ResourceEventTypes.Events.Deployment.ServiceReconciled,
-            $"Reconciled orchestrator service '{deployment.ServiceId}' replica group '{targetReplicaGroup.Id}' to {targetReplicaGroup.MaterializedReplicas.ToString(CultureInfo.InvariantCulture)} replicas for deployment '{deployment.Id}'.");
+            $"Reconciled orchestrator service '{deployment.ServiceId}' replica group '{targetReplicaGroup.Id}' to {targetReplicaGroup.OccupiedReplicaSlots.ToString(CultureInfo.InvariantCulture)}/{targetReplicaGroup.RequestedReplicaSlots.ToString(CultureInfo.InvariantCulture)} occupied replica slots for deployment '{deployment.Id}'.");
+    }
+
+    private static void EnsureRequestedReplicaSlotsMaterialized(
+        ResourceOrchestratorReplicaGroup replicaGroup,
+        ResourceOrchestratorDeployment deployment)
+    {
+        if (replicaGroup.HasRequestedSlotsMaterialized)
+        {
+            return;
+        }
+
+        throw new ControlPlaneException(new ControlPlaneError(
+            ControlPlaneErrorCodes.OperationFailed,
+            $"Deployment '{deployment.Id}' requested {replicaGroup.RequestedReplicaSlots.ToString(CultureInfo.InvariantCulture)} replica slots but materialized {replicaGroup.OccupiedReplicaSlots.ToString(CultureInfo.InvariantCulture)} occupied slots."));
     }
 
     private static string FormatReplicaPosition(ResourceOrchestratorServiceInstance instance) =>

@@ -3529,6 +3529,9 @@ public sealed partial class ApplicationResourceService(
             var materializedReplicas = IsReplicaModeEnabled(application)
                 ? replicaGroup.MaterializedReplicas
                 : 0;
+            var materializedReplicaSlots = IsReplicaModeEnabled(application)
+                ? replicaGroup.Slots.Count
+                : 0;
 
             attributes[ResourceAttributeNames.ContainerReplicas] =
                 Math.Max(1, application.Replicas).ToString(CultureInfo.InvariantCulture);
@@ -3549,6 +3552,12 @@ public sealed partial class ApplicationResourceService(
                 ResourceAttributeNames.DeploymentEnvironmentRevisionId,
                 application.DeploymentEnvironmentRevisionId);
             attributes[ResourceAttributeNames.DeploymentWorkloadVersion] = deployment.Spec.WorkloadVersion;
+            attributes[ResourceAttributeNames.DeploymentRequestedReplicaSlots] =
+                replicaGroup.RequestedReplicaSlots.ToString(CultureInfo.InvariantCulture);
+            attributes[ResourceAttributeNames.DeploymentReplicaSlots] =
+                materializedReplicaSlots.ToString(CultureInfo.InvariantCulture);
+            attributes[ResourceAttributeNames.DeploymentReplicaCount] =
+                materializedReplicas.ToString(CultureInfo.InvariantCulture);
             attributes[ResourceAttributeNames.DeploymentRequestedReplicas] =
                 deployment.Spec.Service.Replicas.ToString(CultureInfo.InvariantCulture);
             attributes[ResourceAttributeNames.DeploymentMaterializedReplicas] =
@@ -3556,6 +3565,13 @@ public sealed partial class ApplicationResourceService(
             attributes[ResourceAttributeNames.DeploymentProjectedReplicas] =
                 materializedReplicas.ToString(CultureInfo.InvariantCulture);
             attributes[ResourceAttributeNames.DeploymentReplicaGroupId] = replicaGroup.Id;
+            var replicaManagementPolicy = replicaGroup.EffectiveManagementPolicy;
+            attributes[ResourceAttributeNames.DeploymentReplicaRestartMode] =
+                replicaManagementPolicy.RestartMode.ToString();
+            attributes[ResourceAttributeNames.DeploymentReplicaFailureThreshold] =
+                replicaManagementPolicy.FailureThreshold.ToString(CultureInfo.InvariantCulture);
+            attributes[ResourceAttributeNames.DeploymentReplicaMaxAttempts] =
+                replicaManagementPolicy.MaxAttempts.ToString(CultureInfo.InvariantCulture);
         }
 
         if (!IsProjectBacked(application) && !IsContainerBacked(application))

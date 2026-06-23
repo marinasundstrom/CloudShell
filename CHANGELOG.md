@@ -41,7 +41,7 @@ on `git blame --follow`, and then by the broad type of change.
   members.
 - Environment and container app scaling views now show deployment-record
   replica-group details, making scale reconciliation visible through runtime
-  revision, replica group, requested replicas, and materialized replicas.
+  revision, replica group, requested replica slots, and materialized replicas.
 - Container app projection now preserves revision-scoped replica group and
   runtime container names after deployment state is persisted without
   provider-owned deployment history, keeping health and log sources aligned
@@ -62,6 +62,12 @@ on `git blame --follow`, and then by the broad type of change.
   requested replica slots, with slot-focused restart/replacement policy owned
   by a Resource Manager orchestration reconciler instead of provider-specific
   loops.
+- Replica groups now expose requested replica slots and occupied slot count in
+  the domain model, allowing future reconciliation to distinguish vacant slots
+  from an intentionally reduced replica group.
+- Container app declarations can now configure replica-group management policy,
+  and deployment metadata distinguishes requested replica slots, materialized
+  slots, and occupied replica count.
 - Resource Manager orchestration now has an internal service tear-down boundary
   so orchestrator services can stop their materialized runtime resources
   separately from incremental deployment setup.
@@ -170,8 +176,10 @@ on `git blame --follow`, and then by the broad type of change.
   Health, Recovery, Identity, Networking, Observability, Templates, Platform,
   Deployment, and Orchestration namespaces while keeping common programmatic
   declaration extensions on the general Resource Manager authoring surface.
-- Deployment replica projection now uses requested replica terminology through
-  `deployment.replicas.requested`.
+- Deployment replica projection now distinguishes requested replica slots
+  (`deployment.replicas.requestedSlots`), materialized slots
+  (`deployment.replicas.slots`), and occupied replica count
+  (`deployment.replicas.count`).
 - FileSystem volumes can now be attached to executable and ASP.NET Core
   project resources through the same `ResourceVolumeMount` model used by
   container apps, with Resource Manager Storage tabs and local process

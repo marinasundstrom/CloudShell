@@ -71,6 +71,28 @@ public sealed record ResourceWorkloadConfiguration(
     public ResourceObservability EffectiveObservability => Observability ?? ResourceObservability.None;
 }
 
+public enum ResourceOrchestratorReplicaRestartMode
+{
+    LeaveVacant,
+    RestartOccupant,
+    ReplaceOccupant
+}
+
+public sealed record ResourceOrchestratorReplicaManagementPolicy(
+    ResourceOrchestratorReplicaRestartMode RestartMode = ResourceOrchestratorReplicaRestartMode.ReplaceOccupant,
+    int FailureThreshold = 1,
+    int InitialBackoffSeconds = 5,
+    int MaxBackoffSeconds = 300,
+    double BackoffMultiplier = 2,
+    int MaxAttempts = 10,
+    int ResetAfterHealthySeconds = 300)
+{
+    public static ResourceOrchestratorReplicaManagementPolicy Default { get; } = new();
+
+    public static ResourceOrchestratorReplicaManagementPolicy Manual { get; } =
+        new(ResourceOrchestratorReplicaRestartMode.LeaveVacant);
+}
+
 // Orchestrator-owned workload grouping used to materialize one stable resource
 // into one or more runtime instances. This is not a Resource Manager resource.
 public sealed record ResourceOrchestratorService(
@@ -81,11 +103,15 @@ public sealed record ResourceOrchestratorService(
     IReadOnlyList<string>? Networks = null,
     IReadOnlyList<ServicePort>? Ports = null,
     IReadOnlyList<ResourceVolumeMount>? VolumeMounts = null,
-    string? RuntimeRevisionId = null)
+    string? RuntimeRevisionId = null,
+    ResourceOrchestratorReplicaManagementPolicy? ReplicaManagementPolicy = null)
 {
     public int Replicas => Math.Max(1, Workload.Replicas);
 
     public bool ReplicasEnabled => Workload.ReplicasEnabled;
+
+    public ResourceOrchestratorReplicaManagementPolicy EffectiveReplicaManagementPolicy =>
+        ReplicaManagementPolicy ?? ResourceOrchestratorReplicaManagementPolicy.Default;
 
     public IReadOnlyList<string> ServiceDependencies => DependsOn ?? [];
 
@@ -462,6 +488,8 @@ public interface IContainerResourceBuilder :
         SecretReference secret);
 
     IContainerResourceBuilder WithReplicas(int replicas);
+
+    IContainerResourceBuilder WithReplicaManagementPolicy(ResourceOrchestratorReplicaManagementPolicy policy);
 
     IContainerResourceBuilder WithServiceDiscovery(bool enabled = true);
 
