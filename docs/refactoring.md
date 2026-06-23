@@ -174,6 +174,8 @@ without forcing provider-specific logic into shared helpers.
 - [x] Move the SQL Server credential API route off direct
   `ApplicationResourceService` dependency by introducing a focused credential
   resolution operation contract.
+- [x] Extract SQL Server managed credential naming into a shared helper used by
+  credential resolution, grant status, and reconciliation.
 
 ## Next Slices
 

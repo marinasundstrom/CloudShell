@@ -40,6 +40,8 @@ on `git blame --follow`, and then by the broad type of change.
 - The SQL Server credential API now depends on
   `ISqlServerCredentialResolutionOperations` instead of the full application
   resource service.
+- SQL Server managed credential naming now lives in a focused helper shared by
+  credential resolution, grant status, and reconciliation.
 
 ### 2026-06-23
 

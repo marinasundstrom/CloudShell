@@ -19,7 +19,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using System.Security.Cryptography;
 
 namespace CloudShell.Providers.Applications;
 
@@ -59,7 +58,6 @@ public sealed partial class ApplicationResourceService(
     IDisposable
 {
     public const string ReconcileSqlServerAccessActionId = "application.sql-server.reconcile-access";
-    private const string SqlServerManagedUserPrefix = "cloudshell_";
     private static readonly JsonSerializerOptions TemplateSerializerOptions = new(JsonSerializerDefaults.Web);
     private static readonly TimeSpan StartingStateTimeout = TimeSpan.FromMinutes(5);
     private static readonly SemaphoreSlim AspNetCoreProjectBuildLock = new(1, 1);
@@ -666,7 +664,7 @@ public sealed partial class ApplicationResourceService(
                 $"SQL Server resource '{sqlServerResourceName}' could not be found.");
         }
 
-        var subject = GetPrincipalSubject(principal);
+        var subject = SqlServerCredentialNames.GetPrincipalSubject(principal);
 
         if (!application.SqlDatabases.Any(database =>
                 string.Equals(database.Name, databaseName, StringComparison.OrdinalIgnoreCase)))
@@ -724,8 +722,11 @@ public sealed partial class ApplicationResourceService(
                 $"SQL Server resource '{application.Name}' cannot resolve credentials because its TDS endpoint or administrator password is not available.");
         }
 
-        var userName = CreateSqlServerManagedUserNameFromPrincipalSubject(subject, application.Id, permission);
-        var password = CreateSqlServerCredentialPassword();
+        var userName = SqlServerCredentialNames.CreateManagedUserNameFromPrincipalSubject(
+            subject,
+            application.Id,
+            permission);
+        var password = SqlServerCredentialNames.CreateCredentialPassword();
         var expiresOn = DateTimeOffset.UtcNow.AddMinutes(15);
 
         await EnsureSqlServerCredentialLoginAsync(
@@ -1578,7 +1579,7 @@ public sealed partial class ApplicationResourceService(
 
         try
         {
-            var userName = CreateSqlServerManagedUserName(request.Grant);
+            var userName = SqlServerCredentialNames.CreateManagedUserName(request.Grant);
             var missingDatabases = new List<string>();
             foreach (var database in application.SqlDatabases)
             {
@@ -1678,7 +1679,7 @@ public sealed partial class ApplicationResourceService(
             $"Application provider is reconciling {grants.Length.ToString(CultureInfo.InvariantCulture)} SQL Server database access grant{Pluralize(grants.Length)} for '{definition.Name}'.");
 
         var managedUsers = grants
-            .Select(CreateSqlServerManagedUserName)
+            .Select(SqlServerCredentialNames.CreateManagedUserName)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
         foreach (var database in definition.SqlDatabases)
@@ -1877,68 +1878,6 @@ public sealed partial class ApplicationResourceService(
             reader.GetBoolean(0) &&
             reader.GetBoolean(1) &&
             reader.GetBoolean(2);
-    }
-
-    private static string CreateSqlServerManagedUserName(ResourcePermissionGrant grant)
-    {
-        var identity = grant.ResourceIdentity
-            ?? throw new InvalidOperationException("SQL Server managed user names require a resource identity grant.");
-        var key = $"{identity.ResourceId}\u001f{identity.Name}\u001f{grant.TargetResourceId}\u001f{grant.Permission}";
-        return CreateSqlServerManagedUserName(key);
-    }
-
-    private static string CreateSqlServerManagedUserNameFromPrincipalSubject(
-        string subject,
-        string targetResourceId,
-        string permission)
-    {
-        var key = TryCreateBuiltInResourceIdentityGrantKey(
-            subject,
-            targetResourceId,
-            permission) ?? $"{subject}\u001f{targetResourceId}\u001f{permission}";
-        return CreateSqlServerManagedUserName(key);
-    }
-
-    private static string? TryCreateBuiltInResourceIdentityGrantKey(
-        string subject,
-        string targetResourceId,
-        string permission)
-    {
-        var separatorIndex = subject.IndexOf('/');
-        if (separatorIndex <= 0 || separatorIndex == subject.Length - 1)
-        {
-            return null;
-        }
-
-        var resourceId = subject[..separatorIndex];
-        var identityName = subject[(separatorIndex + 1)..];
-        return $"{resourceId}\u001f{identityName}\u001f{targetResourceId}\u001f{permission}";
-    }
-
-    private static string CreateSqlServerManagedUserName(string key)
-    {
-        Span<byte> hash = stackalloc byte[32];
-        SHA256.HashData(Encoding.UTF8.GetBytes(key), hash);
-        return $"{SqlServerManagedUserPrefix}{Convert.ToHexString(hash[..10]).ToLowerInvariant()}";
-    }
-
-    private static string CreateSqlServerCredentialPassword()
-    {
-        Span<byte> bytes = stackalloc byte[24];
-        RandomNumberGenerator.Fill(bytes);
-        return $"Cs1!{Convert.ToBase64String(bytes).Replace('+', 'A').Replace('/', 'b')}";
-    }
-
-    private static string GetPrincipalSubject(ClaimsPrincipal principal)
-    {
-        var subject =
-            principal.FindFirstValue(ClaimTypes.NameIdentifier) ??
-            principal.FindFirstValue("sub") ??
-            principal.Identity?.Name;
-
-        return string.IsNullOrWhiteSpace(subject)
-            ? throw new UnauthorizedAccessException("The CloudShell resource identity token does not include a subject.")
-            : subject;
     }
 
     private ApplicationResourceDefinition? ResolveSqlServerApplication(string resourceNameOrId) =>
