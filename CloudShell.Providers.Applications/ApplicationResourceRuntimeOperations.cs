@@ -6,8 +6,6 @@ using CloudShell.Client.Authentication;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
-using System.Net;
-using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -35,9 +33,9 @@ public sealed partial class ApplicationResourceRuntimeOperations(
     ApplicationResourceDefinitionNormalizer? definitionNormalizer = null,
     ApplicationResourceDefinitionRegistrationService? applicationDefinitionRegistrations = null,
     ApplicationWorkloadConfigurationProvider? workloadConfigurations = null,
-    ApplicationResourceSettingResolver? settingResolver = null) :
+    ApplicationResourceSettingResolver? settingResolver = null,
+    IApplicationResourceActionAvailabilityOperations? actionAvailability = null) :
     IApplicationResourceProcedureOperations,
-    IApplicationResourceActionAvailabilityOperations,
     IContainerApplicationResourceProviderOperations,
     IDisposable
 {
@@ -74,6 +72,35 @@ public sealed partial class ApplicationResourceRuntimeOperations(
             declarations,
             serviceProvider.GetServices<IConfigurationEntryReferenceResolver>(),
             serviceProvider.GetServices<ISecretReferenceResolver>());
+    private readonly IApplicationResourceActionAvailabilityOperations _actionAvailability =
+        actionAvailability ?? serviceProvider.GetService<IApplicationResourceActionAvailabilityOperations>() ??
+            new ApplicationResourceActionAvailabilityOperations(
+                new ApplicationResourceDefinitionSource(
+                    store,
+                    definitionNormalizer ?? new ApplicationResourceDefinitionNormalizer(environment)),
+                serviceProvider.GetService<IApplicationResourceRunningStateOperations>() ??
+                    new ApplicationResourceRunningStateOperations(
+                        new ApplicationResourceDefinitionSource(
+                            store,
+                            definitionNormalizer ?? new ApplicationResourceDefinitionNormalizer(environment)),
+                        localProcesses,
+                        new ApplicationContainerProcessTracker(
+                            runtimeStates,
+                            options,
+                            environment,
+                            loggerFactory)),
+                settingResolver ?? new ApplicationResourceSettingResolver(
+                    declarations,
+                    serviceProvider.GetServices<IConfigurationEntryReferenceResolver>(),
+                    serviceProvider.GetServices<ISecretReferenceResolver>()),
+                workloadConfigurations ?? new ApplicationWorkloadConfigurationProvider(
+                    options,
+                    declarations,
+                    identityCredentialEnvironmentProviders),
+                containerHosts ?? new ApplicationContainerHostResolver(serviceProvider),
+                options,
+                environment,
+                declarations);
     private readonly ApplicationContainerProcessTracker _containerProcesses =
         serviceProvider.GetService<ApplicationContainerProcessTracker>() ?? new ApplicationContainerProcessTracker(
             runtimeStates,
@@ -594,7 +621,7 @@ public sealed partial class ApplicationResourceRuntimeOperations(
         string operation,
         CancellationToken cancellationToken)
     {
-        var restartReason = await GetActionUnavailableReasonAsync(
+        var restartReason = await _actionAvailability.GetActionUnavailableReasonAsync(
             context,
             ResourceAction.Restart,
             cancellationToken);
@@ -1017,151 +1044,6 @@ public sealed partial class ApplicationResourceRuntimeOperations(
 
     private ResourceIdentityReference? ResolveIdentity(string resourceId) =>
         _settingResolver.ResolveIdentity(resourceId);
-
-    private string? GetReferenceUnavailableReason(
-        ApplicationResourceDefinition definition,
-        ResourceProcedureContext context)
-    {
-        foreach (var setting in definition.AppSettings)
-        {
-            var reason = GetReferenceUnavailableReason(
-                setting.Name,
-                setting.ConfigurationEntry,
-                setting.Secret,
-                definition,
-                context);
-            if (reason is not null)
-            {
-                return reason;
-            }
-        }
-
-        foreach (var variable in definition.EnvironmentVariables)
-        {
-            var reason = GetReferenceUnavailableReason(
-                variable.Name,
-                variable.ConfigurationEntry,
-                variable.Secret,
-                definition,
-                context);
-            if (reason is not null)
-            {
-                return reason;
-            }
-        }
-
-        return null;
-    }
-
-    private string? GetReferenceUnavailableReason(
-        string settingName,
-        ConfigurationEntryReference? configurationEntry,
-        SecretReference? secret,
-        ApplicationResourceDefinition definition,
-        ResourceProcedureContext context)
-    {
-        if (configurationEntry is not null)
-        {
-            return GetConfigurationReferenceUnavailableReason(
-                settingName,
-                configurationEntry,
-                definition,
-                context);
-        }
-
-        if (secret is not null)
-        {
-            return GetSecretReferenceUnavailableReason(
-                settingName,
-                secret,
-                definition,
-                context);
-        }
-
-        return null;
-    }
-
-    private string? GetConfigurationReferenceUnavailableReason(
-        string settingName,
-        ConfigurationEntryReference reference,
-        ApplicationResourceDefinition definition,
-        ResourceProcedureContext context)
-    {
-        var target = context.ResourceManager?.GetResource(reference.StoreResourceId);
-        if (target is null)
-        {
-            return $"Setting '{settingName}' references configuration store '{reference.StoreResourceId}', but that resource is not available.";
-        }
-
-        return GetIdentityGrantUnavailableReason(
-            settingName,
-            reference.StoreResourceId,
-            "configuration entries",
-            ConfigurationStoreResourceOperationPermissions.ReadEntries,
-            target,
-            definition);
-    }
-
-    private string? GetSecretReferenceUnavailableReason(
-        string settingName,
-        SecretReference reference,
-        ApplicationResourceDefinition definition,
-        ResourceProcedureContext context)
-    {
-        var target = context.ResourceManager?.GetResource(reference.VaultResourceId);
-        if (target is null)
-        {
-            return $"Setting '{settingName}' references Secrets Vault '{reference.VaultResourceId}', but that resource is not available.";
-        }
-
-        return GetIdentityGrantUnavailableReason(
-            settingName,
-            reference.VaultResourceId,
-            "secrets",
-            SecretsVaultResourceOperationPermissions.ReadSecrets,
-            target,
-            definition);
-    }
-
-    private string? GetIdentityGrantUnavailableReason(
-        string settingName,
-        string referencedResourceId,
-        string readableItemLabel,
-        string permission,
-        Resource target,
-        ApplicationResourceDefinition definition)
-    {
-        var identity = ResolveIdentity(definition.Id);
-        if (identity is null)
-        {
-            return null;
-        }
-
-        var result = declarations
-            .CreatePermissionGrantEvaluator()
-            .Evaluate(identity, target.Id, permission);
-        if (result.IsAllowed)
-        {
-            return null;
-        }
-
-        var targetLabel = ResourceDisplayLabels.GetLabel(target, referencedResourceId);
-        return $"Setting '{settingName}' references '{targetLabel}', but identity '{FormatIdentity(identity, definition)}' " +
-            $"is not allowed to read {readableItemLabel}. Grant '{permission}' on resource '{targetLabel}'.";
-    }
-
-    private static string FormatIdentity(
-        ResourceIdentityReference identity,
-        ApplicationResourceDefinition? definition = null)
-    {
-        var resourceName = definition is not null &&
-            string.Equals(identity.ResourceId, definition.Id, StringComparison.OrdinalIgnoreCase)
-                ? FormatApplicationResourceName(definition)
-                : identity.ResourceId;
-        return string.IsNullOrWhiteSpace(identity.Name)
-            ? resourceName
-            : $"{resourceName}/{identity.Name}";
-    }
 
     private async Task StartContainerApplicationAsync(
         ApplicationResourceDefinition definition,
@@ -2273,137 +2155,6 @@ public sealed partial class ApplicationResourceRuntimeOperations(
         return $"{protocol}://{host}:{ResolveReplicaProbeLocalPort(resourceId, port, instance).ToString(CultureInfo.InvariantCulture)}";
     }
 
-    private string? GetEndpointUnavailableReason(
-        ApplicationResourceDefinition application,
-        ResourceActionKind actionKind)
-    {
-        if (actionKind == ResourceActionKind.Restart &&
-            IsRunning(application.Id))
-        {
-            return null;
-        }
-
-        return IsContainerBacked(application)
-            ? GetContainerEndpointUnavailableReason(application)
-            : GetLocalProcessEndpointUnavailableReason(application);
-    }
-
-    private string? GetLocalProcessEndpointUnavailableReason(ApplicationResourceDefinition application)
-    {
-        foreach (var mapping in CreateEndpointNetworkMappings(application))
-        {
-            if (!TryGetLoopbackEndpoint(mapping, out var addresses, out var port))
-            {
-                continue;
-            }
-
-            if (addresses.Any(address => !IsTcpPortAvailable(address, port)))
-            {
-                return
-                    $"Endpoint mapping '{mapping.Name}' for application resource '{application.Id}' cannot use {mapping.Address} because the address is already in use.";
-            }
-        }
-
-        return null;
-    }
-
-    private string? GetContainerEndpointUnavailableReason(ApplicationResourceDefinition application)
-    {
-        var occupiedPorts = new HashSet<int>();
-        var service = CreateDefaultContainerOrchestratorService(application);
-        foreach (var port in service.ServicePorts)
-        {
-            var localPort = ResolveLocalPort(application.Id, port);
-            if (!occupiedPorts.Add(localPort))
-            {
-                return $"Endpoint '{port.Name}' for container app resource '{application.Id}' cannot use local port {localPort.ToString(CultureInfo.InvariantCulture)} because another endpoint on the resource already uses that port.";
-            }
-
-            if (!IsLocalHostPortAvailable(localPort))
-            {
-                return $"Endpoint '{port.Name}' for container app resource '{application.Id}' cannot use local port {localPort.ToString(CultureInfo.InvariantCulture)} because the address is already in use.";
-            }
-        }
-
-        var replicaGroup = CreateDefaultContainerReplicaGroup(service);
-        foreach (var instance in replicaGroup.Instances)
-        {
-            foreach (var port in GetRuntimeContainerProbePorts(application, service))
-            {
-                var localPort = ResolveReplicaProbeLocalPort(application.Id, port, instance);
-                if (!occupiedPorts.Add(localPort))
-                {
-                    return $"Replica probe endpoint '{port.Name}' for container app resource '{application.Id}' cannot use local port {localPort.ToString(CultureInfo.InvariantCulture)} because another endpoint on the resource already uses that port.";
-                }
-
-                if (!IsLocalHostPortAvailable(localPort))
-                {
-                    return $"Replica probe endpoint '{port.Name}' for container app resource '{application.Id}' cannot use local port {localPort.ToString(CultureInfo.InvariantCulture)} because the address is already in use.";
-                }
-            }
-        }
-
-        return null;
-    }
-
-    private static bool TryGetLoopbackEndpoint(
-        ResourceEndpointNetworkMapping mapping,
-        out IReadOnlyList<IPAddress> addresses,
-        out int port)
-    {
-        addresses = [];
-        port = 0;
-        if (!mapping.TryGetUri(out var uri) ||
-            !mapping.TryGetPort(out port))
-        {
-            return false;
-        }
-
-        if (string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase))
-        {
-            addresses = [IPAddress.Loopback, IPAddress.IPv6Loopback];
-        }
-        else if (IPAddress.TryParse(uri.Host, out var parsedAddress) &&
-            IPAddress.IsLoopback(parsedAddress))
-        {
-            addresses = [parsedAddress];
-        }
-        else
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    private static bool IsTcpPortAvailable(IPAddress address, int port)
-    {
-        try
-        {
-            var listener = new TcpListener(address, port)
-            {
-                ExclusiveAddressUse = true
-            };
-            listener.Start();
-            listener.Stop();
-            return true;
-        }
-        catch (SocketException exception) when (exception.SocketErrorCode == SocketError.AddressAlreadyInUse)
-        {
-            return false;
-        }
-        catch (SocketException)
-        {
-            return true;
-        }
-    }
-
-    private static bool IsLocalHostPortAvailable(int port) =>
-        IsTcpPortAvailable(IPAddress.Any, port) &&
-        IsTcpPortAvailable(IPAddress.IPv6Any, port) &&
-        IsTcpPortAvailable(IPAddress.Loopback, port) &&
-        IsTcpPortAvailable(IPAddress.IPv6Loopback, port);
-
     private ApplicationResourceDefinition NormalizeDefinition(ApplicationResourceDefinition definition) =>
         _definitionNormalizer.Normalize(definition);
 
@@ -2532,76 +2283,6 @@ public sealed partial class ApplicationResourceRuntimeOperations(
             cancellationToken)
             ?? throw new InvalidOperationException(
                 $"Resource '{definition.Name}' is container-backed but no default container host is registered. Use UseDocker(), UseContainerHost(...), or set WithContainerHost(...).");
-    }
-
-    private async Task<ContainerHostDescriptor?> TryResolveContainerHostForAvailabilityAsync(
-        ApplicationResourceDefinition definition,
-        IResourceManagerStore? resourceManager,
-        string? preferredContainerHostId,
-        CancellationToken cancellationToken)
-    {
-        if (!IsContainerBacked(definition) ||
-            resourceManager is null)
-        {
-            return null;
-        }
-
-        try
-        {
-            return await ResolveContainerHostAsync(
-                definition.ContainerHostId,
-                preferredContainerHostId,
-                resourceManager,
-                ContainerHostCapabilityIds.ContainerImage,
-                cancellationToken);
-        }
-        catch (InvalidOperationException)
-        {
-            return null;
-        }
-    }
-
-    private async Task<string?> GetContainerHostUnavailableReasonAsync(
-        ApplicationResourceDefinition definition,
-        IResourceManagerStore? resourceManager,
-        string? preferredContainerHostId,
-        CancellationToken cancellationToken)
-    {
-        if (!IsContainerBacked(definition))
-        {
-            return null;
-        }
-
-        if (resourceManager is null)
-        {
-            return $"Container resource '{definition.Name}' requires resource manager context to resolve a container host.";
-        }
-
-        try
-        {
-            _ = await ResolveContainerHostAsync(
-                definition.ContainerHostId,
-                preferredContainerHostId,
-                resourceManager,
-                ContainerHostCapabilityIds.ContainerImage,
-                cancellationToken);
-
-            if (definition.ProjectContainerBuild)
-            {
-                _ = await ResolveContainerHostAsync(
-                    definition.ContainerHostId,
-                    preferredContainerHostId,
-                    resourceManager,
-                    ContainerHostCapabilityIds.ContainerBuild,
-                    cancellationToken);
-            }
-        }
-        catch (InvalidOperationException exception)
-        {
-            return exception.Message;
-        }
-
-        return null;
     }
 
     private Task<ContainerHostDescriptor?> ResolveContainerHostAsync(

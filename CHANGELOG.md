@@ -110,6 +110,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Application configuration-entry and secret setting resolution now lives in
   `ApplicationResourceSettingResolver` instead of the runtime/procedure
   coordinator.
+- Application resource action availability and start/restart preflight checks
+  now live in `ApplicationResourceActionAvailabilityOperations` instead of the
+  runtime/procedure coordinator.
 
 ### 2026-06-23
 

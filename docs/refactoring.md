@@ -238,14 +238,18 @@ without forcing provider-specific logic into shared helpers.
 - [x] Move application configuration-entry and secret setting resolution into
   `ApplicationResourceSettingResolver` so preflight checks and runtime
   execution share a focused resolver instead of runtime coordinator internals.
+- [x] Move application action availability and start/restart preflight checks
+  into `ApplicationResourceActionAvailabilityOperations` so resource-type
+  providers can query action capability without depending on runtime procedure
+  execution.
 
 ## Next Slices
 
 - [ ] Continue splitting `ApplicationResourceRuntimeOperations` by separating
-  remaining resource-type concerns: lifecycle procedure execution, action
-  availability, container app orchestration hooks, and endpoint/probe
-  availability. The shared application infrastructure should provide reusable
-  toolkit pieces, not be the runtime coordinator.
+  remaining resource-type concerns: lifecycle procedure execution, container
+  app orchestration hooks, and endpoint/probe materialization. The shared
+  application infrastructure should provide reusable toolkit pieces, not be
+  the runtime coordinator.
 - [ ] Define the Resource Manager distinction between declared resource
   inventory and provider/runtime projections before changing `GetResources()`
   semantics. The unified graph can still include both, but code should know

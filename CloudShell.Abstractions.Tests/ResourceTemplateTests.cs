@@ -511,6 +511,15 @@ public sealed class ResourceTemplateTests
                 declarations,
                 [],
                 []);
+            var actionAvailability = new ApplicationResourceActionAvailabilityOperations(
+                definitionSource,
+                runningState,
+                settingResolver,
+                workloadConfigurations,
+                new ApplicationContainerHostResolver(new ServiceCollection().BuildServiceProvider()),
+                options,
+                environment,
+                declarations);
             var services = new ServiceCollection().BuildServiceProvider();
             Provider = new ApplicationResourceRuntimeOperations(
                 store,
@@ -523,7 +532,8 @@ public sealed class ResourceTemplateTests
                 [],
                 [],
                 declarations,
-                settingResolver: settingResolver);
+                settingResolver: settingResolver,
+                actionAvailability: actionAvailability);
             ResourceProvider = new ExecutableApplicationResourceProvider(
                 projectionSource,
                 definitionSource,
@@ -531,7 +541,7 @@ public sealed class ResourceTemplateTests
                 templateOperations,
                 declarationOperations,
                 descriptorOperations,
-                Provider);
+                actionAvailability);
             Group = new ResourceGroup("group-1", "Local Development", "Development resources", ["application:example-web-api"]);
             Registrations = new TestRegistrationStore();
             ResourceGroups = new TestResourceGroupStore(Group);
