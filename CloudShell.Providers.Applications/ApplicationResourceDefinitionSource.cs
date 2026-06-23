@@ -8,4 +8,9 @@ internal sealed class ApplicationResourceDefinitionSource(
         store.GetApplication(id) is { } application
             ? definitionNormalizer.Resolve(application)
             : null;
+
+    public IReadOnlyList<ApplicationResourceDefinition> GetApplications() => store
+        .GetApplications()
+        .Select(definitionNormalizer.Resolve)
+        .ToArray();
 }

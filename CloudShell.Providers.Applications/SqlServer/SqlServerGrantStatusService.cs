@@ -6,7 +6,8 @@ using System.Globalization;
 namespace CloudShell.Providers.Applications;
 
 internal sealed class SqlServerGrantStatusService(
-    IApplicationResourceManagementOperations applications,
+    IApplicationResourceDefinitionSource definitions,
+    IApplicationResourceRunningStateOperations runningState,
     IApplicationResourceProjectionSource projections) : ISqlServerApplicationResourceProviderOperations
 {
     public async Task<ResourcePermissionGrantStatus> GetSqlServerPermissionGrantStatusAsync(
@@ -14,7 +15,7 @@ internal sealed class SqlServerGrantStatusService(
         CancellationToken cancellationToken = default)
     {
         var observedAt = DateTimeOffset.UtcNow;
-        var application = applications.GetApplication(request.TargetResource.Id);
+        var application = definitions.GetApplication(request.TargetResource.Id);
         if (application is null ||
             !string.Equals(application.ResourceType, ApplicationResourceTypes.SqlServer, StringComparison.OrdinalIgnoreCase))
         {
@@ -46,7 +47,7 @@ internal sealed class SqlServerGrantStatusService(
                 observedAt);
         }
 
-        if (!applications.IsRunning(application.Id))
+        if (!runningState.IsRunning(application.Id))
         {
             return new ResourcePermissionGrantStatus(
                 request.Grant,

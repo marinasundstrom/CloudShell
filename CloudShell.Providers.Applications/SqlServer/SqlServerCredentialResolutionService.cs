@@ -7,7 +7,8 @@ using System.Security.Claims;
 namespace CloudShell.Providers.Applications;
 
 internal sealed class SqlServerCredentialResolutionService(
-    IApplicationResourceManagementOperations applications,
+    IApplicationResourceDefinitionSource definitions,
+    IApplicationResourceRunningStateOperations runningState,
     IApplicationResourceProjectionSource projections,
     IResourceEventSink? resourceEvents = null) : ISqlServerCredentialResolutionOperations
 {
@@ -65,7 +66,7 @@ internal sealed class SqlServerCredentialResolutionService(
                 $"The current CloudShell principal cannot resolve SQL credentials for resource '{application.Name}'.");
         }
 
-        if (!applications.IsRunning(application.Id))
+        if (!runningState.IsRunning(application.Id))
         {
             AppendCredentialEvent(
                 application,
@@ -133,7 +134,7 @@ internal sealed class SqlServerCredentialResolutionService(
     }
 
     private ApplicationResourceDefinition? ResolveSqlServerApplication(string resourceNameOrId) =>
-        applications
+        definitions
             .GetApplications()
             .FirstOrDefault(application =>
                 string.Equals(application.ResourceType, ApplicationResourceTypes.SqlServer, StringComparison.OrdinalIgnoreCase) &&

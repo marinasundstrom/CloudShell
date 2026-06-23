@@ -53,6 +53,8 @@ on `git blame --follow`, and then by the broad type of change.
   trigger reconciliation from lifecycle actions.
 - Application resource definition lookup now has a focused
   `ApplicationResourceDefinitionSource` for resource-type providers.
+- Application running-state checks now have a focused
+  `IApplicationResourceRunningStateOperations` contract used by SQL services.
 
 ### 2026-06-23
 

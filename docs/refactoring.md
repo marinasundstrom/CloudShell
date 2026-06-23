@@ -184,6 +184,8 @@ without forcing provider-specific logic into shared helpers.
   `SqlServerDatabaseReconciliationService`.
 - [x] Move application resource definition lookup for resource-type providers
   into `ApplicationResourceDefinitionSource`.
+- [x] Add `IApplicationResourceRunningStateOperations` so SQL services can
+  depend on running-state checks without depending on management operations.
 
 ## Next Slices
 

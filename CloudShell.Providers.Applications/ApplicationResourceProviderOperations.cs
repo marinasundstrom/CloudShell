@@ -7,12 +7,17 @@ namespace CloudShell.Providers.Applications;
 public interface IApplicationResourceDefinitionSource
 {
     ApplicationResourceDefinition? GetApplication(string id);
+
+    IReadOnlyList<ApplicationResourceDefinition> GetApplications();
+}
+
+public interface IApplicationResourceRunningStateOperations
+{
+    bool IsRunning(string applicationId);
 }
 
 public interface IApplicationResourceManagementOperations : IApplicationResourceDefinitionSource
 {
-    IReadOnlyList<ApplicationResourceDefinition> GetApplications();
-
     Task SetupApplicationAsync(
         ApplicationResourceDefinition definition,
         string? resourceGroupId,

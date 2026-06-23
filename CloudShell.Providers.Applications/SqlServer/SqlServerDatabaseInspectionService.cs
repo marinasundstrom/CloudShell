@@ -3,7 +3,8 @@ using CloudShell.Abstractions.ResourceManager;
 namespace CloudShell.Providers.Applications;
 
 internal sealed class SqlServerDatabaseInspectionService(
-    IApplicationResourceManagementOperations applications,
+    IApplicationResourceDefinitionSource definitions,
+    IApplicationResourceRunningStateOperations runningState,
     IApplicationResourceProjectionSource projections) : ISqlServerDatabaseInspectionOperations
 {
     public async Task<IReadOnlyList<SqlServerDatabaseInfo>> QuerySqlServerDatabasesAsync(
@@ -12,10 +13,10 @@ internal sealed class SqlServerDatabaseInspectionService(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sqlServerResourceId);
 
-        var application = applications.GetApplication(sqlServerResourceId);
+        var application = definitions.GetApplication(sqlServerResourceId);
         if (application is null ||
             !string.Equals(application.ResourceType, ApplicationResourceTypes.SqlServer, StringComparison.OrdinalIgnoreCase) ||
-            !applications.IsRunning(application.Id))
+            !runningState.IsRunning(application.Id))
         {
             return [];
         }
