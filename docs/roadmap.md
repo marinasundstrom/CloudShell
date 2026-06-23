@@ -1202,8 +1202,9 @@ listed here before pulling in broader proposal work.
   and using parent-derived naming conventions for materialized runtime
   containers.
 - Preserve container app current-revision projection for app deployments; defer
-  rich rollout history, restore, retention, and first-class deployment
-  resources until runtime ownership and traceability are clear.
+  rich rollout history, restore-to-revision-state behavior, revision lineage,
+  state merge from revisions, retention, and first-class deployment resources
+  until runtime ownership and traceability are clear.
 
 ### Later: Advanced App and Environment Concepts
 
@@ -1276,7 +1277,8 @@ The following work should stay out of the MVP unless a release-gating sample
 forces a smaller slice:
 
 - Autoscaling, traffic splitting, backend pools, TLS binding, rollout history,
-  restore, and first-class deployment resources.
+  restore-to-revision-state behavior, state merge from revisions, and
+  first-class deployment resources.
 - Provider-backed network-level service discovery and public DNS propagation.
 - Broad IAM features such as inheritance, multiple identities per resource,
   effective permission APIs, and durable external authority reconciliation.

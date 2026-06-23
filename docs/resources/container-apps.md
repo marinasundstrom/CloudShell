@@ -145,6 +145,15 @@ versioned as a revision, but revision details stay one level deeper than the
 default deployment workflow. Runtime materialization is requested through the
 internal orchestrator deployment-apply boundary; the container app domain
 records app revisions and does not directly replace replicas or remap ingress.
+When restore support is added, restoring to a prior app state should create a
+new deployment whose requested state is based on the state captured by the
+selected revision. The selected revision remains an immutable state record, and
+the successful restore produces a new revision that records the based-on
+revision relationship. The restore deployment can recreate that state exactly,
+or it can include additional resources or overrides before the new revision is
+materialized.
+Ordinary deployments default their based-on revision to the current active or
+latest successful app revision.
 Requested replicas are the count asked for by the deployment; materialized
 replicas are the runtime instances the orchestrator actually produced.
 When an image deployment changes a running app, the Control Plane applies the
@@ -391,13 +400,23 @@ the container app resource through `container.revision`; runtime containers or
 replicas implement that revision but do not define it.
 
 The Resource Manager overview shows the latest projected revision. A richer
-revision history needs a dedicated design because revisions represent commits
-of changes to the container app configuration, not just image tags.
+revision history needs a dedicated design because revisions are materialized
+state snapshots produced by deployments, not just image tags and not the
+individual changes themselves.
 
 This is intentionally similar to Azure Container Apps at the basic concept
 level: a deployment produces a revision of the app. CloudShell's MVP keeps the
 revision model simple and does not yet model traffic splitting, activation
-state, restore deployments, or rollout history as first-class concepts.
+state, restore deployments, or rollout history as first-class concepts. The
+intended restore model is deployment-based change tracking: use the state
+captured by a selected revision as the requested state for a new deployment,
+optionally add deployment input, then record the resulting app revision with
+the based-on revision relationship. Ordinary deployments default that
+relationship to the current active or latest successful app revision.
+The same model can later support merging state captured by selected revisions
+into a final deployable state, while using deployment records for diff context.
+That remains future revision-management work rather than part of the MVP
+Deployment tab.
 
 ## Logs And Events
 

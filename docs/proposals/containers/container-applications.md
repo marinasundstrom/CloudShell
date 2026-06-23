@@ -396,7 +396,11 @@ liveness/lifecycle signals, while scaling changes desired capacity.
   routing update milestones, rolls back the candidate replica group on setup
   failure, and tears down superseded runtime replica groups as a separate
   post-apply operation. Failed apply now marks the candidate app
-  deployment/revision failed and restores the source app revision as active.
+  deployment/revision failed and keeps the previously active app revision
+  active. A later restore should be modeled as a new deployment based on the
+  state captured by a selected revision, producing a new revision that records
+  the based-on revision relationship rather than reactivating the selected
+  revision object.
   Deployment materialization now waits for declared HTTP startup/readiness
   checks, or HTTP health checks when no explicit startup/readiness check is
   present. The Resource Manager UI now keeps Deployment focused on deploying

@@ -12,8 +12,9 @@ an orchestrator-level service abstraction.
 
 The current orchestration model can manage standalone runtime resources and can
 group runtime instances through services, but there is no formal deployment and
-revision model for representing versioned workload changes, rollout history,
-replica changes, or traceability across orchestrator implementations.
+revision model for recording requested workload changes, versioned workload
+state, rollout history, replica changes, or traceability across orchestrator
+implementations.
 Standalone resource management remains the default mode: the resource itself is
 the orchestrated unit, and declared dependency relationships are still managed
 by the orchestrator when actions require dependency ordering or dependency
@@ -61,7 +62,12 @@ resources also carry the deployment id, service id, and deployment revision
 they implement for traceability. The deployment represents the requested
 runtime state. The revision represents the materialized result of that
 deployment: the current state when active and the past state when retained for
-history, diagnostics, or restore. Container app image deployment now records
+history, diagnostics, or restore-to-state workflows. Restoring means creating a
+new deployment whose requested state is based on the materialized state
+captured by a selected prior revision; it does not reactivate or mutate that
+revision object. If the deployment succeeds, the resulting revision records the
+based-on revision relationship for change tracking. Container app image
+deployment now records
 the app revision through the app provider and, when runtime reconciliation is
 required, asks the Control Plane to apply the provider-described orchestrator
 deployment spec. The default orchestrator now records deployment activity
@@ -259,8 +265,10 @@ The MVP must support:
 
 The MVP should add or refine next:
 
-* Keep rollback scoped to the candidate deployment unit. Automatic restore of
-  older revisions is a future rollout policy, not MVP rollback.
+* Keep rollback scoped to the candidate deployment unit. Restore is a future
+  user or rollout-policy change operation based on the state captured by a
+  selected revision; it is not MVP rollback and it does not mutate or
+  reactivate the older revision.
 * Keep configurable cleanup and retention policy deferred until the basic
   diagnostics and runtime cleanup model has proven useful.
 
@@ -271,7 +279,7 @@ The MVP deliberately leaves these flexible:
 * Whether revisions are projected as runtime-managed resources, stored only as
   orchestrator metadata, or both.
 * The exact long-term readiness model, traffic shifting model, drain policy,
-  retention policy, and restore workflow.
+  retention policy, restore workflow, and revision-lineage projection.
 * Which resource types opt into the deployment model next and which continue as
   standalone orchestrated resources.
 * How Docker Compose, Kubernetes, or custom orchestrator adapters map the
@@ -287,9 +295,9 @@ be treated as a single global concept.
 
 A resource type may define its own revision concept as part of its domain model.
 For example, a Container App may have Container App deployments that produce
-Container App revisions. Those revisions represent versioned application
-configuration, traffic behavior, image references, environment settings, and
-restore source state.
+Container App revisions. Those revisions record materialized application
+state, including traffic behavior, image references, environment settings, and
+state that can be used as input to a later restore deployment.
 
 The orchestrator may also define revisions. An orchestrator revision represents
 a versioned runtime realization of a deployment. It tracks the workload shape
@@ -319,10 +327,12 @@ Each subdomain owns the revision data relevant to its own behavior.
 
 Container App revisions answer questions such as:
 
-* what application configuration changed?
+* what application state was materialized?
 * which image and environment settings are part of this app version?
 * which revision receives traffic?
-* which revision can be used as the source for a restore deployment?
+* which revision captures state that can be used for a restore deployment?
+* which deployment produced this revision?
+* which revision state this revision was based on?
 
 Orchestrator revisions answer questions such as:
 
@@ -338,20 +348,28 @@ orchestrator deployments and orchestrator revisions unless otherwise stated.
 A Deployment represents the desired runtime state as specified by the actor
 deploying the workload. It describes the workload shape, service grouping,
 replica request, image or workload version, ports, dependencies, and other
-runtime intent that should be materialized. Applying a deployment is a setup
-operation: specified resources are created or updated by id, and omitted
-resources are left alone unless a separate scale-down, revision-retirement, or
-service tear-down operation targets them. A deployment may be explicit in a
-future management surface, but the MVP path treats it primarily as a default
+runtime intent that should be materialized. In other words, deployment is where
+the requested change is stated. Applying a deployment is a setup operation:
+specified resources are created or updated by id, and omitted resources are
+left alone unless a separate scale-down, revision-retirement, or service
+tear-down operation targets them. A deployment may be explicit in a future
+management surface, but the MVP path treats it primarily as a default
 deployment derived by the orchestrator when a resource state change needs
-runtime materialization.
+runtime materialization. A deployment may also be initialized from the
+materialized state captured by a retained revision. That is the restore or
+revert-like model: the revision supplies state for a new deployment, but the
+revision itself is not restored in place.
 
 An Orchestrator Revision represents the outcome: the materialized runtime state
 produced when an orchestrator applies a deployment. It records the resulting
 applied version and the runtime-managed resources or provider-native artifacts
 associated with that application of desired state, allowing CloudShell to
-version and track runtime-environment changes and eventually restore from older
-revisions.
+version and track runtime-environment changes and eventually restore to the
+state captured by older revisions. A revision is the snapshot result of the
+deployment, not the individual change itself. It should be immutable once
+recorded; a restore creates another deployment and another revision, with a
+based-on revision relationship back to the revision that captured the requested
+state.
 
 This is a CloudShell abstraction, not an attempt to copy Kubernetes
 Deployments, Docker Compose services, or another orchestrator's native model. A
@@ -368,6 +386,7 @@ public sealed class OrchestratorDeployment
     public string Id { get; init; }
     public string OrchestratorId { get; init; }
     public string SourceResourceId { get; init; }
+    public string? BasedOnRevisionId { get; init; }
     public string ServiceId { get; init; }
     public string RevisionId { get; init; }
     public DeploymentSpec Spec { get; init; }
@@ -381,6 +400,7 @@ public sealed class OrchestratorRevision
     public string Id { get; init; }
     public string DeploymentId { get; init; }
     public string SourceResourceId { get; init; }
+    public string? BasedOnRevisionId { get; init; }
     public string ServiceId { get; init; }
     public int RevisionNumber { get; init; }
     public DateTimeOffset CreatedAt { get; init; }
@@ -389,6 +409,42 @@ public sealed class OrchestratorRevision
 ```
 
 The deployment model should represent the orchestrator’s computed workload intent, not the full user-facing resource graph.
+
+For change tracking, the restore relationship should be represented as:
+
+```text
+Deployment <deployment-id>
+  Based on revision <base-revision-id>
+
+Revision <new-revision-id>
+  From deployment <deployment-id>
+  Based on revision <base-revision-id>
+```
+
+The deployment's `BasedOnRevisionId` records which revision state was used as
+input. The resulting revision's `DeploymentId` records the change that produced
+it, and its `BasedOnRevisionId` records the prior revision state it was based
+on. For ordinary deployments, `BasedOnRevisionId` defaults to the current
+active or latest successful revision for that resource or service. A restore
+deployment explicitly selects an older revision as its base. This keeps the
+normal change history linear by default while still allowing explicit branches
+for restore or future merge workflows.
+
+When a deployment is based on a revision, its default requested state is the
+state captured by that revision. The actor may still include additional
+resources, overrides, or other deployment input before apply. In that case the
+deployment is still based on the selected revision, but the resulting revision
+records the newly materialized state produced by the full deployment request.
+
+The same change-tracking model should eventually allow state merge from
+revisions. Merging does not mutate the selected revisions and does not bypass
+deployment. It is an authoring operation that takes one or more retained
+revision state snapshots, optionally consults the deployments or change records
+that produced those revisions for diff context, resolves the selected state
+against a chosen base, and produces a final deployment representing the desired
+state that could be applied. If that deployment succeeds, the new revision
+records the deployment that produced it and the revision relationships used to
+build its requested state.
 
 ### Resource and Orchestrator Boundary
 
@@ -401,7 +457,7 @@ For container apps, the container app infrastructure owns:
 * validating app-level deployment input such as image, app configuration,
   requested replicas, ingress intent, and identity references
 * producing and tracking container app revisions
-* recording source revision, trigger, requested replica count, and revision
+* recording based-on revision, trigger, requested replica count, and revision
   status in the container app domain model
 * recording app deployment and revision history in provider-owned operational
   state rather than embedding unbounded rollout history in the desired app
@@ -550,8 +606,71 @@ A revision should allow CloudShell to determine:
 * which version is currently active
 * which version was previously active
 * which version failed
-* which version can be rolled back to
+* which version can provide state for a state-restore deployment
+* which prior revision or deployment the revision was based on
 * which resource change caused the revision
+
+### Restore To Revision State
+
+Restoring means restoring to the materialized state captured by an existing
+revision. It does not restore the revision object. CloudShell models this as a
+new deployment whose requested state is based on the selected prior revision's
+state snapshot instead of the default latest revision. If the deployment
+succeeds, CloudShell records a new revision as the outcome and links that
+revision back to the based-on revision used to define the requested state.
+
+This makes restore part of change tracking. Revisions record materialized
+state snapshots. Deployments record requested changes to state. A
+state-restore deployment is a revert-like change record that says "make the
+current runtime state look like the state captured by revision r12." By
+default it recreates that captured state, but the deployment may also specify
+additional resources, overrides, or other desired-state input before execution.
+This keeps revisions immutable while still supporting recovery from a bad
+change, such as an invalid image, network configuration, resource reference, or
+replicated resource configuration. A typical history may look like:
+
+```text
+Revision r12: known-good image and network config
+    |
+Deployment d13: image update with bad config
+    |
+Revision r13: failed or unhealthy materialized state
+    |
+Deployment d14: restore to state captured by revision r12
+    |
+Revision r14: new active state, basedOnRevisionId = r12
+```
+
+The state-restore deployment may use the selected revision state exactly, or it
+may start from that state and include additional deployment input before
+execution. The resulting revision should retain enough lineage to answer "what
+state was this revision based on?" and "which change did it replace?" Over time
+this can become a revision lineage graph or tree rather than only a flat list.
+
+Rollback is different. MVP rollback is best-effort cleanup of the candidate
+deployment unit when setup fails before activation. Restore is an explicit
+change operation after a previous deployment produced an
+undesired, failed, or unhealthy state.
+
+### Merging State From Revisions
+
+Revision lineage can also support merge workflows. A user may want the network
+configuration from one revision, the image or environment state from another,
+and the replica configuration from the current active state. CloudShell should
+model that as a deployment-authoring step: choose a base revision state, merge
+selected state fragments captured by retained revisions, resolve conflicts,
+then produce a deployment that represents the final desired state.
+
+The deployment is the object applied by the orchestrator. The selected
+revisions are materialized-state inputs to the authoring process; they are not
+the changes themselves. A successful apply produces a new revision that records
+the deployment it came from and the based-on revision relationships needed to
+explain how the desired state was assembled.
+
+This is future revision-management behavior, not part of the MVP rollout path.
+The MVP only needs to retain enough state, deployment diff context, and lineage
+information that a future merge UI or API could construct a deployable state
+without treating revisions as mutable resources or individual change records.
 
 ## Service Relationship
 
@@ -782,13 +901,14 @@ records a failed deployment attempt and no orchestrator revision is produced.
 The selected orchestrator should then make a best-effort rollback of the
 deployment unit it was setting up, usually by tearing down the candidate replica
 group. Rollback failure must be logged but should not hide the original apply
-failure. Automatic restore of the previously serving revision is a separate
+failure. Automatic restore to the previously serving state is a separate
 rollout policy, not the baseline meaning of deployment apply failure.
 
 Advanced strategies such as blue/green, canary percentages, labels, gradual
-traffic shifting, and automatic restore can build on the same deployment and
-revision model. They are not required for the first implementation, but the
-baseline model should not force a full resource restart for image updates.
+traffic shifting, and automatic restore-to-state can build on the same
+deployment and revision model. They are not required for the first
+implementation, but the baseline model should not force a full resource restart
+for image updates.
 
 Scale-only operations remain different. Increasing or decreasing replicas for
 the active revision reconciles runtime capacity and should not require traffic
@@ -1024,7 +1144,7 @@ The current implementation already has the internal foundation:
 The next MVP changes should stay focused:
 
 1. Keep rollback scoped to tearing down the candidate replica group. Do not add
-   automatic restore or traffic policy machinery for MVP.
+   automatic restore-to-state or traffic policy machinery for MVP.
 2. Add configurable retention and cleanup policies after the basic
    best-effort cleanup model is credible.
 3. Add focused tests around failed deployment projection, readiness-gated
@@ -1047,9 +1167,12 @@ The next MVP changes should stay focused:
   inspection beyond the internal revision outcome and projected resource
   metadata.
 * Define how long revisions are retained.
-* Define restore behavior for each orchestrator. Restoring an old app revision
-  should create a new deployment sourced from that revision, not reactivate the
-  old revision in place.
+* Define restore behavior for each orchestrator. Restoring to the state
+  captured by an old app revision should create a new deployment based on that
+  state, not reactivate the old revision in place.
+* Define revision merge behavior as a deployment-authoring workflow that
+  produces a final deployable state from selected revision state snapshots,
+  using deployment records for diff context.
 * Define revision diff format.
 * Define endpoint cutover, drain behavior, and failure handling beyond the
   current routing milestones and rollback events.
@@ -1064,8 +1187,11 @@ The next MVP changes should stay focused:
 * Which scale changes are active-revision capacity changes, and which scale
   changes are revision-scoped template changes?
 * Should failed revisions remain visible by default?
-* Should restore deployments produce a new app revision, reference the source
-  revision, or both?
+* Which based-on revision fields should a state-restore deployment and its
+  resulting revision expose, and which deployment/change records provide diff
+  context?
+* Which conflict model should state merge from revisions use when selected
+  revision states contain different values for the same resource field?
 * How should Docker Compose revisions be represented when Compose has no native revision concept?
 * How should deployments be garbage-collected when source resources are deleted?
 * Should deployment history be stored in the Resource Manager or orchestrator state?

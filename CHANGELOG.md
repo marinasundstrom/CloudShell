@@ -45,8 +45,8 @@ on `git blame --follow`, and then by the broad type of change.
   best-effort teardown of the candidate replica group when setup fails before a
   revision is produced.
 - Container app deployment apply failures now notify the provider so failed
-  candidate app deployments/revisions are marked failed and the source app
-  revision remains active.
+  candidate app deployments/revisions are marked failed and the previously
+  active app revision remains active.
 - Local Docker container app deployment now preserves local/Docker Hub image
   tags, passes the inspected image platform when starting containers, scopes
   automatic replica probe ports by revision, and uses short network aliases for
@@ -67,6 +67,17 @@ on `git blame --follow`, and then by the broad type of change.
   MVP as a generalized Resource Manager orchestration deployment model, with
   container apps as the first validation path while leaving public deployment
   APIs, restore, retention, traffic strategies, and adapter mappings flexible.
+- Deployment/revision documentation now defines restore as a new deployment
+  based on the materialized state captured by a selected revision, with the
+  resulting revision recording the based-on revision relationship instead of
+  reactivating the old revision object, while still allowing additional
+  deployment input before the new revision is materialized. Ordinary
+  deployments default the based-on revision to the current active or latest
+  successful revision.
+- Deployment/revision documentation now describes future state merge from
+  revisions as a deployment-authoring workflow that composes selected
+  materialized-state snapshots, using deployment records for diff context, into
+  a final deployable state.
 - Resource Manager deployment coordination now lives separately from
   orchestration execution under dedicated Deployment and Orchestration
   namespaces, with the default deployment service reusable for orchestrators
@@ -143,8 +154,8 @@ on `git blame --follow`, and then by the broad type of change.
   replica log sources, telemetry scopes, and replica-tagged resource metrics
   for overview and drill-down.
 - Container app deployments now track app-owned revision history entries with
-  image, requested replicas, source revision, timestamp, and trigger metadata,
-  and the Deployment tab surfaces that history.
+  image, requested replicas, based-on revision, timestamp, and trigger
+  metadata, and the Deployment tab surfaces that history.
 - Container app image deployments now also record provider-owned app
   deployment history outside the desired application definition, correlating
   each deployment request to the produced app revision and orchestrator
