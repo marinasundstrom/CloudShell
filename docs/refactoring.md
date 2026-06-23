@@ -135,6 +135,9 @@ without forcing provider-specific logic into shared helpers.
 - [x] Align log provider contracts and docs with the `LogSource` direction so
   new providers can expose sources directly while descriptor-shaped logs remain
   compatibility metadata.
+- [x] Move application resource log discovery to source-first `LogSource`
+  projection, keeping descriptor compatibility out of new application-provider
+  discovery code.
 
 ## Next Slices
 

@@ -8,9 +8,9 @@ namespace CloudShell.Providers.Applications;
 
 public sealed partial class ApplicationResourceService
 {
-    public IReadOnlyList<LogDescriptor> GetLogs() => store
+    public IReadOnlyList<LogSource> GetLogSources() => store
         .GetApplications()
-        .SelectMany(CreateLogDescriptors)
+        .SelectMany(CreateLogSources)
         .ToArray();
 
     public async Task<IReadOnlyList<LogEntry>> ReadLogAsync(
@@ -126,32 +126,31 @@ public sealed partial class ApplicationResourceService
         }
     }
 
-    private IReadOnlyList<LogDescriptor> CreateLogDescriptors(ApplicationResourceDefinition application) =>
+    private IReadOnlyList<LogSource> CreateLogSources(ApplicationResourceDefinition application) =>
     [
-        .. CreateApplicationLogDescriptors(application),
-        .. CreateRuntimeContainerLogDescriptors(application)
+        .. CreateApplicationLogSources(application),
+        .. CreateRuntimeContainerLogSources(application)
     ];
 
-    private static IReadOnlyList<LogDescriptor> CreateApplicationLogDescriptors(ApplicationResourceDefinition application)
+    private static IReadOnlyList<LogSource> CreateApplicationLogSources(ApplicationResourceDefinition application)
     {
         var source = ApplicationLogSources.GetPrimaryApplicationLogSource(application);
         return
         [
-            new LogDescriptor(
+            new LogSource(
                 GetLogId(application.Id),
                 source.Name,
                 "Applications",
                 application.Name,
                 LogSourceKind.Resource,
-                ResourceId: application.Id,
-                SupportsStreaming: source.Capabilities.HasFlag(LogSourceCapabilities.Stream),
-                Description: source.Description,
                 Kind: source.Kind,
                 Format: source.Format,
                 Storage: source.Storage,
                 Capabilities: source.Capabilities,
+                ResourceId: application.Id,
                 Location: source.Location,
                 ProducerResourceId: source.ProducerResourceId,
+                Description: source.Description,
                 Origin: source.Origin,
                 Configuration: source.Configuration,
                 Purpose: source.Purpose,
@@ -159,7 +158,7 @@ public sealed partial class ApplicationResourceService
         ];
     }
 
-    private IReadOnlyList<LogDescriptor> CreateRuntimeContainerLogDescriptors(
+    private IReadOnlyList<LogSource> CreateRuntimeContainerLogSources(
         ApplicationResourceDefinition application)
     {
         if (!IsReplicaModeEnabled(application))
@@ -180,20 +179,20 @@ public sealed partial class ApplicationResourceService
                     application.Id,
                     instance,
                     ApplicationLogSources.GetPrimaryApplicationLogSource(application));
-                return new LogDescriptor(
+                return new LogSource(
                     GetRuntimeContainerLogId(application.Id, instance.ReplicaOrdinal),
                     source.Name,
                     "Applications",
                     instance.Name,
                     LogSourceKind.Resource,
-                    ResourceId: resourceId,
-                    Description: source.Description,
                     Kind: source.Kind,
                     Format: source.Format,
                     Storage: source.Storage,
                     Capabilities: source.Capabilities,
+                    ResourceId: resourceId,
                     Location: source.Location,
                     ProducerResourceId: source.ProducerResourceId,
+                    Description: source.Description,
                     Origin: source.Origin,
                     Configuration: source.Configuration,
                     Purpose: source.Purpose,

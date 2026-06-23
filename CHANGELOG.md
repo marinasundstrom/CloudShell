@@ -126,6 +126,9 @@ on `git blame --follow`, and then by the broad type of change.
   `GetLogSources()` without also producing descriptor-shaped compatibility
   metadata, keeping `LogDescriptor` as a migration bridge instead of the
   primary provider discovery contract.
+- Application resource log discovery now returns `LogSource` records directly
+  instead of manufacturing `LogDescriptor` compatibility metadata for
+  application and runtime-container sources.
 - The deployment proposal now clarifies that deployment definitions describe
   resource intent through resource definitions and provider-owned attributes,
   with serialized formats treated as projections of that model.
