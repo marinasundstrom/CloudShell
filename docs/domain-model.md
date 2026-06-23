@@ -282,20 +282,22 @@ resource instances as the materialized units instead of introducing a pod
 concept.
 
 The orchestrator deployment and revision abstractions are the shared lower
-layer for applying runtime intent. An orchestrator deployment represents the
-desired runtime state for a resource, as specified by the actor deploying the
-workload. An orchestrator revision represents the outcome: the materialized
-state reported after the selected orchestrator executes that desired state. A
-resource can still be managed directly by Resource Manager while an orchestrator
-derives a default deployment for a deployment-relevant state or configuration
-change. These abstractions are available for internal container-app, provider,
-and orchestrator implementation work before they are announced as a public
-management surface. The Control Plane exposes an internal deployment-apply
-boundary that dispatches a deployment to the selected orchestrator instead of
-having the resource domain manipulate runtime replicas directly. A container
-app revision answers application-version questions; an orchestrator deployment
-and revision answer what runtime state was requested, what was materialized,
-and which service/runtime resources resulted.
+layer for applying runtime intent. The orchestrator manages CloudShell runtime
+resources and their runtime configuration. An orchestrator deployment represents
+the desired runtime state for a resource, as specified by the actor deploying
+the workload. An orchestrator revision represents the outcome: the materialized
+runtime resources and configuration reported after the selected orchestrator
+executes that desired state. A resource can still be managed directly by
+Resource Manager while an orchestrator derives a default deployment for a
+deployment-relevant state or configuration change. These abstractions are
+available for internal container-app, provider, and orchestrator implementation
+work before they are announced as a public management surface. The Control
+Plane exposes an internal deployment-apply boundary that dispatches a
+deployment to the selected orchestrator instead of having the resource domain
+manipulate runtime replicas directly. A container app revision answers
+application-version questions; an orchestrator deployment and revision answer
+what CloudShell runtime state was requested, what runtime resources and
+configuration were materialized, and which service/runtime resources resulted.
 
 This model is not a Kubernetes copy. CloudShell orchestrators are an abstraction
 for executing desired runtime state. A custom orchestrator can implement the

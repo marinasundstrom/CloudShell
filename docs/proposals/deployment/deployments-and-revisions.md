@@ -27,6 +27,10 @@ Initial implementation now adds internal data contracts for
 `ResourceOrchestratorRevision` in the orchestration abstractions, plus an
 opt-in `IResourceOrchestratorDeploymentApplier` boundary and Control Plane
 dispatcher for applying a deployment through the selected orchestrator.
+These are CloudShell runtime concepts: the orchestrator manages resources and
+their runtime configuration, and deployment/revisioning records the desired and
+materialized CloudShell runtime state rather than exposing a Kubernetes,
+Docker Compose, or other provider-native deployment object as the domain model.
 Providers can opt into `IResourceOrchestratorDeploymentProvider` to describe
 the deployment spec that should be applied after a domain update. These are
 intended for container apps, providers, and orchestrators to build on first.
