@@ -66,6 +66,8 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
             serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceService>());
         builder.Services.TryAddSingleton<IApplicationResourceConfigurationOperations>(
             serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceService>());
+        builder.Services.TryAddSingleton<IApplicationResourceRegistrationOperations>(
+            serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceService>());
         builder.Services.TryAddSingleton<IApplicationResourceRunningStateOperations>(
             serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceService>());
         builder.Services.TryAddSingleton<IContainerApplicationHistoryOperations>(

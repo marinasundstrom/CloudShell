@@ -27,6 +27,15 @@ public interface IApplicationResourceConfigurationOperations :
         CancellationToken cancellationToken = default);
 }
 
+public interface IApplicationResourceRegistrationOperations : IApplicationResourceDefinitionSource
+{
+    Task SetupApplicationAsync(
+        ApplicationResourceDefinition definition,
+        string? resourceGroupId,
+        IResourceRegistrationStore registrations,
+        CancellationToken cancellationToken = default);
+}
+
 public interface IApplicationResourceManagementOperations : IApplicationResourceDefinitionSource
 {
     Task SetupApplicationAsync(

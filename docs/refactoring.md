@@ -189,6 +189,9 @@ without forcing provider-specific logic into shared helpers.
 - [x] Add `IApplicationResourceConfigurationOperations` so application
   configuration UI depends on definition lookup, updates, and running-state
   checks without depending on the full management facade.
+- [x] Add `IApplicationResourceRegistrationOperations` so application
+  registration UI depends on definition lookup and setup without depending on
+  the full management facade.
 
 ## Next Slices
 
