@@ -154,7 +154,7 @@ public sealed class LogStore(
     }
 
     private ILogSourceCatalog CreateSourceCatalog() =>
-        new LogSourceCatalog(resourceManager, Providers, GetSourceContributors());
+        new LogSourceCatalog(resourceManager, GetSourceContributors());
 
     private IReadOnlyList<ILogSourceContributor> GetSourceContributors()
     {

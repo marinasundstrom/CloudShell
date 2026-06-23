@@ -5,7 +5,6 @@ namespace CloudShell.ControlPlane.Logs;
 
 public sealed class LogSourceCatalog(
     IResourceManagerStore resourceManager,
-    IReadOnlyList<ILogProvider> providers,
     IReadOnlyList<ILogSourceContributor> sourceContributors) : ILogSourceCatalog
 {
     public IReadOnlyList<LogSource> GetLogSources()
@@ -14,17 +13,10 @@ public sealed class LogSourceCatalog(
         var visibleResourceIds = resources
             .Select(resource => resource.Id)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var descriptors = providers
-            .SelectMany(provider => provider.GetLogs())
-            .Where(log => log.ResourceId is null || visibleResourceIds.Contains(log.ResourceId))
-            .ToArray();
         var contributedSources = sourceContributors
             .SelectMany(contributor => contributor.GetLogSources())
             .Where(source => source.ResourceId is null || visibleResourceIds.Contains(source.ResourceId))
             .ToArray();
-        var contributedSourceIds = contributedSources
-            .Select(source => source.Id)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var projected = new List<LogSource>();
         var matchedSourceIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -32,34 +24,19 @@ public sealed class LogSourceCatalog(
         {
             foreach (var source in resource.ResourceLogSources)
             {
-                var descriptor = descriptors.FirstOrDefault(descriptor =>
-                    IsMatchingSource(resource, source, descriptor));
-                var contributedSource = descriptor is null
-                    ? contributedSources.FirstOrDefault(contributedSource =>
-                        IsMatchingSource(resource, source, contributedSource))
-                    : contributedSources.FirstOrDefault(contributedSource =>
-                        string.Equals(contributedSource.Id, descriptor.Id, StringComparison.OrdinalIgnoreCase));
-                if (descriptor is not null)
-                {
-                    matchedSourceIds.Add(descriptor.Id);
-                }
+                var contributedSource = contributedSources.FirstOrDefault(contributedSource =>
+                    IsMatchingSource(resource, source, contributedSource));
                 if (contributedSource is not null)
                 {
                     matchedSourceIds.Add(contributedSource.Id);
                 }
 
-                projected.Add(ToLogSource(resource, source, descriptor, contributedSource));
+                projected.Add(ToLogSource(resource, source, contributedSource));
             }
         }
 
         projected.AddRange(contributedSources
             .Where(source => !matchedSourceIds.Contains(source.Id)));
-
-        projected.AddRange(descriptors
-            .Where(descriptor =>
-                !matchedSourceIds.Contains(descriptor.Id) &&
-                !contributedSourceIds.Contains(descriptor.Id))
-            .Select(descriptor => descriptor.ToLogSource()));
 
         return projected
             .OrderBy(source => source.SourceName, StringComparer.OrdinalIgnoreCase)
@@ -74,26 +51,22 @@ public sealed class LogSourceCatalog(
     private static LogSource ToLogSource(
         Resource resource,
         ResourceLogSource source,
-        LogDescriptor? descriptor,
         LogSource? contributedSource)
     {
-        var descriptorSource = descriptor?.ToLogSource();
         return new LogSource(
-            descriptor?.Id ?? contributedSource?.Id ?? GetResourceLogSourceId(resource.Id, source.Id),
+            contributedSource?.Id ?? GetResourceLogSourceId(resource.Id, source.Id),
             source.Name,
-            contributedSource?.Provider ?? descriptorSource?.Provider ?? resource.Provider,
-            contributedSource?.SourceName ?? descriptorSource?.SourceName ?? resource.Name,
-            contributedSource?.SourceKind ?? descriptorSource?.SourceKind ?? LogSourceKind.Resource,
+            contributedSource?.Provider ?? resource.Provider,
+            contributedSource?.SourceName ?? resource.Name,
+            contributedSource?.SourceKind ?? LogSourceKind.Resource,
             source.Kind,
             source.Format,
             source.Storage,
-            descriptorSource is null && contributedSource is null
+            contributedSource is null
                 ? source.Capabilities
-                : source.Capabilities |
-                    (descriptorSource?.Capabilities ?? LogSourceCapabilities.None) |
-                    (contributedSource?.Capabilities ?? LogSourceCapabilities.None),
+                : source.Capabilities | contributedSource.Capabilities,
             resource.Id,
-            contributedSource?.ArtifactId ?? descriptorSource?.ArtifactId,
+            contributedSource?.ArtifactId,
             source.Location,
             source.ProducerResourceId,
             source.Description,
@@ -102,15 +75,6 @@ public sealed class LogSourceCatalog(
             source.Purpose,
             source.Availability);
     }
-
-    private static bool IsMatchingSource(
-        Resource resource,
-        ResourceLogSource source,
-        LogDescriptor descriptor) =>
-        string.Equals(descriptor.ResourceId, resource.Id, StringComparison.OrdinalIgnoreCase) &&
-        descriptor.Kind == source.Kind &&
-        (string.Equals(descriptor.Name, source.Name, StringComparison.OrdinalIgnoreCase) ||
-            source.Purpose == ResourceLogSourcePurpose.Default);
 
     private static bool IsMatchingSource(
         Resource resource,

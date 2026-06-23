@@ -136,6 +136,10 @@ on `git blame --follow`, and then by the broad type of change.
   metadata.
 - Docker host diagnostics and container log discovery now returns `LogSource`
   records directly instead of descriptor-shaped compatibility metadata.
+- The Control Plane log-source catalog now aggregates resource declarations
+  and contributed `LogSource` records directly, leaving descriptor-shaped logs
+  to the separate compatibility API instead of merging them into source
+  discovery.
 - The deployment proposal now clarifies that deployment definitions describe
   resource intent through resource definitions and provider-owned attributes,
   with serialized formats treated as projections of that model.

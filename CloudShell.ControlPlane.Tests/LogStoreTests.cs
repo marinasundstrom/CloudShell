@@ -31,22 +31,19 @@ public sealed class LogStoreTests
                     Purpose: ResourceLogSourcePurpose.Default)
             ]);
         var provider = new TestLogProvider(
-            logs:
+            logs: [],
+            sources:
             [
-                new LogDescriptor(
+                new LogSource(
                     "application:api:logs",
                     "Console logs",
                     "Applications",
                     "api",
                     LogSourceKind.Resource,
-                    ResourceId: resource.Id,
-                    SupportsStreaming: true,
-                    Kind: ResourceLogSourceKind.ProcessOutput,
+                    ResourceLogSourceKind.ProcessOutput,
                     Format: LogFormat.JsonConsole,
-                    Capabilities: LogSourceCapabilities.Read | LogSourceCapabilities.Stream)
-            ],
-            sources:
-            [
+                    Capabilities: LogSourceCapabilities.Read | LogSourceCapabilities.Stream,
+                    ResourceId: resource.Id),
                 new LogSource(
                     "provider:diagnostics",
                     "Provider diagnostics",

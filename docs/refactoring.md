@@ -144,6 +144,9 @@ without forcing provider-specific logic into shared helpers.
   source-first `LogSource` projection.
 - [x] Move Docker host diagnostics and container log discovery to source-first
   `LogSource` projection.
+- [x] Simplify the Control Plane log-source catalog so source discovery merges
+  resource declarations with contributed `LogSource` records, while descriptor
+  logs remain isolated to compatibility APIs.
 
 ## Next Slices
 
