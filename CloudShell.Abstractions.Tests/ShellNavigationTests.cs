@@ -230,9 +230,10 @@ public sealed class ShellNavigationTests
         var menu = composition.GetMenu(ShellCompositionIds.MainMenu);
         Assert.NotNull(menu);
         var workspaceGroup = Assert.Single(menu.Groups, group => group.Id == ShellCompositionIds.WorkspaceMenuGroup);
-        Assert.Equal(3, workspaceGroup.Items.Count);
+        Assert.Equal(4, workspaceGroup.Items.Count);
         Assert.Contains(workspaceGroup.Items, item => item.Target.Value == ShellCompositionIds.OverviewPage.Value);
         Assert.Contains(workspaceGroup.Items, item => item.Target.Value == ResourceManagerCompositionIds.ResourcesPage.Value);
+        Assert.Contains(workspaceGroup.Items, item => item.Target.Value == ResourceManagerCompositionIds.EnvironmentPage.Value);
         Assert.Contains(workspaceGroup.Items, item => item.Target.Value == ResourceManagerCompositionIds.HealthPage.Value);
     }
 
@@ -371,6 +372,11 @@ public sealed class ShellNavigationTests
             {
                 Assert.Equal(ResourceManagerCompositionIds.ResourcesMenuItem, item.Id);
                 Assert.Equal(ResourceManagerCompositionIds.ResourcesPage.Value, item.Target.Value);
+            },
+            item =>
+            {
+                Assert.Equal(ResourceManagerCompositionIds.EnvironmentMenuItem, item.Id);
+                Assert.Equal(ResourceManagerCompositionIds.EnvironmentPage.Value, item.Target.Value);
             },
             item =>
             {

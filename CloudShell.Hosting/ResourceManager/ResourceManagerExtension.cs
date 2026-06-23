@@ -42,6 +42,10 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                     "Resource graph",
                     ResourceManagerRoutes.ResourceGraph);
                 composition.AddPage(
+                    ResourceManagerCompositionIds.EnvironmentPage,
+                    "Environment",
+                    ResourceManagerRoutes.Environment);
+                composition.AddPage(
                     ResourceManagerCompositionIds.ResourceDetailsPage,
                     "Resource details",
                     "/resources/{resourceId}/{view?}");
@@ -75,7 +79,11 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                     .WithAttribute(CompositionAttributeNames.Icon, "server")
                     .Target(ResourceManagerCompositionIds.ResourcesPage);
                 workspaceMenu
-                    .AddItem(ResourceManagerCompositionIds.HealthMenuItem, "Health", 15)
+                    .AddItem(ResourceManagerCompositionIds.EnvironmentMenuItem, "Environment", 15)
+                    .WithAttribute(CompositionAttributeNames.Icon, "environment")
+                    .Target(ResourceManagerCompositionIds.EnvironmentPage);
+                workspaceMenu
+                    .AddItem(ResourceManagerCompositionIds.HealthMenuItem, "Health", 20)
                     .WithAttribute(CompositionAttributeNames.Icon, "health")
                     .Target(ResourceManagerCompositionIds.HealthPage);
             });
@@ -83,6 +91,7 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
         builder
             .RegisterView<Resources>(ResourceManagerViews.Resources)
             .RegisterView<ResourceDependencyGraph>(ResourceManagerViews.ResourceGraph)
+            .RegisterView<EnvironmentPage>(ResourceManagerViews.Environment)
             .RegisterView<Health>(ResourceManagerViews.Health)
             .RegisterView<AddResource>(ResourceManagerViews.AddResource)
             .RegisterView<CreateResourceGroup>(ResourceManagerViews.CreateResourceGroup)

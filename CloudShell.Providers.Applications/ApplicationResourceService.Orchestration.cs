@@ -103,6 +103,27 @@ public sealed partial class ApplicationResourceService
             ]);
     }
 
+    public Task HandleDeploymentAppliedAsync(
+        ResourceProcedureContext context,
+        ResourceOrchestratorDeploymentApplyResult applyResult,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var application = GetContainerApplication(context.Resource.Id);
+        var environmentRevisionId = applyResult.Revision.Id.ToString();
+        if (string.IsNullOrWhiteSpace(environmentRevisionId))
+        {
+            return Task.CompletedTask;
+        }
+
+        store.Save(NormalizeDefinition(application with
+        {
+            DeploymentEnvironmentRevisionId = environmentRevisionId
+        }));
+
+        return Task.CompletedTask;
+    }
+
     public Task HandleDeploymentApplyFailedAsync(
         ResourceProcedureContext context,
         ResourceOrchestratorDeployment deployment,

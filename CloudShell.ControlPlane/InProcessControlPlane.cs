@@ -825,6 +825,19 @@ public sealed class InProcessControlPlane(
         }
 
         var mergedResult = MergeAppliedDeploymentResult(result, applyResult.ProcedureResult);
+        var appliedProvider = GetDeploymentAppliedProvider(resource);
+        if (appliedProvider is not null &&
+            appliedProvider.CanHandleDeploymentApplied(resource))
+        {
+            await appliedProvider.HandleDeploymentAppliedAsync(
+                CreateProcedureContext(
+                    resource,
+                    triggeredBy,
+                    "Image deployment requested runtime reconciliation."),
+                applyResult,
+                cancellationToken);
+        }
+
         var tearDownProvider = GetDeploymentTearDownProvider(resource);
         if (tearDownProvider is null ||
             !tearDownProvider.CanDescribeDeploymentTearDown(resource))
@@ -2605,6 +2618,21 @@ public sealed class InProcessControlPlane(
         return resourceManager.Providers.FirstOrDefault(provider =>
             string.Equals(provider.DisplayName, resource.Provider, StringComparison.OrdinalIgnoreCase))
             as IResourceOrchestratorDeploymentTearDownProvider;
+    }
+
+    private IResourceOrchestratorDeploymentAppliedProvider? GetDeploymentAppliedProvider(Resource resource)
+    {
+        var registration = GetRegistrationForResourceOrAncestor(resource);
+        if (registration is not null)
+        {
+            return resourceManager.Providers.FirstOrDefault(provider =>
+                string.Equals(provider.Id, registration.ProviderId, StringComparison.OrdinalIgnoreCase))
+                as IResourceOrchestratorDeploymentAppliedProvider;
+        }
+
+        return resourceManager.Providers.FirstOrDefault(provider =>
+            string.Equals(provider.DisplayName, resource.Provider, StringComparison.OrdinalIgnoreCase))
+            as IResourceOrchestratorDeploymentAppliedProvider;
     }
 
     private IResourceOrchestratorDeploymentFailureProvider? GetDeploymentFailureProvider(Resource resource)

@@ -23,6 +23,7 @@ internal sealed class ContainerApplicationResourceProvider(
     IResourceReplicaUpdateProvider,
     IResourceOrchestratorDeploymentProvider,
     IResourceOrchestratorDeploymentTearDownProvider,
+    IResourceOrchestratorDeploymentAppliedProvider,
     IResourceOrchestratorDeploymentFailureProvider,
     IResourceOrchestratorServiceProcedureProvider
 {
@@ -104,6 +105,15 @@ internal sealed class ContainerApplicationResourceProvider(
         ResourceOrchestratorDeploymentApplyResult applyResult,
         CancellationToken cancellationToken = default) =>
         containerApplications.DescribeDeploymentTearDownAsync(context, applyResult, cancellationToken);
+
+    public bool CanHandleDeploymentApplied(Resource resource) =>
+        containerApplications.CanDescribeDeployment(resource);
+
+    public Task HandleDeploymentAppliedAsync(
+        ResourceProcedureContext context,
+        ResourceOrchestratorDeploymentApplyResult applyResult,
+        CancellationToken cancellationToken = default) =>
+        containerApplications.HandleDeploymentAppliedAsync(context, applyResult, cancellationToken);
 
     public bool CanHandleDeploymentApplyFailed(Resource resource) =>
         containerApplications.CanDescribeDeployment(resource);

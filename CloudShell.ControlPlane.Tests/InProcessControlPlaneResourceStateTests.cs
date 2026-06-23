@@ -2382,6 +2382,11 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.Contains("Tore down replica group 'target-service-revision-1-replicas'", result.Message, StringComparison.Ordinal);
         Assert.Equal(["target:example/api:20260623:False:build-server:2"], provider.UpdatedImages);
         Assert.Equal(["target"], provider.DescribedDeployments);
+        var appliedDeployment = Assert.Single(provider.AppliedDeployments);
+        Assert.StartsWith(
+            "target-deployment:revision-2:env-",
+            appliedDeployment,
+            StringComparison.Ordinal);
         Assert.Equal(["target-deployment:revision-2"], provider.DescribedTearDowns);
         Assert.Equal(["start:target-service"], provider.PreparedActions);
         Assert.Equal(
@@ -3716,6 +3721,7 @@ public sealed class InProcessControlPlaneResourceStateTests
         IResourceProvider,
         IResourceImageUpdateProvider,
         IResourceOrchestratorDeploymentProvider,
+        IResourceOrchestratorDeploymentAppliedProvider,
         IResourceOrchestratorDeploymentTearDownProvider,
         IResourceOrchestratorDeploymentFailureProvider,
         IResourceOrchestratorServiceProcedureProvider
@@ -3729,6 +3735,8 @@ public sealed class InProcessControlPlaneResourceStateTests
         public List<string> DescribedDeployments { get; } = [];
 
         public List<string> DescribedTearDowns { get; } = [];
+
+        public List<string> AppliedDeployments { get; } = [];
 
         public List<string> FailedDeployments { get; } = [];
 
@@ -3786,6 +3794,18 @@ public sealed class InProcessControlPlaneResourceStateTests
         }
 
         public bool CanDescribeDeploymentTearDown(Resource resource) => true;
+
+        public bool CanHandleDeploymentApplied(Resource resource) => true;
+
+        public Task HandleDeploymentAppliedAsync(
+            ResourceProcedureContext context,
+            ResourceOrchestratorDeploymentApplyResult applyResult,
+            CancellationToken cancellationToken = default)
+        {
+            AppliedDeployments.Add(
+                $"{applyResult.Deployment.Id}:{applyResult.Deployment.RevisionId}:{applyResult.Revision.Id}");
+            return Task.CompletedTask;
+        }
 
         public Task<IReadOnlyList<ResourceOrchestratorReplicaGroupTearDownRequest>> DescribeDeploymentTearDownAsync(
             ResourceProcedureContext context,

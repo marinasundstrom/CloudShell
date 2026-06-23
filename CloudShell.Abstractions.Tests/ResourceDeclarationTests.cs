@@ -9602,7 +9602,52 @@ public sealed class ResourceDeclarationTests
                 Assert.Equal(LogFormat.PlainText, log.Format);
                 Assert.False(log.Capabilities.HasFlag(LogSourceCapabilities.StructuredFields));
                 Assert.Equal(ResourceLogSourceOrigin.ProviderProjected, log.Origin);
-            });
+        });
+    }
+
+    [Fact]
+    public void ContainerApplicationProvider_ProjectsEnvironmentRevisionOnRuntimeReplicaResources()
+    {
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        services.AddSingleton(new ApplicationProviderOptions());
+        services
+            .AddControlPlane()
+            .AddExtension<ApplicationProviderExtension>();
+
+        using var serviceProvider = services.BuildServiceProvider();
+        serviceProvider.GetRequiredService<ApplicationResourceStore>().Save(
+            new ApplicationResourceDefinition(
+                "application:api",
+                "api",
+                executablePath: string.Empty,
+                containerImage: "example/api:latest",
+                containerHostId: "docker:dev",
+                replicas: 2,
+                resourceType: ApplicationResourceTypes.ContainerApp,
+                replicasEnabled: true,
+                deploymentEnvironmentRevisionId: "env-test-1"),
+            persist: false);
+
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var resources = provider.GetResources();
+        var app = Assert.Single(resources, resource => resource.Id == "application:api");
+        var replicas = resources
+            .Where(resource => string.Equals(resource.ParentResourceId, app.Id, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(resource => resource.ResourceAttributes[ResourceAttributeNames.RuntimeReplicaOrdinal])
+            .ToArray();
+
+        Assert.Equal(
+            "env-test-1",
+            app.ResourceAttributes[ResourceAttributeNames.DeploymentEnvironmentRevisionId]);
+        Assert.Equal(2, replicas.Length);
+        Assert.All(
+            replicas,
+            replica => Assert.Equal(
+                app.ResourceAttributes[ResourceAttributeNames.DeploymentEnvironmentRevisionId],
+                replica.ResourceAttributes[ResourceAttributeNames.DeploymentEnvironmentRevisionId]));
     }
 
     [Fact]

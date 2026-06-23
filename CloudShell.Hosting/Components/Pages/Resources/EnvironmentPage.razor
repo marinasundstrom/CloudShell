@@ -1,0 +1,280 @@
+@page "/environment"
+@rendermode InteractiveServer
+@using System.Globalization
+@inject IResourceManager ResourceManager
+@inject IResourceEventManager ResourceEvents
+@inject IStringLocalizer<SharedResource> L
+@inject CloudShell.UI.Composition.CompositionRegistry Composition
+
+<PageTitle>@L["Environment"]</PageTitle>
+
+<PageHeading Eyebrow="@L["Workspace"].Value"
+             Title="@L["Current environment"].Value"
+             Description="@L["Inspect the current host environment, environment revisions, and materialized resource state."].Value">
+    <Actions>
+        <span class="toolbar-meta">@L["Current host"]</span>
+        <FluentButton Appearance="Appearance.Neutral"
+                      IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                      OnClick="RefreshAsync">
+            @L["Refresh"]
+        </FluentButton>
+    </Actions>
+</PageHeading>
+
+<SummaryMetricGrid AriaLabel="@L["Environment summary"].Value">
+    <SummaryMetricCard Title="@L["Resources"].Value"
+                       Value="@Resources.Count"
+                       Summary="@L["Visible resources in this host environment"].Value"
+                       IconName="resources" />
+    <SummaryMetricCard Title="@L["Environment revisions"].Value"
+                       Value="@EnvironmentRevisionRows.Count"
+                       Summary="@L["Projected revision snapshots"].Value"
+                       IconName="dependencies" />
+    <SummaryMetricCard Title="@L["Deployments"].Value"
+                       Value="@DeploymentRows.Count"
+                       Summary="@L["Resources with deployment metadata"].Value"
+                       IconName="environment" />
+    <SummaryMetricCard Title="@L["Replica groups"].Value"
+                       Value="@ReplicaGroupCount"
+                       Summary="@L["Projected materialized runtime groups"].Value"
+                       IconName="container" />
+</SummaryMetricGrid>
+
+<section class="dashboard-grid">
+    <ShellPanel Wide="true">
+        <ShellPanelHeader Title="@L["Environment revisions"].Value"
+                          Description="@L["Revision identifiers projected by resources that have materialized runtime state in the current host environment."].Value">
+            <Actions>
+                <span class="toolbar-meta">@GetLoadedAtLabel()</span>
+            </Actions>
+        </ShellPanelHeader>
+
+        @if (EnvironmentRevisionRows.Count == 0)
+        {
+            <EmptyState Title="@L["No environment revisions projected"].Value"
+                        Message="@L["Environment revisions will appear here when resources materialize runtime state through Resource Manager deployment."].Value"
+                        Compact="true" />
+        }
+        else
+        {
+            <ResourceTable>
+                <thead>
+                    <tr>
+                        <th>@L["Environment revision"]</th>
+                        <th>@L["Resources"]</th>
+                        <th>@L["Deployments"]</th>
+                        <th>@L["Services"]</th>
+                        <th>@L["Replica groups"]</th>
+                        <th>@L["Latest status"]</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var revision in EnvironmentRevisionRows)
+                    {
+                        <tr>
+                            <td>
+                                <strong>@revision.EnvironmentRevisionId</strong>
+                                <div class="table-subtext">@L["Current host environment"]</div>
+                            </td>
+                            <td>@revision.ResourceCount</td>
+                            <td>@revision.DeploymentCount</td>
+                            <td>@revision.ServiceCount</td>
+                            <td>@revision.ReplicaGroupCount</td>
+                            <td>@revision.LatestStatus</td>
+                        </tr>
+                    }
+                </tbody>
+            </ResourceTable>
+        }
+    </ShellPanel>
+
+    <ShellPanel Wide="true">
+        <ShellPanelHeader Title="@L["Materialized deployment state"].Value"
+                          Description="@L["Resource Manager deployment metadata projected by resources in the current environment."].Value" />
+
+        @if (DeploymentRows.Count == 0)
+        {
+            <EmptyState Title="@L["No deployment metadata projected"].Value"
+                        Message="@L["Deployments will appear here when resources materialize runtime state through Resource Manager orchestration."].Value"
+                        Compact="true" />
+        }
+        else
+        {
+            <ResourceTable>
+                <thead>
+                    <tr>
+                        <th>@L["Resource"]</th>
+                        <th>@L["Deployment"]</th>
+                        <th>@L["Runtime revision"]</th>
+                        <th>@L["Environment revision"]</th>
+                        <th>@L["Service"]</th>
+                        <th>@L["Replica group"]</th>
+                        <th>@L["Replicas"]</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in DeploymentRows)
+                    {
+                        <tr>
+                            <td>
+                                <FluentAnchor Href="@ResourceManagerCompositionLinks.ResourceDetails(Composition, row.Resource.Id)">
+                                    @row.Resource.Name
+                                </FluentAnchor>
+                                <div class="table-subtext">@row.Resource.Id</div>
+                            </td>
+                            <td>
+                                <strong>@row.DeploymentId</strong>
+                                <div class="table-subtext">@row.Status</div>
+                            </td>
+                            <td>@row.RuntimeRevision</td>
+                            <td>@row.EnvironmentRevisionId</td>
+                            <td>@row.ServiceId</td>
+                            <td>@row.ReplicaGroupId</td>
+                            <td>@row.ReplicaSummary</td>
+                        </tr>
+                    }
+                </tbody>
+            </ResourceTable>
+        }
+    </ShellPanel>
+
+    <ShellPanel>
+        <ShellPanelHeader Title="@L["Recent deployment activity"].Value"
+                          Description="@L["Latest deployment events emitted by resources in this environment."].Value" />
+
+        @if (DeploymentEvents.Count == 0)
+        {
+            <EmptyState Title="@L["No deployment activity"].Value"
+                        Message="@L["Deployment events will appear after Resource Manager applies or cleans up runtime state."].Value"
+                        Compact="true" />
+        }
+        else
+        {
+            <ShellActivityList>
+                @foreach (var resourceEvent in DeploymentEvents)
+                {
+                    <ShellActivityLink Title="@GetEventTitle(resourceEvent.EventType)"
+                                       Summary="@resourceEvent.Message"
+                                       TrailingText="@resourceEvent.Timestamp.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)"
+                                       Href="@ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceEvent.ResourceId)" />
+                }
+            </ShellActivityList>
+        }
+    </ShellPanel>
+
+    <ShellPanel>
+        <ShellPanelHeader Title="@L["Model note"].Value"
+                          Description="@L["Current scope"].Value" />
+        <p class="panel-body-text">
+            @L["CloudShell currently treats the local host as one environment. A future environment concept may contain resources within a host or runtime boundary, but this page is currently a diagnostic view over the active host environment and its projected revisions."]
+        </p>
+    </ShellPanel>
+</section>
+
+@code {
+    private IReadOnlyList<Resource> Resources { get; set; } = [];
+    private IReadOnlyList<EnvironmentRevisionRow> EnvironmentRevisionRows { get; set; } = [];
+    private IReadOnlyList<EnvironmentDeploymentRow> DeploymentRows { get; set; } = [];
+    private IReadOnlyList<ResourceEvent> DeploymentEvents { get; set; } = [];
+    private DateTimeOffset LoadedAt { get; set; }
+
+    private int ReplicaGroupCount =>
+        DeploymentRows
+            .Select(row => row.ReplicaGroupId)
+            .Where(value => !string.IsNullOrWhiteSpace(value) && value != "not projected")
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Count();
+
+    protected override async Task OnInitializedAsync() =>
+        await RefreshAsync();
+
+    private async Task RefreshAsync()
+    {
+        Resources = await ResourceManager.ListResourcesAsync();
+        DeploymentRows = Resources
+            .Where(resource => resource.ResourceAttributes.ContainsKey(ResourceAttributeNames.DeploymentId))
+            .Select(EnvironmentDeploymentRow.Create)
+            .OrderBy(row => row.Resource.Name, StringComparer.CurrentCultureIgnoreCase)
+            .ThenBy(row => row.Resource.Id, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        EnvironmentRevisionRows = DeploymentRows
+            .Where(row => row.EnvironmentRevisionId != "not projected")
+            .GroupBy(row => row.EnvironmentRevisionId, StringComparer.OrdinalIgnoreCase)
+            .Select(EnvironmentRevisionRow.Create)
+            .OrderBy(row => row.EnvironmentRevisionId, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        DeploymentEvents = (await ResourceEvents.ListResourceEventsAsync(new ResourceEventQuery(MaxEvents: 100)))
+            .Where(resourceEvent => resourceEvent.EventType.StartsWith(
+                ResourceEventTypes.Events.Deployment.Prefix,
+                StringComparison.OrdinalIgnoreCase))
+            .Take(15)
+            .ToArray();
+        LoadedAt = DateTimeOffset.UtcNow;
+    }
+
+    private string GetLoadedAtLabel() =>
+        LoadedAt == default
+            ? L["Not loaded"].Value
+            : L["Loaded {0:g}", LoadedAt.ToLocalTime()].Value;
+
+    private string GetEventTitle(string eventType) =>
+        ResourceEventDisplayNames.GetDisplayName(eventType, L);
+
+    private sealed record EnvironmentRevisionRow(
+        string EnvironmentRevisionId,
+        int ResourceCount,
+        int DeploymentCount,
+        int ServiceCount,
+        int ReplicaGroupCount,
+        string LatestStatus)
+    {
+        public static EnvironmentRevisionRow Create(IGrouping<string, EnvironmentDeploymentRow> group)
+        {
+            var rows = group.ToArray();
+            return new EnvironmentRevisionRow(
+                group.Key,
+                rows.Select(row => row.Resource.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
+                rows.Select(row => row.DeploymentId).Where(IsProjected).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
+                rows.Select(row => row.ServiceId).Where(IsProjected).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
+                rows.Select(row => row.ReplicaGroupId).Where(IsProjected).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
+                rows.Select(row => row.Status).FirstOrDefault(IsProjected) ?? "not projected");
+        }
+    }
+
+    private sealed record EnvironmentDeploymentRow(
+        Resource Resource,
+        string DeploymentId,
+        string Status,
+        string RuntimeRevision,
+        string EnvironmentRevisionId,
+        string ServiceId,
+        string ReplicaGroupId,
+        string ReplicaSummary)
+    {
+        public static EnvironmentDeploymentRow Create(Resource resource)
+        {
+            var requestedReplicas = GetAttribute(resource, ResourceAttributeNames.DeploymentRequestedReplicas);
+            var materializedReplicas = GetAttribute(resource, ResourceAttributeNames.DeploymentMaterializedReplicas);
+            var replicaSummary = requestedReplicas == "not projected" && materializedReplicas == "not projected"
+                ? "not projected"
+                : $"{materializedReplicas} of {requestedReplicas}";
+
+            return new EnvironmentDeploymentRow(
+                resource,
+                GetAttribute(resource, ResourceAttributeNames.DeploymentId),
+                GetAttribute(resource, ResourceAttributeNames.DeploymentStatus),
+                GetAttribute(resource, ResourceAttributeNames.DeploymentRevision),
+                GetAttribute(resource, ResourceAttributeNames.DeploymentEnvironmentRevisionId),
+                GetAttribute(resource, ResourceAttributeNames.DeploymentServiceId),
+                GetAttribute(resource, ResourceAttributeNames.DeploymentReplicaGroupId),
+                replicaSummary);
+        }
+
+        private static string GetAttribute(Resource resource, string name) =>
+            resource.ResourceAttributes.GetValueOrDefault(name) ?? "not projected";
+    }
+
+    private static bool IsProjected(string value) =>
+        !string.IsNullOrWhiteSpace(value) &&
+        !string.Equals(value, "not projected", StringComparison.OrdinalIgnoreCase);
+}

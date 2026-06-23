@@ -111,6 +111,14 @@ on `git blame --follow`, and then by the broad type of change.
 - Orchestrator environment revisions now retain the deployment-definition
   snapshot that produced the successful environment change, so revision history
   can track the service/resource structure independently of deployment format.
+- Resource Manager now has an Environment page in the main menu for inspecting
+  the current host environment's deployments, environment revisions, replica
+  groups, materialized resources, and recent deployment events without moving
+  orchestrator concepts into the container app-specific UI.
+- Container app deployment apply success now records the produced orchestrator
+  environment revision id on the app definition and projects it onto the stable
+  app resource and hidden runtime replica resources for environment-level
+  diagnostics.
 - Resource Manager deployment coordination now lives separately from
   orchestration execution under dedicated Deployment and Orchestration
   namespaces, with the default deployment service reusable for orchestrators

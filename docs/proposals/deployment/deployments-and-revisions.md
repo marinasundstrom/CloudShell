@@ -1199,6 +1199,12 @@ CloudShell should allow users and tooling to inspect:
 * resource changes that caused an environment revision
 * logs and health state associated with deployment-owned replicas
 
+The Resource Manager shell should expose this through an Environment page for
+the current host environment. The first version can aggregate projected
+resource metadata and deployment events so users can see deployments,
+environment revisions, replica groups, and materialized resources without
+making orchestrator deployments a primary container app UI concept.
+
 Example diagnostic view:
 
 ```text
@@ -1281,7 +1287,9 @@ The current implementation already has the internal foundation:
    path.
 10. Resource UI surfaces can show deployment, readiness, rollback, cleanup, and
     environment-history events without making users manage orchestrator
-    deployment objects directly.
+    deployment objects directly. The Environment page is the first shared
+    inspection surface for deployments and environment revisions in the current
+    host environment.
 11. Post-apply cleanup of superseded replica groups is best-effort. Cleanup
     failures are warning diagnostics on the applied deployment rather than a
     failure of the active runtime group or active environment revision.
@@ -1321,10 +1329,18 @@ The next MVP changes should stay focused:
 * Define environment revision diff format.
 * Define endpoint cutover, drain behavior, and failure handling beyond the
   current routing milestones and rollback events.
+* Define resource definition validation for orchestrator deployment inputs,
+  including provider capability checks, inherited attributes and capabilities
+  from resource type, kind, and class, and the rules for incrementally applying
+  changed attributes without requiring each provider to reimplement the same
+  diffing model.
 * Define whether environment revisions are represented as runtime-managed
   resources or orchestrator metadata.
 * Define how deployment events integrate with traceability.
 * Define how deployment state is persisted across orchestrator restarts.
+* Add auto-refresh or live deployment visualization once environment-level
+  events can be observed consistently across Resource Manager services and
+  orchestrators.
 
 ## Open Questions
 

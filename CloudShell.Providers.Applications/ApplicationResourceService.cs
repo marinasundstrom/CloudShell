@@ -3529,6 +3529,10 @@ public sealed partial class ApplicationResourceService(
             attributes[ResourceAttributeNames.DeploymentServiceId] = deployment.ServiceId;
             attributes[ResourceAttributeNames.DeploymentStatus] = ToAttributeValue(deployment.Status);
             attributes[ResourceAttributeNames.DeploymentRevision] = deployment.RevisionId;
+            AddIfNotEmpty(
+                attributes,
+                ResourceAttributeNames.DeploymentEnvironmentRevisionId,
+                application.DeploymentEnvironmentRevisionId);
             attributes[ResourceAttributeNames.DeploymentWorkloadVersion] = deployment.Spec.WorkloadVersion;
             attributes[ResourceAttributeNames.DeploymentRequestedReplicas] =
                 deployment.Spec.Service.Replicas.ToString(CultureInfo.InvariantCulture);

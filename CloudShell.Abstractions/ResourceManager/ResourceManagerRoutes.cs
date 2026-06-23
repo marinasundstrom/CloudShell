@@ -6,6 +6,8 @@ public static class ResourceManagerRoutes
 
     public const string ResourceGraph = "/resources/graph";
 
+    public const string Environment = "/environment";
+
     public const string AddResource = "/resources/add";
 
     public const string CreateResourceGroup = "/resources/groups/new";

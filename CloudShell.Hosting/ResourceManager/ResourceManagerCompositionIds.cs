@@ -17,6 +17,9 @@ public static class ResourceManagerCompositionIds
     public static readonly PageId ResourceGraphPage =
         PageId.Create("cloudshell.resource-manager.resources.graph");
 
+    public static readonly PageId EnvironmentPage =
+        PageId.Create("cloudshell.resource-manager.environment");
+
     public static readonly PageId ResourceDetailsPage =
         PageId.Create("cloudshell.resource-manager.resources.details");
 
@@ -37,6 +40,9 @@ public static class ResourceManagerCompositionIds
 
     public static readonly MenuItemId ResourcesMenuItem =
         MenuItemId.Create(ShellCompositionIds.WorkspaceMenuGroup, "resources");
+
+    public static readonly MenuItemId EnvironmentMenuItem =
+        MenuItemId.Create(ShellCompositionIds.WorkspaceMenuGroup, "environment");
 
     public static readonly MenuItemId HealthMenuItem =
         MenuItemId.Create(ShellCompositionIds.WorkspaceMenuGroup, "health");

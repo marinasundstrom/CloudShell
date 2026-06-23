@@ -40,7 +40,8 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         bool replicasEnabled = false,
         IReadOnlyList<SqlServerDatabaseDefinition>? sqlDatabases = null,
         IReadOnlyList<ResourceLogSource>? logSources = null,
-        IReadOnlyList<ApplicationContainerRevision>? containerRevisions = null)
+        IReadOnlyList<ApplicationContainerRevision>? containerRevisions = null,
+        string? deploymentEnvironmentRevisionId = null)
     {
         Id = id;
         Name = name;
@@ -79,6 +80,7 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         SqlDatabases = sqlDatabases ?? [];
         LogSources = logSources ?? [];
         ContainerRevisions = containerRevisions ?? [];
+        DeploymentEnvironmentRevisionId = deploymentEnvironmentRevisionId;
     }
 
     public string Id { get; init; }
@@ -140,6 +142,8 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
     public bool UseLaunchSettingsEndpoints { get; init; }
 
     public string? ContainerRevision { get; init; }
+
+    public string? DeploymentEnvironmentRevisionId { get; init; }
 
     public ContainerRegistryCredentials? ContainerRegistryCredentials { get; init; }
 

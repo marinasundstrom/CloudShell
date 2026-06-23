@@ -117,6 +117,11 @@ public interface IContainerApplicationResourceProviderOperations
         ResourceOrchestratorDeploymentApplyResult applyResult,
         CancellationToken cancellationToken = default);
 
+    Task HandleDeploymentAppliedAsync(
+        ResourceProcedureContext context,
+        ResourceOrchestratorDeploymentApplyResult applyResult,
+        CancellationToken cancellationToken = default);
+
     Task HandleDeploymentApplyFailedAsync(
         ResourceProcedureContext context,
         ResourceOrchestratorDeployment deployment,

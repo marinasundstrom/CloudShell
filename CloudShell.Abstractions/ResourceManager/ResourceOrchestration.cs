@@ -185,6 +185,16 @@ public interface IResourceOrchestratorDeploymentTearDownProvider
         CancellationToken cancellationToken = default);
 }
 
+public interface IResourceOrchestratorDeploymentAppliedProvider
+{
+    bool CanHandleDeploymentApplied(Resource resource);
+
+    Task HandleDeploymentAppliedAsync(
+        ResourceProcedureContext context,
+        ResourceOrchestratorDeploymentApplyResult applyResult,
+        CancellationToken cancellationToken = default);
+}
+
 public interface IResourceOrchestratorDeploymentFailureProvider
 {
     bool CanHandleDeploymentApplyFailed(Resource resource);

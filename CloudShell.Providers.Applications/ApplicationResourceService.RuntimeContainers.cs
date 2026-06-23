@@ -47,6 +47,10 @@ public sealed partial class ApplicationResourceService
 
         AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerImage, service.Workload.Image);
         AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerHostId, service.Workload.ContainerHostId);
+        AddIfNotEmpty(
+            attributes,
+            ResourceAttributeNames.DeploymentEnvironmentRevisionId,
+            application.DeploymentEnvironmentRevisionId);
 
         return new Resource(
             CreateRuntimeContainerResourceId(application.Id, instance.ReplicaOrdinal),
