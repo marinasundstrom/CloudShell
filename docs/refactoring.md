@@ -209,6 +209,9 @@ without forcing provider-specific logic into shared helpers.
 - [x] Move application declaration operations to a focused adapter over
   declared provider options, definition lookup, and registration operations
   instead of the shared application resource service facade.
+- [x] Move application template import/export operations to a focused adapter
+  over definition lookup and registration operations instead of the shared
+  application resource service facade.
 
 ## Next Slices
 

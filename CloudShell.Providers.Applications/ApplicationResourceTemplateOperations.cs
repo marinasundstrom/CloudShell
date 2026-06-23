@@ -4,41 +4,47 @@ using System.Text.Json;
 
 namespace CloudShell.Providers.Applications;
 
-public sealed partial class ApplicationResourceService
+internal sealed class ApplicationResourceTemplateOperations(
+    ApplicationProviderOptions options,
+    IApplicationResourceDefinitionSource definitions,
+    IApplicationResourceRegistrationOperations registrations,
+    ApplicationResourceDefinitionRegistrationService definitionRegistrations) : IApplicationResourceTemplateOperations
 {
+    private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
+
     public bool CanExport(Resource resource) =>
         ApplicationResourceTypes.IsApplication(resource.EffectiveTypeId) &&
-        store.GetApplication(resource.Id) is not null;
+        definitions.GetApplication(resource.Id) is not null;
 
     public Task<ResourceTemplateDefinition> ExportAsync(
         Resource resource,
         ResourceTemplateExportContext context,
         CancellationToken cancellationToken = default)
     {
-        var application = store.GetApplication(resource.Id)
+        var application = definitions.GetApplication(resource.Id)
             ?? throw new InvalidOperationException($"Application resource '{resource.Id}' is not configured.");
 
         var configuration = new ApplicationResourceTemplateConfiguration(
-            application.ExecutablePath,
-            application.Arguments,
-            application.WorkingDirectory,
-            application.Endpoint,
-            application.EnvironmentVariables,
-            application.Lifetime,
-            application.References,
-            application.UseServiceDiscovery,
-            application.AppSettings,
-            GetEffectiveObservability(application),
-            application.ContainerImage,
-            IsContainerBacked(application) ? GetEffectiveContainerRegistry(application) : null,
-            application.ContainerBuildContext,
-            application.ContainerDockerfile,
-            application.ContainerHostId,
-            application.Replicas,
-            application.EndpointPorts,
-            application.ProjectPath,
-            application.ProjectArguments,
-            application.AspNetCoreHotReload,
+            ExecutablePath: application.ExecutablePath,
+            Arguments: application.Arguments,
+            WorkingDirectory: application.WorkingDirectory,
+            Endpoint: application.Endpoint,
+            EnvironmentVariables: application.EnvironmentVariables,
+            Lifetime: application.Lifetime,
+            References: application.References,
+            UseServiceDiscovery: application.UseServiceDiscovery,
+            AppSettings: application.AppSettings,
+            Observability: GetEffectiveObservability(application),
+            ContainerImage: application.ContainerImage,
+            ContainerRegistry: IsContainerBacked(application) ? GetEffectiveContainerRegistry(application) : null,
+            ContainerBuildContext: application.ContainerBuildContext,
+            ContainerDockerfile: application.ContainerDockerfile,
+            ContainerHostId: application.ContainerHostId,
+            Replicas: application.Replicas,
+            EndpointPorts: application.EndpointPorts,
+            ProjectPath: application.ProjectPath,
+            ProjectArguments: application.ProjectArguments,
+            AspNetCoreHotReload: application.AspNetCoreHotReload,
             ProjectContainerBuild: application.ProjectContainerBuild,
             UseLaunchSettingsEndpoints: application.UseLaunchSettingsEndpoints,
             ReplicasEnabled: application.ReplicasEnabled,
@@ -46,11 +52,11 @@ public sealed partial class ApplicationResourceService
 
         return Task.FromResult(new ResourceTemplateDefinition(
             application.Name,
-            Id,
+            ApplicationResourceProviderIds.Applications,
             application.ResourceType,
             resource.DependsOn,
             "1.0",
-            JsonSerializer.SerializeToElement(configuration, TemplateSerializerOptions),
+            JsonSerializer.SerializeToElement(configuration, SerializerOptions),
             application.Id));
     }
 
@@ -70,12 +76,12 @@ public sealed partial class ApplicationResourceService
         }
 
         var configuration = template.Configuration.Deserialize<ApplicationResourceTemplateConfiguration>(
-            TemplateSerializerOptions)
+            SerializerOptions)
             ?? throw new InvalidOperationException("The application resource template configuration is invalid.");
 
         var resourceId = string.IsNullOrWhiteSpace(template.ResourceId)
-            ? CreateUniqueImportId(template.Name)
-            : ValidateAvailableImportId(template.ResourceId);
+            ? definitionRegistrations.CreateUniqueImportId(template.Name)
+            : definitionRegistrations.ValidateAvailableImportId(template.ResourceId);
         var definition = new ApplicationResourceDefinition(
             resourceId,
             template.Name,
@@ -106,7 +112,7 @@ public sealed partial class ApplicationResourceService
             replicasEnabled: configuration.ReplicasEnabled,
             sqlDatabases: configuration.SqlDatabases);
 
-        await SetupApplicationAsync(
+        await registrations.SetupApplicationAsync(
             definition,
             context.ResourceGroupId,
             context.Registrations,
@@ -116,6 +122,20 @@ public sealed partial class ApplicationResourceService
             resourceId,
             $"Imported application resource '{template.Name}'.");
     }
+
+    private ResourceObservability GetEffectiveObservability(ApplicationResourceDefinition definition) =>
+        definition.Observability ??
+        (options.EnableObservabilityByDefault
+            ? ResourceObservability.Default
+            : ResourceObservability.None);
+
+    private static bool IsContainerBacked(ApplicationResourceDefinition application) =>
+        ApplicationResourceProjectionSupport.IsContainerBacked(application);
+
+    private static string GetEffectiveContainerRegistry(ApplicationResourceDefinition application) =>
+        string.IsNullOrWhiteSpace(application.ContainerRegistry)
+            ? ContainerRegistryDefaults.Default
+            : application.ContainerRegistry.Trim();
 
     private sealed record ApplicationResourceTemplateConfiguration(
         string ExecutablePath,

@@ -45,6 +45,6 @@ public sealed partial class ApplicationResourceService
             [],
             resource.Endpoints,
             "1.0",
-            JsonSerializer.SerializeToElement(workload, TemplateSerializerOptions)));
+            JsonSerializer.SerializeToElement(workload, DescriptorSerializerOptions)));
     }
 }

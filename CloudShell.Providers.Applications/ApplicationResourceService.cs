@@ -45,14 +45,13 @@ public sealed partial class ApplicationResourceService(
     IHostScopedResourceCleanupProvider,
     IApplicationResourceRunningStateOperations,
     IApplicationResourceProcedureOperations,
-    IApplicationResourceTemplateOperations,
     IApplicationResourceDescriptorOperations,
     IApplicationResourceActionAvailabilityOperations,
     IContainerApplicationResourceProviderOperations,
     IDisposable
 {
     public const string ReconcileSqlServerAccessActionId = "application.sql-server.reconcile-access";
-    private static readonly JsonSerializerOptions TemplateSerializerOptions = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions DescriptorSerializerOptions = new(JsonSerializerDefaults.Web);
     private static readonly TimeSpan StartingStateTimeout = TimeSpan.FromMinutes(5);
     private static readonly SemaphoreSlim AspNetCoreProjectBuildLock = new(1, 1);
     private static readonly HttpClient ContainerReadinessHttpClient = new();

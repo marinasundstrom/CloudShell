@@ -479,6 +479,11 @@ public sealed class ResourceTemplateTests
                 options,
                 definitionSource,
                 registrationOperations);
+            var templateOperations = new ApplicationResourceTemplateOperations(
+                options,
+                definitionSource,
+                registrationOperations,
+                definitionRegistrations);
             var services = new ServiceCollection().BuildServiceProvider();
             Provider = new ApplicationResourceService(
                 store,
@@ -497,7 +502,7 @@ public sealed class ResourceTemplateTests
                 Provider,
                 definitionSource,
                 Provider,
-                Provider,
+                templateOperations,
                 declarationOperations,
                 Provider,
                 Provider);
