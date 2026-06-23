@@ -3557,18 +3557,7 @@ public sealed partial class ApplicationResourceService(
         !string.IsNullOrWhiteSpace(application.ProjectPath);
 
     private ResourceState GetState(string applicationId)
-    {
-        var runtimeState = runtimeStates.Get(applicationId);
-        if (runtimeState?.State is ResourceState.Starting or ResourceState.Stopping &&
-            DateTimeOffset.UtcNow - runtimeState.LastObservedAt <= StartingStateTimeout)
-        {
-            return runtimeState.State.Value;
-        }
-
-        return IsRunning(applicationId)
-            ? ResourceState.Running
-            : ResourceState.Stopped;
-    }
+        => CreateRuntimeStateTracker().GetState(applicationId);
 
     private static IReadOnlyList<ResourceAction> CreateActions(
         ApplicationResourceDefinition application,
@@ -3593,70 +3582,22 @@ public sealed partial class ApplicationResourceService(
     }
 
     private void MarkStarting(string applicationId)
-    {
-        var state = runtimeStates.Get(applicationId);
-        runtimeStates.Save(state is null
-            ? new ApplicationRuntimeState(
-                applicationId,
-                null,
-                null,
-                DateTimeOffset.UtcNow,
-                State: ResourceState.Starting)
-            : state with
-            {
-                LastObservedAt = DateTimeOffset.UtcNow,
-                State = ResourceState.Starting
-            });
-    }
+        => CreateRuntimeStateTracker().MarkStarting(applicationId);
 
     private void ClearStarting(ApplicationResourceDefinition definition)
-    {
-        var state = runtimeStates.Get(definition.Id);
-        if (state?.State is not ResourceState.Starting ||
-            IsRunning(definition.Id))
-        {
-            return;
-        }
-
-        runtimeStates.Save(state with
-        {
-            LastObservedAt = DateTimeOffset.UtcNow,
-            State = ResourceState.Stopped
-        });
-    }
+        => CreateRuntimeStateTracker().ClearStarting(definition.Id);
 
     private void MarkStopping(string applicationId)
-    {
-        var state = runtimeStates.Get(applicationId);
-        runtimeStates.Save(state is null
-            ? new ApplicationRuntimeState(
-                applicationId,
-                null,
-                null,
-                DateTimeOffset.UtcNow,
-                State: ResourceState.Stopping)
-            : state with
-            {
-                LastObservedAt = DateTimeOffset.UtcNow,
-                State = ResourceState.Stopping
-            });
-    }
+        => CreateRuntimeStateTracker().MarkStopping(applicationId);
 
     private void ClearStopping(string applicationId)
-    {
-        var state = runtimeStates.Get(applicationId);
-        if (state?.State is not ResourceState.Stopping ||
-            IsRunning(applicationId))
-        {
-            return;
-        }
+        => CreateRuntimeStateTracker().ClearStopping(applicationId);
 
-        runtimeStates.Save(state with
-        {
-            LastObservedAt = DateTimeOffset.UtcNow,
-            State = ResourceState.Stopped
-        });
-    }
+    private ApplicationRuntimeStateTracker CreateRuntimeStateTracker() =>
+        new(
+            runtimeStates,
+            IsRunning,
+            transientStateTimeout: StartingStateTimeout);
 
     private IReadOnlyList<ResourceEndpoint> CreateEndpoints(ApplicationResourceDefinition application)
     {

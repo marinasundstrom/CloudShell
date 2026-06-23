@@ -68,6 +68,16 @@ belongs in `CHANGELOG.md`.
    dotnet test CloudShell.Sample.Tests/CloudShell.Sample.Tests.csproj --filter "Category=DockerIntegration"
    ```
 
+   If Docker-dependent tests fail before reaching CloudShell behavior with a
+   message such as `Cannot connect to the Docker daemon`, treat that as a local
+   host/runtime prerequisite failure rather than a product regression. Verify
+   with `docker info`. Docker Desktop can leave a stuck CLI or backend process
+   after the daemon crashes; if `docker info` cannot connect and a Docker
+   process is blocking shutdown or restart, terminate the stuck Docker process
+   and restart Docker before rerunning `Category=DockerIntegration` tests. Do
+   not use Docker-backed sample tests as the commit gate while the daemon is
+   unhealthy; record the skipped/blocked verification in the handoff.
+
 5. **Update project documentation**
 
    Update documentation when behavior, APIs, concepts, resource types, samples,

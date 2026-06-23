@@ -4,7 +4,14 @@ using Microsoft.Extensions.Hosting;
 
 namespace CloudShell.Providers.Applications;
 
-public sealed class ApplicationRuntimeStateStore : IResourceVolumeMountMaterializationStore
+internal interface IApplicationRuntimeStateStore
+{
+    ApplicationRuntimeState? Get(string applicationId);
+
+    void Save(ApplicationRuntimeState state);
+}
+
+public sealed class ApplicationRuntimeStateStore : IApplicationRuntimeStateStore, IResourceVolumeMountMaterializationStore
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)
     {

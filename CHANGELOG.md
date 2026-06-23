@@ -62,6 +62,13 @@ on `git blame --follow`, and then by the broad type of change.
   with direct unit tests for service identity, deployment inputs, revision
   scoping, and status mapping, while deployment-history decisions remain in
   `ApplicationResourceService`.
+- Application runtime state projection and transient lifecycle tracking now
+  live in a dedicated tracker with direct unit tests for fresh/expired
+  starting/stopping state, running fallback, and clear-starting/clear-stopping
+  behavior.
+- Development workflow docs now call out local Docker daemon crash handling for
+  Docker-backed sample verification, including using `docker info` to
+  distinguish host/runtime failures from product regressions.
 - Environment and container app scaling views now show deployment-record
   replica-group details, making scale reconciliation visible through runtime
   revision, replica group, requested replica slots, and materialized replicas.

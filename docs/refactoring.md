@@ -57,6 +57,11 @@ without forcing provider-specific logic into shared helpers.
 - [x] Extract deterministic container app orchestrator deployment shape into a
   dedicated factory with direct tests for service identity, deployment inputs,
   revision scoping, and status mapping.
+- [x] Extract application runtime state projection/transient lifecycle tracking
+  into a dedicated tracker with direct tests for fresh/expired transient state,
+  running fallback, and clear-starting/clear-stopping behavior.
+- [x] Document local Docker daemon crash handling for Docker-backed
+  verification runs.
 
 ## Next Slices
 
@@ -98,3 +103,7 @@ without forcing provider-specific logic into shared helpers.
   `dotnet test CloudShell.Abstractions.Tests/CloudShell.Abstractions.Tests.csproj --no-restore`
   `dotnet test CloudShell.Sample.Tests/CloudShell.Sample.Tests.csproj --no-restore`
   `dotnet build CloudShell.sln --no-restore`
+- If Docker-backed sample tests fail before reaching CloudShell behavior
+  because the Docker daemon is unavailable, follow `CONTRIBUTIONS.md`: verify
+  with `docker info`, restart or unblock Docker, and record the blocked
+  Docker-dependent verification instead of treating it as a product regression.
