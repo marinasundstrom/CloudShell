@@ -436,6 +436,16 @@ resources, overrides, or other deployment input before apply. In that case the
 deployment is still based on the selected revision, but the resulting revision
 records the newly materialized state produced by the full deployment request.
 
+This should be implemented at the orchestrator level as metadata and state
+tracking, not as a product-specific restore command. The selected orchestrator
+should accept and persist `BasedOnRevisionId`, default it to the active or
+latest successful revision when the caller does not specify a base, retain the
+materialized state needed to author a later deployment from a revision, and
+return the resulting revision with both `DeploymentId` and
+`BasedOnRevisionId`. Resource Manager, deployment services, or provider-owned
+flows decide when to author a restore, revert-like, or merge deployment and
+which additional deployment input is applied before materialization.
+
 The same change-tracking model should eventually allow state merge from
 revisions. Merging does not mutate the selected revisions and does not bypass
 deployment. It is an authoring operation that takes one or more retained
@@ -795,9 +805,20 @@ Orchestrators are responsible for:
 * applying routing or load-balancer cutover
 * draining and cleaning up superseded runtime replicas
 * tracking active and previous revisions
+* defaulting deployment `BasedOnRevisionId` to the active or latest successful
+  revision when no explicit base is supplied
+* retaining the materialized revision state needed to author a later deployment
+  based on that revision
+* returning revision outcomes with `DeploymentId` and `BasedOnRevisionId` for
+  traceability
 * reporting deployment status
 * reporting revision status
 * mapping the common deployment model to backend-specific behavior
+
+Orchestrators should not own the product workflow named restore or merge. They
+own deployment application, revision outcome recording, based-on revision
+metadata, and enough materialized state for higher-level Resource Manager or
+provider workflows to author a future deployment from prior revision state.
 
 The default orchestrator may manage services and replicas directly using the default container host.
 
@@ -1170,6 +1191,9 @@ The next MVP changes should stay focused:
 * Define restore behavior for each orchestrator. Restoring to the state
   captured by an old app revision should create a new deployment based on that
   state, not reactivate the old revision in place.
+* Implement orchestrator-level `BasedOnRevisionId` tracking, including default
+  base selection, persistence on deployment and revision outcomes, and enough
+  materialized revision state to author future based-on deployments.
 * Define revision merge behavior as a deployment-authoring workflow that
   produces a final deployable state from selected revision state snapshots,
   using deployment records for diff context.

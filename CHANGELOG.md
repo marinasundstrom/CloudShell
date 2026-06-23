@@ -78,6 +78,10 @@ on `git blame --follow`, and then by the broad type of change.
   revisions as a deployment-authoring workflow that composes selected
   materialized-state snapshots, using deployment records for diff context, into
   a final deployable state.
+- Deployment/revision documentation now defines the orchestrator-level
+  implementation boundary for `BasedOnRevisionId`: orchestrators track the
+  metadata and materialized revision state, while Resource Manager or
+  provider-owned workflows author restore and merge deployments.
 - Resource Manager deployment coordination now lives separately from
   orchestration execution under dedicated Deployment and Orchestration
   namespaces, with the default deployment service reusable for orchestrators
