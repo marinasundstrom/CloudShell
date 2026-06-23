@@ -232,14 +232,17 @@ without forcing provider-specific logic into shared helpers.
 - [x] Move application resource graph projection and runtime container child
   projection into `ApplicationResourceProjectionSource` instead of the shared
   application resource service facade.
+- [x] Rename the remaining runtime/procedure coordinator from
+  `ApplicationResourceService` to `ApplicationResourceRuntimeOperations` so the
+  old catch-all service is no longer a required provider-facing concept.
 
 ## Next Slices
 
-- [ ] Continue splitting `ApplicationResourceService` by separating remaining
-  resource-type concerns: change application, lifecycle, projection/listing,
-  action availability, container app orchestration hooks, and runtime support.
-  The shared application infrastructure should provide reusable toolkit
-  pieces, not be the resource inventory owner.
+- [ ] Continue splitting `ApplicationResourceRuntimeOperations` by separating
+  remaining resource-type concerns: lifecycle procedure execution, action
+  availability, container app orchestration hooks, and endpoint/probe
+  availability. The shared application infrastructure should provide reusable
+  toolkit pieces, not be the runtime coordinator.
 - [ ] Define the Resource Manager distinction between declared resource
   inventory and provider/runtime projections before changing `GetResources()`
   semantics. The unified graph can still include both, but code should know

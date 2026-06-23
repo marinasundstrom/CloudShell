@@ -2,7 +2,7 @@ using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.Providers.Applications;
 
-public sealed partial class ApplicationResourceService
+public sealed partial class ApplicationResourceRuntimeOperations
 {
     public bool CanEvaluateAction(Resource resource, ResourceAction action) =>
         ApplicationResourceTypes.IsApplication(resource.EffectiveTypeId) &&

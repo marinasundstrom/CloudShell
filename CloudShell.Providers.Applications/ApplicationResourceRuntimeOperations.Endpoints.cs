@@ -2,7 +2,7 @@ using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.Providers.Applications;
 
-public sealed partial class ApplicationResourceService
+public sealed partial class ApplicationResourceRuntimeOperations
 {
     private int ResolveLocalPort(string resourceId, ServicePort port)
         => _ports.ResolveLocalPort(resourceId, port);

@@ -4,7 +4,7 @@ using System.Globalization;
 
 namespace CloudShell.Providers.Applications;
 
-public sealed partial class ApplicationResourceService
+public sealed partial class ApplicationResourceRuntimeOperations
 {
     private ResourceObservability GetEffectiveObservability(ApplicationResourceDefinition definition) =>
         _workloadConfigurations.GetEffectiveObservability(definition);

@@ -4,7 +4,7 @@ using System.Globalization;
 
 namespace CloudShell.Providers.Applications;
 
-internal sealed class ApplicationResourceProjectionSource(
+public sealed class ApplicationResourceProjectionSource(
     IApplicationResourceDefinitionSource definitions,
     ApplicationRuntimeStateStore runtimeStates,
     IApplicationResourceRunningStateOperations runningState,
@@ -341,7 +341,7 @@ internal sealed class ApplicationResourceProjectionSource(
 
     private static bool IsHidden(ApplicationResourceDefinition application) =>
         application.EnvironmentVariables.Any(variable =>
-            string.Equals(variable.Name, ApplicationResourceService.HiddenResourceEnvironmentVariable, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(variable.Name, ApplicationResourceRuntimeOperations.HiddenResourceEnvironmentVariable, StringComparison.OrdinalIgnoreCase) &&
             bool.TryParse(variable.Value, out var hidden) &&
             hidden);
 

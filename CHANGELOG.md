@@ -100,6 +100,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Application resource graph projection and runtime container child-resource
   projection now live in `ApplicationResourceProjectionSource` instead of the
   shared application resource service.
+- The remaining application runtime/procedure coordinator is now
+  `ApplicationResourceRuntimeOperations`; the old `ApplicationResourceService`
+  type is no longer required by provider-facing application infrastructure.
 
 ### 2026-06-23
 

@@ -73,7 +73,7 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
         builder.Services.TryAddSingleton<SqlServerCredentialResolutionService>();
         builder.Services.TryAddSingleton<SqlServerGrantStatusService>();
         builder.Services.TryAddSingleton<SqlServerDatabaseReconciliationService>();
-        builder.Services.TryAddSingleton<ApplicationResourceService>();
+        builder.Services.TryAddSingleton<ApplicationResourceRuntimeOperations>();
         builder.Services.TryAddSingleton<IApplicationResourceConfigurationOperations>(
             serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceConfigurationOperations>());
         builder.Services.TryAddSingleton<IApplicationResourceRegistrationOperations>(
@@ -89,7 +89,7 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
         builder.Services.TryAddSingleton<ISqlServerCredentialResolutionOperations>(
             serviceProvider => serviceProvider.GetRequiredService<SqlServerCredentialResolutionService>());
         builder.Services.TryAddSingleton<IApplicationResourceProcedureOperations>(
-            serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceService>());
+            serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>());
         builder.Services.TryAddSingleton<IApplicationResourceTemplateOperations>(
             serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceTemplateOperations>());
         builder.Services.TryAddSingleton<IApplicationResourceDeclarationOperations>(
@@ -97,9 +97,9 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
         builder.Services.TryAddSingleton<IApplicationResourceDescriptorOperations>(
             serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceDescriptorOperations>());
         builder.Services.TryAddSingleton<IApplicationResourceActionAvailabilityOperations>(
-            serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceService>());
+            serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>());
         builder.Services.TryAddSingleton<IContainerApplicationResourceProviderOperations>(
-            serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceService>());
+            serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>());
         builder.Services.TryAddSingleton<ISqlServerApplicationResourceProviderOperations>(
             serviceProvider => serviceProvider.GetRequiredService<SqlServerGrantStatusService>());
         builder.Services.TryAddSingleton<IApplicationResourceProjectionSource>(

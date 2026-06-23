@@ -2,7 +2,7 @@ using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 namespace CloudShell.Providers.Applications;
 
-public sealed partial class ApplicationResourceService
+public sealed partial class ApplicationResourceRuntimeOperations
 {
     private ResourceOrchestratorService CreateDefaultContainerOrchestratorService(
         ApplicationResourceDefinition application) =>

@@ -612,16 +612,13 @@ listed here before pulling in broader proposal work.
    The first shared application-resource provider seam is public, allowing
    custom application-like providers to reuse common projection, declaration,
    template, lifecycle, descriptor, and action-availability forwarding through
-   `ApplicationResourceTypeProvider`. `ApplicationResourceService` remains the
-   built-in provider facade rather than the desired final abstraction: it still
-   coordinates projection, lifecycle, templates, declarations, descriptors,
-   logging, monitoring, configuration updates, SQL access, runtime execution,
-   container materialization, process tracking, and host-scoped cleanup.
-   The built-in application providers now consume split provider-facing
-   contracts for definitions, procedures, templates, declarations, descriptors,
+   `ApplicationResourceTypeProvider`. The built-in application providers now
+   consume split provider-facing contracts for definitions, procedures,
+   templates, declarations, descriptors, projection, monitoring, settings,
    action availability, container-app behavior, and SQL Server permission
-   status, while those contracts are still backed by
-   `ApplicationResourceService`. Custom providers can declare
+   status. The remaining `ApplicationResourceRuntimeOperations` facade is the
+   runtime procedure coordinator for actions and container-app orchestration
+   hooks, not the shared application resource abstraction. Custom providers can declare
    `ApplicationResourceDefinition` instances with their own provider ID through
    the shared application resource declaration helper and reuse the common
    builder defaults. Future slices should continue moving concrete behavior

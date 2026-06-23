@@ -56,10 +56,11 @@ public sealed class SampleSmokeTests
         var platformResources = platformProvider
             .GetResources()
             .ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
-        var applicationProvider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
-        var sqlServer = Assert.Single(applicationProvider.GetResources(), resource =>
+        var applicationResources = serviceProvider.GetRequiredService<ApplicationResourceProjectionSource>();
+        var descriptors = serviceProvider.GetRequiredService<IApplicationResourceDescriptorOperations>();
+        var sqlServer = Assert.Single(applicationResources.GetResources(), resource =>
             resource.Id == "application:sql-server");
-        var descriptor = await applicationProvider.DescribeAsync(
+        var descriptor = await descriptors.DescribeAsync(
             sqlServer,
             new ResourceOrchestrationDescriptorContext(null, null, null!));
         var workload = descriptor.Configuration.Deserialize<ResourceWorkloadConfiguration>(

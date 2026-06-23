@@ -983,7 +983,7 @@ public sealed class ResourceDeclarationTests
             });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var appProvider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var appProvider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
         var configurationProvider = serviceProvider.GetRequiredService<ConfigurationResourceProvider>();
         var secretsProvider = serviceProvider.GetRequiredService<SecretsVaultProvider>();
         var dockerProvider = serviceProvider.GetRequiredService<DockerContainerResourceProvider>();
@@ -1716,7 +1716,7 @@ public sealed class ResourceDeclarationTests
             });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
         var resourceProvider = serviceProvider.GetRequiredService<ExecutableApplicationResourceProvider>();
         var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
         var registrations = new TestResourceRegistrationStore(
@@ -1768,7 +1768,7 @@ public sealed class ResourceDeclarationTests
             });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
         var resourceProvider = serviceProvider.GetRequiredService<AspNetCoreProjectResourceProvider>();
         var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
         var registrations = new TestResourceRegistrationStore(
@@ -1821,7 +1821,7 @@ public sealed class ResourceDeclarationTests
             });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
         var resourceProvider = serviceProvider.GetRequiredService<AspNetCoreProjectResourceProvider>();
         var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
         var registrations = new TestResourceRegistrationStore(
@@ -1872,7 +1872,7 @@ public sealed class ResourceDeclarationTests
             });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
         var resourceProvider = serviceProvider.GetRequiredService<ExecutableApplicationResourceProvider>();
         var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
         var registrations = new TestResourceRegistrationStore(
@@ -1925,7 +1925,7 @@ public sealed class ResourceDeclarationTests
             });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
         var resourceProvider = serviceProvider.GetRequiredService<ExecutableApplicationResourceProvider>();
         var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
         var registrations = new TestResourceRegistrationStore(
@@ -1980,7 +1980,7 @@ public sealed class ResourceDeclarationTests
             });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
         var resourceProvider = serviceProvider.GetRequiredService<ExecutableApplicationResourceProvider>();
         var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
         var registrations = new TestResourceRegistrationStore(
@@ -2033,7 +2033,7 @@ public sealed class ResourceDeclarationTests
             });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
         var resourceProvider = serviceProvider.GetRequiredService<ExecutableApplicationResourceProvider>();
         var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
         var registrations = new TestResourceRegistrationStore(
@@ -2093,7 +2093,7 @@ public sealed class ResourceDeclarationTests
             });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
         var resourceProvider = serviceProvider.GetRequiredService<ExecutableApplicationResourceProvider>();
         var providers = serviceProvider.GetServices<IResourceProvider>().ToArray();
         var resources = providers
@@ -2161,7 +2161,7 @@ public sealed class ResourceDeclarationTests
             });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
         var resourceProvider = serviceProvider.GetRequiredService<ExecutableApplicationResourceProvider>();
         var providers = serviceProvider.GetServices<IResourceProvider>().ToArray();
         var resources = providers
@@ -2230,7 +2230,7 @@ public sealed class ResourceDeclarationTests
             });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
         var resourceProvider = serviceProvider.GetRequiredService<ExecutableApplicationResourceProvider>();
         var providers = serviceProvider.GetServices<IResourceProvider>().ToArray();
         var resources = providers
@@ -2295,7 +2295,7 @@ public sealed class ResourceDeclarationTests
                 });
 
             using var serviceProvider = services.BuildServiceProvider();
-            var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+            var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
             var resourceProvider = serviceProvider.GetRequiredService<ExecutableApplicationResourceProvider>();
             var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
             var endpoint = Assert.Single(resource.Endpoints);
@@ -2358,7 +2358,7 @@ public sealed class ResourceDeclarationTests
                 });
 
             using var serviceProvider = services.BuildServiceProvider();
-            var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+            var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
             var resourceProvider = serviceProvider.GetRequiredService<ContainerApplicationResourceProvider>();
             var registrations = new MutableResourceRegistrationStore();
             await provider.SetupApplicationAsync(
@@ -2420,7 +2420,7 @@ public sealed class ResourceDeclarationTests
                 .AddApplicationProvider();
 
             using var serviceProvider = services.BuildServiceProvider();
-            var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+            var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
             var resourceProvider = serviceProvider.GetRequiredService<ContainerApplicationResourceProvider>();
             var registrations = new MutableResourceRegistrationStore();
             await provider.SetupApplicationAsync(
@@ -2482,7 +2482,7 @@ public sealed class ResourceDeclarationTests
                 .AddApplicationProvider();
 
             using var serviceProvider = services.BuildServiceProvider();
-            var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+            var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
             var resourceProvider = serviceProvider.GetRequiredService<ContainerApplicationResourceProvider>();
             var registrations = new MutableResourceRegistrationStore();
             await provider.SetupApplicationAsync(
@@ -3058,7 +3058,7 @@ public sealed class ResourceDeclarationTests
             });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
 
         Assert.Equal(ApplicationLifetime.ControlPlaneScoped, provider.GetApplication("application:worker")?.Lifetime);
         Assert.Equal(ApplicationLifetime.ControlPlaneScoped, provider.GetApplication("application:api")?.Lifetime);
@@ -3082,7 +3082,7 @@ public sealed class ResourceDeclarationTests
             });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var applications = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var applications = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
         var registrations = new MutableResourceRegistrationStore();
 
         await applications.SetupApplicationAsync(
@@ -3255,7 +3255,7 @@ public sealed class ResourceDeclarationTests
             });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var applications = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var applications = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
         var application = applications.GetApplication("application:custom-worker");
         var provider = ActivatorUtilities.CreateInstance<CustomApplicationResourceProvider>(serviceProvider);
         var declaration = Assert.Single(
@@ -3318,7 +3318,7 @@ public sealed class ResourceDeclarationTests
             });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var applications = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var applications = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
         var application = applications.GetApplication("application:custom-worker");
         Assert.NotNull(application);
         Assert.Contains(
@@ -3426,7 +3426,7 @@ public sealed class ResourceDeclarationTests
         try
         {
             using var serviceProvider = services.BuildServiceProvider();
-            var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+            var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
             var resourceProvider = serviceProvider.GetRequiredService<ContainerApplicationResourceProvider>();
             var registrations = new MutableResourceRegistrationStore();
             await provider.SetupApplicationAsync(
@@ -3516,7 +3516,7 @@ public sealed class ResourceDeclarationTests
             });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
         var resourceProvider = serviceProvider.GetRequiredService<SqlServerApplicationResourceProvider>();
         var registrations = new MutableResourceRegistrationStore();
         try
@@ -3601,7 +3601,7 @@ public sealed class ResourceDeclarationTests
         try
         {
             using var serviceProvider = services.BuildServiceProvider();
-            var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+            var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
             var resourceProvider = serviceProvider.GetRequiredService<SqlServerApplicationResourceProvider>();
             var registrations = new MutableResourceRegistrationStore();
             await provider.SetupApplicationAsync(
@@ -3682,7 +3682,7 @@ public sealed class ResourceDeclarationTests
         try
         {
             using var serviceProvider = services.BuildServiceProvider();
-            var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+            var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
             var engine = new ContainerHostDescriptor(
                 "docker:test",
                 "Test Docker",
@@ -3699,7 +3699,7 @@ public sealed class ResourceDeclarationTests
                 containerImage: "mcr.microsoft.com/mssql/server:2022-latest",
                 lifetime: ApplicationLifetime.ControlPlaneScoped,
                 resourceType: ApplicationResourceTypes.SqlServer);
-            var method = typeof(ApplicationResourceService).GetMethod(
+            var method = typeof(ApplicationResourceRuntimeOperations).GetMethod(
                 "StopContainerApplicationInstanceAsync",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance,
                 [
@@ -3797,7 +3797,7 @@ public sealed class ResourceDeclarationTests
     [Fact]
     public void ApplicationProvider_FormatsContainerHostCommandLineForLogs()
     {
-        var commandLine = ApplicationResourceService.FormatContainerHostCommandLine(
+        var commandLine = ApplicationResourceRuntimeOperations.FormatContainerHostCommandLine(
             ["rm", "-f", "application topology api"]);
 
         Assert.Equal("rm -f \"application topology api\"", commandLine);
@@ -3865,7 +3865,7 @@ public sealed class ResourceDeclarationTests
             });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
         var resources = provider.GetResources();
         var worker = Assert.Single(resources, resource => resource.Id == "application:worker");
         var api = Assert.Single(resources, resource => resource.Id == "application:api");
@@ -3948,7 +3948,7 @@ public sealed class ResourceDeclarationTests
             });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
         var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:redis");
         var monitoring = serviceProvider
             .GetRequiredService<IEnumerable<IResourceMonitoringProvider>>()
@@ -3992,7 +3992,7 @@ public sealed class ResourceDeclarationTests
             });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
         var resources = provider.GetResources();
         var resource = Assert.Single(resources, resource => resource.Id == "application:api");
         var replica = resources
@@ -4040,7 +4040,7 @@ public sealed class ResourceDeclarationTests
             });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
         await provider.SetupApplicationAsync(
             new ApplicationResourceDefinition(
                 "application:sql-server",
@@ -4091,7 +4091,7 @@ public sealed class ResourceDeclarationTests
             null,
             DateTimeOffset.UtcNow,
             State: ResourceState.Starting));
-        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
 
         var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
 
@@ -4131,7 +4131,7 @@ public sealed class ResourceDeclarationTests
             null,
             DateTimeOffset.UtcNow.Subtract(TimeSpan.FromMinutes(10)),
             State: ResourceState.Starting));
-        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
 
         var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
 
@@ -4793,7 +4793,7 @@ public sealed class ResourceDeclarationTests
         try
         {
             using var serviceProvider = services.BuildServiceProvider();
-            var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+            var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
             var resourceEvents = serviceProvider.GetRequiredService<RecordingResourceEventSink>();
             var configurationProvider = Assert.Single(
                 serviceProvider.GetServices<IResourceEnvironmentVariableConfigurationProvider>());
@@ -4890,7 +4890,7 @@ public sealed class ResourceDeclarationTests
         try
         {
             using var serviceProvider = services.BuildServiceProvider();
-            var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+            var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
             var resourceEvents = serviceProvider.GetRequiredService<RecordingResourceEventSink>();
             var configurationProvider = Assert.Single(
                 serviceProvider.GetServices<IResourceAppSettingConfigurationProvider>());
@@ -5025,7 +5025,7 @@ public sealed class ResourceDeclarationTests
 
         using var serviceProvider = services.BuildServiceProvider();
         var store = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
-        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
         var workerDeclaration = Assert.Single(store.GetDeclarations(), declaration =>
             declaration.ResourceId == "application:worker");
         var apiDeclaration = Assert.Single(store.GetDeclarations(), declaration =>
@@ -5145,7 +5145,7 @@ public sealed class ResourceDeclarationTests
         try
         {
             using var serviceProvider = services.BuildServiceProvider();
-            var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+            var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
             var descriptors = serviceProvider.GetRequiredService<IApplicationResourceDescriptorOperations>();
             var resource = Assert.Single(provider.GetResources(), resource =>
                 resource.Id == "application:api");
@@ -5412,7 +5412,7 @@ public sealed class ResourceDeclarationTests
         try
         {
             using var serviceProvider = services.BuildServiceProvider();
-            var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+            var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
             var resource = Assert.Single(provider.GetResources(), resource =>
                 resource.Id == "application:api");
             var endpoint = Assert.Single(resource.Endpoints);
@@ -5449,7 +5449,7 @@ public sealed class ResourceDeclarationTests
         try
         {
             using var serviceProvider = services.BuildServiceProvider();
-            var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+            var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
             await provider.SetupApplicationAsync(
                 new ApplicationResourceDefinition(
                     "application:api",
@@ -5558,7 +5558,7 @@ public sealed class ResourceDeclarationTests
         try
         {
             using var serviceProvider = services.BuildServiceProvider();
-            var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+            var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
             var resource = Assert.Single(provider.GetResources(), resource =>
                 resource.Id == "application:api");
 
@@ -5632,7 +5632,7 @@ public sealed class ResourceDeclarationTests
         try
         {
             using var serviceProvider = services.BuildServiceProvider();
-            var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+            var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
             var resource = Assert.Single(provider.GetResources(), resource =>
                 resource.Id == "application:api");
             var endpoint = Assert.Single(resource.Endpoints);
@@ -5757,7 +5757,7 @@ public sealed class ResourceDeclarationTests
             .AddApplicationProvider();
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
         var application = new ApplicationResourceDefinition(
             "application:api",
             "API",
@@ -5769,7 +5769,7 @@ public sealed class ResourceDeclarationTests
             resourceType: ApplicationResourceTypes.AspNetCoreProject,
             projectPath: "src/API/API.csproj",
             aspNetCoreHotReload: true);
-        var method = typeof(ApplicationResourceService).GetMethod(
+        var method = typeof(ApplicationResourceRuntimeOperations).GetMethod(
             "ResolveAspNetCoreProjectEnvironmentVariables",
             System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
 
@@ -5793,7 +5793,7 @@ public sealed class ResourceDeclarationTests
             .AddApplicationProvider();
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
         var application = new ApplicationResourceDefinition(
             "application:api",
             "API",
@@ -5828,7 +5828,7 @@ public sealed class ResourceDeclarationTests
                     SourceEndpointName: "http")
             ]);
         var resourceManager = new StaticResourceManagerStore([resource]);
-        var method = typeof(ApplicationResourceService).GetMethod(
+        var method = typeof(ApplicationResourceRuntimeOperations).GetMethod(
             "ResolveAspNetCoreProjectEnvironmentVariables",
             System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
 
@@ -7566,7 +7566,7 @@ public sealed class ResourceDeclarationTests
     [Fact]
     public void LocalContainerVolumeArguments_PreserveUnmanagedVolumeReference()
     {
-        var arguments = ApplicationResourceService.CreateLocalContainerVolumeArguments(
+        var arguments = ApplicationResourceRuntimeOperations.CreateLocalContainerVolumeArguments(
             [new ResourceVolumeMount("docker-sql-data", "/var/opt/mssql", true)],
             null,
             Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")));
@@ -7608,7 +7608,7 @@ public sealed class ResourceDeclarationTests
 
         try
         {
-            var materializations = ApplicationResourceService.CreateLocalProcessVolumeMaterializations(
+            var materializations = ApplicationResourceRuntimeOperations.CreateLocalProcessVolumeMaterializations(
                 [new ResourceVolumeMount("volume:data", "App_Data", ReadOnly: true)],
                 resourceManager,
                 contentRoot,
@@ -7653,7 +7653,7 @@ public sealed class ResourceDeclarationTests
 
         try
         {
-            var materialization = Assert.Single(ApplicationResourceService.CreateLocalProcessVolumeMaterializations(
+            var materialization = Assert.Single(ApplicationResourceRuntimeOperations.CreateLocalProcessVolumeMaterializations(
                 [new ResourceVolumeMount("Data/unmanaged", "data")],
                 null,
                 contentRoot,
@@ -7719,7 +7719,7 @@ public sealed class ResourceDeclarationTests
             Capabilities: [new(ResourceCapabilityIds.StorageVolume)]);
         var resourceManager = new StaticResourceManagerStore([storage, volume]);
 
-        var arguments = ApplicationResourceService.CreateLocalContainerVolumeArguments(
+        var arguments = ApplicationResourceRuntimeOperations.CreateLocalContainerVolumeArguments(
             [new ResourceVolumeMount("volume:sql-data", "/var/opt/mssql", false, "data")],
             resourceManager,
             contentRoot);
@@ -7741,7 +7741,7 @@ public sealed class ResourceDeclarationTests
             .AddApplicationProvider();
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
         var resourceProvider = serviceProvider.GetRequiredService<ContainerApplicationResourceProvider>();
         var registrations = new MutableResourceRegistrationStore();
         await provider.SetupApplicationAsync(
@@ -7814,7 +7814,7 @@ public sealed class ResourceDeclarationTests
             .AddApplicationProvider();
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
         var resourceProvider = serviceProvider.GetRequiredService<ContainerApplicationResourceProvider>();
         var registrations = new MutableResourceRegistrationStore();
         await provider.SetupApplicationAsync(
@@ -7884,7 +7884,7 @@ public sealed class ResourceDeclarationTests
             .AddApplicationProvider();
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
         var resourceProvider = serviceProvider.GetRequiredService<ContainerApplicationResourceProvider>();
         var registrations = new MutableResourceRegistrationStore();
         await provider.SetupApplicationAsync(
@@ -7936,7 +7936,7 @@ public sealed class ResourceDeclarationTests
             .AddApplicationProvider();
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
         var resourceProvider = serviceProvider.GetRequiredService<ContainerApplicationResourceProvider>();
         var registrations = new MutableResourceRegistrationStore();
         await provider.SetupApplicationAsync(
@@ -7986,7 +7986,7 @@ public sealed class ResourceDeclarationTests
             .AddApplicationProvider();
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
         var resourceProvider = serviceProvider.GetRequiredService<ContainerApplicationResourceProvider>();
         var registrations = new MutableResourceRegistrationStore();
         await provider.SetupApplicationAsync(
@@ -8050,7 +8050,7 @@ public sealed class ResourceDeclarationTests
             .AddApplicationProvider();
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
         var resourceProvider = serviceProvider.GetRequiredService<ContainerApplicationResourceProvider>();
         var registrations = new MutableResourceRegistrationStore();
         await provider.SetupApplicationAsync(
@@ -8092,7 +8092,7 @@ public sealed class ResourceDeclarationTests
             .AddApplicationProvider();
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
         var runtimeStates = serviceProvider.GetRequiredService<ApplicationRuntimeStateStore>();
         var registrations = new MutableResourceRegistrationStore();
         await provider.SetupApplicationAsync(
@@ -8176,7 +8176,7 @@ public sealed class ResourceDeclarationTests
             Capabilities: [new(ResourceCapabilityIds.StorageVolume)]);
         var resourceManager = new StaticResourceManagerStore([storage, volume]);
 
-        var reason = ApplicationResourceService.GetVolumeMountUnavailableReason(
+        var reason = ApplicationResourceRuntimeOperations.GetVolumeMountUnavailableReason(
             [new ResourceVolumeMount("volume:data", "/data")],
             resourceManager,
             contentRoot);
@@ -9181,7 +9181,7 @@ public sealed class ResourceDeclarationTests
                 .GetType()
                 .GetProperty("Definition")!
                 .GetValue(declaredApplication));
-        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
         var descriptors = serviceProvider.GetRequiredService<IApplicationResourceDescriptorOperations>();
         var resource = Assert.Single(provider.GetResources(), resource =>
             resource.Id == "application:api");
@@ -9234,7 +9234,7 @@ public sealed class ResourceDeclarationTests
         string? registry,
         string expectedReference)
     {
-        var method = typeof(ApplicationResourceService).GetMethod(
+        var method = typeof(ApplicationResourceRuntimeOperations).GetMethod(
             "CreateProjectContainerImageReference",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
         var application = new ApplicationResourceDefinition(
@@ -9290,7 +9290,7 @@ public sealed class ResourceDeclarationTests
         var store = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
         var declaration = Assert.Single(store.GetDeclarations(), declaration =>
             declaration.ResourceId == "application:sql");
-        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
         var descriptors = serviceProvider.GetRequiredService<IApplicationResourceDescriptorOperations>();
         var resource = Assert.Single(provider.GetResources(), resource =>
             resource.Id == "application:sql");
@@ -9389,7 +9389,7 @@ public sealed class ResourceDeclarationTests
         var store = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
         var declaration = Assert.Single(store.GetDeclarations(), declaration =>
             declaration.ResourceId == "application:sql");
-        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
         var descriptors = serviceProvider.GetRequiredService<IApplicationResourceDescriptorOperations>();
         var resource = Assert.Single(provider.GetResources(), resource =>
             resource.Id == "application:sql");
@@ -9512,7 +9512,7 @@ public sealed class ResourceDeclarationTests
             });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
         var resources = provider.GetResources();
         var app = Assert.Single(resources, resource => resource.Id == "application:api");
         var replicas = resources
@@ -9673,7 +9673,7 @@ public sealed class ResourceDeclarationTests
                 deploymentEnvironmentRevisionId: "env-test-1"),
             persist: false);
 
-        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
         var resources = provider.GetResources();
         var app = Assert.Single(resources, resource => resource.Id == "application:api");
         var replicas = resources
@@ -9731,7 +9731,7 @@ public sealed class ResourceDeclarationTests
             });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
         var resources = provider.GetResources();
         var app = Assert.Single(resources, resource => resource.Id == "application:api");
         var appSource = Assert.Single(app.ResourceLogSources);
@@ -9803,7 +9803,7 @@ public sealed class ResourceDeclarationTests
             });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
         var resources = provider.GetResources();
         var app = Assert.Single(resources, resource => resource.Id == "application:api");
         var replicas = resources
@@ -9863,7 +9863,7 @@ public sealed class ResourceDeclarationTests
                 DateTimeOffset.UtcNow,
                 DateTimeOffset.UtcNow,
                 State: ResourceState.Starting));
-        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
         var resources = provider.GetResources();
         var replicas = resources
             .Where(resource => string.Equals(resource.ParentResourceId, "application:api", StringComparison.OrdinalIgnoreCase))
@@ -9905,7 +9905,7 @@ public sealed class ResourceDeclarationTests
             });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
         var resources = provider.GetResources();
         var app = Assert.Single(resources, resource => resource.Id == "application:api");
 
@@ -9947,7 +9947,7 @@ public sealed class ResourceDeclarationTests
             });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
         var app = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
 
         Assert.Equal("2", app.ResourceAttributes[ResourceAttributeNames.DeploymentRequestedReplicaSlots]);
@@ -9984,7 +9984,7 @@ public sealed class ResourceDeclarationTests
             });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
         var descriptors = serviceProvider.GetRequiredService<IApplicationResourceDescriptorOperations>();
         var resource = Assert.Single(provider.GetResources(), resource =>
             resource.Id == "application:cache");
@@ -10030,7 +10030,7 @@ public sealed class ResourceDeclarationTests
             });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
         var descriptors = serviceProvider.GetRequiredService<IApplicationResourceDescriptorOperations>();
         var application = provider.GetApplication("application:registry");
         var resource = Assert.Single(provider.GetResources(), resource =>
@@ -10092,7 +10092,7 @@ public sealed class ResourceDeclarationTests
             });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
         var descriptors = serviceProvider.GetRequiredService<IApplicationResourceDescriptorOperations>();
         var resource = Assert.Single(provider.GetResources(), resource =>
             resource.Id == "application:api");
@@ -10150,7 +10150,7 @@ public sealed class ResourceDeclarationTests
             });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
         var descriptors = serviceProvider.GetRequiredService<IApplicationResourceDescriptorOperations>();
         var resource = Assert.Single(provider.GetResources(), resource =>
             resource.Id == "application:api");
@@ -10197,7 +10197,7 @@ public sealed class ResourceDeclarationTests
             });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
         var descriptors = serviceProvider.GetRequiredService<IApplicationResourceDescriptorOperations>();
         var resource = Assert.Single(provider.GetResources(), resource =>
             resource.Id == "application:api");
@@ -10275,7 +10275,7 @@ public sealed class ResourceDeclarationTests
             });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
         var descriptors = serviceProvider.GetRequiredService<IApplicationResourceDescriptorOperations>();
         var resource = Assert.Single(provider.GetResources(), resource =>
             resource.Id == "application:redis");
@@ -10629,7 +10629,7 @@ public sealed class ResourceDeclarationTests
         string image,
         string expected)
     {
-        var method = typeof(ApplicationResourceService).GetMethod(
+        var method = typeof(ApplicationResourceRuntimeOperations).GetMethod(
             "CreateRegistryImageReference",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
 
@@ -10647,7 +10647,7 @@ public sealed class ResourceDeclarationTests
         int replicas,
         string expected)
     {
-        var method = typeof(ApplicationResourceService).GetMethod(
+        var method = typeof(ApplicationResourceRuntimeOperations).GetMethod(
             "GetContainerName",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static,
             [typeof(string), typeof(int), typeof(int)]);
@@ -10666,7 +10666,7 @@ public sealed class ResourceDeclarationTests
         string protocol,
         string expected)
     {
-        var method = typeof(ApplicationResourceService).GetMethod(
+        var method = typeof(ApplicationResourceRuntimeOperations).GetMethod(
             "NormalizeContainerPublishProtocol",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
 
@@ -10687,7 +10687,7 @@ public sealed class ResourceDeclarationTests
             .AddExtension<ApplicationProviderExtension>();
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
         var application = new ApplicationResourceDefinition(
             "application:api",
             "api",
@@ -10699,7 +10699,7 @@ public sealed class ResourceDeclarationTests
                 new ServicePort("http", 8080, 5080, "http")
             ],
             resourceType: ApplicationResourceTypes.ContainerApp);
-        var method = typeof(ApplicationResourceService).GetMethod(
+        var method = typeof(ApplicationResourceRuntimeOperations).GetMethod(
             "CreateDefaultContainerOrchestratorService",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 
@@ -10730,7 +10730,7 @@ public sealed class ResourceDeclarationTests
             .AddExtension<ApplicationProviderExtension>();
 
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
         var application = new ApplicationResourceDefinition(
             "application:api",
             "api",
@@ -10746,7 +10746,7 @@ public sealed class ResourceDeclarationTests
             containerRevision: "20260622.1",
             projectContainerBuild: true,
             replicasEnabled: true);
-        var method = typeof(ApplicationResourceService).GetMethod(
+        var method = typeof(ApplicationResourceRuntimeOperations).GetMethod(
             "CreateDefaultContainerOrchestratorService",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 
@@ -10762,7 +10762,7 @@ public sealed class ResourceDeclarationTests
     [Fact]
     public void ContainerApplicationProvider_CreatesReplicatedContainerAppIngressConfiguration()
     {
-        var method = typeof(ApplicationResourceService).GetMethod(
+        var method = typeof(ApplicationResourceRuntimeOperations).GetMethod(
             "CreateContainerAppIngressConfiguration",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
         var service = new ResourceOrchestratorService(
@@ -10812,7 +10812,7 @@ public sealed class ResourceDeclarationTests
         using var serviceProvider = services.BuildServiceProvider();
         var declarationStore = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
         var registrations = new DeclarationRegistrationStore(declarationStore);
-        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
         var resource = Assert.Single(provider.GetResources(), resource =>
             resource.Id == "application:api");
         var originalRevision = resource.ResourceAttributes[ResourceAttributeNames.ContainerRevision];
@@ -10921,7 +10921,7 @@ public sealed class ResourceDeclarationTests
         using var serviceProvider = services.BuildServiceProvider();
         var declarationStore = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
         var registrations = new DeclarationRegistrationStore(declarationStore);
-        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
         var resource = Assert.Single(provider.GetResources(), resource =>
             resource.Id == "application:api");
         var originalRevision = resource.ResourceAttributes[ResourceAttributeNames.ContainerRevision];
@@ -11033,7 +11033,7 @@ public sealed class ResourceDeclarationTests
             using var serviceProvider = services.BuildServiceProvider();
             var declarationStore = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
             var registrations = new DeclarationRegistrationStore(declarationStore);
-            var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+            var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
             var providers = serviceProvider.GetServices<IResourceProvider>().ToArray();
             var resources = providers
                 .SelectMany(provider => provider.GetResources())
@@ -11145,7 +11145,7 @@ public sealed class ResourceDeclarationTests
                 deploymentEnvironmentRevisionId: "env-test-1"),
             persist: false);
 
-        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
         var registrations = new DeclarationRegistrationStore(
             serviceProvider.GetRequiredService<ResourceDeclarationStore>());
         var resource = Assert.Single(provider.GetResources(), resource =>
@@ -11233,7 +11233,7 @@ public sealed class ResourceDeclarationTests
                 deploymentEnvironmentRevisionId: "env-test-1"),
             persist: false);
 
-        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
         var registrations = new DeclarationRegistrationStore(
             serviceProvider.GetRequiredService<ResourceDeclarationStore>());
         var resource = Assert.Single(provider.GetResources(), resource =>
@@ -11302,7 +11302,7 @@ public sealed class ResourceDeclarationTests
         using var serviceProvider = services.BuildServiceProvider();
         var declarationStore = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
         var registrations = new DeclarationRegistrationStore(declarationStore);
-        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
         var providers = serviceProvider.GetServices<IResourceProvider>().ToArray();
         var resources = providers
             .SelectMany(provider => provider.GetResources())
@@ -11358,7 +11358,7 @@ public sealed class ResourceDeclarationTests
         using var serviceProvider = services.BuildServiceProvider();
         var declarationStore = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
         var registrations = new DeclarationRegistrationStore(declarationStore);
-        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
         var resource = Assert.Single(provider.GetResources(), resource =>
             resource.Id == "application:api");
 
@@ -11418,7 +11418,7 @@ public sealed class ResourceDeclarationTests
             using var serviceProvider = services.BuildServiceProvider();
             var declarationStore = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
             var registrations = new DeclarationRegistrationStore(declarationStore);
-            var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+            var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
             var providers = serviceProvider.GetServices<IResourceProvider>().ToArray();
             var resources = providers
                 .SelectMany(provider => provider.GetResources())
@@ -11496,7 +11496,7 @@ public sealed class ResourceDeclarationTests
         using var serviceProvider = services.BuildServiceProvider();
         var declarationStore = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
         var registrations = new DeclarationRegistrationStore(declarationStore);
-        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
         var providers = serviceProvider.GetServices<IResourceProvider>().ToArray();
         var resources = providers
             .SelectMany(provider => provider.GetResources())

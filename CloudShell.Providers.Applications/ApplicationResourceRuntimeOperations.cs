@@ -18,7 +18,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CloudShell.Providers.Applications;
 
-public sealed partial class ApplicationResourceService(
+public sealed partial class ApplicationResourceRuntimeOperations(
     ApplicationResourceStore store,
     ApplicationRuntimeStateStore runtimeStates,
     ApplicationContainerDeploymentStore containerDeployments,

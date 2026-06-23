@@ -1,6 +1,6 @@
 namespace CloudShell.Providers.Applications;
 
-public sealed partial class ApplicationResourceService
+public sealed partial class ApplicationResourceRuntimeOperations
 {
     public ApplicationResourceDefinition? GetApplication(string id) =>
         store.GetApplication(id) is { } application

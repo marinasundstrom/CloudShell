@@ -212,20 +212,17 @@ opt into default wiring for lifecycle actions, endpoint projection, log
 sources, telemetry scopes, health and liveness declarations, storage mounts,
 configuration, and cleanup.
 
-`ApplicationResourceService` is currently the built-in application provider
-facade and coordinates several roles: projection source, lifecycle actions,
-templates, declarations, descriptors, logs, monitoring, configuration updates,
-SQL access, runtime execution, container materialization, process tracking,
-and host-scoped cleanup. The direction is to separate provider-neutral
-primitives from the built-in provider's concrete implementation details, so
-external resource authors can reuse common declaration, projection,
-process-definition, logging, monitoring, endpoint, volume, and container-host
-command infrastructure without depending on `ApplicationResourceService`
-internals. The current provider-facing role contracts are still backed
-by `ApplicationResourceService`; future slices should move concrete behavior
-behind dedicated services and adapters only when a concrete external resource
-author would otherwise need to duplicate behavior or depend on provider-private
-details.
+Application resource behavior is now split across focused provider-facing
+operations for definitions, registration, configuration, declarations,
+templates, descriptors, projection, logging, monitoring, settings, cleanup,
+running-state checks, and SQL Server support. The remaining
+`ApplicationResourceRuntimeOperations` facade coordinates runtime procedure
+execution, action availability, and container-app orchestration hooks while
+those concerns are separated further. The direction is to keep provider-neutral
+primitives reusable so external resource authors can reuse common declaration,
+projection, process-definition, logging, monitoring, endpoint, volume, and
+container-host command infrastructure without depending on runtime facade
+internals.
 
 `ApplicationResourceDefinitionNormalizer` owns the shared hygiene pass for
 application-backed definitions, such as identity, dependencies, endpoints, log

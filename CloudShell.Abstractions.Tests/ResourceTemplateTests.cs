@@ -508,7 +508,7 @@ public sealed class ResourceTemplateTests
                 definitionSource,
                 workloadConfigurations);
             var services = new ServiceCollection().BuildServiceProvider();
-            Provider = new ApplicationResourceService(
+            Provider = new ApplicationResourceRuntimeOperations(
                 store,
                 runtimeStates,
                 containerDeployments,
@@ -549,7 +549,7 @@ public sealed class ResourceTemplateTests
                 .GetResult();
         }
 
-        public ApplicationResourceService Provider { get; }
+        public ApplicationResourceRuntimeOperations Provider { get; }
 
         public ExecutableApplicationResourceProvider ResourceProvider { get; }
 
@@ -586,7 +586,7 @@ public sealed class ResourceTemplateTests
     }
 
     private sealed class TestResourceManagerStore(
-        ApplicationResourceService provider,
+        ApplicationResourceRuntimeOperations provider,
         IResourceProvider resourceProvider,
         TestResourceGroupStore resourceGroups) : IResourceManagerStore
     {
