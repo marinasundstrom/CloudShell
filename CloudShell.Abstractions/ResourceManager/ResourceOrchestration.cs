@@ -55,7 +55,8 @@ public sealed record ResourceOrchestratorRevision(
     string ServiceId,
     int RevisionNumber,
     DateTimeOffset CreatedAt,
-    ResourceOrchestratorRevisionStatus Status);
+    ResourceOrchestratorRevisionStatus Status,
+    ResourceOrchestratorReplicaGroup? ReplicaGroup = null);
 
 public sealed record ResourceOrchestratorDeploymentApplyResult(
     ResourceOrchestratorDeployment Deployment,

@@ -479,9 +479,10 @@ identity because it is capacity management for the current revision rather than
 a workload replacement.
 
 The current revision-scoped replica names are only the first materialization of
-this grouping. The durable model should track the group explicitly enough that
-runtime replica resources can be associated with their deployment service and
-revision across materialization, readiness, cutover, diagnostics, and cleanup.
+this grouping. The orchestrator revision outcome should retain the materialized
+replica group snapshot so runtime replica resources can be associated with
+their deployment service and revision across materialization, readiness,
+cutover, diagnostics, and cleanup.
 
 Deployment finalization is an orchestrator-provider boundary. The common
 orchestrator decides when finalization runs in the apply sequence, after the new
@@ -850,8 +851,9 @@ ContainerApp
 * Define the boundary between scale-only operations that preserve the active
   revision and deployment operations that include requested replica count in a
   new revision.
-* Decide how revision-scoped replica groups should be persisted and observed
-  beyond the current derived in-memory model and projected resource metadata.
+* Decide how revision-scoped replica groups should be surfaced for richer
+  inspection beyond the internal revision outcome and projected resource
+  metadata.
 * Define how long revisions are retained.
 * Define restore behavior for each orchestrator. Restoring an old app revision
   should create a new deployment sourced from that revision, not reactivate the

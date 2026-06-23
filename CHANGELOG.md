@@ -25,6 +25,9 @@ on `git blame --follow`, and then by the broad type of change.
   for materialized resource instances, and container app runtime replica
   resources expose the group id alongside deployment, service, and revision
   metadata.
+- Orchestrator revisions and internal deployment history now retain the
+  materialized replica group snapshot produced by deployment apply, making the
+  applied replica set inspectable across revision records.
 - Default orchestrator deployment apply now has a provider finalization hook,
   and the container app provider uses it to retire superseded local runtime
   replicas after the new revision has been materialized and routing has been

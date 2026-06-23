@@ -8,7 +8,8 @@ public interface IResourceOrchestratorDeploymentStore
     ResourceOrchestratorRevision CreateRevision(
         ResourceOrchestratorDeployment deployment,
         DateTimeOffset createdAt,
-        ResourceOrchestratorRevisionStatus status);
+        ResourceOrchestratorRevisionStatus status,
+        ResourceOrchestratorReplicaGroup? replicaGroup = null);
 
     IReadOnlyList<ResourceOrchestratorDeploymentRecord> List(ResourceOrchestratorDeploymentQuery? query = null);
 
@@ -54,7 +55,8 @@ public sealed record ResourceOrchestratorDeploymentRecord(
     string? TriggeredBy = null,
     string? Cause = null,
     string? Message = null,
-    string? Error = null);
+    string? Error = null,
+    ResourceOrchestratorReplicaGroup? ReplicaGroup = null);
 
 public sealed class InMemoryResourceOrchestratorDeploymentStore : IResourceOrchestratorDeploymentStore
 {
@@ -66,7 +68,8 @@ public sealed class InMemoryResourceOrchestratorDeploymentStore : IResourceOrche
     public ResourceOrchestratorRevision CreateRevision(
         ResourceOrchestratorDeployment deployment,
         DateTimeOffset createdAt,
-        ResourceOrchestratorRevisionStatus status)
+        ResourceOrchestratorRevisionStatus status,
+        ResourceOrchestratorReplicaGroup? replicaGroup = null)
     {
         ArgumentNullException.ThrowIfNull(deployment);
 
@@ -81,7 +84,8 @@ public sealed class InMemoryResourceOrchestratorDeploymentStore : IResourceOrche
             deployment.ServiceId,
             revisionNumber,
             createdAt,
-            status);
+            status,
+            replicaGroup);
     }
 
     public IReadOnlyList<ResourceOrchestratorDeploymentRecord> List(ResourceOrchestratorDeploymentQuery? query = null)
@@ -163,7 +167,8 @@ public sealed class InMemoryResourceOrchestratorDeploymentStore : IResourceOrche
                 completedAt,
                 Normalize(triggeredBy),
                 Normalize(cause),
-                Normalize(message)),
+                Normalize(message),
+                ReplicaGroup: revision.ReplicaGroup),
             (_, existing) => existing with
             {
                 Deployment = deployment,
@@ -173,7 +178,8 @@ public sealed class InMemoryResourceOrchestratorDeploymentStore : IResourceOrche
                 TriggeredBy = Normalize(triggeredBy) ?? existing.TriggeredBy,
                 Cause = Normalize(cause) ?? existing.Cause,
                 Message = Normalize(message),
-                Error = null
+                Error = null,
+                ReplicaGroup = revision.ReplicaGroup
             });
     }
 

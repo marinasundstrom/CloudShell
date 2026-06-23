@@ -80,20 +80,23 @@ public sealed class DefaultResourceOrchestrator(
         {
             RuntimeRevisionId = deployment.RevisionId
         };
+        var replicaGroup = ResourceOrchestratorServiceInstances.CreateDefaultReplicaGroup(service);
         await ExecuteOrchestratorServiceActionCoreAsync(
             provider,
             resourceContext,
             service,
             ResourceAction.Start,
             cancellationToken,
-            deployment);
+            deployment,
+            replicaGroup);
 
         var applied = deployment with { Status = ResourceOrchestratorDeploymentStatus.Active };
         var revisionCreatedAt = DateTimeOffset.UtcNow;
         var revision = deploymentStore?.CreateRevision(
             applied,
             revisionCreatedAt,
-            ResourceOrchestratorRevisionStatus.Active) ??
+            ResourceOrchestratorRevisionStatus.Active,
+            replicaGroup) ??
             new ResourceOrchestratorRevision(
                 applied.RevisionId,
                 applied.Id,
@@ -101,7 +104,8 @@ public sealed class DefaultResourceOrchestrator(
                 applied.ServiceId,
                 RevisionNumber: 1,
                 revisionCreatedAt,
-                ResourceOrchestratorRevisionStatus.Active);
+                ResourceOrchestratorRevisionStatus.Active,
+                replicaGroup);
         return new ResourceOrchestratorDeploymentApplyResult(
             applied,
             revision,
@@ -157,7 +161,8 @@ public sealed class DefaultResourceOrchestrator(
         ResourceOrchestratorService service,
         ResourceAction action,
         CancellationToken cancellationToken,
-        ResourceOrchestratorDeployment? deployment = null)
+        ResourceOrchestratorDeployment? deployment = null,
+        ResourceOrchestratorReplicaGroup? replicaGroup = null)
     {
         if (deployment is not null)
         {
@@ -167,7 +172,7 @@ public sealed class DefaultResourceOrchestrator(
                 $"Reconciling orchestrator service '{deployment.ServiceId}' for deployment '{deployment.Id}'.");
         }
 
-        var replicaGroup = ResourceOrchestratorServiceInstances.CreateDefaultReplicaGroup(service);
+        replicaGroup ??= ResourceOrchestratorServiceInstances.CreateDefaultReplicaGroup(service);
 
         await provider.PrepareOrchestratorServiceAsync(
             new ResourceOrchestratorServiceProcedureContext(resourceContext, service, replicaGroup),

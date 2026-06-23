@@ -203,6 +203,8 @@ Implemented pieces include:
   runtime resource instances, and projected container app replicas carry the
   group id so replicas can be tracked as a set across materialization,
   readiness, routing, diagnostics, drain, and cleanup
+* orchestrator revision outcomes and internal deployment history retain the
+  materialized replica group snapshot produced by deployment apply
 * the container app provider retires superseded local runtime replicas through
   the default orchestrator deployment finalization hook after the replacement
   revision has been materialized and routing milestones have been recorded

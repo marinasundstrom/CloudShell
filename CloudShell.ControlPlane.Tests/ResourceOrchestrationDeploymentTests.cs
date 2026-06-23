@@ -35,6 +35,12 @@ public sealed class ResourceOrchestrationDeploymentTests
         Assert.Equal(deployment.ServiceId, result.Revision.ServiceId);
         Assert.Equal(1, result.Revision.RevisionNumber);
         Assert.Equal(ResourceOrchestratorRevisionStatus.Active, result.Revision.Status);
+        Assert.NotNull(result.Revision.ReplicaGroup);
+        Assert.Equal("cloudshell-application-api-rev-2-replicas", result.Revision.ReplicaGroup.Id);
+        Assert.Equal(deployment.ServiceId, result.Revision.ReplicaGroup.ServiceId);
+        Assert.Equal(deployment.RevisionId, result.Revision.ReplicaGroup.RuntimeRevisionId);
+        Assert.Equal(3, result.Revision.ReplicaGroup.RequestedReplicas);
+        Assert.Equal(3, result.Revision.ReplicaGroup.MaterializedReplicas);
         var preparedService = Assert.Single(provider.PreparedServices);
         Assert.Equal(deployment.Spec.Service.Name, preparedService.Name);
         Assert.Equal(deployment.RevisionId, preparedService.RuntimeRevisionId);
@@ -116,6 +122,7 @@ public sealed class ResourceOrchestrationDeploymentTests
             DeploymentId: deployment.Id)));
         Assert.Equal(ResourceOrchestratorDeploymentStatus.Active, deploymentRecord.Status);
         Assert.Equal(result.Revision, deploymentRecord.Revision);
+        Assert.Equal(result.Revision.ReplicaGroup, deploymentRecord.ReplicaGroup);
         Assert.Equal("tests", deploymentRecord.TriggeredBy);
         Assert.Equal("Container app deployment.", deploymentRecord.Cause);
         Assert.Equal(result.ProcedureResult.Message, deploymentRecord.Message);
@@ -165,6 +172,7 @@ public sealed class ResourceOrchestrationDeploymentTests
             DeploymentId: deployment.Id)));
         Assert.Equal(ResourceOrchestratorDeploymentStatus.Failed, deploymentRecord.Status);
         Assert.Null(deploymentRecord.Revision);
+        Assert.Null(deploymentRecord.ReplicaGroup);
         Assert.Equal("tests", deploymentRecord.TriggeredBy);
         Assert.Equal("Container app deployment.", deploymentRecord.Cause);
         Assert.Equal("Replica execution failed.", deploymentRecord.Error);
