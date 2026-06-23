@@ -787,7 +787,7 @@ public sealed class RemoteControlPlaneContractTests
             entry.Message.Contains("user", StringComparison.Ordinal));
 
         var logResponse = await app.GetTestClient().GetAsync(
-            $"/api/control-plane/v1/logs/{Uri.EscapeDataString(eventLog.Id)}/entries");
+            $"/api/control-plane/v1/log-sources/{Uri.EscapeDataString(eventLog.Id)}/entries");
         Assert.Equal(HttpStatusCode.OK, logResponse.StatusCode);
         using var logDocument = JsonDocument.Parse(await logResponse.Content.ReadAsStringAsync());
         var logEntry = Assert.Single(logDocument.RootElement.EnumerateArray());
@@ -1037,9 +1037,10 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(
             "#/components/schemas/ResourceResponse",
             listResources.GetProperty("items").GetProperty("$ref").GetString());
-        var listLogs = root
-            .GetProperty("paths")
-            .GetProperty("/api/control-plane/v1/logs")
+        var paths = root.GetProperty("paths");
+        Assert.False(paths.TryGetProperty("/api/control-plane/v1/logs", out _));
+        var listLogs = paths
+            .GetProperty("/api/control-plane/v1/log-sources")
             .GetProperty("get")
             .GetProperty("responses")
             .GetProperty("200")
@@ -1055,11 +1056,6 @@ public sealed class RemoteControlPlaneContractTests
         Assert.True(logProperties.TryGetProperty("format", out _));
         Assert.True(logProperties.TryGetProperty("capabilities", out _));
         Assert.True(logProperties.TryGetProperty("availability", out _));
-        Assert.True(root
-            .GetProperty("paths")
-            .TryGetProperty("/api/control-plane/v1/log-sources", out _));
-
-        var paths = root.GetProperty("paths");
         Assert.True(paths.TryGetProperty("/api/control-plane/v1/log-sources/{logSourceId}", out _));
         Assert.True(paths.TryGetProperty("/api/control-plane/v1/log-sources/{logSourceId}/entries", out _));
         Assert.True(paths.TryGetProperty("/api/control-plane/v1/log-sources/{logSourceId}/stream", out _));
@@ -1684,8 +1680,6 @@ public sealed class RemoteControlPlaneContractTests
         public string Id => "contract.provider-logs";
 
         public string DisplayName => "Contract Provider Logs";
-
-        public IReadOnlyList<LogDescriptor> GetLogs() => [];
 
         public IReadOnlyList<LogSource> GetLogSources() =>
         [

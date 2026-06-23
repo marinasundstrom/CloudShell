@@ -36,9 +36,6 @@ public sealed record LogSource(
     LogSourceAvailability Availability = LogSourceAvailability.Unknown)
 {
     public bool SupportsStreaming => Capabilities.HasFlag(LogSourceCapabilities.Stream);
-
-    public static LogSource FromDescriptor(LogDescriptor descriptor) =>
-        descriptor.ToLogSource();
 }
 
 public enum ResourceLogSourceOrigin
@@ -48,6 +45,14 @@ public enum ResourceLogSourceOrigin
     Programmatic,
     ProviderProjected,
     RuntimeDiscovered
+}
+
+public enum LogSourceKind
+{
+    Resource,
+    Artifact,
+    Provider,
+    Other
 }
 
 public readonly record struct LogSourceConfiguration(

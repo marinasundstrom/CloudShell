@@ -525,18 +525,6 @@ public sealed class RemoteControlPlane : IControlPlane
         return await ReadRequiredAsync<ResourceGroupTemplateImportResult>(response, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<LogDescriptor>> ListLogsAsync(
-        LogQuery? query = null,
-        CancellationToken cancellationToken = default) =>
-        (await GetRequiredAsync<IReadOnlyList<LogResponse>>(
-            "logs",
-            cancellationToken,
-            ("resourceId", query?.ResourceId),
-            ("artifactId", query?.ArtifactId),
-            ("sourceKind", query?.SourceKind?.ToString())))
-        .Select(response => response.ToLogDescriptor())
-        .ToArray();
-
     public async Task<IReadOnlyList<LogSource>> ListLogSourcesAsync(
         LogQuery? query = null,
         CancellationToken cancellationToken = default) =>
@@ -603,28 +591,6 @@ public sealed class RemoteControlPlane : IControlPlane
         .Select(response => response.ToResourceReplicaSlotState())
         .ToArray();
 
-    public async Task<LogDescriptor?> GetLogAsync(
-        string logId,
-        CancellationToken cancellationToken = default)
-    {
-        var response = await GetOptionalAsync<LogResponse>(
-            $"logs/{Escape(logId)}",
-            cancellationToken);
-        return response?.ToLogDescriptor();
-    }
-
-    public async Task<IReadOnlyList<LogEntry>> ReadLogAsync(
-        string logId,
-        ReadLogOptions? options = null,
-        CancellationToken cancellationToken = default) =>
-        (await GetRequiredAsync<IReadOnlyList<LogEntryResponse>>(
-            $"logs/{Escape(logId)}/entries",
-            cancellationToken,
-            ("maxEntries", (options?.MaxEntries ?? 200).ToString()),
-            ("before", options?.Before?.ToString("O"))))
-        .Select(response => response.ToLogEntry())
-        .ToArray();
-
     public async Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
         string logSourceId,
         ReadLogOptions? options = null,
@@ -636,43 +602,6 @@ public sealed class RemoteControlPlane : IControlPlane
             ("before", options?.Before?.ToString("O"))))
         .Select(response => response.ToLogEntry())
         .ToArray();
-
-    public async IAsyncEnumerable<LogEntry> StreamLogAsync(
-        string logId,
-        StreamLogOptions? options = null,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
-        var response = await httpClient.GetAsync(
-            BuildUri(
-                $"logs/{Escape(logId)}/stream",
-                ("initialEntries", (options?.InitialEntries ?? 50).ToString())),
-            HttpCompletionOption.ResponseHeadersRead,
-            cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
-
-        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        using var reader = new StreamReader(stream);
-        while (true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var line = await reader.ReadLineAsync(cancellationToken);
-            if (line is null)
-            {
-                yield break;
-            }
-
-            if (string.IsNullOrWhiteSpace(line))
-            {
-                continue;
-            }
-
-            var entry = JsonSerializer.Deserialize<LogEntryResponse>(line, SerializerOptions);
-            if (entry is not null)
-            {
-                yield return entry.ToLogEntry();
-            }
-        }
-    }
 
     public async IAsyncEnumerable<LogEntry> StreamLogSourceAsync(
         string logSourceId,
@@ -1343,27 +1272,6 @@ file sealed record ResourceProcedureSignalResponse(
     string Severity,
     string Message);
 
-file sealed record LogResponse(
-    string Id,
-    string Name,
-    string Provider,
-    string SourceName,
-    LogSourceKind SourceKind,
-    string? ResourceId,
-    string? ArtifactId,
-    string? Description,
-    ResourceLogSourceKind Kind,
-    LogFormat Format,
-    LogStorageResponse Storage,
-    LogSourceCapabilities Capabilities,
-    string? Location,
-    string? ProducerResourceId,
-    ResourceLogSourceOrigin Origin,
-    LogSourceConfigurationResponse Configuration,
-    ResourceLogSourcePurpose Purpose,
-    LogSourceAvailability Availability,
-    bool SupportsStreaming);
-
 file sealed record LogSourceResponse(
     string Id,
     string Name,
@@ -1825,30 +1733,6 @@ file static class RemoteControlPlaneMapper
                     ResourceSignalSeverityParser.FromName(signal.Severity),
                     signal.Message))
                 .ToArray());
-
-    public static LogDescriptor ToLogDescriptor(this LogResponse response) =>
-        new(
-            response.Id,
-            response.Name,
-            response.Provider,
-            response.SourceName,
-            response.SourceKind,
-            response.ResourceId,
-            response.ArtifactId,
-            response.SupportsStreaming,
-            response.Description,
-            response.Kind,
-            response.Format,
-            response.Storage.ToLogStorage(),
-            response.SupportsStreaming
-                ? response.Capabilities | LogSourceCapabilities.Stream
-                : response.Capabilities,
-            response.Location,
-            response.ProducerResourceId,
-            response.Origin,
-            response.Configuration.ToLogSourceConfiguration(),
-            response.Purpose,
-            response.Availability);
 
     public static LogSource ToLogSource(this LogSourceResponse response) =>
         new(

@@ -132,9 +132,7 @@ without forcing provider-specific logic into shared helpers.
 - [x] Extract application resource naming helpers for stable identifiers and
   runtime container resource IDs so projection, logs, observability, and
   runtime child-resource concerns can share the same naming boundary.
-- [x] Align log provider contracts and docs with the `LogSource` direction so
-  new providers can expose sources directly while descriptor-shaped logs remain
-  compatibility metadata.
+- [x] Align log provider contracts and docs with the `LogSource` direction.
 - [x] Move application resource log discovery to source-first `LogSource`
   projection, keeping descriptor compatibility out of new application-provider
   discovery code.
@@ -145,8 +143,9 @@ without forcing provider-specific logic into shared helpers.
 - [x] Move Docker host diagnostics and container log discovery to source-first
   `LogSource` projection.
 - [x] Simplify the Control Plane log-source catalog so source discovery merges
-  resource declarations with contributed `LogSource` records, while descriptor
-  logs remain isolated to compatibility APIs.
+  resource declarations with contributed `LogSource` records.
+- [x] Remove legacy `LogDescriptor` discovery support from provider, store,
+  manager, API, and remote-client contracts.
 
 ## Next Slices
 

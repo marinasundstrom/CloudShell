@@ -4,13 +4,7 @@ public interface ILogStore
 {
     IReadOnlyList<ILogProvider> Providers { get; }
 
-    IReadOnlyList<LogDescriptor> GetLogs();
-
     IReadOnlyList<LogSource> GetLogSources();
-
-    IReadOnlyList<LogDescriptor> GetLogsForResource(string resourceId);
-
-    LogDescriptor? GetLog(string logId);
 
     LogSource? GetLogSource(string logSourceId) =>
         GetLogSources()
@@ -20,28 +14,15 @@ public interface ILogStore
         string logSourceId,
         int maxEntries = 200,
         DateTimeOffset? before = null,
-        CancellationToken cancellationToken = default) =>
-        ReadLogAsync(logSourceId, maxEntries, before, cancellationToken);
+        CancellationToken cancellationToken = default);
 
     ValueTask<ILogSourceSession?> OpenLogSourceSessionAsync(
         string logSourceId,
         CancellationToken cancellationToken = default) =>
         ValueTask.FromResult<ILogSourceSession?>(null);
 
-    Task<IReadOnlyList<LogEntry>> ReadLogAsync(
-        string logId,
-        int maxEntries = 200,
-        DateTimeOffset? before = null,
-        CancellationToken cancellationToken = default);
-
     IAsyncEnumerable<LogEntry> StreamLogSourceAsync(
         string logSourceId,
-        int initialEntries = 50,
-        CancellationToken cancellationToken = default) =>
-        StreamLogAsync(logSourceId, initialEntries, cancellationToken);
-
-    IAsyncEnumerable<LogEntry> StreamLogAsync(
-        string logId,
         int initialEntries = 50,
         CancellationToken cancellationToken = default);
 }

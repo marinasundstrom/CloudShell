@@ -31,30 +31,28 @@ public sealed class LogStoreTests
                     Purpose: ResourceLogSourcePurpose.Default)
             ]);
         var provider = new TestLogProvider(
-            logs: [],
-            sources:
-            [
-                new LogSource(
-                    "application:api:logs",
-                    "Console logs",
-                    "Applications",
-                    "api",
-                    LogSourceKind.Resource,
-                    ResourceLogSourceKind.ProcessOutput,
-                    Format: LogFormat.JsonConsole,
-                    Capabilities: LogSourceCapabilities.Read | LogSourceCapabilities.Stream,
-                    ResourceId: resource.Id),
-                new LogSource(
-                    "provider:diagnostics",
-                    "Provider diagnostics",
-                    "Applications",
-                    "Applications",
-                    LogSourceKind.Provider,
-                    ResourceLogSourceKind.ProviderDefined,
-                    Capabilities: LogSourceCapabilities.Read,
-                    Location: "provider://diagnostics",
-                    Origin: ResourceLogSourceOrigin.ProviderProjected)
-            ]);
+        [
+            new LogSource(
+                "application:api:logs",
+                "Console logs",
+                "Applications",
+                "api",
+                LogSourceKind.Resource,
+                ResourceLogSourceKind.ProcessOutput,
+                Format: LogFormat.JsonConsole,
+                Capabilities: LogSourceCapabilities.Read | LogSourceCapabilities.Stream,
+                ResourceId: resource.Id),
+            new LogSource(
+                "provider:diagnostics",
+                "Provider diagnostics",
+                "Applications",
+                "Applications",
+                LogSourceKind.Provider,
+                ResourceLogSourceKind.ProviderDefined,
+                Capabilities: LogSourceCapabilities.Read,
+                Location: "provider://diagnostics",
+                Origin: ResourceLogSourceOrigin.ProviderProjected)
+        ]);
         var store = new LogStore(
             [provider],
             new TestResourceManagerStore([resource]),
@@ -77,20 +75,18 @@ public sealed class LogStoreTests
     public async Task ReadLogSourceAsync_UsesProjectedLogSourceSession()
     {
         var provider = new TestLogProvider(
-            logs: [],
-            sources:
-            [
-                new LogSource(
-                    "provider:diagnostics",
-                    "Provider diagnostics",
-                    "Applications",
-                    "Applications",
-                    LogSourceKind.Provider,
-                    ResourceLogSourceKind.ProviderDefined,
-                    Capabilities: LogSourceCapabilities.Read,
-                    Location: "provider://diagnostics",
-                    Origin: ResourceLogSourceOrigin.ProviderProjected)
-            ]);
+        [
+            new LogSource(
+                "provider:diagnostics",
+                "Provider diagnostics",
+                "Applications",
+                "Applications",
+                LogSourceKind.Provider,
+                ResourceLogSourceKind.ProviderDefined,
+                Capabilities: LogSourceCapabilities.Read,
+                Location: "provider://diagnostics",
+                Origin: ResourceLogSourceOrigin.ProviderProjected)
+        ]);
         var store = new LogStore(
             [provider],
             new TestResourceManagerStore([]),
@@ -201,7 +197,6 @@ public sealed class LogStoreTests
             "operator"));
 
         var source = Assert.Single(provider.GetLogSources());
-        Assert.Empty(((ILogProvider)provider).GetLogs());
         var entries = await provider.ReadLogAsync(source.Id);
 
         Assert.Equal(ResourceEventLogProvider.GetLogId(resource.Id), source.Id);
@@ -237,20 +232,15 @@ public sealed class LogStoreTests
             [],
             LogSources: logSources);
 
-    private sealed class TestLogProvider(
-        IReadOnlyList<LogDescriptor> logs,
-        IReadOnlyList<LogSource> sources) : ILogProvider
+    private sealed class TestLogProvider(IReadOnlyList<LogSource> sources) : ILogProvider
     {
         public string Id => "test";
 
         public string DisplayName => "Test";
 
-        public IReadOnlyList<LogDescriptor> GetLogs() => logs;
-
         public LogSource? OpenedSource { get; private set; }
 
-        public IReadOnlyList<LogSource> GetLogSources() =>
-            [.. logs.Select(log => log.ToLogSource()), .. sources];
+        public IReadOnlyList<LogSource> GetLogSources() => sources;
 
         public ValueTask<ILogSourceSession?> OpenLogSourceAsync(
             LogSource source,
@@ -336,8 +326,6 @@ public sealed class LogStoreTests
         public string DisplayName => "Resource Declared";
 
         public LogSource? OpenedSource { get; private set; }
-
-        public IReadOnlyList<LogDescriptor> GetLogs() => [];
 
         public IReadOnlyList<LogSource> GetLogSources() => [];
 

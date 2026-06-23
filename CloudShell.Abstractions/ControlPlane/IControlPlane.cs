@@ -151,10 +151,6 @@ public interface IResourceTemplateManager
 
 public interface ILogManager
 {
-    Task<IReadOnlyList<LogDescriptor>> ListLogsAsync(
-        LogQuery? query = null,
-        CancellationToken cancellationToken = default);
-
     Task<IReadOnlyList<LogSource>> ListLogSourcesAsync(
         LogQuery? query = null,
         CancellationToken cancellationToken = default);
@@ -163,27 +159,13 @@ public interface ILogManager
         string logSourceId,
         CancellationToken cancellationToken = default);
 
-    Task<LogDescriptor?> GetLogAsync(
-        string logId,
-        CancellationToken cancellationToken = default);
-
     Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
         string logSourceId,
         ReadLogOptions? options = null,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<LogEntry>> ReadLogAsync(
-        string logId,
-        ReadLogOptions? options = null,
-        CancellationToken cancellationToken = default);
-
     IAsyncEnumerable<LogEntry> StreamLogSourceAsync(
         string logSourceId,
-        StreamLogOptions? options = null,
-        CancellationToken cancellationToken = default);
-
-    IAsyncEnumerable<LogEntry> StreamLogAsync(
-        string logId,
         StreamLogOptions? options = null,
         CancellationToken cancellationToken = default);
 }

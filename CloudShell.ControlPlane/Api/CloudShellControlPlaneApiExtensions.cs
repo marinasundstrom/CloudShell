@@ -171,10 +171,6 @@ public static class CloudShellControlPlaneApiExtensions
             .Produces<ProblemDetails>(StatusCodes.Status403Forbidden)
             .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
 
-        api.MapGet("/logs", ListLogs)
-            .WithName("CloudShellControlPlane_ListLogs")
-            .Produces<LogResponse[]>(StatusCodes.Status200OK);
-
         api.MapGet("/log-sources", ListLogSources)
             .WithName("CloudShellControlPlane_ListLogSources")
             .Produces<LogSourceResponse[]>(StatusCodes.Status200OK);
@@ -199,15 +195,6 @@ public static class CloudShellControlPlaneApiExtensions
         api.MapGet("/replica-slot-states", ListReplicaSlotStates)
             .WithName("CloudShellControlPlane_ListReplicaSlotStates")
             .Produces<ResourceReplicaSlotStateResponse[]>(StatusCodes.Status200OK);
-
-        api.MapGet("/logs/{logId}", GetLog)
-            .WithName("CloudShellControlPlane_GetLog");
-
-        api.MapGet("/logs/{logId}/entries", ReadLogEntries)
-            .WithName("CloudShellControlPlane_ReadLogEntries");
-
-        api.MapGet("/logs/{logId}/stream", StreamLogEntries)
-            .WithName("CloudShellControlPlane_StreamLogEntries");
 
         api.MapGet("/traces", ListTraceSpans)
             .WithName("CloudShellControlPlane_ListTraceSpans");
@@ -1011,27 +998,6 @@ public static class CloudShellControlPlaneApiExtensions
         }
     }
 
-    private static async Task<IResult> ListLogs(
-        string? resourceId,
-        string? artifactId,
-        LogSourceKind? sourceKind,
-        ILogManager logs,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            return Results.Ok((await logs.ListLogsAsync(
-                new LogQuery(resourceId, artifactId, sourceKind),
-                cancellationToken))
-            .Select(log => log.ToResponse())
-            .ToArray());
-        }
-        catch (UnauthorizedAccessException exception)
-        {
-            return ToProblem(exception);
-        }
-    }
-
     private static async Task<IResult> ListLogSources(
         string? resourceId,
         string? artifactId,
@@ -1114,24 +1080,6 @@ public static class CloudShellControlPlaneApiExtensions
             .Select(state => state.ToResponse())
             .ToArray());
 
-    private static async Task<IResult> GetLog(
-        string logId,
-        ILogManager logs,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            var log = await logs.GetLogAsync(logId, cancellationToken);
-            return log is null
-                ? Results.NotFound()
-                : Results.Ok(log.ToResponse());
-        }
-        catch (UnauthorizedAccessException exception)
-        {
-            return ToProblem(exception);
-        }
-    }
-
     private static async Task<IResult> GetLogSource(
         string logSourceId,
         ILogManager logs,
@@ -1204,79 +1152,6 @@ public static class CloudShellControlPlaneApiExtensions
                 {
                     await foreach (var entry in logs.StreamLogSourceAsync(
                         logSourceId,
-                        new StreamLogOptions(Math.Clamp(initialEntries ?? 50, 0, 1000)),
-                        cancellationToken))
-                    {
-                        await JsonSerializer.SerializeAsync(
-                            stream,
-                            entry.ToResponse(),
-                            cancellationToken: cancellationToken);
-                        await stream.WriteAsync("\n"u8.ToArray(), cancellationToken);
-                        await stream.FlushAsync(cancellationToken);
-                    }
-                },
-                "application/x-ndjson");
-        }
-        catch (UnauthorizedAccessException exception)
-        {
-            return ToProblem(exception);
-        }
-    }
-
-    private static async Task<IResult> ReadLogEntries(
-        string logId,
-        int? maxEntries,
-        DateTimeOffset? before,
-        ILogManager logs,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            if (await logs.GetLogAsync(logId, cancellationToken) is null)
-            {
-                return Results.NotFound();
-            }
-
-            var entries = await logs.ReadLogAsync(
-                logId,
-                new ReadLogOptions(Math.Clamp(maxEntries ?? 200, 1, 1000), before),
-                cancellationToken);
-
-            return Results.Ok(entries.Select(entry => entry.ToResponse()).ToArray());
-        }
-        catch (UnauthorizedAccessException exception)
-        {
-            return ToProblem(exception);
-        }
-    }
-
-    private static async Task<IResult> StreamLogEntries(
-        string logId,
-        int? initialEntries,
-        ILogManager logs,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            var log = await logs.GetLogAsync(logId, cancellationToken);
-            if (log is null)
-            {
-                return Results.NotFound();
-            }
-
-            if (!log.SupportsStreaming)
-            {
-                return Problem(
-                    StatusCodes.Status405MethodNotAllowed,
-                    "Log streaming is unavailable",
-                    "The selected log source does not support streaming.");
-            }
-
-            return Results.Stream(
-                async stream =>
-                {
-                    await foreach (var entry in logs.StreamLogAsync(
-                        logId,
                         new StreamLogOptions(Math.Clamp(initialEntries ?? 50, 0, 1000)),
                         cancellationToken))
                     {

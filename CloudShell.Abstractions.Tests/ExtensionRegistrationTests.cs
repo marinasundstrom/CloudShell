@@ -1263,7 +1263,7 @@ public sealed class ExtensionRegistrationTests
 
         public string DisplayName => "Sample";
 
-        public IReadOnlyList<LogDescriptor> GetLogs() => [];
+        public IReadOnlyList<LogSource> GetLogSources() => [];
 
         public Task<IReadOnlyList<LogEntry>> ReadLogAsync(
             string logId,

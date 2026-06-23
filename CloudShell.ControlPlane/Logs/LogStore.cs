@@ -20,40 +20,11 @@ public sealed class LogStore(
         .OrderBy(provider => provider.DisplayName, StringComparer.OrdinalIgnoreCase)
         .ToArray();
 
-    public IReadOnlyList<LogDescriptor> GetLogs()
-    {
-        var visibleResourceIds = resourceManager.GetResources()
-            .Select(resource => resource.Id)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        return Providers
-            .SelectMany(provider => provider.GetLogs())
-            .Where(log => log.ResourceId is null || visibleResourceIds.Contains(log.ResourceId))
-            .OrderBy(log => log.SourceName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(log => log.Name, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-    }
-
     public IReadOnlyList<LogSource> GetLogSources()
         => CreateSourceCatalog().GetLogSources();
 
-    public IReadOnlyList<LogDescriptor> GetLogsForResource(string resourceId) =>
-        GetLogs()
-            .Where(log => string.Equals(log.ResourceId, resourceId, StringComparison.OrdinalIgnoreCase))
-            .ToArray();
-
-    public LogDescriptor? GetLog(string logId) =>
-        GetLogs().FirstOrDefault(log => string.Equals(log.Id, logId, StringComparison.OrdinalIgnoreCase));
-
     public LogSource? GetLogSource(string logSourceId) =>
         CreateSourceCatalog().GetLogSource(logSourceId);
-
-    public async Task<IReadOnlyList<LogEntry>> ReadLogAsync(
-        string logId,
-        int maxEntries = 200,
-        DateTimeOffset? before = null,
-        CancellationToken cancellationToken = default) =>
-        await ReadLogSourceAsync(logId, maxEntries, before, cancellationToken);
 
     public async Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
         string logSourceId,
@@ -71,17 +42,6 @@ public sealed class LogStore(
         return session is null
             ? []
             : await session.ReadAsync(maxEntries, before, cancellationToken);
-    }
-
-    public async IAsyncEnumerable<LogEntry> StreamLogAsync(
-        string logId,
-        int initialEntries = 50,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
-        await foreach (var entry in StreamLogSourceAsync(logId, initialEntries, cancellationToken))
-        {
-            yield return entry;
-        }
     }
 
     public async IAsyncEnumerable<LogEntry> StreamLogSourceAsync(

@@ -122,10 +122,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Application resource stable identifier and runtime container resource ID
   generation now lives in a tested helper shared by projection, logs,
   observability, and runtime child-resource concerns.
-- `ILogProvider` now allows source-first providers to implement
-  `GetLogSources()` without also producing descriptor-shaped compatibility
-  metadata, keeping `LogDescriptor` as a migration bridge instead of the
-  primary provider discovery contract.
+- `ILogProvider`, `ILogStore`, `ILogManager`, the Control Plane API, and the
+  remote client now use `LogSource` as the log discovery contract; legacy
+  `LogDescriptor` discovery support and `/logs` descriptor endpoints have been
+  removed.
 - Application resource log discovery now returns `LogSource` records directly
   instead of manufacturing `LogDescriptor` compatibility metadata for
   application and runtime-container sources.
@@ -137,9 +137,7 @@ on `git blame --follow`, and then by the broad type of change.
 - Docker host diagnostics and container log discovery now returns `LogSource`
   records directly instead of descriptor-shaped compatibility metadata.
 - The Control Plane log-source catalog now aggregates resource declarations
-  and contributed `LogSource` records directly, leaving descriptor-shaped logs
-  to the separate compatibility API instead of merging them into source
-  discovery.
+  and contributed `LogSource` records directly.
 - The deployment proposal now clarifies that deployment definitions describe
   resource intent through resource definitions and provider-owned attributes,
   with serialized formats treated as projections of that model.

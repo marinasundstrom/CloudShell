@@ -1122,15 +1122,6 @@ public sealed class InProcessControlPlane(
         CancellationToken cancellationToken = default) =>
         templates.ImportGroupAsync(template, cancellationToken);
 
-    public Task<IReadOnlyList<LogDescriptor>> ListLogsAsync(
-        LogQuery? query = null,
-        CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        EnsureCanReadLogs();
-        return Task.FromResult(ApplyQuery(GetReadableLogs(), query, GetScopedResourceIds(query?.ResourceId)));
-    }
-
     public Task<IReadOnlyList<LogSource>> ListLogSourcesAsync(
         LogQuery? query = null,
         CancellationToken cancellationToken = default)
@@ -1201,21 +1192,6 @@ public sealed class InProcessControlPlane(
             .ToArray();
     }
 
-    public Task<LogDescriptor?> GetLogAsync(
-        string logId,
-        CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        EnsureCanReadLogs();
-        return Task.FromResult(GetReadableLog(logId));
-    }
-
-    public Task<IReadOnlyList<LogEntry>> ReadLogAsync(
-        string logId,
-        ReadLogOptions? options = null,
-        CancellationToken cancellationToken = default) =>
-        ReadLogSourceAsync(logId, options, cancellationToken);
-
     public Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
         string logSourceId,
         ReadLogOptions? options = null,
@@ -1233,12 +1209,6 @@ public sealed class InProcessControlPlane(
             options?.Before,
             cancellationToken);
     }
-
-    public IAsyncEnumerable<LogEntry> StreamLogAsync(
-        string logId,
-        StreamLogOptions? options = null,
-        CancellationToken cancellationToken = default) =>
-        StreamLogSourceAsync(logId, options, cancellationToken);
 
     public IAsyncEnumerable<LogEntry> StreamLogSourceAsync(
         string logSourceId,
@@ -2547,14 +2517,6 @@ public sealed class InProcessControlPlane(
             $"One of the following permissions is required to read observability {area}: {string.Join(", ", permissions.Select(permission => $"'{permission}'"))}."));
     }
 
-    private IReadOnlyList<LogDescriptor> GetReadableLogs()
-    {
-        var readableResourceIds = GetReadableResourceIds();
-        return logs.GetLogs()
-            .Where(log => log.ResourceId is null || readableResourceIds.Contains(log.ResourceId))
-            .ToArray();
-    }
-
     private IReadOnlyList<LogSource> GetReadableLogSources()
     {
         var readableResourceIds = GetReadableResourceIds();
@@ -2562,10 +2524,6 @@ public sealed class InProcessControlPlane(
             .Where(log => log.ResourceId is null || readableResourceIds.Contains(log.ResourceId))
             .ToArray();
     }
-
-    private LogDescriptor? GetReadableLog(string logId) =>
-        GetReadableLogs()
-            .FirstOrDefault(log => string.Equals(log.Id, logId, StringComparison.OrdinalIgnoreCase));
 
     private LogSource? GetReadableLogSource(string logSourceId) =>
         GetReadableLogSources()
@@ -3344,39 +3302,6 @@ public sealed class InProcessControlPlane(
         }
 
         return scoped;
-    }
-
-    private static IReadOnlyList<LogDescriptor> ApplyQuery(
-        IReadOnlyList<LogDescriptor> descriptors,
-        LogQuery? query,
-        IReadOnlySet<string>? scopedResourceIds = null)
-    {
-        if (query is null)
-        {
-            return descriptors;
-        }
-
-        var filtered = descriptors.AsEnumerable();
-        if (!string.IsNullOrWhiteSpace(query.ResourceId))
-        {
-            filtered = filtered.Where(log =>
-                !string.IsNullOrWhiteSpace(log.ResourceId) &&
-                (scopedResourceIds?.Contains(log.ResourceId) == true ||
-                    string.Equals(log.ResourceId, query.ResourceId, StringComparison.OrdinalIgnoreCase)));
-        }
-
-        if (!string.IsNullOrWhiteSpace(query.ArtifactId))
-        {
-            filtered = filtered.Where(log =>
-                string.Equals(log.ArtifactId, query.ArtifactId, StringComparison.OrdinalIgnoreCase));
-        }
-
-        if (query.SourceKind is not null)
-        {
-            filtered = filtered.Where(log => log.SourceKind == query.SourceKind);
-        }
-
-        return filtered.ToArray();
     }
 
     private static IReadOnlyList<LogSource> ApplyQuery(

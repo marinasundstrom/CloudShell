@@ -323,27 +323,6 @@ public sealed record ResourceProcedureSignalResponse(
     string Severity,
     string Message);
 
-public sealed record LogResponse(
-    string Id,
-    string Name,
-    string Provider,
-    string SourceName,
-    LogSourceKind SourceKind,
-    string? ResourceId,
-    string? ArtifactId,
-    string? Description,
-    ResourceLogSourceKind Kind,
-    LogFormat Format,
-    LogStorageResponse Storage,
-    LogSourceCapabilities Capabilities,
-    string? Location,
-    string? ProducerResourceId,
-    ResourceLogSourceOrigin Origin,
-    LogSourceConfigurationResponse Configuration,
-    ResourceLogSourcePurpose Purpose,
-    LogSourceAvailability Availability,
-    bool SupportsStreaming);
-
 public sealed record LogSourceResponse(
     string Id,
     string Name,
@@ -764,28 +743,6 @@ internal static class CloudShellControlPlaneDtoMapper
             capability.ActionId,
             capability.CanExecute,
             capability.Reason);
-
-    public static LogResponse ToResponse(this LogDescriptor log) =>
-        new(
-            log.Id,
-            log.Name,
-            log.Provider,
-            log.SourceName,
-            log.SourceKind,
-            log.ResourceId,
-            log.ArtifactId,
-            log.Description,
-            log.Kind,
-            log.Format,
-            log.Storage.ToResponse(),
-            log.Capabilities,
-            log.Location,
-            log.ProducerResourceId,
-            log.Origin,
-            log.Configuration.ToResponse(),
-            log.Purpose,
-            log.Availability,
-            log.SupportsStreaming);
 
     public static LogSourceResponse ToResponse(this LogSource source) =>
         new(

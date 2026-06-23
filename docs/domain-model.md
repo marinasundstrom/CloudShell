@@ -851,14 +851,13 @@ In code:
 
 - `ILogManager` is the public domain abstraction.
 - `ILogStore` is the internal Control Plane implementation store. It exposes
-  source-addressed read and stream operations while retaining descriptor-based
-  compatibility methods during the migration. It can also materialize a
-  disposable log-source session for Control Plane services that need to own the
-  read, poll, stream, or future transport lifecycle explicitly.
+  source-addressed read and stream operations. It can also materialize a
+  disposable log-source session for Control Plane services that need to own
+  the read, poll, stream, or future transport lifecycle explicitly.
 - `ILogSourceCatalog` is the Control Plane listing/projection boundary. It
   merges resource `ResourceLogSource` declarations, contributed `LogSource`
-  records, and descriptor compatibility projections into the log-source
-  inventory consumed by `ILogManager`.
+  records, and provider-owned source projections into the log-source inventory
+  consumed by `ILogManager`.
 - `ILogSourceContributor` is the integration point for listing-only source
   metadata that is not naturally declared on a resource and does not itself
   manage read or stream sessions.
@@ -866,8 +865,7 @@ In code:
   types or sources. Its primary responsibility is deciding whether it can open
   a resolved `LogSource` and materializing the `ILogSourceSession` for that
   source. Providers may also contribute projected `LogSource` metadata
-  directly, while descriptor-backed providers are bridged into sources during
-  the transition.
+  directly.
 - `ILogSourceSession` is the provider-owned runtime access context materialized
   when a source is read or streamed. It keeps source discovery separate from
   access status, file handles, process or container streams, remote cursors,
@@ -887,8 +885,7 @@ In code:
   list projected log sources independently and decide which access,
   persistence, and query services apply. Resource Manager, Observability,
   provider-specific overview pages, and the Logs view use projected sources for
-  availability, counts, and navigation while descriptor-based APIs remain
-  available as compatibility aliases during the transition.
+  availability, counts, navigation, and source-addressed access.
 - `ResourceCapabilityIds.LogSources` advertises that a resource exposes or can
   configure log sources. Future UI configuration should be driven by that
   capability and `ResourceLogSource` configuration metadata.

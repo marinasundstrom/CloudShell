@@ -6,15 +6,10 @@ public interface ILogProvider : ILogSourceContributor
 
     string DisplayName { get; }
 
-    IReadOnlyList<LogDescriptor> GetLogs() => [];
-
     IReadOnlyList<LogSource> ILogSourceContributor.GetLogSources() =>
         GetLogSources();
 
-    new IReadOnlyList<LogSource> GetLogSources() =>
-        GetLogs()
-            .Select(log => log.ToLogSource())
-            .ToArray();
+    new IReadOnlyList<LogSource> GetLogSources();
 
     bool CanOpenLogSource(LogSource source) =>
         GetLogSources()

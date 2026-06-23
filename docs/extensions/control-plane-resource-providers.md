@@ -130,9 +130,9 @@ contract: it tells the Control Plane which logs a resource produces or can
 expose so the platform can provide controlled access, persistence, query, and
 streaming services around them. The declaration records the kind, format,
 storage, capabilities, availability, origin, purpose, configuration metadata,
-location, and physical producer. The Control Plane projects those declarations,
-plus provider-owned source projections and descriptor compatibility data, into
-`LogSource` records. A single resource can have multiple log sources, and
+location, and physical producer. The Control Plane projects those declarations
+plus provider-owned source projections into `LogSource` records. A single
+resource can have multiple log sources, and
 multiple providers can expose log sources for the same resource. Resources that
 expose or allow configuration of log sources should advertise
 `ResourceCapabilityIds.LogSources`; future UI configuration should be driven by
@@ -140,20 +140,14 @@ that capability and the source configuration metadata. Resource Manager,
 Observability, provider pages, and the Logs view use projected `LogSource`
 records for listing, counts, and navigation.
 
-`LogDescriptor` remains as a compatibility bridge for providers that already
-implement descriptor-based read and stream operations. Descriptors can point at
-a resource through `ResourceId`, an extension artifact through `ArtifactId`, or
-a provider-owned source through `SourceKind`, and they carry compatible source
-metadata so the Control Plane can project them into `LogSource`. New resource
-types should prefer declaring `ResourceLogSource` on the resource model and
-returning `LogSource` records from `ILogProvider.GetLogSources()`. Use
-descriptor compatibility only for existing provider read/stream integration.
-The Logs view opens resource-scoped log lists through `/logs?resourceId=...`.
+Providers that own log access should return `LogSource` records from
+`ILogProvider.GetLogSources()` for provider-owned or runtime-discovered
+sources that are not naturally declared on a resource. The Logs view opens
+resource-scoped log lists through `/logs?resourceId=...`.
 
 Declare `LogSourceCapabilities.Stream` only when the provider can support live
-tail semantics. For descriptor compatibility, set `SupportsStreaming = true`
-for the same case. Streaming-capable sources are tailed automatically in the
-Logs view when selected, and users can pause or resume streaming from the log
+tail semantics. Streaming-capable sources are tailed automatically in the Logs
+view when selected, and users can pause or resume streaming from the log
 header. The viewer keeps a bounded entry window: it loads the newest page
 first, appends streamed entries into that window, and fetches older pages only
 when requested. It follows the latest entry only while the user is already at
@@ -257,10 +251,10 @@ Streaming implementation guidance:
   Pass `0` through to the backing system when the caller wants only new
   entries.
 - The control-plane endpoint
-  `GET /api/cloudshell/logs/{logId}/stream?initialEntries=50` streams
+  `GET /api/cloudshell/log-sources/{logSourceId}/stream?initialEntries=50` streams
   newline-delimited JSON (`application/x-ndjson`) for API clients.
 - The snapshot endpoint
-  `GET /api/cloudshell/logs/{logId}/entries?maxEntries=100&before=...`
+  `GET /api/cloudshell/log-sources/{logSourceId}/entries?maxEntries=100&before=...`
   returns one bounded history page. Use it to load older entries incrementally
   instead of loading complete logs.
 

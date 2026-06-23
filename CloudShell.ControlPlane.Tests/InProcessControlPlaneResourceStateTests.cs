@@ -3264,8 +3264,8 @@ public sealed class InProcessControlPlaneResourceStateTests
     public async Task ObservabilityQueries_FilterSignalsToReadableResources()
     {
         var logStore = new TestLogStore(
-            new LogDescriptor("visible-log", "Visible", "test", "visible", LogSourceKind.Resource, "visible"),
-            new LogDescriptor("hidden-log", "Hidden", "test", "hidden", LogSourceKind.Resource, "hidden"));
+            new LogSource("visible-log", "Visible", "test", "visible", LogSourceKind.Resource, ResourceId: "visible"),
+            new LogSource("hidden-log", "Hidden", "test", "hidden", LogSourceKind.Resource, ResourceId: "hidden"));
         var traceStore = new TestTraceStore(
             CreateTraceSpan("visible-trace", "visible"),
             CreateTraceSpan("hidden-trace", "hidden"));
@@ -3288,12 +3288,10 @@ public sealed class InProcessControlPlaneResourceStateTests
             traceStore: traceStore,
             metricStore: metricStore);
 
-        var logs = await controlPlane.ListLogsAsync();
         var logSources = await controlPlane.ListLogSourcesAsync();
         var spans = await controlPlane.ListTraceSpansAsync();
         var points = await controlPlane.ListMetricPointsAsync();
 
-        Assert.Equal("visible", Assert.Single(logs).ResourceId);
         Assert.Equal("visible", Assert.Single(logSources).ResourceId);
         Assert.Equal("visible", Assert.Single(spans).ResourceId);
         Assert.Equal("visible", Assert.Single(points).ResourceId);
@@ -3303,29 +3301,29 @@ public sealed class InProcessControlPlaneResourceStateTests
     public async Task LogSourceReads_FilterResourceScopedSourcesToReadableResources()
     {
         var logStore = new TestLogStore(
-            new LogDescriptor(
+            new LogSource(
                 "visible-log",
                 "Visible",
                 "test",
                 "visible",
                 LogSourceKind.Resource,
-                "visible",
-                SupportsStreaming: true),
-            new LogDescriptor(
+                ResourceId: "visible",
+                Capabilities: LogSourceCapabilities.Read | LogSourceCapabilities.Stream),
+            new LogSource(
                 "hidden-log",
                 "Hidden",
                 "test",
                 "hidden",
                 LogSourceKind.Resource,
-                "hidden",
-                SupportsStreaming: true),
-            new LogDescriptor(
+                ResourceId: "hidden",
+                Capabilities: LogSourceCapabilities.Read | LogSourceCapabilities.Stream),
+            new LogSource(
                 "provider-log",
                 "Provider",
                 "test",
                 "provider",
                 LogSourceKind.Provider,
-                SupportsStreaming: true));
+                Capabilities: LogSourceCapabilities.Read | LogSourceCapabilities.Stream));
         var controlPlane = CreateControlPlane(
             [
                 CreateResource("visible", ResourceState.Running),
@@ -3360,27 +3358,27 @@ public sealed class InProcessControlPlaneResourceStateTests
         var parentId = "application:api";
         var replicaId = "runtime-container:api:replica-1";
         var logStore = new TestLogStore(
-            new LogDescriptor(
+            new LogSource(
                 "parent-log",
                 "Parent",
                 "test",
                 "parent",
                 LogSourceKind.Resource,
-                parentId),
-            new LogDescriptor(
+                ResourceId: parentId),
+            new LogSource(
                 "replica-log",
                 "Replica",
                 "test",
                 "replica",
                 LogSourceKind.Resource,
-                replicaId),
-            new LogDescriptor(
+                ResourceId: replicaId),
+            new LogSource(
                 "unrelated-log",
                 "Unrelated",
                 "test",
                 "unrelated",
                 LogSourceKind.Resource,
-                "hidden"));
+                ResourceId: "hidden"));
         var controlPlane = CreateControlPlane(
             [
                 CreateResource(parentId, ResourceState.Running),
@@ -4562,23 +4560,17 @@ public sealed class InProcessControlPlaneResourceStateTests
     {
         public IReadOnlyList<ILogProvider> Providers => [];
 
-        public IReadOnlyList<LogDescriptor> GetLogs() => [];
-
         public IReadOnlyList<LogSource> GetLogSources() => [];
 
-        public IReadOnlyList<LogDescriptor> GetLogsForResource(string resourceId) => [];
-
-        public LogDescriptor? GetLog(string logId) => null;
-
-        public Task<IReadOnlyList<LogEntry>> ReadLogAsync(
-            string logId,
+        public Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
+            string logSourceId,
             int maxEntries = 200,
             DateTimeOffset? before = null,
             CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<LogEntry>>([]);
 
-        public async IAsyncEnumerable<LogEntry> StreamLogAsync(
-            string logId,
+        public async IAsyncEnumerable<LogEntry> StreamLogSourceAsync(
+            string logSourceId,
             int initialEntries = 50,
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
@@ -4613,44 +4605,31 @@ public sealed class InProcessControlPlaneResourceStateTests
         }
     }
 
-    private sealed class TestLogStore(params LogDescriptor[] logs) : ILogStore
+    private sealed class TestLogStore(params LogSource[] sources) : ILogStore
     {
-        private readonly LogDescriptor[] logs = logs;
-
         public IReadOnlyList<ILogProvider> Providers => [];
 
-        public IReadOnlyList<LogDescriptor> GetLogs() => logs;
+        public IReadOnlyList<LogSource> GetLogSources() => sources;
 
-        public IReadOnlyList<LogSource> GetLogSources() =>
-            logs.Select(log => log.ToLogSource()).ToArray();
-
-        public IReadOnlyList<LogDescriptor> GetLogsForResource(string resourceId) =>
-            logs
-                .Where(log => string.Equals(log.ResourceId, resourceId, StringComparison.OrdinalIgnoreCase))
-                .ToArray();
-
-        public LogDescriptor? GetLog(string logId) =>
-            logs.FirstOrDefault(log => string.Equals(log.Id, logId, StringComparison.OrdinalIgnoreCase));
-
-        public Task<IReadOnlyList<LogEntry>> ReadLogAsync(
-            string logId,
+        public Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
+            string logSourceId,
             int maxEntries = 200,
             DateTimeOffset? before = null,
             CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<LogEntry>>(
-                logs.Any(log => string.Equals(log.Id, logId, StringComparison.OrdinalIgnoreCase))
-                    ? [new LogEntry(DateTimeOffset.UtcNow, $"{logId} entry", Source: logId)]
+                sources.Any(source => string.Equals(source.Id, logSourceId, StringComparison.OrdinalIgnoreCase))
+                    ? [new LogEntry(DateTimeOffset.UtcNow, $"{logSourceId} entry", Source: logSourceId)]
                     : []);
 
-        public async IAsyncEnumerable<LogEntry> StreamLogAsync(
-            string logId,
+        public async IAsyncEnumerable<LogEntry> StreamLogSourceAsync(
+            string logSourceId,
             int initialEntries = 50,
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             await Task.CompletedTask;
-            if (logs.Any(log => string.Equals(log.Id, logId, StringComparison.OrdinalIgnoreCase)))
+            if (sources.Any(source => string.Equals(source.Id, logSourceId, StringComparison.OrdinalIgnoreCase)))
             {
-                yield return new LogEntry(DateTimeOffset.UtcNow, $"{logId} entry", Source: logId);
+                yield return new LogEntry(DateTimeOffset.UtcNow, $"{logSourceId} entry", Source: logSourceId);
             }
         }
     }
