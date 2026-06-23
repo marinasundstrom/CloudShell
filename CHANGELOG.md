@@ -68,6 +68,12 @@ on `git blame --follow`, and then by the broad type of change.
 - Container app declarations can now configure replica-group management policy,
   and deployment metadata distinguishes requested replica slots, materialized
   slots, and occupied replica count.
+- Resource Manager orchestration now performs an initial liveness-driven
+  replica slot replacement for unhealthy container app slots, emitting
+  replica-management events for the slot decision and replacement outcome.
+- The container app Scale and replicas view now displays requested replica
+  slots as the primary rows, with optional occupant details and auto-refresh so
+  slot repair transitions are visible.
 - Resource Manager orchestration now has an internal service tear-down boundary
   so orchestrator services can stop their materialized runtime resources
   separately from incremental deployment setup.

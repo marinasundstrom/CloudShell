@@ -217,6 +217,14 @@ or intentionally left vacant. The Environment view can expose the same events
 with deployment, Environment revision, replica group, slot, and occupant
 correlation for debugging.
 
+The Scale and replicas view should be slot-first. The primary rows represent
+requested replica slots, not only currently materialized runtime resources.
+Each row can then show the current occupant when one exists: runtime resource
+id, container name, revision, health, host, materialization state, and
+management activity. A slot without an occupant should remain visible as
+vacant. The page should poll while open so users can see a slot move from
+unhealthy, to replacing, to occupied again without manually refreshing.
+
 ## Container App Deployments and Configuration Revisions
 
 Container app revisions are configuration-management snapshots owned by the
@@ -380,6 +388,9 @@ Implemented pieces include:
 * Resource Manager Application > Scale and replicas tab for enabling replicas
   and setting requested replica count through a dedicated update command. This
   is active-revision capacity management, not image deployment.
+* Scale and replicas tab renders requested replica slots first and polls for
+  changes so slot health and repair transitions are visible while the app is
+  running.
 * app-owned internal deployment projection with status, service id, workload
   version, requested replica slots, materialized slots, and occupied runtime
   replicas. This is the container app use of the broader default-deployment
@@ -395,6 +406,9 @@ Implemented pieces include:
 * deployment-applied container app replicas use revision-scoped runtime
   container names based on the app revision so a new image revision can
   materialize beside the currently serving app revision before ingress/routing
+* first liveness-driven replica slot replacement path: a failed runtime slot
+  emits replica-management events and is replaced by the orchestration service
+  according to the replica group policy
   cutover
 * orchestrator services derive an explicit revision-scoped replica group for
   runtime resource instances, and projected container app replicas carry the

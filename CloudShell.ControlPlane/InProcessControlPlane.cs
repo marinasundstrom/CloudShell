@@ -48,6 +48,7 @@ public sealed class InProcessControlPlane(
     private const string UnauthenticatedRequestActor = "user";
     private const string RecoveryTriggeredBy = "recovery";
     private const string LivenessTriggeredBy = "liveness";
+    private const string ReplicaManagementTriggeredBy = "replica-management";
 
     public event EventHandler<ResourceChangeNotification>? ResourcesChanged;
 
@@ -1841,6 +1842,7 @@ public sealed class InProcessControlPlane(
         resourceHealth.AddRange(summaries.Values);
         AddRuntimeHealthAggregateSummaries(allResources, aggregateParents);
         RecordLivenessLifecycleTransitions(lifecycleResources, previousLivenessStates);
+        await ReconcileReplicaSlotsAsync(lifecycleResources, previousLivenessStates, cancellationToken);
     }
 
     private IReadOnlyList<Resource> GetRuntimeHealthAggregateParents(
@@ -2352,6 +2354,71 @@ public sealed class InProcessControlPlane(
                 LivenessTriggeredBy,
                 severity));
         }
+    }
+
+    private async Task ReconcileReplicaSlotsAsync(
+        IReadOnlyList<Resource> resources,
+        IReadOnlyDictionary<string, ResourceState?> previousStates,
+        CancellationToken cancellationToken)
+    {
+        foreach (var resource in resources)
+        {
+            var projection = GetLivenessLifecycleProjection(resource);
+            if (projection is null ||
+                projection.State != ResourceState.Degraded ||
+                previousStates.GetValueOrDefault(resource.Id) == ResourceState.Degraded)
+            {
+                continue;
+            }
+
+            foreach (var observation in GetFailedReplicaSlotObservations(projection.Result))
+            {
+                if (!TryGetReplicaSlotOrdinal(observation, out var slotOrdinal))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    await orchestration.ReconcileReplicaSlotAsync(
+                        resource,
+                        slotOrdinal,
+                        observation.Detail,
+                        cancellationToken,
+                        ReplicaManagementTriggeredBy);
+                }
+                catch (Exception exception) when (exception is not OperationCanceledException)
+                {
+                    resourceEvents?.Append(new ResourceEvent(
+                        resource.Id,
+                        ResourceEventTypes.Events.ReplicaManagement.ReconciliationFailed,
+                        $"Replica slot {slotOrdinal.ToString(CultureInfo.InvariantCulture)} reconciliation failed: {exception.Message}",
+                        DateTimeOffset.UtcNow,
+                        ReplicaManagementTriggeredBy,
+                        ResourceSignalSeverity.Error));
+                }
+            }
+        }
+    }
+
+    private static IEnumerable<ResourceHealthScopeObservation> GetFailedReplicaSlotObservations(
+        ResourceHealthCheckResult result) =>
+        result.Check.Type == ResourceProbeType.Liveness
+            ? result.ScopeObservations.Where(observation =>
+                string.Equals(observation.ScopeKind, ResourceHealthScopeKinds.Runtime, StringComparison.OrdinalIgnoreCase) &&
+                observation.Status == ResourceHealthStatus.Unhealthy)
+            : [];
+
+    private static bool TryGetReplicaSlotOrdinal(
+        ResourceHealthScopeObservation observation,
+        out int slotOrdinal)
+    {
+        slotOrdinal = 0;
+        return observation.ObservationAttributes.TryGetValue(
+                ResourceAttributeNames.RuntimeReplicaOrdinal,
+                out var value) &&
+            int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out slotOrdinal) &&
+            slotOrdinal > 0;
     }
 
     private static string FormatLivenessCause(ResourceHealthCheckResult result) =>

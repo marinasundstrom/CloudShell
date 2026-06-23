@@ -563,6 +563,59 @@ public sealed class ResourceOrchestrationDeploymentTests
             instance => Assert.Equal(replicaGroup, instance.ReplicaGroup));
     }
 
+    [Fact]
+    public async Task ReconcileReplicaSlotAsync_ReplacesFailedSlotOccupant()
+    {
+        var resource = CreateResource();
+        var resourceEvents = new InMemoryResourceEventStore();
+        var service = CreateDeployment(resource.Id, "default", replicas: 3).Spec.Service;
+        var provider = new RecordingServiceProcedureProvider(resource)
+        {
+            OrchestratorService = service
+        };
+        var orchestration = CreateOrchestration(resource, provider, resourceEvents);
+
+        var result = await orchestration.ReconcileReplicaSlotAsync(
+            resource,
+            2,
+            "Connection refused.",
+            triggeredBy: "tests");
+
+        Assert.Equal(
+            "Replaced replica group 'cloudshell-application-api-replicas' slot 2/3 occupant 'cloudshell-application-api-replica-2'.",
+            result.Message);
+        Assert.Equal(
+            [
+                "Stop:cloudshell-application-api-replica-2",
+                "Start:cloudshell-application-api-replica-2"
+            ],
+            provider.ExecutedInstanceActions.ToArray());
+        Assert.Equal(
+            ResourceActionKind.Start,
+            Assert.Single(provider.PreparedActions).Kind);
+        var events = resourceEvents
+            .GetEvents(new ResourceEventQuery(ResourceId: resource.Id))
+            .Reverse()
+            .ToArray();
+        Assert.Equal(
+            [
+                ResourceEventTypes.Events.ReplicaManagement.SlotUnhealthy,
+                ResourceEventTypes.Events.ReplicaManagement.OccupantCrashed,
+                ResourceEventTypes.Events.ReplicaManagement.ReplacementScheduled,
+                ResourceEventTypes.Events.ReplicaManagement.ReplacementMaterializing,
+                ResourceEventTypes.Events.ReplicaManagement.ReplacementMaterialized
+            ],
+            events.Select(resourceEvent => resourceEvent.EventType).ToArray());
+        Assert.All(
+            events,
+            resourceEvent => Assert.Equal("tests", resourceEvent.TriggeredBy));
+        Assert.Contains(
+            events,
+            resourceEvent =>
+                resourceEvent.EventType == ResourceEventTypes.Events.ReplicaManagement.SlotUnhealthy &&
+                resourceEvent.Message.Contains("Connection refused.", StringComparison.Ordinal));
+    }
+
     private static ResourceDeploymentService CreateDeployments(
         Resource resource,
         RecordingServiceProcedureProvider provider,
@@ -593,12 +646,14 @@ public sealed class ResourceOrchestrationDeploymentTests
 
     private static ResourceOrchestrationService CreateOrchestration(
         Resource resource,
-        RecordingServiceProcedureProvider provider) =>
-        CreateOrchestration([resource], provider);
+        RecordingServiceProcedureProvider provider,
+        IResourceEventSink? resourceEvents = null) =>
+        CreateOrchestration([resource], provider, resourceEvents);
 
     private static ResourceOrchestrationService CreateOrchestration(
         IReadOnlyList<Resource> resources,
-        RecordingServiceProcedureProvider provider)
+        RecordingServiceProcedureProvider provider,
+        IResourceEventSink? resourceEvents = null)
     {
         var registrations = new TestResourceRegistrationStore(
             resources.Select(resource =>
@@ -609,7 +664,8 @@ public sealed class ResourceOrchestrationDeploymentTests
             new TestResourceManagerStore(resources, provider),
             registrations,
             new ResourceDeclarationStore(),
-            CreateSelectionStore());
+            CreateSelectionStore(),
+            resourceEvents: resourceEvents);
     }
 
     private static Resource CreateResource(
@@ -694,6 +750,8 @@ public sealed class ResourceOrchestrationDeploymentTests
 
         public ConcurrentQueue<string> ExecutedInstanceActions { get; } = [];
 
+        public ResourceOrchestratorService? OrchestratorService { get; init; }
+
         public IReadOnlyList<Resource> GetResources() => resources;
 
         public bool CanExecuteOrchestratorService(
@@ -704,7 +762,8 @@ public sealed class ResourceOrchestrationDeploymentTests
         public Task<ResourceOrchestratorService> CreateOrchestratorServiceAsync(
             ResourceProcedureContext context,
             CancellationToken cancellationToken = default) =>
-            throw new InvalidOperationException("The deployment spec should provide the service.");
+            Task.FromResult(OrchestratorService ??
+                throw new InvalidOperationException("The deployment spec should provide the service."));
 
         public async Task PrepareOrchestratorServiceAsync(
             ResourceOrchestratorServiceProcedureContext context,

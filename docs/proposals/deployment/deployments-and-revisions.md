@@ -1218,6 +1218,16 @@ For shared or split-hosted environments, it should follow the primary
 controller/worker direction so multiple Control Plane API replicas do not all
 try to repair the same slot concurrently.
 
+The local MVP now has a first reconciler path: when liveness aggregation
+detects that an active parent resource is degraded because a runtime replica
+slot no longer responds, Resource Manager asks orchestration to reconcile that
+specific slot. For `ReplaceOccupant`, the provider removes the failed occupant
+and starts a replacement for the same slot. This proves the slot boundary and
+event model, but it is intentionally not the final controller design: durable
+attempt tracking, backoff, max-attempt enforcement, route draining, leader
+election for split-hosted control planes, and recording reconciliation
+observations as Environment history remain follow-up work.
+
 ## Docker Compose Orchestrator Behavior
 
 The Docker Compose orchestrator should map the common deployment model to Docker Compose constructs.

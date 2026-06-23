@@ -1,4 +1,5 @@
 @using System.Globalization
+@implements IDisposable
 @inject ApplicationResourceService ApplicationProvider
 @inject IResourceHealthManager HealthManager
 @inject IResourceDeploymentManager Deployments
@@ -19,14 +20,34 @@ else if (!ApplicationResourceTypes.IsContainerApp(Application.ResourceType))
 else
 {
     <section class="blade-section">
-        <h3>Scale and replicas</h3>
+        <div class="blade-section-header">
+            <div>
+                <h3>Scale and replicas</h3>
+            </div>
+            <GeneratedRowActions>
+                <FluentCheckbox @bind-Value="AutoRefresh">
+                    Auto-refresh
+                </FluentCheckbox>
+                @if (!AutoRefresh)
+                {
+                    <FluentButton Appearance="Appearance.Neutral"
+                                  IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                                  Disabled="@IsRefreshing"
+                                  OnClick="RefreshAsync">
+                        @(IsRefreshing ? "Refreshing" : "Refresh")
+                    </FluentButton>
+                }
+            </GeneratedRowActions>
+        </div>
         <dl class="detail-list">
             <dt>Mode</dt>
             <dd>@(EnableReplicas ? "Replicated" : "Single instance")</dd>
-            <dt>Configured replicas</dt>
+            <dt>Requested replica slots</dt>
             <dd>@(EnableReplicas ? Replicas.ToString(CultureInfo.InvariantCulture) : "not enabled")</dd>
-            <dt>Materialized replicas</dt>
-            <dd>@(EnableReplicas ? MaterializedReplicas.Count.ToString(CultureInfo.InvariantCulture) : "not enabled")</dd>
+            <dt>Replica slots</dt>
+            <dd>@(EnableReplicas ? ReplicaSlots.Count.ToString(CultureInfo.InvariantCulture) : "not enabled")</dd>
+            <dt>Occupied slots</dt>
+            <dd>@(EnableReplicas ? OccupiedReplicaSlots.ToString(CultureInfo.InvariantCulture) : "not enabled")</dd>
         </dl>
 
         <FluentCheckbox Disabled="@IsReadOnly" @bind-Value="EnableReplicas">
@@ -95,7 +116,7 @@ else
     @if (EnableReplicas)
     {
         <section class="blade-section">
-            <h3>Replica set</h3>
+            <h3>Replica group</h3>
             @if (ProjectedResource is null)
             {
                 <EmptyState Title="Replicas are unavailable"
@@ -117,18 +138,19 @@ else
         </section>
 
         <section class="blade-section">
-            <h3>Replicas</h3>
-            @if (MaterializedReplicas.Count == 0)
+            <h3>Replica slots</h3>
+            @if (ReplicaSlots.Count == 0)
             {
-                <EmptyState Title="No replicas are materialized"
-                            Message="The provider has not materialized runtime replica resources for this app." />
+                <EmptyState Title="No replica slots are projected"
+                            Message="The provider has not projected requested replica slots for this app." />
             }
             else
             {
                 <ResourceTable>
                         <thead>
                             <tr>
-                                <th>Replica</th>
+                                <th>Slot</th>
+                                <th>Occupant</th>
                                 <th>State</th>
                                 <th>Health</th>
                                 <th>Revision</th>
@@ -138,38 +160,58 @@ else
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var replica in MaterializedReplicas)
+                            @foreach (var slot in ReplicaSlots)
                             {
+                                var replica = slot.Occupant;
                                 <tr>
                                     <td>
                                         <ResourceTableIdentity IconName="replica"
-                                                               IconTitle="Replica"
-                                                               Title="@replica.Name"
-                                                               Summary="@FormatReplicaOrdinal(replica)" />
+                                                               IconTitle="Replica slot"
+                                                               Title="@slot.Label"
+                                                               Summary="@GetSlotSummary(slot)" />
                                     </td>
                                     <td>
-                                        <ResourceStateIndicator State="replica.State" Variant="pill" />
+                                        @if (replica is null)
+                                        {
+                                            <strong>Vacant</strong>
+                                            <div class="table-subtext">No active replica</div>
+                                        }
+                                        else
+                                        {
+                                            <strong>@replica.Name</strong>
+                                            <div class="table-subtext">@FormatReplicaOrdinal(replica)</div>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (replica is null)
+                                        {
+                                            <span class="table-subtext">Vacant</span>
+                                        }
+                                        else
+                                        {
+                                            <ResourceStateIndicator State="replica.State" Variant="pill" />
+                                        }
                                     </td>
                                     <td>
                                         @{
-                                            var health = GetReplicaHealth(replica);
+                                            var health = replica is null ? null : GetReplicaHealth(replica);
                                         }
                                         <div class="replica-health-assessment">
                                             <HealthPill Status="health?.Status" />
-                                            <span>@GetHealthDetail(replica, health)</span>
-                                            @if (health is not null && health.Checks.Count > 0)
+                                            <span>@GetSlotHealthDetail(slot, health)</span>
+                                            @if (replica is not null && health is not null && health.Checks.Count > 0)
                                             {
                                                 <small>@GetHealthBreakdown(health)</small>
                                                 <small>@FormatCheckedAt(health.CheckedAt)</small>
                                             }
                                         </div>
                                     </td>
-                                    <td>@GetAttribute(replica, ResourceAttributeNames.RuntimeRevision, replica.Version)</td>
+                                    <td>@(replica is null ? "not materialized" : GetAttribute(replica, ResourceAttributeNames.RuntimeRevision, replica.Version))</td>
                                     <td>
-                                        <strong>@GetAttribute(replica, ResourceAttributeNames.RuntimeContainerName, replica.Name)</strong>
+                                        <strong>@(replica is null ? "not materialized" : GetAttribute(replica, ResourceAttributeNames.RuntimeContainerName, replica.Name))</strong>
                                     </td>
-                                    <td>@GetMaterializationLabel(replica)</td>
-                                    <td>@GetAttribute(replica, ResourceAttributeNames.ContainerHostId, "default host")</td>
+                                    <td>@(replica is null ? "vacant slot" : GetMaterializationLabel(replica))</td>
+                                    <td>@(replica is null ? "not assigned" : GetAttribute(replica, ResourceAttributeNames.ContainerHostId, "default host"))</td>
                                 </tr>
                             }
                         </tbody>
@@ -240,6 +282,7 @@ else
     private ApplicationResourceDefinition? Application { get; set; }
     private Resource? ProjectedResource { get; set; }
     private IReadOnlyList<Resource> MaterializedReplicas { get; set; } = [];
+    private IReadOnlyList<ReplicaSlotView> ReplicaSlots { get; set; } = [];
     private IReadOnlyList<ResourceDeploymentRecord> DeploymentRecords { get; set; } = [];
     private IReadOnlyDictionary<string, ResourceHealthSummary> HealthResults { get; set; } =
         new Dictionary<string, ResourceHealthSummary>(StringComparer.OrdinalIgnoreCase);
@@ -247,8 +290,13 @@ else
     private bool EnableReplicas { get; set; }
     private int Replicas { get; set; } = 2;
     private bool IsUpdatingReplicas { get; set; }
+    private bool IsRefreshing { get; set; }
+    private bool IsDisposed { get; set; }
+    private bool AutoRefresh { get; set; } = true;
     private string? ReplicaUpdateMessage { get; set; }
     private ResourceSignalSeverity? ReplicaUpdateSeverity { get; set; }
+    private System.Threading.Timer? RefreshTimer { get; set; }
+    private static readonly TimeSpan AutoRefreshInterval = TimeSpan.FromSeconds(5);
     private static readonly ResourceViewId ScalingViewId =
         new(ResourceTabGroupIds.Application, "scale-replicas");
 
@@ -263,6 +311,9 @@ else
         ApplicationResourceTypes.IsContainerApp(Application.ResourceType) &&
         Math.Max(1, Replicas) != Math.Max(1, Application.Replicas);
 
+    private int OccupiedReplicaSlots =>
+        ReplicaSlots.Count(slot => slot.Occupant is not null);
+
     private string BuildAddLoadBalancerRoute() =>
         Application is null
             ? ResourceManagerRoutes.Resources
@@ -270,7 +321,58 @@ else
                 Application,
                 ScalingViewId);
 
+    protected override void OnInitialized()
+    {
+        RefreshTimer = new System.Threading.Timer(
+            _ =>
+            {
+                if (!IsDisposed && AutoRefresh)
+                {
+                    _ = InvokeAsync(RefreshAsync);
+                }
+            },
+            null,
+            AutoRefreshInterval,
+            AutoRefreshInterval);
+    }
+
     protected override async Task OnParametersSetAsync()
+    {
+        await RefreshAsync(refreshHealth: false);
+
+        if (Configuration is not null &&
+            !ReferenceEquals(Configuration, RegisteredConfiguration))
+        {
+            Configuration.SetApplyHandler(ApplyAsync);
+            RegisteredConfiguration = Configuration;
+        }
+    }
+
+    private Task RefreshAsync() => RefreshAsync(refreshHealth: true);
+
+    private async Task RefreshAsync(bool refreshHealth)
+    {
+        if (IsDisposed || IsRefreshing)
+        {
+            return;
+        }
+
+        IsRefreshing = true;
+        try
+        {
+            await LoadAsync(refreshHealth);
+        }
+        finally
+        {
+            IsRefreshing = false;
+            if (!IsDisposed)
+            {
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
+    private async Task LoadAsync(bool refreshHealth)
     {
         Application = string.IsNullOrWhiteSpace(ResourceId)
             ? null
@@ -285,6 +387,12 @@ else
                 .OrderBy(GetReplicaOrdinal)
                 .ThenBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
                 .ToArray();
+        ReplicaSlots = CreateReplicaSlots(ProjectedResource, Application, MaterializedReplicas);
+        if (refreshHealth && !string.IsNullOrWhiteSpace(ResourceId))
+        {
+            await HealthManager.RefreshResourceHealthAsync(ResourceId);
+        }
+
         HealthResults = MaterializedReplicas.Count == 0
             ? new Dictionary<string, ResourceHealthSummary>(StringComparer.OrdinalIgnoreCase)
             : await HealthManager.ListResourceHealthAsync();
@@ -300,13 +408,6 @@ else
             Replicas = EnableReplicas
                 ? Math.Max(1, Application.Replicas)
                 : Math.Max(2, Application.Replicas);
-        }
-
-        if (Configuration is not null &&
-            !ReferenceEquals(Configuration, RegisteredConfiguration))
-        {
-            Configuration.SetApplyHandler(ApplyAsync);
-            RegisteredConfiguration = Configuration;
         }
     }
 
@@ -412,6 +513,7 @@ else
             DeploymentRecords = await Deployments.ListResourceDeploymentsAsync(new ResourceDeploymentQuery(
                 SourceResourceId: applicationId,
                 MaxRecords: 10));
+            ReplicaSlots = CreateReplicaSlots(ProjectedResource, Application, MaterializedReplicas);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -439,9 +541,66 @@ else
     private static int GetReplicaOrdinal(Resource resource) =>
         int.TryParse(
             GetAttribute(resource, ResourceAttributeNames.RuntimeReplicaOrdinal, string.Empty),
+            NumberStyles.Integer,
+            CultureInfo.InvariantCulture,
             out var ordinal)
             ? ordinal
             : int.MaxValue;
+
+    private static IReadOnlyList<ReplicaSlotView> CreateReplicaSlots(
+        Resource? resource,
+        ApplicationResourceDefinition? application,
+        IReadOnlyList<Resource> replicas)
+    {
+        var requestedSlots = GetRequestedReplicaSlots(resource, application);
+        var maxReplicaOrdinal = replicas
+            .Select(GetReplicaOrdinal)
+            .Where(ordinal => ordinal != int.MaxValue)
+            .DefaultIfEmpty(0)
+            .Max();
+        var slotCount = Math.Max(requestedSlots, maxReplicaOrdinal);
+        if (slotCount == 0)
+        {
+            return [];
+        }
+
+        var replicasByOrdinal = replicas
+            .Where(replica => GetReplicaOrdinal(replica) != int.MaxValue)
+            .GroupBy(GetReplicaOrdinal)
+            .ToDictionary(group => group.Key, group => group.First());
+        return Enumerable
+            .Range(1, slotCount)
+            .Select(ordinal =>
+            {
+                replicasByOrdinal.TryGetValue(ordinal, out var occupant);
+                return new ReplicaSlotView(ordinal, slotCount, occupant);
+            })
+            .ToArray();
+    }
+
+    private static int GetRequestedReplicaSlots(
+        Resource? resource,
+        ApplicationResourceDefinition? application)
+    {
+        if (resource is not null &&
+            TryGetReplicaCount(resource, ResourceAttributeNames.DeploymentRequestedReplicaSlots) is { } requestedSlots)
+        {
+            return requestedSlots;
+        }
+
+        if (application is not null && application.ReplicasEnabled)
+        {
+            return Math.Max(1, application.Replicas);
+        }
+
+        return 0;
+    }
+
+    private static int? TryGetReplicaCount(Resource resource, string attributeName) =>
+        resource.ResourceAttributes.TryGetValue(attributeName, out var value) &&
+        int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var count)
+            ? Math.Max(0, count)
+            : null;
 
     private static string FormatReplicaOrdinal(Resource resource)
     {
@@ -449,6 +608,18 @@ else
         var count = GetAttribute(resource, ResourceAttributeNames.RuntimeReplicaCount, "?");
         return $"{ordinal} of {count}";
     }
+
+    private static string GetSlotSummary(ReplicaSlotView slot) =>
+        slot.Occupant is null
+            ? "No active replica"
+            : $"Replica {slot.Ordinal.ToString(CultureInfo.InvariantCulture)} of {slot.SlotCount.ToString(CultureInfo.InvariantCulture)}";
+
+    private static string GetSlotHealthDetail(
+        ReplicaSlotView slot,
+        ResourceHealthSummary? health) =>
+        slot.Occupant is null
+            ? "No active replica"
+            : GetHealthDetail(slot.Occupant, health);
 
     private static string GetMaterializationLabel(Resource resource) =>
         GetAttribute(resource, ResourceAttributeNames.RuntimeMaterialization, "unknown") switch
@@ -540,4 +711,21 @@ else
         string.Create(
             CultureInfo.InvariantCulture,
             $"Checked {checkedAt.LocalDateTime:g}");
+
+    private sealed record ReplicaSlotView(
+        int Ordinal,
+        int SlotCount,
+        Resource? Occupant)
+    {
+        public string Label =>
+            string.Create(
+                CultureInfo.InvariantCulture,
+                $"Slot {Ordinal}/{SlotCount}");
+    }
+
+    public void Dispose()
+    {
+        IsDisposed = true;
+        RefreshTimer?.Dispose();
+    }
 }

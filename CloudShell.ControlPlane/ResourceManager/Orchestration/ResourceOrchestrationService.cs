@@ -8,6 +8,8 @@ using CloudShell.ControlPlane.ResourceManager.Observability;
 using CloudShell.ControlPlane.ResourceManager.Platform;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using System.Collections.Concurrent;
+using System.Globalization;
 using System.Text.Json;
 
 namespace CloudShell.ControlPlane.ResourceManager.Orchestration;
@@ -31,6 +33,8 @@ public sealed class ResourceOrchestrationService(
         descriptorProviders.ToArray();
     private readonly IReadOnlyList<IResourceActionAvailabilityProvider> actionAvailabilityProviders =
         actionAvailabilityProviders?.ToArray() ?? [];
+    private readonly ConcurrentDictionary<string, byte> activeReplicaSlotReconciliations =
+        new(StringComparer.OrdinalIgnoreCase);
     private readonly IContainerHostResolver containerHostResolver =
         containerHostResolver ??
         new ContainerHostResolver(
@@ -102,6 +106,56 @@ public sealed class ResourceOrchestrationService(
         return await tearDown.TearDownReplicaGroupAsync(context, service, replicaGroup, cancellationToken);
     }
 
+    public async Task<ResourceProcedureResult> ReconcileReplicaSlotAsync(
+        Resource resource,
+        int slotOrdinal,
+        string? detail = null,
+        CancellationToken cancellationToken = default,
+        string? triggeredBy = null)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        if (slotOrdinal < 1)
+        {
+            throw new ControlPlaneException(
+                ControlPlaneError.InvalidRequest("Replica slot ordinal must be greater than or equal to 1."));
+        }
+
+        var context = CreateContext(resource, triggeredBy, detail);
+        var provider = ResourceOrchestratorProviderResolver.GetServiceProcedureProvider(context, ResourceAction.Start)
+            ?? throw new ControlPlaneException(
+                ControlPlaneError.ResourceActionUnsupported(context.Resource.Name));
+        var resourceContext = ResourceOrchestratorProviderResolver.CreateProcedureContext(context);
+        var service = await provider.CreateOrchestratorServiceAsync(resourceContext, cancellationToken);
+        var replicaGroup = ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service);
+        var slot = replicaGroup.Slots.FirstOrDefault(candidate => candidate.Ordinal == slotOrdinal)
+            ?? throw new ControlPlaneException(
+                ControlPlaneError.InvalidRequest(
+                    $"Replica group '{replicaGroup.Id}' does not define slot '{slotOrdinal.ToString(System.Globalization.CultureInfo.InvariantCulture)}'."));
+        var key = $"{resource.Id}:{replicaGroup.Id}:{slot.Ordinal.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+        if (!activeReplicaSlotReconciliations.TryAdd(key, 0))
+        {
+            return ResourceProcedureResult.Completed(
+                $"Replica slot '{slot.Ordinal.ToString(System.Globalization.CultureInfo.InvariantCulture)}' reconciliation is already running.");
+        }
+
+        try
+        {
+            return await ReconcileReplicaSlotCoreAsync(
+                provider,
+                resourceContext,
+                service,
+                replicaGroup,
+                slot,
+                detail,
+                triggeredBy,
+                cancellationToken);
+        }
+        finally
+        {
+            activeReplicaSlotReconciliations.TryRemove(key, out _);
+        }
+    }
+
     public async Task<ResourceProcedureResult> ExecuteActionAsync(
         Resource resource,
         ResourceAction action,
@@ -165,6 +219,69 @@ public sealed class ResourceOrchestrationService(
             cause,
             notifyResourceChange);
         return AddDependencyWarnings(result, dependencyWarnings);
+    }
+
+    private async Task<ResourceProcedureResult> ReconcileReplicaSlotCoreAsync(
+        IResourceOrchestratorServiceProcedureProvider provider,
+        ResourceProcedureContext resourceContext,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup replicaGroup,
+        ResourceOrchestratorReplicaSlot slot,
+        string? detail,
+        string? triggeredBy,
+        CancellationToken cancellationToken)
+    {
+        AppendReplicaManagementEvent(
+            resourceContext.Resource,
+            ResourceEventTypes.Events.ReplicaManagement.SlotUnhealthy,
+            $"Replica group '{replicaGroup.Id}' slot {FormatReplicaSlot(slot)} is unhealthy. {detail ?? "No detail was provided."}",
+            triggeredBy,
+            ResourceSignalSeverity.Warning);
+
+        var occupant = slot.Occupant;
+        if (occupant is null)
+        {
+            AppendReplicaManagementEvent(
+                resourceContext.Resource,
+                ResourceEventTypes.Events.ReplicaManagement.SlotVacant,
+                $"Replica group '{replicaGroup.Id}' slot {FormatReplicaSlot(slot)} is vacant.",
+                triggeredBy,
+                ResourceSignalSeverity.Warning);
+        }
+        else
+        {
+            AppendReplicaManagementEvent(
+                resourceContext.Resource,
+                ResourceEventTypes.Events.ReplicaManagement.OccupantCrashed,
+                $"Replica group '{replicaGroup.Id}' slot {FormatReplicaSlot(slot)} occupant '{occupant.Name}' is not healthy.",
+                triggeredBy,
+                ResourceSignalSeverity.Warning);
+        }
+
+        var policy = replicaGroup.EffectiveManagementPolicy;
+        return policy.RestartMode switch
+        {
+            ResourceOrchestratorReplicaRestartMode.LeaveVacant =>
+                LeaveReplicaSlotVacant(resourceContext.Resource, replicaGroup, slot, triggeredBy),
+            ResourceOrchestratorReplicaRestartMode.RestartOccupant =>
+                await RestartReplicaSlotOccupantAsync(
+                    provider,
+                    resourceContext,
+                    service,
+                    replicaGroup,
+                    slot,
+                    triggeredBy,
+                    cancellationToken),
+            _ =>
+                await ReplaceReplicaSlotOccupantAsync(
+                    provider,
+                    resourceContext,
+                    service,
+                    replicaGroup,
+                    slot,
+                    triggeredBy,
+                    cancellationToken)
+        };
     }
 
     private async Task<ResourceProcedureResult> ExecuteActionCoreAsync(
@@ -540,6 +657,154 @@ public sealed class ResourceOrchestrationService(
 
     private static string GetActionEventType(ResourceAction action) =>
         ResourceEventTypes.Actions.ForAction(action.Id);
+
+    private ResourceProcedureResult LeaveReplicaSlotVacant(
+        Resource resource,
+        ResourceOrchestratorReplicaGroup replicaGroup,
+        ResourceOrchestratorReplicaSlot slot,
+        string? triggeredBy)
+    {
+        var message =
+            $"Replica group '{replicaGroup.Id}' slot {FormatReplicaSlot(slot)} was left vacant by policy.";
+        AppendReplicaManagementEvent(
+            resource,
+            ResourceEventTypes.Events.ReplicaManagement.SlotLeftVacant,
+            message,
+            triggeredBy,
+            ResourceSignalSeverity.Warning);
+        return ResourceProcedureResult.Completed(message);
+    }
+
+    private async Task<ResourceProcedureResult> RestartReplicaSlotOccupantAsync(
+        IResourceOrchestratorServiceProcedureProvider provider,
+        ResourceProcedureContext resourceContext,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup replicaGroup,
+        ResourceOrchestratorReplicaSlot slot,
+        string? triggeredBy,
+        CancellationToken cancellationToken)
+    {
+        var occupant = RequireReplicaSlotOccupant(replicaGroup, slot);
+        AppendReplicaManagementEvent(
+            resourceContext.Resource,
+            ResourceEventTypes.Events.ReplicaManagement.RestartScheduled,
+            $"Replica group '{replicaGroup.Id}' slot {FormatReplicaSlot(slot)} occupant '{occupant.Name}' restart was scheduled.",
+            triggeredBy,
+            ResourceSignalSeverity.Warning);
+        AppendReplicaManagementEvent(
+            resourceContext.Resource,
+            ResourceEventTypes.Events.ReplicaManagement.RestartAttempted,
+            $"Replica group '{replicaGroup.Id}' slot {FormatReplicaSlot(slot)} occupant '{occupant.Name}' restart started.",
+            triggeredBy,
+            ResourceSignalSeverity.Warning);
+
+        try
+        {
+            await provider.ExecuteOrchestratorServiceInstanceAsync(
+                new ResourceOrchestratorServiceInstanceContext(resourceContext, service, occupant, replicaGroup),
+                ResourceAction.Start,
+                cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            AppendReplicaManagementEvent(
+                resourceContext.Resource,
+                ResourceEventTypes.Events.ReplicaManagement.ReconciliationFailed,
+                $"Replica group '{replicaGroup.Id}' slot {FormatReplicaSlot(slot)} restart failed: {exception.Message}",
+                triggeredBy,
+                ResourceSignalSeverity.Error);
+            throw;
+        }
+
+        return ResourceProcedureResult.Completed(
+            $"Restarted replica group '{replicaGroup.Id}' slot {FormatReplicaSlot(slot)} occupant '{occupant.Name}'.");
+    }
+
+    private async Task<ResourceProcedureResult> ReplaceReplicaSlotOccupantAsync(
+        IResourceOrchestratorServiceProcedureProvider provider,
+        ResourceProcedureContext resourceContext,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup replicaGroup,
+        ResourceOrchestratorReplicaSlot slot,
+        string? triggeredBy,
+        CancellationToken cancellationToken)
+    {
+        var occupant = RequireReplicaSlotOccupant(replicaGroup, slot);
+        AppendReplicaManagementEvent(
+            resourceContext.Resource,
+            ResourceEventTypes.Events.ReplicaManagement.ReplacementScheduled,
+            $"Replica group '{replicaGroup.Id}' slot {FormatReplicaSlot(slot)} occupant '{occupant.Name}' replacement was scheduled.",
+            triggeredBy,
+            ResourceSignalSeverity.Warning);
+
+        try
+        {
+            await provider.ExecuteOrchestratorServiceInstanceAsync(
+                new ResourceOrchestratorServiceInstanceContext(resourceContext, service, occupant, replicaGroup),
+                ResourceAction.Stop,
+                cancellationToken);
+            AppendReplicaManagementEvent(
+                resourceContext.Resource,
+                ResourceEventTypes.Events.ReplicaManagement.ReplacementMaterializing,
+                $"Replica group '{replicaGroup.Id}' slot {FormatReplicaSlot(slot)} replacement occupant '{occupant.Name}' is materializing.",
+                triggeredBy,
+                ResourceSignalSeverity.Warning);
+            await provider.PrepareOrchestratorServiceAsync(
+                new ResourceOrchestratorServiceProcedureContext(resourceContext, service, replicaGroup),
+                ResourceAction.Start,
+                cancellationToken);
+            await provider.ExecuteOrchestratorServiceInstanceAsync(
+                new ResourceOrchestratorServiceInstanceContext(resourceContext, service, occupant, replicaGroup),
+                ResourceAction.Start,
+                cancellationToken);
+            AppendReplicaManagementEvent(
+                resourceContext.Resource,
+                ResourceEventTypes.Events.ReplicaManagement.ReplacementMaterialized,
+                $"Replica group '{replicaGroup.Id}' slot {FormatReplicaSlot(slot)} replacement occupant '{occupant.Name}' materialized.",
+                triggeredBy,
+                ResourceSignalSeverity.Success);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            AppendReplicaManagementEvent(
+                resourceContext.Resource,
+                ResourceEventTypes.Events.ReplicaManagement.ReconciliationFailed,
+                $"Replica group '{replicaGroup.Id}' slot {FormatReplicaSlot(slot)} replacement failed: {exception.Message}",
+                triggeredBy,
+                ResourceSignalSeverity.Error);
+            throw;
+        }
+
+        return ResourceProcedureResult.Completed(
+            $"Replaced replica group '{replicaGroup.Id}' slot {FormatReplicaSlot(slot)} occupant '{occupant.Name}'.");
+    }
+
+    private static ResourceOrchestratorServiceInstance RequireReplicaSlotOccupant(
+        ResourceOrchestratorReplicaGroup replicaGroup,
+        ResourceOrchestratorReplicaSlot slot) =>
+        slot.Occupant ??
+        throw new ControlPlaneException(
+            ControlPlaneError.InvalidRequest(
+                $"Replica group '{replicaGroup.Id}' slot {FormatReplicaSlot(slot)} does not have an occupant to reconcile."));
+
+    private void AppendReplicaManagementEvent(
+        Resource resource,
+        string eventType,
+        string message,
+        string? triggeredBy,
+        ResourceSignalSeverity severity) =>
+        resourceEvents?.Append(new ResourceEvent(
+            resource.Id,
+            eventType,
+            message,
+            DateTimeOffset.UtcNow,
+            triggeredBy,
+            severity));
+
+    private static string FormatReplicaSlot(ResourceOrchestratorReplicaSlot slot) =>
+        string.Create(
+            CultureInfo.InvariantCulture,
+            $"{slot.Ordinal}/{slot.SlotCount}");
 
     private static ResourceLifecycleEventTypes? GetLifecycleEventTypes(ResourceAction action) =>
         action.Kind switch
