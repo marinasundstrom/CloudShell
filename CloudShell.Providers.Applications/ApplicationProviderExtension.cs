@@ -59,6 +59,7 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
         builder.Services.TryAddSingleton<SqlServerDatabaseInspectionService>();
         builder.Services.TryAddSingleton<SqlServerCredentialResolutionService>();
         builder.Services.TryAddSingleton<SqlServerGrantStatusService>();
+        builder.Services.TryAddSingleton<SqlServerDatabaseReconciliationService>();
         builder.Services.TryAddSingleton<ApplicationResourceService>();
         builder.Services.TryAddSingleton<IApplicationResourceManagementOperations>(
             serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceService>());

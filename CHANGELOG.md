@@ -48,6 +48,9 @@ on `git blame --follow`, and then by the broad type of change.
 - SQL Server permission grant status inspection now lives in
   `SqlServerGrantStatusService` behind the SQL Server provider operation
   contract.
+- SQL Server database and access reconciliation now lives in
+  `SqlServerDatabaseReconciliationService`, leaving the application service to
+  trigger reconciliation from lifecycle actions.
 
 ### 2026-06-23
 

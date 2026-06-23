@@ -180,6 +180,8 @@ without forcing provider-specific logic into shared helpers.
   `SqlServerCredentialResolutionService`.
 - [x] Move SQL Server permission grant status inspection into
   `SqlServerGrantStatusService`.
+- [x] Move SQL Server database and access reconciliation into
+  `SqlServerDatabaseReconciliationService`.
 
 ## Next Slices
 
