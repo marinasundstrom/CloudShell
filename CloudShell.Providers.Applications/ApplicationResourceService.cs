@@ -1,7 +1,6 @@
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Logging;
 using CloudShell.Abstractions.Logs;
-using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Client.Authentication;
 using System.Collections.Concurrent;
@@ -38,7 +37,6 @@ public sealed partial class ApplicationResourceService(
     ILoggerFactory? loggerFactory = null,
     ApplicationResourceDefinitionNormalizer? definitionNormalizer = null,
     ApplicationResourceDefinitionRegistrationService? applicationDefinitionRegistrations = null) :
-    IResourceMonitoringProvider,
     IApplicationResourceProjectionSource,
     IApplicationResourceRunningStateOperations,
     IApplicationResourceProcedureOperations,

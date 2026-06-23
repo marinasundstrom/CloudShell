@@ -3833,7 +3833,7 @@ public sealed class ResourceDeclarationTests
 
         Assert.Contains(
             serviceProvider.GetRequiredService<IEnumerable<IResourceMonitoringProvider>>(),
-            provider => provider is ApplicationResourceService);
+            provider => provider.GetType().Name == "ApplicationResourceMonitoringProvider");
     }
 
     [Fact]
@@ -3870,10 +3870,13 @@ public sealed class ResourceDeclarationTests
         var worker = Assert.Single(resources, resource => resource.Id == "application:worker");
         var api = Assert.Single(resources, resource => resource.Id == "application:api");
         var redis = Assert.Single(resources, resource => resource.Id == "application:redis");
+        var monitoring = serviceProvider
+            .GetRequiredService<IEnumerable<IResourceMonitoringProvider>>()
+            .Single(provider => provider.CanMonitor(worker));
 
-        Assert.True(provider.CanMonitor(worker));
-        Assert.True(provider.CanMonitor(api));
-        Assert.True(provider.CanMonitor(redis));
+        Assert.True(monitoring.CanMonitor(worker));
+        Assert.True(monitoring.CanMonitor(api));
+        Assert.True(monitoring.CanMonitor(redis));
         Assert.True(worker.HasCapability(ResourceCapabilityIds.LogSources));
         Assert.True(api.HasCapability(ResourceCapabilityIds.LogSources));
         Assert.True(redis.HasCapability(ResourceCapabilityIds.LogSources));
@@ -3887,7 +3890,7 @@ public sealed class ResourceDeclarationTests
         Assert.True(api.HasCapability(ResourceCapabilityIds.Monitoring));
         Assert.True(redis.HasCapability(ResourceCapabilityIds.Monitoring));
 
-        var snapshot = await provider.GetMonitoringSnapshotAsync(worker);
+        var snapshot = await monitoring.GetMonitoringSnapshotAsync(worker);
 
         Assert.NotNull(snapshot);
         Assert.Equal(worker.Id, snapshot.ResourceId);
@@ -3947,13 +3950,16 @@ public sealed class ResourceDeclarationTests
         using var serviceProvider = services.BuildServiceProvider();
         var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
         var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:redis");
+        var monitoring = serviceProvider
+            .GetRequiredService<IEnumerable<IResourceMonitoringProvider>>()
+            .Single(provider => provider.CanMonitor(resource));
 
-        Assert.True(provider.CanMonitor(resource));
+        Assert.True(monitoring.CanMonitor(resource));
         Assert.True(resource.HasCapability(ResourceCapabilityIds.LogSources));
         AssertDefaultApplicationLogSource(resource);
         Assert.True(resource.HasCapability(ResourceCapabilityIds.Monitoring));
 
-        var snapshot = await provider.GetMonitoringSnapshotAsync(resource);
+        var snapshot = await monitoring.GetMonitoringSnapshotAsync(resource);
 
         Assert.NotNull(snapshot);
         Assert.Equal(resource.Id, snapshot.ResourceId);
@@ -3987,25 +3993,29 @@ public sealed class ResourceDeclarationTests
 
         using var serviceProvider = services.BuildServiceProvider();
         var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
-        var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
-        var replica = provider.GetResources()
+        var resources = provider.GetResources();
+        var resource = Assert.Single(resources, resource => resource.Id == "application:api");
+        var replica = resources
             .Where(resource =>
                 string.Equals(resource.ParentResourceId, "application:api", StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(resource.EffectiveTypeId, "runtime.container", StringComparison.OrdinalIgnoreCase))
             .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
             .First();
+        var monitoring = serviceProvider
+            .GetRequiredService<IEnumerable<IResourceMonitoringProvider>>()
+            .Single(provider => provider.CanMonitor(resource));
 
-        Assert.True(provider.CanMonitor(resource));
+        Assert.True(monitoring.CanMonitor(resource));
         Assert.True(resource.HasCapability(ResourceCapabilityIds.Monitoring));
-        var parentSnapshot = await provider.GetMonitoringSnapshotAsync(resource);
+        var parentSnapshot = await monitoring.GetMonitoringSnapshotAsync(resource);
         Assert.NotNull(parentSnapshot);
         Assert.Equal(resource.Id, parentSnapshot.ResourceId);
         Assert.Equal("Unavailable", parentSnapshot.Status);
         Assert.Empty(parentSnapshot.Metrics);
         Assert.True(replica.HasCapability(ResourceCapabilityIds.Monitoring));
-        Assert.True(provider.CanMonitor(replica));
+        Assert.True(monitoring.CanMonitor(replica));
 
-        var snapshot = await provider.GetMonitoringSnapshotAsync(replica);
+        var snapshot = await monitoring.GetMonitoringSnapshotAsync(replica);
 
         Assert.NotNull(snapshot);
         Assert.Equal(replica.Id, snapshot.ResourceId);

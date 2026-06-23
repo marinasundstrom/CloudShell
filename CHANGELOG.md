@@ -89,6 +89,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Application app-setting and environment-variable configuration providers now
   use a dedicated settings provider instead of the shared application resource
   service.
+- Application process and container monitoring now use a dedicated monitoring
+  provider instead of the shared application resource service.
 
 ### 2026-06-23
 

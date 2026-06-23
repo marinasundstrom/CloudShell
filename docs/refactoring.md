@@ -219,13 +219,17 @@ without forcing provider-specific logic into shared helpers.
 - [x] Move application app-setting and environment-variable configuration
   provider behavior to a focused settings provider instead of the shared
   application resource service facade.
+- [x] Move application process and container monitoring behavior to a focused
+  monitoring provider instead of the shared application resource service
+  facade.
 
 ## Next Slices
 
-- [ ] Split `ApplicationResourceService` by separating resource-type concerns:
-  definition/declaration, change application, lifecycle, projection/listing,
-  logs, monitoring, and runtime support. The shared application infrastructure
-  should provide reusable toolkit pieces, not be the resource inventory owner.
+- [ ] Continue splitting `ApplicationResourceService` by separating remaining
+  resource-type concerns: change application, lifecycle, projection/listing,
+  action availability, container app orchestration hooks, and runtime support.
+  The shared application infrastructure should provide reusable toolkit
+  pieces, not be the resource inventory owner.
 - [ ] Define the Resource Manager distinction between declared resource
   inventory and provider/runtime projections before changing `GetResources()`
   semantics. The unified graph can still include both, but code should know
