@@ -266,6 +266,15 @@ Service/Deployment-style objects, and the default local runner uses the
 container app identity as the implicit service identity for convention named
 replica containers.
 
+Within that service boundary, revisions need their own runtime replica grouping.
+The grouping lets an orchestrator track the replica resources that materialize a
+specific service revision, including requested count, materialized count,
+readiness, routing membership, and cleanup state. It is an internal
+orchestrator/runtime concept, not a Kubernetes ReplicaSet copied into the
+CloudShell domain model. The structure is intentionally similar only where the
+problem is similar: CloudShell tracks resource instances as the materialized
+units instead of introducing a pod concept.
+
 The orchestrator deployment and revision abstractions are the shared lower
 layer for applying runtime intent. An orchestrator deployment represents the
 desired runtime state for a resource, as specified by the actor deploying the

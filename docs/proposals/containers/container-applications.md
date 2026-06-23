@@ -120,6 +120,12 @@ be projected as child resources for diagnostics by a host provider, but image
 updates, replica updates, lifecycle actions, storage, identity, and exposure
 configuration should target the container app resource.
 
+Revision-scoped container app replicas should be tracked as a group within the
+orchestrator service boundary. That group is what lets the orchestrator
+understand which runtime replicas belong to the current revision, which belong
+to a candidate or superseded revision, and which replicas should participate in
+routing, diagnostics, readiness, drain, and cleanup.
+
 ## Managed-Service Configuration Surface
 
 Resource Manager should treat the container app as the main configuration
@@ -192,7 +198,8 @@ Implemented pieces include:
   deployment-apply boundary for future container app runtime materialization
 * deployment-applied container app replicas use revision-scoped runtime
   container names so a new image revision can materialize beside the currently
-  serving revision before ingress/routing cutover
+  serving revision before ingress/routing cutover. This is the first local
+  implementation of the broader revision-scoped replica grouping model.
 * the container app provider retires superseded local runtime replicas through
   the default orchestrator deployment finalization hook after the replacement
   revision has been materialized and routing milestones have been recorded

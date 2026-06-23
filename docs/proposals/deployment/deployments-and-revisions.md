@@ -430,6 +430,17 @@ A Deployment defines the desired versioned runtime state for that Service.
 A Revision represents the concrete materialized outcome of executing that
 Deployment.
 
+Within a service, each materialized revision should have an orchestrator-owned
+replica grouping. This grouping is not a Kubernetes ReplicaSet and should not be
+introduced as a normal user-authored Resource Manager resource. The structure
+can look similar to Kubernetes because it needs to group runtime instances by
+revision, but CloudShell should reuse resource instances as the unit rather
+than inventing a pod concept. It is the runtime boundary that lets the
+orchestrator track which replica resources belong to one service revision,
+compare requested and materialized replica count, observe readiness, remap
+routing from one revision's replicas to another, and retire superseded replicas
+after cutover.
+
 The service, deployment, and revision concepts are intentionally provider
 neutral. The default local orchestrator maps them to convention-named
 containers and ingress configuration. A Docker Compose orchestrator can map
@@ -443,11 +454,16 @@ Example:
 ```text
 Service: api
  ├── Active Revision: api-r12
+ │    └── Replica Group
+ │         ├── api-r12-1
+ │         ├── api-r12-2
+ │         └── api-r12-3
  ├── Previous Revision: api-r11
- └── Replicas:
-      ├── api-1
-      ├── api-2
-      └── api-3
+ │    └── Replica Group
+ │         ├── api-r11-1
+ │         ├── api-r11-2
+ │         └── api-r11-3
+ └── Routing: active -> api-r12
 ```
 
 The Service remains the runtime grouping primitive.
@@ -461,6 +477,11 @@ revision-scoped targets, and later drain or remove the superseded runtime
 instances. Ordinary active-revision scaling can still use stable instance
 identity because it is capacity management for the current revision rather than
 a workload replacement.
+
+The current revision-scoped replica names are only the first materialization of
+this grouping. The durable model should track the group explicitly enough that
+runtime replica resources can be associated with their deployment service and
+revision across materialization, readiness, cutover, diagnostics, and cleanup.
 
 Deployment finalization is an orchestrator-provider boundary. The common
 orchestrator decides when finalization runs in the apply sequence, after the new
@@ -813,7 +834,8 @@ ContainerApp
 8. Add revision history storage.
 9. Integrate deployments with the default orchestrator.
 10. Integrate deployments with the Docker Compose orchestrator.
-11. Associate replicas and runtime-managed resources with revisions.
+11. Associate replicas and runtime-managed resources with revision-scoped
+    replica groups.
 12. Add diagnostics APIs for deployment and revision inspection.
 13. Add Resource Manager projection for active deployment state.
 14. Add lifecycle tests for create, deploy image, scale active revision,
@@ -828,6 +850,8 @@ ContainerApp
 * Define the boundary between scale-only operations that preserve the active
   revision and deployment operations that include requested replica count in a
   new revision.
+* Define the revision-scoped replica grouping model that tracks runtime replica
+  resources within a deployment service across revisions.
 * Define how long revisions are retained.
 * Define restore behavior for each orchestrator. Restoring an old app revision
   should create a new deployment sourced from that revision, not reactivate the
