@@ -96,6 +96,8 @@ on `git blame --follow`, and then by the broad type of change.
   history.
 - Container app deployment-applied planning now lives in a container-app-owned
   planner with direct tests for recording materialized environment revisions.
+- Container app deployment store, revision service, and orchestrator deployment
+  factory files now live under the `ContainerApp` provider directory.
 - The deployment proposal now clarifies that deployment definitions describe
   resource intent through resource definitions and provider-owned attributes,
   with serialized formats treated as projections of that model.

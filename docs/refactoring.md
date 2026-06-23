@@ -102,6 +102,9 @@ without forcing provider-specific logic into shared helpers.
 - [x] Extract container app deployment-applied planning into a container-app
   unit that owns recording the materialized environment revision on the app
   definition.
+- [x] Move container app deployment store, revision service, and orchestrator
+  deployment factory files under the `ContainerApp` provider directory so the
+  source layout reflects provider-owned implementation.
 
 ## Next Slices
 
