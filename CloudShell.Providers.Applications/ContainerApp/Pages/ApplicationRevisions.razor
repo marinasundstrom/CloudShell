@@ -49,7 +49,11 @@ else
                     </div>
                     <div>
                         <dt>Revision</dt>
-                        <dd>@Shorten(CurrentRevision.Id)</dd>
+                        <dd>@FormatRevisionNumber(CurrentRevision)</dd>
+                    </div>
+                    <div>
+                        <dt>Provisioned by</dt>
+                        <dd>@FormatProvisionedBy(CurrentRevision)</dd>
                     </div>
                 </dl>
             </div>
@@ -69,7 +73,7 @@ else
                 <div class="@GetRevisionCssClass(revision)">
                     <FluentIcon Value="@GetSeverityIcon(GetRevisionSeverity(revision))" />
                     <div class="generated-diagnostic-content">
-                        <strong>@revision.Image</strong>
+                        <strong>@FormatRevisionNumber(revision)</strong>
                         <span>@FormatRevisionHeadline(revision)</span>
                         <small>@FormatRevisionMetadata(revision)</small>
                     </div>
@@ -118,15 +122,19 @@ else
         {
             $"Requested replicas: {revision.RequestedReplicas.ToString(CultureInfo.InvariantCulture)}",
             $"Change: {FormatChangeKind(revision.ChangeKind)}",
-            $"Revision: {revision.Id}"
+            $"Revision id: {revision.Id}"
         };
-        if (!string.IsNullOrWhiteSpace(revision.SourceRevisionId))
+        if (revision.RevisionNumber > 0)
         {
-            parts.Add($"From: {revision.SourceRevisionId}");
+            parts.Add($"Revision number: {revision.RevisionNumber.ToString(CultureInfo.InvariantCulture)}");
         }
-        if (!string.IsNullOrWhiteSpace(revision.TriggeredBy))
+        if (!string.IsNullOrWhiteSpace(revision.BasedOnRevisionId))
         {
-            parts.Add($"By: {revision.TriggeredBy}");
+            parts.Add($"Based on: {revision.BasedOnRevisionId}");
+        }
+        if (!string.IsNullOrWhiteSpace(revision.ProvisionedBy))
+        {
+            parts.Add($"Provisioned by: {revision.ProvisionedBy}");
         }
         if (!string.IsNullOrWhiteSpace(revision.DeploymentId))
         {
@@ -138,13 +146,23 @@ else
 
     private static string FormatRevisionCreated(ApplicationContainerRevisionHistoryEntry revision)
     {
-        var actor = string.IsNullOrWhiteSpace(revision.TriggeredBy)
+        var actor = string.IsNullOrWhiteSpace(revision.ProvisionedBy)
             ? "system"
-            : revision.TriggeredBy;
+            : revision.ProvisionedBy;
         return string.Create(
             CultureInfo.CurrentCulture,
-            $"Created {revision.CreatedAt.ToLocalTime():g} by {actor}.");
+            $"Created {revision.CreatedAt.ToLocalTime():g}. Provisioned by {actor}.");
     }
+
+    private static string FormatRevisionNumber(ApplicationContainerRevisionHistoryEntry revision) =>
+        revision.RevisionNumber > 0
+            ? string.Create(CultureInfo.InvariantCulture, $"Revision {revision.RevisionNumber}")
+            : "Revision";
+
+    private static string FormatProvisionedBy(ApplicationContainerRevisionHistoryEntry revision) =>
+        string.IsNullOrWhiteSpace(revision.ProvisionedBy)
+            ? "system"
+            : revision.ProvisionedBy;
 
     private static string FormatChangeKind(string changeKind) =>
         string.Equals(changeKind, ApplicationContainerRevisionChangeKinds.ImageDeployment, StringComparison.OrdinalIgnoreCase)
@@ -195,8 +213,4 @@ else
             _ => new Icons.Regular.Size20.Info()
         };
 
-    private static string Shorten(string value) =>
-        value.Length <= 18
-            ? value
-            : string.Concat(value.AsSpan(0, 15), "...");
 }

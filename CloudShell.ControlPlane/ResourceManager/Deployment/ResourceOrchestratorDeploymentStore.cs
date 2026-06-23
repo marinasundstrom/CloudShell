@@ -76,7 +76,7 @@ public sealed class InMemoryResourceOrchestratorDeploymentStore : IResourceOrche
         ArgumentNullException.ThrowIfNull(deployment);
 
         var revisionNumber = revisionNumbers.AddOrUpdate(
-            CreateRevisionNumberKey(deployment.SourceResourceId, deployment.Id),
+            CreateRevisionNumberKey(deployment.SourceResourceId, deployment.ServiceId),
             1,
             (_, current) => current + 1);
         return new ResourceOrchestratorRevision(
@@ -232,8 +232,8 @@ public sealed class InMemoryResourceOrchestratorDeploymentStore : IResourceOrche
 
     private static string CreateRevisionNumberKey(
         string sourceResourceId,
-        string deploymentId) =>
-        string.Join('\u001f', sourceResourceId, deploymentId);
+        string serviceId) =>
+        string.Join('\u001f', sourceResourceId, serviceId);
 
     private static string? Normalize(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();

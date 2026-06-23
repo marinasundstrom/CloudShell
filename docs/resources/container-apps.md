@@ -145,6 +145,10 @@ versioned as a revision, but revision details stay one level deeper than the
 default deployment workflow. Runtime materialization is requested through the
 internal orchestrator deployment-apply boundary; the container app domain
 records app revisions and does not directly replace replicas or remap ingress.
+The tab displays the app-local `RevisionNumber` as the user-facing revision
+identifier and keeps the unique revision id in revision metadata for
+traceability. Revision metadata also records who provisioned the deployment
+that produced the materialized app state.
 When restore support is added, restoring to a prior app state should create a
 new deployment whose requested state is based on the state captured by the
 selected revision. The selected revision remains an immutable state record, and

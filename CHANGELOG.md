@@ -88,6 +88,12 @@ on `git blame --follow`, and then by the broad type of change.
   based-on revision ids for restore-like deployments. Revision outcomes also
   carry `ProvisionedBy` so the materialized snapshot records who provisioned
   the deployment that produced it.
+- Orchestrator revision `Id` is documented as the CloudShell-wide unique
+  identifier, while `RevisionNumber` is now treated as the service-scoped
+  chronological ordinal for revision history.
+- Container app revision records now carry app-local revision numbers and the
+  provisioned-by actor, and the Revisions tab uses the revision number as the
+  visible identifier while retaining the unique revision id in metadata.
 - Resource Manager deployment coordination now lives separately from
   orchestration execution under dedicated Deployment and Orchestration
   namespaces, with the default deployment service reusable for orchestrators

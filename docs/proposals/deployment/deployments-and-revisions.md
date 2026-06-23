@@ -415,6 +415,12 @@ public sealed class OrchestratorRevision
 
 The deployment model should represent the orchestrator’s computed workload intent, not the full user-facing resource graph.
 
+An orchestrator revision has a CloudShell-wide unique `Id`. It also has a
+`RevisionNumber`, which is the ordinal for the orchestrator service, not the
+global identity. `CreatedAt` records when the snapshot was produced, and
+`ProvisionedBy` records who provisioned the deployment that produced the
+revision.
+
 For change tracking, the restore relationship should be represented as:
 
 ```text
@@ -625,8 +631,8 @@ A revision should allow CloudShell to determine:
 * which deployment produced the revision
 * who provisioned the deployment that produced the revision
 * which prior revision logically preceded it through `BasedOnRevisionId`
-* where the revision belongs in chronological order through `RevisionNumber`
-  and `CreatedAt`
+* where the revision belongs in service-local chronological order through
+  `RevisionNumber` and `CreatedAt`
 * which resource change caused the revision
 
 ### Restore To Revision State

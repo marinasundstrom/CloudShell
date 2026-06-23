@@ -128,19 +128,19 @@ public sealed class ContainerBackedApplicationResourceDefinitionNormalizationRul
                 Image = NormalizeNullable(revision.Image) ?? NormalizeNullable(definition.ContainerImage) ?? "unresolved",
                 RequestedReplicas = Math.Max(1, revision.RequestedReplicas),
                 ChangeKind = NormalizeNullable(revision.ChangeKind) ?? ApplicationContainerRevisionChangeKinds.ImageDeployment,
-                SourceRevisionId = NormalizeNullable(revision.SourceRevisionId),
-                TriggeredBy = NormalizeNullable(revision.TriggeredBy)
+                BasedOnRevisionId = NormalizeNullable(revision.BasedOnRevisionId),
+                ProvisionedBy = NormalizeNullable(revision.ProvisionedBy),
+                RevisionNumber = Math.Max(0, revision.RevisionNumber)
             })
             .DistinctBy(revision => revision.Id, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
         if (revisions.Any(revision => string.Equals(revision.Id, containerRevision, StringComparison.OrdinalIgnoreCase)))
         {
-            return revisions;
+            return AssignRevisionNumbers(revisions);
         }
 
-        return
-        [
+        return AssignRevisionNumbers([
             ..revisions,
             new ApplicationContainerRevision(
                 containerRevision,
@@ -148,7 +148,20 @@ public sealed class ContainerBackedApplicationResourceDefinitionNormalizationRul
                 Math.Max(1, definition.Replicas),
                 DateTimeOffset.UtcNow,
                 ApplicationContainerRevisionChangeKinds.Initial)
-        ];
+        ]);
+    }
+
+    private static IReadOnlyList<ApplicationContainerRevision> AssignRevisionNumbers(
+        IReadOnlyList<ApplicationContainerRevision> revisions)
+    {
+        var numbers = revisions
+            .OrderBy(revision => revision.CreatedAt)
+            .ThenBy(revision => revision.Id, StringComparer.OrdinalIgnoreCase)
+            .Select((revision, index) => new { revision.Id, Number = index + 1 })
+            .ToDictionary(item => item.Id, item => item.Number, StringComparer.OrdinalIgnoreCase);
+        return revisions
+            .Select(revision => revision with { RevisionNumber = numbers[revision.Id] })
+            .ToArray();
     }
 
     private static bool IsContainerBacked(ApplicationResourceDefinition application) =>

@@ -57,7 +57,7 @@ public sealed class ApplicationContainerDeploymentStore
     public void RecordDeployment(
         ApplicationContainerDeployment deployment,
         ApplicationContainerRevisionHistoryEntry revision,
-        ApplicationContainerRevisionHistoryEntry? sourceRevision = null)
+        ApplicationContainerRevisionHistoryEntry? basedOnRevision = null)
     {
         ArgumentNullException.ThrowIfNull(deployment);
         ArgumentNullException.ThrowIfNull(revision);
@@ -84,10 +84,10 @@ public sealed class ApplicationContainerDeploymentStore
                         : existing)
                 .ToList();
 
-            if (sourceRevision is not null &&
-                revisions.All(existing => !IsSameApplicationRevision(existing, sourceRevision)))
+            if (basedOnRevision is not null &&
+                revisions.All(existing => !IsSameApplicationRevision(existing, basedOnRevision)))
             {
-                revisions.Add(sourceRevision);
+                revisions.Add(basedOnRevision);
             }
 
             revisions.RemoveAll(existing => IsSameApplicationRevision(existing, revision));
@@ -103,7 +103,7 @@ public sealed class ApplicationContainerDeploymentStore
         string applicationId,
         string deploymentId,
         string revisionId,
-        string? sourceRevisionId = null)
+        string? basedOnRevisionId = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(applicationId);
         ArgumentException.ThrowIfNullOrWhiteSpace(deploymentId);
@@ -132,8 +132,8 @@ public sealed class ApplicationContainerDeploymentStore
                         return revision with { Status = ApplicationContainerRevisionStatuses.Failed };
                     }
 
-                    if (!string.IsNullOrWhiteSpace(sourceRevisionId) &&
-                        string.Equals(revision.Id, sourceRevisionId, StringComparison.OrdinalIgnoreCase))
+                    if (!string.IsNullOrWhiteSpace(basedOnRevisionId) &&
+                        string.Equals(revision.Id, basedOnRevisionId, StringComparison.OrdinalIgnoreCase))
                     {
                         return revision with { Status = ApplicationContainerRevisionStatuses.Active };
                     }
@@ -220,7 +220,7 @@ public sealed record ApplicationContainerDeployment(
     string Id,
     string ApplicationId,
     string RevisionId,
-    string? SourceRevisionId,
+    string? BasedOnRevisionId,
     string Image,
     int RequestedReplicas,
     DateTimeOffset CreatedAt,
@@ -243,9 +243,10 @@ public sealed record ApplicationContainerRevisionHistoryEntry(
     DateTimeOffset CreatedAt,
     string Status,
     string ChangeKind,
-    string? SourceRevisionId = null,
-    string? TriggeredBy = null,
-    string? DeploymentId = null);
+    string? BasedOnRevisionId = null,
+    string? ProvisionedBy = null,
+    string? DeploymentId = null,
+    int RevisionNumber = 0);
 
 public static class ApplicationContainerRevisionStatuses
 {

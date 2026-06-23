@@ -78,28 +78,28 @@ public sealed partial class ApplicationResourceService
             .FirstOrDefault(deployment =>
                 string.Equals(deployment.OrchestratorDeploymentId, applyResult.Deployment.Id, StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(deployment.RevisionId, applyResult.Deployment.RevisionId, StringComparison.OrdinalIgnoreCase));
-        var sourceRevisionId = NormalizeNullable(appDeployment?.SourceRevisionId);
-        if (sourceRevisionId is null ||
-            string.Equals(sourceRevisionId, applyResult.Deployment.RevisionId, StringComparison.OrdinalIgnoreCase))
+        var basedOnRevisionId = NormalizeNullable(appDeployment?.BasedOnRevisionId);
+        if (basedOnRevisionId is null ||
+            string.Equals(basedOnRevisionId, applyResult.Deployment.RevisionId, StringComparison.OrdinalIgnoreCase))
         {
             return Task.FromResult<IReadOnlyList<ResourceOrchestratorReplicaGroupTearDownRequest>>([]);
         }
 
-        var sourceRevision = containerDeployments
+        var basedOnRevision = containerDeployments
             .ListRevisions(application.Id)
             .FirstOrDefault(revision =>
-                string.Equals(revision.Id, sourceRevisionId, StringComparison.OrdinalIgnoreCase));
+                string.Equals(revision.Id, basedOnRevisionId, StringComparison.OrdinalIgnoreCase));
         var sourceService = CreateSupersededContainerOrchestratorService(
             application,
-            sourceRevisionId,
-            sourceRevision);
+            basedOnRevisionId,
+            basedOnRevision);
         var sourceReplicaGroup = CreateDefaultContainerReplicaGroup(sourceService);
         return Task.FromResult<IReadOnlyList<ResourceOrchestratorReplicaGroupTearDownRequest>>(
             [
                 new ResourceOrchestratorReplicaGroupTearDownRequest(
                     sourceService,
                     sourceReplicaGroup,
-                    $"Image deployment retired superseded container app revision '{sourceRevisionId}'.")
+                    $"Image deployment retired superseded container app revision '{basedOnRevisionId}'.")
             ]);
     }
 
@@ -116,31 +116,31 @@ public sealed partial class ApplicationResourceService
             .FirstOrDefault(candidate =>
                 string.Equals(candidate.OrchestratorDeploymentId, deployment.Id, StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(candidate.RevisionId, deployment.RevisionId, StringComparison.OrdinalIgnoreCase));
-        var sourceRevisionId =
-            NormalizeNullable(appDeployment?.SourceRevisionId) ??
+        var basedOnRevisionId =
+            NormalizeNullable(appDeployment?.BasedOnRevisionId) ??
             application.ContainerRevisions
                 .FirstOrDefault(revision =>
                     string.Equals(revision.Id, deployment.RevisionId, StringComparison.OrdinalIgnoreCase))
-                ?.SourceRevisionId;
+                ?.BasedOnRevisionId;
 
         containerDeployments.RecordDeploymentFailed(
             application.Id,
             appDeployment?.Id ?? deployment.Id,
             deployment.RevisionId,
-            sourceRevisionId);
+            basedOnRevisionId);
 
-        if (!string.IsNullOrWhiteSpace(sourceRevisionId))
+        if (!string.IsNullOrWhiteSpace(basedOnRevisionId))
         {
-            var sourceRevision = application.ContainerRevisions.FirstOrDefault(revision =>
-                string.Equals(revision.Id, sourceRevisionId, StringComparison.OrdinalIgnoreCase));
-            if (sourceRevision is not null)
+            var basedOnRevision = application.ContainerRevisions.FirstOrDefault(revision =>
+                string.Equals(revision.Id, basedOnRevisionId, StringComparison.OrdinalIgnoreCase));
+            if (basedOnRevision is not null)
             {
                 var restored = NormalizeDefinition(application with
                 {
-                    ContainerImage = sourceRevision.Image,
-                    ContainerRevision = sourceRevision.Id,
-                    Replicas = Math.Max(1, sourceRevision.RequestedReplicas),
-                    ReplicasEnabled = sourceRevision.RequestedReplicas > 1,
+                    ContainerImage = basedOnRevision.Image,
+                    ContainerRevision = basedOnRevision.Id,
+                    Replicas = Math.Max(1, basedOnRevision.RequestedReplicas),
+                    ReplicasEnabled = basedOnRevision.RequestedReplicas > 1,
                     ContainerRevisions = application.ContainerRevisions
                         .Where(revision => !string.Equals(
                             revision.Id,
@@ -165,14 +165,14 @@ public sealed partial class ApplicationResourceService
 
     private ResourceOrchestratorService CreateSupersededContainerOrchestratorService(
         ApplicationResourceDefinition application,
-        string sourceRevisionId,
-        ApplicationContainerRevisionHistoryEntry? sourceRevision)
+        string basedOnRevisionId,
+        ApplicationContainerRevisionHistoryEntry? basedOnRevision)
     {
         var sourceReplicas = Math.Max(
             1,
-            sourceRevision?.RequestedReplicas ??
+            basedOnRevision?.RequestedReplicas ??
             application.ContainerRevisions.FirstOrDefault(revision =>
-                string.Equals(revision.Id, sourceRevisionId, StringComparison.OrdinalIgnoreCase))
+                string.Equals(revision.Id, basedOnRevisionId, StringComparison.OrdinalIgnoreCase))
                 ?.RequestedReplicas ??
             application.Replicas);
         var service = CreateDefaultContainerOrchestratorService(application);
@@ -183,9 +183,9 @@ public sealed partial class ApplicationResourceService
                 Replicas = sourceReplicas,
                 ReplicasEnabled = sourceReplicas > 1
             },
-            RuntimeRevisionId = string.IsNullOrWhiteSpace(sourceRevision?.DeploymentId)
+            RuntimeRevisionId = string.IsNullOrWhiteSpace(basedOnRevision?.DeploymentId)
                 ? null
-                : sourceRevisionId
+                : basedOnRevisionId
         };
     }
 

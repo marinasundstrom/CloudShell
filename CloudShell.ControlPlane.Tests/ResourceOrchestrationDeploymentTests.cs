@@ -246,14 +246,18 @@ public sealed class ResourceOrchestrationDeploymentTests
     }
 
     [Fact]
-    public async Task ApplyDeploymentAsync_IncrementsOrchestratorRevisionNumberForSameDeployment()
+    public async Task ApplyDeploymentAsync_IncrementsOrchestratorRevisionNumberForSameService()
     {
         var resource = CreateResource();
         var provider = new RecordingServiceProcedureProvider(resource);
         var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();
         var deployments = CreateDeployments(resource, provider, deploymentStore: deploymentStore);
         var firstDeployment = CreateDeployment(resource.Id, "default", replicas: 1);
-        var secondDeployment = firstDeployment with { RevisionId = "rev-3" };
+        var secondDeployment = firstDeployment with
+        {
+            Id = "custom-deployment",
+            RevisionId = "rev-3"
+        };
 
         var firstResult = await deployments.ApplyDeploymentAsync(resource, firstDeployment);
         var secondResult = await deployments.ApplyDeploymentAsync(resource, secondDeployment);
@@ -268,8 +272,7 @@ public sealed class ResourceOrchestrationDeploymentTests
         Assert.Null(secondResult.Revision.ProvisionedBy);
         Assert.True(firstResult.Revision.CreatedAt <= secondResult.Revision.CreatedAt);
         var records = deploymentStore.List(new ResourceOrchestratorDeploymentQuery(
-            SourceResourceId: resource.Id,
-            DeploymentId: firstDeployment.Id));
+            SourceResourceId: resource.Id));
         Assert.Equal(2, records.Count);
         Assert.Equal(
             ["rev-2", "rev-3"],

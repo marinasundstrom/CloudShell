@@ -10695,7 +10695,7 @@ public sealed class ResourceDeclarationTests
             revision => revision.Id == updated.ContainerRevision);
         var currentDeployment = Assert.Single(provider.GetContainerDeployments("application:api"));
         var revisionHistory = provider.GetContainerRevisions("application:api");
-        var sourceRevisionHistory = Assert.Single(
+        var basedOnRevisionHistory = Assert.Single(
             revisionHistory,
             revision => revision.Id == originalRevision);
         var currentRevisionHistory = Assert.Single(
@@ -10705,24 +10705,28 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(ApplicationContainerRevisionChangeKinds.ImageDeployment, currentRevisionRecord.ChangeKind);
         Assert.Equal("example/api:20260608", currentRevisionRecord.Image);
         Assert.Equal(2, currentRevisionRecord.RequestedReplicas);
-        Assert.Equal(originalRevision, currentRevisionRecord.SourceRevisionId);
-        Assert.Equal("build-server", currentRevisionRecord.TriggeredBy);
+        Assert.Equal(originalRevision, currentRevisionRecord.BasedOnRevisionId);
+        Assert.Equal("build-server", currentRevisionRecord.ProvisionedBy);
+        Assert.Equal(2, currentRevisionRecord.RevisionNumber);
         Assert.StartsWith("dep-", currentDeployment.Id);
         Assert.Equal("application:api", currentDeployment.ApplicationId);
         Assert.Equal(updated.ContainerRevision, currentDeployment.RevisionId);
-        Assert.Equal(originalRevision, currentDeployment.SourceRevisionId);
+        Assert.Equal(originalRevision, currentDeployment.BasedOnRevisionId);
         Assert.Equal("example/api:20260608", currentDeployment.Image);
         Assert.Equal(2, currentDeployment.RequestedReplicas);
         Assert.Equal(ApplicationContainerDeploymentStatuses.Completed, currentDeployment.Status);
         Assert.Equal(ApplicationContainerRevisionChangeKinds.ImageDeployment, currentDeployment.ChangeKind);
         Assert.Equal("build-server", currentDeployment.TriggeredBy);
         Assert.Equal("cloudshell-application-api-deployment", currentDeployment.OrchestratorDeploymentId);
-        Assert.Equal(ApplicationContainerRevisionStatuses.Superseded, sourceRevisionHistory.Status);
-        Assert.Equal(ApplicationContainerRevisionChangeKinds.Initial, sourceRevisionHistory.ChangeKind);
+        Assert.Equal(ApplicationContainerRevisionStatuses.Superseded, basedOnRevisionHistory.Status);
+        Assert.Equal(ApplicationContainerRevisionChangeKinds.Initial, basedOnRevisionHistory.ChangeKind);
         Assert.Equal(ApplicationContainerRevisionStatuses.Active, currentRevisionHistory.Status);
         Assert.Equal(currentDeployment.Id, currentRevisionHistory.DeploymentId);
-        Assert.Equal(originalRevision, currentRevisionHistory.SourceRevisionId);
+        Assert.Equal(originalRevision, currentRevisionHistory.BasedOnRevisionId);
         Assert.Equal("example/api:20260608", currentRevisionHistory.Image);
+        Assert.Equal("build-server", currentRevisionHistory.ProvisionedBy);
+        Assert.Equal(1, basedOnRevisionHistory.RevisionNumber);
+        Assert.Equal(2, currentRevisionHistory.RevisionNumber);
         var runtimeReplicas = provider.GetResources()
             .Where(replica => string.Equals(replica.ParentResourceId, "application:api", StringComparison.OrdinalIgnoreCase))
             .OrderBy(replica => replica.ResourceAttributes[ResourceAttributeNames.RuntimeReplicaOrdinal])
@@ -10746,7 +10750,7 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
-    public async Task ContainerApplicationProvider_RestoresSourceRevisionWhenDeploymentApplyFails()
+    public async Task ContainerApplicationProvider_RestoresBasedOnRevisionWhenDeploymentApplyFails()
     {
         var services = new ServiceCollection();
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
@@ -10817,11 +10821,11 @@ public sealed class ResourceDeclarationTests
 
         var failedDeployment = Assert.Single(provider.GetContainerDeployments("application:api"));
         var revisions = provider.GetContainerRevisions("application:api");
-        var sourceRevisionHistory = Assert.Single(revisions, revision => revision.Id == originalRevision);
+        var basedOnRevisionHistory = Assert.Single(revisions, revision => revision.Id == originalRevision);
         var failedRevisionHistory = Assert.Single(revisions, revision => revision.Id == failedRevision);
 
         Assert.Equal(ApplicationContainerDeploymentStatuses.Failed, failedDeployment.Status);
-        Assert.Equal(ApplicationContainerRevisionStatuses.Active, sourceRevisionHistory.Status);
+        Assert.Equal(ApplicationContainerRevisionStatuses.Active, basedOnRevisionHistory.Status);
         Assert.Equal(ApplicationContainerRevisionStatuses.Failed, failedRevisionHistory.Status);
     }
 

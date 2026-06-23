@@ -22,13 +22,13 @@ public sealed partial class ApplicationResourceService
         var revisions = containerDeployments.ListRevisions(applicationId);
         if (revisions.Count > 0)
         {
-            return revisions;
+            return AssignContainerRevisionHistoryNumbers(revisions);
         }
 
         var application = GetApplication(applicationId);
         return application is null
             ? []
-            : CreateContainerRevisionHistoryEntries(application);
+            : AssignContainerRevisionHistoryNumbers(CreateContainerRevisionHistoryEntries(application));
     }
 
     public bool CanApplyDeclaration(ResourceDeclaration declaration) =>

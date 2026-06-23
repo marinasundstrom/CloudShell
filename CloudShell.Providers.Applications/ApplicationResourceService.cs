@@ -482,13 +482,15 @@ public sealed partial class ApplicationResourceService(
                 triggeredBy)
         });
         store.Save(updated);
-        var sourceRevisionId = NormalizeNullable(application.ContainerRevision);
+        var basedOnRevisionId = NormalizeNullable(application.ContainerRevision);
+        var currentRevisionRecord = updated.ContainerRevisions.First(revision =>
+            string.Equals(revision.Id, nextRevision, StringComparison.OrdinalIgnoreCase));
         containerDeployments.RecordDeployment(
             new ApplicationContainerDeployment(
                 deploymentId,
                 application.Id,
                 nextRevision,
-                sourceRevisionId,
+                basedOnRevisionId,
                 normalizedImage,
                 requestedReplicaCount,
                 createdAt,
@@ -504,10 +506,11 @@ public sealed partial class ApplicationResourceService(
                 createdAt,
                 ApplicationContainerRevisionStatuses.Active,
                 ApplicationContainerRevisionChangeKinds.ImageDeployment,
-                sourceRevisionId,
+                basedOnRevisionId,
                 NormalizeNullable(triggeredBy),
-                deploymentId),
-            CreateSourceContainerRevisionHistoryEntry(application, sourceRevisionId));
+                deploymentId,
+                currentRevisionRecord.RevisionNumber),
+            CreateBasedOnContainerRevisionHistoryEntry(application, basedOnRevisionId));
 
         resourceEvents?.Append(new ResourceEvent(
             application.Id,
@@ -5069,12 +5072,12 @@ public sealed partial class ApplicationResourceService(
         string? triggeredBy)
     {
         var revisions = application.ContainerRevisions.ToList();
-        var sourceRevisionId = NormalizeNullable(application.ContainerRevision);
-        if (!string.IsNullOrWhiteSpace(sourceRevisionId) &&
-            revisions.All(revision => !string.Equals(revision.Id, sourceRevisionId, StringComparison.OrdinalIgnoreCase)))
+        var basedOnRevisionId = NormalizeNullable(application.ContainerRevision);
+        if (!string.IsNullOrWhiteSpace(basedOnRevisionId) &&
+            revisions.All(revision => !string.Equals(revision.Id, basedOnRevisionId, StringComparison.OrdinalIgnoreCase)))
         {
             revisions.Add(new ApplicationContainerRevision(
-                sourceRevisionId,
+                basedOnRevisionId,
                 NormalizeNullable(application.ContainerImage) ?? "unresolved",
                 Math.Max(1, application.Replicas),
                 DateTimeOffset.UtcNow,
@@ -5089,32 +5092,33 @@ public sealed partial class ApplicationResourceService(
             Math.Max(1, requestedReplicas),
             DateTimeOffset.UtcNow,
             changeKind,
-            sourceRevisionId,
+            basedOnRevisionId,
             NormalizeNullable(triggeredBy)));
-        return revisions;
+        return AssignContainerRevisionNumbers(revisions);
     }
 
-    private static ApplicationContainerRevisionHistoryEntry? CreateSourceContainerRevisionHistoryEntry(
+    private static ApplicationContainerRevisionHistoryEntry? CreateBasedOnContainerRevisionHistoryEntry(
         ApplicationResourceDefinition application,
-        string? sourceRevisionId)
+        string? basedOnRevisionId)
     {
-        if (string.IsNullOrWhiteSpace(sourceRevisionId))
+        if (string.IsNullOrWhiteSpace(basedOnRevisionId))
         {
             return null;
         }
 
-        var sourceRevision = application.ContainerRevisions.FirstOrDefault(revision =>
-            string.Equals(revision.Id, sourceRevisionId, StringComparison.OrdinalIgnoreCase));
+        var basedOnRevision = application.ContainerRevisions.FirstOrDefault(revision =>
+            string.Equals(revision.Id, basedOnRevisionId, StringComparison.OrdinalIgnoreCase));
         return new ApplicationContainerRevisionHistoryEntry(
-            sourceRevisionId,
+            basedOnRevisionId,
             application.Id,
-            NormalizeNullable(sourceRevision?.Image) ?? NormalizeNullable(application.ContainerImage) ?? "unresolved",
-            Math.Max(1, sourceRevision?.RequestedReplicas ?? application.Replicas),
-            sourceRevision?.CreatedAt ?? DateTimeOffset.UtcNow,
+            NormalizeNullable(basedOnRevision?.Image) ?? NormalizeNullable(application.ContainerImage) ?? "unresolved",
+            Math.Max(1, basedOnRevision?.RequestedReplicas ?? application.Replicas),
+            basedOnRevision?.CreatedAt ?? DateTimeOffset.UtcNow,
             ApplicationContainerRevisionStatuses.Superseded,
-            NormalizeNullable(sourceRevision?.ChangeKind) ?? ApplicationContainerRevisionChangeKinds.Initial,
-            NormalizeNullable(sourceRevision?.SourceRevisionId),
-            NormalizeNullable(sourceRevision?.TriggeredBy));
+            NormalizeNullable(basedOnRevision?.ChangeKind) ?? ApplicationContainerRevisionChangeKinds.Initial,
+            NormalizeNullable(basedOnRevision?.BasedOnRevisionId),
+            NormalizeNullable(basedOnRevision?.ProvisionedBy),
+            RevisionNumber: Math.Max(0, basedOnRevision?.RevisionNumber ?? 0));
     }
 
     private static IReadOnlyList<ApplicationContainerRevisionHistoryEntry> CreateContainerRevisionHistoryEntries(
@@ -5131,9 +5135,36 @@ public sealed partial class ApplicationResourceService(
                     ? ApplicationContainerRevisionStatuses.Active
                     : ApplicationContainerRevisionStatuses.Superseded,
                 NormalizeNullable(revision.ChangeKind) ?? ApplicationContainerRevisionChangeKinds.ImageDeployment,
-                NormalizeNullable(revision.SourceRevisionId),
-                NormalizeNullable(revision.TriggeredBy)))
+                NormalizeNullable(revision.BasedOnRevisionId),
+                NormalizeNullable(revision.ProvisionedBy),
+                RevisionNumber: Math.Max(0, revision.RevisionNumber)))
             .ToArray();
+
+    private static IReadOnlyList<ApplicationContainerRevision> AssignContainerRevisionNumbers(
+        IReadOnlyList<ApplicationContainerRevision> revisions)
+    {
+        var numbers = revisions
+            .OrderBy(revision => revision.CreatedAt)
+            .ThenBy(revision => revision.Id, StringComparer.OrdinalIgnoreCase)
+            .Select((revision, index) => new { revision.Id, Number = index + 1 })
+            .ToDictionary(item => item.Id, item => item.Number, StringComparer.OrdinalIgnoreCase);
+        return revisions
+            .Select(revision => revision with { RevisionNumber = numbers[revision.Id] })
+            .ToArray();
+    }
+
+    private static IReadOnlyList<ApplicationContainerRevisionHistoryEntry> AssignContainerRevisionHistoryNumbers(
+        IReadOnlyList<ApplicationContainerRevisionHistoryEntry> revisions)
+    {
+        var numbers = revisions
+            .OrderBy(revision => revision.CreatedAt)
+            .ThenBy(revision => revision.Id, StringComparer.OrdinalIgnoreCase)
+            .Select((revision, index) => new { revision.Id, Number = index + 1 })
+            .ToDictionary(item => item.Id, item => item.Number, StringComparer.OrdinalIgnoreCase);
+        return revisions
+            .Select(revision => revision with { RevisionNumber = numbers[revision.Id] })
+            .ToArray();
+    }
 
     private static string GetEffectiveContainerRevision(ApplicationResourceDefinition application) =>
         NormalizeNullable(application.ContainerRevision) ?? "unrevisioned";

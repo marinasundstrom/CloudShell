@@ -158,8 +158,9 @@ public sealed record ApplicationContainerRevision(
     int RequestedReplicas,
     DateTimeOffset CreatedAt,
     string ChangeKind,
-    string? SourceRevisionId = null,
-    string? TriggeredBy = null);
+    string? BasedOnRevisionId = null,
+    string? ProvisionedBy = null,
+    int RevisionNumber = 0);
 
 public static class ApplicationContainerRevisionChangeKinds
 {
