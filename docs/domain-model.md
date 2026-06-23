@@ -776,9 +776,9 @@ A log is an operational stream or historical source exposed by a provider or
 extension.
 
 Logs are not embedded fields on a resource. A log source can point at a
-resource ID, artifact ID, or provider-owned source. Descriptor-shaped log
-metadata remains only as a compatibility projection while providers move to
-source-first discovery.
+resource ID, artifact ID, or provider-owned source. Providers expose source
+metadata through `LogSource` records, and log reads are addressed to a source
+ID.
 
 Container app providers should surface console logs from the underlying
 containers or local processes. Console logs represent stdout/stderr emitted by

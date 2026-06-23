@@ -134,10 +134,8 @@ without forcing provider-specific logic into shared helpers.
   runtime child-resource concerns can share the same naming boundary.
 - [x] Align log provider contracts and docs with the `LogSource` direction.
 - [x] Move application resource log discovery to source-first `LogSource`
-  projection, keeping descriptor compatibility out of new application-provider
-  discovery code.
-- [x] Keep resource activity log discovery source-first by removing its
-  descriptor compatibility projection.
+  projection.
+- [x] Keep resource activity log discovery source-first.
 - [x] Move Configuration Store and Secrets Vault service log discovery to
   source-first `LogSource` projection.
 - [x] Move Docker host diagnostics and container log discovery to source-first

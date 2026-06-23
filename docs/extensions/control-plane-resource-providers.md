@@ -177,8 +177,8 @@ public sealed class AcmeLogProvider : ILogProvider
                 LogSourceCapabilities.StructuredFields)
     ];
 
-    public Task<IReadOnlyList<LogEntry>> ReadLogAsync(
-        string logId,
+    public Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
+        string logSourceId,
         int maxEntries = 200,
         DateTimeOffset? before = null,
         CancellationToken cancellationToken = default)
@@ -187,17 +187,17 @@ public sealed class AcmeLogProvider : ILogProvider
         return Task.FromResult<IReadOnlyList<LogEntry>>([]);
     }
 
-    public async IAsyncEnumerable<LogEntry> StreamLogAsync(
-        string logId,
+    public async IAsyncEnumerable<LogEntry> StreamLogSourceAsync(
+        string logSourceId,
         int initialEntries = 50,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        foreach (var entry in await ReadLogAsync(logId, initialEntries, cancellationToken: cancellationToken))
+        foreach (var entry in await ReadLogSourceAsync(logSourceId, initialEntries, cancellationToken: cancellationToken))
         {
             yield return entry;
         }
 
-        await foreach (var entry in TailBackingSystemAsync(logId, cancellationToken))
+        await foreach (var entry in TailBackingSystemAsync(logSourceId, cancellationToken))
         {
             yield return entry;
         }
@@ -238,10 +238,10 @@ new Resource(
 
 Streaming implementation guidance:
 
-- Keep `ReadLogAsync` as the bounded snapshot API. It should return recent
+- Keep `ReadLogSourceAsync` as the bounded snapshot API. It should return recent
   entries and complete quickly. When `before` is supplied, return the newest
   entries older than that timestamp so the view can page backward.
-- Override `StreamLogAsync` only for sources that advertise
+- Override `StreamLogSourceAsync` only for sources that advertise
   `LogSourceCapabilities.Stream`.
 - Honor cancellation promptly. The Logs view cancels the stream when users
   pause streaming, select another log, or leave the page.
@@ -260,9 +260,9 @@ Streaming implementation guidance:
 
 ## Docker Reference Provider
 
-The Docker provider is the reference implementation. Container log descriptors
-set `SupportsStreaming: true`; `ReadLogAsync` calls Docker logs with
-`Follow = false` and a bounded `Tail`, while `StreamLogAsync` optionally
+The Docker provider is the reference implementation. Container log sources
+set `SupportsStreaming: true`; `ReadLogSourceAsync` calls Docker logs with
+`Follow = false` and a bounded `Tail`, while `StreamLogSourceAsync` optionally
 replays recent entries and then calls Docker logs with `Follow = true` and
 `Tail = "0"`. Docker stdout and stderr frames are read incrementally with
 `MultiplexedStream.ReadOutputAsync`, converted into `LogEntry` values, and
