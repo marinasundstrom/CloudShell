@@ -2400,6 +2400,24 @@ public sealed class InProcessControlPlaneResourceStateTests
             SourceResourceId: "target",
             DeploymentId: "target-deployment")));
         Assert.NotNull(deploymentRecord.Revision);
+        var deploymentReadModel = Assert.Single(await controlPlane.ListResourceDeploymentsAsync(
+            new ResourceDeploymentQuery(
+                SourceResourceId: "target",
+                DeploymentId: "target-deployment")));
+        Assert.Equal("target-deployment", deploymentReadModel.DeploymentId);
+        Assert.Equal("default", deploymentReadModel.OrchestratorId);
+        Assert.Equal("target", deploymentReadModel.SourceResourceId);
+        Assert.Equal("target-service", deploymentReadModel.ServiceId);
+        Assert.Equal("revision-2", deploymentReadModel.RuntimeRevisionId);
+        Assert.Equal(ResourceOrchestratorDeploymentStatus.Active, deploymentReadModel.Status);
+        Assert.Equal("build-server", deploymentReadModel.TriggeredBy);
+        Assert.Equal("build-server", deploymentReadModel.ProvisionedBy);
+        Assert.NotNull(deploymentReadModel.EnvironmentRevisionId);
+        Assert.StartsWith("env-", deploymentReadModel.EnvironmentRevisionId, StringComparison.Ordinal);
+        Assert.Equal(1, deploymentReadModel.EnvironmentRevisionNumber);
+        Assert.Equal(ResourceOrchestratorRevisionStatus.Active, deploymentReadModel.EnvironmentRevisionStatus);
+        Assert.NotNull(deploymentReadModel.ReplicaGroup);
+        Assert.NotNull(deploymentReadModel.Definition);
         var revision = deploymentRecord.Revision;
         Assert.NotEqual("revision-2", revision.Id.ToString());
         Assert.StartsWith("env-", revision.Id.ToString(), StringComparison.Ordinal);

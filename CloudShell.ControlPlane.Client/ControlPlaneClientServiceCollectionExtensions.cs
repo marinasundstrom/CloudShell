@@ -128,6 +128,8 @@ public static class ControlPlaneClientServiceCollectionExtensions
             serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
         services.AddScoped<IResourceEventManager>(
             serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
+        services.AddScoped<IResourceDeploymentManager>(
+            serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
         services.AddScoped<ILogManager>(
             serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
         services.AddScoped<ITraceManager>(

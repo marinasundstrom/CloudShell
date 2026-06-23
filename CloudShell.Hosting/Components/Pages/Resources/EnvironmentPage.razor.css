@@ -9,6 +9,7 @@
 }
 
 .environment-revision-table,
+.environment-history-table,
 .environment-deployment-table {
     min-width: 0;
 }
@@ -21,6 +22,12 @@
     min-width: 78rem;
 }
 
+.environment-history-table ::deep .resource-table {
+    min-width: 86rem;
+}
+
+.environment-history-table ::deep th,
+.environment-history-table ::deep td,
 .environment-deployment-table ::deep th,
 .environment-deployment-table ::deep td {
     vertical-align: top;

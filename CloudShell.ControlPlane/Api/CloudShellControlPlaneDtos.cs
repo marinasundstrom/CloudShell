@@ -372,6 +372,28 @@ public sealed record ResourceEventResponse(
     string? TraceId,
     string? SpanId);
 
+public sealed record ResourceDeploymentRecordResponse(
+    string DeploymentId,
+    string OrchestratorId,
+    string SourceResourceId,
+    string ServiceId,
+    string RuntimeRevisionId,
+    ResourceOrchestratorDeploymentStatus Status,
+    DateTimeOffset StartedAt,
+    DateTimeOffset? CompletedAt,
+    string? TriggeredBy,
+    string? Cause,
+    string? Message,
+    string? Error,
+    string? EnvironmentRevisionId,
+    int? EnvironmentRevisionNumber,
+    DateTimeOffset? EnvironmentRevisionCreatedAt,
+    ResourceOrchestratorRevisionStatus? EnvironmentRevisionStatus,
+    string? BasedOnEnvironmentRevisionId,
+    string? ProvisionedBy,
+    ResourceOrchestratorReplicaGroup? ReplicaGroup,
+    ResourceOrchestratorDeploymentDefinition? Definition);
+
 public sealed record LogEntryResponse(
     DateTimeOffset Timestamp,
     string Message,
@@ -779,6 +801,29 @@ internal static class CloudShellControlPlaneDtoMapper
             ResourceSignalSeverityParser.ToLevel(resourceEvent.Severity),
             resourceEvent.TraceId,
             resourceEvent.SpanId);
+
+    public static ResourceDeploymentRecordResponse ToResponse(this ResourceDeploymentRecord deployment) =>
+        new(
+            deployment.DeploymentId,
+            deployment.OrchestratorId,
+            deployment.SourceResourceId,
+            deployment.ServiceId,
+            deployment.RuntimeRevisionId,
+            deployment.Status,
+            deployment.StartedAt,
+            deployment.CompletedAt,
+            deployment.TriggeredBy,
+            deployment.Cause,
+            deployment.Message,
+            deployment.Error,
+            deployment.EnvironmentRevisionId,
+            deployment.EnvironmentRevisionNumber,
+            deployment.EnvironmentRevisionCreatedAt,
+            deployment.EnvironmentRevisionStatus,
+            deployment.BasedOnEnvironmentRevisionId,
+            deployment.ProvisionedBy,
+            deployment.ReplicaGroup,
+            deployment.Definition);
 
     public static LogEntryResponse ToResponse(this LogEntry entry) =>
         new(

@@ -8,6 +8,7 @@ using CloudShell.Abstractions.Shell;
 using CloudShell.ControlPlane.Api;
 using CloudShell.ControlPlane.Hosting;
 using CloudShell.ControlPlane.ResourceManager;
+using CloudShell.ControlPlane.ResourceManager.Deployment;
 using CloudShell.ControlPlane.ResourceManager.Platform;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
@@ -823,6 +824,50 @@ public sealed class RemoteControlPlaneContractTests
     }
 
     [Fact]
+    public async Task RemoteControlPlane_ListsResourceDeployments()
+    {
+        await using var app = await CreateAppAsync(includeImageResource: true);
+        await SeedDeploymentRecordAsync(app);
+        var controlPlane = CreateClient(app);
+
+        var deployments = await controlPlane.ListResourceDeploymentsAsync(
+            new ResourceDeploymentQuery(
+                SourceResourceId: ContractImageResourceProvider.ResourceId,
+                DeploymentId: "contract-container-app-deployment",
+                MaxRecords: 10));
+        var deployment = Assert.Single(deployments);
+
+        Assert.Equal("contract-container-app-deployment", deployment.DeploymentId);
+        Assert.Equal("default", deployment.OrchestratorId);
+        Assert.Equal(ContractImageResourceProvider.ResourceId, deployment.SourceResourceId);
+        Assert.Equal("contract-container-app", deployment.ServiceId);
+        Assert.Equal("revision-2", deployment.RuntimeRevisionId);
+        Assert.Equal(ResourceOrchestratorDeploymentStatus.Active, deployment.Status);
+        Assert.Equal("build-server", deployment.TriggeredBy);
+        Assert.Equal("build-server", deployment.ProvisionedBy);
+        Assert.Equal("env-contract-container-app-contract-container-app-1", deployment.EnvironmentRevisionId);
+        Assert.Equal(1, deployment.EnvironmentRevisionNumber);
+        Assert.Equal(ResourceOrchestratorRevisionStatus.Active, deployment.EnvironmentRevisionStatus);
+        Assert.NotNull(deployment.ReplicaGroup);
+        Assert.Equal(2, deployment.ReplicaGroup.MaterializedReplicas);
+        Assert.NotNull(deployment.Definition);
+
+        var response = await app.GetTestClient().GetAsync(
+            "/api/control-plane/v1/deployments" +
+            $"?sourceResourceId={Uri.EscapeDataString(ContractImageResourceProvider.ResourceId)}" +
+            "&deploymentId=contract-container-app-deployment&maxRecords=10");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var deploymentResponse = Assert.Single(document.RootElement.EnumerateArray());
+        Assert.Equal("contract-container-app-deployment", deploymentResponse.GetProperty("deploymentId").GetString());
+        Assert.Equal(
+            (int)ResourceOrchestratorDeploymentStatus.Active,
+            deploymentResponse.GetProperty("status").GetInt32());
+        Assert.Equal("env-contract-container-app-contract-container-app-1", deploymentResponse.GetProperty("environmentRevisionId").GetString());
+        Assert.Equal(1, deploymentResponse.GetProperty("environmentRevisionNumber").GetInt32());
+    }
+
+    [Fact]
     public async Task RemoteControlPlane_UpdatesResourceReplicas()
     {
         await using var app = await CreateAppAsync(includeImageResource: true);
@@ -1532,6 +1577,47 @@ public sealed class RemoteControlPlaneContractTests
     private static bool HasAttribute(LogEntry entry, string key, string value) =>
         entry.Attributes?.TryGetValue(key, out var actual) is true &&
         string.Equals(actual, value, StringComparison.Ordinal);
+
+    private static async Task SeedDeploymentRecordAsync(WebApplication app)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        var store = scope.ServiceProvider.GetRequiredService<IResourceOrchestratorDeploymentStore>();
+        var service = new ResourceOrchestratorService(
+            ContractImageResourceProvider.ResourceId,
+            "contract-container-app",
+            new ResourceWorkloadConfiguration(
+                ResourceWorkloadKind.ContainerImage,
+                "Contract Container App",
+                Image: "example/api:20260623",
+                Replicas: 2,
+                ReplicasEnabled: true));
+        var deployment = new ResourceOrchestratorDeployment(
+            "contract-container-app-deployment",
+            "default",
+            ContractImageResourceProvider.ResourceId,
+            service.Name,
+            "revision-2",
+            new ResourceOrchestratorDeploymentSpec(service, "revision-2"),
+            ResourceOrchestratorDeploymentStatus.Applying);
+        store.RecordApplying(
+            deployment,
+            DateTimeOffset.UtcNow.AddSeconds(-1),
+            "build-server",
+            "image update");
+        var revision = store.CreateRevision(
+            deployment,
+            DateTimeOffset.UtcNow,
+            ResourceOrchestratorRevisionStatus.Active,
+            ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(service, "revision-2"),
+            "build-server");
+        store.RecordApplied(
+            deployment with { Status = ResourceOrchestratorDeploymentStatus.Active },
+            revision,
+            DateTimeOffset.UtcNow,
+            "Applied deployment.",
+            "build-server",
+            "image update");
+    }
 
     private sealed class ContractProviderLogProvider : ILogProvider
     {

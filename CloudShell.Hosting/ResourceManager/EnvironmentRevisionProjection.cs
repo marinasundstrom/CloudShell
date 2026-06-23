@@ -34,7 +34,7 @@ public static class EnvironmentRevisionProjection
             ServiceCount: 0,
             ReplicaGroupCount: 0,
             LatestStatus: "Declared",
-            Description: "Programmatic declarations");
+            Description: "Declared resource graph");
 
         return
         [
@@ -54,7 +54,7 @@ public static class EnvironmentRevisionProjection
             rows.Select(row => row.ServiceId).Where(IsProjected).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
             rows.Select(row => row.ReplicaGroupId).Where(IsProjected).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
             rows.Select(row => row.Status).FirstOrDefault(IsProjected) ?? "not projected",
-            "Deployment outcome");
+            "Deployment-produced environment revision");
     }
 
     private static bool IsProjected(string value) =>

@@ -21,7 +21,7 @@ public sealed class EnvironmentRevisionProjectionTests
         Assert.Equal(0, row.ServiceCount);
         Assert.Equal(0, row.ReplicaGroupCount);
         Assert.Equal("Declared", row.LatestStatus);
-        Assert.Equal("Programmatic declarations", row.Description);
+        Assert.Equal("Declared resource graph", row.Description);
     }
 
     [Fact]
@@ -58,7 +58,7 @@ public sealed class EnvironmentRevisionProjectionTests
                 Assert.Equal(1, projected.ServiceCount);
                 Assert.Equal(1, projected.ReplicaGroupCount);
                 Assert.Equal("active", projected.LatestStatus);
-                Assert.Equal("Deployment outcome", projected.Description);
+                Assert.Equal("Deployment-produced environment revision", projected.Description);
             });
     }
 

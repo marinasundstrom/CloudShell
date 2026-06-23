@@ -192,6 +192,10 @@ public static class CloudShellControlPlaneApiExtensions
             .WithName("CloudShellControlPlane_ListResourceEvents")
             .Produces<ResourceEventResponse[]>(StatusCodes.Status200OK);
 
+        api.MapGet("/deployments", ListResourceDeployments)
+            .WithName("CloudShellControlPlane_ListResourceDeployments")
+            .Produces<ResourceDeploymentRecordResponse[]>(StatusCodes.Status200OK);
+
         api.MapGet("/logs/{logId}", GetLog)
             .WithName("CloudShellControlPlane_GetLog");
 
@@ -1068,6 +1072,23 @@ public static class CloudShellControlPlaneApiExtensions
                     SpanId: NormalizeOptional(spanId)),
                 cancellationToken))
             .Select(resourceEvent => resourceEvent.ToResponse())
+            .ToArray());
+
+    private static async Task<IResult> ListResourceDeployments(
+        string? sourceResourceId,
+        string? deploymentId,
+        string? orchestratorId,
+        int? maxRecords,
+        IResourceDeploymentManager deployments,
+        CancellationToken cancellationToken) =>
+        Results.Ok((await deployments.ListResourceDeploymentsAsync(
+                new ResourceDeploymentQuery(
+                    SourceResourceId: NormalizeOptional(sourceResourceId),
+                    DeploymentId: NormalizeOptional(deploymentId),
+                    OrchestratorId: NormalizeOptional(orchestratorId),
+                    MaxRecords: Math.Clamp(maxRecords ?? 200, 1, 1000)),
+                cancellationToken))
+            .Select(deployment => deployment.ToResponse())
             .ToArray());
 
     private static async Task<IResult> GetLog(

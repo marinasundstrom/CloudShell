@@ -3,6 +3,7 @@
 @using System.Globalization
 @inject IResourceManager ResourceManager
 @inject IResourceEventManager ResourceEvents
+@inject IResourceDeploymentManager Deployments
 @inject IStringLocalizer<SharedResource> L
 @inject CloudShell.UI.Composition.CompositionRegistry Composition
 
@@ -10,7 +11,7 @@
 
 <PageHeading Eyebrow="@L["Workspace"].Value"
              Title="@L["Current environment"].Value"
-             Description="@L["Inspect the current host environment, environment revisions, and materialized resource state."].Value">
+             Description="@L["Inspect environment revisions, deployment records, and materialized resource state for the current host."].Value">
     <Actions>
         <span class="toolbar-meta">@L["Current host"]</span>
         <FluentButton Appearance="Appearance.Neutral"
@@ -28,11 +29,11 @@
                        IconName="resources" />
     <SummaryMetricCard Title="@L["Environment revisions"].Value"
                        Value="@EnvironmentRevisionRows.Count"
-                       Summary="@L["Projected revision snapshots"].Value"
+                       Summary="@L["Projected environment revisions"].Value"
                        IconName="dependencies" />
-    <SummaryMetricCard Title="@L["Deployments"].Value"
-                       Value="@DeploymentRows.Count"
-                       Summary="@L["Resources with deployment metadata"].Value"
+    <SummaryMetricCard Title="@L["Deployment records"].Value"
+                       Value="@DeploymentRecords.Count"
+                       Summary="@L["Recorded deployment attempts"].Value"
                        IconName="environment" />
     <SummaryMetricCard Title="@L["Replica groups"].Value"
                        Value="@ReplicaGroupCount"
@@ -43,7 +44,7 @@
 <section class="environment-page-grid">
     <ShellPanel Wide="true" Class="environment-panel-full">
         <ShellPanelHeader Title="@L["Environment revisions"].Value"
-                          Description="@L["Current environment revisions, including the baseline declared resource graph before deployment-produced revisions exist."].Value">
+                          Description="@L["Projected revisions for deployment-produced environment state, plus the current declared resource graph baseline."].Value">
             <Actions>
                 <span class="toolbar-meta">@GetLoadedAtLabel()</span>
             </Actions>
@@ -91,8 +92,72 @@
     </ShellPanel>
 
     <ShellPanel Wide="true" Class="environment-panel-full">
+        <ShellPanelHeader Title="@L["Deployment history"].Value"
+                          Description="@L["Deployment records produced by Resource Manager deployment apply. Runtime-capacity updates remain environment activity unless they apply a deployment."].Value" />
+
+        @if (DeploymentRecords.Count == 0)
+        {
+            <EmptyState Title="@L["No deployment records"].Value"
+                        Message="@L["Deployment records will appear here after Resource Manager applies deployment definitions."].Value"
+                        Compact="true" />
+        }
+        else
+        {
+            <div class="environment-history-table">
+                <ResourceTable>
+                <thead>
+                    <tr>
+                        <th>@L["Deployment"]</th>
+                        <th>@L["Source resource"]</th>
+                        <th>@L["Status"]</th>
+                        <th>@L["Environment revision"]</th>
+                        <th>@L["Based on"]</th>
+                        <th>@L["Provisioned by"]</th>
+                        <th>@L["Completed"]</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var record in DeploymentRecords)
+                    {
+                        var sourceResource = GetResource(record.SourceResourceId);
+                        <tr>
+                            <td>
+                                <strong class="environment-identifier">@record.DeploymentId</strong>
+                                <div class="table-subtext">@record.RuntimeRevisionId</div>
+                            </td>
+                            <td>
+                                <ResourceTableIdentity IconName="@GetResourceIconName(sourceResource, record.SourceResourceId)"
+                                                       IconTitle="@GetResourceIconTitle(sourceResource)"
+                                                       Summary="@record.ServiceId">
+                                    <TitleContent>
+                                        <FluentAnchor Href="@ResourceManagerCompositionLinks.ResourceDetails(Composition, record.SourceResourceId)">
+                                            @(sourceResource?.EffectiveDisplayName ?? record.SourceResourceId)
+                                        </FluentAnchor>
+                                    </TitleContent>
+                                </ResourceTableIdentity>
+                            </td>
+                            <td>
+                                @record.Status
+                                <div class="table-subtext">@GetDeploymentRecordMessage(record)</div>
+                            </td>
+                            <td>
+                                <span class="environment-identifier">@GetEnvironmentRevisionLabel(record)</span>
+                                <div class="table-subtext">@GetEnvironmentRevisionStatus(record)</div>
+                            </td>
+                            <td><span class="environment-identifier">@GetOptional(record.BasedOnEnvironmentRevisionId)</span></td>
+                            <td>@GetOptional(record.ProvisionedBy ?? record.TriggeredBy)</td>
+                            <td>@GetCompletionLabel(record)</td>
+                        </tr>
+                    }
+                </tbody>
+                </ResourceTable>
+            </div>
+        }
+    </ShellPanel>
+
+    <ShellPanel Wide="true" Class="environment-panel-full">
         <ShellPanelHeader Title="@L["Materialized deployment state"].Value"
-                          Description="@L["Resource Manager deployment metadata projected by resources in the current environment."].Value" />
+                          Description="@L["Resource Manager deployment metadata currently projected by materialized resources."].Value" />
 
         @if (DeploymentRows.Count == 0)
         {
@@ -120,10 +185,15 @@
                     {
                         <tr>
                             <td>
-                                <FluentAnchor Href="@ResourceManagerCompositionLinks.ResourceDetails(Composition, row.Resource.Id)">
-                                    @row.Resource.Name
-                                </FluentAnchor>
-                                <div class="table-subtext">@row.Resource.Id</div>
+                                <ResourceTableIdentity IconName="@GetResourceIconName(row.Resource, row.Resource.Id)"
+                                                       IconTitle="@GetResourceIconTitle(row.Resource)"
+                                                       Summary="@row.Resource.Id">
+                                    <TitleContent>
+                                        <FluentAnchor Href="@ResourceManagerCompositionLinks.ResourceDetails(Composition, row.Resource.Id)">
+                                            @row.Resource.EffectiveDisplayName
+                                        </FluentAnchor>
+                                    </TitleContent>
+                                </ResourceTableIdentity>
                             </td>
                             <td>
                                 <strong class="environment-identifier">@row.DeploymentId</strong>
@@ -170,7 +240,7 @@
         <ShellPanelHeader Title="@L["Model note"].Value"
                           Description="@L["Current scope"].Value" />
         <p class="panel-body-text">
-            @L["CloudShell currently treats the local host as one environment. A future environment concept may contain resources within a host or runtime boundary, but this page is currently a diagnostic view over the active host environment and its projected revisions."]
+            @L["CloudShell currently treats the local host as one active deployment environment. A future Control Plane Environment concept may contain resources within a host or runtime boundary; this page is currently a diagnostic view over the active host and its projected environment revisions."]
         </p>
     </ShellPanel>
 </section>
@@ -178,6 +248,7 @@
 @code {
     private IReadOnlyList<Resource> Resources { get; set; } = [];
     private IReadOnlyList<EnvironmentRevisionProjectionRow> EnvironmentRevisionRows { get; set; } = [];
+    private IReadOnlyList<ResourceDeploymentRecord> DeploymentRecords { get; set; } = [];
     private IReadOnlyList<EnvironmentDeploymentRow> DeploymentRows { get; set; } = [];
     private IReadOnlyList<ResourceEvent> DeploymentEvents { get; set; } = [];
     private DateTimeOffset LoadedAt { get; set; }
@@ -202,6 +273,7 @@
             .ThenBy(row => row.Resource.Id, StringComparer.OrdinalIgnoreCase)
             .ToArray();
         EnvironmentRevisionRows = EnvironmentRevisionProjection.CreateRows(Resources);
+        DeploymentRecords = await Deployments.ListResourceDeploymentsAsync(new ResourceDeploymentQuery(MaxRecords: 100));
         DeploymentEvents = (await ResourceEvents.ListResourceEventsAsync(new ResourceEventQuery(MaxEvents: 100)))
             .Where(resourceEvent => resourceEvent.EventType.StartsWith(
                 ResourceEventTypes.Events.Deployment.Prefix,
@@ -218,6 +290,41 @@
 
     private string GetEventTitle(string eventType) =>
         ResourceEventDisplayNames.GetDisplayName(eventType, L);
+
+    private Resource? GetResource(string resourceId) =>
+        Resources.FirstOrDefault(resource =>
+            string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase));
+
+    private static string GetResourceIconName(Resource? resource, string fallback) =>
+        resource is null
+            ? fallback
+            : FirstNonEmpty(resource.EffectiveTypeId, resource.ResourceClass.ToString(), resource.Kind) ?? fallback;
+
+    private static string GetResourceIconTitle(Resource? resource) =>
+        resource?.Kind ?? "Resource";
+
+    private string GetDeploymentRecordMessage(ResourceDeploymentRecord record) =>
+        GetOptional(record.Error ?? record.Message ?? record.Cause);
+
+    private string GetEnvironmentRevisionLabel(ResourceDeploymentRecord record) =>
+        record.EnvironmentRevisionNumber is { } revisionNumber
+            ? L["Revision {0}", revisionNumber].Value
+            : GetOptional(record.EnvironmentRevisionId);
+
+    private string GetEnvironmentRevisionStatus(ResourceDeploymentRecord record) =>
+        record.EnvironmentRevisionStatus?.ToString() ?? GetOptional(record.EnvironmentRevisionId);
+
+    private string GetCompletionLabel(ResourceDeploymentRecord record)
+    {
+        var timestamp = record.CompletedAt ?? record.StartedAt;
+        return timestamp.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
+    }
+
+    private static string GetOptional(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? "not projected" : value;
+
+    private static string? FirstNonEmpty(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
 
     private sealed record EnvironmentDeploymentRow(
         Resource Resource,

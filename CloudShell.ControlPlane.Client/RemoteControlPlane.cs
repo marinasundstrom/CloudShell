@@ -576,6 +576,19 @@ public sealed class RemoteControlPlane : IControlPlane
         .Select(response => response.ToResourceEvent())
         .ToArray();
 
+    public async Task<IReadOnlyList<ResourceDeploymentRecord>> ListResourceDeploymentsAsync(
+        ResourceDeploymentQuery? query = null,
+        CancellationToken cancellationToken = default) =>
+        (await GetRequiredAsync<IReadOnlyList<ResourceDeploymentRecordResponse>>(
+            "deployments",
+            cancellationToken,
+            ("sourceResourceId", query?.SourceResourceId),
+            ("deploymentId", query?.DeploymentId),
+            ("orchestratorId", query?.OrchestratorId),
+            ("maxRecords", (query?.MaxRecords ?? 200).ToString(CultureInfo.InvariantCulture))))
+        .Select(response => response.ToResourceDeploymentRecord())
+        .ToArray();
+
     public async Task<LogDescriptor?> GetLogAsync(
         string logId,
         CancellationToken cancellationToken = default)
@@ -1365,6 +1378,28 @@ file sealed record ResourceEventResponse(
     string? TraceId,
     string? SpanId);
 
+file sealed record ResourceDeploymentRecordResponse(
+    string DeploymentId,
+    string OrchestratorId,
+    string SourceResourceId,
+    string ServiceId,
+    string RuntimeRevisionId,
+    ResourceOrchestratorDeploymentStatus Status,
+    DateTimeOffset StartedAt,
+    DateTimeOffset? CompletedAt,
+    string? TriggeredBy,
+    string? Cause,
+    string? Message,
+    string? Error,
+    string? EnvironmentRevisionId,
+    int? EnvironmentRevisionNumber,
+    DateTimeOffset? EnvironmentRevisionCreatedAt,
+    ResourceOrchestratorRevisionStatus? EnvironmentRevisionStatus,
+    string? BasedOnEnvironmentRevisionId,
+    string? ProvisionedBy,
+    ResourceOrchestratorReplicaGroup? ReplicaGroup,
+    ResourceOrchestratorDeploymentDefinition? Definition);
+
 file sealed record LogEntryResponse(
     DateTimeOffset Timestamp,
     string Message,
@@ -1826,4 +1861,28 @@ file static class RemoteControlPlaneMapper
             ResourceSignalSeverityParser.FromName(response.Severity),
             response.TraceId,
             response.SpanId);
+
+    public static ResourceDeploymentRecord ToResourceDeploymentRecord(
+        this ResourceDeploymentRecordResponse response) =>
+        new(
+            response.DeploymentId,
+            response.OrchestratorId,
+            response.SourceResourceId,
+            response.ServiceId,
+            response.RuntimeRevisionId,
+            response.Status,
+            response.StartedAt,
+            response.CompletedAt,
+            response.TriggeredBy,
+            response.Cause,
+            response.Message,
+            response.Error,
+            response.EnvironmentRevisionId,
+            response.EnvironmentRevisionNumber,
+            response.EnvironmentRevisionCreatedAt,
+            response.EnvironmentRevisionStatus,
+            response.BasedOnEnvironmentRevisionId,
+            response.ProvisionedBy,
+            response.ReplicaGroup,
+            response.Definition);
 }

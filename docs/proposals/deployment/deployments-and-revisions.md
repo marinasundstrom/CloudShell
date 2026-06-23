@@ -1202,16 +1202,33 @@ CloudShell should allow users and tooling to inspect:
 * logs and health state associated with deployment-owned replicas
 
 The Resource Manager shell should expose this through an Environment page for
-the current host environment. The first version can aggregate projected
-resource metadata and deployment events so users can see deployments,
-environment revisions, replica groups, and materialized resources without
-making orchestrator deployments a primary container app UI concept.
+the current host environment. The first version is a host-scoped diagnostic
+surface that aggregates deployment records, projected resource metadata, and
+deployment events so users can see deployments, environment revisions, replica
+groups, and materialized resources without making
+orchestrator deployments a primary container app UI concept.
+
+These rows are environment revisions, not a full Control Plane Environment
+model. A future Control Plane Environment concept may become a
+resource-containment and runtime-boundary concept with explicit tenancy,
+authorization, isolation, retention, and placement semantics. The MVP
+Environment page should not imply those semantics are solved; it should show
+the active host's current deployment environment and the revisions Resource
+Manager can project today.
+
+CloudShell should distinguish the orchestration environment from a future
+Control Plane Environment. The orchestration environment is the versioned
+runtime/materialization view that deployments affect; its Environment
+Revisions record how desired runtime state was applied over time. A Control
+Plane Environment would be a resource scope: a containment, tenancy,
+authorization, placement, and policy boundary for resources. The two concepts
+may correlate, but they should not share identity or imply the same lifecycle.
 
 Programmatic declarations should count as the initial logical environment
 revision for the current host. Starting a declared resource materializes that
 baseline state; it does not by itself create a new environment revision unless
 the operation applies a deployment that changes the desired runtime state.
-Until Resource Manager persists declaration-derived environment snapshots, the
+Until Resource Manager persists declaration-derived environment revisions, the
 Environment page can project a `baseline-current` revision from the current
 resource graph and list deployment-produced environment revisions alongside
 that baseline.
@@ -1299,8 +1316,10 @@ The current implementation already has the internal foundation:
 10. Resource UI surfaces can show deployment, readiness, rollback, cleanup, and
     environment-history events without making users manage orchestrator
     deployment objects directly. The Environment page is the first shared
-    inspection surface for deployments and environment revisions in the current
-    host environment.
+    inspection surface for deployment records and environment revisions in the
+    current host environment. It remains host-scoped until a
+    Control Plane Environment concept defines containment, tenancy,
+    authorization, isolation, and retention semantics.
 11. Post-apply cleanup of superseded replica groups is best-effort. Cleanup
     failures are warning diagnostics on the applied deployment rather than a
     failure of the active runtime group or active environment revision.

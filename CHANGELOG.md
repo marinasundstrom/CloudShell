@@ -126,6 +126,15 @@ on `git blame --follow`, and then by the broad type of change.
 - Environment inspection now gives revision and materialized deployment tables
   the full page width and labels the event feed as environment activity, so
   scale-only replica updates are not presented as deployment operations.
+- Resource Manager now exposes read-only deployment records through the
+  Control Plane API/client and Environment page, showing deployment attempts,
+  status, produced environment revision, based-on environment revision,
+  provisioned-by actor, and replica-group outcome without adding public
+  deployment execution commands.
+- The deployment proposal and Environment page now describe the current rows as
+  host-scoped environment revisions, while deferring a fuller
+  Control Plane Environment model and its tenancy, authorization, isolation,
+  retention, and placement semantics.
 - Resource Manager deployment coordination now lives separately from
   orchestration execution under dedicated Deployment and Orchestration
   namespaces, with the default deployment service reusable for orchestrators

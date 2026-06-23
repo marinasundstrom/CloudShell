@@ -1065,6 +1065,11 @@ public sealed class InProcessControlPlane(
         return Task.FromResult<IReadOnlyList<ResourceEvent>>(events);
     }
 
+    public Task<IReadOnlyList<ResourceDeploymentRecord>> ListResourceDeploymentsAsync(
+        ResourceDeploymentQuery? query = null,
+        CancellationToken cancellationToken = default) =>
+        deployments.ListResourceDeploymentsAsync(query, cancellationToken);
+
     public Task<LogDescriptor?> GetLogAsync(
         string logId,
         CancellationToken cancellationToken = default)

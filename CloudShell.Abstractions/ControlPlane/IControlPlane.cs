@@ -9,6 +9,7 @@ public interface IControlPlane :
     IResourceManager,
     IResourceTemplateManager,
     IResourceEventManager,
+    IResourceDeploymentManager,
     ILogManager,
     ITraceManager,
     IMetricManager,
@@ -193,6 +194,13 @@ public interface IResourceEventManager
         CancellationToken cancellationToken = default);
 }
 
+public interface IResourceDeploymentManager
+{
+    Task<IReadOnlyList<ResourceDeploymentRecord>> ListResourceDeploymentsAsync(
+        ResourceDeploymentQuery? query = null,
+        CancellationToken cancellationToken = default);
+}
+
 public interface ITraceManager
 {
     Task<IReadOnlyList<TraceSpan>> ListTraceSpansAsync(
@@ -278,6 +286,34 @@ public sealed record ResourceQuery(
     string? ResourceType = null,
     bool? IsRegistered = null,
     ResourceClass? ResourceClass = null);
+
+public sealed record ResourceDeploymentQuery(
+    string? SourceResourceId = null,
+    string? DeploymentId = null,
+    string? OrchestratorId = null,
+    int MaxRecords = 200);
+
+public sealed record ResourceDeploymentRecord(
+    string DeploymentId,
+    string OrchestratorId,
+    string SourceResourceId,
+    string ServiceId,
+    string RuntimeRevisionId,
+    ResourceOrchestratorDeploymentStatus Status,
+    DateTimeOffset StartedAt,
+    DateTimeOffset? CompletedAt = null,
+    string? TriggeredBy = null,
+    string? Cause = null,
+    string? Message = null,
+    string? Error = null,
+    string? EnvironmentRevisionId = null,
+    int? EnvironmentRevisionNumber = null,
+    DateTimeOffset? EnvironmentRevisionCreatedAt = null,
+    ResourceOrchestratorRevisionStatus? EnvironmentRevisionStatus = null,
+    string? BasedOnEnvironmentRevisionId = null,
+    string? ProvisionedBy = null,
+    ResourceOrchestratorReplicaGroup? ReplicaGroup = null,
+    ResourceOrchestratorDeploymentDefinition? Definition = null);
 
 public sealed record ResourcePrincipalQuery(
     string? SearchText = null,

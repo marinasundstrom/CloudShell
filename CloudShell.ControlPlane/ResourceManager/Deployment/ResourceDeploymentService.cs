@@ -18,6 +18,27 @@ public sealed class ResourceDeploymentService(
     private readonly IReadOnlyList<IResourceOrchestratorDeploymentApplier> deploymentAppliers =
         deploymentAppliers.ToArray();
 
+    public Task<IReadOnlyList<ResourceDeploymentRecord>> ListResourceDeploymentsAsync(
+        ResourceDeploymentQuery? query = null,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (deploymentStore is null)
+        {
+            return Task.FromResult<IReadOnlyList<ResourceDeploymentRecord>>([]);
+        }
+
+        var records = deploymentStore
+            .List(new ResourceOrchestratorDeploymentQuery(
+                SourceResourceId: Normalize(query?.SourceResourceId),
+                DeploymentId: Normalize(query?.DeploymentId),
+                OrchestratorId: Normalize(query?.OrchestratorId),
+                MaxRecords: Math.Clamp(query?.MaxRecords ?? 200, 1, 1000)))
+            .Select(ToResourceDeploymentRecord)
+            .ToArray();
+        return Task.FromResult<IReadOnlyList<ResourceDeploymentRecord>>(records);
+    }
+
     public async Task<ResourceOrchestratorDeploymentApplyResult> ApplyDeploymentAsync(
         Resource resource,
         ResourceOrchestratorDeployment deployment,
@@ -244,6 +265,33 @@ public sealed class ResourceDeploymentService(
         ResourceOrchestrationContext context,
         ResourceOrchestratorDeployment deployment) =>
         deploymentAppliers.FirstOrDefault(applier => applier.CanApplyDeployment(context, deployment));
+
+    private static ResourceDeploymentRecord ToResourceDeploymentRecord(
+        ResourceOrchestratorDeploymentRecord record)
+    {
+        var revision = record.Revision;
+        return new ResourceDeploymentRecord(
+            record.DeploymentId,
+            record.OrchestratorId,
+            record.SourceResourceId,
+            record.ServiceId,
+            record.RevisionId,
+            record.Status,
+            record.StartedAt,
+            record.CompletedAt,
+            record.TriggeredBy,
+            record.Cause,
+            record.Message,
+            record.Error,
+            revision?.Id.ToString(),
+            revision?.RevisionNumber,
+            revision?.CreatedAt,
+            revision?.Status,
+            revision?.BasedOnRevisionId?.ToString(),
+            revision?.ProvisionedBy,
+            record.ReplicaGroup,
+            revision?.Definition ?? record.Deployment.Spec.CreateDeploymentDefinition(record.RevisionId));
+    }
 
     private ResourceRegistration? GetRegistrationForResourceOrAncestor(Resource resource)
     {
