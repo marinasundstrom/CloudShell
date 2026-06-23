@@ -10,7 +10,6 @@ using System.Net;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -36,20 +35,18 @@ public sealed partial class ApplicationResourceService(
     IResourceEventSink? resourceEvents = null,
     ILoggerFactory? loggerFactory = null,
     ApplicationResourceDefinitionNormalizer? definitionNormalizer = null,
-    ApplicationResourceDefinitionRegistrationService? applicationDefinitionRegistrations = null) :
+    ApplicationResourceDefinitionRegistrationService? applicationDefinitionRegistrations = null,
+    ApplicationWorkloadConfigurationProvider? workloadConfigurations = null) :
     IApplicationResourceProjectionSource,
     IApplicationResourceRunningStateOperations,
     IApplicationResourceProcedureOperations,
-    IApplicationResourceDescriptorOperations,
     IApplicationResourceActionAvailabilityOperations,
     IContainerApplicationResourceProviderOperations,
     IDisposable
 {
-    private static readonly JsonSerializerOptions DescriptorSerializerOptions = new(JsonSerializerDefaults.Web);
     private static readonly TimeSpan StartingStateTimeout = TimeSpan.FromMinutes(5);
     private static readonly SemaphoreSlim AspNetCoreProjectBuildLock = new(1, 1);
     private static readonly HttpClient ContainerReadinessHttpClient = new();
-    private static readonly ApplicationWorkloadConfigurationFactory WorkloadConfigurationFactory = new();
     private static readonly ApplicationContainerOrchestratorDeploymentFactory ContainerOrchestratorDeploymentFactory = new();
     private const string DefaultContainerNetworkName = "cloudshell";
     public const string HiddenResourceEnvironmentVariable = "CloudShell__ResourceManager__Hidden";
@@ -72,6 +69,11 @@ public sealed partial class ApplicationResourceService(
     private readonly ApplicationContainerHostResolver _containerHosts =
         containerHosts ?? new ApplicationContainerHostResolver(serviceProvider);
     private readonly ApplicationResourcePortResolver _ports = new(options);
+    private readonly ApplicationWorkloadConfigurationProvider _workloadConfigurations =
+        workloadConfigurations ?? new ApplicationWorkloadConfigurationProvider(
+            options,
+            declarations,
+            identityCredentialEnvironmentProviders);
 
     public string Id => ApplicationResourceProviderIds.Applications;
 
@@ -2855,10 +2857,10 @@ public sealed partial class ApplicationResourceService(
         ApplicationResourceDefinition application,
         string? resourceGroupId = null,
         IResourceManagerStore? resourceManager = null) =>
-        WorkloadConfigurationFactory.Create(
+        _workloadConfigurations.Create(
             application,
-            ResolveWorkloadEnvironmentVariables(application, resourceGroupId, resourceManager),
-            GetEffectiveObservability(application));
+            resourceGroupId,
+            resourceManager);
 
     private ApplicationResourceDefinition GetContainerApplication(string resourceId)
     {

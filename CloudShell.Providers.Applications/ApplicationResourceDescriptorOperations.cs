@@ -3,21 +3,26 @@ using System.Text.Json;
 
 namespace CloudShell.Providers.Applications;
 
-public sealed partial class ApplicationResourceService
+internal sealed class ApplicationResourceDescriptorOperations(
+    IApplicationResourceDefinitionSource definitions,
+    ApplicationWorkloadConfigurationProvider workloadConfigurations) : IApplicationResourceDescriptorOperations
 {
+    private static readonly JsonSerializerOptions DescriptorSerializerOptions = new(JsonSerializerDefaults.Web);
+
     public bool CanDescribe(Resource resource) =>
         ApplicationResourceTypes.IsApplication(resource.EffectiveTypeId) &&
-        store.GetApplication(resource.Id) is not null;
+        definitions.GetApplication(resource.Id) is not null;
 
     public Task<ResourceOrchestrationDescriptor> DescribeAsync(
         Resource resource,
         ResourceOrchestrationDescriptorContext context,
         CancellationToken cancellationToken = default)
     {
-        var application = GetApplication(resource.Id)
+        cancellationToken.ThrowIfCancellationRequested();
+        var application = definitions.GetApplication(resource.Id)
             ?? throw new InvalidOperationException($"Application resource '{resource.Id}' is not configured.");
 
-        var workload = CreateWorkloadConfiguration(
+        var workload = workloadConfigurations.Create(
             application,
             context.ResourceGroup?.Id,
             context.ResourceManager);

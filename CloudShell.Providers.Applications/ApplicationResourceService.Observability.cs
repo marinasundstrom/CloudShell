@@ -7,10 +7,7 @@ namespace CloudShell.Providers.Applications;
 public sealed partial class ApplicationResourceService
 {
     private ResourceObservability GetEffectiveObservability(ApplicationResourceDefinition definition) =>
-        definition.Observability ??
-        (options.EnableObservabilityByDefault
-            ? ResourceObservability.Default
-            : ResourceObservability.None);
+        _workloadConfigurations.GetEffectiveObservability(definition);
 
     private ResourceObservability CreateResourceObservability(ApplicationResourceDefinition definition)
     {

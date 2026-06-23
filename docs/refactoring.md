@@ -222,6 +222,9 @@ without forcing provider-specific logic into shared helpers.
 - [x] Move application process and container monitoring behavior to a focused
   monitoring provider instead of the shared application resource service
   facade.
+- [x] Move application orchestration descriptor behavior to a focused
+  descriptor provider and extract workload intent mapping into
+  `ApplicationWorkloadConfigurationProvider`.
 
 ## Next Slices
 

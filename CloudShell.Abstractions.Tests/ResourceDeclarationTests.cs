@@ -5146,9 +5146,10 @@ public sealed class ResourceDeclarationTests
         {
             using var serviceProvider = services.BuildServiceProvider();
             var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+            var descriptors = serviceProvider.GetRequiredService<IApplicationResourceDescriptorOperations>();
             var resource = Assert.Single(provider.GetResources(), resource =>
                 resource.Id == "application:api");
-            var descriptor = await provider.DescribeAsync(
+            var descriptor = await descriptors.DescribeAsync(
                 resource,
                 new ResourceOrchestrationDescriptorContext(null, null, null!));
             var workload = descriptor.Configuration.Deserialize<ResourceWorkloadConfiguration>(
@@ -9181,9 +9182,10 @@ public sealed class ResourceDeclarationTests
                 .GetProperty("Definition")!
                 .GetValue(declaredApplication));
         var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var descriptors = serviceProvider.GetRequiredService<IApplicationResourceDescriptorOperations>();
         var resource = Assert.Single(provider.GetResources(), resource =>
             resource.Id == "application:api");
-        var descriptor = await provider.DescribeAsync(
+        var descriptor = await descriptors.DescribeAsync(
             resource,
             new ResourceOrchestrationDescriptorContext(null, null, null!));
         var databaseInspection = serviceProvider.GetRequiredService<ISqlServerDatabaseInspectionOperations>();
@@ -9289,9 +9291,10 @@ public sealed class ResourceDeclarationTests
         var declaration = Assert.Single(store.GetDeclarations(), declaration =>
             declaration.ResourceId == "application:sql");
         var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var descriptors = serviceProvider.GetRequiredService<IApplicationResourceDescriptorOperations>();
         var resource = Assert.Single(provider.GetResources(), resource =>
             resource.Id == "application:sql");
-        var descriptor = await provider.DescribeAsync(
+        var descriptor = await descriptors.DescribeAsync(
             resource,
             new ResourceOrchestrationDescriptorContext(null, null, null!));
         var workload = descriptor.Configuration.Deserialize<ResourceWorkloadConfiguration>(
@@ -9387,12 +9390,13 @@ public sealed class ResourceDeclarationTests
         var declaration = Assert.Single(store.GetDeclarations(), declaration =>
             declaration.ResourceId == "application:sql");
         var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var descriptors = serviceProvider.GetRequiredService<IApplicationResourceDescriptorOperations>();
         var resource = Assert.Single(provider.GetResources(), resource =>
             resource.Id == "application:sql");
         var database = Assert.Single(provider.GetResources(), resource =>
             resource.ParentResourceId == "application:sql" &&
             resource.EffectiveTypeId == ApplicationResourceTypes.SqlDatabase);
-        var descriptor = await provider.DescribeAsync(
+        var descriptor = await descriptors.DescribeAsync(
             resource,
             new ResourceOrchestrationDescriptorContext(null, null, null!));
         var databaseInspection = serviceProvider.GetRequiredService<ISqlServerDatabaseInspectionOperations>();
@@ -9981,9 +9985,10 @@ public sealed class ResourceDeclarationTests
 
         using var serviceProvider = services.BuildServiceProvider();
         var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var descriptors = serviceProvider.GetRequiredService<IApplicationResourceDescriptorOperations>();
         var resource = Assert.Single(provider.GetResources(), resource =>
             resource.Id == "application:cache");
-        var descriptor = await provider.DescribeAsync(
+        var descriptor = await descriptors.DescribeAsync(
             resource,
             new ResourceOrchestrationDescriptorContext(null, null, null!));
         var workload = descriptor.Configuration.Deserialize<ResourceWorkloadConfiguration>(
@@ -10026,10 +10031,11 @@ public sealed class ResourceDeclarationTests
 
         using var serviceProvider = services.BuildServiceProvider();
         var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var descriptors = serviceProvider.GetRequiredService<IApplicationResourceDescriptorOperations>();
         var application = provider.GetApplication("application:registry");
         var resource = Assert.Single(provider.GetResources(), resource =>
             resource.Id == "application:registry");
-        var descriptor = await provider.DescribeAsync(
+        var descriptor = await descriptors.DescribeAsync(
             resource,
             new ResourceOrchestrationDescriptorContext(null, null, null!));
         var workload = descriptor.Configuration.Deserialize<ResourceWorkloadConfiguration>(
@@ -10087,9 +10093,10 @@ public sealed class ResourceDeclarationTests
 
         using var serviceProvider = services.BuildServiceProvider();
         var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var descriptors = serviceProvider.GetRequiredService<IApplicationResourceDescriptorOperations>();
         var resource = Assert.Single(provider.GetResources(), resource =>
             resource.Id == "application:api");
-        var descriptor = await provider.DescribeAsync(
+        var descriptor = await descriptors.DescribeAsync(
             resource,
             new ResourceOrchestrationDescriptorContext(null, null, null!));
         var workload = descriptor.Configuration.Deserialize<ResourceWorkloadConfiguration>(
@@ -10144,9 +10151,10 @@ public sealed class ResourceDeclarationTests
 
         using var serviceProvider = services.BuildServiceProvider();
         var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var descriptors = serviceProvider.GetRequiredService<IApplicationResourceDescriptorOperations>();
         var resource = Assert.Single(provider.GetResources(), resource =>
             resource.Id == "application:api");
-        var descriptor = await provider.DescribeAsync(
+        var descriptor = await descriptors.DescribeAsync(
             resource,
             new ResourceOrchestrationDescriptorContext(null, null, null!));
         var workload = descriptor.Configuration.Deserialize<ResourceWorkloadConfiguration>(
@@ -10190,6 +10198,7 @@ public sealed class ResourceDeclarationTests
 
         using var serviceProvider = services.BuildServiceProvider();
         var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var descriptors = serviceProvider.GetRequiredService<IApplicationResourceDescriptorOperations>();
         var resource = Assert.Single(provider.GetResources(), resource =>
             resource.Id == "application:api");
         var catalogResource = new Resource(
@@ -10214,7 +10223,7 @@ public sealed class ResourceDeclarationTests
                     NetworkResourceId: "network:internal",
                     SourceEndpointName: "http")
             ]);
-        var descriptor = await provider.DescribeAsync(
+        var descriptor = await descriptors.DescribeAsync(
             resource,
             new ResourceOrchestrationDescriptorContext(
                 null,
@@ -10267,9 +10276,10 @@ public sealed class ResourceDeclarationTests
 
         using var serviceProvider = services.BuildServiceProvider();
         var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var descriptors = serviceProvider.GetRequiredService<IApplicationResourceDescriptorOperations>();
         var resource = Assert.Single(provider.GetResources(), resource =>
             resource.Id == "application:redis");
-        var descriptor = await provider.DescribeAsync(
+        var descriptor = await descriptors.DescribeAsync(
             resource,
             new ResourceOrchestrationDescriptorContext(null, null, null!));
         var workload = descriptor.Configuration.Deserialize<ResourceWorkloadConfiguration>(

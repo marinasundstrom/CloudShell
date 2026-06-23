@@ -91,6 +91,9 @@ on `git blame --follow`, and then by the broad type of change.
   service.
 - Application process and container monitoring now use a dedicated monitoring
   provider instead of the shared application resource service.
+- Application orchestration descriptor operations now use a dedicated
+  descriptor provider backed by `ApplicationWorkloadConfigurationProvider`
+  instead of the shared application resource service.
 
 ### 2026-06-23
 

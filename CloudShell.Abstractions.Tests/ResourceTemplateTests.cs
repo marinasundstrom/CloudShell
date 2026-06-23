@@ -469,6 +469,7 @@ public sealed class ResourceTemplateTests
             var runtimeStates = new ApplicationRuntimeStateStore(processOptions, environment);
             var containerDeployments = new ApplicationContainerDeploymentStore(options, environment);
             var localProcesses = new LocalProcessRunner(runtimeStates, processOptions, environment);
+            var declarations = new ResourceDeclarationStore();
             var definitionNormalizer = new ApplicationResourceDefinitionNormalizer(environment);
             var definitionSource = new ApplicationResourceDefinitionSource(store, definitionNormalizer);
             var definitionRegistrations = new ApplicationResourceDefinitionRegistrationService(store, definitionNormalizer);
@@ -484,6 +485,13 @@ public sealed class ResourceTemplateTests
                 definitionSource,
                 registrationOperations,
                 definitionRegistrations);
+            var workloadConfigurations = new ApplicationWorkloadConfigurationProvider(
+                options,
+                declarations,
+                []);
+            var descriptorOperations = new ApplicationResourceDescriptorOperations(
+                definitionSource,
+                workloadConfigurations);
             var services = new ServiceCollection().BuildServiceProvider();
             Provider = new ApplicationResourceService(
                 store,
@@ -497,14 +505,14 @@ public sealed class ResourceTemplateTests
                 [],
                 [],
                 [],
-                new ResourceDeclarationStore());
+                declarations);
             ResourceProvider = new ExecutableApplicationResourceProvider(
                 Provider,
                 definitionSource,
                 Provider,
                 templateOperations,
                 declarationOperations,
-                Provider,
+                descriptorOperations,
                 Provider);
             Group = new ResourceGroup("group-1", "Local Development", "Development resources", ["application:example-web-api"]);
             Registrations = new TestRegistrationStore();
