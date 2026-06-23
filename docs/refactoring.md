@@ -129,6 +129,9 @@ without forcing provider-specific logic into shared helpers.
 - [x] Add resource graph membership metadata so Resource Manager projections
   can distinguish stable declared/registered resources from provider-projected
   artifacts while keeping them in one graph.
+- [x] Extract application resource naming helpers for stable identifiers and
+  runtime container resource IDs so projection, logs, observability, and
+  runtime child-resource concerns can share the same naming boundary.
 
 ## Next Slices
 

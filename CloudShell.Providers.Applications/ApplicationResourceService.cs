@@ -4071,7 +4071,7 @@ public sealed partial class ApplicationResourceService(
             service.Replicas);
 
     private static string CreateRuntimeContainerResourceId(string resourceId, int replica) =>
-        $"runtime-container:{CreateStableIdentifier(resourceId)}:replica-{Math.Max(1, replica).ToString(CultureInfo.InvariantCulture)}";
+        ApplicationResourceNames.CreateRuntimeContainerResourceId(resourceId, replica);
 
     private static string GetContainerName(string resourceId, int replica = 1, int replicas = 1)
     {
@@ -4170,16 +4170,7 @@ public sealed partial class ApplicationResourceService(
         CreateStableIdentifier($"{service.Name}-{port.Name}-{port.TargetPort.ToString(CultureInfo.InvariantCulture)}");
 
     private static string CreateStableIdentifier(string value)
-    {
-        var builder = new StringBuilder(value.Length);
-        foreach (var character in value.Trim().ToLowerInvariant())
-        {
-            builder.Append(char.IsLetterOrDigit(character) ? character : '-');
-        }
-
-        var identifier = builder.ToString().Trim('-');
-        return string.IsNullOrWhiteSpace(identifier) ? "cloudshell" : identifier;
-    }
+        => ApplicationResourceNames.CreateStableIdentifier(value);
 
     private static bool IsRuntimeContainerReplica(Resource resource) =>
         string.Equals(resource.EffectiveTypeId, "runtime.container", StringComparison.OrdinalIgnoreCase) &&

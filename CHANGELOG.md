@@ -119,6 +119,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager projections now include `resource.graph.membership`
   metadata so consumers can distinguish declared/registered resources from
   provider-projected artifacts without splitting the resource graph.
+- Application resource stable identifier and runtime container resource ID
+  generation now lives in a tested helper shared by projection, logs,
+  observability, and runtime child-resource concerns.
 - The deployment proposal now clarifies that deployment definitions describe
   resource intent through resource definitions and provider-owned attributes,
   with serialized formats treated as projections of that model.
