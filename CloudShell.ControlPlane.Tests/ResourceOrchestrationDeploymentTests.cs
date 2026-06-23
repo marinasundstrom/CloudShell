@@ -147,7 +147,7 @@ public sealed class ResourceOrchestrationDeploymentTests
     public async Task ApplyDeploymentAsync_RecordsFailedDeployment()
     {
         var resource = CreateResource();
-        var provider = new RecordingServiceProcedureProvider(resource, failOnExecute: true);
+        var provider = new RecordingServiceProcedureProvider(resource, failOnStart: true);
         var resourceEvents = new InMemoryResourceEventStore();
         var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();
         var orchestration = CreateOrchestration(resource, provider, resourceEvents, deploymentStore);
@@ -171,8 +171,34 @@ public sealed class ResourceOrchestrationDeploymentTests
         Assert.Equal("Container app deployment.", deploymentRecord.Cause);
         Assert.Equal("Replica execution failed.", deploymentRecord.Error);
         Assert.NotNull(deploymentRecord.CompletedAt);
+        Assert.Equal(
+            [ResourceActionKind.Stop],
+            provider.ExecutedActions.Select(action => action.Kind).ToArray());
+        Assert.Equal(
+            ["cloudshell-application-api-rev-2"],
+            provider.ExecutedInstances.Select(instance => instance.Instance.Name).ToArray());
+        var events = resourceEvents
+            .GetEvents(new ResourceEventQuery(ResourceId: resource.Id))
+            .Reverse()
+            .ToArray();
+        Assert.Equal(
+            [
+                ResourceEventTypes.Events.Deployment.Applying,
+                ResourceEventTypes.Events.Deployment.ServiceReconciling,
+                ResourceEventTypes.Events.Deployment.ServiceReconciled,
+                ResourceEventTypes.Events.Deployment.ReplicaMaterializing,
+                ResourceEventTypes.Events.Deployment.RollingBack,
+                ResourceEventTypes.Events.Deployment.RolledBack,
+                ResourceEventTypes.Events.Deployment.Failed
+            ],
+            events.Select(resourceEvent => resourceEvent.EventType).ToArray());
         Assert.Contains(
-            resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: resource.Id)),
+            events,
+            resourceEvent =>
+                resourceEvent.EventType == ResourceEventTypes.Events.Deployment.RollingBack &&
+                resourceEvent.Severity == ResourceSignalSeverity.Warning);
+        Assert.Contains(
+            events,
             resourceEvent =>
                 resourceEvent.EventType == ResourceEventTypes.Events.Deployment.Failed &&
                 resourceEvent.Severity == ResourceSignalSeverity.Error);
@@ -416,7 +442,7 @@ public sealed class ResourceOrchestrationDeploymentTests
     private sealed class RecordingServiceProcedureProvider(
         IReadOnlyList<Resource> resources,
         ConcurrentDeploymentGate? gate = null,
-        bool failOnExecute = false) :
+        bool failOnStart = false) :
         IResourceProvider,
         IResourceOrchestratorServiceProcedureProvider
     {
@@ -425,8 +451,8 @@ public sealed class ResourceOrchestrationDeploymentTests
         {
         }
 
-        public RecordingServiceProcedureProvider(Resource resource, bool failOnExecute)
-            : this([resource], failOnExecute: failOnExecute)
+        public RecordingServiceProcedureProvider(Resource resource, bool failOnStart)
+            : this([resource], failOnStart: failOnStart)
         {
         }
 
@@ -475,7 +501,8 @@ public sealed class ResourceOrchestrationDeploymentTests
             ResourceAction action,
             CancellationToken cancellationToken = default)
         {
-            if (failOnExecute)
+            if (failOnStart &&
+                action.Kind == ResourceActionKind.Start)
             {
                 throw new InvalidOperationException("Replica execution failed.");
             }

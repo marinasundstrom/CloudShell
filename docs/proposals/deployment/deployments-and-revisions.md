@@ -660,6 +660,21 @@ serving traffic from the old revision to the new revision. If the new revision
 fails readiness, the old revision remains active and the failed revision stays
 inspectable for diagnostics.
 
+Deployment apply fails when the orchestrator cannot set up the requested
+runtime state: for example, the spec is invalid for the selected orchestrator,
+provider materialization throws, a runtime resource cannot be created or
+updated, routing cannot be updated, or an explicit deployment readiness gate
+fails. A workload resource that starts and later reports unhealthy liveness is
+runtime health, not automatically an orchestrator deployment failure, unless
+that health or readiness check was declared as part of the deployment gate.
+When setup fails before a materialized outcome is accepted, Resource Manager
+records a failed deployment attempt and no orchestrator revision is produced.
+The selected orchestrator should then make a best-effort rollback of the
+deployment unit it was setting up, usually by tearing down the candidate replica
+group. Rollback failure must be logged but should not hide the original apply
+failure. Automatic restore of the previously serving revision is a separate
+rollout policy, not the baseline meaning of deployment apply failure.
+
 Advanced strategies such as blue/green, canary percentages, labels, gradual
 traffic shifting, and automatic restore can build on the same deployment and
 revision model. They are not required for the first implementation, but the

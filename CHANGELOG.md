@@ -41,6 +41,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager orchestration now tears down superseded container app
   replica groups as a separate post-apply operation instead of hiding cleanup
   inside deployment apply.
+- Default orchestrator deployment apply now logs rollback events and attempts
+  best-effort teardown of the candidate replica group when setup fails before a
+  revision is produced.
 - FileSystem volumes can now be attached to executable and ASP.NET Core
   project resources through the same `ResourceVolumeMount` model used by
   container apps, with Resource Manager Storage tabs and local process

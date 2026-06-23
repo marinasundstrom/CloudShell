@@ -310,13 +310,17 @@ correlate or project runtime replica resources. Deployment apply is
 incremental: specified runtime resources are created or updated by id, while
 removing runtime resources is a separate tear-down operation such as scaling
 down a replica group, retiring a superseded revision, or cleaning up the
-resources that belong to an orchestration service. A resource can still be
-managed directly by Resource Manager while an orchestrator derives a default
-deployment for a deployment-relevant state or configuration change. These
-abstractions are available for internal container-app, provider, and
-orchestrator implementation work before they are announced as a public
-management surface. The Control Plane exposes an internal deployment-apply
-boundary that dispatches a
+resources that belong to an orchestration service. A failed deployment attempt
+is an apply failure, not a materialized outcome, so it does not produce an
+orchestrator revision. The orchestrator should log the failure and attempt
+best-effort rollback of the deployment unit it was setting up. Runtime health
+problems after setup are resource health unless they were declared as part of a
+deployment readiness gate. A resource can still be managed directly by Resource
+Manager while an orchestrator derives a default deployment for a
+deployment-relevant state or configuration change. These abstractions are
+available for internal container-app, provider, and orchestrator implementation
+work before they are announced as a public management surface. The Control
+Plane exposes an internal deployment-apply boundary that dispatches a
 deployment to the selected orchestrator instead of having the resource domain
 manipulate runtime replicas directly. A container app revision answers
 application-version questions; an orchestrator deployment and revision answer

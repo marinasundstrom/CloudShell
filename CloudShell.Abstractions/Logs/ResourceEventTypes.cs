@@ -88,6 +88,9 @@ public static class ResourceEventTypes
             public const string ReplicaMaterialized = "event.deployment.replica.materialized";
             public const string RoutingUpdating = "event.deployment.routing.updating";
             public const string RoutingUpdated = "event.deployment.routing.updated";
+            public const string RollingBack = "event.deployment.rollback.running";
+            public const string RolledBack = "event.deployment.rollback.completed";
+            public const string RollbackFailed = "event.deployment.rollback.failed";
             public const string Applied = "event.deployment.applied";
             public const string Failed = "event.deployment.failed";
         }

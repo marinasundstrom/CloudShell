@@ -156,14 +156,29 @@ public sealed class DefaultResourceOrchestrator(
             RuntimeRevisionId = deployment.RevisionId
         };
         var replicaGroup = ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service);
-        await ExecuteOrchestratorServiceActionCoreAsync(
-            provider,
-            resourceContext,
-            service,
-            ResourceAction.Start,
-            cancellationToken,
-            deployment,
-            replicaGroup);
+        try
+        {
+            await ExecuteOrchestratorServiceActionCoreAsync(
+                provider,
+                resourceContext,
+                service,
+                ResourceAction.Start,
+                cancellationToken,
+                deployment,
+                replicaGroup);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            await RollBackFailedDeploymentAsync(
+                provider,
+                resourceContext,
+                service,
+                replicaGroup,
+                deployment,
+                exception,
+                cancellationToken);
+            throw;
+        }
 
         var applied = deployment with { Status = ResourceOrchestratorDeploymentStatus.Active };
         var revisionCreatedAt = DateTimeOffset.UtcNow;
@@ -291,6 +306,49 @@ public sealed class DefaultResourceOrchestrator(
             CultureInfo.InvariantCulture,
             $"{instance.ReplicaOrdinal}/{instance.ReplicaCount}");
 
+    private static async Task RollBackFailedDeploymentAsync(
+        IResourceOrchestratorServiceProcedureProvider provider,
+        ResourceProcedureContext resourceContext,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup replicaGroup,
+        ResourceOrchestratorDeployment deployment,
+        Exception applyException,
+        CancellationToken cancellationToken)
+    {
+        AppendDeploymentEvent(
+            resourceContext,
+            ResourceEventTypes.Events.Deployment.RollingBack,
+            $"Rolling back deployment '{deployment.Id}' for revision '{deployment.RevisionId}' after apply failed. Reason: {applyException.Message}",
+            ResourceSignalSeverity.Warning);
+
+        try
+        {
+            await ExecuteOrchestratorReplicaGroupAsync(
+                provider,
+                resourceContext,
+                service,
+                replicaGroup,
+                ResourceAction.Stop,
+                deployment: null,
+                cancellationToken);
+        }
+        catch (Exception rollbackException) when (rollbackException is not OperationCanceledException)
+        {
+            AppendDeploymentEvent(
+                resourceContext,
+                ResourceEventTypes.Events.Deployment.RollbackFailed,
+                $"Rollback failed for deployment '{deployment.Id}' revision '{deployment.RevisionId}'. Reason: {rollbackException.Message}",
+                ResourceSignalSeverity.Error);
+            return;
+        }
+
+        AppendDeploymentEvent(
+            resourceContext,
+            ResourceEventTypes.Events.Deployment.RolledBack,
+            $"Rolled back deployment '{deployment.Id}' for revision '{deployment.RevisionId}' by tearing down replica group '{replicaGroup.Id}'.",
+            ResourceSignalSeverity.Warning);
+    }
+
     private static async Task ExecuteOrchestratorReplicaGroupAsync(
         IResourceOrchestratorServiceProcedureProvider provider,
         ResourceProcedureContext resourceContext,
@@ -329,7 +387,8 @@ public sealed class DefaultResourceOrchestrator(
     private static void AppendDeploymentEvent(
         ResourceProcedureContext context,
         string eventType,
-        string message)
+        string message,
+        ResourceSignalSeverity severity = ResourceSignalSeverity.Info)
     {
         var effectiveMessage = string.IsNullOrWhiteSpace(context.Cause)
             ? message.Trim()
@@ -340,7 +399,8 @@ public sealed class DefaultResourceOrchestrator(
             eventType,
             effectiveMessage,
             DateTimeOffset.UtcNow,
-            context.TriggeredBy));
+            context.TriggeredBy,
+            severity));
     }
 
     private static ResourceProcedureContext CreateProcedureContext(

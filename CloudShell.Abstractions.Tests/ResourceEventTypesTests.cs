@@ -62,6 +62,15 @@ public sealed class ResourceEventTypesTests
             "event.deployment.routing.updated",
             ResourceEventTypes.Events.Deployment.RoutingUpdated);
         Assert.Equal(
+            "event.deployment.rollback.running",
+            ResourceEventTypes.Events.Deployment.RollingBack);
+        Assert.Equal(
+            "event.deployment.rollback.completed",
+            ResourceEventTypes.Events.Deployment.RolledBack);
+        Assert.Equal(
+            "event.deployment.rollback.failed",
+            ResourceEventTypes.Events.Deployment.RollbackFailed);
+        Assert.Equal(
             "event.deployment.applied",
             ResourceEventTypes.Events.Deployment.Applied);
         Assert.Equal(
