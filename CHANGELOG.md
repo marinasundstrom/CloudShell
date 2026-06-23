@@ -108,6 +108,9 @@ on `git blame --follow`, and then by the broad type of change.
   with typed service definitions, grouped resource definitions, and standalone
   resource definitions, separating the domain structure from any eventual JSON,
   builder, database, or API projection format.
+- Orchestrator environment revisions now retain the deployment-definition
+  snapshot that produced the successful environment change, so revision history
+  can track the service/resource structure independently of deployment format.
 - Resource Manager deployment coordination now lives separately from
   orchestration execution under dedicated Deployment and Orchestration
   namespaces, with the default deployment service reusable for orchestrators

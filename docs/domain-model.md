@@ -338,11 +338,20 @@ configuration-version questions; an orchestrator deployment and environment
 revision answer what CloudShell runtime state was requested, what hosting
 environment changed, and which service/runtime resources were affected.
 
-This model is not a Kubernetes copy. CloudShell orchestrators are an abstraction
-for executing desired runtime state. A custom orchestrator can implement the
-contract directly, while integration orchestrators can translate it into
-provider-native objects such as Docker Compose services or Kubernetes workload
-resources without making those objects the CloudShell domain model.
+This model is not a Kubernetes copy. It has similar mechanics where the
+problem is similar: desired state, orchestration, materialization, dependency
+ordering, rollout, runtime grouping, and history. CloudShell is more flexible
+because the common Control Plane unit is the resource, while Kubernetes centers
+its workload model around pods. CloudShell resources are not limited to
+container workloads or provider-native runtime primitives. A resource can
+represent an application, database helper, volume, network, host, appliance,
+logical mapping, identity integration, or any other manageable thing a
+provider contributes to the Control Plane. CloudShell orchestrators are an
+abstraction for executing desired runtime state over those resources. A custom
+orchestrator can implement the contract directly, while integration
+orchestrators can translate it into provider-native objects such as Docker
+Compose services or Kubernetes workload resources without making those objects
+the CloudShell domain model.
 
 The container app layer should not directly manipulate orchestrator-owned
 replicas, backend registrations, routing tables, or cleanup behavior. It

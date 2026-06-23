@@ -92,7 +92,8 @@ public sealed class InMemoryResourceOrchestratorDeploymentStore : IResourceOrche
             status,
             replicaGroup,
             Normalize(deployment.BasedOnRevisionId),
-            Normalize(provisionedBy));
+            Normalize(provisionedBy),
+            deployment.Spec.CreateDeploymentDefinition(deployment.RevisionId));
     }
 
     public IReadOnlyList<ResourceOrchestratorDeploymentRecord> List(ResourceOrchestratorDeploymentQuery? query = null)

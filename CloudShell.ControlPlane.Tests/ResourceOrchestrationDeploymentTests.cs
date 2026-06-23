@@ -47,6 +47,14 @@ public sealed class ResourceOrchestrationDeploymentTests
         Assert.Equal(deployment.RevisionId, result.Revision.ReplicaGroup.RuntimeRevisionId);
         Assert.Equal(3, result.Revision.ReplicaGroup.RequestedReplicas);
         Assert.Equal(3, result.Revision.ReplicaGroup.MaterializedReplicas);
+        Assert.NotNull(result.Revision.Definition);
+        var revisionServiceDefinition = Assert.Single(result.Revision.Definition.DeploymentServices);
+        Assert.Equal(deployment.Spec.Service.Name, revisionServiceDefinition.Name);
+        var revisionReplicaGroupDefinition = Assert.Single(revisionServiceDefinition.ServiceResources);
+        Assert.Equal(result.Revision.ReplicaGroup.Id, revisionReplicaGroupDefinition.Name);
+        Assert.Equal(
+            ResourceOrchestratorDeploymentDefinitionTypes.ReplicaGroup,
+            revisionReplicaGroupDefinition.Type);
         var preparedService = Assert.Single(provider.PreparedServices);
         Assert.Equal(deployment.Spec.Service.Name, preparedService.Name);
         Assert.Equal(deployment.RevisionId, preparedService.RuntimeRevisionId);
@@ -125,6 +133,7 @@ public sealed class ResourceOrchestrationDeploymentTests
         Assert.Equal(result.Revision, deploymentRecord.Revision);
         Assert.Equal("tests", deploymentRecord.Revision?.ProvisionedBy);
         Assert.Equal(result.Revision.ReplicaGroup, deploymentRecord.ReplicaGroup);
+        Assert.Equal(result.Revision.Definition, deploymentRecord.Revision?.Definition);
         Assert.Equal("tests", deploymentRecord.TriggeredBy);
         Assert.Equal("Container app deployment.", deploymentRecord.Cause);
         Assert.Equal(result.ProcedureResult.Message, deploymentRecord.Message);

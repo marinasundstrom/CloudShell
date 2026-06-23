@@ -50,10 +50,24 @@ public sealed record ResourceOrchestratorDeploymentSpec(
     public IReadOnlyDictionary<string, string> DeploymentInputs => Inputs ?? EmptyInputs;
 
     public ResourceOrchestratorDeploymentDefinition DeploymentDefinition =>
-        Definition ?? ResourceOrchestratorDeploymentDefinition.FromService(
-            Service,
+        CreateDeploymentDefinition();
+
+    public ResourceOrchestratorDeploymentDefinition CreateDeploymentDefinition(string? runtimeRevisionId = null)
+    {
+        if (Definition is not null)
+        {
+            return Definition;
+        }
+
+        var service = string.IsNullOrWhiteSpace(runtimeRevisionId)
+            ? Service
+            : Service with { RuntimeRevisionId = runtimeRevisionId.Trim() };
+
+        return ResourceOrchestratorDeploymentDefinition.FromService(
+            service,
             WorkloadVersion,
             DeploymentInputs);
+    }
 }
 
 public sealed record ResourceOrchestratorRevision(
@@ -66,7 +80,8 @@ public sealed record ResourceOrchestratorRevision(
     ResourceOrchestratorRevisionStatus Status,
     ResourceOrchestratorReplicaGroup? ReplicaGroup = null,
     ResourceOrchestratorEnvironmentRevisionId? BasedOnRevisionId = null,
-    string? ProvisionedBy = null);
+    string? ProvisionedBy = null,
+    ResourceOrchestratorDeploymentDefinition? Definition = null);
 
 public sealed record ResourceOrchestratorDeploymentApplyResult(
     ResourceOrchestratorDeployment Deployment,

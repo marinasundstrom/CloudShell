@@ -76,6 +76,23 @@ public sealed class ResourceOrchestratorDeploymentDefinitionTests
             Assert.Single(Assert.Single(spec.DeploymentDefinition.DeploymentServices).ServiceResources).Name);
     }
 
+    [Fact]
+    public void CreateDeploymentDefinition_UsesRuntimeRevisionForGeneratedReplicaGroup()
+    {
+        var service = CreateService(replicas: 2) with
+        {
+            RuntimeRevisionId = null
+        };
+        var spec = new ResourceOrchestratorDeploymentSpec(service, "rev-2");
+
+        var definition = spec.CreateDeploymentDefinition("rev-3");
+
+        var serviceDefinition = Assert.Single(definition.DeploymentServices);
+        var replicaGroup = Assert.Single(serviceDefinition.ServiceResources);
+        Assert.Equal("cloudshell-application-api-rev-3-replicas", replicaGroup.Name);
+        Assert.Equal("rev-2", replicaGroup.ResourceAttributes[ResourceAttributeNames.DeploymentWorkloadVersion]);
+    }
+
     private static ResourceOrchestratorService CreateService(int replicas) =>
         new(
             "application:api",

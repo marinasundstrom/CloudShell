@@ -354,11 +354,16 @@ environment state or revision history; it would not mutate the old revision in
 place.
 
 This is a CloudShell abstraction, not an attempt to copy Kubernetes
-Deployments, Docker Compose services, or another orchestrator's native model. A
-custom orchestrator can execute the contract directly. An integration
-orchestrator can translate the same contract into provider-native objects, such
-as Docker Compose services or Kubernetes workload and service resources, while
-keeping those provider details outside CloudShell's common domain model.
+Deployments, Docker Compose services, or another orchestrator's native model.
+CloudShell can look similar to Kubernetes where it solves similar
+orchestration problems, but it is more flexible because it centers the Control
+Plane around resources rather than pods, containers, or workload-controller
+objects. A resource can be any manageable thing contributed by a resource type
+and provider. Deployments therefore describe desired runtime state for
+CloudShell resources and orchestrator services, and an integration orchestrator
+may translate that state into provider-native objects such as Docker Compose
+services or Kubernetes workload resources while keeping those provider details
+outside CloudShell's common domain model.
 
 Suggested model:
 
