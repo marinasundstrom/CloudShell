@@ -204,7 +204,7 @@ public sealed class LogStoreTests
             "operator"));
 
         var source = Assert.Single(provider.GetLogSources());
-        var descriptor = Assert.Single(provider.GetLogs());
+        Assert.Empty(((ILogProvider)provider).GetLogs());
         var entries = await provider.ReadLogAsync(source.Id);
 
         Assert.Equal(ResourceEventLogProvider.GetLogId(resource.Id), source.Id);
@@ -217,10 +217,6 @@ public sealed class LogStoreTests
         Assert.True(source.Capabilities.HasFlag(LogSourceCapabilities.Query));
         Assert.True(source.Capabilities.HasFlag(LogSourceCapabilities.StructuredFields));
         Assert.Equal(ResourceLogSourceOrigin.ProviderProjected, source.Origin);
-        Assert.Equal(source.Id, descriptor.Id);
-        Assert.Equal(source.ResourceId, descriptor.ResourceId);
-        Assert.Equal(source.Kind, descriptor.Kind);
-        Assert.Equal(source.Format, descriptor.Format);
         var entry = Assert.Single(entries);
         Assert.Equal("event", entry.Source);
         Assert.Equal("resource.updated", entry.EventId);

@@ -138,6 +138,8 @@ without forcing provider-specific logic into shared helpers.
 - [x] Move application resource log discovery to source-first `LogSource`
   projection, keeping descriptor compatibility out of new application-provider
   discovery code.
+- [x] Keep resource activity log discovery source-first by removing its
+  descriptor compatibility projection.
 
 ## Next Slices
 

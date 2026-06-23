@@ -13,11 +13,6 @@ public sealed class ResourceEventLogProvider(
 
     public string DisplayName => "Activity";
 
-    public IReadOnlyList<LogDescriptor> GetLogs() =>
-        GetLogSources()
-            .Select(ToDescriptor)
-            .ToArray();
-
     public IReadOnlyList<LogSource> GetLogSources() =>
         resourceManager
             .GetResources()
@@ -60,28 +55,6 @@ public sealed class ResourceEventLogProvider(
     }
 
     public static string GetLogId(string resourceId) => $"{resourceId}{LogIdSuffix}";
-
-    private static LogDescriptor ToDescriptor(LogSource source) =>
-        new(
-            source.Id,
-            source.Name,
-            source.Provider,
-            source.SourceName,
-            source.SourceKind,
-            source.ResourceId,
-            source.ArtifactId,
-            source.SupportsStreaming,
-            source.Description,
-            source.Kind,
-            source.Format,
-            source.Storage,
-            source.Capabilities,
-            source.Location,
-            source.ProducerResourceId,
-            source.Origin,
-            source.Configuration,
-            source.Purpose,
-            source.Availability);
 
     private static bool TryGetResourceId(
         string logId,
