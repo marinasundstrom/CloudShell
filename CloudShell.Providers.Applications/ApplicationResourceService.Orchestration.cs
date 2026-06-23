@@ -1,0 +1,81 @@
+using CloudShell.Abstractions.ResourceManager;
+using System.Globalization;
+
+namespace CloudShell.Providers.Applications;
+
+public sealed partial class ApplicationResourceService
+{
+    private ResourceOrchestratorService CreateDefaultContainerOrchestratorService(
+        ApplicationResourceDefinition application) =>
+        new(
+            application.Id,
+            GetContainerServiceName(application.Id),
+            CreateWorkloadConfiguration(application),
+            Networks: [DefaultContainerNetworkName]);
+
+    private ResourceOrchestratorService CreateActiveContainerOrchestratorService(
+        ApplicationResourceDefinition application) =>
+        CreateDefaultContainerOrchestratorDeployment(
+            application,
+            GetState(application.Id),
+            runtimeRevisionScoped: true)
+            .Spec
+            .Service;
+
+    private ResourceOrchestratorDeployment CreateDefaultContainerOrchestratorDeployment(
+        ApplicationResourceDefinition application,
+        ResourceState state,
+        bool runtimeRevisionScoped = false)
+    {
+        var service = CreateDefaultContainerOrchestratorService(application);
+        var revision = GetEffectiveContainerRevision(application);
+        if (runtimeRevisionScoped &&
+            ShouldUseRevisionScopedRuntimeInstances(application, revision))
+        {
+            service = service with
+            {
+                RuntimeRevisionId = revision
+            };
+        }
+
+        var inputs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [ResourceAttributeNames.DeploymentDesiredReplicas] =
+                service.Replicas.ToString(CultureInfo.InvariantCulture),
+            [ResourceAttributeNames.ContainerRegistry] = GetEffectiveContainerRegistry(application)
+        };
+
+        AddIfNotEmpty(inputs, ResourceAttributeNames.ContainerImage, application.ContainerImage);
+
+        return new ResourceOrchestratorDeployment(
+            CreateDefaultContainerOrchestratorDeploymentId(application.Id),
+            DefaultOrchestratorId,
+            application.Id,
+            service.Name,
+            revision,
+            new ResourceOrchestratorDeploymentSpec(service, revision, inputs),
+            GetContainerOrchestratorDeploymentStatus(state));
+    }
+
+    private bool ShouldUseRevisionScopedRuntimeInstances(
+        ApplicationResourceDefinition application,
+        string revision) =>
+        !string.IsNullOrWhiteSpace(revision) &&
+        containerDeployments.ListRevisions(application.Id).Any(entry =>
+            string.Equals(entry.Id, revision, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(entry.Status, ApplicationContainerRevisionStatuses.Active, StringComparison.OrdinalIgnoreCase));
+
+    private static IEnumerable<ResourceOrchestratorServiceInstance> CreateDefaultContainerServiceInstances(
+        ResourceOrchestratorService service) =>
+        ResourceOrchestratorServiceInstances.CreateDefaultInstances(service);
+
+    private static ResourceOrchestratorDeploymentStatus GetContainerOrchestratorDeploymentStatus(
+        ResourceState state) =>
+        state switch
+        {
+            ResourceState.Starting or ResourceState.Stopping => ResourceOrchestratorDeploymentStatus.Applying,
+            ResourceState.Running => ResourceOrchestratorDeploymentStatus.Active,
+            ResourceState.Degraded => ResourceOrchestratorDeploymentStatus.Failed,
+            _ => ResourceOrchestratorDeploymentStatus.Pending
+        };
+}

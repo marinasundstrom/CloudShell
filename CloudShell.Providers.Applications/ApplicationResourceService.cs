@@ -675,7 +675,7 @@ public sealed partial class ApplicationResourceService(
         var updatedReplicas = Math.Max(1, updated.Replicas);
         if (updatedReplicas > previousReplicas)
         {
-            var service = CreateDefaultContainerOrchestratorService(updated);
+            var service = CreateActiveContainerOrchestratorService(updated);
             await PrepareOrchestratorServiceAsync(
                 new ResourceOrchestratorServiceProcedureContext(context, service),
                 ResourceAction.Start,
@@ -692,7 +692,7 @@ public sealed partial class ApplicationResourceService(
         }
         else if (updatedReplicas < previousReplicas)
         {
-            var previousService = CreateDefaultContainerOrchestratorService(previous);
+            var previousService = CreateActiveContainerOrchestratorService(previous);
             foreach (var instance in CreateDefaultContainerServiceInstances(previousService)
                          .Where(instance => instance.ReplicaOrdinal > updatedReplicas)
                          .OrderByDescending(instance => instance.ReplicaOrdinal))
@@ -706,7 +706,7 @@ public sealed partial class ApplicationResourceService(
             }
         }
 
-        var updatedService = CreateDefaultContainerOrchestratorService(updated);
+        var updatedService = CreateActiveContainerOrchestratorService(updated);
         if (ShouldUseContainerAppIngress(updatedService))
         {
             await WriteContainerAppIngressConfigurationAsync(
@@ -1667,7 +1667,7 @@ public sealed partial class ApplicationResourceService(
             preferredContainerHostId,
             cancellationToken,
             procedureContext);
-        var service = CreateDefaultContainerOrchestratorService(runtimeDefinition);
+        var service = CreateActiveContainerOrchestratorService(runtimeDefinition);
         procedureContext?.AppendProviderEvent(
             Id,
             "application.container.service.preparing",
@@ -2816,7 +2816,7 @@ public sealed partial class ApplicationResourceService(
         CancellationToken cancellationToken,
         ResourceProcedureContext? procedureContext = null)
     {
-        var service = CreateDefaultContainerOrchestratorService(definition);
+        var service = CreateActiveContainerOrchestratorService(definition);
         if (ShouldUseContainerAppIngress(service))
         {
             await StopContainerAppIngressAsync(
@@ -3456,7 +3456,10 @@ public sealed partial class ApplicationResourceService(
         }
         if (IsContainerBacked(application))
         {
-            var deployment = CreateDefaultContainerOrchestratorDeployment(application, state);
+            var deployment = CreateDefaultContainerOrchestratorDeployment(
+                application,
+                state,
+                runtimeRevisionScoped: true);
             var materializedReplicas = IsReplicaModeEnabled(application)
                 ? CreateDefaultContainerServiceInstances(deployment.Spec.Service).Count()
                 : 0;
@@ -4242,39 +4245,6 @@ public sealed partial class ApplicationResourceService(
             VolumeMounts: application.VolumeMounts);
     }
 
-    private ResourceOrchestratorService CreateDefaultContainerOrchestratorService(
-        ApplicationResourceDefinition application) =>
-        new(
-            application.Id,
-            GetContainerServiceName(application.Id),
-            CreateWorkloadConfiguration(application),
-            Networks: [DefaultContainerNetworkName]);
-
-    private ResourceOrchestratorDeployment CreateDefaultContainerOrchestratorDeployment(
-        ApplicationResourceDefinition application,
-        ResourceState state)
-    {
-        var service = CreateDefaultContainerOrchestratorService(application);
-        var revision = GetEffectiveContainerRevision(application);
-        var inputs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            [ResourceAttributeNames.DeploymentDesiredReplicas] =
-                service.Replicas.ToString(CultureInfo.InvariantCulture),
-            [ResourceAttributeNames.ContainerRegistry] = GetEffectiveContainerRegistry(application)
-        };
-
-        AddIfNotEmpty(inputs, ResourceAttributeNames.ContainerImage, application.ContainerImage);
-
-        return new ResourceOrchestratorDeployment(
-            CreateDefaultContainerOrchestratorDeploymentId(application.Id),
-            DefaultOrchestratorId,
-            application.Id,
-            service.Name,
-            revision,
-            new ResourceOrchestratorDeploymentSpec(service, revision, inputs),
-            GetContainerOrchestratorDeploymentStatus(state));
-    }
-
     private ApplicationResourceDefinition GetContainerApplication(string resourceId)
     {
         var application = store.GetApplication(resourceId)
@@ -4288,20 +4258,6 @@ public sealed partial class ApplicationResourceService(
 
         return application;
     }
-
-    private static IEnumerable<ResourceOrchestratorServiceInstance> CreateDefaultContainerServiceInstances(
-        ResourceOrchestratorService service) =>
-        ResourceOrchestratorServiceInstances.CreateDefaultInstances(service);
-
-    private static ResourceOrchestratorDeploymentStatus GetContainerOrchestratorDeploymentStatus(
-        ResourceState state) =>
-        state switch
-        {
-            ResourceState.Starting or ResourceState.Stopping => ResourceOrchestratorDeploymentStatus.Applying,
-            ResourceState.Running => ResourceOrchestratorDeploymentStatus.Active,
-            ResourceState.Degraded => ResourceOrchestratorDeploymentStatus.Failed,
-            _ => ResourceOrchestratorDeploymentStatus.Pending
-        };
 
     private async Task<ContainerHostDescriptor> ResolveRequiredContainerHostAsync(
         ApplicationResourceDefinition definition,

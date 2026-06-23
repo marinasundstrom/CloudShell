@@ -13,7 +13,10 @@ public sealed partial class ApplicationResourceService
         }
 
         var parentState = GetState(application.Id);
-        var deployment = CreateDefaultContainerOrchestratorDeployment(application, parentState);
+        var deployment = CreateDefaultContainerOrchestratorDeployment(
+            application,
+            parentState,
+            runtimeRevisionScoped: true);
         return CreateDefaultContainerServiceInstances(deployment.Spec.Service)
             .Select(instance => CreateRuntimeContainerResource(application, deployment, instance, parentState))
             .ToArray();

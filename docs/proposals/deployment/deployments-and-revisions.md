@@ -46,6 +46,9 @@ the newly materialized revision visible without exposing traffic-splitting
 controls yet.
 The Control Plane also records internal orchestrator deployment history for
 apply attempts, successful orchestrator revisions, and failed apply results.
+When the default orchestrator applies a deployment, it now materializes service
+instances with revision-scoped runtime names so new replicas can be started next
+to the currently serving revision before routing is remapped.
 Container apps also keep provider-owned app deployment and revision history
 separately from the desired application definition. Those app deployment
 records correlate the deployment request to the produced container app
@@ -315,9 +318,9 @@ may produce:
 Deployment: api
  └── Revision: api-r12
       └── Service: api
-           ├── Replica: api-1
-           ├── Replica: api-2
-           └── Replica: api-3
+           ├── Replica: api-r12-1
+           ├── Replica: api-r12-2
+           └── Replica: api-r12-3
 ```
 
 ## Deployment Model
@@ -416,6 +419,14 @@ Service: api
 The Service remains the runtime grouping primitive.
 
 Deployment and Revision add versioning, rollout history, and traceability.
+During deployment application, service instances should carry revision-scoped
+runtime identity while the service itself keeps its stable identity. That lets
+an orchestrator start replacement replicas for the new revision next to the
+currently serving replicas, update service routing or ingress to those
+revision-scoped targets, and later drain or remove the superseded runtime
+instances. Ordinary active-revision scaling can still use stable instance
+identity because it is capacity management for the current revision rather than
+a workload replacement.
 
 ## Resource Relationship
 

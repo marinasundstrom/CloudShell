@@ -10596,6 +10596,18 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(currentDeployment.Id, currentRevisionHistory.DeploymentId);
         Assert.Equal(originalRevision, currentRevisionHistory.SourceRevisionId);
         Assert.Equal("example/api:20260608", currentRevisionHistory.Image);
+        var runtimeReplicas = provider.GetResources()
+            .Where(replica => string.Equals(replica.ParentResourceId, "application:api", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(replica => replica.ResourceAttributes[ResourceAttributeNames.RuntimeReplicaOrdinal])
+            .ToArray();
+        Assert.Equal(
+            [
+                $"cloudshell-application-api-{updated.ContainerRevision}-replica-1",
+                $"cloudshell-application-api-{updated.ContainerRevision}-replica-2"
+            ],
+            runtimeReplicas
+                .Select(replica => replica.ResourceAttributes[ResourceAttributeNames.RuntimeContainerName])
+                .ToArray());
         Assert.Equal(
             $"Deployed api image 'example/api:20260608' and produced revision '{updated.ContainerRevision}'.",
             result.Message);

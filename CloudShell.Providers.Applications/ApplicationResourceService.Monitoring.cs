@@ -125,7 +125,7 @@ public sealed partial class ApplicationResourceService
                 "Container metrics require a configured container host.");
         }
 
-        var service = CreateDefaultContainerOrchestratorService(application);
+        var service = CreateActiveContainerOrchestratorService(application);
         if (IsReplicaModeEnabled(application))
         {
             return await GetReplicatedContainerMonitoringSnapshotAsync(
@@ -154,7 +154,10 @@ public sealed partial class ApplicationResourceService
         CancellationToken cancellationToken)
     {
         var state = resource.State ?? ResourceState.Unknown;
-        var deployment = CreateDefaultContainerOrchestratorDeployment(application, state);
+        var deployment = CreateDefaultContainerOrchestratorDeployment(
+            application,
+            state,
+            runtimeRevisionScoped: true);
         var metrics = new List<ResourceMetricSample>();
         var unavailableMessages = new List<string>();
         var available = 0;

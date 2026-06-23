@@ -22,7 +22,10 @@ public sealed partial class ApplicationResourceService
             return observability;
         }
 
-        var deployment = CreateDefaultContainerOrchestratorDeployment(definition, GetState(definition.Id));
+        var deployment = CreateDefaultContainerOrchestratorDeployment(
+            definition,
+            GetState(definition.Id),
+            runtimeRevisionScoped: true);
         var scopes = CreateDefaultContainerServiceInstances(deployment.Spec.Service)
             .Select(instance =>
             {

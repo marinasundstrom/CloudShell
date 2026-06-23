@@ -167,7 +167,10 @@ public sealed partial class ApplicationResourceService
             return [];
         }
 
-        var deployment = CreateDefaultContainerOrchestratorDeployment(application, ResourceState.Unknown);
+        var deployment = CreateDefaultContainerOrchestratorDeployment(
+            application,
+            ResourceState.Unknown,
+            runtimeRevisionScoped: true);
         return CreateDefaultContainerServiceInstances(deployment.Spec.Service)
             .Select(instance =>
             {
@@ -204,7 +207,7 @@ public sealed partial class ApplicationResourceService
     {
         foreach (var application in store.GetApplications().Select(ResolveDefinition).Where(IsReplicaModeEnabled))
         {
-            var service = CreateDefaultContainerOrchestratorService(application);
+            var service = CreateActiveContainerOrchestratorService(application);
             foreach (var instance in CreateDefaultContainerServiceInstances(service))
             {
                 if (string.Equals(

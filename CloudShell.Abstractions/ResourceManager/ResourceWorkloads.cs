@@ -80,7 +80,8 @@ public sealed record ResourceOrchestratorService(
     IReadOnlyList<string>? DependsOn = null,
     IReadOnlyList<string>? Networks = null,
     IReadOnlyList<ServicePort>? Ports = null,
-    IReadOnlyList<ResourceVolumeMount>? VolumeMounts = null)
+    IReadOnlyList<ResourceVolumeMount>? VolumeMounts = null,
+    string? RuntimeRevisionId = null)
 {
     public int Replicas => Math.Max(1, Workload.Replicas);
 

@@ -2375,8 +2375,8 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.Equal(["start:target-service"], provider.PreparedActions);
         Assert.Equal(
             [
-                "start:target-service-replica-1:1/2",
-                "start:target-service-replica-2:2/2"
+                "start:target-service-revision-2-replica-1:1/2",
+                "start:target-service-revision-2-replica-2:2/2"
             ],
             provider.InstanceActions);
         Assert.Contains(

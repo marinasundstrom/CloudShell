@@ -17,6 +17,10 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Default orchestrator deployment apply now materializes service instances with
+  revision-scoped runtime names so container app image deployments can start new
+  replica containers beside the currently serving revision before routing
+  cutover.
 - FileSystem volumes can now be attached to executable and ASP.NET Core
   project resources through the same `ResourceVolumeMount` model used by
   container apps, with Resource Manager Storage tabs and local process

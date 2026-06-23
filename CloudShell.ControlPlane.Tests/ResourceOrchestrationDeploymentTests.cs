@@ -35,13 +35,28 @@ public sealed class ResourceOrchestrationDeploymentTests
         Assert.Equal(deployment.ServiceId, result.Revision.ServiceId);
         Assert.Equal(1, result.Revision.RevisionNumber);
         Assert.Equal(ResourceOrchestratorRevisionStatus.Active, result.Revision.Status);
-        Assert.Equal(deployment.Spec.Service.Name, Assert.Single(provider.PreparedServices).Name);
+        var preparedService = Assert.Single(provider.PreparedServices);
+        Assert.Equal(deployment.Spec.Service.Name, preparedService.Name);
+        Assert.Equal(deployment.RevisionId, preparedService.RuntimeRevisionId);
         Assert.Equal(
             [1, 2, 3],
             provider.ExecutedInstances
                 .Select(instance => instance.Instance.ReplicaOrdinal)
                 .Order()
                 .ToArray());
+        Assert.Equal(
+            [
+                "cloudshell-application-api-rev-2-replica-1",
+                "cloudshell-application-api-rev-2-replica-2",
+                "cloudshell-application-api-rev-2-replica-3"
+            ],
+            provider.ExecutedInstances
+                .Select(instance => instance.Instance.Name)
+                .Order(StringComparer.OrdinalIgnoreCase)
+                .ToArray());
+        Assert.All(
+            provider.ExecutedInstances,
+            instance => Assert.Equal(deployment.RevisionId, instance.Instance.RuntimeRevisionId));
         Assert.All(
             provider.ExecutedInstances,
             instance => Assert.Equal(deployment.Spec.Service.Name, instance.Service.Name));

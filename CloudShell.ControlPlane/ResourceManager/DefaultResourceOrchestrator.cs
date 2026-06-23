@@ -76,10 +76,14 @@ public sealed class DefaultResourceOrchestrator(
             ?? throw new ControlPlaneException(
                 ControlPlaneError.ResourceActionUnsupported(context.Resource.Name));
         var resourceContext = CreateProcedureContext(context);
+        var service = deployment.Spec.Service with
+        {
+            RuntimeRevisionId = deployment.RevisionId
+        };
         await ExecuteOrchestratorServiceActionCoreAsync(
             provider,
             resourceContext,
-            deployment.Spec.Service,
+            service,
             ResourceAction.Start,
             cancellationToken,
             deployment);
