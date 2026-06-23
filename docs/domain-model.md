@@ -251,20 +251,31 @@ relationship integrity. The stable user-facing resource remains the
 application, storage resource, load balancer, or other modeled resource that
 owns the behavior.
 
-Orchestrators materialize a container app by producing an orchestration-level
-runtime service descriptor. In CloudShell's orchestration contracts this is
-represented by `ResourceOrchestratorService`: a provider-facing descriptor
-derived from the stable resource id, workload configuration, desired replica
-count, ports, networks, and dependencies. A container app produces one of these
-descriptors today. It is the grouping used to keep track of the runtime
-implementation for the service contained by the resource: replicas, endpoint
-bindings, dependency ordering, network membership, and related provider-owned
-runtime services such as app ingress. It is not a projected Resource Manager
-resource by default. Docker Compose maps it to a Compose service where replicas
-can be declared, Kubernetes-oriented providers can map it to
-Service/Deployment-style objects, and the default local runner uses the
-container app identity as the implicit service identity for convention named
-replica containers.
+The default orchestration mode is managing standalone resources. A resource
+provider can expose lifecycle procedures for a single executable, container,
+database helper, volume, network, host, or other runtime resource where the
+resource itself is the orchestrated unit. The resource is still orchestrated,
+and declared dependency relationships are still managed by the orchestrator
+when actions require dependency ordering or dependency startup. It just does
+not need to be modeled as a service, deployment, revision, or replica group.
+Those concepts are added for the complexity that appears when running systems
+scale, need versioned runtime configuration, or need several materialized
+resources to behave as one runtime service.
+
+Orchestrators materialize a scaled container app by producing an
+orchestration-level runtime service descriptor. In CloudShell's orchestration
+contracts this is represented by `ResourceOrchestratorService`: a
+provider-facing descriptor derived from the stable resource id, workload
+configuration, desired replica count, ports, networks, and dependencies. A
+container app produces one of these descriptors today. It is the grouping used
+to keep track of the runtime implementation for the service contained by the
+resource: replicas, endpoint bindings, dependency ordering, network membership,
+and related provider-owned runtime services such as app ingress. It is not a
+projected Resource Manager resource by default. Docker Compose maps it to a
+Compose service where replicas can be declared, Kubernetes-oriented providers
+can map it to Service/Deployment-style objects, and the default local runner
+uses the container app identity as the implicit service identity for convention
+named replica containers.
 
 Within that service boundary, the orchestrator owns the runtime shape that
 materializes the service: routing or load-balancer configuration plus a runtime

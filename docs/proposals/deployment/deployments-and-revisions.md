@@ -6,12 +6,20 @@
 
 In progress.
 
-CloudShell already has a Resource Manager, a resource graph, an orchestrator abstraction, a default orchestrator, a Docker Compose-based orchestrator, and an orchestrator-level service abstraction.
+CloudShell already has a Resource Manager, a resource graph, an orchestrator
+abstraction, a default orchestrator, a Docker Compose-based orchestrator, and
+an orchestrator-level service abstraction.
 
-The current orchestration model can start resources and group runtime instances
-through services, but there is no formal deployment and revision model for
-representing versioned workload changes, rollout history, replica changes, or
-traceability across orchestrator implementations.
+The current orchestration model can manage standalone runtime resources and can
+group runtime instances through services, but there is no formal deployment and
+revision model for representing versioned workload changes, rollout history,
+replica changes, or traceability across orchestrator implementations.
+Standalone resource management remains the default mode: the resource itself is
+the orchestrated unit, and declared dependency relationships are still managed
+by the orchestrator when actions require dependency ordering or dependency
+startup. Services, deployments, revisions, and replica groups extend the
+orchestrator model for systems that scale; they should not make every
+orchestrated resource pretend to be a scaled service.
 
 Container app image updates are the clearest motivating case. Updating the
 image for a running container app should not be modeled as "restart this
