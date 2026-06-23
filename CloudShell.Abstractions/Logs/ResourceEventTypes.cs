@@ -79,6 +79,7 @@ public static class ResourceEventTypes
 
         public static class Deployment
         {
+            public const string Prefix = "event.deployment.";
             public const string ImageUpdated = "event.deployment.image.updated";
             public const string ReplicasUpdated = "event.deployment.replicas.updated";
             public const string Applying = "event.deployment.applying";
@@ -91,6 +92,9 @@ public static class ResourceEventTypes
             public const string RollingBack = "event.deployment.rollback.running";
             public const string RolledBack = "event.deployment.rollback.completed";
             public const string RollbackFailed = "event.deployment.rollback.failed";
+            public const string CleanupRunning = "event.deployment.cleanup.running";
+            public const string CleanupCompleted = "event.deployment.cleanup.completed";
+            public const string CleanupWarning = "event.deployment.cleanup.warning";
             public const string Applied = "event.deployment.applied";
             public const string Failed = "event.deployment.failed";
         }

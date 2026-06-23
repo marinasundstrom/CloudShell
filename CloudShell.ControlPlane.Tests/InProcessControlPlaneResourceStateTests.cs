@@ -2412,6 +2412,72 @@ public sealed class InProcessControlPlaneResourceStateTests
                 EventType: ResourceEventTypes.Events.Deployment.Applied,
                 TriggeredBy: "build-server")),
             resourceEvent => resourceEvent.Message.Contains("target-deployment", StringComparison.Ordinal));
+        Assert.Contains(
+            resourceEvents.GetEvents(new ResourceEventQuery(
+                ResourceId: "target",
+                EventType: ResourceEventTypes.Events.Deployment.CleanupCompleted,
+                TriggeredBy: "build-server")),
+            resourceEvent => resourceEvent.Message.Contains(
+                "target-service-revision-1-replicas",
+                StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task UpdateResourceImageAsync_LeavesDeploymentAppliedWhenPostApplyTearDownFails()
+    {
+        var provider = new TestDeploymentImageUpdateResourceProvider
+        {
+            FailDeploymentInstanceStop = true
+        };
+        var resourceEvents = new InMemoryResourceEventStore();
+        var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            provider,
+            resourceEvents: resourceEvents,
+            deploymentStore: deploymentStore);
+
+        var result = await controlPlane.UpdateResourceImageAsync(
+            new UpdateResourceImageCommand(
+                "target",
+                "example/api:20260623",
+                RestartIfRunning: false,
+                TriggeredBy: "build-server",
+                RequestedReplicas: 2));
+
+        Assert.False(result.RestartRequired);
+        Assert.Contains("Updated target.", result.Message, StringComparison.Ordinal);
+        Assert.Contains("Applied deployment 'target-deployment'", result.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("Tore down replica group", result.Message, StringComparison.Ordinal);
+        var signal = Assert.Single(result.Signals);
+        Assert.Equal(ResourceSignalSeverity.Warning, signal.Severity);
+        Assert.Contains("Post-apply cleanup", signal.Message, StringComparison.Ordinal);
+        Assert.Equal(["target-deployment:revision-2"], provider.DescribedTearDowns);
+        Assert.Equal(
+            [
+                "start:target-service-revision-2-replica-1:1/2",
+                "start:target-service-revision-2-replica-2:2/2"
+            ],
+            provider.InstanceActions);
+        var deploymentRecord = Assert.Single(deploymentStore.List(new ResourceOrchestratorDeploymentQuery(
+            SourceResourceId: "target",
+            DeploymentId: "target-deployment")));
+        Assert.Equal(ResourceOrchestratorDeploymentStatus.Active, deploymentRecord.Status);
+        Assert.NotNull(deploymentRecord.Revision);
+        Assert.Contains(
+            resourceEvents.GetEvents(new ResourceEventQuery(
+                ResourceId: "target",
+                EventType: ResourceEventTypes.Events.Deployment.CleanupRunning,
+                TriggeredBy: "build-server")),
+            resourceEvent => resourceEvent.Message.Contains(
+                "target-service-revision-1-replicas",
+                StringComparison.Ordinal));
+        var cleanupWarning = Assert.Single(resourceEvents.GetEvents(new ResourceEventQuery(
+            ResourceId: "target",
+            EventType: ResourceEventTypes.Events.Deployment.CleanupWarning,
+            TriggeredBy: "build-server")));
+        Assert.Equal(ResourceSignalSeverity.Warning, cleanupWarning.Severity);
+        Assert.Contains("Deployment instance stop failed.", cleanupWarning.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -3671,6 +3737,8 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         public bool FailDeploymentInstanceStart { get; init; }
 
+        public bool FailDeploymentInstanceStop { get; init; }
+
         public IReadOnlyList<Resource> GetResources() => [];
 
         public bool CanUpdateImage(Resource resource) => true;
@@ -3782,6 +3850,12 @@ public sealed class InProcessControlPlaneResourceStateTests
                 action.Kind is ResourceActionKind.Start)
             {
                 throw new InvalidOperationException("Deployment instance start failed.");
+            }
+
+            if (FailDeploymentInstanceStop &&
+                action.Kind is ResourceActionKind.Stop)
+            {
+                throw new InvalidOperationException("Deployment instance stop failed.");
             }
 
             InstanceActions.Add(

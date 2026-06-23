@@ -399,8 +399,11 @@ liveness/lifecycle signals, while scaling changes desired capacity.
   deployment/revision failed and restores the source app revision as active.
   Deployment materialization now waits for declared HTTP startup/readiness
   checks, or HTTP health checks when no explicit startup/readiness check is
-  present. Remaining rollout work should retain failed runtime/app revision
-  diagnostics and make traffic and cleanup policy configurable.
+  present. The Deployment tab now surfaces recent deployment, readiness,
+  rollback, and cleanup activity, and post-apply cleanup failures are warnings
+  instead of failures of the already-applied revision. Remaining rollout work
+  should retain failed runtime/app revision diagnostics and make traffic and
+  cleanup policy configurable.
 * Continue improving update behavior around replica, environment, endpoint,
   identity, and storage changes, deciding which changes belong to active
   revision capacity/configuration and which require a new deployment revision.

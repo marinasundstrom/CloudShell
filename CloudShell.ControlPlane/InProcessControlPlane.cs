@@ -843,14 +843,42 @@ public sealed class InProcessControlPlane(
         {
             var replicaGroup = tearDown.ReplicaGroup ??
                 ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(tearDown.Service);
-            var tearDownResult = await orchestration.TearDownReplicaGroupAsync(
+            var reason = tearDown.Reason ?? "Image deployment retired superseded replica group.";
+            AppendDeploymentEvent(
                 resource,
-                tearDown.Service,
-                replicaGroup,
-                cancellationToken,
+                ResourceEventTypes.Events.Deployment.CleanupRunning,
+                $"Cleaning up superseded replica group '{replicaGroup.Id}' for deployment '{applyResult.Deployment.Id}'. Reason: {reason}",
                 triggeredBy,
-                tearDown.Reason ?? "Image deployment retired superseded replica group.");
-            mergedResult = MergeAppliedDeploymentResult(mergedResult, tearDownResult);
+                ResourceSignalSeverity.Info);
+            try
+            {
+                var tearDownResult = await orchestration.TearDownReplicaGroupAsync(
+                    resource,
+                    tearDown.Service,
+                    replicaGroup,
+                    cancellationToken,
+                    triggeredBy,
+                    reason);
+                AppendDeploymentEvent(
+                    resource,
+                    ResourceEventTypes.Events.Deployment.CleanupCompleted,
+                    $"Cleaned up superseded replica group '{replicaGroup.Id}' for deployment '{applyResult.Deployment.Id}'. Result: {tearDownResult.Message}",
+                    triggeredBy,
+                    ResourceSignalSeverity.Info);
+                mergedResult = MergeAppliedDeploymentResult(mergedResult, tearDownResult);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                var warning =
+                    $"Post-apply cleanup for deployment '{applyResult.Deployment.Id}' could not tear down replica group '{replicaGroup.Id}'. Reason: {exception.Message}";
+                AppendDeploymentEvent(
+                    resource,
+                    ResourceEventTypes.Events.Deployment.CleanupWarning,
+                    warning,
+                    triggeredBy,
+                    ResourceSignalSeverity.Warning);
+                mergedResult = AddProcedureWarning(mergedResult, warning);
+            }
         }
 
         return mergedResult;
@@ -867,6 +895,30 @@ public sealed class InProcessControlPlane(
             signals: updateResult.Signals
                 .Concat(applyResult.Signals)
                 .ToArray());
+
+    private static ResourceProcedureResult AddProcedureWarning(
+        ResourceProcedureResult result,
+        string warning) =>
+        result with
+        {
+            Signals = result.Signals
+                .Append(ResourceProcedureSignal.Warning(warning))
+                .ToArray()
+        };
+
+    private void AppendDeploymentEvent(
+        Resource resource,
+        string eventType,
+        string message,
+        string? triggeredBy,
+        ResourceSignalSeverity severity) =>
+        resourceEvents?.Append(new ResourceEvent(
+            resource.Id,
+            eventType,
+            message,
+            DateTimeOffset.UtcNow,
+            triggeredBy,
+            severity));
 
     private static string FormatRequestedReplicas(int? requestedReplicas) =>
         requestedReplicas is { } value

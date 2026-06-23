@@ -235,11 +235,14 @@ The MVP must support:
   declared HTTP startup/readiness checks when present, otherwise declared HTTP
   health checks, without introducing advanced traffic policy machinery.
 * Deployment activity events for apply, service reconciliation, replica
-  materialization, rollback, routing milestones, success, and failure.
+  materialization, rollback, routing milestones, post-apply cleanup, success,
+  and failure.
 * Best-effort rollback of the candidate deployment unit when setup fails before
   a revision is produced.
 * Explicit post-apply replica-group tear-down for superseded runtime replicas,
-  separate from deployment setup.
+  separate from deployment setup. Cleanup failures are warning diagnostics on
+  the applied deployment rather than failures of the already-produced active
+  revision.
 * Active-revision replica scaling through the replica-group change model
   without forcing a resource restart or creating a new workload revision.
 * Projection of active deployment, active resource revision, requested replicas,
@@ -251,17 +254,15 @@ The MVP must support:
   orchestrator may materialize fewer replicas when capacity, placement, policy,
   or runtime failures prevent granting the full request.
 * Focused tests for successful apply, failed apply, rollback logging, image
-  deployment with post-apply tear-down, active revision scaling, and concurrent
-  deployments for different container apps.
+  deployment with post-apply tear-down, cleanup warning behavior, active
+  revision scaling, and concurrent deployments for different container apps.
 
 The MVP should add or refine next:
 
-* Make deployment apply result diagnostics visible enough in the Deployment tab
-  to distinguish setup, rollback, and post-apply tear-down.
-* Keep post-apply tear-down best-effort and observable, with configurable
-  cleanup policy deferred.
 * Keep rollback scoped to the candidate deployment unit. Automatic restore of
   older revisions is a future rollout policy, not MVP rollback.
+* Keep configurable cleanup and retention policy deferred until the basic
+  diagnostics and runtime cleanup model has proven useful.
 
 The MVP deliberately leaves these flexible:
 
@@ -1011,20 +1012,23 @@ The current implementation already has the internal foundation:
 9. Stable resources and runtime-managed resources can carry deployment,
    service, revision, and replica-group correlation metadata. Container apps
    and their hidden runtime replicas are the first projection path.
+10. The container app Deployment tab surfaces recent deployment, readiness,
+    rollback, and cleanup resource events beside provider-owned app deployment
+    and revision history.
+11. Post-apply cleanup of superseded replica groups is best-effort. Cleanup
+    failures are warning diagnostics on the applied deployment rather than a
+    failure of the active revision.
 
 The next MVP changes should stay focused:
 
-1. Surface deployment apply, rollback, failed-attempt, and post-apply tear-down diagnostics
-   using the existing resource events and provider-owned deployment history.
-   The first UI surface is the container app Deployment tab.
-2. Keep rollback scoped to tearing down the candidate replica group. Do not add
+1. Keep rollback scoped to tearing down the candidate replica group. Do not add
    automatic restore or traffic policy machinery for MVP.
-3. Keep post-apply tear-down best-effort and observable. Configurable retention
-   and cleanup policies can follow after the basic model is credible.
-4. Add focused tests around failed deployment projection, readiness-gated
+2. Add configurable retention and cleanup policies after the basic
+   best-effort cleanup model is credible.
+3. Add focused tests around failed deployment projection, readiness-gated
    success/failure, post-apply tear-down failure visibility, and extension to
    at least one non-container-app workload shape.
-5. Revisit Docker Compose integration only after the default orchestrator and
+4. Revisit Docker Compose integration only after the default orchestrator and
    first container app path settle; adapters should translate the common model,
    not redefine it.
 

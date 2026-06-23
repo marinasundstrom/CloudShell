@@ -1,7 +1,10 @@
 @using Microsoft.JSInterop
+@using CloudShell.Abstractions.ControlPlane
+@using CloudShell.Abstractions.Logs
 @using System.Globalization
 @inject ApplicationResourceService ApplicationProvider
 @inject IResourceManager ResourceManager
+@inject IResourceEventManager ResourceEvents
 @inject IJSRuntime JS
 
 @if (Resource is null)
@@ -86,7 +89,7 @@ else
             <div class="generated-list">
                 @foreach (var deployment in Deployments)
                 {
-                    <div class="generated-diagnostic-info">
+                    <div class="generated-diagnostic info">
                         <strong>@deployment.Id</strong>
                         <span>@deployment.Image</span>
                         <small>
@@ -105,12 +108,32 @@ else
             <div class="generated-list">
                 @foreach (var revision in Revisions)
                 {
-                    <div class="generated-diagnostic-info">
+                    <div class="generated-diagnostic info">
                         <strong>@revision.Id</strong>
                         <span>@revision.Image</span>
                         <small>
                             @FormatRevisionMetadata(revision)
                         </small>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+
+    @if (DeploymentEvents.Count > 0)
+    {
+        <section class="blade-section">
+            <h3>Orchestrator activity</h3>
+            <div class="generated-list">
+                @foreach (var resourceEvent in DeploymentEvents)
+                {
+                    <div class="@GetDeploymentEventCssClass(resourceEvent)">
+                        <span aria-hidden="true">@GetDeploymentEventMarker(resourceEvent)</span>
+                        <div class="generated-diagnostic-content">
+                            <strong>@GetDeploymentEventTitle(resourceEvent.EventType)</strong>
+                            <span>@resourceEvent.Message</span>
+                            <small>@FormatDeploymentEventMetadata(resourceEvent)</small>
+                        </div>
                     </div>
                 }
             </div>
@@ -125,6 +148,7 @@ else
     private ApplicationResourceDefinition? Application { get; set; }
     private IReadOnlyList<ApplicationContainerDeployment> Deployments { get; set; } = [];
     private IReadOnlyList<ApplicationContainerRevisionHistoryEntry> Revisions { get; set; } = [];
+    private IReadOnlyList<ResourceEvent> DeploymentEvents { get; set; } = [];
     private Resource? Resource { get; set; }
     private ResourceOperationCapabilities Capabilities { get; set; } =
         ResourceOperationCapabilities.None(string.Empty);
@@ -158,6 +182,9 @@ else
         Revisions = string.IsNullOrWhiteSpace(ResourceId)
             ? []
             : ApplicationProvider.GetContainerRevisions(ResourceId);
+        DeploymentEvents = string.IsNullOrWhiteSpace(ResourceId)
+            ? []
+            : await LoadDeploymentEventsAsync(ResourceId);
         Capabilities = Resource is null
             ? ResourceOperationCapabilities.None(ResourceId ?? string.Empty)
             : await ResourceManager.GetResourceOperationCapabilitiesAsync(Resource);
@@ -225,6 +252,7 @@ else
                 Application = ApplicationProvider.GetApplication(updatedResource.Id);
                 Deployments = ApplicationProvider.GetContainerDeployments(updatedResource.Id);
                 Revisions = ApplicationProvider.GetContainerRevisions(updatedResource.Id);
+                DeploymentEvents = await LoadDeploymentEventsAsync(updatedResource.Id);
                 DeploymentImage = GetCurrentContainerImage(Resource);
                 DeploymentRequestedReplicas = GetDeploymentRequestedReplicasValue(Resource);
                 CurrentDeploymentResourceId = Resource.Id;
@@ -417,6 +445,72 @@ else
             : fieldValue)?.Trim() ?? string.Empty;
     }
 
+    private async Task<IReadOnlyList<ResourceEvent>> LoadDeploymentEventsAsync(string resourceId)
+    {
+        var events = await ResourceEvents.ListResourceEventsAsync(new ResourceEventQuery(
+            ResourceId: resourceId,
+            MaxEvents: 50));
+        return events
+            .Where(IsDeploymentDiagnosticEvent)
+            .Take(20)
+            .ToArray();
+    }
+
+    private static bool IsDeploymentDiagnosticEvent(ResourceEvent resourceEvent) =>
+        resourceEvent.EventType.StartsWith(ResourceEventTypes.Events.Deployment.Prefix, StringComparison.OrdinalIgnoreCase) ||
+        resourceEvent.EventType.Contains(".container.instance.readiness.", StringComparison.OrdinalIgnoreCase);
+
+    private static string FormatDeploymentEventMetadata(ResourceEvent resourceEvent)
+    {
+        var triggeredBy = string.IsNullOrWhiteSpace(resourceEvent.TriggeredBy)
+            ? "Triggered by system"
+            : $"Triggered by {resourceEvent.TriggeredBy}";
+        return string.Create(
+            CultureInfo.CurrentCulture,
+            $"{resourceEvent.Timestamp.ToLocalTime():g} | {resourceEvent.EventType} | {triggeredBy}");
+    }
+
+    private static string GetDeploymentEventTitle(string eventType) =>
+        eventType switch
+        {
+            ResourceEventTypes.Events.Deployment.ImageUpdated => "Image updated",
+            ResourceEventTypes.Events.Deployment.ReplicasUpdated => "Replicas updated",
+            ResourceEventTypes.Events.Deployment.Applying => "Deployment applying",
+            ResourceEventTypes.Events.Deployment.ServiceReconciling => "Service reconciling",
+            ResourceEventTypes.Events.Deployment.ServiceReconciled => "Service reconciled",
+            ResourceEventTypes.Events.Deployment.ReplicaMaterializing => "Replica materializing",
+            ResourceEventTypes.Events.Deployment.ReplicaMaterialized => "Replica materialized",
+            ResourceEventTypes.Events.Deployment.RoutingUpdating => "Routing updating",
+            ResourceEventTypes.Events.Deployment.RoutingUpdated => "Routing updated",
+            ResourceEventTypes.Events.Deployment.RollingBack => "Rollback running",
+            ResourceEventTypes.Events.Deployment.RolledBack => "Rollback completed",
+            ResourceEventTypes.Events.Deployment.RollbackFailed => "Rollback failed",
+            ResourceEventTypes.Events.Deployment.CleanupRunning => "Cleanup running",
+            ResourceEventTypes.Events.Deployment.CleanupCompleted => "Cleanup completed",
+            ResourceEventTypes.Events.Deployment.CleanupWarning => "Cleanup warning",
+            ResourceEventTypes.Events.Deployment.Applied => "Deployment applied",
+            ResourceEventTypes.Events.Deployment.Failed => "Deployment failed",
+            _ when eventType.Contains(".container.instance.readiness.", StringComparison.OrdinalIgnoreCase) =>
+                "Replica readiness",
+            _ => "Deployment activity"
+        };
+
+    private static string GetDeploymentEventCssClass(ResourceEvent resourceEvent) =>
+        resourceEvent.Severity switch
+        {
+            ResourceSignalSeverity.Error => "generated-diagnostic error",
+            ResourceSignalSeverity.Warning => "generated-diagnostic warning",
+            _ => "generated-diagnostic info"
+        };
+
+    private static string GetDeploymentEventMarker(ResourceEvent resourceEvent) =>
+        resourceEvent.Severity switch
+        {
+            ResourceSignalSeverity.Error => "!",
+            ResourceSignalSeverity.Warning => "!",
+            _ => "i"
+        };
+
     private sealed record DeploymentReadinessView(
         string Status,
         string Message,
@@ -428,12 +522,12 @@ else
             string status,
             string message,
             string context) =>
-            new(status, message, context, false, "generated-diagnostic-info");
+            new(status, message, context, false, "generated-diagnostic info");
 
         public static DeploymentReadinessView Blocked(
             string status,
             string message,
             string context) =>
-            new(status, message, context, true, "generated-diagnostic-warning");
+            new(status, message, context, true, "generated-diagnostic warning");
     }
 }

@@ -55,6 +55,10 @@ on `git blame --follow`, and then by the broad type of change.
   startup/readiness checks, or HTTP health checks when no explicit
   startup/readiness check is present, before reporting a replica as
   materialized for deployment revision activation.
+- Container app deployments now surface recent orchestrator deployment,
+  readiness, rollback, and cleanup activity on the Deployment tab, while
+  post-apply cleanup of superseded replica groups is best-effort and reported
+  as warning activity instead of failing an already-applied revision.
 - The deployment/revision and container app proposals now define the internal
   MVP as a generalized Resource Manager orchestration deployment model, with
   container apps as the first validation path while leaving public deployment

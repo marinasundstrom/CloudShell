@@ -176,6 +176,36 @@ internal static class ResourceEventDisplayNames
             return localizer["Routing updated"].Value;
         }
 
+        if (string.Equals(eventType, ResourceEventTypes.Events.Deployment.RollingBack, StringComparison.OrdinalIgnoreCase))
+        {
+            return localizer["Rollback running"].Value;
+        }
+
+        if (string.Equals(eventType, ResourceEventTypes.Events.Deployment.RolledBack, StringComparison.OrdinalIgnoreCase))
+        {
+            return localizer["Rollback completed"].Value;
+        }
+
+        if (string.Equals(eventType, ResourceEventTypes.Events.Deployment.RollbackFailed, StringComparison.OrdinalIgnoreCase))
+        {
+            return localizer["Rollback failed"].Value;
+        }
+
+        if (string.Equals(eventType, ResourceEventTypes.Events.Deployment.CleanupRunning, StringComparison.OrdinalIgnoreCase))
+        {
+            return localizer["Cleanup running"].Value;
+        }
+
+        if (string.Equals(eventType, ResourceEventTypes.Events.Deployment.CleanupCompleted, StringComparison.OrdinalIgnoreCase))
+        {
+            return localizer["Cleanup completed"].Value;
+        }
+
+        if (string.Equals(eventType, ResourceEventTypes.Events.Deployment.CleanupWarning, StringComparison.OrdinalIgnoreCase))
+        {
+            return localizer["Cleanup warning"].Value;
+        }
+
         if (string.Equals(eventType, ResourceEventTypes.Events.Deployment.Applied, StringComparison.OrdinalIgnoreCase))
         {
             return localizer["Deployment applied"].Value;

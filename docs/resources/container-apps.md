@@ -135,11 +135,13 @@ deployments, and invalid requested replica counts.
 
 The same tab shows the app's current internal deployment projection: deployment
 status, orchestrator service id, scaling mode, requested replicas, and
-materialized runtime replica resources. This is an inspection surface over
-CloudShell's internal orchestrator deployment model, not a public
-rollout-history or restore API. Runtime materialization is requested through
-the internal orchestrator deployment-apply boundary; the container app domain
-records app revisions and does not directly replace replicas or remap ingress.
+materialized runtime replica resources. It also shows recent orchestrator
+deployment, readiness, rollback, and cleanup activity for the app resource.
+This is an inspection surface over CloudShell's internal orchestrator
+deployment model, not a public rollout-history or restore API. Runtime
+materialization is requested through the internal orchestrator deployment-apply
+boundary; the container app domain records app revisions and does not directly
+replace replicas or remap ingress.
 Requested replicas are the count asked for by the deployment; materialized
 replicas are the runtime instances the orchestrator actually produced.
 When an image deployment changes a running app, the Control Plane applies the
@@ -152,7 +154,9 @@ after apply, and tears down the superseded group as a separate post-apply
 operation. If setup or readiness fails before the orchestrator revision is
 produced, the candidate group is rolled back, the candidate app
 deployment/revision is marked failed, and the previously active app revision
-remains active. Advanced traffic policies and configurable cleanup/retention
+remains active. Superseded cleanup is best-effort after the new revision is
+active; cleanup failures are shown as warning activity instead of failing the
+applied revision. Advanced traffic policies and configurable cleanup/retention
 remain rollout strategy work.
 
 ## Service Discovery
