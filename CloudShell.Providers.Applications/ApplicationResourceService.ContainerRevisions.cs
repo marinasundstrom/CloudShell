@@ -3,6 +3,7 @@ namespace CloudShell.Providers.Applications;
 public sealed partial class ApplicationResourceService
 {
     private static readonly ApplicationContainerRevisionService ContainerRevisionService = new();
+    private static readonly ContainerApplicationDeploymentAppliedPlanner ContainerDeploymentAppliedPlanner = new();
     private static readonly ContainerApplicationDeploymentPlanner ContainerDeploymentPlanner = new();
     private static readonly ContainerApplicationDeploymentFailurePlanner ContainerDeploymentFailurePlanner = new();
     private static readonly ContainerApplicationDeploymentTearDownPlanner ContainerDeploymentTearDownPlanner = new();

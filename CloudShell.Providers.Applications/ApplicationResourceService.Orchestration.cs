@@ -95,16 +95,16 @@ public sealed partial class ApplicationResourceService
     {
         cancellationToken.ThrowIfCancellationRequested();
         var application = GetContainerApplication(context.Resource.Id);
-        var environmentRevisionId = applyResult.Revision.Id.ToString();
-        if (string.IsNullOrWhiteSpace(environmentRevisionId))
+        var updated = ContainerDeploymentAppliedPlanner.PlanAppliedDeployment(
+            application,
+            applyResult,
+            NormalizeDefinition);
+        if (updated is null)
         {
             return Task.CompletedTask;
         }
 
-        store.Save(NormalizeDefinition(application with
-        {
-            DeploymentEnvironmentRevisionId = environmentRevisionId
-        }));
+        store.Save(updated);
 
         return Task.CompletedTask;
     }

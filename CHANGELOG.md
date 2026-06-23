@@ -94,6 +94,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Container app runtime revision scoping now lives in a container-app-owned
   policy with direct tests for environment revision and active app revision
   history.
+- Container app deployment-applied planning now lives in a container-app-owned
+  planner with direct tests for recording materialized environment revisions.
 - The deployment proposal now clarifies that deployment definitions describe
   resource intent through resource definitions and provider-owned attributes,
   with serialized formats treated as projections of that model.

@@ -99,6 +99,9 @@ without forcing provider-specific logic into shared helpers.
 - [x] Extract container app runtime revision scoping policy into a
   container-app unit that owns when replica runtime names should include the
   active app revision.
+- [x] Extract container app deployment-applied planning into a container-app
+  unit that owns recording the materialized environment revision on the app
+  definition.
 
 ## Next Slices
 
