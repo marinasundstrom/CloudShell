@@ -267,16 +267,25 @@ container app identity as the implicit service identity for convention named
 replica containers.
 
 The orchestrator deployment and revision abstractions are the shared lower
-layer for applying runtime intent. A resource can still be managed directly by
-Resource Manager while an orchestrator derives a default deployment for a
-deployment-relevant state or configuration change. They are available for
-internal container-app, provider, and orchestrator implementation work before
-they are announced as a public management surface. The Control Plane exposes
-an internal deployment-apply boundary that dispatches a deployment spec to the
-selected orchestrator instead of having the resource domain manipulate runtime
-replicas directly. A container app revision answers application-version
-questions; an orchestrator deployment/revision answers what runtime workload
-was applied and which service/runtime resources resulted.
+layer for applying runtime intent. An orchestrator deployment is CloudShell's
+desired runtime state for a resource. An orchestrator revision is the outcome
+reported after the selected orchestrator executes that desired state. A resource
+can still be managed directly by Resource Manager while an orchestrator derives
+a default deployment for a deployment-relevant state or configuration change.
+These abstractions are available for internal container-app, provider, and
+orchestrator implementation work before they are announced as a public
+management surface. The Control Plane exposes an internal deployment-apply
+boundary that dispatches a deployment spec to the selected orchestrator instead
+of having the resource domain manipulate runtime replicas directly. A container
+app revision answers application-version questions; an orchestrator deployment
+and revision answer what runtime state was requested, what was applied, and
+which service/runtime resources resulted.
+
+This model is not a Kubernetes copy. CloudShell orchestrators are an abstraction
+for executing desired runtime state. A custom orchestrator can implement the
+contract directly, while integration orchestrators can translate it into
+provider-native objects such as Docker Compose services or Kubernetes workload
+resources without making those objects the CloudShell domain model.
 
 The container app layer should not directly manipulate orchestrator-owned
 replicas, backend registrations, routing tables, or cleanup behavior. It

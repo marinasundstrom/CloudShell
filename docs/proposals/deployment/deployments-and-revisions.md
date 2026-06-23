@@ -112,13 +112,17 @@ CloudShell needs a unified way to represent versioned orchestration changes whil
 
 ## Goals
 
-* Introduce Deployment as a standard orchestrator primitive.
-* Introduce Orchestrator Revision as the versioned runtime result of applying an orchestrator deployment.
+* Introduce Deployment as CloudShell's orchestrator-level desired runtime state
+  primitive.
+* Introduce Orchestrator Revision as the versioned runtime outcome produced by
+  applying an orchestrator deployment.
 * Allow an orchestrator to derive a default deployment for a resource state
   change when the resource has runtime workload intent.
 * Allow higher-level resources to request orchestration without managing replicas directly.
 * Allow orchestrators to compute runtime resources and service replicas from resource intent.
-* Support consistent deployment behavior across the default orchestrator and Docker Compose orchestrator.
+* Support consistent deployment behavior across the default orchestrator, custom
+  orchestrators, Docker Compose integrations, Kubernetes integrations, and
+  future orchestrator adapters.
 * Support traceability from user-managed resources to deployments, revisions, services, replicas, and runtime-managed resources.
 * Enable orchestration-level restore, diagnostics, and history inspection while allowing higher-level resources to maintain their own domain-specific revision models.
 * Keep deployments and revisions in the orchestrator layer rather than making them normal user-authored resources.
@@ -129,6 +133,8 @@ CloudShell needs a unified way to represent versioned orchestration changes whil
 
 * Do not replace the existing orchestrator abstraction.
 * Do not replace the existing orchestrator-level service abstraction.
+* Do not copy Kubernetes, Docker Compose, or any other orchestrator's object
+  model as CloudShell's domain model.
 * Do not make Deployment a normal user-authored resource.
 * Do not require every resource to use deployments.
 * Do not require users to explicitly create or manage deployment resources for
@@ -196,12 +202,25 @@ Orchestrator revisions answer questions such as:
 The deployment and revision model in this proposal refers specifically to
 orchestrator deployments and orchestrator revisions unless otherwise stated.
 
-A Deployment is an orchestrator-owned description of an applied workload
-change. A deployment may be explicit in a future management surface, but the
-MVP path treats it primarily as a default deployment derived by the orchestrator
-when a resource state change needs runtime materialization.
+A Deployment is the desired runtime state that CloudShell asks an orchestrator
+to execute for a resource. It describes the workload shape, service grouping,
+replica request, image or workload version, ports, dependencies, and other
+runtime intent that should be materialized. A deployment may be explicit in a
+future management surface, but the MVP path treats it primarily as a default
+deployment derived by the orchestrator when a resource state change needs
+runtime materialization.
 
-An Orchestrator Revision is the immutable runtime version produced when an orchestrator deployment is applied.
+An Orchestrator Revision is the versioned runtime outcome produced when an
+orchestrator applies a deployment. It records the resulting applied version and
+the runtime-managed resources or provider-native artifacts associated with that
+application of desired state.
+
+This is a CloudShell abstraction, not an attempt to copy Kubernetes
+Deployments, Docker Compose services, or another orchestrator's native model. A
+custom orchestrator can execute the contract directly. An integration
+orchestrator can translate the same contract into provider-native objects, such
+as Docker Compose services or Kubernetes workload and service resources, while
+keeping those provider details outside CloudShell's common domain model.
 
 Suggested model:
 
@@ -295,11 +314,13 @@ User-managed Resource
         ↓
 Resource Manager validates graph and lifecycle
         ↓
-Orchestrator receives desired runtime intent or resource state change
+Orchestrator receives desired runtime state
         ↓
 Default Deployment is created or updated
         ↓
-Revision is produced
+Orchestrator executes the deployment
+        ↓
+Revision is produced as the outcome
         ↓
 Service and replicas are reconciled
         ↓
@@ -403,9 +424,18 @@ Deployments and revisions should build on this abstraction.
 
 A Service is the logical runtime grouping used by the orchestrator.
 
-A Deployment defines the desired versioned workload for that Service.
+A Deployment defines the desired versioned runtime state for that Service.
 
-A Revision represents a concrete version of that Deployment.
+A Revision represents the concrete applied outcome of executing that
+Deployment.
+
+The service, deployment, and revision concepts are intentionally provider
+neutral. The default local orchestrator maps them to convention-named
+containers and ingress configuration. A Docker Compose orchestrator can map
+them to Compose services and generated configuration. A Kubernetes-oriented
+orchestrator can map them to Kubernetes workload and service resources. In each
+case CloudShell's model remains the same: desired state enters through a
+deployment, and the orchestrator reports the resulting revision.
 
 Example:
 
