@@ -51,6 +51,8 @@ on `git blame --follow`, and then by the broad type of change.
 - SQL Server database and access reconciliation now lives in
   `SqlServerDatabaseReconciliationService`, leaving the application service to
   trigger reconciliation from lifecycle actions.
+- Application resource definition lookup now has a focused
+  `ApplicationResourceDefinitionSource` for resource-type providers.
 
 ### 2026-06-23
 

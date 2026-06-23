@@ -182,6 +182,8 @@ without forcing provider-specific logic into shared helpers.
   `SqlServerGrantStatusService`.
 - [x] Move SQL Server database and access reconciliation into
   `SqlServerDatabaseReconciliationService`.
+- [x] Move application resource definition lookup for resource-type providers
+  into `ApplicationResourceDefinitionSource`.
 
 ## Next Slices
 
