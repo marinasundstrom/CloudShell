@@ -53,20 +53,19 @@ public sealed partial class ConfigurationResourceProvider :
             .ToArray();
     }
 
-    public IReadOnlyList<LogDescriptor> GetLogs() => store
+    public IReadOnlyList<LogSource> GetLogSources() => store
         .GetStores()
-        .Select(configurationStore => new LogDescriptor(
+        .Select(configurationStore => new LogSource(
             GetLogId(configurationStore.Id),
             "Configuration Store service logs",
             DisplayName,
             configurationStore.Name,
             LogSourceKind.Resource,
-            ResourceId: configurationStore.Id,
-            SupportsStreaming: true,
-            Description: "Configuration Store service stdout, stderr, and lifecycle events.",
             Kind: ResourceLogSourceKind.ProcessOutput,
             Format: LogFormat.PlainText,
             Capabilities: LogSourceCapabilities.Read | LogSourceCapabilities.Stream,
+            ResourceId: configurationStore.Id,
+            Description: "Configuration Store service stdout, stderr, and lifecycle events.",
             Purpose: ResourceLogSourcePurpose.Default,
             Availability: LogSourceAvailability.ResourceRunning))
         .ToArray();

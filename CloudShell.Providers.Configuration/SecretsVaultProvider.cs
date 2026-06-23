@@ -61,20 +61,19 @@ public sealed partial class SecretsVaultProvider(
         ];
     }
 
-    public IReadOnlyList<LogDescriptor> GetLogs() => store
+    public IReadOnlyList<LogSource> GetLogSources() => store
         .GetVaults()
-        .Select(vault => new LogDescriptor(
+        .Select(vault => new LogSource(
             GetLogId(vault.Id),
             "Secrets Vault service logs",
             DisplayName,
             vault.Name,
             LogSourceKind.Resource,
-            ResourceId: vault.Id,
-            SupportsStreaming: true,
-            Description: "Secrets Vault service stdout, stderr, and lifecycle events.",
             Kind: ResourceLogSourceKind.ProcessOutput,
             Format: LogFormat.PlainText,
             Capabilities: LogSourceCapabilities.Read | LogSourceCapabilities.Stream,
+            ResourceId: vault.Id,
+            Description: "Secrets Vault service stdout, stderr, and lifecycle events.",
             Purpose: ResourceLogSourcePurpose.Default,
             Availability: LogSourceAvailability.ResourceRunning))
         .ToArray();
