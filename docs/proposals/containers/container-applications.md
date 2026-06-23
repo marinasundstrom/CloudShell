@@ -172,10 +172,10 @@ Implemented pieces include:
   image command that creates a new revision, starts its containers next to the
   current revision, verifies readiness, then switches traffic or endpoint
   routing before retiring the old revision.
-* provider-owned container app deployment history for image deployments,
-  tracked separately from the desired application definition while correlating
-  each app deployment to the produced app revision and the orchestrator
-  deployment used for runtime materialization
+* provider-owned container app deployment and revision history for image
+  deployments, tracked separately from the desired application definition
+  while correlating each app deployment to the produced app revision and the
+  orchestrator deployment used for runtime materialization
 * Resource Manager Application > Scale and replicas tab for enabling replicas
   and setting requested replica count through a dedicated update command. This
   is active-revision capacity management, not image deployment.

@@ -17,6 +17,20 @@ public sealed partial class ApplicationResourceService
     public IReadOnlyList<ApplicationContainerDeployment> GetContainerDeployments(string applicationId) =>
         containerDeployments.List(applicationId);
 
+    public IReadOnlyList<ApplicationContainerRevisionHistoryEntry> GetContainerRevisions(string applicationId)
+    {
+        var revisions = containerDeployments.ListRevisions(applicationId);
+        if (revisions.Count > 0)
+        {
+            return revisions;
+        }
+
+        var application = GetApplication(applicationId);
+        return application is null
+            ? []
+            : CreateContainerRevisionHistoryEntries(application);
+    }
+
     public bool CanApplyDeclaration(ResourceDeclaration declaration) =>
         ApplicationResourceProviderIds.IsApplicationProvider(declaration.ProviderId);
 

@@ -89,6 +89,10 @@ on `git blame --follow`, and then by the broad type of change.
   deployment history outside the desired application definition, correlating
   each deployment request to the produced app revision and orchestrator
   deployment metadata for the Deployment tab.
+- Container app revision history now has a provider-owned operational
+  projection alongside app deployment history, allowing the Deployment tab to
+  show active and superseded app revisions without treating revision history
+  as desired application configuration.
 - The Control Plane now has an internal orchestrator deployment-apply boundary
   so deployment specs can be dispatched to the selected orchestrator without
   resource domains directly manipulating runtime replicas, ingress, or cleanup.
