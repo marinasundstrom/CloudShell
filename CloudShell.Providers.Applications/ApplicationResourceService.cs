@@ -39,7 +39,8 @@ public sealed partial class ApplicationResourceService(
     IResourceEventSink? resourceEvents = null,
     ILoggerFactory? loggerFactory = null,
     ApplicationResourceDefinitionNormalizer? definitionNormalizer = null,
-    ApplicationResourceDefinitionRegistrationService? applicationDefinitionRegistrations = null) :
+    ApplicationResourceDefinitionRegistrationService? applicationDefinitionRegistrations = null,
+    ApplicationResourceCatalog? applicationCatalog = null) :
     ILogProvider,
     IResourceMonitoringProvider,
     IResourceAppSettingConfigurationProvider,
@@ -84,14 +85,18 @@ public sealed partial class ApplicationResourceService(
         applicationDefinitionRegistrations ?? new ApplicationResourceDefinitionRegistrationService(
             store,
             definitionNormalizer ?? new ApplicationResourceDefinitionNormalizer(environment));
+    private readonly ApplicationResourceCatalog _applicationCatalog =
+        applicationCatalog ?? new ApplicationResourceCatalog(
+            store,
+            containerDeployments,
+            definitionNormalizer ?? new ApplicationResourceDefinitionNormalizer(environment));
 
     public string Id => ApplicationResourceProviderIds.Applications;
 
     public string DisplayName => "Applications";
 
-    public IReadOnlyList<Resource> GetResources() => store
+    public IReadOnlyList<Resource> GetResources() => _applicationCatalog
         .GetApplications()
-        .Select(ResolveDefinition)
         .Where(application => !IsHidden(application))
         .SelectMany(application => CreateResourceProjection(
             application,
@@ -102,9 +107,8 @@ public sealed partial class ApplicationResourceService(
         ApplicationResourceProjection projection) =>
         GetResources(projection);
 
-    internal IReadOnlyList<Resource> GetResources(ApplicationResourceProjection projection) => store
+    internal IReadOnlyList<Resource> GetResources(ApplicationResourceProjection projection) => _applicationCatalog
         .GetApplications()
-        .Select(ResolveDefinition)
         .Where(application => !IsHidden(application))
         .Where(projection.CanProject)
         .SelectMany(application => CreateResourceProjection(application, projection))
@@ -3779,7 +3783,7 @@ public sealed partial class ApplicationResourceService(
         _definitionNormalizer.Normalize(definition);
 
     private ApplicationResourceDefinition ResolveDefinition(ApplicationResourceDefinition definition) =>
-        _definitionNormalizer.Resolve(definition);
+        _applicationCatalog.Resolve(definition);
 
     private async Task BuildAspNetCoreProjectAsync(
         ApplicationResourceDefinition definition,
