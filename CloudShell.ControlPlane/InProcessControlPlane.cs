@@ -973,7 +973,10 @@ public sealed class InProcessControlPlane(
         try
         {
             result = await provider.UpdateReplicasAsync(
-                CreateProcedureContext(resource),
+                CreateProcedureContext(
+                    resource,
+                    triggeredBy,
+                    "Replica scaling requested runtime reconciliation."),
                 command.Replicas,
                 command.RestartIfRunning,
                 triggeredBy,
@@ -998,7 +1001,83 @@ public sealed class InProcessControlPlane(
             resource.Id,
             AffectedResourceIds: [resource.Id]));
 
+        var updatedResource = resourceManager.GetResource(resource.Id);
+        if (updatedResource is not null)
+        {
+            result = await ApplyReplicaDeploymentIfRequiredAsync(
+                updatedResource,
+                result,
+                triggeredBy,
+                cancellationToken);
+        }
+
         return result;
+    }
+
+    private async Task<ResourceProcedureResult> ApplyReplicaDeploymentIfRequiredAsync(
+        Resource resource,
+        ResourceProcedureResult result,
+        string? triggeredBy,
+        CancellationToken cancellationToken)
+    {
+        if (!result.RestartRequired)
+        {
+            return result;
+        }
+
+        var provider = GetDeploymentProvider(resource);
+        if (provider is null ||
+            !provider.CanDescribeDeployment(resource))
+        {
+            return result;
+        }
+
+        const string cause = "Replica scaling requested runtime reconciliation.";
+        var deployment = await provider.DescribeDeploymentAsync(
+            CreateProcedureContext(resource, triggeredBy, cause),
+            cancellationToken);
+        if (deployment is null)
+        {
+            return result;
+        }
+
+        ResourceOrchestratorDeploymentApplyResult applyResult;
+        try
+        {
+            applyResult = await deployments.ApplyDeploymentAsync(
+                resource,
+                deployment,
+                cancellationToken,
+                triggeredBy,
+                cause);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            var failureProvider = GetDeploymentFailureProvider(resource);
+            if (failureProvider is not null &&
+                failureProvider.CanHandleDeploymentApplyFailed(resource))
+            {
+                await failureProvider.HandleDeploymentApplyFailedAsync(
+                    CreateProcedureContext(resource, triggeredBy, cause),
+                    deployment,
+                    exception,
+                    cancellationToken);
+            }
+
+            throw;
+        }
+
+        var appliedProvider = GetDeploymentAppliedProvider(resource);
+        if (appliedProvider is not null &&
+            appliedProvider.CanHandleDeploymentApplied(resource))
+        {
+            await appliedProvider.HandleDeploymentAppliedAsync(
+                CreateProcedureContext(resource, triggeredBy, cause),
+                applyResult,
+                cancellationToken);
+        }
+
+        return MergeAppliedDeploymentResult(result, applyResult.ProcedureResult);
     }
 
     public Task<ResourceGroupTemplateExportResult> ExportResourceGroupTemplateAsync(

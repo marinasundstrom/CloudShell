@@ -66,6 +66,8 @@ public sealed partial class ApplicationResourceService(
     private static readonly HttpClient ContainerReadinessHttpClient = new();
     private const string DefaultContainerNetworkName = "cloudshell";
     private const string DefaultOrchestratorId = "default";
+    private const string ReplicaScalingRuntimeReconciliationCause =
+        "Replica scaling requested runtime reconciliation.";
     private const string AspNetCoreUrlsEnvironmentVariable = "ASPNETCORE_URLS";
     private const string DotNetWatchRestartOnRudeEditEnvironmentVariable = "DOTNET_WATCH_RESTART_ON_RUDE_EDIT";
     public const string HiddenResourceEnvironmentVariable = "CloudShell__ResourceManager__Hidden";
@@ -621,6 +623,7 @@ public sealed partial class ApplicationResourceService(
 
         if (!restartIfRunning &&
             wasRunning &&
+            !IsReplicaScalingRuntimeReconciliation(context) &&
             await TryApplyLiveReplicaUpdateAsync(application, updated, context, cancellationToken))
         {
             return ResourceProcedureResult.Completed(
@@ -657,6 +660,12 @@ public sealed partial class ApplicationResourceService(
             : ResourceProcedureResult.Completed(
                 $"Updated {application.Name} to {updated.Replicas} replica{Pluralize(updated.Replicas)}.");
     }
+
+    private static bool IsReplicaScalingRuntimeReconciliation(ResourceProcedureContext context) =>
+        string.Equals(
+            context.Cause,
+            ReplicaScalingRuntimeReconciliationCause,
+            StringComparison.OrdinalIgnoreCase);
 
     private async Task<bool> TryApplyLiveReplicaUpdateAsync(
         ApplicationResourceDefinition previous,

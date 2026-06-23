@@ -1,5 +1,6 @@
 using CloudShell.Abstractions.ResourceManager;
 using System.Collections.Concurrent;
+using System.Globalization;
 
 namespace CloudShell.ControlPlane.ResourceManager.Deployment;
 
@@ -62,6 +63,8 @@ public sealed record ResourceOrchestratorDeploymentRecord(
 public sealed class InMemoryResourceOrchestratorDeploymentStore : IResourceOrchestratorDeploymentStore
 {
     private readonly ConcurrentDictionary<string, ResourceOrchestratorDeploymentRecord> records =
+        new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, string> pendingRecordKeys =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, int> revisionNumbers =
         new(StringComparer.OrdinalIgnoreCase);
@@ -134,7 +137,10 @@ public sealed class InMemoryResourceOrchestratorDeploymentStore : IResourceOrche
     {
         ArgumentNullException.ThrowIfNull(deployment);
 
-        records[CreateRecordKey(deployment.SourceResourceId, deployment.Id, deployment.RevisionId)] =
+        var baseKey = CreateRecordBaseKey(deployment.SourceResourceId, deployment.Id, deployment.RevisionId);
+        var recordKey = CreateRecordKey(baseKey, startedAt);
+        pendingRecordKeys[baseKey] = recordKey;
+        records[recordKey] =
             new ResourceOrchestratorDeploymentRecord(
                 deployment.Id,
                 deployment.OrchestratorId,
@@ -160,8 +166,9 @@ public sealed class InMemoryResourceOrchestratorDeploymentStore : IResourceOrche
         ArgumentNullException.ThrowIfNull(deployment);
         ArgumentNullException.ThrowIfNull(revision);
 
+        var baseKey = CreateRecordBaseKey(deployment.SourceResourceId, deployment.Id, deployment.RevisionId);
         records.AddOrUpdate(
-            CreateRecordKey(deployment.SourceResourceId, deployment.Id, deployment.RevisionId),
+            GetPendingRecordKey(baseKey, completedAt),
             _ => new ResourceOrchestratorDeploymentRecord(
                 deployment.Id,
                 deployment.OrchestratorId,
@@ -189,6 +196,7 @@ public sealed class InMemoryResourceOrchestratorDeploymentStore : IResourceOrche
                 Error = null,
                 ReplicaGroup = revision.ReplicaGroup
             });
+        pendingRecordKeys.TryRemove(baseKey, out _);
     }
 
     public void RecordFailed(
@@ -201,8 +209,9 @@ public sealed class InMemoryResourceOrchestratorDeploymentStore : IResourceOrche
         ArgumentNullException.ThrowIfNull(deployment);
 
         var failedDeployment = deployment with { Status = ResourceOrchestratorDeploymentStatus.Failed };
+        var baseKey = CreateRecordBaseKey(deployment.SourceResourceId, deployment.Id, deployment.RevisionId);
         records.AddOrUpdate(
-            CreateRecordKey(deployment.SourceResourceId, deployment.Id, deployment.RevisionId),
+            GetPendingRecordKey(baseKey, completedAt),
             _ => new ResourceOrchestratorDeploymentRecord(
                 failedDeployment.Id,
                 failedDeployment.OrchestratorId,
@@ -226,13 +235,26 @@ public sealed class InMemoryResourceOrchestratorDeploymentStore : IResourceOrche
                 Cause = Normalize(cause) ?? existing.Cause,
                 Error = Normalize(error)
             });
+        pendingRecordKeys.TryRemove(baseKey, out _);
     }
 
-    private static string CreateRecordKey(
+    private string GetPendingRecordKey(
+        string baseKey,
+        DateTimeOffset timestamp) =>
+        pendingRecordKeys.TryGetValue(baseKey, out var recordKey)
+            ? recordKey
+            : CreateRecordKey(baseKey, timestamp);
+
+    private static string CreateRecordBaseKey(
         string sourceResourceId,
         string deploymentId,
         string revisionId) =>
         string.Join('\u001f', sourceResourceId, deploymentId, revisionId);
+
+    private static string CreateRecordKey(
+        string baseKey,
+        DateTimeOffset timestamp) =>
+        string.Join('\u001f', baseKey, timestamp.UtcTicks.ToString(CultureInfo.InvariantCulture));
 
     private static string CreateRevisionNumberKey(
         string sourceResourceId,

@@ -195,6 +195,55 @@ public sealed class ResourceOrchestrationDeploymentTests
     }
 
     [Fact]
+    public async Task ApplyDeploymentAsync_ReconcilesReplicaGroupCapacityForActiveRuntimeRevision()
+    {
+        var resource = CreateResource();
+        var provider = new RecordingServiceProcedureProvider(resource);
+        var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();
+        var deployments = CreateDeployments(resource, provider, deploymentStore: deploymentStore);
+
+        await deployments.ApplyDeploymentAsync(
+            resource,
+            CreateDeployment(resource.Id, "default", replicas: 2),
+            triggeredBy: "tests",
+            cause: "Initial deployment.");
+        await deployments.ApplyDeploymentAsync(
+            resource,
+            CreateDeployment(resource.Id, "default", replicas: 4),
+            triggeredBy: "tests",
+            cause: "Scale up.");
+        await deployments.ApplyDeploymentAsync(
+            resource,
+            CreateDeployment(resource.Id, "default", replicas: 2),
+            triggeredBy: "tests",
+            cause: "Scale down.");
+
+        Assert.Equal(
+            [
+                "Start:cloudshell-application-api-rev-2-replica-1",
+                "Start:cloudshell-application-api-rev-2-replica-2",
+                "Start:cloudshell-application-api-rev-2-replica-3",
+                "Start:cloudshell-application-api-rev-2-replica-4",
+                "Stop:cloudshell-application-api-rev-2-replica-4",
+                "Stop:cloudshell-application-api-rev-2-replica-3"
+            ],
+            provider.ExecutedInstanceActions.ToArray());
+        var records = deploymentStore.List(new ResourceOrchestratorDeploymentQuery(
+            SourceResourceId: resource.Id,
+            DeploymentId: "cloudshell-application-api-deployment",
+            MaxRecords: 10));
+        Assert.Equal(3, records.Count);
+        Assert.Equal([2, 4, 2], records
+            .OrderBy(record => record.CompletedAt ?? record.StartedAt)
+            .Select(record => record.ReplicaGroup?.RequestedReplicas ?? 0)
+            .ToArray());
+        Assert.Equal([1, 2, 3], records
+            .OrderBy(record => record.CompletedAt ?? record.StartedAt)
+            .Select(record => record.Revision?.RevisionNumber ?? 0)
+            .ToArray());
+    }
+
+    [Fact]
     public async Task ApplyDeploymentAsync_RecordsFailedDeployment()
     {
         var resource = CreateResource();
@@ -606,6 +655,8 @@ public sealed class ResourceOrchestrationDeploymentTests
 
         public ConcurrentBag<ResourceAction> ExecutedActions { get; } = [];
 
+        public ConcurrentQueue<string> ExecutedInstanceActions { get; } = [];
+
         public IReadOnlyList<Resource> GetResources() => resources;
 
         public bool CanExecuteOrchestratorService(
@@ -645,6 +696,7 @@ public sealed class ResourceOrchestrationDeploymentTests
 
             ExecutedActions.Add(action);
             ExecutedInstances.Add(context);
+            ExecutedInstanceActions.Enqueue($"{action.Kind}:{context.Instance.Name}");
             return Task.CompletedTask;
         }
 

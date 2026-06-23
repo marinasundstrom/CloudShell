@@ -35,6 +35,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Replica groups now expose a change model for active revision scaling, and
   container app live replica updates use it to add or remove group members
   instead of manually diffing replica counts.
+- Default deployment apply now reconciles capacity changes for the active
+  versioned replica group through Resource Manager deployment history, so scale
+  changes produce Environment revisions while preserving unchanged group
+  members.
 - Resource Manager orchestration now has an internal service tear-down boundary
   so orchestrator services can stop their materialized runtime resources
   separately from incremental deployment setup.

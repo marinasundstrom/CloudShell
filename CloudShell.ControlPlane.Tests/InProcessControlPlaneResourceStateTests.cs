@@ -2635,6 +2635,78 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.Contains("3", resourceEvent.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task UpdateResourceReplicasAsync_AppliesScaleDeploymentWhenRuntimeReconciliationRequired()
+    {
+        var provider = new TestDeploymentImageUpdateResourceProvider();
+        var resourceEvents = new InMemoryResourceEventStore();
+        var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            provider,
+            resourceEvents: resourceEvents,
+            deploymentStore: deploymentStore);
+        await controlPlane.UpdateResourceImageAsync(
+            new UpdateResourceImageCommand(
+                "target",
+                "example/api:20260623",
+                RestartIfRunning: false,
+                TriggeredBy: "build-server",
+                RequestedReplicas: 2));
+
+        var result = await controlPlane.UpdateResourceReplicasAsync(
+            new UpdateResourceReplicasCommand(
+                "target",
+                4,
+                RestartIfRunning: false,
+                TriggeredBy: "operator"));
+
+        Assert.False(result.RestartRequired);
+        Assert.Contains("Updated target.", result.Message, StringComparison.Ordinal);
+        Assert.Contains("Applied deployment 'target-deployment'", result.Message, StringComparison.Ordinal);
+        Assert.Equal(["target:4:False:operator"], provider.UpdatedReplicas);
+        Assert.Equal(
+            [
+                "start:target-service",
+                "start:target-service"
+            ],
+            provider.PreparedActions);
+        Assert.Equal(
+            [
+                "start:target-service-revision-2-replica-1:1/2",
+                "start:target-service-revision-2-replica-2:2/2",
+                "stop:target-service-revision-1:1/1",
+                "start:target-service-revision-2-replica-3:3/4",
+                "start:target-service-revision-2-replica-4:4/4"
+            ],
+            provider.InstanceActions);
+        var deploymentRecords = deploymentStore.List(new ResourceOrchestratorDeploymentQuery(
+            SourceResourceId: "target",
+            DeploymentId: "target-deployment",
+            MaxRecords: 10));
+        Assert.Equal(2, deploymentRecords.Count);
+        Assert.Equal(
+            [2, 4],
+            deploymentRecords
+                .OrderBy(record => record.CompletedAt ?? record.StartedAt)
+                .Select(record => record.ReplicaGroup?.RequestedReplicas ?? 0)
+                .ToArray());
+        var scaleRecord = deploymentRecords
+            .OrderBy(record => record.CompletedAt ?? record.StartedAt)
+            .Last();
+        Assert.Equal(ResourceOrchestratorDeploymentStatus.Active, scaleRecord.Status);
+        Assert.Equal("operator", scaleRecord.TriggeredBy);
+        Assert.Equal("Replica scaling requested runtime reconciliation.", scaleRecord.Cause);
+        Assert.Equal(4, scaleRecord.ReplicaGroup?.RequestedReplicas);
+        Assert.Equal(2, scaleRecord.Revision?.RevisionNumber);
+        Assert.Contains(
+            resourceEvents.GetEvents(new ResourceEventQuery(
+                ResourceId: "target",
+                EventType: ResourceEventTypes.Events.Deployment.Applied,
+                TriggeredBy: "operator")),
+            resourceEvent => resourceEvent.Message.Contains("target-deployment", StringComparison.Ordinal));
+    }
+
 
     [Fact]
     public async Task RegisterResourceAsync_RejectsUnknownProvider()
@@ -3738,6 +3810,7 @@ public sealed class InProcessControlPlaneResourceStateTests
     private sealed class TestDeploymentImageUpdateResourceProvider :
         IResourceProvider,
         IResourceImageUpdateProvider,
+        IResourceReplicaUpdateProvider,
         IResourceOrchestratorDeploymentProvider,
         IResourceOrchestratorDeploymentAppliedProvider,
         IResourceOrchestratorDeploymentTearDownProvider,
@@ -3749,6 +3822,8 @@ public sealed class InProcessControlPlaneResourceStateTests
         public string DisplayName => "Test";
 
         public List<string> UpdatedImages { get; } = [];
+
+        public List<string> UpdatedReplicas { get; } = [];
 
         public List<string> DescribedDeployments { get; } = [];
 
@@ -3766,6 +3841,8 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         public bool FailDeploymentInstanceStop { get; init; }
 
+        public int RequestedReplicas { get; private set; } = 2;
+
         public IReadOnlyList<Resource> GetResources() => [];
 
         public bool CanUpdateImage(Resource resource) => true;
@@ -3778,7 +3855,25 @@ public sealed class InProcessControlPlaneResourceStateTests
             CancellationToken cancellationToken = default,
             int? requestedReplicas = null)
         {
+            RequestedReplicas = Math.Max(1, requestedReplicas ?? 2);
             UpdatedImages.Add($"{context.Resource.Id}:{image}:{restartIfRunning}:{triggeredBy}:{requestedReplicas?.ToString(CultureInfo.InvariantCulture) ?? "unchanged"}");
+            return Task.FromResult(ResourceProcedureResult.CompletedWithRestartRequired(
+                $"Updated {context.Resource.Id}.",
+                context.Resource.Id,
+                "Runtime deployment must be applied."));
+        }
+
+        public bool CanUpdateReplicas(Resource resource) => true;
+
+        public Task<ResourceProcedureResult> UpdateReplicasAsync(
+            ResourceProcedureContext context,
+            int replicas,
+            bool restartIfRunning,
+            string? triggeredBy = null,
+            CancellationToken cancellationToken = default)
+        {
+            RequestedReplicas = Math.Max(1, replicas);
+            UpdatedReplicas.Add($"{context.Resource.Id}:{replicas.ToString(CultureInfo.InvariantCulture)}:{restartIfRunning}:{triggeredBy}");
             return Task.FromResult(ResourceProcedureResult.CompletedWithRestartRequired(
                 $"Updated {context.Resource.Id}.",
                 context.Resource.Id,
@@ -3799,7 +3894,7 @@ public sealed class InProcessControlPlaneResourceStateTests
                     ResourceWorkloadKind.ContainerImage,
                     "target",
                     Image: "example/api:20260623",
-                    Replicas: 2,
+                    Replicas: RequestedReplicas,
                     ReplicasEnabled: true));
             return Task.FromResult<ResourceOrchestratorDeployment?>(new ResourceOrchestratorDeployment(
                 "target-deployment",

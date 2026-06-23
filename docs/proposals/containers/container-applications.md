@@ -153,6 +153,17 @@ updates can reconcile the current group by adding or removing member resources.
 The group change calculation belongs to the orchestrator abstraction so the
 container app provider does not have to own replica-count diffing itself.
 
+The container app should define the replica group as part of the orchestrator
+deployment. In Kubernetes terms this is closest to a replica set, but
+CloudShell keeps it resource-centered: the group carries replica attributes,
+including requested replica count and lifecycle request, and a replica member
+resource definition that describes the runtime resource shape for each app
+replica. That member definition includes image, command, environment, endpoint
+bindings, mounts, identity, and resource correlation metadata. A changed member
+definition creates a new versioned replica group. A requested replica-count
+change against the same member definition reconciles membership in the existing
+group and records a new Environment revision for the capacity change.
+
 ## Container App Deployments and Configuration Revisions
 
 Container app revisions are configuration-management snapshots owned by the

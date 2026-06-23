@@ -1106,6 +1106,32 @@ resource provider may still execute provider-specific member operations, but
 the desired-capacity diff and member lifecycle sequence belong to the
 orchestration boundary.
 
+Replica-group reconciliation is still resource reconciliation, but it is not
+identical to ordinary single-resource reconciliation. A replica group is a
+resource-shaped deployment object whose desired state includes a set of
+members and a requested capacity. Reconciling that object requires
+membership-aware behavior: compare the previous and target groups, start or
+create added members, drain, stop, or remove deleted members, and leave
+unchanged members serving. Ordinary resource reconciliation can usually compare
+attributes and update one materialized resource in place; replica-group
+reconciliation additionally owns the member lifecycle sequence and the
+resulting group outcome.
+
+A replica group should be treated as its own versioned orchestration unit. The
+deployment defines the replica group with replica attributes, such as
+requested replica count, requested lifecycle state, placement hints, and
+rollout or retention policy, plus the resource definition used to create or
+update each replica member. For container apps, that replica resource
+definition is derived from the app revision or current operational runtime
+state: image, command, environment, endpoints, mounts, identity, and other
+replica-relevant configuration. The orchestrator then materializes replicas
+from the group attributes and member resource definition, and records the
+resulting group in the Environment revision. If the member resource definition
+changes, the deployment should normally produce a new versioned replica group
+so side-by-side replacement, readiness, cutover, and cleanup can be tracked. If
+only the requested capacity changes, the orchestrator can reconcile the
+existing versioned group by adding or removing members.
+
 ## Docker Compose Orchestrator Behavior
 
 The Docker Compose orchestrator should map the common deployment model to Docker Compose constructs.

@@ -29,16 +29,32 @@ public sealed class DefaultResourceDeploymentService(
             RuntimeRevisionId = deployment.RevisionId
         };
         var replicaGroup = ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service);
+        var previousReplicaGroup = GetLatestActiveReplicaGroup(deployment);
         try
         {
-            await ResourceOrchestratorServiceExecutor.ExecuteServiceActionAsync(
-                provider,
-                resourceContext,
-                service,
-                ResourceAction.Start,
-                cancellationToken,
-                deployment,
-                replicaGroup);
+            if (previousReplicaGroup is not null &&
+                string.Equals(previousReplicaGroup.Id, replicaGroup.Id, StringComparison.OrdinalIgnoreCase))
+            {
+                await ApplyReplicaGroupChangeAsync(
+                    provider,
+                    resourceContext,
+                    service,
+                    previousReplicaGroup,
+                    replicaGroup,
+                    deployment,
+                    cancellationToken);
+            }
+            else
+            {
+                await ResourceOrchestratorServiceExecutor.ExecuteServiceActionAsync(
+                    provider,
+                    resourceContext,
+                    service,
+                    ResourceAction.Start,
+                    cancellationToken,
+                    deployment,
+                    replicaGroup);
+            }
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -79,6 +95,86 @@ public sealed class DefaultResourceDeploymentService(
             ResourceProcedureResult.Completed(
                 $"Applied deployment '{deployment.Id}' for runtime revision '{deployment.RevisionId}'."));
     }
+
+    private ResourceOrchestratorReplicaGroup? GetLatestActiveReplicaGroup(
+        ResourceOrchestratorDeployment deployment)
+    {
+        if (deploymentStore is null)
+        {
+            return null;
+        }
+
+        return deploymentStore
+            .List(new ResourceOrchestratorDeploymentQuery(
+                SourceResourceId: deployment.SourceResourceId,
+                OrchestratorId: deployment.OrchestratorId,
+                MaxRecords: 1_000))
+            .Where(record =>
+                record.Status == ResourceOrchestratorDeploymentStatus.Active &&
+                string.Equals(record.ServiceId, deployment.ServiceId, StringComparison.OrdinalIgnoreCase) &&
+                record.ReplicaGroup is not null)
+            .OrderByDescending(record => record.CompletedAt ?? record.StartedAt)
+            .Select(record => record.ReplicaGroup)
+            .FirstOrDefault();
+    }
+
+    private static async Task ApplyReplicaGroupChangeAsync(
+        IResourceOrchestratorServiceProcedureProvider provider,
+        ResourceProcedureContext resourceContext,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup previousReplicaGroup,
+        ResourceOrchestratorReplicaGroup targetReplicaGroup,
+        ResourceOrchestratorDeployment deployment,
+        CancellationToken cancellationToken)
+    {
+        var change = ResourceOrchestratorReplicaGroups.CreateChange(previousReplicaGroup, targetReplicaGroup);
+        ResourceOrchestratorServiceExecutor.AppendDeploymentEvent(
+            resourceContext,
+            ResourceEventTypes.Events.Deployment.ServiceReconciling,
+            $"Reconciling orchestrator service '{deployment.ServiceId}' replica group '{targetReplicaGroup.Id}' from {previousReplicaGroup.MaterializedReplicas.ToString(CultureInfo.InvariantCulture)} to {targetReplicaGroup.RequestedReplicas.ToString(CultureInfo.InvariantCulture)} replicas for deployment '{deployment.Id}'.");
+
+        if (change.AddedInstances.Count > 0)
+        {
+            await provider.PrepareOrchestratorServiceAsync(
+                new ResourceOrchestratorServiceProcedureContext(resourceContext, service, targetReplicaGroup),
+                ResourceAction.Start,
+                cancellationToken);
+
+            foreach (var instance in change.AddedInstances)
+            {
+                ResourceOrchestratorServiceExecutor.AppendDeploymentEvent(
+                    resourceContext,
+                    ResourceEventTypes.Events.Deployment.ReplicaMaterializing,
+                    $"Materializing replica {FormatReplicaPosition(instance)} '{instance.Name}' for deployment '{deployment.Id}'.");
+                await provider.ExecuteOrchestratorServiceInstanceAsync(
+                    new ResourceOrchestratorServiceInstanceContext(resourceContext, service, instance, targetReplicaGroup),
+                    ResourceAction.Start,
+                    cancellationToken);
+                ResourceOrchestratorServiceExecutor.AppendDeploymentEvent(
+                    resourceContext,
+                    ResourceEventTypes.Events.Deployment.ReplicaMaterialized,
+                    $"Materialized replica {FormatReplicaPosition(instance)} '{instance.Name}' for deployment '{deployment.Id}'.");
+            }
+        }
+
+        foreach (var instance in change.RemovedInstances.OrderByDescending(instance => instance.ReplicaOrdinal))
+        {
+            await provider.ExecuteOrchestratorServiceInstanceAsync(
+                new ResourceOrchestratorServiceInstanceContext(resourceContext, service, instance, previousReplicaGroup),
+                ResourceAction.Stop,
+                cancellationToken);
+        }
+
+        ResourceOrchestratorServiceExecutor.AppendDeploymentEvent(
+            resourceContext,
+            ResourceEventTypes.Events.Deployment.ServiceReconciled,
+            $"Reconciled orchestrator service '{deployment.ServiceId}' replica group '{targetReplicaGroup.Id}' to {targetReplicaGroup.MaterializedReplicas.ToString(CultureInfo.InvariantCulture)} replicas for deployment '{deployment.Id}'.");
+    }
+
+    private static string FormatReplicaPosition(ResourceOrchestratorServiceInstance instance) =>
+        string.Create(
+            CultureInfo.InvariantCulture,
+            $"{instance.ReplicaOrdinal}/{instance.ReplicaCount}");
 
     private static async Task RollBackFailedDeploymentAsync(
         IResourceOrchestratorServiceProcedureProvider provider,
