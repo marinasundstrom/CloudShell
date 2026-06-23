@@ -216,6 +216,9 @@ without forcing provider-specific logic into shared helpers.
   provider instead of the shared application resource service facade.
 - [x] Move SQL Server reconcile-access action ID constants out of the shared
   application resource service.
+- [x] Move application app-setting and environment-variable configuration
+  provider behavior to a focused settings provider instead of the shared
+  application resource service facade.
 
 ## Next Slices
 

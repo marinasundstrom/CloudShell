@@ -39,8 +39,6 @@ public sealed partial class ApplicationResourceService(
     ApplicationResourceDefinitionNormalizer? definitionNormalizer = null,
     ApplicationResourceDefinitionRegistrationService? applicationDefinitionRegistrations = null) :
     IResourceMonitoringProvider,
-    IResourceAppSettingConfigurationProvider,
-    IResourceEnvironmentVariableConfigurationProvider,
     IApplicationResourceProjectionSource,
     IApplicationResourceRunningStateOperations,
     IApplicationResourceProcedureOperations,

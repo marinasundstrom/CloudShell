@@ -86,6 +86,9 @@ on `git blame --follow`, and then by the broad type of change.
 - SQL Server reconcile-access action IDs now live outside the shared
   application resource service so projectors do not reference the service for
   constants.
+- Application app-setting and environment-variable configuration providers now
+  use a dedicated settings provider instead of the shared application resource
+  service.
 
 ### 2026-06-23
 
