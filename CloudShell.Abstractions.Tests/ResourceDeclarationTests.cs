@@ -10922,7 +10922,7 @@ public sealed class ResourceDeclarationTests
                 new ResourceOrchestratorDeploymentApplyResult(
                     deployment,
                     new ResourceOrchestratorRevision(
-                        deployment.RevisionId,
+                        new ResourceOrchestratorEnvironmentRevisionId("env-test-1"),
                         deployment.Id,
                         deployment.SourceResourceId,
                         deployment.ServiceId,

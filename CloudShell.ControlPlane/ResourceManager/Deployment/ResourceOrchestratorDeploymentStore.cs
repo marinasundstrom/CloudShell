@@ -80,7 +80,10 @@ public sealed class InMemoryResourceOrchestratorDeploymentStore : IResourceOrche
             1,
             (_, current) => current + 1);
         return new ResourceOrchestratorRevision(
-            deployment.RevisionId,
+            ResourceOrchestratorEnvironmentRevisionId.FromScope(
+                deployment.SourceResourceId,
+                deployment.ServiceId,
+                revisionNumber),
             deployment.Id,
             deployment.SourceResourceId,
             deployment.ServiceId,
@@ -234,6 +237,10 @@ public sealed class InMemoryResourceOrchestratorDeploymentStore : IResourceOrche
         string sourceResourceId,
         string serviceId) =>
         string.Join('\u001f', sourceResourceId, serviceId);
+
+    private static ResourceOrchestratorEnvironmentRevisionId? Normalize(
+        ResourceOrchestratorEnvironmentRevisionId? value) =>
+        value is { IsEmpty: false } ? value : null;
 
     private static string? Normalize(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();

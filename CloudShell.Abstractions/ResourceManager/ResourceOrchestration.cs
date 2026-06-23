@@ -36,7 +36,7 @@ public sealed record ResourceOrchestratorDeployment(
     string RevisionId,
     ResourceOrchestratorDeploymentSpec Spec,
     ResourceOrchestratorDeploymentStatus Status,
-    string? BasedOnRevisionId = null);
+    ResourceOrchestratorEnvironmentRevisionId? BasedOnRevisionId = null);
 
 public sealed record ResourceOrchestratorDeploymentSpec(
     ResourceOrchestratorService Service,
@@ -50,7 +50,7 @@ public sealed record ResourceOrchestratorDeploymentSpec(
 }
 
 public sealed record ResourceOrchestratorRevision(
-    string Id,
+    ResourceOrchestratorEnvironmentRevisionId Id,
     string DeploymentId,
     string SourceResourceId,
     string ServiceId,
@@ -58,7 +58,7 @@ public sealed record ResourceOrchestratorRevision(
     DateTimeOffset CreatedAt,
     ResourceOrchestratorRevisionStatus Status,
     ResourceOrchestratorReplicaGroup? ReplicaGroup = null,
-    string? BasedOnRevisionId = null,
+    ResourceOrchestratorEnvironmentRevisionId? BasedOnRevisionId = null,
     string? ProvisionedBy = null);
 
 public sealed record ResourceOrchestratorDeploymentApplyResult(

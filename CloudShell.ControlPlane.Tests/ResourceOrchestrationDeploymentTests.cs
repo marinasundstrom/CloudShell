@@ -31,7 +31,8 @@ public sealed class ResourceOrchestrationDeploymentTests
             cause: "Container app deployment.");
 
         Assert.Equal(ResourceOrchestratorDeploymentStatus.Active, result.Deployment.Status);
-        Assert.Equal(deployment.RevisionId, result.Revision.Id);
+        Assert.NotEqual(deployment.RevisionId, result.Revision.Id.ToString());
+        Assert.StartsWith("env-", result.Revision.Id.ToString(), StringComparison.Ordinal);
         Assert.Equal(deployment.Id, result.Revision.DeploymentId);
         Assert.Equal(deployment.SourceResourceId, result.Revision.SourceResourceId);
         Assert.Equal(deployment.ServiceId, result.Revision.ServiceId);
@@ -275,21 +276,27 @@ public sealed class ResourceOrchestrationDeploymentTests
             SourceResourceId: resource.Id));
         Assert.Equal(2, records.Count);
         Assert.Equal(
-            ["rev-2", "rev-3"],
+            [
+                firstResult.Revision.Id,
+                secondResult.Revision.Id
+            ],
             records
                 .Select(record => record.Revision)
                 .Where(revision => revision is not null)
                 .OrderBy(revision => revision!.RevisionNumber)
                 .Select(revision => revision!.Id)
                 .ToArray());
+        Assert.All(
+            records.Select(record => record.Revision).Where(revision => revision is not null),
+            revision => Assert.StartsWith("env-", revision!.Id.ToString(), StringComparison.Ordinal));
         Assert.Contains(records, record =>
             record.RevisionId == "rev-2" &&
             record.Revision?.RevisionNumber == 1);
         Assert.Contains(records, record =>
             record.RevisionId == "rev-3" &&
             record.Revision?.RevisionNumber == 2 &&
-            record.Deployment.BasedOnRevisionId == "rev-2" &&
-            record.Revision.BasedOnRevisionId == "rev-2");
+            record.Deployment.BasedOnRevisionId == firstResult.Revision.Id &&
+            record.Revision.BasedOnRevisionId == firstResult.Revision.Id);
     }
 
     [Fact]
@@ -303,25 +310,30 @@ public sealed class ResourceOrchestrationDeploymentTests
         var secondDeployment = firstDeployment with { RevisionId = "rev-3" };
         var restoreDeployment = firstDeployment with
         {
-            RevisionId = "rev-4",
-            BasedOnRevisionId = " rev-2 "
+            RevisionId = "rev-4"
         };
 
-        await deployments.ApplyDeploymentAsync(resource, firstDeployment);
+        var firstResult = await deployments.ApplyDeploymentAsync(resource, firstDeployment);
         await deployments.ApplyDeploymentAsync(resource, secondDeployment);
+        var basedOnEnvironmentRevisionId = firstResult.Revision.Id;
+        restoreDeployment = restoreDeployment with
+        {
+            BasedOnRevisionId = basedOnEnvironmentRevisionId
+        };
 
         var restoreResult = await deployments.ApplyDeploymentAsync(resource, restoreDeployment);
 
-        Assert.Equal("rev-2", restoreResult.Deployment.BasedOnRevisionId);
-        Assert.Equal("rev-2", restoreResult.Revision.BasedOnRevisionId);
-        Assert.Equal("rev-4", restoreResult.Revision.Id);
+        Assert.Equal(basedOnEnvironmentRevisionId, restoreResult.Deployment.BasedOnRevisionId);
+        Assert.Equal(basedOnEnvironmentRevisionId, restoreResult.Revision.BasedOnRevisionId);
+        Assert.Equal("rev-4", restoreResult.Deployment.RevisionId);
+        Assert.NotEqual("rev-4", restoreResult.Revision.Id.ToString());
         var restoreRecord = Assert.Single(
             deploymentStore.List(new ResourceOrchestratorDeploymentQuery(
                 SourceResourceId: resource.Id,
                 DeploymentId: firstDeployment.Id)),
             record => string.Equals(record.RevisionId, "rev-4", StringComparison.OrdinalIgnoreCase));
-        Assert.Equal("rev-2", restoreRecord.Deployment.BasedOnRevisionId);
-        Assert.Equal("rev-2", restoreRecord.Revision?.BasedOnRevisionId);
+        Assert.Equal(basedOnEnvironmentRevisionId, restoreRecord.Deployment.BasedOnRevisionId);
+        Assert.Equal(basedOnEnvironmentRevisionId, restoreRecord.Revision?.BasedOnRevisionId);
     }
 
     [Fact]

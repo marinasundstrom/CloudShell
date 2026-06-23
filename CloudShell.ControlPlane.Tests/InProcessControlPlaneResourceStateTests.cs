@@ -2396,7 +2396,8 @@ public sealed class InProcessControlPlaneResourceStateTests
             DeploymentId: "target-deployment")));
         Assert.NotNull(deploymentRecord.Revision);
         var revision = deploymentRecord.Revision;
-        Assert.Equal("revision-2", revision.Id);
+        Assert.NotEqual("revision-2", revision.Id.ToString());
+        Assert.StartsWith("env-", revision.Id.ToString(), StringComparison.Ordinal);
         Assert.NotNull(revision.ReplicaGroup);
         var replicaGroup = revision.ReplicaGroup;
         Assert.Equal("target-service-revision-2-replicas", replicaGroup.Id);

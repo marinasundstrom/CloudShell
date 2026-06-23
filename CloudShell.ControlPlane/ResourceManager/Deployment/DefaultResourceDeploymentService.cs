@@ -2,6 +2,7 @@ using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager.Orchestration;
+using System.Globalization;
 
 namespace CloudShell.ControlPlane.ResourceManager.Deployment;
 
@@ -61,7 +62,7 @@ public sealed class DefaultResourceDeploymentService(
             replicaGroup,
             context.TriggeredBy) ??
             new ResourceOrchestratorRevision(
-                applied.RevisionId,
+                CreateFallbackEnvironmentRevisionId(applied, revisionCreatedAt),
                 applied.Id,
                 applied.SourceResourceId,
                 applied.ServiceId,
@@ -75,7 +76,7 @@ public sealed class DefaultResourceDeploymentService(
             applied,
             revision,
             ResourceProcedureResult.Completed(
-                $"Applied deployment '{deployment.Id}' for revision '{deployment.RevisionId}'."));
+                $"Applied deployment '{deployment.Id}' for runtime revision '{deployment.RevisionId}'."));
     }
 
     private static async Task RollBackFailedDeploymentAsync(
@@ -90,7 +91,7 @@ public sealed class DefaultResourceDeploymentService(
         ResourceOrchestratorServiceExecutor.AppendDeploymentEvent(
             resourceContext,
             ResourceEventTypes.Events.Deployment.RollingBack,
-            $"Rolling back deployment '{deployment.Id}' for revision '{deployment.RevisionId}' after apply failed. Reason: {applyException.Message}",
+            $"Rolling back deployment '{deployment.Id}' for runtime revision '{deployment.RevisionId}' after apply failed. Reason: {applyException.Message}",
             ResourceSignalSeverity.Warning);
 
         try
@@ -109,7 +110,7 @@ public sealed class DefaultResourceDeploymentService(
             ResourceOrchestratorServiceExecutor.AppendDeploymentEvent(
                 resourceContext,
                 ResourceEventTypes.Events.Deployment.RollbackFailed,
-                $"Rollback failed for deployment '{deployment.Id}' revision '{deployment.RevisionId}'. Reason: {rollbackException.Message}",
+                $"Rollback failed for deployment '{deployment.Id}' runtime revision '{deployment.RevisionId}'. Reason: {rollbackException.Message}",
                 ResourceSignalSeverity.Error);
             return;
         }
@@ -117,7 +118,15 @@ public sealed class DefaultResourceDeploymentService(
         ResourceOrchestratorServiceExecutor.AppendDeploymentEvent(
             resourceContext,
             ResourceEventTypes.Events.Deployment.RolledBack,
-            $"Rolled back deployment '{deployment.Id}' for revision '{deployment.RevisionId}' by tearing down replica group '{replicaGroup.Id}'.",
+            $"Rolled back deployment '{deployment.Id}' for runtime revision '{deployment.RevisionId}' by tearing down replica group '{replicaGroup.Id}'.",
             ResourceSignalSeverity.Warning);
     }
+
+    private static ResourceOrchestratorEnvironmentRevisionId CreateFallbackEnvironmentRevisionId(
+        ResourceOrchestratorDeployment deployment,
+        DateTimeOffset createdAt) =>
+        new(
+            string.Create(
+                CultureInfo.InvariantCulture,
+                $"env-{deployment.Id}-{createdAt:yyyyMMddHHmmssfff}"));
 }

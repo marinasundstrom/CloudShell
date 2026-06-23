@@ -100,6 +100,10 @@ on `git blame --follow`, and then by the broad type of change.
   produced by applying desired runtime state. The orchestrator deployment is
   the primary operational object; the environment revision is historical
   traceability.
+- Orchestrator environment revision ids are now represented by
+  `ResourceOrchestratorEnvironmentRevisionId` and generated separately from
+  deployment/runtime revision ids, so container app revision ids are not reused
+  as Resource Manager environment revision identities.
 - Resource Manager deployment coordination now lives separately from
   orchestration execution under dedicated Deployment and Orchestration
   namespaces, with the default deployment service reusable for orchestrators

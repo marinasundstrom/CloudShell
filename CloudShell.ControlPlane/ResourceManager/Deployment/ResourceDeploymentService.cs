@@ -125,7 +125,8 @@ public sealed class ResourceDeploymentService(
             : deployment with { BasedOnRevisionId = latestRevisionId };
     }
 
-    private string? GetLatestSuccessfulRevisionId(ResourceOrchestratorDeployment deployment)
+    private ResourceOrchestratorEnvironmentRevisionId? GetLatestSuccessfulRevisionId(
+        ResourceOrchestratorDeployment deployment)
     {
         if (deploymentStore is null)
         {
@@ -136,15 +137,16 @@ public sealed class ResourceDeploymentService(
             SourceResourceId: deployment.SourceResourceId,
             OrchestratorId: Normalize(deployment.OrchestratorId),
             MaxRecords: 1_000));
-        return records
+        var revision = records
             .Where(record =>
                 string.Equals(record.ServiceId, deployment.ServiceId, StringComparison.OrdinalIgnoreCase) &&
                 record.Status == ResourceOrchestratorDeploymentStatus.Active &&
                 record.Revision is not null &&
-                !string.IsNullOrWhiteSpace(record.Revision.Id))
+                !record.Revision.Id.IsEmpty)
             .OrderByDescending(record => record.CompletedAt ?? record.StartedAt)
             .Select(record => record.Revision!.Id)
             .FirstOrDefault();
+        return revision.IsEmpty ? null : revision;
     }
 
     private static ResourceOrchestratorDeploymentApplyResult NormalizeApplyResult(
@@ -290,4 +292,8 @@ public sealed class ResourceDeploymentService(
 
     private static string? Normalize(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static ResourceOrchestratorEnvironmentRevisionId? Normalize(
+        ResourceOrchestratorEnvironmentRevisionId? value) =>
+        value is { IsEmpty: false } ? value : null;
 }

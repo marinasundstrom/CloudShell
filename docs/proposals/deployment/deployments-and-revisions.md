@@ -368,7 +368,7 @@ public sealed class OrchestratorDeployment
     public string Id { get; init; }
     public string OrchestratorId { get; init; }
     public string SourceResourceId { get; init; }
-    public string? BasedOnRevisionId { get; init; }
+    public ResourceOrchestratorEnvironmentRevisionId? BasedOnRevisionId { get; init; }
     public string ServiceId { get; init; }
     public string RevisionId { get; init; }
     public DeploymentSpec Spec { get; init; }
@@ -379,10 +379,10 @@ public sealed class OrchestratorDeployment
 ```csharp
 public sealed class OrchestratorRevision
 {
-    public string Id { get; init; }
+    public ResourceOrchestratorEnvironmentRevisionId Id { get; init; }
     public string DeploymentId { get; init; }
     public string SourceResourceId { get; init; }
-    public string? BasedOnRevisionId { get; init; }
+    public ResourceOrchestratorEnvironmentRevisionId? BasedOnRevisionId { get; init; }
     public string ServiceId { get; init; }
     public int RevisionNumber { get; init; }
     public DateTimeOffset CreatedAt { get; init; }
@@ -398,6 +398,11 @@ a scoped `RevisionNumber` as a projection for a service, standalone resource,
 or environment history view; that number is not the global identity.
 `CreatedAt` records when the environment-history record was produced, and
 `ProvisionedBy` records who provisioned the deployment that produced it.
+Where the implementation needs to prevent identity drift, environment revision
+ids should be represented as value objects instead of plain strings. The
+deployment `RevisionId` remains separate: for current container app flows it is
+runtime/app correlation metadata, not the identity of the orchestrator
+environment revision.
 
 For environment-history tracking, the based-on relationship should be
 represented as:
