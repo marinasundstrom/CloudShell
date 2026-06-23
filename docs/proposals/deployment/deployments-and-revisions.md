@@ -58,7 +58,10 @@ Container apps now use the deployment contract to project deployment status,
 service id, workload version, requested replicas, and materialized replica count
 onto the stable app resource and Deployment tab. Materialized runtime replica
 resources also carry the deployment id, service id, and deployment revision
-they implement for traceability. Container app image deployment now records
+they implement for traceability. The deployment represents the requested
+runtime state. The revision represents the materialized result of that
+deployment: the current state when active and the past state when retained for
+history, diagnostics, or restore. Container app image deployment now records
 the app revision through the app provider and, when runtime reconciliation is
 required, asks the Control Plane to apply the provider-described orchestrator
 deployment spec. The default orchestrator now records deployment activity
@@ -68,13 +71,22 @@ also records routing update milestones after endpoint-bearing replicas are
 materialized, making the intended cutover from previous runtime replicas to
 the newly materialized revision visible without exposing traffic-splitting
 controls yet.
+In this model, the container app resource defines and manages the
+resource-owned deployment it wants Resource Manager to apply. That deployment
+targets an identifiable orchestrator service tracked by the container app. The
+orchestrator service unit is the runtime boundary that can contain service
+routing or loader materialization plus a replica group with the requested
+number of replicas for a specific image and replicated configuration.
 The Control Plane also records internal orchestrator deployment history for
 apply attempts, successful orchestrator revisions, and failed apply results.
 When the default orchestrator applies a deployment, it now materializes service
 instances with revision-scoped runtime names so new replicas can be started next
-to the currently serving revision before routing is remapped. Superseded
-runtime instances are described as explicit replica-group tear-down targets
-after deployment setup, keeping cleanup separate from deployment apply.
+to the currently serving revision before routing is remapped. Container app
+replica materialization now waits for declared HTTP startup, readiness, or
+health checks before a replica is reported as materialized and before the
+orchestrator revision is produced. Superseded runtime instances are described
+as explicit replica-group tear-down targets after deployment setup, keeping
+cleanup separate from deployment apply.
 Container apps also keep provider-owned app deployment and revision history
 separately from the desired application definition. Those app deployment
 records correlate the deployment request to the produced container app
@@ -219,6 +231,9 @@ The MVP must support:
 * Provider-owned failure handling when resource revision history was recorded
   before orchestrator apply, so the candidate resource revision can be marked
   failed and the previously active resource revision can remain active.
+* A first readiness gate before revision activation. Container apps use
+  declared HTTP startup/readiness checks when present, otherwise declared HTTP
+  health checks, without introducing advanced traffic policy machinery.
 * Deployment activity events for apply, service reconciliation, replica
   materialization, rollback, routing milestones, success, and failure.
 * Best-effort rollback of the candidate deployment unit when setup fails before
@@ -243,9 +258,6 @@ The MVP should add or refine next:
 
 * Make deployment apply result diagnostics visible enough in the Deployment tab
   to distinguish setup, rollback, and post-apply tear-down.
-* Define the first readiness gate used before declaring an orchestrator
-  revision active. This can start with provider-observed "container started" or
-  declared health checks; it does not need advanced traffic policies.
 * Keep post-apply tear-down best-effort and observable, with configurable
   cleanup policy deferred.
 * Keep rollback scoped to the candidate deployment unit. Automatic restore of
@@ -1002,20 +1014,17 @@ The current implementation already has the internal foundation:
 
 The next MVP changes should stay focused:
 
-1. Add a minimal deployment readiness gate before marking the orchestrator
-   revision active. Start with provider-observed container start or declared
-   health checks; keep advanced traffic policies out of scope.
-2. Surface deployment apply, rollback, failed-attempt, and post-apply tear-down diagnostics
+1. Surface deployment apply, rollback, failed-attempt, and post-apply tear-down diagnostics
    using the existing resource events and provider-owned deployment history.
    The first UI surface is the container app Deployment tab.
-3. Keep rollback scoped to tearing down the candidate replica group. Do not add
+2. Keep rollback scoped to tearing down the candidate replica group. Do not add
    automatic restore or traffic policy machinery for MVP.
-4. Keep post-apply tear-down best-effort and observable. Configurable retention
+3. Keep post-apply tear-down best-effort and observable. Configurable retention
    and cleanup policies can follow after the basic model is credible.
-5. Add focused tests around failed deployment projection, readiness-gated
+4. Add focused tests around failed deployment projection, readiness-gated
    success/failure, post-apply tear-down failure visibility, and extension to
    at least one non-container-app workload shape.
-6. Revisit Docker Compose integration only after the default orchestrator and
+5. Revisit Docker Compose integration only after the default orchestrator and
    first container app path settle; adapters should translate the common model,
    not redefine it.
 

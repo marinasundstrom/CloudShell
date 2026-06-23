@@ -32,6 +32,10 @@ public sealed class ApplicationProviderOptions
 
     public TimeSpan ContainerStartConfirmationDelay { get; set; } = TimeSpan.FromMilliseconds(500);
 
+    public TimeSpan ContainerReadinessTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
+    public TimeSpan ContainerReadinessPollInterval { get; set; } = TimeSpan.FromMilliseconds(500);
+
     public string? OtlpEndpoint { get; set; }
 
     public string? OtlpProtocol { get; set; }

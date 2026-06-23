@@ -146,12 +146,14 @@ When an image deployment changes a running app, the Control Plane applies the
 provider-described deployment spec through the selected orchestrator instead
 of returning a user-facing restart requirement. The default local orchestrator
 starts a revision-scoped replica group beside the currently serving revision,
-remaps ingress to the new replica group after apply, and tears down the
-superseded group as a separate post-apply operation. If setup fails before the
-orchestrator revision is produced, the candidate group is rolled back, the
-candidate app deployment/revision is marked failed, and the previously active
-app revision remains active. Readiness gates, advanced traffic policies, and
-configurable cleanup/retention remain rollout strategy work.
+waits for declared HTTP startup/readiness checks, or HTTP health checks when no
+startup/readiness checks are present, remaps ingress to the new replica group
+after apply, and tears down the superseded group as a separate post-apply
+operation. If setup or readiness fails before the orchestrator revision is
+produced, the candidate group is rolled back, the candidate app
+deployment/revision is marked failed, and the previously active app revision
+remains active. Advanced traffic policies and configurable cleanup/retention
+remain rollout strategy work.
 
 ## Service Discovery
 

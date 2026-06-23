@@ -25,8 +25,10 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 using System.Text.Json;
 using DockerContainerListResponse = Docker.DotNet.Models.ContainerListResponse;
 using DockerPort = Docker.DotNet.Models.Port;
@@ -3355,6 +3357,108 @@ public sealed class ResourceDeclarationTests
         Assert.Single(definition.VolumeMounts);
         Assert.Single(definition.EnvironmentVariables);
         Assert.NotNull(definition.Observability);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task ApplicationProvider_WaitsForContainerHttpReadinessBeforeStartCompletes()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(contentRoot);
+        var commandLogPath = Path.Combine(contentRoot, "fake-docker-commands.log");
+        var fakeDocker = CreateLongRunningContainerHostExecutable(contentRoot, commandLogPath);
+        var readinessPort = ReserveLocalPort();
+        var requestCount = 0;
+        using var serverCancellation = new CancellationTokenSource();
+        var serverTask = RunReadinessHttpServerAsync(
+            readinessPort,
+            () => Interlocked.Increment(ref requestCount) >= 3,
+            serverCancellation.Token);
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .UseContainerHost(new ContainerHostDescriptor(
+                "docker:test",
+                "Test Docker",
+                ContainerHostKind.Docker,
+                "unix:///var/run/docker.sock",
+                Metadata: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["cloudshell.executable"] = fakeDocker
+                },
+                Capabilities:
+                [
+                    ContainerHostCapabilityIds.ContainerImage,
+                    ContainerHostCapabilityIds.StorageMountFileSystem
+                ]))
+            .AddApplicationProvider(options =>
+            {
+                options.DefinitionsPath = "application-resources.json";
+                options.RuntimeStatePath = "application-runtime-state.json";
+                options.LogDirectory = "application-logs";
+                options.ContainerStartConfirmationDelay = TimeSpan.FromMilliseconds(25);
+                options.ContainerReadinessPollInterval = TimeSpan.FromMilliseconds(25);
+                options.ContainerReadinessTimeout = TimeSpan.FromSeconds(5);
+            });
+
+        try
+        {
+            using var serviceProvider = services.BuildServiceProvider();
+            var provider = serviceProvider.GetRequiredService<ApplicationResourceService>();
+            var resourceProvider = serviceProvider.GetRequiredService<ContainerApplicationResourceProvider>();
+            var registrations = new MutableResourceRegistrationStore();
+            await provider.SetupApplicationAsync(
+                new ApplicationResourceDefinition(
+                    "application:api",
+                    "API",
+                    string.Empty,
+                    containerImage: "example/api:latest",
+                    containerHostId: "docker:test",
+                    endpointPorts:
+                    [
+                        new ServicePort("http", 8080, readinessPort, "http")
+                    ],
+                    resourceType: ApplicationResourceTypes.ContainerApp,
+                    healthChecks:
+                    [
+                        new ResourceHealthCheck("/health", EndpointName: "http")
+                    ]),
+                resourceGroupId: null,
+                registrations);
+            var resourceManager = new TestResourceManagerStore(resourceProvider, registrations);
+            var resource = Assert.Single(resourceManager.GetResources(), resource => resource.Id == "application:api");
+            var orchestrator = new DefaultResourceOrchestrator();
+
+            await orchestrator.ExecuteActionAsync(
+                new ResourceOrchestrationContext(
+                    resource,
+                    registrations.GetRegistration(resource.Id),
+                    null,
+                    resourceManager,
+                    registrations),
+                ResourceAction.Start);
+
+            Assert.True(requestCount >= 3, requestCount.ToString(CultureInfo.InvariantCulture));
+            var commands = File.ReadAllLines(commandLogPath);
+            Assert.Contains(commands, command =>
+                command.StartsWith("run --name cloudshell-application-api ", StringComparison.Ordinal));
+        }
+        finally
+        {
+            await serverCancellation.CancelAsync();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => serverTask);
+            if (Directory.Exists(contentRoot))
+            {
+                Directory.Delete(contentRoot, recursive: true);
+            }
+        }
     }
 
     [Fact]
@@ -11328,6 +11432,98 @@ public sealed class ResourceDeclarationTests
             UnixFileMode.OtherRead |
             UnixFileMode.OtherExecute);
         return path;
+    }
+
+    private static string CreateLongRunningContainerHostExecutable(string directory, string commandLogPath)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            throw new PlatformNotSupportedException("The fake container host executable test helper uses Unix file mode.");
+        }
+
+        var path = Path.Combine(directory, "fake-docker-run");
+        File.WriteAllText(
+            path,
+            $$"""
+            #!/bin/sh
+            printf '%s\n' "$*" >> {{QuoteShellArgument(commandLogPath)}}
+            if [ "$1" = "run" ]; then
+              sleep 30
+            fi
+            exit 0
+            """);
+        File.SetUnixFileMode(
+            path,
+            UnixFileMode.UserRead |
+            UnixFileMode.UserExecute |
+            UnixFileMode.GroupRead |
+            UnixFileMode.GroupExecute |
+            UnixFileMode.OtherRead |
+            UnixFileMode.OtherExecute);
+        return path;
+    }
+
+    private static int ReserveLocalPort()
+    {
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        try
+        {
+            return ((IPEndPoint)listener.LocalEndpoint).Port;
+        }
+        finally
+        {
+            listener.Stop();
+        }
+    }
+
+    private static async Task RunReadinessHttpServerAsync(
+        int port,
+        Func<bool> isReady,
+        CancellationToken cancellationToken)
+    {
+        var listener = new TcpListener(IPAddress.Loopback, port);
+        listener.Start();
+        try
+        {
+            while (true)
+            {
+                var client = await listener.AcceptTcpClientAsync(cancellationToken);
+                _ = Task.Run(
+                    () => RespondToReadinessRequestAsync(client, isReady),
+                    CancellationToken.None);
+            }
+        }
+        finally
+        {
+            listener.Stop();
+        }
+    }
+
+    private static async Task RespondToReadinessRequestAsync(
+        TcpClient client,
+        Func<bool> isReady)
+    {
+        using var _ = client;
+        var stream = client.GetStream();
+        var buffer = new byte[1024];
+        while (await stream.ReadAsync(buffer) is var bytesRead && bytesRead > 0)
+        {
+            var text = Encoding.ASCII.GetString(buffer, 0, bytesRead);
+            if (text.Contains("\r\n\r\n", StringComparison.Ordinal))
+            {
+                break;
+            }
+        }
+
+        var ready = isReady();
+        var status = ready ? "200 OK" : "503 Service Unavailable";
+        var body = ready ? "ready" : "starting";
+        var response = Encoding.ASCII.GetBytes(
+            string.Create(
+                CultureInfo.InvariantCulture,
+                $"HTTP/1.1 {status}\r\nContent-Length: {body.Length}\r\nConnection: close\r\n\r\n{body}"));
+        await stream.WriteAsync(response);
     }
 
     private static async Task<bool> WaitForExitAsync(Process process, TimeSpan timeout)

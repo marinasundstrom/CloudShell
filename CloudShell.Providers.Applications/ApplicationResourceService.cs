@@ -63,6 +63,7 @@ public sealed partial class ApplicationResourceService(
     private static readonly TimeSpan SqlServerDatabaseReconciliationTimeout = TimeSpan.FromSeconds(90);
     private static readonly TimeSpan SqlServerDatabaseReconciliationRetryDelay = TimeSpan.FromSeconds(1);
     private static readonly SemaphoreSlim AspNetCoreProjectBuildLock = new(1, 1);
+    private static readonly HttpClient ContainerReadinessHttpClient = new();
     private const string DefaultContainerNetworkName = "cloudshell";
     private const string DefaultOrchestratorId = "default";
     private const string AspNetCoreUrlsEnvironmentVariable = "ASPNETCORE_URLS";
@@ -2686,6 +2687,31 @@ public sealed partial class ApplicationResourceService(
                 .Select(mount => mount.RuntimeState)
                 .ToArray()));
 
+        try
+        {
+            await WaitForContainerApplicationInstanceReadinessAsync(
+                definition,
+                service,
+                instance,
+                process,
+                processLog,
+                cancellationToken,
+                procedureContext);
+        }
+        catch
+        {
+            await CleanUpFailedContainerApplicationInstanceStartAsync(
+                definition,
+                engine,
+                instance,
+                process,
+                processLog,
+                logPath,
+                volumeMaterializations.Select(mount => mount.RuntimeState),
+                cancellationToken);
+            throw;
+        }
+
         processLog.Append(
             $"Started container image '{definition.ContainerImage}' as '{instance.Name}' replica {instance.ReplicaOrdinal.ToString(CultureInfo.InvariantCulture)} of {instance.ReplicaCount.ToString(CultureInfo.InvariantCulture)} using {engine.Name} with {definition.Lifetime} lifetime.",
             "process",
@@ -4753,6 +4779,253 @@ public sealed partial class ApplicationResourceService(
         await delayTask;
         return process.HasExited ? process.ExitCode : null;
     }
+
+    private async Task WaitForContainerApplicationInstanceReadinessAsync(
+        ApplicationResourceDefinition definition,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorServiceInstance instance,
+        Process process,
+        ApplicationProcessLog processLog,
+        CancellationToken cancellationToken,
+        ResourceProcedureContext? procedureContext)
+    {
+        var checks = SelectContainerStartupReadinessChecks(definition);
+        if (checks.Count == 0)
+        {
+            return;
+        }
+
+        procedureContext?.AppendProviderEvent(
+            Id,
+            "application.container.instance.readiness.waiting",
+            $"Application provider is waiting for {checks.Count.ToString(CultureInfo.InvariantCulture)} readiness check{Pluralize(checks.Count)} on container replica '{instance.Name}' for '{definition.Name}'.");
+
+        foreach (var check in checks)
+        {
+            await WaitForContainerApplicationReadinessCheckAsync(
+                definition,
+                service,
+                instance,
+                process,
+                processLog,
+                check,
+                cancellationToken);
+        }
+
+        procedureContext?.AppendProviderEvent(
+            Id,
+            "application.container.instance.readiness.ready",
+            $"Application provider observed container replica '{instance.Name}' readiness for '{definition.Name}'.");
+    }
+
+    private async Task WaitForContainerApplicationReadinessCheckAsync(
+        ApplicationResourceDefinition definition,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorServiceInstance instance,
+        Process process,
+        ApplicationProcessLog processLog,
+        ResourceHealthCheck check,
+        CancellationToken cancellationToken)
+    {
+        var uri = CreateContainerApplicationReadinessProbeUri(definition, service, instance, check)
+            ?? throw new InvalidOperationException(
+                $"Container replica '{instance.Name}' readiness check '{check.Name}' cannot resolve an HTTP endpoint.");
+        var deadline = DateTimeOffset.UtcNow.Add(GetContainerReadinessTimeout(check));
+        var pollInterval = GetContainerReadinessPollInterval();
+        string? lastDetail = null;
+
+        while (DateTimeOffset.UtcNow <= deadline)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (process.HasExited)
+            {
+                var exitCode = TryGetExitCode(process);
+                throw new InvalidOperationException(
+                    $"Container replica '{instance.Name}' exited before readiness check '{check.Name}' became healthy with code {exitCode?.ToString(CultureInfo.InvariantCulture) ?? "unknown"}.");
+            }
+
+            var result = await ProbeContainerApplicationReadinessAsync(uri, check, cancellationToken);
+            if (result.Healthy)
+            {
+                processLog.Append(
+                    $"Container replica '{instance.Name}' readiness check '{check.Name}' succeeded at {uri}.",
+                    "readiness",
+                    "Information");
+                return;
+            }
+
+            lastDetail = result.Detail;
+            var remaining = deadline - DateTimeOffset.UtcNow;
+            if (remaining <= TimeSpan.Zero)
+            {
+                break;
+            }
+
+            await Task.Delay(remaining < pollInterval ? remaining : pollInterval, cancellationToken);
+        }
+
+        throw new InvalidOperationException(
+            $"Container replica '{instance.Name}' did not become ready before timeout. Readiness check '{check.Name}' at '{uri}' last reported: {lastDetail ?? "No response"}.");
+    }
+
+    private async Task CleanUpFailedContainerApplicationInstanceStartAsync(
+        ApplicationResourceDefinition definition,
+        ContainerHostDescriptor engine,
+        ResourceOrchestratorServiceInstance instance,
+        Process process,
+        ApplicationProcessLog processLog,
+        string? logPath,
+        IEnumerable<ResourceVolumeMountMaterialization> volumeMounts,
+        CancellationToken cancellationToken)
+    {
+        processLog.Append(
+            $"Cleaning up container replica '{instance.Name}' after startup readiness failed.",
+            "readiness",
+            "Warning");
+
+        try
+        {
+            if (definition.Lifetime == ApplicationLifetime.ControlPlaneScoped)
+            {
+                await ApplicationContainerHostCommands.RunAsync(
+                    engine,
+                    ["rm", "-f", instance.Name],
+                    processLog,
+                    cancellationToken,
+                    dockerHostLogger);
+            }
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            processLog.Append(
+                $"Container replica '{instance.Name}' cleanup failed after readiness failure: {exception.Message}",
+                "readiness",
+                "Error");
+        }
+
+        if (!process.HasExited)
+        {
+            ProcessShutdown.KillProcessTreeAndWait(process);
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        runtimeStates.Save(new ApplicationRuntimeState(
+            definition.Id,
+            TryGetProcessId(process),
+            null,
+            now,
+            TryGetExitCode(process),
+            logPath,
+            VolumeMounts: MarkVolumeMountsNotActive(volumeMounts, now)));
+        process.Dispose();
+    }
+
+    private async Task<(bool Healthy, string Detail)> ProbeContainerApplicationReadinessAsync(
+        Uri uri,
+        ResourceHealthCheck check,
+        CancellationToken cancellationToken)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(check.HttpSource?.Timeout ?? check.Timeout ?? TimeSpan.FromSeconds(5));
+        try
+        {
+            using var response = await ContainerReadinessHttpClient.GetAsync(
+                uri,
+                HttpCompletionOption.ResponseHeadersRead,
+                timeout.Token);
+            return ((int)response.StatusCode < 400, $"{(int)response.StatusCode} {response.ReasonPhrase}".Trim());
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return (false, "Timed out");
+        }
+        catch (HttpRequestException exception)
+        {
+            return (false, exception.Message);
+        }
+    }
+
+    private static IReadOnlyList<ResourceHealthCheck> SelectContainerStartupReadinessChecks(
+        ApplicationResourceDefinition definition)
+    {
+        var startupOrReadiness = definition.HealthChecks
+            .Where(check => check.HttpSource is not null)
+            .Where(check => check.Type is ResourceProbeType.Startup or ResourceProbeType.Readiness)
+            .ToArray();
+        if (startupOrReadiness.Length > 0)
+        {
+            return startupOrReadiness;
+        }
+
+        return definition.HealthChecks
+            .Where(check => check.HttpSource is not null)
+            .Where(check => check.Type == ResourceProbeType.Health)
+            .ToArray();
+    }
+
+    private Uri? CreateContainerApplicationReadinessProbeUri(
+        ApplicationResourceDefinition definition,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorServiceInstance instance,
+        ResourceHealthCheck check)
+    {
+        var source = check.HttpSource;
+        if (source is null)
+        {
+            return null;
+        }
+
+        if (Uri.TryCreate(source.Path, UriKind.Absolute, out var absolute) &&
+            absolute.Scheme is "http" or "https")
+        {
+            return absolute;
+        }
+
+        var port = ResolveContainerApplicationReadinessProbePort(definition, service, source);
+        if (port is null)
+        {
+            return null;
+        }
+
+        var baseAddress = ShouldProjectRuntimeContainerProbeTargets(definition)
+            ? CreateRuntimeContainerProbeEndpointAddress(definition.Id, port, instance)
+            : CreateServiceEndpointAddress(definition.Id, port);
+        var path = string.IsNullOrWhiteSpace(source.Path) ? "/" : source.Path.Trim();
+        return Uri.TryCreate(new Uri(baseAddress), path, out var uri)
+            ? uri
+            : null;
+    }
+
+    private static ServicePort? ResolveContainerApplicationReadinessProbePort(
+        ApplicationResourceDefinition definition,
+        ResourceOrchestratorService service,
+        ResourceHttpProbeSource source)
+    {
+        if (!string.IsNullOrWhiteSpace(source.EndpointName))
+        {
+            return service.ServicePorts.FirstOrDefault(port =>
+                string.Equals(port.Name, source.EndpointName, StringComparison.OrdinalIgnoreCase) &&
+                IsHttpProbePort(port));
+        }
+
+        return GetRuntimeContainerProbePorts(definition, service).FirstOrDefault() ??
+            service.ServicePorts.FirstOrDefault(IsHttpProbePort);
+    }
+
+    private TimeSpan GetContainerReadinessTimeout(ResourceHealthCheck check)
+    {
+        if (options.ContainerReadinessTimeout > TimeSpan.Zero)
+        {
+            return options.ContainerReadinessTimeout;
+        }
+
+        return check.HttpSource?.Timeout ?? check.Timeout ?? TimeSpan.FromSeconds(5);
+    }
+
+    private TimeSpan GetContainerReadinessPollInterval() =>
+        options.ContainerReadinessPollInterval > TimeSpan.Zero
+            ? options.ContainerReadinessPollInterval
+            : TimeSpan.FromMilliseconds(500);
 
     private static string CreateContainerStartFailureMessage(
         ApplicationProcessLog processLog,

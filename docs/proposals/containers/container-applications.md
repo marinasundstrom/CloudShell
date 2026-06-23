@@ -397,8 +397,10 @@ liveness/lifecycle signals, while scaling changes desired capacity.
   failure, and tears down superseded runtime replica groups as a separate
   post-apply operation. Failed apply now marks the candidate app
   deployment/revision failed and restores the source app revision as active.
-  Remaining rollout work should verify readiness, retain failed runtime/app
-  revision diagnostics, and make traffic and cleanup policy configurable.
+  Deployment materialization now waits for declared HTTP startup/readiness
+  checks, or HTTP health checks when no explicit startup/readiness check is
+  present. Remaining rollout work should retain failed runtime/app revision
+  diagnostics and make traffic and cleanup policy configurable.
 * Continue improving update behavior around replica, environment, endpoint,
   identity, and storage changes, deciding which changes belong to active
   revision capacity/configuration and which require a new deployment revision.
