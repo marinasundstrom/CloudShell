@@ -383,25 +383,7 @@ public static class ApplicationProviderServiceCollectionExtensions
         $"rev-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..27];
 
     internal static IReadOnlyList<ServicePort> CreateAspNetCoreProjectEndpointPorts(string? endpoint)
-    {
-        if (Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) &&
-            uri.Port > 0)
-        {
-            return
-            [
-                new ServicePort(
-                    "http",
-                    uri.Port,
-                    uri.Port,
-                    string.IsNullOrWhiteSpace(uri.Scheme) ? "http" : uri.Scheme,
-                    ResourceExposureScope.Local,
-                    ResourceEndpointAssignment.Manual,
-                    Host: uri.Host)
-            ];
-        }
-
-        return [new ServicePort("http", 80, Protocol: "http", Exposure: ResourceExposureScope.Local)];
-    }
+        => AspNetCoreProjectEndpointDefinitionFactory.CreateEndpointPorts(endpoint);
 
     private static IReadOnlyList<ServicePort> CreateEndpointPorts(
         IReadOnlyList<ResourceEndpoint>? endpoints) =>

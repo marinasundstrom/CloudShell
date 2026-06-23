@@ -72,6 +72,9 @@ on `git blame --follow`, and then by the broad type of change.
 - ASP.NET Core Web project runtime environment and dotnet run/watch argument
   policy now live in ASP.NET Core project provider-owned units with direct
   tests, while shared application infrastructure delegates to them.
+- ASP.NET Core Web project endpoint defaulting and launch-settings endpoint
+  discovery now live in ASP.NET Core project provider-owned units with direct
+  tests.
 - Application resource documentation now includes a provider layering diagram
   that separates raw Resource Provider infrastructure, the Application Resource
   Provider toolkit, and the built-in dogfooded application resource providers.

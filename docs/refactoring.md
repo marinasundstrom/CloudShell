@@ -71,6 +71,8 @@ without forcing provider-specific logic into shared helpers.
   dedicated projection factory with direct tests.
 - [x] Move ASP.NET Core Web project runtime environment and process argument
   policy into ASP.NET Core Web project provider-owned units.
+- [x] Move ASP.NET Core Web project endpoint defaulting and launch-settings
+  endpoint discovery into ASP.NET Core Web project provider-owned units.
 
 ## Next Slices
 
