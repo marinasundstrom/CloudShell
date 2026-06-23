@@ -1,7 +1,7 @@
 using System.Text.Json;
 using CloudShell.Abstractions.ResourceManager;
 
-namespace CloudShell.ControlPlane.ResourceManager;
+namespace CloudShell.ControlPlane.ResourceManager.Orchestration;
 
 public sealed class ContainerHostResolver(
     IResourceManagerStore resourceManager,

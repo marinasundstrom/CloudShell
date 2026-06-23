@@ -2,7 +2,7 @@ using System.Text.Json;
 using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.Hosting;
 
-namespace CloudShell.ControlPlane.ResourceManager;
+namespace CloudShell.ControlPlane.ResourceManager.Platform;
 
 public sealed class PlatformResourceStore
 {

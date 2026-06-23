@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Sockets;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager;
+using CloudShell.ControlPlane.ResourceManager.Platform;
 using CloudShell.Providers.Traefik;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;

@@ -52,6 +52,10 @@ on `git blame --follow`, and then by the broad type of change.
   orchestration execution under dedicated Deployment and Orchestration
   namespaces, with the default deployment service reusable for orchestrators
   that do not expose a native deployment concept.
+- Resource Manager implementation files are now organized by concern across
+  Health, Recovery, Identity, Networking, Observability, Templates, Platform,
+  Deployment, and Orchestration namespaces while keeping common programmatic
+  declaration extensions on the general Resource Manager authoring surface.
 - Deployment replica projection now uses requested replica terminology through
   `deployment.replicas.requested`.
 - FileSystem volumes can now be attached to executable and ASP.NET Core

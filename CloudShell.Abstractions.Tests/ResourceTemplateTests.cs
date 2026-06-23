@@ -1,5 +1,6 @@
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager;
+using CloudShell.ControlPlane.ResourceManager.Templates;
 using CloudShell.Providers.Applications;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;

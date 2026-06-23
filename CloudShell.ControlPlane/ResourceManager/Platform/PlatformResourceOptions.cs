@@ -1,6 +1,7 @@
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.ResourceManager.Networking;
 
-namespace CloudShell.ControlPlane.ResourceManager;
+namespace CloudShell.ControlPlane.ResourceManager.Platform;
 
 public sealed class PlatformResourceOptions
 {

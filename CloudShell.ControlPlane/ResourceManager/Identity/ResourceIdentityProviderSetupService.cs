@@ -1,7 +1,7 @@
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.ResourceManager;
 
-namespace CloudShell.ControlPlane.ResourceManager;
+namespace CloudShell.ControlPlane.ResourceManager.Identity;
 
 public sealed class ResourceIdentityProviderSetupService(
     ResourceDeclarationStore declarations,

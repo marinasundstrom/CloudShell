@@ -1,6 +1,7 @@
 using System.Text.Json;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager;
+using CloudShell.ControlPlane.ResourceManager.Orchestration;
 
 namespace CloudShell.ControlPlane.Tests;
 

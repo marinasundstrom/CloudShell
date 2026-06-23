@@ -1,5 +1,7 @@
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.ResourceManager.Networking;
+using CloudShell.ControlPlane.ResourceManager.Platform;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CloudShell.ControlPlane.ResourceManager;

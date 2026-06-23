@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Sockets;
 using CloudShell.Abstractions.ResourceManager;
 
-namespace CloudShell.ControlPlane.ResourceManager;
+namespace CloudShell.ControlPlane.ResourceManager.Networking;
 
 public sealed class LocalHostNetworkProvisioner : IResourceEndpointMappingProvisioner, IAsyncDisposable
 {

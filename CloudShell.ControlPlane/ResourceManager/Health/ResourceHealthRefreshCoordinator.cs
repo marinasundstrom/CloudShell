@@ -1,4 +1,4 @@
-namespace CloudShell.ControlPlane.ResourceManager;
+namespace CloudShell.ControlPlane.ResourceManager.Health;
 
 public sealed class ResourceHealthRefreshCoordinator
 {

@@ -1,7 +1,7 @@
 using CloudShell.Abstractions.Logging;
 using CloudShell.Abstractions.ResourceManager;
 
-namespace CloudShell.ControlPlane.ResourceManager;
+namespace CloudShell.ControlPlane.ResourceManager.Health;
 
 public sealed class ResourceHealthProbeService(IEnumerable<IResourceProbeEvaluator> evaluators)
 {

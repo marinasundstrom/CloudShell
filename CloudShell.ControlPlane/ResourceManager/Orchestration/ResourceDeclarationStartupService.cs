@@ -4,6 +4,7 @@ using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager;
+using CloudShell.ControlPlane.ResourceManager.Identity;
 using CloudShell.Persistence;
 
 namespace CloudShell.ControlPlane.ResourceManager.Orchestration;

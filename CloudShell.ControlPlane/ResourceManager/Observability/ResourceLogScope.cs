@@ -1,7 +1,7 @@
 using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.Logging;
 
-namespace CloudShell.ControlPlane.ResourceManager;
+namespace CloudShell.ControlPlane.ResourceManager.Observability;
 
 internal static class ResourceLogScope
 {

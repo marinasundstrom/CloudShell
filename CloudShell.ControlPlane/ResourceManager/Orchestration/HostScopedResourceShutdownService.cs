@@ -1,12 +1,12 @@
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Logging;
 using CloudShell.Abstractions.ResourceManager;
-using CloudShell.ControlPlane.ResourceManager.Orchestration;
+using CloudShell.ControlPlane.ResourceManager.Observability;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace CloudShell.ControlPlane.ResourceManager;
+namespace CloudShell.ControlPlane.ResourceManager.Orchestration;
 
 public sealed class HostScopedResourceShutdownService(
     IServiceScopeFactory scopeFactory,

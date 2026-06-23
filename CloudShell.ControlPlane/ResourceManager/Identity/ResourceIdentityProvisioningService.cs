@@ -1,6 +1,6 @@
 using CloudShell.Abstractions.ResourceManager;
 
-namespace CloudShell.ControlPlane.ResourceManager;
+namespace CloudShell.ControlPlane.ResourceManager.Identity;
 
 public sealed record ResourceIdentityProvisioningPlan(
     IReadOnlyList<ResourceIdentityProvisioningRequest> Requests,

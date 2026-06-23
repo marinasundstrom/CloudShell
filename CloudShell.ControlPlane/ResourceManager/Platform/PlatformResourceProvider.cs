@@ -5,9 +5,10 @@ using System.Text;
 using System.Text.Json;
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.ResourceManager.Networking;
 using Microsoft.Extensions.Hosting;
 
-namespace CloudShell.ControlPlane.ResourceManager;
+namespace CloudShell.ControlPlane.ResourceManager.Platform;
 
 public sealed class PlatformResourceProvider(
     PlatformResourceStore store,

@@ -1,6 +1,6 @@
 using CloudShell.Abstractions.ResourceManager;
 
-namespace CloudShell.ControlPlane.ResourceManager;
+namespace CloudShell.ControlPlane.ResourceManager.Templates;
 
 public sealed class ResourceTemplateService(
     IResourceManagerStore resourceManager,

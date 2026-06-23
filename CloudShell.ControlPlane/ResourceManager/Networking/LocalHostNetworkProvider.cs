@@ -1,7 +1,7 @@
 using System.Globalization;
 using CloudShell.Abstractions.ResourceManager;
 
-namespace CloudShell.ControlPlane.ResourceManager;
+namespace CloudShell.ControlPlane.ResourceManager.Networking;
 
 public sealed class LocalHostNetworkProvider(
     LocalHostNetworkProvisioner provisioner) :

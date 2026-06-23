@@ -1,6 +1,6 @@
 using CloudShell.Abstractions.ResourceManager;
 
-namespace CloudShell.ControlPlane.ResourceManager;
+namespace CloudShell.ControlPlane.ResourceManager.Platform;
 
 public sealed class CloudShellResourceProvider : IResourceProvider
 {

@@ -2,8 +2,9 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using System.Net;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.ResourceManager.Platform;
 
-namespace CloudShell.ControlPlane.ResourceManager;
+namespace CloudShell.ControlPlane.ResourceManager.Networking;
 
 public sealed class LocalHostNamePublishingProvider(
     PlatformResourceOptions options,

@@ -1,7 +1,7 @@
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ResourceManager;
 
-namespace CloudShell.ControlPlane.ResourceManager;
+namespace CloudShell.ControlPlane.ResourceManager.Identity;
 
 public sealed class ResourceIdentityProvisioningResourceProvider(
     ResourceDeclarationStore declarations,

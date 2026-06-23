@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using CloudShell.Abstractions.ResourceManager;
 
-namespace CloudShell.ControlPlane.ResourceManager;
+namespace CloudShell.ControlPlane.ResourceManager.Networking;
 
 public sealed class DnsNamePublishingObservationStore
 {

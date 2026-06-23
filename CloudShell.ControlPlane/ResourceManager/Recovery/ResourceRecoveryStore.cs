@@ -1,7 +1,7 @@
 using CloudShell.Abstractions.ResourceManager;
 using System.Collections.Concurrent;
 
-namespace CloudShell.ControlPlane.ResourceManager;
+namespace CloudShell.ControlPlane.ResourceManager.Recovery;
 
 public interface IResourceRecoveryStore
 {

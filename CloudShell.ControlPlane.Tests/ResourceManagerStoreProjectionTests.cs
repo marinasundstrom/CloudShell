@@ -3,6 +3,7 @@ using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager;
+using CloudShell.ControlPlane.ResourceManager.Identity;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CloudShell.ControlPlane.Tests;

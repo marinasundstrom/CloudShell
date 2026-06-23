@@ -1,5 +1,6 @@
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager;
+using CloudShell.ControlPlane.ResourceManager.Networking;
 
 namespace CloudShell.ControlPlane.Tests;
 

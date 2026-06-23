@@ -11,6 +11,7 @@ using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ApplicationTopology.ServiceDefaults;
 using CloudShell.ContainerHost;
 using CloudShell.ControlPlane.ResourceManager;
+using CloudShell.ControlPlane.ResourceManager.Platform;
 using CloudShell.Providers.Applications;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;

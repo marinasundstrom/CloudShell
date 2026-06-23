@@ -2,7 +2,7 @@ using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.Options;
 using System.Collections.Concurrent;
 
-namespace CloudShell.ControlPlane.ResourceManager;
+namespace CloudShell.ControlPlane.ResourceManager.Health;
 
 public sealed class InMemoryResourceHealthStore(IOptions<ResourceHealthOptions> options) : IResourceHealthStore
 {
