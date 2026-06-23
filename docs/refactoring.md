@@ -214,6 +214,8 @@ without forcing provider-specific logic into shared helpers.
   application resource service facade.
 - [x] Move host-scoped application process cleanup to a focused cleanup
   provider instead of the shared application resource service facade.
+- [x] Move SQL Server reconcile-access action ID constants out of the shared
+  application resource service.
 
 ## Next Slices
 

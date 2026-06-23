@@ -149,7 +149,7 @@ internal sealed class ApplicationResourceProjector(
 
         return lifecycleActions
             .Append(new ResourceAction(
-                ApplicationResourceService.ReconcileSqlServerAccessActionId,
+                ApplicationResourceActionIds.ReconcileSqlServerAccess,
                 "Reconcile database access",
                 Description: "Create or update SQL Server database users and roles for CloudShell database grants.",
                 RequiredPermission: DatabaseResourceOperationPermissions.ReconcileAccess))

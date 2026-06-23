@@ -8,7 +8,7 @@ public sealed partial class ApplicationResourceService
         ApplicationResourceTypes.IsApplication(resource.EffectiveTypeId) &&
         store.GetApplication(resource.Id) is not null &&
         (action.Kind is ResourceActionKind.Start or ResourceActionKind.Restart ||
-         string.Equals(action.Id, ReconcileSqlServerAccessActionId, StringComparison.OrdinalIgnoreCase));
+         string.Equals(action.Id, ApplicationResourceActionIds.ReconcileSqlServerAccess, StringComparison.OrdinalIgnoreCase));
 
     public async Task<string?> GetActionUnavailableReasonAsync(
         ResourceProcedureContext context,
@@ -16,7 +16,7 @@ public sealed partial class ApplicationResourceService
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (string.Equals(action.Id, ReconcileSqlServerAccessActionId, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(action.Id, ApplicationResourceActionIds.ReconcileSqlServerAccess, StringComparison.OrdinalIgnoreCase))
         {
             var sqlServer = store.GetApplication(context.Resource.Id);
             if (sqlServer is null ||

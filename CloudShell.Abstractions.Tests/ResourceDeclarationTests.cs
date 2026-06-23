@@ -9464,7 +9464,7 @@ public sealed class ResourceDeclarationTests
             resource.ResourceActions,
             action => string.Equals(
                 action.Id,
-                ApplicationResourceService.ReconcileSqlServerAccessActionId,
+                ApplicationResourceActionIds.ReconcileSqlServerAccess,
                 StringComparison.OrdinalIgnoreCase));
         Assert.Equal("Reconcile database access", reconcileAction.DisplayName);
         Assert.Equal(DatabaseResourceOperationPermissions.ReconcileAccess, reconcileAction.RequiredPermission);

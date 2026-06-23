@@ -70,7 +70,7 @@ public sealed class ApplicationResourceProjectorTests
         Assert.Contains(
             resource.ResourceActions,
             action =>
-                action.Id == ApplicationResourceService.ReconcileSqlServerAccessActionId &&
+                action.Id == ApplicationResourceActionIds.ReconcileSqlServerAccess &&
                 action.RequiredPermission == DatabaseResourceOperationPermissions.ReconcileAccess);
     }
 

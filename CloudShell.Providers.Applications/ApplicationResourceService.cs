@@ -49,7 +49,6 @@ public sealed partial class ApplicationResourceService(
     IContainerApplicationResourceProviderOperations,
     IDisposable
 {
-    public const string ReconcileSqlServerAccessActionId = "application.sql-server.reconcile-access";
     private static readonly JsonSerializerOptions DescriptorSerializerOptions = new(JsonSerializerDefaults.Web);
     private static readonly TimeSpan StartingStateTimeout = TimeSpan.FromMinutes(5);
     private static readonly SemaphoreSlim AspNetCoreProjectBuildLock = new(1, 1);
@@ -186,7 +185,7 @@ public sealed partial class ApplicationResourceService(
         {
             case ResourceActionKind.Custom when string.Equals(
                 action.Id,
-                ReconcileSqlServerAccessActionId,
+                ApplicationResourceActionIds.ReconcileSqlServerAccess,
                 StringComparison.OrdinalIgnoreCase):
                 var count = await ReconcileSqlServerDatabasesAsync(
                     context.Resource.Id,

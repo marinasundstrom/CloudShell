@@ -83,6 +83,9 @@ on `git blame --follow`, and then by the broad type of change.
   operation service instead of the shared application resource service.
 - Host-scoped application process cleanup now uses a dedicated cleanup
   provider instead of the shared application resource service.
+- SQL Server reconcile-access action IDs now live outside the shared
+  application resource service so projectors do not reference the service for
+  constants.
 
 ### 2026-06-23
 
