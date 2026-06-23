@@ -54,77 +54,19 @@ public sealed partial class ApplicationResourceService
             .FirstOrDefault(deployment =>
                 string.Equals(deployment.OrchestratorDeploymentId, applyResult.Deployment.Id, StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(deployment.RevisionId, applyResult.Deployment.RevisionId, StringComparison.OrdinalIgnoreCase));
-        var basedOnRevisionId = NormalizeNullable(appDeployment?.BasedOnRevisionId);
-        if (basedOnRevisionId is null ||
-            string.Equals(basedOnRevisionId, applyResult.Deployment.RevisionId, StringComparison.OrdinalIgnoreCase))
-        {
-            return Task.FromResult(DescribeLegacyStableReplicaGroupTearDown(
-                context,
-                application,
-                applyResult));
-        }
-
-        var basedOnRevision = containerDeployments
-            .ListRevisions(application.Id)
-            .FirstOrDefault(revision =>
-                string.Equals(revision.Id, basedOnRevisionId, StringComparison.OrdinalIgnoreCase));
-        var sourceService = CreateSupersededContainerOrchestratorService(
+        var basedOnRevision = string.IsNullOrWhiteSpace(appDeployment?.BasedOnRevisionId)
+            ? null
+            : containerDeployments
+                .ListRevisions(application.Id)
+                .FirstOrDefault(revision =>
+                    string.Equals(revision.Id, appDeployment.BasedOnRevisionId, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult(ContainerDeploymentTearDownPlanner.PlanTearDown(
             application,
-            basedOnRevisionId,
-            basedOnRevision);
-        var sourceReplicaGroup = CreateDefaultContainerReplicaGroup(sourceService);
-        return Task.FromResult<IReadOnlyList<ResourceOrchestratorReplicaGroupTearDownRequest>>(
-            [
-                new ResourceOrchestratorReplicaGroupTearDownRequest(
-                    sourceService,
-                    sourceReplicaGroup,
-                    $"Image deployment retired superseded container app revision '{basedOnRevisionId}'.")
-            ]);
-    }
-
-    private IReadOnlyList<ResourceOrchestratorReplicaGroupTearDownRequest> DescribeLegacyStableReplicaGroupTearDown(
-        ResourceProcedureContext context,
-        ApplicationResourceDefinition application,
-        ResourceOrchestratorDeploymentApplyResult applyResult)
-    {
-        var appliedReplicaGroup = applyResult.Revision.ReplicaGroup;
-        if (appliedReplicaGroup?.RuntimeRevisionId is null)
-        {
-            return [];
-        }
-
-        var sourceService = CreateDefaultContainerOrchestratorService(application);
-        var sourceReplicas = application.ContainerRevisions
-            .FirstOrDefault(revision =>
-                string.Equals(revision.Id, applyResult.Deployment.RevisionId, StringComparison.OrdinalIgnoreCase))
-            ?.RequestedReplicas ?? application.Replicas;
-        sourceService = sourceService with
-        {
-            Workload = sourceService.Workload with
-            {
-                Replicas = Math.Max(1, sourceReplicas),
-                ReplicasEnabled = Math.Max(1, sourceReplicas) > 1
-            },
-            RuntimeRevisionId = null
-        };
-        var sourceReplicaGroup = CreateDefaultContainerReplicaGroup(sourceService);
-        if (string.Equals(sourceReplicaGroup.Id, appliedReplicaGroup.Id, StringComparison.OrdinalIgnoreCase))
-        {
-            return [];
-        }
-
-        if (!HasVisibleLegacyReplicaGroup(context, sourceReplicaGroup))
-        {
-            return [];
-        }
-
-        return
-        [
-            new ResourceOrchestratorReplicaGroupTearDownRequest(
-                sourceService,
-                sourceReplicaGroup,
-                $"Deployment retired legacy stable container app replica group for revision '{applyResult.Deployment.RevisionId}'.")
-        ];
+            applyResult,
+            appDeployment,
+            basedOnRevision,
+            CreateDefaultContainerOrchestratorService(application),
+            replicaGroup => HasVisibleLegacyReplicaGroup(context, replicaGroup)));
     }
 
     private static bool HasVisibleLegacyReplicaGroup(
@@ -208,32 +150,6 @@ public sealed partial class ApplicationResourceService
             ResourceSignalSeverity.Error));
 
         return Task.CompletedTask;
-    }
-
-    private ResourceOrchestratorService CreateSupersededContainerOrchestratorService(
-        ApplicationResourceDefinition application,
-        string basedOnRevisionId,
-        ApplicationContainerRevisionHistoryEntry? basedOnRevision)
-    {
-        var sourceReplicas = Math.Max(
-            1,
-            basedOnRevision?.RequestedReplicas ??
-            application.ContainerRevisions.FirstOrDefault(revision =>
-                string.Equals(revision.Id, basedOnRevisionId, StringComparison.OrdinalIgnoreCase))
-                ?.RequestedReplicas ??
-            application.Replicas);
-        var service = CreateDefaultContainerOrchestratorService(application);
-        return service with
-        {
-            Workload = service.Workload with
-            {
-                Replicas = sourceReplicas,
-                ReplicasEnabled = sourceReplicas > 1
-            },
-            RuntimeRevisionId = string.IsNullOrWhiteSpace(basedOnRevision?.DeploymentId)
-                ? null
-                : basedOnRevisionId
-        };
     }
 
     private static ResourceOrchestratorReplicaGroup CreateDefaultContainerReplicaGroup(

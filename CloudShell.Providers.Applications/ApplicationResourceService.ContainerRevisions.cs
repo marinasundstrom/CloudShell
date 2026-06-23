@@ -5,6 +5,7 @@ public sealed partial class ApplicationResourceService
     private static readonly ApplicationContainerRevisionService ContainerRevisionService = new();
     private static readonly ContainerApplicationDeploymentPlanner ContainerDeploymentPlanner = new();
     private static readonly ContainerApplicationDeploymentFailurePlanner ContainerDeploymentFailurePlanner = new();
+    private static readonly ContainerApplicationDeploymentTearDownPlanner ContainerDeploymentTearDownPlanner = new();
     private static readonly ContainerApplicationScalingPlanner ContainerScalingPlanner = new();
 
     private static IReadOnlyList<ApplicationContainerRevisionHistoryEntry> CreateContainerRevisionHistoryEntries(

@@ -93,6 +93,9 @@ without forcing provider-specific logic into shared helpers.
   remains coordinated by the current facade.
 - [x] Extract container app deployment failure planning into a container-app
   unit that owns failed-deployment base revision lookup and rollback state.
+- [x] Extract container app deployment tear-down planning into a container-app
+  unit that owns superseded revision and legacy stable replica group cleanup
+  decisions.
 
 ## Next Slices
 
@@ -134,7 +137,12 @@ without forcing provider-specific logic into shared helpers.
 - [ ] Feed the schema/validation/apply model into orchestrator deployments so
   deployment definitions can describe desired resource state consistently
   across resource types while leaving type-specific reconciliation to the
-  owning provider.
+  owning provider. Conceptually, a deployment definition contains resource
+  definitions: resource identity, resource type/kind/class, and provider-owned
+  attributes such as `executable.path`, `executable.arguments`, or future
+  complex typed values. The deployment definition describes intent and desired
+  state in CloudShell; providers validate and apply that state to their
+  runtime target.
 
 ## Environment and UI Follow-Ups
 
