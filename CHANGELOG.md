@@ -32,6 +32,9 @@ on `git blame --follow`, and then by the broad type of change.
   as the primary replication abstraction inside an orchestrator-managed service
   shape, while still allowing providers to manipulate individual materialized
   resource instances where required.
+- Replica groups now expose a change model for active revision scaling, and
+  container app live replica updates use it to add or remove group members
+  instead of manually diffing replica counts.
 - Default orchestrator deployment apply now has a provider finalization hook,
   and the container app provider uses it to retire superseded local runtime
   replicas after the new revision has been materialized and routing has been

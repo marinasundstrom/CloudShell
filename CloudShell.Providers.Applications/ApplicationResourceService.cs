@@ -671,44 +671,42 @@ public sealed partial class ApplicationResourceService(
             return false;
         }
 
-        var previousReplicas = Math.Max(1, previous.Replicas);
-        var updatedReplicas = Math.Max(1, updated.Replicas);
-        if (updatedReplicas > previousReplicas)
+        var previousService = CreateActiveContainerOrchestratorService(previous);
+        var updatedService = CreateActiveContainerOrchestratorService(updated);
+        var replicaGroupChange = ResourceOrchestratorReplicaGroups.CreateChange(
+            CreateDefaultContainerReplicaGroup(previousService),
+            CreateDefaultContainerReplicaGroup(updatedService));
+        if (replicaGroupChange.AddedInstances.Count > 0)
         {
-            var service = CreateActiveContainerOrchestratorService(updated);
-            var replicaGroup = CreateDefaultContainerReplicaGroup(service);
             await PrepareOrchestratorServiceAsync(
-                new ResourceOrchestratorServiceProcedureContext(context, service, replicaGroup),
+                new ResourceOrchestratorServiceProcedureContext(context, updatedService, replicaGroupChange.Target),
                 ResourceAction.Start,
                 cancellationToken);
 
-            foreach (var instance in replicaGroup.Instances
-                         .Where(instance => instance.ReplicaOrdinal > previousReplicas))
+            foreach (var instance in replicaGroupChange.AddedInstances)
             {
                 await ExecuteOrchestratorServiceInstanceAsync(
-                    new ResourceOrchestratorServiceInstanceContext(context, service, instance, replicaGroup),
+                    new ResourceOrchestratorServiceInstanceContext(
+                        context,
+                        updatedService,
+                        instance,
+                        replicaGroupChange.Target),
                     ResourceAction.Start,
                     cancellationToken);
             }
         }
-        else if (updatedReplicas < previousReplicas)
+
+        foreach (var instance in replicaGroupChange.RemovedInstances
+                     .OrderByDescending(instance => instance.ReplicaOrdinal))
         {
-            var previousService = CreateActiveContainerOrchestratorService(previous);
-            var previousReplicaGroup = CreateDefaultContainerReplicaGroup(previousService);
-            foreach (var instance in previousReplicaGroup.Instances
-                         .Where(instance => instance.ReplicaOrdinal > updatedReplicas)
-                         .OrderByDescending(instance => instance.ReplicaOrdinal))
-            {
-                await StopContainerApplicationInstanceAsync(
-                    previous,
-                    context.ResourceManager,
-                    context.PreferredContainerHostId,
-                    instance,
-                    cancellationToken);
-            }
+            await StopContainerApplicationInstanceAsync(
+                previous,
+                context.ResourceManager,
+                context.PreferredContainerHostId,
+                instance,
+                cancellationToken);
         }
 
-        var updatedService = CreateActiveContainerOrchestratorService(updated);
         if (ShouldUseContainerAppIngress(updatedService))
         {
             await WriteContainerAppIngressConfigurationAsync(

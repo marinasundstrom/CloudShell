@@ -134,6 +134,8 @@ helpers. The provider can still execute member-level Docker commands where the
 default local runner requires them. New image deployments can create a
 replacement replica group and cut service routing over to it, while scale-only
 updates can reconcile the current group by adding or removing member resources.
+The group change calculation belongs to the orchestrator abstraction so the
+container app provider does not have to own replica-count diffing itself.
 
 ## Managed-Service Configuration Surface
 

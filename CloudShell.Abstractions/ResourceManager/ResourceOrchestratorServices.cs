@@ -19,6 +19,16 @@ public sealed record ResourceOrchestratorReplicaGroup(
     public int MaterializedReplicas => Instances.Count;
 }
 
+public sealed record ResourceOrchestratorReplicaGroupChange(
+    ResourceOrchestratorReplicaGroup Previous,
+    ResourceOrchestratorReplicaGroup Target,
+    IReadOnlyList<ResourceOrchestratorServiceInstance> AddedInstances,
+    IReadOnlyList<ResourceOrchestratorServiceInstance> RetainedInstances,
+    IReadOnlyList<ResourceOrchestratorServiceInstance> RemovedInstances)
+{
+    public bool HasChanges => AddedInstances.Count > 0 || RemovedInstances.Count > 0;
+}
+
 public static class ResourceOrchestratorReplicaGroups
 {
     public static ResourceOrchestratorReplicaGroup CreateDefaultReplicaGroup(
@@ -31,6 +41,44 @@ public static class ResourceOrchestratorReplicaGroups
     {
         var revision = NormalizeRuntimeRevisionId(runtimeRevisionId) ?? "revision";
         return CreateReplicaGroup(service, revision);
+    }
+
+    public static ResourceOrchestratorReplicaGroupChange CreateChange(
+        ResourceOrchestratorReplicaGroup previous,
+        ResourceOrchestratorReplicaGroup target)
+    {
+        ArgumentNullException.ThrowIfNull(previous);
+        ArgumentNullException.ThrowIfNull(target);
+
+        if (!string.Equals(previous.Id, target.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            return new ResourceOrchestratorReplicaGroupChange(
+                previous,
+                target,
+                target.Instances,
+                [],
+                previous.Instances);
+        }
+
+        var previousOrdinals = previous.Instances
+            .Select(instance => instance.ReplicaOrdinal)
+            .ToHashSet();
+        var targetOrdinals = target.Instances
+            .Select(instance => instance.ReplicaOrdinal)
+            .ToHashSet();
+
+        return new ResourceOrchestratorReplicaGroupChange(
+            previous,
+            target,
+            target.Instances
+                .Where(instance => !previousOrdinals.Contains(instance.ReplicaOrdinal))
+                .ToArray(),
+            target.Instances
+                .Where(instance => previousOrdinals.Contains(instance.ReplicaOrdinal))
+                .ToArray(),
+            previous.Instances
+                .Where(instance => !targetOrdinals.Contains(instance.ReplicaOrdinal))
+                .ToArray());
     }
 
     private static ResourceOrchestratorReplicaGroup CreateReplicaGroup(

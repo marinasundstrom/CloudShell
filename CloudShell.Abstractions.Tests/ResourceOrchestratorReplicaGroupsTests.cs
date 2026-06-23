@@ -83,6 +83,62 @@ public sealed class ResourceOrchestratorReplicaGroupsTests
         Assert.Equal(replicaGroup.Instances, instances);
     }
 
+    [Fact]
+    public void CreateChange_ReturnsAddedInstancesForScaleUp()
+    {
+        var previous = ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(CreateService(replicas: 2));
+        var target = ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(CreateService(replicas: 4));
+
+        var change = ResourceOrchestratorReplicaGroups.CreateChange(previous, target);
+
+        Assert.True(change.HasChanges);
+        Assert.Equal([3, 4], change.AddedInstances.Select(instance => instance.ReplicaOrdinal).ToArray());
+        Assert.Equal([1, 2], change.RetainedInstances.Select(instance => instance.ReplicaOrdinal).ToArray());
+        Assert.Empty(change.RemovedInstances);
+    }
+
+    [Fact]
+    public void CreateChange_ReturnsRemovedInstancesForScaleDown()
+    {
+        var previous = ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(CreateService(replicas: 4));
+        var target = ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(CreateService(replicas: 2));
+
+        var change = ResourceOrchestratorReplicaGroups.CreateChange(previous, target);
+
+        Assert.True(change.HasChanges);
+        Assert.Empty(change.AddedInstances);
+        Assert.Equal([1, 2], change.RetainedInstances.Select(instance => instance.ReplicaOrdinal).ToArray());
+        Assert.Equal([3, 4], change.RemovedInstances.Select(instance => instance.ReplicaOrdinal).ToArray());
+    }
+
+    [Fact]
+    public void CreateChange_ReturnsNoChangesForMatchingGroups()
+    {
+        var previous = ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(CreateService(replicas: 2));
+        var target = ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(CreateService(replicas: 2));
+
+        var change = ResourceOrchestratorReplicaGroups.CreateChange(previous, target);
+
+        Assert.False(change.HasChanges);
+        Assert.Empty(change.AddedInstances);
+        Assert.Equal([1, 2], change.RetainedInstances.Select(instance => instance.ReplicaOrdinal).ToArray());
+        Assert.Empty(change.RemovedInstances);
+    }
+
+    [Fact]
+    public void CreateChange_ReplacesAllInstancesWhenGroupIdChanges()
+    {
+        var previous = ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(CreateService(replicas: 2), "rev-a");
+        var target = ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(CreateService(replicas: 2), "rev-b");
+
+        var change = ResourceOrchestratorReplicaGroups.CreateChange(previous, target);
+
+        Assert.True(change.HasChanges);
+        Assert.Equal([1, 2], change.AddedInstances.Select(instance => instance.ReplicaOrdinal).ToArray());
+        Assert.Empty(change.RetainedInstances);
+        Assert.Equal([1, 2], change.RemovedInstances.Select(instance => instance.ReplicaOrdinal).ToArray());
+    }
+
     private static ResourceOrchestratorService CreateService(int replicas) =>
         new(
             "application:api",

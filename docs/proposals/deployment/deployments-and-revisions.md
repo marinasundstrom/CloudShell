@@ -653,7 +653,9 @@ baseline model should not force a full resource restart for image updates.
 Scale-only operations remain different. Increasing or decreasing replicas for
 the active revision reconciles runtime capacity and should not require traffic
 cutover or replacement of healthy existing replicas unless an orchestrator's
-backend requires it.
+backend requires it. The replica group model should own the change calculation:
+scale-up adds target group members, scale-down removes previous group members,
+and unchanged members remain part of the active runtime set.
 
 ## Docker Compose Orchestrator Behavior
 
