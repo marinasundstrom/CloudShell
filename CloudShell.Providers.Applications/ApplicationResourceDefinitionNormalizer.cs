@@ -220,10 +220,7 @@ public sealed class ApplicationResourceDefinitionNormalizer(
         return
         [
             new ProjectBackedApplicationResourceDefinitionNormalizationRule(),
-            new AspNetCoreProjectDefinitionNormalizationRule(),
-            new AspNetCoreProjectEndpointNormalizationRule(),
-            new ContainerBackedApplicationResourceDefinitionNormalizationRule(),
-            new SqlServerApplicationResourceDefinitionNormalizationRule()
+            new ContainerBackedApplicationResourceDefinitionNormalizationRule()
         ];
     }
 }

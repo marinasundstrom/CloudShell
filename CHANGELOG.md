@@ -78,6 +78,9 @@ on `git blame --follow`, and then by the broad type of change.
 - ASP.NET Core Web project definition normalization now lives in an ASP.NET
   Core project provider-owned rule, separating legacy dotnet argument parsing
   and hot-reload policy from generic project-backed application cleanup.
+- Container app revision and replica normalization now lives in a
+  container-app-owned rule, while the shared application normalizer fallback
+  only constructs provider-neutral project/container-backed cleanup rules.
 - Application resource documentation now includes a provider layering diagram
   that separates raw Resource Provider infrastructure, the Application Resource
   Provider toolkit, and the built-in dogfooded application resource providers.

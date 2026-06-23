@@ -75,7 +75,12 @@ public sealed class AspNetCoreProjectDefinitionNormalizationRuleTests
     }
 
     private static ApplicationResourceDefinitionNormalizer CreateNormalizer() =>
-        new(new TestHostEnvironment(Path.GetTempPath()));
+        new(
+            new TestHostEnvironment(Path.GetTempPath()),
+            [
+                new ProjectBackedApplicationResourceDefinitionNormalizationRule(),
+                new AspNetCoreProjectDefinitionNormalizationRule()
+            ]);
 
     private sealed class TestHostEnvironment(string contentRootPath) : IHostEnvironment
     {

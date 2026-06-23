@@ -30,6 +30,11 @@ without forcing provider-specific logic into shared helpers.
   Executable app, and ASP.NET Core Web project own their unique configuration,
   lifecycle, validation, and projection policy as that behavior is separated
   from shared support.
+- Treat the Application Resource Provider infrastructure as if it could move
+  to a shared library, while provider implementors that use, extend, or
+  dogfood that infrastructure can live in separate assemblies. Shared
+  infrastructure should therefore not construct provider-specific policy by
+  default.
 - Container app configuration revisions and Resource Manager environment
   revisions are separate concepts. Container app revisions track app
   configuration snapshots; environment revisions track materialized hosting
@@ -75,6 +80,10 @@ without forcing provider-specific logic into shared helpers.
   endpoint discovery into ASP.NET Core Web project provider-owned units.
 - [x] Move ASP.NET Core Web project definition normalization into an ASP.NET
   Core Web project provider-owned rule.
+- [x] Split shared container-backed normalization from container app revision
+  and replica normalization, and keep provider-specific normalization composed
+  by the application provider extension instead of the shared normalizer
+  fallback.
 
 ## Next Slices
 

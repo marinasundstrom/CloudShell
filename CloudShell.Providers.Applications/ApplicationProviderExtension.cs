@@ -48,6 +48,9 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
             ContainerBackedApplicationResourceDefinitionNormalizationRule>());
         builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<
             IApplicationResourceDefinitionNormalizationRule,
+            ContainerApplicationDefinitionNormalizationRule>());
+        builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<
+            IApplicationResourceDefinitionNormalizationRule,
             SqlServerApplicationResourceDefinitionNormalizationRule>());
         builder.Services.TryAddSingleton<ApplicationResourceDefinitionNormalizer>();
         builder.Services.TryAddSingleton<ApplicationResourceDefinitionRegistrationService>();

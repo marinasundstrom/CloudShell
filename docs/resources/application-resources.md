@@ -92,6 +92,13 @@ app, and SQL Server providers dogfood that toolkit but should still own their
 resource-type-specific configuration, validation, lifecycle policy, projection
 policy, and operation semantics.
 
+The toolkit should be designed as if it could move to a shared package while
+resource providers that consume it live in separate assemblies. Shared
+application infrastructure can provide provider-neutral definition cleanup,
+runtime helpers, projection helpers, and role contracts, but provider-specific
+normalization rules and policy should be composed by the provider extension
+that brings those implementors into the host.
+
 The application-resource abstraction is intended to give provider authors as
 much as possible for free. A provider should describe the resource's authored
 shape, endpoints, configuration, dependencies, environment variables,
