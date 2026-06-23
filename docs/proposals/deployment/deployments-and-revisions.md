@@ -42,6 +42,10 @@ Docker Compose, or other provider-native deployment object as the domain model.
 Providers can opt into `IResourceOrchestratorDeploymentProvider` to describe
 the deployment spec that should be applied after a domain update. These are
 intended for container apps, providers, and orchestrators to build on first.
+A deployment apply is incremental setup: it creates or updates the specified
+runtime resources by stable id. It does not implicitly remove omitted resources.
+Tear-down is a separate operation over individual runtime resources, replica
+groups, or all resources belonging to an orchestration service.
 Container apps now use the deployment contract to project deployment status,
 service id, workload version, requested replicas, and materialized replica count
 onto the stable app resource and Deployment tab. Materialized runtime replica
@@ -207,7 +211,7 @@ Orchestrator revisions answer questions such as:
 
 * what workload definition was applied?
 * which orchestrator service was reconciled?
-* which replicas were created or removed?
+* which replicas were set up or torn down?
 * which runtime-managed resources belong to this applied deployment?
 * what rollout state resulted?
 
@@ -217,7 +221,10 @@ orchestrator deployments and orchestrator revisions unless otherwise stated.
 A Deployment represents the desired runtime state as specified by the actor
 deploying the workload. It describes the workload shape, service grouping,
 replica request, image or workload version, ports, dependencies, and other
-runtime intent that should be materialized. A deployment may be explicit in a
+runtime intent that should be materialized. Applying a deployment is a setup
+operation: specified resources are created or updated by id, and omitted
+resources are left alone unless a separate scale-down, revision-retirement, or
+service tear-down operation targets them. A deployment may be explicit in a
 future management surface, but the MVP path treats it primarily as a default
 deployment derived by the orchestrator when a resource state change needs
 runtime materialization.
@@ -332,13 +339,13 @@ Orchestrator receives desired runtime state
         ↓
 Default Deployment is created or updated
         ↓
-Orchestrator executes the deployment
+Orchestrator sets up the deployment
         ↓
 Revision is produced as the outcome
         ↓
 Service and replicas are reconciled
         ↓
-Runtime-managed resources are created, updated, or removed
+Runtime-managed resources named by the deployment are created or updated
 ```
 
 Example:
@@ -493,10 +500,11 @@ replicas should ask the orchestrator to materialize that runtime state, not ask
 the container app provider to manually own N runtime containers. That lets an
 orchestrator start a replacement replica group for a new image revision next to
 the currently serving group, update service routing or ingress to the new
-group, and later drain or remove the superseded group. Ordinary
-active-revision scaling can reconcile the existing replica group by adding or
-removing replica resources because it is capacity management for the current
-revision rather than a workload replacement.
+group, and then run a separate finalization or tear-down operation to drain or
+remove the superseded group. Ordinary active-revision scaling can reconcile the
+existing replica group by adding members during setup or tearing members down
+when the requested capacity decreases because it is capacity management for the
+current revision rather than a workload replacement.
 
 The current revision-scoped replica names are only the first materialization of
 this grouping. The orchestrator revision outcome should retain the materialized
@@ -654,8 +662,8 @@ Scale-only operations remain different. Increasing or decreasing replicas for
 the active revision reconciles runtime capacity and should not require traffic
 cutover or replacement of healthy existing replicas unless an orchestrator's
 backend requires it. The replica group model should own the change calculation:
-scale-up adds target group members, scale-down removes previous group members,
-and unchanged members remain part of the active runtime set.
+scale-up sets up target group members, scale-down tears down previous group
+members, and unchanged members remain part of the active runtime set.
 
 ## Docker Compose Orchestrator Behavior
 

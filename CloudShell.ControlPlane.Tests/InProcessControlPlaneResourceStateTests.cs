@@ -2354,10 +2354,12 @@ public sealed class InProcessControlPlaneResourceStateTests
     {
         var provider = new TestDeploymentImageUpdateResourceProvider();
         var resourceEvents = new InMemoryResourceEventStore();
+        var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();
         var controlPlane = CreateControlPlane(
             [CreateResource("target", ResourceState.Running)],
             provider,
-            resourceEvents: resourceEvents);
+            resourceEvents: resourceEvents,
+            deploymentStore: deploymentStore);
 
         var result = await controlPlane.UpdateResourceImageAsync(
             new UpdateResourceImageCommand(
@@ -2379,6 +2381,21 @@ public sealed class InProcessControlPlaneResourceStateTests
                 "start:target-service-revision-2-replica-2:2/2"
             ],
             provider.InstanceActions);
+        var deploymentRecord = Assert.Single(deploymentStore.List(new ResourceOrchestratorDeploymentQuery(
+            SourceResourceId: "target",
+            DeploymentId: "target-deployment")));
+        Assert.NotNull(deploymentRecord.Revision);
+        var revision = deploymentRecord.Revision;
+        Assert.Equal("revision-2", revision.Id);
+        Assert.NotNull(revision.ReplicaGroup);
+        var replicaGroup = revision.ReplicaGroup;
+        Assert.Equal("target-service-revision-2-replicas", replicaGroup.Id);
+        Assert.Equal(
+            [
+                "target-service-revision-2-replica-1",
+                "target-service-revision-2-replica-2"
+            ],
+            replicaGroup.Instances.Select(instance => instance.Name).ToArray());
         Assert.Contains(
             resourceEvents.GetEvents(new ResourceEventQuery(
                 ResourceId: "target",
@@ -3044,7 +3061,8 @@ public sealed class InProcessControlPlaneResourceStateTests
         ITraceStore? traceStore = null,
         IMetricStore? metricStore = null,
         IReadOnlyList<IResourceProbeEvaluator>? probeEvaluators = null,
-        IResourceRecoveryStore? resourceRecoveryStore = null)
+        IResourceRecoveryStore? resourceRecoveryStore = null,
+        IResourceOrchestratorDeploymentStore? deploymentStore = null)
     {
         provider ??= new TestResourceProvider();
         var registrations = new TestResourceRegistrationStore(resources.Select(resource =>
@@ -3079,7 +3097,7 @@ public sealed class InProcessControlPlaneResourceStateTests
             new ResourceIdentityProviderCatalog(identityProviders ?? []),
             identityProviderSetupHandlers ?? []);
         var orchestration = new ResourceOrchestrationService(
-            [new DefaultResourceOrchestrator()],
+            [new DefaultResourceOrchestrator(deploymentStore)],
             descriptorProviders ?? [],
             resourceManager,
             registrations,
@@ -3087,7 +3105,8 @@ public sealed class InProcessControlPlaneResourceStateTests
             CreateSelectionStore(),
             containerHostProviders ?? [],
             actionAvailabilityProviders: actionAvailabilityProviders ?? [],
-            resourceEvents: resourceEvents);
+            resourceEvents: resourceEvents,
+            deploymentStore: deploymentStore);
 
         return new InProcessControlPlane(
             resourceManager,

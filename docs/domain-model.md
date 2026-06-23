@@ -298,12 +298,20 @@ resources and their runtime configuration. An orchestrator deployment represents
 the desired runtime state for a resource, as specified by the actor deploying
 the workload. An orchestrator revision represents the outcome: the materialized
 runtime resources and configuration reported after the selected orchestrator
-executes that desired state. A resource can still be managed directly by
-Resource Manager while an orchestrator derives a default deployment for a
-deployment-relevant state or configuration change. These abstractions are
-available for internal container-app, provider, and orchestrator implementation
-work before they are announced as a public management surface. The Control
-Plane exposes an internal deployment-apply boundary that dispatches a
+executes that desired state. For container apps, the app submits a deployment
+that says "this is the runtime state I want"; when the orchestrator completes,
+the returned revision holds the materialized service state, including the
+replica group from which the app can correlate or project runtime replica
+resources. Deployment apply is incremental: specified runtime resources are
+created or updated by id, while removing runtime resources is a separate
+tear-down operation such as scaling down a replica group, retiring a superseded
+revision, or cleaning up the resources that belong to an orchestration service.
+A resource can still be managed directly by Resource Manager while an
+orchestrator derives a default deployment for a deployment-relevant state or
+configuration change. These abstractions are available for internal
+container-app, provider, and orchestrator implementation work before they are
+announced as a public management surface. The Control Plane exposes an internal
+deployment-apply boundary that dispatches a
 deployment to the selected orchestrator instead of having the resource domain
 manipulate runtime replicas directly. A container app revision answers
 application-version questions; an orchestrator deployment and revision answer

@@ -118,10 +118,15 @@ service, routing or load-balancer configuration for that service, and a
 replica group of N runtime resource instances for image X. That descriptor is
 not a Resource Manager resource by default. It is the container app's request
 for the orchestrator to manage CloudShell runtime resources and configuration
-for the app. Runtime containers or replicas may be projected as child resources
-for diagnostics by a host provider, but image updates, replica updates,
-lifecycle actions, storage, identity, and exposure configuration should target
-the container app resource.
+for the app. After apply, the orchestrator returns a revision that describes
+what was materialized. The container app should use that revision, especially
+its replica group, when correlating or projecting runtime replica resources.
+Deployment apply is incremental: the requested runtime state creates or updates
+specified resources by id, and removal remains an explicit scale-down,
+revision-retirement, or service tear-down operation. Runtime containers or
+replicas may be projected as child resources for diagnostics by a host
+provider, but image updates, replica updates, lifecycle actions, storage,
+identity, and exposure configuration should target the container app resource.
 
 Revision-scoped container app replicas should be tracked as a group within the
 orchestrator service boundary. That group is what lets the orchestrator
