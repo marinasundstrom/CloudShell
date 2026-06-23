@@ -88,6 +88,9 @@ without forcing provider-specific logic into shared helpers.
   unit that owns definition mutation plus deployment/revision history records,
   while leaving runtime restart and persistence coordination in the current
   facade for this slice.
+- [x] Extract container app replica-scaling planning into a container-app unit
+  that owns requested replica intent changes while runtime reconciliation
+  remains coordinated by the current facade.
 
 ## Next Slices
 

@@ -556,11 +556,11 @@ public sealed partial class ApplicationResourceService(
                 cancellationToken);
         }
 
-        var updated = NormalizeDefinition(application with
-        {
-            Replicas = replicas,
-            ReplicasEnabled = true
-        });
+        var plan = ContainerScalingPlanner.PlanReplicaUpdate(
+            application,
+            replicas,
+            NormalizeDefinition);
+        var updated = plan.Definition;
 
         if (restartIfRunning && wasRunning)
         {
