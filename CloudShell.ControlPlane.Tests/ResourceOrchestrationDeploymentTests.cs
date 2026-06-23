@@ -652,6 +652,93 @@ public sealed class ResourceOrchestrationDeploymentTests
         Assert.Equal("rev-2", stopContext.Service.RuntimeRevisionId);
     }
 
+    [Fact]
+    public async Task ReplicaGroupReconciliationService_TracksSuccessfulSlotRepairState()
+    {
+        var resource = CreateResource();
+        var service = CreateDeployment(resource.Id, "default", replicas: 3).Spec.Service;
+        var provider = new RecordingServiceProcedureProvider(resource)
+        {
+            OrchestratorService = service
+        };
+        var (reconciliation, store) = CreateReplicaGroupReconciliation(resource, provider);
+
+        reconciliation.ObserveUnhealthyReplicaSlot(
+            resource,
+            2,
+            "Connection refused.",
+            "tests");
+
+        var observed = AssertReplicaSlotState(
+            store,
+            resource.Id,
+            2,
+            ResourceReplicaSlotRuntimeStatus.Unhealthy);
+        Assert.Equal("Connection refused.", observed.Detail);
+        Assert.Equal("tests", observed.TriggeredBy);
+        Assert.Equal(0, observed.AttemptCount);
+
+        await reconciliation.ProcessPendingAsync();
+
+        var repaired = AssertReplicaSlotState(
+            store,
+            resource.Id,
+            2,
+            ResourceReplicaSlotRuntimeStatus.Repaired);
+        Assert.Equal(1, repaired.AttemptCount);
+        Assert.NotNull(repaired.LastAttemptedAt);
+        Assert.NotNull(repaired.LastCompletedAt);
+        Assert.Contains("Replaced replica group", repaired.LastResult, StringComparison.Ordinal);
+        Assert.Empty(store.DequeuePending(1));
+    }
+
+    [Fact]
+    public async Task ReplicaGroupReconciliationService_TracksFailedSlotRepairState()
+    {
+        var resource = CreateResource();
+        var service = CreateDeployment(resource.Id, "default", replicas: 3).Spec.Service;
+        var provider = new RecordingServiceProcedureProvider(resource, failOnStart: true)
+        {
+            OrchestratorService = service
+        };
+        var resourceEvents = new InMemoryResourceEventStore();
+        var (reconciliation, store) = CreateReplicaGroupReconciliation(
+            resource,
+            provider,
+            resourceEvents);
+
+        reconciliation.ObserveUnhealthyReplicaSlot(
+            resource,
+            2,
+            "Container exited.",
+            "tests");
+
+        await reconciliation.ProcessPendingAsync();
+
+        var failed = AssertReplicaSlotState(
+            store,
+            resource.Id,
+            2,
+            ResourceReplicaSlotRuntimeStatus.RepairFailed);
+        Assert.Equal(1, failed.AttemptCount);
+        Assert.NotNull(failed.LastAttemptedAt);
+        Assert.NotNull(failed.LastCompletedAt);
+        Assert.Equal("Replica execution failed.", failed.LastResult);
+        var failureEvents = resourceEvents.GetEvents(new ResourceEventQuery(
+            ResourceId: resource.Id,
+            EventType: ResourceEventTypes.Events.ReplicaManagement.ReconciliationFailed));
+        Assert.Contains(
+            failureEvents,
+            resourceEvent => resourceEvent.Message.Contains(
+                "Replica slot 2 reconciliation failed: Replica execution failed.",
+                StringComparison.Ordinal));
+        Assert.Contains(
+            failureEvents,
+            resourceEvent => resourceEvent.Message.Contains(
+                "replacement failed: Replica execution failed.",
+                StringComparison.Ordinal));
+    }
+
     private static ResourceDeploymentService CreateDeployments(
         Resource resource,
         RecordingServiceProcedureProvider provider,
@@ -678,6 +765,49 @@ public sealed class ResourceOrchestrationDeploymentTests
             CreateSelectionStore(),
             resourceEvents: resourceEvents,
             deploymentStore: deploymentStore);
+    }
+
+    private static (ResourceReplicaGroupReconciliationService Service, InMemoryResourceReplicaGroupReconciliationStore Store)
+        CreateReplicaGroupReconciliation(
+            Resource resource,
+            RecordingServiceProcedureProvider provider,
+            IResourceEventSink? resourceEvents = null)
+    {
+        var resourceManager = new TestResourceManagerStore([resource], provider);
+        var registrations = new TestResourceRegistrationStore(
+        [
+            new ResourceRegistration(resource.Id, provider.Id, null, DateTimeOffset.UtcNow, resource.DependsOn)
+        ]);
+        var orchestration = new ResourceOrchestrationService(
+            [new DefaultResourceOrchestrator()],
+            [],
+            resourceManager,
+            registrations,
+            new ResourceDeclarationStore(),
+            CreateSelectionStore(),
+            resourceEvents: resourceEvents);
+        var store = new InMemoryResourceReplicaGroupReconciliationStore();
+        return (
+            new ResourceReplicaGroupReconciliationService(
+                orchestration,
+                resourceManager,
+                store,
+                resourceEvents),
+            store);
+    }
+
+    private static ResourceReplicaSlotRuntimeState AssertReplicaSlotState(
+        IResourceReplicaGroupReconciliationStore store,
+        string resourceId,
+        int slotOrdinal,
+        ResourceReplicaSlotRuntimeStatus status)
+    {
+        var state = store.GetRuntimeState(resourceId, slotOrdinal);
+        Assert.NotNull(state);
+        Assert.Equal(status, state.Status);
+        Assert.Equal(resourceId, state.ResourceId);
+        Assert.Equal(slotOrdinal, state.SlotOrdinal);
+        return state;
     }
 
     private static ResourceOrchestrationService CreateOrchestration(

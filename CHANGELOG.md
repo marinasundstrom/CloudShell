@@ -89,6 +89,10 @@ on `git blame --follow`, and then by the broad type of change.
 - The container app Scale and replicas view now prefers parent runtime-scope
   health observations when rendering slot health, so a failed replica slot is
   visible even when the last projected runtime occupant still exists.
+- Replica slot reconciliation now retains queryable slot runtime state for
+  unhealthy, repairing, repaired, and repair-failed slots, including attempt
+  counts and provider results, so future UI/API surfaces do not need to infer
+  repair status from health events or container listings.
 - The Resource Manager resource table now refreshes its projected resource
   model immediately after lifecycle actions complete, keeping row state aligned
   with the resource detail view after starts and stops.

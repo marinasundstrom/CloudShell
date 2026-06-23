@@ -1206,6 +1206,14 @@ processes that work outside the health refresh critical path. This keeps
 normal resource health observation, resource-level recovery, deployment apply,
 and replica slot repair as separate responsibilities.
 
+The reconciliation queue is only work scheduling. The reconciler should also
+maintain queryable replica slot runtime state for the active group, including
+the latest observation, current reconciliation status, attempt count, last
+attempt time, completion time, actor, and provider result. This lets the
+Resource Manager and future Environment views show whether a requested slot is
+unhealthy, repairing, repaired, or repair-failed without deriving that state
+from Docker/container listings or raw health events.
+
 Replica management activity should be logged separately from deployment apply
 activity. Deployment events answer "what happened while applying this desired
 runtime state?" Replica management events answer "what happened after the

@@ -43,17 +43,55 @@ public sealed class ResourceReplicaGroupReconciliationService(
                 continue;
             }
 
+            var startedAt = DateTimeOffset.UtcNow;
+            var currentState = reconciliationStore.GetRuntimeState(request.ResourceId, request.SlotOrdinal) ??
+                new ResourceReplicaSlotRuntimeState(
+                    request.ResourceId,
+                    request.SlotOrdinal,
+                    ResourceReplicaSlotRuntimeStatus.Unhealthy,
+                    request.Detail,
+                    request.ObservedAt,
+                    TriggeredBy: request.TriggeredBy);
+            reconciliationStore.SetRuntimeState(currentState with
+            {
+                Status = ResourceReplicaSlotRuntimeStatus.Repairing,
+                Detail = request.Detail ?? currentState.Detail,
+                LastAttemptedAt = startedAt,
+                AttemptCount = currentState.AttemptCount + 1,
+                TriggeredBy = request.TriggeredBy ?? currentState.TriggeredBy
+            });
+
             try
             {
-                await orchestration.ReconcileReplicaSlotAsync(
+                var result = await orchestration.ReconcileReplicaSlotAsync(
                     resource,
                     request.SlotOrdinal,
                     request.Detail,
                     cancellationToken,
                     request.TriggeredBy);
+                reconciliationStore.SetRuntimeState(currentState with
+                {
+                    Status = ResourceReplicaSlotRuntimeStatus.Repaired,
+                    Detail = request.Detail ?? currentState.Detail,
+                    LastAttemptedAt = startedAt,
+                    LastCompletedAt = DateTimeOffset.UtcNow,
+                    AttemptCount = currentState.AttemptCount + 1,
+                    TriggeredBy = request.TriggeredBy ?? currentState.TriggeredBy,
+                    LastResult = result.Message
+                });
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
+                reconciliationStore.SetRuntimeState(currentState with
+                {
+                    Status = ResourceReplicaSlotRuntimeStatus.RepairFailed,
+                    Detail = request.Detail ?? currentState.Detail,
+                    LastAttemptedAt = startedAt,
+                    LastCompletedAt = DateTimeOffset.UtcNow,
+                    AttemptCount = currentState.AttemptCount + 1,
+                    TriggeredBy = request.TriggeredBy ?? currentState.TriggeredBy,
+                    LastResult = exception.Message
+                });
                 resourceEvents?.Append(new ResourceEvent(
                     request.ResourceId,
                     ResourceEventTypes.Events.ReplicaManagement.ReconciliationFailed,

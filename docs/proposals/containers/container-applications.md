@@ -269,6 +269,9 @@ not synchronously own replacement work, rebuild images, or rerun full service
 preparation. A separate replica group reconciliation service can process the
 observations, coalesce repeated reports for the same slot, and invoke the
 provider with the narrower intent of restarting or replacing the slot occupant.
+The service should also record slot runtime state separately from the queued
+work item so the app can show when a requested slot is unhealthy, repairing,
+repaired, or repair-failed even after the queue has been drained.
 
 Container app activity should surface replica management events without making
 the user inspect orchestrator internals first. The app should show that a
