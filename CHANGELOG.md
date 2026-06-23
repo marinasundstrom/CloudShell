@@ -69,6 +69,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Application resource attributes and capabilities are now projected through a
   dedicated projection factory with direct tests for replica deployment
   attributes, volume materialization status, and capability flags.
+- ASP.NET Core Web project runtime environment and dotnet run/watch argument
+  policy now live in ASP.NET Core project provider-owned units with direct
+  tests, while shared application infrastructure delegates to them.
 - Development workflow docs now call out local Docker daemon crash handling for
   Docker-backed sample verification, including using `docker info` to
   distinguish host/runtime failures from product regressions.

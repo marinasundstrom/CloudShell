@@ -12266,14 +12266,11 @@ public sealed class ResourceDeclarationTests
     private static string BuildDotNetAspNetCoreProjectArguments(
         string projectPath,
         bool hotReload,
-        string? applicationArguments)
-    {
-        var method = typeof(ApplicationResourceService).GetMethod(
-            "BuildDotNetAspNetCoreProjectArguments",
-            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
-
-        return Assert.IsType<string>(method!.Invoke(null, [projectPath, hotReload, applicationArguments]));
-    }
+        string? applicationArguments) =>
+        AspNetCoreProjectProcessDefinitions.BuildDotNetRunArguments(
+            projectPath,
+            hotReload,
+            applicationArguments);
 
     private static void AssertConfigurationProviderEndpointProjection(
         Resource resource,

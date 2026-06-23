@@ -67,8 +67,6 @@ public sealed partial class ApplicationResourceService(
     private static readonly ApplicationWorkloadConfigurationFactory WorkloadConfigurationFactory = new();
     private static readonly ApplicationContainerOrchestratorDeploymentFactory ContainerOrchestratorDeploymentFactory = new();
     private const string DefaultContainerNetworkName = "cloudshell";
-    private const string AspNetCoreUrlsEnvironmentVariable = "ASPNETCORE_URLS";
-    private const string DotNetWatchRestartOnRudeEditEnvironmentVariable = "DOTNET_WATCH_RESTART_ON_RUDE_EDIT";
     public const string HiddenResourceEnvironmentVariable = "CloudShell__ResourceManager__Hidden";
 
     private readonly ConcurrentDictionary<string, ApplicationProcessState> _processes =
@@ -1021,61 +1019,16 @@ public sealed partial class ApplicationResourceService(
 
     private IReadOnlyList<EnvironmentVariableAssignment> ResolveAspNetCoreProjectEnvironmentVariables(
         ApplicationResourceDefinition definition,
-        IResourceManagerStore? resourceManager = null)
-    {
-        var urls = ResolveAspNetCoreProjectEndpointUrls(definition, resourceManager);
-        List<EnvironmentVariableAssignment> variables = [];
-
-        if (urls.Count > 0)
-        {
-            variables.Add(new EnvironmentVariableAssignment(
-                AspNetCoreUrlsEnvironmentVariable,
-                string.Join(';', urls)));
-        }
-
-        if (definition.AspNetCoreHotReload)
-        {
-            variables.Add(new EnvironmentVariableAssignment(DotNetWatchRestartOnRudeEditEnvironmentVariable, "true"));
-        }
-
-        return variables;
-    }
+        IResourceManagerStore? resourceManager = null) =>
+        CreateAspNetCoreProjectEnvironmentFactory().Create(definition, resourceManager);
 
     private IReadOnlyList<string> ResolveAspNetCoreProjectEndpointUrls(
         ApplicationResourceDefinition definition,
-        IResourceManagerStore? resourceManager = null)
-    {
-        if (!string.Equals(
-                definition.ResourceType,
-                ApplicationResourceTypes.AspNetCoreProject,
-                StringComparison.OrdinalIgnoreCase))
-        {
-            return [];
-        }
+        IResourceManagerStore? resourceManager = null) =>
+        CreateAspNetCoreProjectEnvironmentFactory().ResolveEndpointUrls(definition, resourceManager);
 
-        var projectedUrls = resourceManager?
-            .GetResource(definition.Id)?
-            .ResourceEndpointNetworkMappings
-            .Where(mapping => string.Equals(
-                mapping.Target.ResourceId,
-                definition.Id,
-                StringComparison.OrdinalIgnoreCase))
-            .Select(mapping => mapping.Address)
-            .Where(address => !string.IsNullOrWhiteSpace(address))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-
-        if (projectedUrls is { Length: > 0 })
-        {
-            return projectedUrls;
-        }
-
-        return CreateEndpointNetworkMappings(definition)
-            .Select(mapping => mapping.Address)
-            .Where(address => !string.IsNullOrWhiteSpace(address))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-    }
+    private AspNetCoreProjectEnvironmentFactory CreateAspNetCoreProjectEnvironmentFactory() =>
+        new(CreateEndpointNetworkMappings);
 
     private IReadOnlyList<EnvironmentVariableAssignment> ResolveDependencyEnvironmentVariables(
         ApplicationResourceDefinition definition,
@@ -3864,15 +3817,6 @@ public sealed partial class ApplicationResourceService(
 
     private ApplicationResourceDefinition ResolveDefinition(ApplicationResourceDefinition definition) =>
         _definitionNormalizer.Resolve(definition);
-
-    private static string BuildDotNetAspNetCoreProjectArguments(
-        string projectPath,
-        bool hotReload,
-        string? applicationArguments) =>
-        ApplicationProcessDefinitions.BuildDotNetAspNetCoreProjectArguments(
-            projectPath,
-            hotReload,
-            applicationArguments);
 
     private async Task BuildAspNetCoreProjectAsync(
         ApplicationResourceDefinition definition,

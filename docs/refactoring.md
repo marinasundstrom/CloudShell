@@ -69,6 +69,8 @@ without forcing provider-specific logic into shared helpers.
   verification runs.
 - [x] Extract application resource projection attributes/capabilities into a
   dedicated projection factory with direct tests.
+- [x] Move ASP.NET Core Web project runtime environment and process argument
+  policy into ASP.NET Core Web project provider-owned units.
 
 ## Next Slices
 
@@ -76,10 +78,6 @@ without forcing provider-specific logic into shared helpers.
   application definition/query facade, projection service, container app
   deployment/revision service, runtime process/container runner support, and
   provider operation adapters.
-- [ ] Move ASP.NET Core Web project-specific behavior from the shared
-  application service toward the ASP.NET Core Web project resource provider
-  when the behavior is provider-owned configuration, lifecycle, or projection
-  policy rather than generic application runtime support.
 - [ ] Add a diagram to the provider/application-resource docs showing the
   layering from raw Resource Provider infrastructure to Application Resource
   Provider infrastructure and the dogfooded implementors: Container app,
