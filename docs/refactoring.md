@@ -30,6 +30,11 @@ without forcing provider-specific logic into shared helpers.
   Executable app, and ASP.NET Core Web project own their unique configuration,
   lifecycle, validation, and projection policy as that behavior is separated
   from shared support.
+- The shared Application Resource Provider infrastructure must not become a
+  catalog for application resources or logs. Resource and log projection should
+  be owned by each concrete application resource provider, with shared
+  infrastructure exposing reusable helpers for process/container execution,
+  state tracking, and log reading.
 - Treat the Application Resource Provider infrastructure as if it could move
   to a shared library, while provider implementors that use, extend, or
   dogfood that infrastructure can live in separate assemblies. Shared
@@ -108,16 +113,16 @@ without forcing provider-specific logic into shared helpers.
 
 ## Next Slices
 
-- [ ] Split `ApplicationResourceService` into narrower collaborators:
-  application definition/query facade, projection service, container app
-  deployment/revision service, runtime process/container runner support, and
-  provider operation adapters.
+- [ ] Split `ApplicationResourceService` by moving provider-owned resource and
+  log projection into the concrete application resource providers, while
+  shared application infrastructure remains a toolkit for runtime support.
 - [x] Add a diagram to the provider/application-resource docs showing the
   layering from raw Resource Provider infrastructure to Application Resource
   Provider infrastructure and the dogfooded implementors: Container app,
   Executable app, and ASP.NET Core Web project.
 - [ ] Move provider UI pages off direct `ApplicationResourceService` injection
-  where they only need an authoring/query facade or Resource Manager managers.
+  where they can depend on concrete provider operations or Resource Manager
+  managers instead.
 - [ ] Move remaining container-app-specific Resource Manager semantics into
   container-app-owned operation services instead of delegating all behavior to
   the shared application service facade.
