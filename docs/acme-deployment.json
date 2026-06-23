@@ -1,0 +1,18 @@
+{
+    // Deployment spec/definition
+    "deployment": {
+        "resources": [
+            // Resource definition
+            {
+                "name": "acme-api",
+                "type": "application.executable",
+                "executable.path": "whatsup.exe",
+                "executable.arguments": "doc",
+                "executable.workingDirectory": ".",
+                "custom.data": {
+                    // Some complex value
+                }
+            }
+        ]
+    }
+}
