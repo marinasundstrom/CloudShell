@@ -45,13 +45,12 @@ without forcing provider-specific logic into shared helpers.
   apply reconciles replica groups.
 - [x] Document the provider/application-service boundary in the container app
   and deployment proposals.
-- [x] Commit the current deployment-backed start and scaling boundary slice.
+- [x] Commit the deployment-backed start and scaling boundary slice.
+- [x] Split resource procedure follow-up signals so runtime reconciliation is
+  distinct from restart-required UI prompts.
 
 ## Next Slices
 
-- [ ] Replace or rename `ResourceProcedureResult.RestartRequired` where it is
-  being used as "runtime reconciliation/deployment required." The current name
-  leaks the old restart-based model into deployment flows.
 - [ ] Split `ApplicationResourceService` into narrower collaborators:
   application definition/query facade, projection service, container app
   deployment/revision service, runtime process/container runner support, and

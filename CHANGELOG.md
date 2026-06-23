@@ -46,6 +46,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Container app replica scaling no longer starts or removes replica containers
   inside the shared application service. The provider updates app intent and
   Resource Manager deployment apply reconciles the replica group.
+- Resource procedure results now distinguish runtime reconciliation from
+  restart-required prompts, so container app image and replica updates can
+  request deployment apply without telling the UI that the whole resource must
+  restart.
 - Environment and container app scaling views now show deployment-record
   replica-group details, making scale reconciliation visible through runtime
   revision, replica group, requested replica slots, and materialized replicas.

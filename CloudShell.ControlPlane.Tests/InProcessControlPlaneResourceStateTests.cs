@@ -2484,6 +2484,7 @@ public sealed class InProcessControlPlaneResourceStateTests
                 RequestedReplicas: 2));
 
         Assert.False(result.RestartRequired);
+        Assert.False(result.RuntimeReconciliationRequired);
         Assert.Contains("Updated target.", result.Message, StringComparison.Ordinal);
         Assert.Contains("Applied deployment 'target-deployment'", result.Message, StringComparison.Ordinal);
         Assert.Contains("Tore down replica group 'target-service-revision-1-replicas'", result.Message, StringComparison.Ordinal);
@@ -2624,6 +2625,7 @@ public sealed class InProcessControlPlaneResourceStateTests
                 RequestedReplicas: 2));
 
         Assert.False(result.RestartRequired);
+        Assert.False(result.RuntimeReconciliationRequired);
         Assert.Contains("Updated target.", result.Message, StringComparison.Ordinal);
         Assert.Contains("Applied deployment 'target-deployment'", result.Message, StringComparison.Ordinal);
         Assert.DoesNotContain("Tore down replica group", result.Message, StringComparison.Ordinal);
@@ -2816,6 +2818,7 @@ public sealed class InProcessControlPlaneResourceStateTests
                 TriggeredBy: "operator"));
 
         Assert.False(result.RestartRequired);
+        Assert.False(result.RuntimeReconciliationRequired);
         Assert.Contains("Updated target.", result.Message, StringComparison.Ordinal);
         Assert.Contains("Applied deployment 'target-deployment'", result.Message, StringComparison.Ordinal);
         Assert.Equal(["target:4:False:operator"], provider.UpdatedReplicas);
@@ -4144,7 +4147,7 @@ public sealed class InProcessControlPlaneResourceStateTests
         {
             RequestedReplicas = Math.Max(1, requestedReplicas ?? 2);
             UpdatedImages.Add($"{context.Resource.Id}:{image}:{restartIfRunning}:{triggeredBy}:{requestedReplicas?.ToString(CultureInfo.InvariantCulture) ?? "unchanged"}");
-            return Task.FromResult(ResourceProcedureResult.CompletedWithRestartRequired(
+            return Task.FromResult(ResourceProcedureResult.CompletedWithRuntimeReconciliationRequired(
                 $"Updated {context.Resource.Id}.",
                 context.Resource.Id,
                 "Runtime deployment must be applied."));
@@ -4161,7 +4164,7 @@ public sealed class InProcessControlPlaneResourceStateTests
         {
             RequestedReplicas = Math.Max(1, replicas);
             UpdatedReplicas.Add($"{context.Resource.Id}:{replicas.ToString(CultureInfo.InvariantCulture)}:{restartIfRunning}:{triggeredBy}");
-            return Task.FromResult(ResourceProcedureResult.CompletedWithRestartRequired(
+            return Task.FromResult(ResourceProcedureResult.CompletedWithRuntimeReconciliationRequired(
                 $"Updated {context.Resource.Id}.",
                 context.Resource.Id,
                 "Runtime deployment must be applied."));

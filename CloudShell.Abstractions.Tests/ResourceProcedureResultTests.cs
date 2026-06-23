@@ -32,6 +32,7 @@ public sealed class ResourceProcedureResultTests
 
         Assert.Equal("App settings updated. Environment variables updated.", result.Message);
         Assert.False(result.RestartRequired);
+        Assert.False(result.RuntimeReconciliationRequired);
         Assert.Collection(
             result.Signals,
             signal =>
@@ -63,5 +64,26 @@ public sealed class ResourceProcedureResultTests
         Assert.True(result.RestartRequired);
         Assert.Equal("application:api", result.RestartResourceId);
         Assert.Equal("Restart API.", result.RestartMessage);
+        Assert.False(result.RuntimeReconciliationRequired);
+    }
+
+    [Fact]
+    public void Combine_PreservesFirstRuntimeReconciliationRequirement()
+    {
+        var result = ResourceProcedureResult.Combine(
+            [
+                ResourceProcedureResult.Completed("Image updated."),
+                ResourceProcedureResult.CompletedWithRuntimeReconciliationRequired(
+                    "Replica count updated.",
+                    "application:api",
+                    "Apply deployment.")
+            ],
+            "No settings were updated.");
+
+        Assert.Equal("Image updated. Replica count updated.", result.Message);
+        Assert.False(result.RestartRequired);
+        Assert.True(result.RuntimeReconciliationRequired);
+        Assert.Equal("application:api", result.RuntimeReconciliationResourceId);
+        Assert.Equal("Apply deployment.", result.RuntimeReconciliationMessage);
     }
 }

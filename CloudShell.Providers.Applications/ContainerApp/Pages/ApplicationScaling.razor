@@ -500,12 +500,17 @@ else
                 Math.Max(1, Replicas),
                 restartIfRunning: false);
 
-            ReplicaUpdateSeverity = result.RestartRequired
+            var requiresFollowUp = result.RestartRequired ||
+                result.RuntimeReconciliationRequired;
+            var followUpMessage = result.RestartRequired
+                ? result.RestartMessage
+                : result.RuntimeReconciliationMessage;
+            ReplicaUpdateSeverity = requiresFollowUp
                 ? ResourceSignalSeverity.Warning
                 : ResourceSignalSeverity.Success;
-            ReplicaUpdateMessage = result.RestartRequired &&
-                !string.IsNullOrWhiteSpace(result.RestartMessage)
-                    ? $"{result.Message} {result.RestartMessage}"
+            ReplicaUpdateMessage = requiresFollowUp &&
+                !string.IsNullOrWhiteSpace(followUpMessage)
+                    ? $"{result.Message} {followUpMessage}"
                     : result.Message;
 
             Application = ApplicationProvider.GetApplication(applicationId);

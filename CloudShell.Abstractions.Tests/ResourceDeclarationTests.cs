@@ -11408,7 +11408,8 @@ public sealed class ResourceDeclarationTests
                 ? File.ReadAllLines(commandLogPath)
                 : [];
 
-            Assert.True(result.RestartRequired);
+            Assert.False(result.RestartRequired);
+            Assert.True(result.RuntimeReconciliationRequired);
             Assert.Equal("Updated api to 2 replicas.", result.Message);
             Assert.NotNull(updated);
             Assert.True(updated.ReplicasEnabled);

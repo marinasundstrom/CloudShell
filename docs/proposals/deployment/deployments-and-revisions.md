@@ -418,6 +418,13 @@ to model resources, services, deployments, replica groups, and environment
 revisions in Resource Manager terms rather than introducing pods or
 Kubernetes-native controller objects into the common domain model.
 
+Provider procedure results should signal deployment follow-up as runtime
+reconciliation, not as restart required. Resource Manager uses that signal to
+ask the provider for a deployment definition and apply it through the
+deployment service. Restart-required results remain valid for configuration
+changes that truly require the user to restart a resource before the change
+takes effect.
+
 ## Domain Model
 
 ### Revision Terminology

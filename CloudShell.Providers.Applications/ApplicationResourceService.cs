@@ -550,10 +550,10 @@ public sealed partial class ApplicationResourceService(
         }
 
         return wasRunning
-            ? ResourceProcedureResult.CompletedWithRestartRequired(
+            ? ResourceProcedureResult.CompletedWithRuntimeReconciliationRequired(
                 $"Deployed {application.Name} image '{normalizedImage}' and produced revision '{updated.ContainerRevision}'.",
                 application.Id,
-                "The container app is running. Runtime cutover for this deployment is not yet automated.")
+                "The container app is running. Runtime reconciliation is required to cut over to this deployment.")
             : ResourceProcedureResult.Completed(
                 $"Deployed {application.Name} image '{normalizedImage}' and produced revision '{updated.ContainerRevision}'.");
     }
@@ -643,10 +643,10 @@ public sealed partial class ApplicationResourceService(
         }
 
         return wasRunning
-            ? ResourceProcedureResult.CompletedWithRestartRequired(
+            ? ResourceProcedureResult.CompletedWithRuntimeReconciliationRequired(
                 $"Updated {application.Name} to {updated.Replicas} replica{Pluralize(updated.Replicas)}.",
                 application.Id,
-                "The container app is running. Restart it to apply the replica count.")
+                "The container app is running. Runtime reconciliation is required to apply the replica count.")
             : ResourceProcedureResult.Completed(
                 $"Updated {application.Name} to {updated.Replicas} replica{Pluralize(updated.Replicas)}.");
     }

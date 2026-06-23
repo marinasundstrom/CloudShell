@@ -1693,6 +1693,9 @@ public static class CloudShellControlPlaneApiExtensions
             result.RestartRequired,
             result.RestartResourceId,
             result.RestartMessage,
+            result.RuntimeReconciliationRequired,
+            result.RuntimeReconciliationResourceId,
+            result.RuntimeReconciliationMessage,
             result.Signals
                 .Select(signal => new ResourceProcedureSignalResponse(
                     ResourceSignalSeverityParser.ToLevel(signal.Severity),

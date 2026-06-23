@@ -351,6 +351,11 @@ runtime resources as a separate tear-down operation. Scaling the currently
 active app revision is capacity management and does not necessarily create
 another app revision.
 
+Provider operation results should use a runtime reconciliation follow-up when
+the app intent has changed and Resource Manager must apply a deployment. A
+restart-required follow-up should be reserved for configuration edits that
+cannot affect the running app until the user restarts the resource.
+
 Explicit replica scaling should be consistent with the orchestration model:
 the container app requests a deployment that changes desired runtime capacity
 for the currently active app revision, and the orchestrator materializes that

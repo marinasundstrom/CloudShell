@@ -1334,6 +1334,9 @@ file sealed record ResourceProcedureResponse(
     bool RestartRequired = false,
     string? RestartResourceId = null,
     string? RestartMessage = null,
+    bool RuntimeReconciliationRequired = false,
+    string? RuntimeReconciliationResourceId = null,
+    string? RuntimeReconciliationMessage = null,
     IReadOnlyList<ResourceProcedureSignalResponse>? Signals = null);
 
 file sealed record ResourceProcedureSignalResponse(
@@ -1814,6 +1817,9 @@ file static class RemoteControlPlaneMapper
             response.RestartRequired,
             response.RestartResourceId,
             response.RestartMessage,
+            response.RuntimeReconciliationRequired,
+            response.RuntimeReconciliationResourceId,
+            response.RuntimeReconciliationMessage,
             response.Signals?
                 .Select(signal => new ResourceProcedureSignal(
                     ResourceSignalSeverityParser.FromName(signal.Severity),

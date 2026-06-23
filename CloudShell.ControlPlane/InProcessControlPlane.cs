@@ -774,7 +774,7 @@ public sealed class InProcessControlPlane(
         string? triggeredBy,
         CancellationToken cancellationToken)
     {
-        if (!result.RestartRequired)
+        if (!result.RuntimeReconciliationRequired)
         {
             return result;
         }
@@ -972,7 +972,7 @@ public sealed class InProcessControlPlane(
         string? triggeredBy,
         CancellationToken cancellationToken)
     {
-        if (!result.RestartRequired)
+        if (!result.RuntimeReconciliationRequired)
         {
             return result;
         }

@@ -7,12 +7,18 @@ public sealed record ResourceProcedureResult
         bool restartRequired = false,
         string? restartResourceId = null,
         string? restartMessage = null,
+        bool runtimeReconciliationRequired = false,
+        string? runtimeReconciliationResourceId = null,
+        string? runtimeReconciliationMessage = null,
         IReadOnlyList<ResourceProcedureSignal>? signals = null)
     {
         Message = message;
         RestartRequired = restartRequired;
         RestartResourceId = restartResourceId;
         RestartMessage = restartMessage;
+        RuntimeReconciliationRequired = runtimeReconciliationRequired;
+        RuntimeReconciliationResourceId = runtimeReconciliationResourceId;
+        RuntimeReconciliationMessage = runtimeReconciliationMessage;
         Signals = signals ?? [];
     }
 
@@ -24,6 +30,12 @@ public sealed record ResourceProcedureResult
 
     public string? RestartMessage { get; init; }
 
+    public bool RuntimeReconciliationRequired { get; init; }
+
+    public string? RuntimeReconciliationResourceId { get; init; }
+
+    public string? RuntimeReconciliationMessage { get; init; }
+
     public IReadOnlyList<ResourceProcedureSignal> Signals { get; init; }
 
     public static ResourceProcedureResult Completed(string message) => new(message);
@@ -33,6 +45,16 @@ public sealed record ResourceProcedureResult
         string resourceId,
         string? restartMessage = null) =>
         new(message, true, resourceId, restartMessage);
+
+    public static ResourceProcedureResult CompletedWithRuntimeReconciliationRequired(
+        string message,
+        string resourceId,
+        string? runtimeReconciliationMessage = null) =>
+        new(
+            message,
+            runtimeReconciliationRequired: true,
+            runtimeReconciliationResourceId: resourceId,
+            runtimeReconciliationMessage: runtimeReconciliationMessage);
 
     public static ResourceProcedureResult Combine(
         IReadOnlyList<ResourceProcedureResult> results,
@@ -52,13 +74,15 @@ public sealed record ResourceProcedureResult
             .SelectMany(result => result.Signals)
             .ToArray();
         var restart = results.FirstOrDefault(result => result.RestartRequired);
-        return restart is null
-            ? new ResourceProcedureResult(message, signals: signals)
-            : new ResourceProcedureResult(
-                message,
-                restartRequired: true,
-                restartResourceId: restart.RestartResourceId ?? string.Empty,
-                restartMessage: restart.RestartMessage,
-                signals: signals);
+        var runtimeReconciliation = results.FirstOrDefault(result => result.RuntimeReconciliationRequired);
+        return new ResourceProcedureResult(
+            message,
+            restartRequired: restart is not null,
+            restartResourceId: restart?.RestartResourceId,
+            restartMessage: restart?.RestartMessage,
+            runtimeReconciliationRequired: runtimeReconciliation is not null,
+            runtimeReconciliationResourceId: runtimeReconciliation?.RuntimeReconciliationResourceId,
+            runtimeReconciliationMessage: runtimeReconciliation?.RuntimeReconciliationMessage,
+            signals: signals);
     }
 }
