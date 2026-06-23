@@ -6,8 +6,9 @@ namespace CloudShell.ControlPlane.Logs;
 public sealed class InMemoryResourceEventStore : IResourceEventStore
 {
     private const int MaxEventsPerResource = 1_000;
-    private readonly ConcurrentDictionary<string, Queue<ResourceEvent>> _events =
+    private readonly ConcurrentDictionary<string, Queue<StoredResourceEvent>> _events =
         new(StringComparer.OrdinalIgnoreCase);
+    private long _sequence;
 
     public void Append(ResourceEvent resourceEvent)
     {
@@ -17,10 +18,11 @@ public sealed class InMemoryResourceEventStore : IResourceEventStore
         }
 
         var enrichedEvent = resourceEvent.WithCurrentTraceContext();
-        var events = _events.GetOrAdd(enrichedEvent.ResourceId, _ => new Queue<ResourceEvent>());
+        var events = _events.GetOrAdd(enrichedEvent.ResourceId, _ => new Queue<StoredResourceEvent>());
+        var storedEvent = new StoredResourceEvent(Interlocked.Increment(ref _sequence), enrichedEvent);
         lock (events)
         {
-            events.Enqueue(enrichedEvent);
+            events.Enqueue(storedEvent);
             while (events.Count > MaxEventsPerResource)
             {
                 events.Dequeue();
@@ -32,7 +34,7 @@ public sealed class InMemoryResourceEventStore : IResourceEventStore
     {
         query ??= new ResourceEventQuery();
         var maxEvents = Math.Clamp(query.MaxEvents, 1, MaxEventsPerResource);
-        IEnumerable<ResourceEvent> events = string.IsNullOrWhiteSpace(query.ResourceId)
+        IEnumerable<StoredResourceEvent> events = string.IsNullOrWhiteSpace(query.ResourceId)
             ? _events.Values.SelectMany(GetSnapshot)
             : _events.TryGetValue(query.ResourceId, out var resourceEvents)
                 ? GetSnapshot(resourceEvents)
@@ -41,48 +43,52 @@ public sealed class InMemoryResourceEventStore : IResourceEventStore
         if (!string.IsNullOrWhiteSpace(query.EventType))
         {
             events = events.Where(resourceEvent =>
-                string.Equals(resourceEvent.EventType, query.EventType, StringComparison.OrdinalIgnoreCase));
+                string.Equals(resourceEvent.Event.EventType, query.EventType, StringComparison.OrdinalIgnoreCase));
         }
 
         if (!string.IsNullOrWhiteSpace(query.TriggeredBy))
         {
             events = events.Where(resourceEvent =>
-                string.Equals(resourceEvent.TriggeredBy, query.TriggeredBy, StringComparison.OrdinalIgnoreCase));
+                string.Equals(resourceEvent.Event.TriggeredBy, query.TriggeredBy, StringComparison.OrdinalIgnoreCase));
         }
 
         if (query.Since is not null)
         {
-            events = events.Where(resourceEvent => resourceEvent.Timestamp >= query.Since.Value);
+            events = events.Where(resourceEvent => resourceEvent.Event.Timestamp >= query.Since.Value);
         }
 
         if (query.Before is not null)
         {
-            events = events.Where(resourceEvent => resourceEvent.Timestamp < query.Before.Value);
+            events = events.Where(resourceEvent => resourceEvent.Event.Timestamp < query.Before.Value);
         }
 
         if (!string.IsNullOrWhiteSpace(query.TraceId))
         {
             events = events.Where(resourceEvent =>
-                string.Equals(resourceEvent.TraceId, query.TraceId, StringComparison.OrdinalIgnoreCase));
+                string.Equals(resourceEvent.Event.TraceId, query.TraceId, StringComparison.OrdinalIgnoreCase));
         }
 
         if (!string.IsNullOrWhiteSpace(query.SpanId))
         {
             events = events.Where(resourceEvent =>
-                string.Equals(resourceEvent.SpanId, query.SpanId, StringComparison.OrdinalIgnoreCase));
+                string.Equals(resourceEvent.Event.SpanId, query.SpanId, StringComparison.OrdinalIgnoreCase));
         }
 
         return events
-            .OrderByDescending(resourceEvent => resourceEvent.Timestamp)
+            .OrderByDescending(resourceEvent => resourceEvent.Event.Timestamp)
+            .ThenByDescending(resourceEvent => resourceEvent.Sequence)
             .Take(maxEvents)
+            .Select(resourceEvent => resourceEvent.Event)
             .ToArray();
     }
 
-    private static ResourceEvent[] GetSnapshot(Queue<ResourceEvent> events)
+    private static StoredResourceEvent[] GetSnapshot(Queue<StoredResourceEvent> events)
     {
         lock (events)
         {
             return events.ToArray();
         }
     }
+
+    private sealed record StoredResourceEvent(long Sequence, ResourceEvent Event);
 }

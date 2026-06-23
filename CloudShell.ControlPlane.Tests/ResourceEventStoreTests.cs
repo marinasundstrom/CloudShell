@@ -88,6 +88,42 @@ public sealed class ResourceEventStoreTests
     }
 
     [Fact]
+    public void InMemoryResourceEventStore_PreservesAppendOrderForSameTimestamp()
+    {
+        var store = new InMemoryResourceEventStore();
+        var timestamp = DateTimeOffset.Parse("2026-06-18T08:00:00+00:00");
+
+        store.Append(new ResourceEvent(
+            "application:test",
+            ResourceEventTypes.Events.Deployment.Applying,
+            "Applying deployment.",
+            timestamp));
+        store.Append(new ResourceEvent(
+            "application:test",
+            ResourceEventTypes.Events.Deployment.ReplicaMaterializing,
+            "Materializing replica.",
+            timestamp));
+        store.Append(new ResourceEvent(
+            "application:test",
+            ResourceEventTypes.Events.Deployment.ReplicaMaterialized,
+            "Materialized replica.",
+            timestamp));
+
+        var events = store
+            .GetEvents(new ResourceEventQuery(ResourceId: "application:test"))
+            .Reverse()
+            .ToArray();
+
+        Assert.Equal(
+            [
+                ResourceEventTypes.Events.Deployment.Applying,
+                ResourceEventTypes.Events.Deployment.ReplicaMaterializing,
+                ResourceEventTypes.Events.Deployment.ReplicaMaterialized
+            ],
+            events.Select(resourceEvent => resourceEvent.EventType).ToArray());
+    }
+
+    [Fact]
     public void ResourceEvent_PreservesExplicitTraceContext()
     {
         using var activity = new Activity("resource-event-test");
