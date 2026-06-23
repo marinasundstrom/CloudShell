@@ -48,6 +48,7 @@ public sealed class ResourceManagerStore(
         var projected = available
             .Select(resource => ApplyDeclarationMetadata(resource, declarationsById, resourceTypeClasses, diagnostics))
             .Select(resource => ApplyRegistrationMetadata(resource, registrationsById))
+            .Select(resource => ApplyGraphMembershipMetadata(resource, declarationsById, registrationsById))
             .Select(resource => AddIdentityProviderDiagnostic(resource, diagnostics))
             .Select(ApplyCapabilityMetadata)
             .ToArray();
@@ -225,6 +226,28 @@ public sealed class ResourceManagerStore(
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToArray(),
             Identity = resource.IdentityBinding ?? registration.IdentityBinding
+        };
+    }
+
+    private static Resource ApplyGraphMembershipMetadata(
+        Resource resource,
+        IReadOnlyDictionary<string, ResourceDeclaration> declarationsById,
+        IReadOnlyDictionary<string, ResourceRegistration> registrationsById)
+    {
+        var membership =
+            declarationsById.ContainsKey(resource.Id) ||
+            registrationsById.ContainsKey(resource.Id)
+                ? ResourceGraphMembershipKinds.Declared
+                : ResourceGraphMembershipKinds.Projected;
+
+        return resource with
+        {
+            Attributes = MergeAttributes(
+                resource.ResourceAttributes,
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    [ResourceAttributeNames.ResourceGraphMembership] = membership
+                })
         };
     }
 

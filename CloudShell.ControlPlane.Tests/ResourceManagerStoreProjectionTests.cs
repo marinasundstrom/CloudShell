@@ -23,6 +23,14 @@ public sealed class ResourceManagerStoreProjectionTests
 
         Assert.Equal(["child", "root"], resources.Select(resource => resource.Id).Order());
         Assert.Equal(["child"], store.GetChildren("root").Select(resource => resource.Id));
+        Assert.True(resources.Single(resource => resource.Id == "root").IsDeclaredResource);
+        Assert.True(resources.Single(resource => resource.Id == "child").IsProjectedResource);
+        Assert.Equal(
+            ResourceGraphMembershipKinds.Declared,
+            resources.Single(resource => resource.Id == "root").ResourceAttributes[ResourceAttributeNames.ResourceGraphMembership]);
+        Assert.Equal(
+            ResourceGraphMembershipKinds.Projected,
+            resources.Single(resource => resource.Id == "child").ResourceAttributes[ResourceAttributeNames.ResourceGraphMembership]);
     }
 
     [Fact]
@@ -46,6 +54,7 @@ public sealed class ResourceManagerStoreProjectionTests
         var child = Assert.Single(resources, resource => resource.Id == "declared-child");
         Assert.Equal("root", child.ParentResourceId);
         Assert.Equal(["declared-child"], store.GetChildren("root").Select(resource => resource.Id));
+        Assert.True(child.IsDeclaredResource);
     }
 
     [Fact]

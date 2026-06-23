@@ -16,6 +16,25 @@ public sealed class ResourceMetadataTests
         Assert.Null(resource.OwnerResourceId);
         Assert.True(resource.IsNormalResource);
         Assert.False(resource.IsRuntimeManaged);
+        Assert.Equal(ResourceGraphMembershipKinds.Projected, resource.ResourceGraphMembership);
+        Assert.False(resource.IsDeclaredResource);
+        Assert.True(resource.IsProjectedResource);
+    }
+
+    [Fact]
+    public void Resource_ProjectsDeclaredGraphMembershipFromAttributes()
+    {
+        var resource = CreateResource("application:api") with
+        {
+            Attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.ResourceGraphMembership] = ResourceGraphMembershipKinds.Declared
+            }
+        };
+
+        Assert.Equal(ResourceGraphMembershipKinds.Declared, resource.ResourceGraphMembership);
+        Assert.True(resource.IsDeclaredResource);
+        Assert.False(resource.IsProjectedResource);
     }
 
     [Fact]

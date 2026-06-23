@@ -126,6 +126,9 @@ without forcing provider-specific logic into shared helpers.
 - [x] Extract top-level application resource projection into a reusable
   toolkit helper, without making shared application infrastructure the
   resource inventory owner.
+- [x] Add resource graph membership metadata so Resource Manager projections
+  can distinguish stable declared/registered resources from provider-projected
+  artifacts while keeping them in one graph.
 
 ## Next Slices
 

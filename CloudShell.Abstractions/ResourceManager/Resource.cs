@@ -46,6 +46,16 @@ public sealed record Resource(
 
     public IReadOnlyDictionary<string, string> ResourceAttributes => Attributes ?? EmptyAttributes;
 
+    public string ResourceGraphMembership =>
+        ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ResourceGraphMembership) ??
+        ResourceGraphMembershipKinds.Projected;
+
+    public bool IsDeclaredResource =>
+        string.Equals(ResourceGraphMembership, ResourceGraphMembershipKinds.Declared, StringComparison.OrdinalIgnoreCase);
+
+    public bool IsProjectedResource =>
+        string.Equals(ResourceGraphMembership, ResourceGraphMembershipKinds.Projected, StringComparison.OrdinalIgnoreCase);
+
     public IReadOnlyList<ResourceAction> ResourceActions => Actions ?? [];
 
     public ResourceAction? GetAction(string actionId) =>
@@ -203,6 +213,7 @@ public enum ResourceClass
 
 public static class ResourceAttributeNames
 {
+    public const string ResourceGraphMembership = "resource.graph.membership";
     public const string DeclarationPersistence = "declaration.persistence";
     public const string DeclarationOverwritePersistedState = "declaration.overwritePersistedState";
     public const string WorkloadKind = "workload.kind";
@@ -295,6 +306,12 @@ public static class ResourceAttributeNames
     public const string LoadBalancerTcpRouteCount = "loadBalancer.routes.tcp";
     public const string ServiceTargetCount = "service.targets";
     public const string ServicePortCount = "service.ports";
+}
+
+public static class ResourceGraphMembershipKinds
+{
+    public const string Declared = "declared";
+    public const string Projected = "projected";
 }
 
 public enum ResourceState

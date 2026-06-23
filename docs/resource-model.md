@@ -36,6 +36,14 @@ it is not a declared resource persisted by Resource Manager, and it does not
 currently participate in orchestration, but the Docker provider can still
 expose operations such as start and stop for it.
 
+Resource Manager marks resources that pass through the normal graph projection
+with `resource.graph.membership`: `declared` for resources that have been
+declared, registered, imported, or otherwise accepted into stable inventory,
+and `projected` for provider-listed artifacts included because they are related
+to declared resources. This marker is diagnostic metadata. It does not change
+whether a resource can be referenced or operated; those capabilities still
+come from provider support, authorization, and resource actions.
+
 Future Resource Manager refactoring should keep those concerns distinct:
 
 - declared resource inventory: stable resources that have been authored,
