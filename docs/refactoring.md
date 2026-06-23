@@ -192,6 +192,9 @@ without forcing provider-specific logic into shared helpers.
 - [x] Add `IApplicationResourceRegistrationOperations` so application
   registration UI depends on definition lookup and setup without depending on
   the full management facade.
+- [x] Move remaining application provider UI pages off broad application
+  management operations by reusing focused definition, running-state, and
+  configuration contracts.
 
 ## Next Slices
 

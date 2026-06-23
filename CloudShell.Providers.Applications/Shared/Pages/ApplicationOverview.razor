@@ -1,7 +1,7 @@
 @using System.Text.Json
 @using CloudShell.Abstractions.Authorization
 @using Microsoft.JSInterop
-@inject IApplicationResourceManagementOperations ApplicationProvider
+@inject IApplicationResourceDefinitionSource ApplicationDefinitions
 @inject ILogManager LogManager
 @inject IResourceHealthManager HealthManager
 @inject IResourceManagerStore ResourceManager
@@ -496,7 +496,7 @@ else
     {
         Application = string.IsNullOrWhiteSpace(ResourceId)
             ? null
-            : ApplicationProvider.GetApplication(ResourceId);
+            : ApplicationDefinitions.GetApplication(ResourceId);
         ProjectedResource = Application is null
             ? null
             : ResourceManager.GetResource(Application.Id);

@@ -1,4 +1,5 @@
-@inject IApplicationResourceManagementOperations ApplicationProvider
+@inject IApplicationResourceDefinitionSource ApplicationDefinitions
+@inject IApplicationResourceRunningStateOperations ApplicationRunningState
 @inject ISqlServerDatabaseInspectionOperations DatabaseInspection
 
 @if (Application is null)
@@ -87,7 +88,7 @@ else
     {
         Application = string.IsNullOrWhiteSpace(ResourceId)
             ? null
-            : ApplicationProvider.GetApplication(ResourceId);
+            : ApplicationDefinitions.GetApplication(ResourceId);
         await RefreshDatabasesAsync();
     }
 
@@ -98,7 +99,7 @@ else
         QueryErrorMessage = null;
         IsLoading = false;
         WasLiveQueryAttempted = false;
-        IsServerRunning = Application is not null && ApplicationProvider.IsRunning(Application.Id);
+        IsServerRunning = Application is not null && ApplicationRunningState.IsRunning(Application.Id);
 
         if (Application is null || !IsSqlServer(Application))
         {

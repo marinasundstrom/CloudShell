@@ -61,6 +61,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Application registration pages now use a focused
   `IApplicationResourceRegistrationOperations` contract for definition setup
   instead of the broader application management operations.
+- Remaining application provider UI pages now depend on focused definition,
+  running-state, and configuration contracts instead of broad application
+  management operations.
 
 ### 2026-06-23
 
