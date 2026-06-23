@@ -157,6 +157,8 @@ without forcing provider-specific logic into shared helpers.
   shared application resource service.
 - [x] Extract SQL Server declared database child-resource projection into
   `SqlServerDatabaseResourceProjector`.
+- [x] Extract application infrastructure projection profile selection into
+  `ApplicationResourceProjectionProfiles`.
 
 ## Next Slices
 

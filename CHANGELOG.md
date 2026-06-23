@@ -20,6 +20,9 @@ on `git blame --follow`, and then by the broad type of change.
 - SQL Server declared database child-resource projection now lives in
   `SqlServerDatabaseResourceProjector`, moving another resource-type concern
   out of `ApplicationResourceService`.
+- Application infrastructure projection profile selection now lives in
+  `ApplicationResourceProjectionProfiles`, making top-level projection
+  decisions reusable outside `ApplicationResourceService`.
 
 ### 2026-06-23
 
