@@ -73,6 +73,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Application configuration operations now use a dedicated focused adapter over
   definition lookup, running-state checks, and definition registration instead
   of the shared application resource service.
+- `ApplicationResourceService` no longer advertises itself as the application
+  definition-source contract; `ApplicationResourceDefinitionSource` owns that
+  provider-facing boundary.
 
 ### 2026-06-23
 

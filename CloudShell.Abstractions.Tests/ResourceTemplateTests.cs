@@ -469,6 +469,8 @@ public sealed class ResourceTemplateTests
             var runtimeStates = new ApplicationRuntimeStateStore(processOptions, environment);
             var containerDeployments = new ApplicationContainerDeploymentStore(options, environment);
             var localProcesses = new LocalProcessRunner(runtimeStates, processOptions, environment);
+            var definitionNormalizer = new ApplicationResourceDefinitionNormalizer(environment);
+            var definitionSource = new ApplicationResourceDefinitionSource(store, definitionNormalizer);
             var services = new ServiceCollection().BuildServiceProvider();
             Provider = new ApplicationResourceService(
                 store,
@@ -485,7 +487,7 @@ public sealed class ResourceTemplateTests
                 new ResourceDeclarationStore());
             ResourceProvider = new ExecutableApplicationResourceProvider(
                 Provider,
-                Provider,
+                definitionSource,
                 Provider,
                 Provider,
                 Provider,
