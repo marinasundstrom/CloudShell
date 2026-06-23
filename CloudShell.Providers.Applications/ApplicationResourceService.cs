@@ -410,6 +410,7 @@ public sealed partial class ApplicationResourceService(
                     context.ResourceContext.ResourceManager,
                     context.ResourceContext.PreferredContainerHostId,
                     context.Instance,
+                    removeContainer: true,
                     cancellationToken);
                 return;
             default:
@@ -717,6 +718,7 @@ public sealed partial class ApplicationResourceService(
                 context.ResourceManager,
                 context.PreferredContainerHostId,
                 instance,
+                removeContainer: true,
                 cancellationToken);
         }
 
@@ -2891,6 +2893,7 @@ public sealed partial class ApplicationResourceService(
                 engine,
                 log,
                 instance,
+                removeContainer: false,
                 cancellationToken,
                 procedureContext);
         }
@@ -2901,6 +2904,7 @@ public sealed partial class ApplicationResourceService(
         IResourceManagerStore? resourceManager,
         string? preferredContainerHostId,
         ResourceOrchestratorServiceInstance instance,
+        bool removeContainer,
         CancellationToken cancellationToken)
     {
         if (resourceManager is null)
@@ -2925,6 +2929,7 @@ public sealed partial class ApplicationResourceService(
             engine,
             GetProcessLog(definition.Id),
             instance,
+            removeContainer,
             cancellationToken);
     }
 
@@ -2933,6 +2938,7 @@ public sealed partial class ApplicationResourceService(
         ContainerHostDescriptor engine,
         ApplicationProcessLog log,
         ResourceOrchestratorServiceInstance instance,
+        bool removeContainer,
         CancellationToken cancellationToken,
         ResourceProcedureContext? procedureContext = null)
     {
@@ -2940,7 +2946,7 @@ public sealed partial class ApplicationResourceService(
             Id,
             "application.container.instance.stopping",
             $"Application provider is stopping container replica '{instance.Name}' for '{definition.Name}'.");
-        if (definition.Lifetime == ApplicationLifetime.ControlPlaneScoped)
+        if (removeContainer || definition.Lifetime == ApplicationLifetime.ControlPlaneScoped)
         {
             await ApplicationContainerHostCommands.RunAsync(
                 engine,

@@ -86,7 +86,13 @@ public sealed record ResourceOrchestratorRevision(
 public sealed record ResourceOrchestratorDeploymentApplyResult(
     ResourceOrchestratorDeployment Deployment,
     ResourceOrchestratorRevision Revision,
-    ResourceProcedureResult ProcedureResult);
+    ResourceProcedureResult ProcedureResult,
+    IReadOnlyList<ResourceOrchestratorReplicaGroupTearDownRequest>? RetiredReplicaGroups = null,
+    ResourceOrchestratorReplicaGroup? PreviousReplicaGroup = null)
+{
+    public IReadOnlyList<ResourceOrchestratorReplicaGroupTearDownRequest> ReplicaGroupsToTearDown =>
+        RetiredReplicaGroups ?? [];
+}
 
 public enum ResourceOrchestratorDeploymentStatus
 {

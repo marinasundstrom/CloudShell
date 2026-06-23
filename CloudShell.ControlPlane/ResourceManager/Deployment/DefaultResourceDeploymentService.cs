@@ -70,6 +70,11 @@ public sealed class DefaultResourceDeploymentService(
         }
 
         var applied = deployment with { Status = ResourceOrchestratorDeploymentStatus.Active };
+        var retiredReplicaGroups = CreateRetiredReplicaGroups(
+            service,
+            previousReplicaGroup,
+            replicaGroup,
+            applied);
         var revisionCreatedAt = DateTimeOffset.UtcNow;
         var revision = deploymentStore?.CreateRevision(
             applied,
@@ -93,7 +98,9 @@ public sealed class DefaultResourceDeploymentService(
             applied,
             revision,
             ResourceProcedureResult.Completed(
-                $"Applied deployment '{deployment.Id}' for runtime revision '{deployment.RevisionId}'."));
+                $"Applied deployment '{deployment.Id}' for runtime revision '{deployment.RevisionId}'."),
+            retiredReplicaGroups,
+            previousReplicaGroup);
     }
 
     private ResourceOrchestratorReplicaGroup? GetLatestActiveReplicaGroup(
@@ -116,6 +123,36 @@ public sealed class DefaultResourceDeploymentService(
             .OrderByDescending(record => record.CompletedAt ?? record.StartedAt)
             .Select(record => record.ReplicaGroup)
             .FirstOrDefault();
+    }
+
+    private static IReadOnlyList<ResourceOrchestratorReplicaGroupTearDownRequest> CreateRetiredReplicaGroups(
+        ResourceOrchestratorService targetService,
+        ResourceOrchestratorReplicaGroup? previousReplicaGroup,
+        ResourceOrchestratorReplicaGroup targetReplicaGroup,
+        ResourceOrchestratorDeployment deployment)
+    {
+        if (previousReplicaGroup is null ||
+            string.Equals(previousReplicaGroup.Id, targetReplicaGroup.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            return [];
+        }
+
+        var previousService = targetService with
+        {
+            RuntimeRevisionId = previousReplicaGroup.RuntimeRevisionId,
+            Workload = targetService.Workload with
+            {
+                Replicas = Math.Max(1, previousReplicaGroup.RequestedReplicas),
+                ReplicasEnabled = Math.Max(1, previousReplicaGroup.RequestedReplicas) > 1
+            }
+        };
+        return
+        [
+            new ResourceOrchestratorReplicaGroupTearDownRequest(
+                previousService,
+                previousReplicaGroup,
+                $"Deployment '{deployment.Id}' replaced runtime replica group '{previousReplicaGroup.Id}' with '{targetReplicaGroup.Id}'.")
+        ];
     }
 
     private static async Task ApplyReplicaGroupChangeAsync(

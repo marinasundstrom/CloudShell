@@ -838,63 +838,13 @@ public sealed class InProcessControlPlane(
                 cancellationToken);
         }
 
-        var tearDownProvider = GetDeploymentTearDownProvider(resource);
-        if (tearDownProvider is null ||
-            !tearDownProvider.CanDescribeDeploymentTearDown(resource))
-        {
-            return mergedResult;
-        }
-
-        var tearDowns = await tearDownProvider.DescribeDeploymentTearDownAsync(
-            CreateProcedureContext(
-                resource,
-                triggeredBy,
-                "Image deployment requested runtime reconciliation."),
+        return await RunPostApplyDeploymentTearDownAsync(
+            resource,
             applyResult,
+            mergedResult,
+            triggeredBy,
+            "Image deployment requested runtime reconciliation.",
             cancellationToken);
-        foreach (var tearDown in tearDowns)
-        {
-            var replicaGroup = tearDown.ReplicaGroup ??
-                ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(tearDown.Service);
-            var reason = tearDown.Reason ?? "Image deployment retired superseded replica group.";
-            AppendDeploymentEvent(
-                resource,
-                ResourceEventTypes.Events.Deployment.CleanupRunning,
-                $"Cleaning up superseded replica group '{replicaGroup.Id}' for deployment '{applyResult.Deployment.Id}'. Reason: {reason}",
-                triggeredBy,
-                ResourceSignalSeverity.Info);
-            try
-            {
-                var tearDownResult = await orchestration.TearDownReplicaGroupAsync(
-                    resource,
-                    tearDown.Service,
-                    replicaGroup,
-                    cancellationToken,
-                    triggeredBy,
-                    reason);
-                AppendDeploymentEvent(
-                    resource,
-                    ResourceEventTypes.Events.Deployment.CleanupCompleted,
-                    $"Cleaned up superseded replica group '{replicaGroup.Id}' for deployment '{applyResult.Deployment.Id}'. Result: {tearDownResult.Message}",
-                    triggeredBy,
-                    ResourceSignalSeverity.Info);
-                mergedResult = MergeAppliedDeploymentResult(mergedResult, tearDownResult);
-            }
-            catch (Exception exception) when (exception is not OperationCanceledException)
-            {
-                var warning =
-                    $"Post-apply cleanup for deployment '{applyResult.Deployment.Id}' could not tear down replica group '{replicaGroup.Id}'. Reason: {exception.Message}";
-                AppendDeploymentEvent(
-                    resource,
-                    ResourceEventTypes.Events.Deployment.CleanupWarning,
-                    warning,
-                    triggeredBy,
-                    ResourceSignalSeverity.Warning);
-                mergedResult = AddProcedureWarning(mergedResult, warning);
-            }
-        }
-
-        return mergedResult;
     }
 
     private static ResourceProcedureResult MergeAppliedDeploymentResult(
@@ -1077,7 +1027,87 @@ public sealed class InProcessControlPlane(
                 cancellationToken);
         }
 
-        return MergeAppliedDeploymentResult(result, applyResult.ProcedureResult);
+        var mergedResult = MergeAppliedDeploymentResult(result, applyResult.ProcedureResult);
+        return await RunPostApplyDeploymentTearDownAsync(
+            resource,
+            applyResult,
+            mergedResult,
+            triggeredBy,
+            cause,
+            cancellationToken);
+    }
+
+    private async Task<ResourceProcedureResult> RunPostApplyDeploymentTearDownAsync(
+        Resource resource,
+        ResourceOrchestratorDeploymentApplyResult applyResult,
+        ResourceProcedureResult result,
+        string? triggeredBy,
+        string cause,
+        CancellationToken cancellationToken)
+    {
+        var tearDowns = applyResult.ReplicaGroupsToTearDown;
+        if (tearDowns.Count == 0)
+        {
+            var tearDownProvider = GetDeploymentTearDownProvider(resource);
+            if (tearDownProvider is not null &&
+                tearDownProvider.CanDescribeDeploymentTearDown(resource))
+            {
+                tearDowns = await tearDownProvider.DescribeDeploymentTearDownAsync(
+                    CreateProcedureContext(resource, triggeredBy, cause),
+                    applyResult,
+                    cancellationToken);
+            }
+        }
+
+        if (tearDowns.Count == 0)
+        {
+            return result;
+        }
+
+        var mergedResult = result;
+        foreach (var tearDown in tearDowns)
+        {
+            var replicaGroup = tearDown.ReplicaGroup ??
+                ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(tearDown.Service);
+            var reason = tearDown.Reason ?? "Deployment retired superseded replica group.";
+            AppendDeploymentEvent(
+                resource,
+                ResourceEventTypes.Events.Deployment.CleanupRunning,
+                $"Cleaning up superseded replica group '{replicaGroup.Id}' for deployment '{applyResult.Deployment.Id}'. Reason: {reason}",
+                triggeredBy,
+                ResourceSignalSeverity.Info);
+            try
+            {
+                var tearDownResult = await orchestration.TearDownReplicaGroupAsync(
+                    resource,
+                    tearDown.Service,
+                    replicaGroup,
+                    cancellationToken,
+                    triggeredBy,
+                    reason);
+                AppendDeploymentEvent(
+                    resource,
+                    ResourceEventTypes.Events.Deployment.CleanupCompleted,
+                    $"Cleaned up superseded replica group '{replicaGroup.Id}' for deployment '{applyResult.Deployment.Id}'. Result: {tearDownResult.Message}",
+                    triggeredBy,
+                    ResourceSignalSeverity.Info);
+                mergedResult = MergeAppliedDeploymentResult(mergedResult, tearDownResult);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                var warning =
+                    $"Post-apply cleanup for deployment '{applyResult.Deployment.Id}' could not tear down replica group '{replicaGroup.Id}'. Reason: {exception.Message}";
+                AppendDeploymentEvent(
+                    resource,
+                    ResourceEventTypes.Events.Deployment.CleanupWarning,
+                    warning,
+                    triggeredBy,
+                    ResourceSignalSeverity.Warning);
+                mergedResult = AddProcedureWarning(mergedResult, warning);
+            }
+        }
+
+        return mergedResult;
     }
 
     public Task<ResourceGroupTemplateExportResult> ExportResourceGroupTemplateAsync(

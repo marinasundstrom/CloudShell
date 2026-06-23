@@ -1379,9 +1379,10 @@ The current implementation already has the internal foundation:
    deployment/revision history and asks Resource Manager deployment to apply
    the described runtime state. The app-owned revision model itself is defined
    in the container app proposal.
-7. Provider-owned post-apply cleanup descriptions can identify superseded
-   replica groups for explicit tear-down. Container apps use this first for
-   superseded local runtime replicas.
+7. Deployment apply returns the materialized revision and any replica groups
+   the deployment retired. Control Plane uses that returned deployment outcome
+   for post-apply tear-down instead of asking the resource provider to
+   rediscover the predecessor.
 8. Active-revision replica scaling uses the replica-group change model.
 9. Stable resources and runtime-managed resources can carry deployment,
    service, orchestrator revision, and replica-group correlation metadata.
@@ -1397,6 +1398,12 @@ The current implementation already has the internal foundation:
 11. Post-apply cleanup of superseded replica groups is best-effort. Cleanup
     failures are warning diagnostics on the applied deployment rather than a
     failure of the active runtime group or active environment revision.
+12. Provider-owned post-apply cleanup descriptions remain an MVP bridge for
+    missing prior runtime state, primarily local declared/baseline resources
+    that existed before Resource Manager deployment history recorded an active
+    replica group. The longer-term model should project that baseline as an
+    initial environment revision or active deployment state so predecessor
+    discovery stays in the deployment/orchestration layer.
 
 The next MVP changes should stay focused:
 

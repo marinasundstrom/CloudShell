@@ -349,9 +349,10 @@ Implemented pieces include:
   readiness, routing, diagnostics, drain, and cleanup
 * orchestrator environment revisions and internal deployment history retain or
   reference the materialized replica group state produced by deployment apply
-* the container app provider describes superseded local runtime replicas as a
-  post-apply replica-group tear-down target after the replacement revision has
-  been materialized and routing milestones have been recorded
+* deployment apply returns superseded replica groups as part of the
+  materialized deployment outcome, and the container app provider only
+  describes legacy stable-name replica groups as a bridge when prior
+  deployment history is unavailable
 * default orchestrator rollback events and best-effort candidate replica-group
   tear-down when deployment setup fails before an orchestrator environment
   revision is produced

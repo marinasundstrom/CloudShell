@@ -244,6 +244,43 @@ public sealed class ResourceOrchestrationDeploymentTests
     }
 
     [Fact]
+    public async Task ApplyDeploymentAsync_ReturnsRetiredReplicaGroupWhenRuntimeRevisionChanges()
+    {
+        var resource = CreateResource();
+        var provider = new RecordingServiceProcedureProvider(resource);
+        var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();
+        var deployments = CreateDeployments(resource, provider, deploymentStore: deploymentStore);
+        var firstDeployment = CreateDeployment(resource.Id, "default", replicas: 2);
+        var secondDeployment = CreateDeployment(resource.Id, "default", replicas: 3) with
+        {
+            RevisionId = "rev-3"
+        };
+
+        var firstResult = await deployments.ApplyDeploymentAsync(resource, firstDeployment);
+        var secondResult = await deployments.ApplyDeploymentAsync(resource, secondDeployment);
+
+        Assert.Empty(firstResult.ReplicaGroupsToTearDown);
+        var tearDown = Assert.Single(secondResult.ReplicaGroupsToTearDown);
+        Assert.NotNull(tearDown.ReplicaGroup);
+        Assert.Equal(firstResult.Revision.ReplicaGroup, tearDown.ReplicaGroup);
+        Assert.Equal("cloudshell-application-api-rev-2-replicas", tearDown.ReplicaGroup.Id);
+        Assert.Equal("rev-2", tearDown.Service.RuntimeRevisionId);
+        Assert.Equal(2, tearDown.Service.Replicas);
+        Assert.Equal(
+            [
+                "cloudshell-application-api-rev-2-replica-1",
+                "cloudshell-application-api-rev-2-replica-2"
+            ],
+            tearDown.ReplicaGroup.Instances.Select(instance => instance.Name).ToArray());
+        Assert.Contains(secondDeployment.Id, tearDown.Reason, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(
+            "cloudshell-application-api-rev-3-replicas",
+            tearDown.Reason,
+            StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("cloudshell-application-api-rev-3-replicas", secondResult.Revision.ReplicaGroup?.Id);
+    }
+
+    [Fact]
     public async Task ApplyDeploymentAsync_RecordsFailedDeployment()
     {
         var resource = CreateResource();

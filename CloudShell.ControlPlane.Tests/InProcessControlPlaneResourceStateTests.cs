@@ -2721,6 +2721,12 @@ public sealed class InProcessControlPlaneResourceStateTests
                 "start:target-service-revision-2-replica-4:4/4"
             ],
             provider.InstanceActions);
+        Assert.Equal(
+            [
+                "target-deployment:revision-2",
+                "target-deployment:revision-2"
+            ],
+            provider.DescribedTearDowns);
         var deploymentRecords = deploymentStore.List(new ResourceOrchestratorDeploymentQuery(
             SourceResourceId: "target",
             DeploymentId: "target-deployment",
@@ -2746,6 +2752,10 @@ public sealed class InProcessControlPlaneResourceStateTests
                 EventType: ResourceEventTypes.Events.Deployment.Applied,
                 TriggeredBy: "operator")),
             resourceEvent => resourceEvent.Message.Contains("target-deployment", StringComparison.Ordinal));
+        Assert.Empty(resourceEvents.GetEvents(new ResourceEventQuery(
+            ResourceId: "target",
+            EventType: ResourceEventTypes.Events.Deployment.CleanupCompleted,
+            TriggeredBy: "operator")));
     }
 
 
@@ -3968,6 +3978,11 @@ public sealed class InProcessControlPlaneResourceStateTests
             CancellationToken cancellationToken = default)
         {
             DescribedTearDowns.Add($"{applyResult.Deployment.Id}:{applyResult.Deployment.RevisionId}");
+            if (applyResult.PreviousReplicaGroup is not null)
+            {
+                return Task.FromResult<IReadOnlyList<ResourceOrchestratorReplicaGroupTearDownRequest>>([]);
+            }
+
             var service = applyResult.Deployment.Spec.Service with
             {
                 Workload = applyResult.Deployment.Spec.Service.Workload with

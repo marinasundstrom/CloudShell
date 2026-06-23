@@ -83,7 +83,10 @@ public sealed partial class ApplicationResourceService
         if (basedOnRevisionId is null ||
             string.Equals(basedOnRevisionId, applyResult.Deployment.RevisionId, StringComparison.OrdinalIgnoreCase))
         {
-            return Task.FromResult<IReadOnlyList<ResourceOrchestratorReplicaGroupTearDownRequest>>([]);
+            return Task.FromResult(DescribeLegacyStableReplicaGroupTearDown(
+                context,
+                application,
+                applyResult));
         }
 
         var basedOnRevision = containerDeployments
@@ -102,6 +105,71 @@ public sealed partial class ApplicationResourceService
                     sourceReplicaGroup,
                     $"Image deployment retired superseded container app revision '{basedOnRevisionId}'.")
             ]);
+    }
+
+    private IReadOnlyList<ResourceOrchestratorReplicaGroupTearDownRequest> DescribeLegacyStableReplicaGroupTearDown(
+        ResourceProcedureContext context,
+        ApplicationResourceDefinition application,
+        ResourceOrchestratorDeploymentApplyResult applyResult)
+    {
+        var appliedReplicaGroup = applyResult.Revision.ReplicaGroup;
+        if (appliedReplicaGroup?.RuntimeRevisionId is null)
+        {
+            return [];
+        }
+
+        var sourceService = CreateDefaultContainerOrchestratorService(application);
+        var sourceReplicas = application.ContainerRevisions
+            .FirstOrDefault(revision =>
+                string.Equals(revision.Id, applyResult.Deployment.RevisionId, StringComparison.OrdinalIgnoreCase))
+            ?.RequestedReplicas ?? application.Replicas;
+        sourceService = sourceService with
+        {
+            Workload = sourceService.Workload with
+            {
+                Replicas = Math.Max(1, sourceReplicas),
+                ReplicasEnabled = Math.Max(1, sourceReplicas) > 1
+            },
+            RuntimeRevisionId = null
+        };
+        var sourceReplicaGroup = CreateDefaultContainerReplicaGroup(sourceService);
+        if (string.Equals(sourceReplicaGroup.Id, appliedReplicaGroup.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            return [];
+        }
+
+        if (!HasVisibleLegacyReplicaGroup(context, sourceReplicaGroup))
+        {
+            return [];
+        }
+
+        return
+        [
+            new ResourceOrchestratorReplicaGroupTearDownRequest(
+                sourceService,
+                sourceReplicaGroup,
+                $"Deployment retired legacy stable container app replica group for revision '{applyResult.Deployment.RevisionId}'.")
+        ];
+    }
+
+    private static bool HasVisibleLegacyReplicaGroup(
+        ResourceProcedureContext context,
+        ResourceOrchestratorReplicaGroup replicaGroup)
+    {
+        if (context.ResourceManager is null)
+        {
+            return true;
+        }
+
+        var instanceNames = replicaGroup.Instances
+            .Select(instance => instance.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return context.ResourceManager
+            .GetResources()
+            .Any(resource =>
+                instanceNames.Contains(resource.Name) ||
+                (resource.ResourceAttributes.TryGetValue(ResourceAttributeNames.RuntimeContainerName, out var containerName) &&
+                    instanceNames.Contains(containerName)));
     }
 
     public Task HandleDeploymentAppliedAsync(

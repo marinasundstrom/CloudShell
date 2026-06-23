@@ -49,6 +49,15 @@ on `git blame --follow`, and then by the broad type of change.
 - Liveness lifecycle projection now degrades a parent resource when only some
   runtime scopes fail to respond, instead of marking the whole replicated
   resource stopped while healthy runtime scopes are still serving.
+- Replica scale deployments now run post-apply cleanup, and container apps can
+  retire legacy stable replica groups after a revision-scoped group is
+  materialized even when provider-owned deployment history is missing.
+- Default deployment apply now returns replica groups retired by a replacement
+  runtime revision, so post-apply cleanup follows from the deployment outcome
+  instead of provider-specific predecessor inference.
+- Container app replica-group tear-down now removes retired local Docker
+  containers instead of only stopping them, preventing stale retired replicas
+  from remaining visible as resources and log sources.
 - Resource Manager orchestration now has an internal service tear-down boundary
   so orchestrator services can stop their materialized runtime resources
   separately from incremental deployment setup.
