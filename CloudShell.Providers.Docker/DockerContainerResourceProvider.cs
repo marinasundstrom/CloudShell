@@ -101,10 +101,10 @@ public sealed partial class DockerContainerResourceProvider :
         .Where(resource => resource.Kind == "Docker Container")
         .ToArray();
 
-    public IReadOnlyList<LogDescriptor> GetLogs() => GetResources()
-        .SelectMany(CreateLogDescriptors)
-        .OrderBy(log => log.SourceName, StringComparer.OrdinalIgnoreCase)
-        .ThenBy(log => log.Name, StringComparer.OrdinalIgnoreCase)
+    public IReadOnlyList<LogSource> GetLogSources() => GetResources()
+        .SelectMany(CreateLogSources)
+        .OrderBy(source => source.SourceName, StringComparer.OrdinalIgnoreCase)
+        .ThenBy(source => source.Name, StringComparer.OrdinalIgnoreCase)
         .ToArray();
 
     public async Task<IReadOnlyList<LogEntry>> ReadLogAsync(
@@ -1078,36 +1078,39 @@ public sealed partial class DockerContainerResourceProvider :
         string.Equals(check.Name, "liveness", StringComparison.OrdinalIgnoreCase) &&
         string.Equals(check.EffectiveSource.Kind, DockerHostResourceProbeEvaluator.SourceKind, StringComparison.OrdinalIgnoreCase);
 
-    private static IReadOnlyList<LogDescriptor> CreateLogDescriptors(Resource resource) =>
+    private static IReadOnlyList<LogSource> CreateLogSources(Resource resource) =>
         resource.EffectiveTypeId switch
         {
             HostResourceType or LegacyEngineResourceType =>
             [
-                new LogDescriptor(
+                new LogSource(
                     GetHostLogId(resource.Id),
                     "Host diagnostics",
                     "Docker",
                     resource.Name,
                     LogSourceKind.Resource,
+                    Kind: ResourceLogSourceKind.ProviderDefined,
+                    Capabilities: LogSourceCapabilities.Read,
                     ResourceId: resource.Id,
                     Description: "Docker host connection and discovery diagnostics.",
-                    Kind: ResourceLogSourceKind.ProviderDefined)
+                    Purpose: ResourceLogSourcePurpose.Default,
+                    Availability: LogSourceAvailability.ProviderDefined)
             ],
             "docker.container" =>
             [
-                new LogDescriptor(
+                new LogSource(
                     $"{resource.Id}:logs",
                     "Container logs",
                     "Docker",
                     resource.Name,
                     LogSourceKind.Resource,
-                    ResourceId: resource.Id,
-                    SupportsStreaming: true,
-                    Description: "Combined stdout and stderr from the Docker container.",
                     Kind: ResourceLogSourceKind.Container,
                     Format: LogFormat.PlainText,
                     Capabilities: LogSourceCapabilities.Read | LogSourceCapabilities.Stream,
-                    Purpose: ResourceLogSourcePurpose.Default)
+                    ResourceId: resource.Id,
+                    Description: "Combined stdout and stderr from the Docker container.",
+                    Purpose: ResourceLogSourcePurpose.Default,
+                    Availability: LogSourceAvailability.ProviderDefined)
             ],
             _ => []
         };

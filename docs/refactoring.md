@@ -142,6 +142,8 @@ without forcing provider-specific logic into shared helpers.
   descriptor compatibility projection.
 - [x] Move Configuration Store and Secrets Vault service log discovery to
   source-first `LogSource` projection.
+- [x] Move Docker host diagnostics and container log discovery to source-first
+  `LogSource` projection.
 
 ## Next Slices
 

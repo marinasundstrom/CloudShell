@@ -6283,6 +6283,20 @@ public sealed class ResourceDeclarationTests
         AssertDefaultDockerHostLivenessCheck(host);
         AssertDefaultDockerHostLogSource(host);
         AssertDefaultContainerLogSource(container);
+        var logSources = provider.GetLogSources();
+        var hostLogSource = Assert.Single(logSources, source => source.Id == "docker:build-01:diagnostics");
+        var containerLogSource = Assert.Single(logSources, source => source.Id == "docker:container:redis:logs");
+
+        Assert.Equal(host.Id, hostLogSource.ResourceId);
+        Assert.Equal("Host diagnostics", hostLogSource.Name);
+        Assert.Equal(ResourceLogSourceKind.ProviderDefined, hostLogSource.Kind);
+        Assert.True(hostLogSource.Capabilities.HasFlag(LogSourceCapabilities.Read));
+        Assert.False(hostLogSource.Capabilities.HasFlag(LogSourceCapabilities.Stream));
+        Assert.Equal(container.Id, containerLogSource.ResourceId);
+        Assert.Equal("Container logs", containerLogSource.Name);
+        Assert.Equal(ResourceLogSourceKind.Container, containerLogSource.Kind);
+        Assert.True(containerLogSource.Capabilities.HasFlag(LogSourceCapabilities.Read));
+        Assert.True(containerLogSource.Capabilities.HasFlag(LogSourceCapabilities.Stream));
         Assert.Equal("docker:build-01", container.ParentResourceId);
     }
 

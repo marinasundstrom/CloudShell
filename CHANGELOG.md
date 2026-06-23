@@ -134,6 +134,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Configuration Store and Secrets Vault service log discovery now returns
   `LogSource` records directly instead of descriptor-shaped compatibility
   metadata.
+- Docker host diagnostics and container log discovery now returns `LogSource`
+  records directly instead of descriptor-shaped compatibility metadata.
 - The deployment proposal now clarifies that deployment definitions describe
   resource intent through resource definitions and provider-owned attributes,
   with serialized formats treated as projections of that model.
