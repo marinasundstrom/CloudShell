@@ -74,6 +74,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The container app Scale and replicas view now displays requested replica
   slots as the primary rows, with optional occupant details and auto-refresh so
   slot repair transitions are visible.
+- The Resource Manager resource table now refreshes its projected resource
+  model immediately after lifecycle actions complete, keeping row state aligned
+  with the resource detail view after starts and stops.
 - Resource Manager orchestration now has an internal service tear-down boundary
   so orchestrator services can stop their materialized runtime resources
   separately from incremental deployment setup.

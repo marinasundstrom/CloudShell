@@ -1563,6 +1563,7 @@ resourceGroups) =>
                 dependencyStartFailureBehavior: GetDependencyStartFailureBehavior());
             ProcedureMessage = result.Message;
             ProcedureSignals = result.Signals;
+            await RefreshResourcesAsync();
         }
         catch (Exception exception)
         {
