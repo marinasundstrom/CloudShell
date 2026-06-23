@@ -11,6 +11,8 @@ using CloudShell.ControlPlane.Authentication;
 using CloudShell.ControlPlane.Logs;
 using CloudShell.ControlPlane.Observability;
 using CloudShell.ControlPlane.ResourceManager;
+using CloudShell.ControlPlane.ResourceManager.Deployment;
+using CloudShell.ControlPlane.ResourceManager.Orchestration;
 using CloudShell.ControlPlane.Shell;
 using CloudShell.Persistence;
 using Microsoft.AspNetCore.Builder;
@@ -109,6 +111,7 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
         builder.Services.AddScoped<ResourceTemplateService>();
         builder.Services.AddScoped<IContainerHostResolver, ContainerHostResolver>();
         builder.Services.AddScoped<ResourceOrchestrationService>();
+        builder.Services.AddScoped<ResourceDeploymentService>();
         builder.Services.AddScoped<ResourceDeclarationStartupService>();
         builder.Services.AddScoped<ResourceIdentityProvisioningService>();
         builder.Services.AddScoped<ResourceIdentityProviderSetupService>();
@@ -184,6 +187,8 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
             IResourceOrchestratorDeploymentStore,
             InMemoryResourceOrchestratorDeploymentStore>();
         builder.Services.AddScoped<IResourceOrchestrationCatalog, ResourceOrchestrationCatalog>();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<IResourceOrchestratorDeploymentApplier, DefaultResourceDeploymentService>());
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<IResourceOrchestrator, DefaultResourceOrchestrator>());
         builder.Services.TryAddEnumerable(

@@ -3,11 +3,12 @@ using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.ResourceManager;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Text.Json;
 
-namespace CloudShell.ControlPlane.ResourceManager;
+namespace CloudShell.ControlPlane.ResourceManager.Orchestration;
 
 public sealed class ResourceOrchestrationService(
     IEnumerable<IResourceOrchestrator> orchestrators,
@@ -20,8 +21,7 @@ public sealed class ResourceOrchestrationService(
     IContainerHostResolver? containerHostResolver = null,
     IEnumerable<IResourceActionAvailabilityProvider>? actionAvailabilityProviders = null,
     IResourceEventSink? resourceEvents = null,
-    ILoggerFactory? loggerFactory = null,
-    IResourceOrchestratorDeploymentStore? deploymentStore = null)
+    ILoggerFactory? loggerFactory = null)
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
     private readonly IReadOnlyList<IResourceOrchestrator> orchestrators = orchestrators.ToArray();
@@ -98,75 +98,6 @@ public sealed class ResourceOrchestrationService(
         var context = CreateContext(resource, triggeredBy, cause);
         var tearDown = SelectReplicaGroupTearDown(context, service, replicaGroup);
         return await tearDown.TearDownReplicaGroupAsync(context, service, replicaGroup, cancellationToken);
-    }
-
-    public async Task<ResourceOrchestratorDeploymentApplyResult> ApplyDeploymentAsync(
-        Resource resource,
-        ResourceOrchestratorDeployment deployment,
-        CancellationToken cancellationToken = default,
-        string? triggeredBy = null,
-        string? cause = null)
-    {
-        ArgumentNullException.ThrowIfNull(resource);
-        ArgumentNullException.ThrowIfNull(deployment);
-
-        if (!string.Equals(resource.Id, deployment.SourceResourceId, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new ControlPlaneException(
-                ControlPlaneError.InvalidRequest(
-                    $"Deployment '{deployment.Id}' belongs to resource '{deployment.SourceResourceId}', not '{resource.Id}'."));
-        }
-
-        var context = CreateContext(resource, triggeredBy, cause);
-        var applier = SelectDeploymentApplier(context, deployment);
-        var applyingDeployment = deployment with { Status = ResourceOrchestratorDeploymentStatus.Applying };
-        deploymentStore?.RecordApplying(
-            applyingDeployment,
-            DateTimeOffset.UtcNow,
-            triggeredBy,
-            cause);
-        AppendResourceActionEvent(
-            resource,
-            ResourceEventTypes.Events.Deployment.Applying,
-            $"Applying deployment '{deployment.Id}' for revision '{deployment.RevisionId}'.{FormatCause(cause)}",
-            triggeredBy);
-
-        try
-        {
-            var result = await applier.ApplyDeploymentAsync(
-                context,
-                applyingDeployment,
-                cancellationToken);
-            deploymentStore?.RecordApplied(
-                result.Deployment,
-                result.Revision,
-                DateTimeOffset.UtcNow,
-                result.ProcedureResult.Message,
-                triggeredBy,
-                cause);
-            AppendResourceActionEvent(
-                resource,
-                ResourceEventTypes.Events.Deployment.Applied,
-                $"Applied deployment '{deployment.Id}' for revision '{result.Deployment.RevisionId}'. Result: {result.ProcedureResult.Message}",
-                triggeredBy);
-            return result;
-        }
-        catch (Exception exception) when (exception is not OperationCanceledException)
-        {
-            deploymentStore?.RecordFailed(
-                deployment,
-                DateTimeOffset.UtcNow,
-                exception.Message,
-                triggeredBy,
-                cause);
-            AppendResourceActionEvent(
-                resource,
-                ResourceEventTypes.Events.Deployment.Failed,
-                $"Failed deployment '{deployment.Id}' for revision '{deployment.RevisionId}'. Reason: {exception.Message}",
-                triggeredBy,
-                ResourceSignalSeverity.Error);
-            throw;
-        }
     }
 
     public async Task<ResourceProcedureResult> ExecuteActionAsync(
@@ -787,39 +718,6 @@ public sealed class ResourceOrchestrationService(
         ?? throw new ControlPlaneException(
             ControlPlaneError.ResourceDeleteUnsupported(context.Resource.Name));
 
-    private IResourceOrchestratorDeploymentApplier SelectDeploymentApplier(
-        ResourceOrchestrationContext context,
-        ResourceOrchestratorDeployment deployment)
-    {
-        if (!string.IsNullOrWhiteSpace(deployment.OrchestratorId))
-        {
-            var explicitOrchestrator = orchestrators.FirstOrDefault(orchestrator =>
-                string.Equals(orchestrator.Id, deployment.OrchestratorId, StringComparison.OrdinalIgnoreCase));
-            if (explicitOrchestrator is null)
-            {
-                throw new ControlPlaneException(
-                    ControlPlaneError.InvalidRequest(
-                        $"Orchestrator '{deployment.OrchestratorId}' is not registered for deployment '{deployment.Id}'."));
-            }
-
-            if (explicitOrchestrator is IResourceOrchestratorDeploymentApplier explicitApplier &&
-                explicitApplier.CanApplyDeployment(context, deployment))
-            {
-                return explicitApplier;
-            }
-
-            throw new ControlPlaneException(
-                ControlPlaneError.InvalidRequest(
-                    $"Orchestrator '{deployment.OrchestratorId}' cannot apply deployment '{deployment.Id}' for resource '{context.Resource.Name}'."));
-        }
-
-        return SelectPreferredDeploymentApplier((orchestrator, applier) =>
-            applier.CanApplyDeployment(context, deployment))
-            ?? throw new ControlPlaneException(
-                ControlPlaneError.InvalidRequest(
-                    $"No orchestrator can apply deployment '{deployment.Id}' for resource '{context.Resource.Name}'."));
-    }
-
     private IResourceOrchestratorServiceTearDown SelectServiceTearDown(
         ResourceOrchestrationContext context,
         ResourceOrchestratorService service) =>
@@ -835,29 +733,6 @@ public sealed class ResourceOrchestrationService(
             tearDown.CanTearDownReplicaGroup(context, service, replicaGroup))
         ?? throw new ControlPlaneException(
             ControlPlaneError.ResourceActionUnsupported(context.Resource.Name));
-
-    private IResourceOrchestratorDeploymentApplier? SelectPreferredDeploymentApplier(
-        Func<IResourceOrchestrator, IResourceOrchestratorDeploymentApplier, bool> predicate)
-    {
-        var selectedId = selectionStore.Get().OrchestratorId;
-        if (!string.Equals(selectedId, "default", StringComparison.OrdinalIgnoreCase))
-        {
-            var selected = orchestrators.FirstOrDefault(orchestrator =>
-                string.Equals(orchestrator.Id, selectedId, StringComparison.OrdinalIgnoreCase) &&
-                orchestrator is IResourceOrchestratorDeploymentApplier applier &&
-                predicate(orchestrator, applier));
-            if (selected is IResourceOrchestratorDeploymentApplier selectedApplier)
-            {
-                return selectedApplier;
-            }
-        }
-
-        var defaultOrchestrator = orchestrators.FirstOrDefault(orchestrator =>
-            string.Equals(orchestrator.Id, "default", StringComparison.OrdinalIgnoreCase) &&
-            orchestrator is IResourceOrchestratorDeploymentApplier applier &&
-            predicate(orchestrator, applier));
-        return defaultOrchestrator as IResourceOrchestratorDeploymentApplier;
-    }
 
     private IResourceOrchestratorServiceTearDown? SelectPreferredServiceTearDown(
         Func<IResourceOrchestrator, IResourceOrchestratorServiceTearDown, bool> predicate)

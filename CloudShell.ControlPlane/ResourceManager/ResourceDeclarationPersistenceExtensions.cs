@@ -1,5 +1,6 @@
 using CloudShell.Abstractions.Logging;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.ResourceManager.Orchestration;
 using CloudShell.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;

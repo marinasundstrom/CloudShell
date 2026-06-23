@@ -24,7 +24,7 @@ visibility gates as the global inventory so hidden implementation details do
 not appear merely because they are parented to a stable resource. This is an
 internal foundation for container app runtime artifacts before broad runtime
 resource projection is announced as a public product surface.
-Container apps now use this foundation to materialize desired replica
+Container apps now use this foundation to materialize requested replica
 resources as hidden runtime-managed children of the stable container app
 resource. Those replicas are app-owned resources even when a local Docker
 container backs each replica. Provider-observed backing container IDs, health,

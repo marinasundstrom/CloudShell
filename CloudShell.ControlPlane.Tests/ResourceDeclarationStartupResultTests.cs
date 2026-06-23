@@ -1,4 +1,5 @@
 using CloudShell.ControlPlane.ResourceManager;
+using CloudShell.ControlPlane.ResourceManager.Orchestration;
 
 namespace CloudShell.ControlPlane.Tests;
 

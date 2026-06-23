@@ -3,9 +3,10 @@ using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.Persistence;
 
-namespace CloudShell.ControlPlane.ResourceManager;
+namespace CloudShell.ControlPlane.ResourceManager.Orchestration;
 
 public sealed record ResourceDeclarationStartupResult(
     IReadOnlyList<ResourceDeclarationStartupDiagnostic> Diagnostics)

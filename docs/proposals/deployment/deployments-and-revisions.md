@@ -197,8 +197,12 @@ The MVP must support:
   deployment and revision history.
 * A provider-described orchestrator deployment that says "this is the runtime
   state I want" for the selected Resource Manager orchestrator.
-* Default orchestrator apply that incrementally sets up the requested service
-  and revision-scoped replica group.
+* A Resource Manager deployment service that records apply attempts, selects a
+  deployment applier, and produces revision outcomes separately from the
+  broader orchestration service.
+* A default deployment applier that incrementally sets up the requested
+  orchestrator service and revision-scoped replica group for orchestrators that
+  do not have their own native deployment concept.
 * An orchestrator revision outcome only after apply succeeds, including the
   materialized replica group snapshot.
 * Failed deployment attempts recorded without producing an orchestrator
@@ -216,6 +220,9 @@ The MVP must support:
   and replica-group id onto the stable resource and runtime-managed resources.
   The first projection target is the stable container app and its hidden runtime
   replica resources.
+  Requested replicas are the count requested by the resource/provider; the
+  orchestrator may materialize fewer replicas when capacity, placement, policy,
+  or runtime failures prevent granting the full request.
 * Focused tests for successful apply, failed apply, rollback logging, image
   deployment with post-apply tear-down, active revision scaling, and concurrent
   deployments for different container apps.
@@ -963,22 +970,25 @@ The current implementation already has the internal foundation:
 1. Common orchestrator deployment, deployment spec, revision, replica group,
    service tear-down, replica-group tear-down, and deployment tear-down
    description contracts.
-2. Resource Manager orchestration dispatch for deployment apply and explicit
-   tear-down operations.
-3. Default orchestrator setup of revision-scoped replica groups, routing
+2. Separate Resource Manager deployment and orchestration services under
+   `CloudShell.ControlPlane.ResourceManager.Deployment` and
+   `CloudShell.ControlPlane.ResourceManager.Orchestration`.
+3. Resource Manager deployment dispatch for deployment apply, with
+   orchestration retaining resource actions and explicit tear-down operations.
+4. Default deployment setup of revision-scoped replica groups, routing
    milestones, revision creation, failed-attempt recording, and best-effort
    rollback logging.
-4. Provider-owned deployment descriptions let a resource ask Resource Manager
-   orchestration to apply a runtime state without managing runtime replicas
+5. Provider-owned deployment descriptions let a resource ask Resource Manager
+   deployment to apply a runtime state without managing runtime replicas
    directly.
-5. Container app image deployment is the first consumer: it records app-owned
-   deployment/revision history and asks Resource Manager orchestration to apply
+6. Container app image deployment is the first consumer: it records app-owned
+   deployment/revision history and asks Resource Manager deployment to apply
    the described runtime state.
-6. Provider-owned post-apply cleanup descriptions can identify superseded
+7. Provider-owned post-apply cleanup descriptions can identify superseded
    replica groups for explicit tear-down. Container apps use this first for
    superseded local runtime replicas.
-7. Active-revision replica scaling uses the replica-group change model.
-8. Stable resources and runtime-managed resources can carry deployment,
+8. Active-revision replica scaling uses the replica-group change model.
+9. Stable resources and runtime-managed resources can carry deployment,
    service, revision, and replica-group correlation metadata. Container apps
    and their hidden runtime replicas are the first projection path.
 

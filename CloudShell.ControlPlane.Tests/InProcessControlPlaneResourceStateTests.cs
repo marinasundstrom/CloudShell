@@ -7,6 +7,8 @@ using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Authentication;
 using CloudShell.ControlPlane.Logs;
 using CloudShell.ControlPlane.ResourceManager;
+using CloudShell.ControlPlane.ResourceManager.Deployment;
+using CloudShell.ControlPlane.ResourceManager.Orchestration;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
@@ -3099,17 +3101,30 @@ public sealed class InProcessControlPlaneResourceStateTests
             declarations,
             new ResourceIdentityProviderCatalog(identityProviders ?? []),
             identityProviderSetupHandlers ?? []);
+        var orchestrators = new IResourceOrchestrator[] { new DefaultResourceOrchestrator() };
+        var deploymentAppliers = new IResourceOrchestratorDeploymentApplier[]
+        {
+            new DefaultResourceDeploymentService(deploymentStore)
+        };
+        var selectionStore = CreateSelectionStore();
         var orchestration = new ResourceOrchestrationService(
-            [new DefaultResourceOrchestrator(deploymentStore)],
+            orchestrators,
             descriptorProviders ?? [],
             resourceManager,
             registrations,
             declarations,
-            CreateSelectionStore(),
+            selectionStore,
             containerHostProviders ?? [],
             actionAvailabilityProviders: actionAvailabilityProviders ?? [],
-            resourceEvents: resourceEvents,
-            deploymentStore: deploymentStore);
+            resourceEvents: resourceEvents);
+        var deployments = new ResourceDeploymentService(
+            orchestrators,
+            deploymentAppliers,
+            resourceManager,
+            registrations,
+            selectionStore,
+            resourceEvents,
+            deploymentStore);
 
         return new InProcessControlPlane(
             resourceManager,
@@ -3117,6 +3132,7 @@ public sealed class InProcessControlPlaneResourceStateTests
             registrations,
             declarations,
             orchestration,
+            deployments,
             identityProvisioning,
             identityProviderSetup,
             templates,

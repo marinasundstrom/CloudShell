@@ -1,9 +1,10 @@
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.ResourceManager;
 using System.Text.Json;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
-namespace CloudShell.ControlPlane.ResourceManager;
+namespace CloudShell.ControlPlane.ResourceManager.Orchestration;
 
 public sealed class ResourceOrchestratorSelectionStore : IResourceOrchestrationSettings
 {

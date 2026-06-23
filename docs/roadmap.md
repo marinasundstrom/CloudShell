@@ -586,7 +586,7 @@ listed here before pulling in broader proposal work.
    are in place. Deployment apply now materializes the requested runtime state,
    and container apps describe superseded local runtime replicas as explicit
    post-apply replica-group tear-down targets. Container apps now materialize
-   desired replica resources as hidden runtime-managed children parented to the
+   requested replica resources as hidden runtime-managed children parented to the
    app, with Resource Manager visibility controlled separately for hidden
    resources and hidden runtime-managed artifacts. Docker host raw container
    discoveries are a separate provider-observation path that projects Docker
@@ -1207,7 +1207,7 @@ listed here before pulling in broader proposal work.
 
 - Defer container app scaling policies beyond the current explicit
   replica-count API. A future policy can decide when to expand or shrink
-  desired replicas from load, capacity, schedule, or provider signals, but it
+  requested replicas from load, capacity, schedule, or provider signals, but it
   should remain separate from recovery policy, which reacts to liveness and
   lifecycle failure.
 - Defer backend pools, TLS binding, traffic splitting, advanced service

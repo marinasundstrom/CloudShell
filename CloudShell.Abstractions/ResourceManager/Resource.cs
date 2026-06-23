@@ -225,7 +225,7 @@ public static class ResourceAttributeNames
     public const string DeploymentStatus = "deployment.status";
     public const string DeploymentRevision = "deployment.revision";
     public const string DeploymentWorkloadVersion = "deployment.workloadVersion";
-    public const string DeploymentDesiredReplicas = "deployment.replicas.desired";
+    public const string DeploymentRequestedReplicas = "deployment.replicas.requested";
     public const string DeploymentMaterializedReplicas = "deployment.replicas.materialized";
     public const string DeploymentProjectedReplicas = "deployment.replicas.projected";
     public const string DeploymentReplicaGroupId = "deployment.replicaGroup.id";

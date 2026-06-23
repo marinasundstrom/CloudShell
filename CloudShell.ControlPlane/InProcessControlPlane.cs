@@ -4,6 +4,8 @@ using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager;
+using CloudShell.ControlPlane.ResourceManager.Deployment;
+using CloudShell.ControlPlane.ResourceManager.Orchestration;
 using Microsoft.AspNetCore.Http;
 using System.Globalization;
 using System.Security.Claims;
@@ -17,6 +19,7 @@ public sealed class InProcessControlPlane(
     IResourceRegistrationStore registrations,
     ResourceDeclarationStore declarations,
     ResourceOrchestrationService orchestration,
+    ResourceDeploymentService deployments,
     ResourceIdentityProvisioningService resourceIdentityProvisioning,
     ResourceIdentityProviderSetupService resourceIdentityProviderSetup,
     ResourceTemplateService templates,
@@ -787,7 +790,7 @@ public sealed class InProcessControlPlane(
             return result;
         }
 
-        var applyResult = await orchestration.ApplyDeploymentAsync(
+        var applyResult = await deployments.ApplyDeploymentAsync(
             resource,
             deployment,
             cancellationToken,

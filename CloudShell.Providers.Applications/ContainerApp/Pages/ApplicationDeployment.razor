@@ -311,7 +311,7 @@ else
             : "not enabled";
 
     private static int GetDeploymentRequestedReplicasValue(Resource resource) =>
-        TryGetReplicaCount(resource, ResourceAttributeNames.DeploymentDesiredReplicas) ??
+        TryGetReplicaCount(resource, ResourceAttributeNames.DeploymentRequestedReplicas) ??
         TryGetReplicaCount(resource, ResourceAttributeNames.ContainerReplicas) ??
         1;
 

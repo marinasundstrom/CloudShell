@@ -48,6 +48,12 @@ on `git blame --follow`, and then by the broad type of change.
   MVP as a generalized Resource Manager orchestration deployment model, with
   container apps as the first validation path while leaving public deployment
   APIs, restore, retention, traffic strategies, and adapter mappings flexible.
+- Resource Manager deployment coordination now lives separately from
+  orchestration execution under dedicated Deployment and Orchestration
+  namespaces, with the default deployment service reusable for orchestrators
+  that do not expose a native deployment concept.
+- Deployment replica projection now uses requested replica terminology through
+  `deployment.replicas.requested`.
 - FileSystem volumes can now be attached to executable and ASP.NET Core
   project resources through the same `ResourceVolumeMount` model used by
   container apps, with Resource Manager Storage tabs and local process

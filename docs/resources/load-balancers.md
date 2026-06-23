@@ -251,4 +251,4 @@ not yet provide:
 - provider-managed runtime probes and richer host diagnostics
 - TLS certificate resources or certificate binding
 - weighted backend pools, traffic splitting, provider-observed replica health,
-  or dynamic backend membership beyond the current desired replica count
+  or dynamic backend membership beyond the current requested replica count

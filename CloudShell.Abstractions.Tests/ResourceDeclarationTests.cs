@@ -9,6 +9,7 @@ using CloudShell.Client.Authentication;
 using CloudShell.Components;
 using CloudShell.ControlPlane.Hosting;
 using CloudShell.ControlPlane.ResourceManager;
+using CloudShell.ControlPlane.ResourceManager.Orchestration;
 using CloudShell.Hosting.Components.Pages.Resources;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Providers.Applications;
@@ -9370,7 +9371,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("cloudshell-application-api-deployment", app.ResourceAttributes[ResourceAttributeNames.DeploymentId]);
         Assert.Equal("cloudshell-application-api", app.ResourceAttributes[ResourceAttributeNames.DeploymentServiceId]);
         Assert.Equal("pending", app.ResourceAttributes[ResourceAttributeNames.DeploymentStatus]);
-        Assert.Equal("3", app.ResourceAttributes[ResourceAttributeNames.DeploymentDesiredReplicas]);
+        Assert.Equal("3", app.ResourceAttributes[ResourceAttributeNames.DeploymentRequestedReplicas]);
         Assert.Equal("3", app.ResourceAttributes[ResourceAttributeNames.DeploymentMaterializedReplicas]);
         Assert.Equal("3", app.ResourceAttributes[ResourceAttributeNames.DeploymentProjectedReplicas]);
         Assert.False(string.IsNullOrWhiteSpace(app.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaGroupId]));
@@ -9684,7 +9685,7 @@ public sealed class ResourceDeclarationTests
 
         Assert.Equal("1", app.ResourceAttributes[ResourceAttributeNames.ContainerReplicas]);
         Assert.Equal("false", app.ResourceAttributes[ResourceAttributeNames.ContainerReplicasEnabled]);
-        Assert.Equal("1", app.ResourceAttributes[ResourceAttributeNames.DeploymentDesiredReplicas]);
+        Assert.Equal("1", app.ResourceAttributes[ResourceAttributeNames.DeploymentRequestedReplicas]);
         Assert.Equal("0", app.ResourceAttributes[ResourceAttributeNames.DeploymentMaterializedReplicas]);
         Assert.Equal("0", app.ResourceAttributes[ResourceAttributeNames.DeploymentProjectedReplicas]);
         Assert.DoesNotContain(

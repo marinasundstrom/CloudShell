@@ -266,7 +266,7 @@ Orchestrators materialize a scaled container app by producing an
 orchestration-level runtime service descriptor. In CloudShell's orchestration
 contracts this is represented by `ResourceOrchestratorService`: a
 provider-facing descriptor derived from the stable resource id, workload
-configuration, desired replica count, ports, networks, and dependencies. A
+configuration, requested replica count, ports, networks, and dependencies. A
 container app produces one of these descriptors today. It is the grouping used
 to keep track of the runtime implementation for the service contained by the
 resource: replicas, endpoint bindings, dependency ordering, network membership,
@@ -342,7 +342,7 @@ replicas.
 
 The container app resource is also the normal user-facing deployment and
 exposure artifact for application workloads. It can own the stable application
-endpoint, desired replica count, discovery name, public exposure intent,
+endpoint, requested replica count, discovery name, public exposure intent,
 ingress or load-balancer mapping, DNS/name mapping, and health/routing
 diagnostics. Provider-native service objects, such as Kubernetes Services,
 Docker Compose services, or local runtime service descriptors, are
@@ -968,7 +968,7 @@ a revision for a container app, rather than as a resource-type-specific route
 under the core Resource Manager `/resources` endpoints.
 
 `UpdateResourceReplicasCommand` targets the same stable container app resource
-and updates the explicit desired replica count. The container app materializes
+and updates the explicit requested replica count. The container app materializes
 replica resources to represent the app-owned runtime units. The backing
 runtime containers remain provider-owned implementation instances and are not
 API targets for deployment automation.

@@ -1,6 +1,7 @@
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager;
+using CloudShell.ControlPlane.ResourceManager.Orchestration;
 using CloudShell.Providers.Docker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;

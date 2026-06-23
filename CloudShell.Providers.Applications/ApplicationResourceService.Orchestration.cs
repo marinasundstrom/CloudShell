@@ -40,7 +40,7 @@ public sealed partial class ApplicationResourceService
 
         var inputs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            [ResourceAttributeNames.DeploymentDesiredReplicas] =
+            [ResourceAttributeNames.DeploymentRequestedReplicas] =
                 service.Replicas.ToString(CultureInfo.InvariantCulture),
             [ResourceAttributeNames.ContainerRegistry] = GetEffectiveContainerRegistry(application)
         };

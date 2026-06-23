@@ -1,6 +1,7 @@
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Logging;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.ResourceManager.Orchestration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
