@@ -197,6 +197,9 @@ without forcing provider-specific logic into shared helpers.
   configuration contracts.
 - [x] Remove the unused broad `IApplicationResourceManagementOperations`
   contract once consumers moved to focused operation contracts.
+- [x] Move application registration operations to a focused adapter over
+  definition lookup and definition registration instead of the shared
+  application resource service facade.
 
 ## Next Slices
 
