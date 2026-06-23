@@ -1098,6 +1098,7 @@ public static class CloudShellControlPlaneApiExtensions
     private static async Task<IResult> ListReplicaSlotStates(
         string? resourceId,
         int? slotOrdinal,
+        string? replicaGroupId,
         ResourceReplicaSlotReconciliationStatus? status,
         int? maxRecords,
         IResourceReplicaSlotStateManager replicaSlots,
@@ -1106,6 +1107,7 @@ public static class CloudShellControlPlaneApiExtensions
                 new ResourceReplicaSlotStateQuery(
                     ResourceId: NormalizeOptional(resourceId),
                     SlotOrdinal: slotOrdinal,
+                    ReplicaGroupId: NormalizeOptional(replicaGroupId),
                     Status: status,
                     MaxRecords: Math.Clamp(maxRecords ?? 200, 1, 1000)),
                 cancellationToken))

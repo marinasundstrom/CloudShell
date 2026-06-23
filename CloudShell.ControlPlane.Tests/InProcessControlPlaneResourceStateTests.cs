@@ -3486,6 +3486,7 @@ public sealed class InProcessControlPlaneResourceStateTests
             orchestration,
             resourceManager,
             replicaReconciliationStore,
+            deploymentStore,
             resourceEvents);
         var deployments = new ResourceDeploymentService(
             orchestrators,

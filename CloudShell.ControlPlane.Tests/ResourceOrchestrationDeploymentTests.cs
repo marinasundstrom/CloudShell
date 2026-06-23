@@ -693,6 +693,43 @@ public sealed class ResourceOrchestrationDeploymentTests
     }
 
     [Fact]
+    public async Task ReplicaGroupReconciliationService_StampsActiveReplicaGroupOnSlotRepairState()
+    {
+        var resource = CreateResource();
+        var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();
+        var deploymentProvider = new RecordingServiceProcedureProvider(resource);
+        var deployments = CreateDeployments(
+            resource,
+            deploymentProvider,
+            deploymentStore: deploymentStore);
+        var deploymentResult = await deployments.ApplyDeploymentAsync(
+            resource,
+            CreateDeployment(resource.Id, "default", replicas: 3),
+            triggeredBy: "tests");
+        var repairProvider = new RecordingServiceProcedureProvider(resource);
+        var (reconciliation, store) = CreateReplicaGroupReconciliation(
+            resource,
+            repairProvider,
+            deploymentStore: deploymentStore);
+
+        reconciliation.ObserveUnhealthyReplicaSlot(
+            resource,
+            2,
+            "Container exited.",
+            "tests");
+        await reconciliation.ProcessPendingAsync();
+
+        var repaired = AssertReplicaSlotState(
+            store,
+            resource.Id,
+            2,
+            ResourceReplicaSlotRuntimeStatus.Repaired);
+        Assert.Equal(deploymentResult.Revision.ServiceId, repaired.ServiceId);
+        Assert.Equal(deploymentResult.Revision.ReplicaGroup?.Id, repaired.ReplicaGroupId);
+        Assert.Equal(deploymentResult.Revision.ReplicaGroup?.RuntimeRevisionId, repaired.RuntimeRevisionId);
+    }
+
+    [Fact]
     public async Task ReplicaGroupReconciliationService_TracksFailedSlotRepairState()
     {
         var resource = CreateResource();
@@ -771,7 +808,8 @@ public sealed class ResourceOrchestrationDeploymentTests
         CreateReplicaGroupReconciliation(
             Resource resource,
             RecordingServiceProcedureProvider provider,
-            IResourceEventSink? resourceEvents = null)
+            IResourceEventSink? resourceEvents = null,
+            IResourceOrchestratorDeploymentStore? deploymentStore = null)
     {
         var resourceManager = new TestResourceManagerStore([resource], provider);
         var registrations = new TestResourceRegistrationStore(
@@ -785,13 +823,15 @@ public sealed class ResourceOrchestrationDeploymentTests
             registrations,
             new ResourceDeclarationStore(),
             CreateSelectionStore(),
-            resourceEvents: resourceEvents);
+            resourceEvents: resourceEvents,
+            deploymentStore: deploymentStore);
         var store = new InMemoryResourceReplicaGroupReconciliationStore();
         return (
             new ResourceReplicaGroupReconciliationService(
                 orchestration,
                 resourceManager,
                 store,
+                deploymentStore,
                 resourceEvents),
             store);
     }

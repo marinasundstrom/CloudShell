@@ -326,12 +326,16 @@ public sealed record ResourceDeploymentRecord(
 public sealed record ResourceReplicaSlotStateQuery(
     string? ResourceId = null,
     int? SlotOrdinal = null,
+    string? ReplicaGroupId = null,
     ResourceReplicaSlotReconciliationStatus? Status = null,
     int MaxRecords = 200);
 
 public sealed record ResourceReplicaSlotState(
     string ResourceId,
     int SlotOrdinal,
+    string? ServiceId,
+    string? ReplicaGroupId,
+    string? RuntimeRevisionId,
     ResourceReplicaSlotReconciliationStatus Status,
     string? Detail,
     DateTimeOffset ObservedAt,

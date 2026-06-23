@@ -1,6 +1,7 @@
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.ResourceManager.Deployment;
 using System.Globalization;
 
 namespace CloudShell.ControlPlane.ResourceManager.Orchestration;
@@ -9,6 +10,7 @@ public sealed class ResourceReplicaGroupReconciliationService(
     ResourceOrchestrationService orchestration,
     IResourceManagerStore resourceManager,
     IResourceReplicaGroupReconciliationStore reconciliationStore,
+    IResourceOrchestratorDeploymentStore? deploymentStore = null,
     IResourceEventSink? resourceEvents = null)
 {
     public Task<IReadOnlyList<ResourceReplicaSlotState>> ListReplicaSlotStatesAsync(
@@ -20,6 +22,8 @@ public sealed class ResourceReplicaGroupReconciliationService(
         var states = reconciliationStore
             .ListRuntimeStates(query.ResourceId)
             .Where(state => query.SlotOrdinal is null || state.SlotOrdinal == query.SlotOrdinal.Value)
+            .Where(state => string.IsNullOrWhiteSpace(query.ReplicaGroupId) ||
+                string.Equals(state.ReplicaGroupId, query.ReplicaGroupId, StringComparison.OrdinalIgnoreCase))
             .Select(ToReplicaSlotState)
             .Where(state => query.Status is null || state.Status == query.Status.Value)
             .OrderBy(state => state.ResourceId, StringComparer.OrdinalIgnoreCase)
@@ -64,6 +68,7 @@ public sealed class ResourceReplicaGroupReconciliationService(
             }
 
             var startedAt = DateTimeOffset.UtcNow;
+            var activeGroup = ResolveActiveReplicaGroup(request);
             var currentState = reconciliationStore.GetRuntimeState(request.ResourceId, request.SlotOrdinal) ??
                 new ResourceReplicaSlotRuntimeState(
                     request.ResourceId,
@@ -76,6 +81,9 @@ public sealed class ResourceReplicaGroupReconciliationService(
             {
                 Status = ResourceReplicaSlotRuntimeStatus.Repairing,
                 Detail = request.Detail ?? currentState.Detail,
+                ServiceId = activeGroup?.ServiceId ?? currentState.ServiceId,
+                ReplicaGroupId = activeGroup?.ReplicaGroup.Id ?? currentState.ReplicaGroupId,
+                RuntimeRevisionId = activeGroup?.ReplicaGroup.RuntimeRevisionId ?? currentState.RuntimeRevisionId,
                 LastAttemptedAt = startedAt,
                 AttemptCount = currentState.AttemptCount + 1,
                 TriggeredBy = request.TriggeredBy ?? currentState.TriggeredBy
@@ -93,6 +101,9 @@ public sealed class ResourceReplicaGroupReconciliationService(
                 {
                     Status = ResourceReplicaSlotRuntimeStatus.Repaired,
                     Detail = request.Detail ?? currentState.Detail,
+                    ServiceId = activeGroup?.ServiceId ?? currentState.ServiceId,
+                    ReplicaGroupId = activeGroup?.ReplicaGroup.Id ?? currentState.ReplicaGroupId,
+                    RuntimeRevisionId = activeGroup?.ReplicaGroup.RuntimeRevisionId ?? currentState.RuntimeRevisionId,
                     LastAttemptedAt = startedAt,
                     LastCompletedAt = DateTimeOffset.UtcNow,
                     AttemptCount = currentState.AttemptCount + 1,
@@ -106,6 +117,9 @@ public sealed class ResourceReplicaGroupReconciliationService(
                 {
                     Status = ResourceReplicaSlotRuntimeStatus.RepairFailed,
                     Detail = request.Detail ?? currentState.Detail,
+                    ServiceId = activeGroup?.ServiceId ?? currentState.ServiceId,
+                    ReplicaGroupId = activeGroup?.ReplicaGroup.Id ?? currentState.ReplicaGroupId,
+                    RuntimeRevisionId = activeGroup?.ReplicaGroup.RuntimeRevisionId ?? currentState.RuntimeRevisionId,
                     LastAttemptedAt = startedAt,
                     LastCompletedAt = DateTimeOffset.UtcNow,
                     AttemptCount = currentState.AttemptCount + 1,
@@ -128,6 +142,9 @@ public sealed class ResourceReplicaGroupReconciliationService(
         new(
             state.ResourceId,
             state.SlotOrdinal,
+            state.ServiceId,
+            state.ReplicaGroupId,
+            state.RuntimeRevisionId,
             ToPublicStatus(state.Status),
             state.Detail,
             state.ObservedAt,
@@ -147,4 +164,31 @@ public sealed class ResourceReplicaGroupReconciliationService(
             ResourceReplicaSlotRuntimeStatus.RepairFailed => ResourceReplicaSlotReconciliationStatus.RepairFailed,
             _ => ResourceReplicaSlotReconciliationStatus.Unhealthy
         };
+
+    private ActiveReplicaGroup? ResolveActiveReplicaGroup(
+        ResourceReplicaSlotReconciliationRequest request)
+    {
+        if (deploymentStore is null)
+        {
+            return null;
+        }
+
+        var record = deploymentStore
+            .List(new ResourceOrchestratorDeploymentQuery(
+                SourceResourceId: request.ResourceId,
+                MaxRecords: 1000))
+            .Where(record =>
+                record.Status == ResourceOrchestratorDeploymentStatus.Active &&
+                record.ReplicaGroup is not null)
+            .OrderByDescending(record => record.CompletedAt ?? record.StartedAt)
+            .FirstOrDefault();
+
+        return record?.ReplicaGroup is null
+            ? null
+            : new ActiveReplicaGroup(record.ServiceId, record.ReplicaGroup);
+    }
+
+    private sealed record ActiveReplicaGroup(
+        string ServiceId,
+        ResourceOrchestratorReplicaGroup ReplicaGroup);
 }

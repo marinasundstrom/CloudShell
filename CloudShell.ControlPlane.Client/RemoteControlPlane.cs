@@ -597,6 +597,7 @@ public sealed class RemoteControlPlane : IControlPlane
             cancellationToken,
             ("resourceId", query?.ResourceId),
             ("slotOrdinal", query?.SlotOrdinal?.ToString(CultureInfo.InvariantCulture)),
+            ("replicaGroupId", query?.ReplicaGroupId),
             ("status", query?.Status?.ToString()),
             ("maxRecords", (query?.MaxRecords ?? 200).ToString(CultureInfo.InvariantCulture))))
         .Select(response => response.ToResourceReplicaSlotState())
@@ -1416,6 +1417,9 @@ file sealed record ResourceDeploymentRecordResponse(
 file sealed record ResourceReplicaSlotStateResponse(
     string ResourceId,
     int SlotOrdinal,
+    string? ServiceId,
+    string? ReplicaGroupId,
+    string? RuntimeRevisionId,
     ResourceReplicaSlotReconciliationStatus Status,
     string? Detail,
     DateTimeOffset ObservedAt,
@@ -1916,6 +1920,9 @@ file static class RemoteControlPlaneMapper
         new(
             response.ResourceId,
             response.SlotOrdinal,
+            response.ServiceId,
+            response.ReplicaGroupId,
+            response.RuntimeRevisionId,
             response.Status,
             response.Detail,
             response.ObservedAt,

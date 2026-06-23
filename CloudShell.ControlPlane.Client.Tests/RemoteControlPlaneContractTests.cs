@@ -879,6 +879,9 @@ public sealed class RemoteControlPlaneContractTests
             ResourceReplicaSlotRuntimeStatus.RepairFailed,
             "Container exited.",
             DateTimeOffset.UtcNow.AddMinutes(-2),
+            ServiceId: "contract-container-app",
+            ReplicaGroupId: "contract-container-app-revision-2-replicas",
+            RuntimeRevisionId: "revision-2",
             LastAttemptedAt: DateTimeOffset.UtcNow.AddMinutes(-1),
             LastCompletedAt: DateTimeOffset.UtcNow,
             AttemptCount: 1,
@@ -889,12 +892,16 @@ public sealed class RemoteControlPlaneContractTests
         var states = await controlPlane.ListReplicaSlotStatesAsync(new ResourceReplicaSlotStateQuery(
             ResourceId: ContractImageResourceProvider.ResourceId,
             SlotOrdinal: 2,
+            ReplicaGroupId: "contract-container-app-revision-2-replicas",
             Status: ResourceReplicaSlotReconciliationStatus.RepairFailed,
             MaxRecords: 10));
         var state = Assert.Single(states);
 
         Assert.Equal(ContractImageResourceProvider.ResourceId, state.ResourceId);
         Assert.Equal(2, state.SlotOrdinal);
+        Assert.Equal("contract-container-app", state.ServiceId);
+        Assert.Equal("contract-container-app-revision-2-replicas", state.ReplicaGroupId);
+        Assert.Equal("revision-2", state.RuntimeRevisionId);
         Assert.Equal(ResourceReplicaSlotReconciliationStatus.RepairFailed, state.Status);
         Assert.Equal("Container exited.", state.Detail);
         Assert.Equal(1, state.AttemptCount);
@@ -904,12 +911,15 @@ public sealed class RemoteControlPlaneContractTests
         var response = await app.GetTestClient().GetAsync(
             "/api/control-plane/v1/replica-slot-states" +
             $"?resourceId={Uri.EscapeDataString(ContractImageResourceProvider.ResourceId)}" +
-            "&slotOrdinal=2&status=RepairFailed&maxRecords=10");
+            "&slotOrdinal=2&replicaGroupId=contract-container-app-revision-2-replicas&status=RepairFailed&maxRecords=10");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var stateResponse = Assert.Single(document.RootElement.EnumerateArray());
         Assert.Equal(ContractImageResourceProvider.ResourceId, stateResponse.GetProperty("resourceId").GetString());
         Assert.Equal(2, stateResponse.GetProperty("slotOrdinal").GetInt32());
+        Assert.Equal("contract-container-app", stateResponse.GetProperty("serviceId").GetString());
+        Assert.Equal("contract-container-app-revision-2-replicas", stateResponse.GetProperty("replicaGroupId").GetString());
+        Assert.Equal("revision-2", stateResponse.GetProperty("runtimeRevisionId").GetString());
         Assert.Equal(
             (int)ResourceReplicaSlotReconciliationStatus.RepairFailed,
             stateResponse.GetProperty("status").GetInt32());

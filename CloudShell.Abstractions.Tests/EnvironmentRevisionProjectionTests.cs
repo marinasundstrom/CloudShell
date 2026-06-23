@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Hosting.ResourceManager;
 
@@ -60,6 +61,63 @@ public sealed class EnvironmentRevisionProjectionTests
                 Assert.Equal("active", projected.LatestStatus);
                 Assert.Equal("Deployment-produced environment revision", projected.Description);
             });
+    }
+
+    [Fact]
+    public void CreateRows_UsesDeploymentRecordsForEnvironmentRevisionHistory()
+    {
+        var createdAt = new DateTimeOffset(2026, 6, 23, 10, 30, 0, TimeSpan.Zero);
+        var rows = EnvironmentRevisionProjection.CreateRows(
+            [
+                CreateResource(
+                    "application:api",
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        [ResourceAttributeNames.DeploymentId] = "api-deployment",
+                        [ResourceAttributeNames.DeploymentStatus] = "stale",
+                        [ResourceAttributeNames.DeploymentEnvironmentRevisionId] = "env-api-2",
+                        [ResourceAttributeNames.DeploymentServiceId] = "api-service",
+                        [ResourceAttributeNames.DeploymentReplicaGroupId] = "stale-replicas"
+                    })
+            ],
+            [
+                new ResourceDeploymentRecord(
+                    "api-deployment",
+                    "default",
+                    "application:api",
+                    "api-service",
+                    "rev-2",
+                    ResourceOrchestratorDeploymentStatus.Active,
+                    createdAt.AddMinutes(-1),
+                    CompletedAt: createdAt,
+                    TriggeredBy: "system",
+                    EnvironmentRevisionId: "env-api-2",
+                    EnvironmentRevisionNumber: 2,
+                    EnvironmentRevisionCreatedAt: createdAt,
+                    EnvironmentRevisionStatus: ResourceOrchestratorRevisionStatus.Active,
+                    BasedOnEnvironmentRevisionId: "env-api-1",
+                    ProvisionedBy: "alice",
+                    ReplicaGroup: new ResourceOrchestratorReplicaGroup(
+                        "api-service-rev-2-replicas",
+                        "api-service",
+                        "rev-2",
+                        2,
+                        [
+                            new ResourceOrchestratorServiceInstance("api-replica-1", 1, 2, "rev-2"),
+                            new ResourceOrchestratorServiceInstance("api-replica-2", 2, 2, "rev-2")
+                        ]))
+            ]);
+
+        var projected = Assert.Single(rows, row => row.EnvironmentRevisionId == "env-api-2");
+        Assert.Equal(2, projected.RevisionNumber);
+        Assert.Equal(createdAt, projected.CreatedAt);
+        Assert.Equal("env-api-1", projected.BasedOnEnvironmentRevisionId);
+        Assert.Equal("alice", projected.ProvisionedBy);
+        Assert.Equal("Active", projected.LatestStatus);
+        Assert.Equal(1, projected.ResourceCount);
+        Assert.Equal(1, projected.DeploymentCount);
+        Assert.Equal(1, projected.ServiceCount);
+        Assert.Equal(1, projected.ReplicaGroupCount);
     }
 
     private static Resource CreateResource(

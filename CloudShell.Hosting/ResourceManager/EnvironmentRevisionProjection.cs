@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.Hosting.ResourceManager;
@@ -7,19 +8,33 @@ public static class EnvironmentRevisionProjection
     public const string BaselineRevisionId = "baseline-current";
 
     public static IReadOnlyList<EnvironmentRevisionProjectionRow> CreateRows(
-        IReadOnlyList<Resource> resources)
+        IReadOnlyList<Resource> resources,
+        IReadOnlyList<ResourceDeploymentRecord>? deployments = null)
     {
         ArgumentNullException.ThrowIfNull(resources);
 
-        var deploymentRows = resources
+        var deploymentRows = (deployments ?? [])
+            .Where(deployment => IsProjected(deployment.EnvironmentRevisionId))
+            .GroupBy(deployment => deployment.EnvironmentRevisionId!, StringComparer.OrdinalIgnoreCase)
+            .Select(CreateDeploymentRecordRevisionRow)
+            .ToArray();
+        var deploymentRevisionIds = deploymentRows
+            .Select(row => row.EnvironmentRevisionId)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var resourceAttributeRows = resources
             .Where(resource => resource.ResourceAttributes.ContainsKey(ResourceAttributeNames.DeploymentId))
             .Select(EnvironmentDeploymentProjectionRow.Create)
-            .ToArray();
-        var projectedRevisionRows = deploymentRows
+            .Where(row => !deploymentRevisionIds.Contains(row.EnvironmentRevisionId))
             .Where(row => IsProjected(row.EnvironmentRevisionId))
             .GroupBy(row => row.EnvironmentRevisionId, StringComparer.OrdinalIgnoreCase)
             .Select(CreateProjectedRevisionRow)
-            .OrderBy(row => row.EnvironmentRevisionId, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var projectedRevisionRows = deploymentRows
+            .Concat(resourceAttributeRows)
+            .OrderBy(row => row.RevisionNumber is null)
+            .ThenBy(row => row.RevisionNumber)
+            .ThenBy(row => row.CreatedAt ?? DateTimeOffset.MaxValue)
+            .ThenBy(row => row.EnvironmentRevisionId, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
         if (resources.Count == 0)
@@ -57,7 +72,28 @@ public static class EnvironmentRevisionProjection
             "Deployment-produced environment revision");
     }
 
-    private static bool IsProjected(string value) =>
+    private static EnvironmentRevisionProjectionRow CreateDeploymentRecordRevisionRow(
+        IGrouping<string, ResourceDeploymentRecord> group)
+    {
+        var records = group.ToArray();
+        var latest = records
+            .OrderByDescending(record => record.CompletedAt ?? record.StartedAt)
+            .First();
+        return new EnvironmentRevisionProjectionRow(
+            group.Key,
+            records.Select(record => record.SourceResourceId).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
+            records.Select(record => record.DeploymentId).Where(IsProjected).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
+            records.Select(record => record.ServiceId).Where(IsProjected).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
+            records.Select(record => record.ReplicaGroup?.Id).Where(IsProjected).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
+            latest.EnvironmentRevisionStatus?.ToString() ?? latest.Status.ToString(),
+            "Deployment-produced environment revision",
+            latest.EnvironmentRevisionNumber,
+            latest.EnvironmentRevisionCreatedAt ?? latest.CompletedAt ?? latest.StartedAt,
+            latest.BasedOnEnvironmentRevisionId,
+            latest.ProvisionedBy ?? latest.TriggeredBy);
+    }
+
+    private static bool IsProjected(string? value) =>
         !string.IsNullOrWhiteSpace(value) &&
         !string.Equals(value, "not projected", StringComparison.OrdinalIgnoreCase);
 
@@ -90,4 +126,8 @@ public sealed record EnvironmentRevisionProjectionRow(
     int ServiceCount,
     int ReplicaGroupCount,
     string LatestStatus,
-    string Description);
+    string Description,
+    int? RevisionNumber = null,
+    DateTimeOffset? CreatedAt = null,
+    string? BasedOnEnvironmentRevisionId = null,
+    string? ProvisionedBy = null);

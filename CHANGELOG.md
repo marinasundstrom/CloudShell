@@ -101,6 +101,14 @@ on `git blame --follow`, and then by the broad type of change.
   rather than only counting projected resource attributes, correlating each
   group with requested slots, occupied slots, materialized replicas, and slot
   reconciliation status.
+- Replica slot reconciliation state now records the targeted service, replica
+  group, and runtime revision when repair is processed, and Environment
+  replica-group diagnostics only correlate slot states for the same materialized
+  group so scale changes are not presented as repairs.
+- Environment revisions on the Environment page now prefer deployment-record
+  history over projected resource attributes, showing revision number,
+  based-on revision, provisioned-by, and created time when the deployment
+  record provides them.
 - The repository now includes `ControlPlane.http` as a quick manual endpoint
   scratchpad while the Control Plane OpenAPI document remains the served API
   specification.

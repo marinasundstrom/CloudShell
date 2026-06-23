@@ -397,6 +397,9 @@ public sealed record ResourceDeploymentRecordResponse(
 public sealed record ResourceReplicaSlotStateResponse(
     string ResourceId,
     int SlotOrdinal,
+    string? ServiceId,
+    string? ReplicaGroupId,
+    string? RuntimeRevisionId,
     ResourceReplicaSlotReconciliationStatus Status,
     string? Detail,
     DateTimeOffset ObservedAt,
@@ -841,6 +844,9 @@ internal static class CloudShellControlPlaneDtoMapper
         new(
             state.ResourceId,
             state.SlotOrdinal,
+            state.ServiceId,
+            state.ReplicaGroupId,
+            state.RuntimeRevisionId,
             state.Status,
             state.Detail,
             state.ObservedAt,
