@@ -28,15 +28,14 @@ public sealed partial class ApplicationResourceRuntimeOperations(
     IServiceProvider serviceProvider,
     IEnumerable<IResourceIdentityCredentialEnvironmentProvider> identityCredentialEnvironmentProviders,
     IEnumerable<IResourceEnvironmentVariableProvider> environmentVariableProviders,
-    IEnumerable<IConfigurationEntryReferenceResolver> configurationEntryResolvers,
-    IEnumerable<ISecretReferenceResolver> secretResolvers,
     ResourceDeclarationStore declarations,
     ApplicationContainerHostResolver? containerHosts = null,
     IResourceEventSink? resourceEvents = null,
     ILoggerFactory? loggerFactory = null,
     ApplicationResourceDefinitionNormalizer? definitionNormalizer = null,
     ApplicationResourceDefinitionRegistrationService? applicationDefinitionRegistrations = null,
-    ApplicationWorkloadConfigurationProvider? workloadConfigurations = null) :
+    ApplicationWorkloadConfigurationProvider? workloadConfigurations = null,
+    ApplicationResourceSettingResolver? settingResolver = null) :
     IApplicationResourceProcedureOperations,
     IApplicationResourceActionAvailabilityOperations,
     IContainerApplicationResourceProviderOperations,
@@ -70,6 +69,11 @@ public sealed partial class ApplicationResourceRuntimeOperations(
             options,
             declarations,
             identityCredentialEnvironmentProviders);
+    private readonly ApplicationResourceSettingResolver _settingResolver =
+        settingResolver ?? new ApplicationResourceSettingResolver(
+            declarations,
+            serviceProvider.GetServices<IConfigurationEntryReferenceResolver>(),
+            serviceProvider.GetServices<ISecretReferenceResolver>());
     private readonly ApplicationContainerProcessTracker _containerProcesses =
         serviceProvider.GetService<ApplicationContainerProcessTracker>() ?? new ApplicationContainerProcessTracker(
             runtimeStates,
@@ -904,7 +908,7 @@ public sealed partial class ApplicationResourceRuntimeOperations(
         bool includeAspNetCoreProjectVariables,
         CancellationToken cancellationToken)
     {
-        var configuredVariables = await ResolveConfiguredEnvironmentVariablesAsync(
+        var configuredVariables = await _settingResolver.ResolveConfiguredEnvironmentVariablesAsync(
             definition,
             resourceGroupId,
             cancellationToken);
@@ -1011,128 +1015,8 @@ public sealed partial class ApplicationResourceRuntimeOperations(
         return new string(characters).Trim('-');
     }
 
-    private async Task<IReadOnlyList<EnvironmentVariableAssignment>> ResolveConfiguredEnvironmentVariablesAsync(
-        ApplicationResourceDefinition definition,
-        string? resourceGroupId,
-        CancellationToken cancellationToken)
-    {
-        var identity = ResolveIdentity(definition.Id);
-        var context = new ResourceSettingResolutionContext(
-            definition.Id,
-            resourceGroupId,
-            "run",
-            identity,
-            identity is null ? null : FormatIdentity(identity, definition));
-        var variables = new List<EnvironmentVariableAssignment>();
-
-        foreach (var setting in definition.AppSettings)
-        {
-            var value = await ResolveSettingValueAsync(
-                setting.Name,
-                setting.Value,
-                setting.ConfigurationEntry,
-                setting.Secret,
-                context,
-                cancellationToken);
-            variables.Add(new EnvironmentVariableAssignment(setting.Name, value));
-        }
-
-        foreach (var variable in definition.EnvironmentVariables)
-        {
-            var value = await ResolveSettingValueAsync(
-                variable.Name,
-                variable.Value,
-                variable.ConfigurationEntry,
-                variable.Secret,
-                context,
-                cancellationToken);
-            variables.Add(new EnvironmentVariableAssignment(variable.Name, value));
-        }
-
-        return variables;
-    }
-
-    private async Task<string> ResolveSettingValueAsync(
-        string name,
-        string? literalValue,
-        ConfigurationEntryReference? configurationEntry,
-        SecretReference? secret,
-        ResourceSettingResolutionContext context,
-        CancellationToken cancellationToken)
-    {
-        if (configurationEntry is not null)
-        {
-            return ResolveConfigurationEntryValue(name, configurationEntry, context);
-        }
-
-        if (secret is not null)
-        {
-            return await ResolveSecretValueAsync(name, secret, context, cancellationToken);
-        }
-
-        return literalValue ?? string.Empty;
-    }
-
-    private string ResolveConfigurationEntryValue(
-        string name,
-        ConfigurationEntryReference reference,
-        ResourceSettingResolutionContext context)
-    {
-        var errors = new List<string>();
-        foreach (var resolver in configurationEntryResolvers)
-        {
-            var result = resolver.ResolveConfigurationEntry(reference, context);
-            if (result.IsResolved)
-            {
-                return result.Value ?? string.Empty;
-            }
-
-            if (!string.IsNullOrWhiteSpace(result.ErrorMessage))
-            {
-                errors.Add(result.ErrorMessage);
-            }
-        }
-
-        var message = errors.Count == 0
-            ? $"No configuration provider can resolve entry '{reference.EntryName}' from '{reference.StoreResourceId}'."
-            : string.Join(" ", errors);
-        throw new ResourceSettingResolutionException(name, "configuration-entry", message);
-    }
-
-    private async Task<string> ResolveSecretValueAsync(
-        string name,
-        SecretReference reference,
-        ResourceSettingResolutionContext context,
-        CancellationToken cancellationToken)
-    {
-        var errors = new List<string>();
-        foreach (var resolver in secretResolvers)
-        {
-            var result = await resolver.ResolveSecretAsync(reference, context, cancellationToken);
-            if (result.IsResolved)
-            {
-                return result.Value ?? string.Empty;
-            }
-
-            if (!string.IsNullOrWhiteSpace(result.ErrorMessage))
-            {
-                errors.Add(result.ErrorMessage);
-            }
-        }
-
-        var message = errors.Count == 0
-            ? $"No vault provider can resolve secret '{reference.SecretName}' from '{reference.VaultResourceId}'."
-            : string.Join(" ", errors);
-        throw new ResourceSettingResolutionException(name, "secret", message);
-    }
-
-    private ResourceIdentityReference? ResolveIdentity(string resourceId)
-    {
-        var declaration = declarations.GetDeclaration(resourceId);
-        return declaration?.IdentityBinding is null
-            ? null
-            : ResourceIdentityReference.ForResource(resourceId, declaration.IdentityBinding.Name);
-    }
+    private ResourceIdentityReference? ResolveIdentity(string resourceId) =>
+        _settingResolver.ResolveIdentity(resourceId);
 
     private string? GetReferenceUnavailableReason(
         ApplicationResourceDefinition definition,

@@ -11,7 +11,7 @@ public sealed partial class ApplicationResourceRuntimeOperations
     {
         try
         {
-            _ = await ResolveConfiguredEnvironmentVariablesAsync(
+            _ = await _settingResolver.ResolveConfiguredEnvironmentVariablesAsync(
                 application,
                 resourceGroupId,
                 cancellationToken);

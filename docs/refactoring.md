@@ -235,6 +235,9 @@ without forcing provider-specific logic into shared helpers.
 - [x] Rename the remaining runtime/procedure coordinator from
   `ApplicationResourceService` to `ApplicationResourceRuntimeOperations` so the
   old catch-all service is no longer a required provider-facing concept.
+- [x] Move application configuration-entry and secret setting resolution into
+  `ApplicationResourceSettingResolver` so preflight checks and runtime
+  execution share a focused resolver instead of runtime coordinator internals.
 
 ## Next Slices
 

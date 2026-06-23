@@ -107,6 +107,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The remaining application runtime/procedure coordinator is now
   `ApplicationResourceRuntimeOperations`; the old `ApplicationResourceService`
   type is no longer required by provider-facing application infrastructure.
+- Application configuration-entry and secret setting resolution now lives in
+  `ApplicationResourceSettingResolver` instead of the runtime/procedure
+  coordinator.
 
 ### 2026-06-23
 

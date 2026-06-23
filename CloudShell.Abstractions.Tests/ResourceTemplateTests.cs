@@ -507,6 +507,10 @@ public sealed class ResourceTemplateTests
             var descriptorOperations = new ApplicationResourceDescriptorOperations(
                 definitionSource,
                 workloadConfigurations);
+            var settingResolver = new ApplicationResourceSettingResolver(
+                declarations,
+                [],
+                []);
             var services = new ServiceCollection().BuildServiceProvider();
             Provider = new ApplicationResourceRuntimeOperations(
                 store,
@@ -518,9 +522,8 @@ public sealed class ResourceTemplateTests
                 services,
                 [],
                 [],
-                [],
-                [],
-                declarations);
+                declarations,
+                settingResolver: settingResolver);
             ResourceProvider = new ExecutableApplicationResourceProvider(
                 projectionSource,
                 definitionSource,
