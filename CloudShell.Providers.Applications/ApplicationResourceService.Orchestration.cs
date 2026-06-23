@@ -1,19 +1,14 @@
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
-using System.Globalization;
-
 namespace CloudShell.Providers.Applications;
 
 public sealed partial class ApplicationResourceService
 {
     private ResourceOrchestratorService CreateDefaultContainerOrchestratorService(
         ApplicationResourceDefinition application) =>
-        new(
-            application.Id,
-            GetContainerServiceName(application.Id),
-            CreateWorkloadConfiguration(application),
-            Networks: [DefaultContainerNetworkName],
-            ReplicaManagementPolicy: application.ReplicaManagementPolicy);
+        ContainerOrchestratorDeploymentFactory.CreateService(
+            application,
+            CreateWorkloadConfiguration(application));
 
     private ResourceOrchestratorService CreateActiveContainerOrchestratorService(
         ApplicationResourceDefinition application) =>
@@ -29,36 +24,13 @@ public sealed partial class ApplicationResourceService
         ResourceState state,
         bool runtimeRevisionScoped = false)
     {
-        var service = CreateDefaultContainerOrchestratorService(application);
         var revision = GetEffectiveContainerRevision(application);
-        if (runtimeRevisionScoped &&
-            ShouldUseRevisionScopedRuntimeInstances(application, revision))
-        {
-            service = service with
-            {
-                RuntimeRevisionId = revision
-            };
-        }
-
-        var inputs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            [ResourceAttributeNames.DeploymentRequestedReplicaSlots] =
-                service.Replicas.ToString(CultureInfo.InvariantCulture),
-            [ResourceAttributeNames.DeploymentRequestedReplicas] =
-                service.Replicas.ToString(CultureInfo.InvariantCulture),
-            [ResourceAttributeNames.ContainerRegistry] = GetEffectiveContainerRegistry(application)
-        };
-
-        AddIfNotEmpty(inputs, ResourceAttributeNames.ContainerImage, application.ContainerImage);
-
-        return new ResourceOrchestratorDeployment(
-            CreateDefaultContainerOrchestratorDeploymentId(application.Id),
-            DefaultOrchestratorId,
-            application.Id,
-            service.Name,
-            revision,
-            new ResourceOrchestratorDeploymentSpec(service, revision, inputs),
-            GetContainerOrchestratorDeploymentStatus(state));
+        return ContainerOrchestratorDeploymentFactory.CreateDeployment(
+            application,
+            state,
+            CreateWorkloadConfiguration(application),
+            runtimeRevisionScoped &&
+                ShouldUseRevisionScopedRuntimeInstances(application, revision));
     }
 
     private bool ShouldUseRevisionScopedRuntimeInstances(
@@ -286,13 +258,4 @@ public sealed partial class ApplicationResourceService
         ResourceOrchestratorService service) =>
         ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service);
 
-    private static ResourceOrchestratorDeploymentStatus GetContainerOrchestratorDeploymentStatus(
-        ResourceState state) =>
-        state switch
-        {
-            ResourceState.Starting or ResourceState.Stopping => ResourceOrchestratorDeploymentStatus.Applying,
-            ResourceState.Running => ResourceOrchestratorDeploymentStatus.Active,
-            ResourceState.Degraded => ResourceOrchestratorDeploymentStatus.Failed,
-            _ => ResourceOrchestratorDeploymentStatus.Pending
-        };
 }

@@ -65,8 +65,8 @@ public sealed partial class ApplicationResourceService(
     private static readonly SemaphoreSlim AspNetCoreProjectBuildLock = new(1, 1);
     private static readonly HttpClient ContainerReadinessHttpClient = new();
     private static readonly ApplicationWorkloadConfigurationFactory WorkloadConfigurationFactory = new();
+    private static readonly ApplicationContainerOrchestratorDeploymentFactory ContainerOrchestratorDeploymentFactory = new();
     private const string DefaultContainerNetworkName = "cloudshell";
-    private const string DefaultOrchestratorId = "default";
     private const string AspNetCoreUrlsEnvironmentVariable = "ASPNETCORE_URLS";
     private const string DotNetWatchRestartOnRudeEditEnvironmentVariable = "DOTNET_WATCH_RESTART_ON_RUDE_EDIT";
     public const string HiddenResourceEnvironmentVariable = "CloudShell__ResourceManager__Hidden";
@@ -4511,10 +4511,10 @@ public sealed partial class ApplicationResourceService(
     }
 
     private static string GetContainerServiceName(string resourceId) =>
-        ResourceOrchestratorReplicaGroups.CreateDefaultServiceName(resourceId);
+        ApplicationContainerOrchestratorDeploymentFactory.CreateServiceName(resourceId);
 
     private static string CreateDefaultContainerOrchestratorDeploymentId(string resourceId) =>
-        $"{GetContainerServiceName(resourceId)}-deployment";
+        ApplicationContainerOrchestratorDeploymentFactory.CreateDeploymentId(resourceId);
 
     private static string ToAttributeValue(ResourceOrchestratorDeploymentStatus status) =>
         status.ToString().ToLowerInvariant();

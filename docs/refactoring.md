@@ -54,6 +54,9 @@ without forcing provider-specific logic into shared helpers.
 - [x] Extract application workload configuration mapping into a dedicated
   factory with direct tests for workload kind selection, common runtime
   attributes, and replica-mode behavior.
+- [x] Extract deterministic container app orchestrator deployment shape into a
+  dedicated factory with direct tests for service identity, deployment inputs,
+  revision scoping, and status mapping.
 
 ## Next Slices
 
