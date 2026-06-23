@@ -58,6 +58,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Container app replica-group tear-down now removes retired local Docker
   containers instead of only stopping them, preventing stale retired replicas
   from remaining visible as resources and log sources.
+- Deployment and container app proposals now define replica groups in terms of
+  requested replica slots, with slot-focused restart/replacement policy owned
+  by a Resource Manager orchestration reconciler instead of provider-specific
+  loops.
 - Resource Manager orchestration now has an internal service tear-down boundary
   so orchestrator services can stop their materialized runtime resources
   separately from incremental deployment setup.

@@ -1078,48 +1078,48 @@ deployment and environment-revision model. They are not required for the first
 implementation, but the baseline model should not force a full resource restart
 for image updates.
 
-Scale-only operations remain different. Increasing or decreasing replicas for
-the active runtime group reconciles runtime capacity and should not require
-traffic cutover or replacement of healthy existing replicas unless an
-orchestrator's backend requires it. The replica group model should own the
-change calculation: scale-up sets up target group members, scale-down tears
-down previous group members, and unchanged members remain part of the active
-runtime set.
+Scale-only operations remain different. Increasing or decreasing the requested
+replica slots for the active runtime group reconciles runtime capacity and
+should not require traffic cutover or replacement of healthy existing slots
+unless an orchestrator's backend requires it. The replica group model should
+own the change calculation: scale-up creates new slots and materializes their
+occupants, scale-down drains and tears down removed slots, and unchanged slots
+remain part of the active runtime set.
 
 For consistency, explicit scaling is still an orchestrator deployment because
 it changes desired runtime state. The deployment says: keep the current
 workload version, service configuration, routing, and active replica group, but
-set `RequestedReplicas` to the requested capacity. A successful scale
-deployment should produce a new Environment revision because the materialized
-hosting environment changed. It should not create a new runtime revision or
+set the requested replica slot count. A successful scale deployment should
+produce a new Environment revision because the materialized hosting
+environment changed. It should not create a new runtime revision or
 replacement replica group unless the selected orchestrator cannot scale the
 active group in place.
 
 The higher-level resource should ask the orchestrator to materialize the scale
 change rather than manually creating or deleting runtime replicas itself. On
-scale-up, the orchestrator starts the additional replica resources, waits for
-any declared setup/readiness gate that applies to scale materialization, and
-then records the Environment revision with the resulting replica group state.
-On scale-down, the orchestrator drains or stops the removed replica resources
-according to policy and records the resulting Environment revision. The
-resource provider may still execute provider-specific member operations, but
-the desired-capacity diff and member lifecycle sequence belong to the
-orchestration boundary.
+scale-up, the orchestrator adds requested slots, materializes occupants for
+those slots, waits for any declared setup/readiness gate that applies to scale
+materialization, and then records the Environment revision with the resulting
+replica group state. On scale-down, the orchestrator drains or stops the
+removed slots' occupants according to policy and records the resulting
+Environment revision. The resource provider may still execute
+provider-specific member operations, but the slot diff and member lifecycle
+sequence belong to the orchestration boundary.
 
 Replica-group reconciliation is still resource reconciliation, but it is not
 identical to ordinary single-resource reconciliation. A replica group is a
 resource-shaped deployment object whose desired state includes a set of
-members and a requested capacity. Reconciling that object requires
-membership-aware behavior: compare the previous and target groups, start or
-create added members, drain, stop, or remove deleted members, and leave
-unchanged members serving. Ordinary resource reconciliation can usually compare
+requested replica slots. Reconciling that object requires slot-aware behavior:
+compare the previous and target slot sets, start or create occupants for added
+slots, drain, stop, or remove occupants for deleted slots, and leave unchanged
+slot occupants serving. Ordinary resource reconciliation can usually compare
 attributes and update one materialized resource in place; replica-group
-reconciliation additionally owns the member lifecycle sequence and the
-resulting group outcome.
+reconciliation additionally owns the slot lifecycle sequence and the resulting
+group outcome.
 
 A replica group should be treated as its own versioned orchestration unit. The
 deployment defines the replica group with replica attributes, such as
-requested replica count, requested lifecycle state, placement hints, and
+requested replica slots, requested lifecycle state, placement hints, and
 rollout or retention policy, plus the resource definition used to create or
 update each replica member. For container apps, that replica resource
 definition is derived from the app revision or current operational runtime
@@ -1129,8 +1129,68 @@ from the group attributes and member resource definition, and records the
 resulting group in the Environment revision. If the member resource definition
 changes, the deployment should normally produce a new versioned replica group
 so side-by-side replacement, readiness, cutover, and cleanup can be tracked. If
-only the requested capacity changes, the orchestrator can reconcile the
-existing versioned group by adding or removing members.
+only the requested replica slot count changes, the orchestrator can reconcile
+the existing versioned group by adding or removing slots.
+
+Replica group reconciliation should be slot-oriented. A **replica slot** is
+the stable desired position in a replica group, such as ordinal `1` of `4`.
+The materialized replica resource or runtime container is the current occupant
+of that slot. This distinction lets the orchestrator reason about the desired
+shape of the group even when a member crashes, disappears, or has to be
+replaced. A slot can be occupied, vacant, unhealthy, draining, or waiting for a
+replacement, while the replica group still records the requested replica
+slots.
+
+For the container app MVP, restart and replacement policy should be scoped to
+replica groups and their slots, not generalized across all resources. The
+first policy question is not "should CloudShell recover the container app
+resource?" but "what should the orchestrator do when a slot in this replica
+group no longer has a healthy occupant?" The initial behaviors should be:
+
+* **Leave vacant**: record the failed or missing slot and do not attempt to
+  fill it automatically.
+* **Restart occupant**: invoke provider-specific restart/start behavior for
+  the same materialized resource when the runtime identity still exists and
+  retrying the same instance is meaningful.
+* **Replace occupant**: tear down the failed or missing occupant if needed and
+  create a new materialized replica for the same slot. This should be the
+  default direction for cheap, disposable container replicas.
+
+The restart policy describes the allowed slot behavior. Recovery policy
+describes the attempt rules around that behavior: failure threshold, backoff,
+maximum attempts, and reset-after-healthy timing. For MVP this can be modeled
+as replica-group-specific slot recovery rather than reusing the general
+resource recovery UI or API. The existing resource recovery policy remains the
+policy for a stable resource as a management unit; replica slot recovery is an
+orchestrator concern inside a replica group.
+
+Replica slot state needs a controller responsibility. In CloudShell terms this
+should be a Resource Manager orchestration reconciler, not a container-app
+provider loop and not a public deployment API requirement for MVP. The
+reconciler owns these responsibilities:
+
+* read the desired replica group from the active deployment/environment
+  revision
+* derive the desired replica slots from that group
+* observe materialized slot occupants through projected runtime resources,
+  provider observations, and liveness signals
+* classify each slot as occupied, vacant, unhealthy, starting, draining, or
+  replacing
+* apply the replica group slot policy to decide whether to leave the slot
+  vacant, restart the current occupant, or create a replacement occupant
+* invoke orchestrator/provider operations to materialize that decision
+* record slot-level events and the resulting Environment revision or
+  reconciliation observation
+
+Providers should not silently invent this policy. They can project runtime
+resources, expose liveness signals, and execute provider-specific start,
+restart, stop, or remove operations for a slot occupant. The orchestration
+reconciler decides which operation is appropriate for the replica group.
+For the local MVP, this reconciler can be implemented inside the combined
+Control Plane process using the existing health/liveness polling foundation.
+For shared or split-hosted environments, it should follow the primary
+controller/worker direction so multiple Control Plane API replicas do not all
+try to repair the same slot concurrently.
 
 ## Docker Compose Orchestrator Behavior
 

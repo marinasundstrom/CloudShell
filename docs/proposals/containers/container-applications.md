@@ -156,13 +156,49 @@ container app provider does not have to own replica-count diffing itself.
 The container app should define the replica group as part of the orchestrator
 deployment. In Kubernetes terms this is closest to a replica set, but
 CloudShell keeps it resource-centered: the group carries replica attributes,
-including requested replica count and lifecycle request, and a replica member
+including requested replica slots and lifecycle request, and a replica member
 resource definition that describes the runtime resource shape for each app
 replica. That member definition includes image, command, environment, endpoint
 bindings, mounts, identity, and resource correlation metadata. A changed member
-definition creates a new versioned replica group. A requested replica-count
+definition creates a new versioned replica group. A requested slot-count
 change against the same member definition reconciles membership in the existing
 group and records a new Environment revision for the capacity change.
+
+Container apps should treat replica groups as a set of requested **replica
+slots**. A slot is the desired position in the group; the container resource is
+the current occupant of that slot. When a container crashes or disappears, the
+orchestrator should evaluate the slot rather than immediately treating the
+whole container app as stopped. If other slots are still serving, the app may
+be degraded while the slot policy decides whether to fill the vacant or failed
+slot.
+
+The first container app policy should stay slot-focused:
+
+* A slot can be left vacant when automatic repair is disabled.
+* A slot can restart the same occupant when the runtime identity still exists
+  and retrying the same container is explicitly requested.
+* A slot can be filled by replacement, where the failed occupant is removed if
+  necessary and a new container is materialized for the same slot. This is the
+  expected default for container app replicas because containers are cheap and
+  should be disposable.
+
+This is distinct from general resource recovery. Resource recovery decides
+whether the stable container app resource should be recovered as a management
+unit. Replica slot recovery decides how the orchestrator maintains requested
+capacity inside an already-active replica group. The container app UI can later
+surface this as replica behavior or slot repair policy without requiring users
+to understand environment revisions, deployment objects, or provider-native
+container restart settings up front.
+
+The component that keeps container app replica slots aligned should be the
+Resource Manager orchestration reconciler. The container app provider declares
+the app configuration, projects runtime replica resources, contributes
+liveness signals, and executes provider-specific Docker/container operations
+when asked. It should not run an independent loop that decides how many
+replicas should exist or whether a failed slot should restart or be replaced.
+That decision belongs to the replica group reconciler because it has the active
+deployment, replica group, slot policy, liveness observations, and environment
+revision context.
 
 ## Container App Deployments and Configuration Revisions
 
