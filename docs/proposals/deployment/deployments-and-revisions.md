@@ -284,6 +284,83 @@ The MVP deliberately leaves these flexible:
   common contracts to their native objects.
 * Live graph visualization of Resource Manager and orchestrator activity.
 
+## End-to-End POC Scenario
+
+The first proof should be a narrow container app scenario that demonstrates
+the general Resource Manager deployment model without making the user manage
+orchestrator deployments directly.
+
+The POC should use the existing replicated container health sample as the
+manual validation target:
+
+```text
+dotnet run --project samples/ReplicatedContainerHealth -- --urls http://localhost:5011
+```
+
+The target flow:
+
+1. The user updates a container app image or requested replica count from the
+   app-owned UI or command surface.
+2. The container app records app-owned deployment intent and, when appropriate,
+   a candidate app configuration revision. This remains app configuration
+   history, not orchestrator environment history.
+3. The container app provider describes a `ResourceOrchestratorDeployment`
+   for Resource Manager. The deployment specification contains the computed
+   runtime intent: one orchestrator service for the app runtime boundary,
+   service resources for the load-balancer or route, replica group, and
+   materialized replicas, workload version or image, requested replicas,
+   readiness or health requirements, and dependency, network, port, and volume
+   intent needed by the runtime.
+4. Resource Manager deployment coordination records the apply attempt, selects
+   the deployment applier, defaults `BasedOnRevisionId` to the latest
+   successful environment revision for the same app service, and asks the
+   selected orchestrator to apply the deployment.
+5. The default orchestrator materializes a new runtime replica group for
+   image-changing deployments. It starts the new replicas beside the active
+   group, waits for readiness, updates routing or load-balancer membership,
+   then schedules the superseded group for explicit tear-down.
+6. For scale-only changes on the active runtime revision, the orchestrator
+   uses the replica-group change model to add or remove materialized replica
+   resources without replacing the app configuration revision or forcing a full
+   resource restart.
+7. On successful apply, Resource Manager creates an orchestrator environment
+   revision. The revision records its unique environment revision id,
+   service-scoped revision number, based-on environment revision id,
+   provisioned-by actor, deployment definition snapshot, materialized replica
+   group snapshot, and runtime resource correlation metadata.
+8. The container app marks the app-owned deployment or revision active and
+   correlates it with the orchestrator environment revision. The identities
+   remain separate.
+9. If setup fails before readiness, Resource Manager records a failed
+   deployment attempt, best-effort tears down the candidate runtime group, does
+   not create an environment revision, and asks the provider to keep the
+   previous app revision active.
+10. Post-apply cleanup failures are reported as warning deployment activity
+    and do not invalidate the already-created environment revision.
+
+The POC is successful when:
+
+* an image update can start replacement replicas beside active replicas before
+  cutover
+* a scale-only replica update does not require a resource restart
+* a failed candidate deployment leaves the previous app state active
+* the resource surface shows active deployment, requested replicas,
+  materialized replicas, environment revision id, service id, and replica
+  group id
+* the Revisions tab keeps app configuration revisions understandable without
+  exposing orchestrator internals as the main user concept
+* deployment events show apply, readiness, routing, cleanup, success, and
+  failure milestones in chronological order
+* hidden runtime replica resources can be inspected with deployment, service,
+  environment revision, runtime revision, and replica-group correlation
+  metadata
+
+This POC should stay resource-centered. It may resemble Kubernetes rollout
+mechanics where the runtime problem is similar, but CloudShell should continue
+to model resources, services, deployments, replica groups, and environment
+revisions in Resource Manager terms rather than introducing pods or
+Kubernetes-native controller objects into the common domain model.
+
 ## Domain Model
 
 ### Revision Terminology
