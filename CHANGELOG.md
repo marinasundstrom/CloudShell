@@ -86,6 +86,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The container app Scale and replicas view now displays requested replica
   slots as the primary rows, with optional occupant details and auto-refresh so
   slot repair transitions are visible.
+- The container app Scale and replicas view now prefers parent runtime-scope
+  health observations when rendering slot health, so a failed replica slot is
+  visible even when the last projected runtime occupant still exists.
 - The Resource Manager resource table now refreshes its projected resource
   model immediately after lifecycle actions complete, keeping row state aligned
   with the resource detail view after starts and stops.

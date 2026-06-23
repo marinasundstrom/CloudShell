@@ -163,6 +163,8 @@ else
                             @foreach (var slot in ReplicaSlots)
                             {
                                 var replica = slot.Occupant;
+                                var observation = GetSlotObservation(slot);
+                                var health = replica is null ? null : GetReplicaHealth(replica);
                                 <tr>
                                     <td>
                                         <ResourceTableIdentity IconName="replica"
@@ -187,22 +189,27 @@ else
                                         {
                                             <span class="table-subtext">Vacant</span>
                                         }
+                                        else if (observation?.Status == ResourceHealthStatus.Unhealthy)
+                                        {
+                                            <span class="table-subtext">Slot unhealthy</span>
+                                        }
                                         else
                                         {
                                             <ResourceStateIndicator State="replica.State" Variant="pill" />
                                         }
                                     </td>
                                     <td>
-                                        @{
-                                            var health = replica is null ? null : GetReplicaHealth(replica);
-                                        }
                                         <div class="replica-health-assessment">
-                                            <HealthPill Status="health?.Status" />
-                                            <span>@GetSlotHealthDetail(slot, health)</span>
+                                            <HealthPill Status="@GetSlotHealthStatus(slot, health, observation)" />
+                                            <span>@GetSlotHealthDetail(slot, health, observation)</span>
                                             @if (replica is not null && health is not null && health.Checks.Count > 0)
                                             {
                                                 <small>@GetHealthBreakdown(health)</small>
                                                 <small>@FormatCheckedAt(health.CheckedAt)</small>
+                                            }
+                                            @if (observation?.CheckedAt is not null)
+                                            {
+                                                <small>@FormatCheckedAt(observation.CheckedAt.Value)</small>
                                             }
                                         </div>
                                     </td>
@@ -616,10 +623,18 @@ else
 
     private static string GetSlotHealthDetail(
         ReplicaSlotView slot,
-        ResourceHealthSummary? health) =>
-        slot.Occupant is null
+        ResourceHealthSummary? health,
+        ResourceHealthScopeObservation? observation)
+    {
+        if (observation is not null)
+        {
+            return FormatSlotObservationDetail(observation);
+        }
+
+        return slot.Occupant is null
             ? "No active replica"
             : GetHealthDetail(slot.Occupant, health);
+    }
 
     private static string GetMaterializationLabel(Resource resource) =>
         GetAttribute(resource, ResourceAttributeNames.RuntimeMaterialization, "unknown") switch
@@ -665,6 +680,44 @@ else
     private ResourceHealthSummary? GetReplicaHealth(Resource replica) =>
         HealthResults.GetValueOrDefault(replica.Id);
 
+    private static string FormatSlotObservationDetail(ResourceHealthScopeObservation observation)
+    {
+        if (observation.ObservationAttributes.TryGetValue("health.check.name", out var checkName) &&
+            !string.IsNullOrWhiteSpace(checkName))
+        {
+            return $"{checkName}: {observation.Detail}";
+        }
+
+        return observation.Detail;
+    }
+
+    private ResourceHealthScopeObservation? GetSlotObservation(ReplicaSlotView slot)
+    {
+        if (ProjectedResource is null ||
+            !HealthResults.TryGetValue(ProjectedResource.Id, out var summary))
+        {
+            return null;
+        }
+
+        var ordinal = slot.Ordinal.ToString(CultureInfo.InvariantCulture);
+        return summary.Checks
+            .SelectMany(check => check.ScopeObservations)
+            .Where(observation =>
+                string.Equals(observation.ScopeKind, ResourceHealthScopeKinds.Runtime, StringComparison.OrdinalIgnoreCase) &&
+                observation.ObservationAttributes.TryGetValue(ResourceAttributeNames.RuntimeReplicaOrdinal, out var value) &&
+                string.Equals(value, ordinal, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(GetHealthRank)
+            .ThenByDescending(observation => observation.CheckedAt ?? DateTimeOffset.MinValue)
+            .FirstOrDefault();
+    }
+
+    private static ResourceHealthStatus? GetSlotHealthStatus(
+        ReplicaSlotView slot,
+        ResourceHealthSummary? health,
+        ResourceHealthScopeObservation? observation) =>
+        observation?.Status ??
+        (slot.Occupant is null ? null : health?.Status);
+
     private static string GetHealthDetail(
         Resource replica,
         ResourceHealthSummary? health)
@@ -689,6 +742,15 @@ else
 
     private static int GetHealthRank(ResourceHealthCheckResult result) =>
         result.Status switch
+        {
+            ResourceHealthStatus.Unhealthy => 0,
+            ResourceHealthStatus.Unknown => 1,
+            ResourceHealthStatus.Healthy => 2,
+            _ => 3
+        };
+
+    private static int GetHealthRank(ResourceHealthScopeObservation observation) =>
+        observation.Status switch
         {
             ResourceHealthStatus.Unhealthy => 0,
             ResourceHealthStatus.Unknown => 1,
