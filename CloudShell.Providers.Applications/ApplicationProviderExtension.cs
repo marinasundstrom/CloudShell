@@ -58,6 +58,7 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
         builder.Services.TryAddSingleton<ApplicationResourceDefinitionSource>();
         builder.Services.TryAddSingleton<ApplicationResourceRegistrationOperations>();
         builder.Services.TryAddSingleton<ApplicationResourceConfigurationOperations>();
+        builder.Services.TryAddSingleton<ApplicationResourceDeclarationOperations>();
         builder.Services.TryAddSingleton<ApplicationContainerHistoryService>();
         builder.Services.TryAddSingleton<SqlServerDatabaseInspectionService>();
         builder.Services.TryAddSingleton<SqlServerCredentialResolutionService>();
@@ -83,7 +84,7 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
         builder.Services.TryAddSingleton<IApplicationResourceTemplateOperations>(
             serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceService>());
         builder.Services.TryAddSingleton<IApplicationResourceDeclarationOperations>(
-            serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceService>());
+            serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceDeclarationOperations>());
         builder.Services.TryAddSingleton<IApplicationResourceDescriptorOperations>(
             serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceService>());
         builder.Services.TryAddSingleton<IApplicationResourceActionAvailabilityOperations>(

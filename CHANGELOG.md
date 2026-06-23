@@ -76,6 +76,9 @@ on `git blame --follow`, and then by the broad type of change.
 - `ApplicationResourceService` no longer advertises itself as the application
   definition-source contract; `ApplicationResourceDefinitionSource` owns that
   provider-facing boundary.
+- Application declaration application now uses a dedicated focused adapter over
+  declared provider options and registration operations instead of the shared
+  application resource service.
 
 ### 2026-06-23
 

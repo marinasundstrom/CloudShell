@@ -37,6 +37,8 @@ public sealed class ApplicationProviderOperationsRegistrationTests
             serviceProvider.GetRequiredService<ISqlServerCredentialResolutionOperations>());
         Assert.IsType<SqlServerGrantStatusService>(
             serviceProvider.GetRequiredService<ISqlServerApplicationResourceProviderOperations>());
+        Assert.IsType<ApplicationResourceDeclarationOperations>(
+            serviceProvider.GetRequiredService<IApplicationResourceDeclarationOperations>());
         Assert.IsType<SqlServerDatabaseReconciliationService>(
             serviceProvider.GetRequiredService<SqlServerDatabaseReconciliationService>());
     }

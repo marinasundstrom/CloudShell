@@ -471,6 +471,14 @@ public sealed class ResourceTemplateTests
             var localProcesses = new LocalProcessRunner(runtimeStates, processOptions, environment);
             var definitionNormalizer = new ApplicationResourceDefinitionNormalizer(environment);
             var definitionSource = new ApplicationResourceDefinitionSource(store, definitionNormalizer);
+            var definitionRegistrations = new ApplicationResourceDefinitionRegistrationService(store, definitionNormalizer);
+            var registrationOperations = new ApplicationResourceRegistrationOperations(
+                definitionSource,
+                definitionRegistrations);
+            var declarationOperations = new ApplicationResourceDeclarationOperations(
+                options,
+                definitionSource,
+                registrationOperations);
             var services = new ServiceCollection().BuildServiceProvider();
             Provider = new ApplicationResourceService(
                 store,
@@ -490,7 +498,7 @@ public sealed class ResourceTemplateTests
                 definitionSource,
                 Provider,
                 Provider,
-                Provider,
+                declarationOperations,
                 Provider,
                 Provider);
             Group = new ResourceGroup("group-1", "Local Development", "Development resources", ["application:example-web-api"]);

@@ -206,6 +206,9 @@ without forcing provider-specific logic into shared helpers.
 - [x] Remove application definition-source contract implementation from the
   shared application resource service; keep `ApplicationResourceDefinitionSource`
   as the provider-facing boundary.
+- [x] Move application declaration operations to a focused adapter over
+  declared provider options, definition lookup, and registration operations
+  instead of the shared application resource service facade.
 
 ## Next Slices
 
