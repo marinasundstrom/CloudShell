@@ -20,7 +20,8 @@ public sealed class ResourceOrchestrationService(
     IContainerHostResolver? containerHostResolver = null,
     IEnumerable<IResourceActionAvailabilityProvider>? actionAvailabilityProviders = null,
     IResourceEventSink? resourceEvents = null,
-    ILoggerFactory? loggerFactory = null)
+    ILoggerFactory? loggerFactory = null,
+    IResourceOrchestratorDeploymentStore? deploymentStore = null)
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
     private readonly IReadOnlyList<IResourceOrchestrator> orchestrators = orchestrators.ToArray();
@@ -72,6 +73,12 @@ public sealed class ResourceOrchestrationService(
 
         var context = CreateContext(resource, triggeredBy, cause);
         var applier = SelectDeploymentApplier(context, deployment);
+        var applyingDeployment = deployment with { Status = ResourceOrchestratorDeploymentStatus.Applying };
+        deploymentStore?.RecordApplying(
+            applyingDeployment,
+            DateTimeOffset.UtcNow,
+            triggeredBy,
+            cause);
         AppendResourceActionEvent(
             resource,
             ResourceEventTypes.Events.Deployment.Applying,
@@ -82,8 +89,15 @@ public sealed class ResourceOrchestrationService(
         {
             var result = await applier.ApplyDeploymentAsync(
                 context,
-                deployment with { Status = ResourceOrchestratorDeploymentStatus.Applying },
+                applyingDeployment,
                 cancellationToken);
+            deploymentStore?.RecordApplied(
+                result.Deployment,
+                result.Revision,
+                DateTimeOffset.UtcNow,
+                result.ProcedureResult.Message,
+                triggeredBy,
+                cause);
             AppendResourceActionEvent(
                 resource,
                 ResourceEventTypes.Events.Deployment.Applied,
@@ -93,6 +107,12 @@ public sealed class ResourceOrchestrationService(
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
+            deploymentStore?.RecordFailed(
+                deployment,
+                DateTimeOffset.UtcNow,
+                exception.Message,
+                triggeredBy,
+                cause);
             AppendResourceActionEvent(
                 resource,
                 ResourceEventTypes.Events.Deployment.Failed,

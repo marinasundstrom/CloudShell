@@ -5,7 +5,8 @@ using System.Globalization;
 
 namespace CloudShell.ControlPlane.ResourceManager;
 
-public sealed class DefaultResourceOrchestrator :
+public sealed class DefaultResourceOrchestrator(
+    IResourceOrchestratorDeploymentStore? deploymentStore = null) :
     IResourceOrchestrator,
     IResourceOrchestratorDeploymentApplier
 {
@@ -84,8 +85,22 @@ public sealed class DefaultResourceOrchestrator :
             deployment);
 
         var applied = deployment with { Status = ResourceOrchestratorDeploymentStatus.Active };
+        var revisionCreatedAt = DateTimeOffset.UtcNow;
+        var revision = deploymentStore?.CreateRevision(
+            applied,
+            revisionCreatedAt,
+            ResourceOrchestratorRevisionStatus.Active) ??
+            new ResourceOrchestratorRevision(
+                applied.RevisionId,
+                applied.Id,
+                applied.SourceResourceId,
+                applied.ServiceId,
+                RevisionNumber: 1,
+                revisionCreatedAt,
+                ResourceOrchestratorRevisionStatus.Active);
         return new ResourceOrchestratorDeploymentApplyResult(
             applied,
+            revision,
             ResourceProcedureResult.Completed(
                 $"Applied deployment '{deployment.Id}' for revision '{deployment.RevisionId}'."));
     }

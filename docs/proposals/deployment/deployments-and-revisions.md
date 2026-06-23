@@ -40,6 +40,8 @@ required, asks the Control Plane to apply the provider-described orchestrator
 deployment spec. The default orchestrator now records deployment activity
 events for service reconciliation and replica materialization so Resource
 Manager activity can trace what the orchestrator is doing during apply.
+The Control Plane also records internal orchestrator deployment history for
+apply attempts, successful orchestrator revisions, and failed apply results.
 Container apps also keep provider-owned app deployment and revision history
 separately from the desired application definition. Those app deployment
 records correlate the deployment request to the produced container app
@@ -50,8 +52,10 @@ The intended general rule is broader than container apps: when an orchestrator
 handles a resource state change that has runtime workload intent, it may derive
 a default deployment for that change even when the user manages the resource
 directly rather than managing an explicit deployment resource.
-They are not yet a public Resource Manager or Control Plane management surface,
-and rich rollout history, restore deployments, traffic splitting, and retention remain
+They are not yet a public Resource Manager or Control Plane management surface.
+Public APIs for orchestrator-level deployments may be useful later, but they
+are not a current use case. Rich rollout history, restore deployments, traffic
+splitting, retention, and live resource/orchestrator graph visualization remain
 deferred.
 
 ## Problem
@@ -265,10 +269,12 @@ Deployment application is scoped to a resource and deployment. CloudShell must
 be able to apply deployments for different container apps concurrently; any
 serialization should be limited to the same resource, same runtime target, or
 provider-specific critical section that truly cannot be run in parallel.
-The model should retain enough per-deployment status, timing, event, and
-runtime-resource correlation data for a future live deployment visualization
-that can show several container app deployments progressing at the same time:
-the orchestrator materializing runtime resources, updating existing runtime
+The deployment model should retain enough status, timing, and revision
+correlation for diagnostics. A future live graph of Resource Manager and
+orchestrator activity should build on broader event observation rather than
+being tied only to orchestrator deployment records. That visualization could
+show several container app deployments progressing at the same time: the
+orchestrator materializing runtime resources, updating existing runtime
 resources, acting on routing or ingress resources, and cleaning up superseded
 runtime resources.
 

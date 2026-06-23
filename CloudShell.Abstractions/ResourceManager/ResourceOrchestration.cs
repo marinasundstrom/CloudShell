@@ -59,6 +59,7 @@ public sealed record ResourceOrchestratorRevision(
 
 public sealed record ResourceOrchestratorDeploymentApplyResult(
     ResourceOrchestratorDeployment Deployment,
+    ResourceOrchestratorRevision Revision,
     ResourceProcedureResult ProcedureResult);
 
 public enum ResourceOrchestratorDeploymentStatus

@@ -106,6 +106,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Default orchestrator deployment apply now records service reconciliation and
   replica materialization activity events, giving container app deployments
   rollout milestones that can support future live deployment visualization.
+- Orchestrator deployment apply now produces an orchestrator revision result
+  and records internal Control Plane deployment history for apply attempts,
+  successful revisions, and failures without exposing orchestrator deployments
+  as a public management API.
 - SQL Server database declarations now use `DeclareDatabase(...)`, and local
   development or test resources can opt in to missing database creation with
   `DeclareDatabase(...).EnsureCreated()` instead of creating declared

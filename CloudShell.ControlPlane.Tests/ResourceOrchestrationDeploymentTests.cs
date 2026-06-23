@@ -18,7 +18,8 @@ public sealed class ResourceOrchestrationDeploymentTests
         var resource = CreateResource();
         var provider = new RecordingServiceProcedureProvider(resource);
         var resourceEvents = new InMemoryResourceEventStore();
-        var orchestration = CreateOrchestration(resource, provider, resourceEvents);
+        var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();
+        var orchestration = CreateOrchestration(resource, provider, resourceEvents, deploymentStore);
         var deployment = CreateDeployment(resource.Id, "default", replicas: 3);
 
         var result = await orchestration.ApplyDeploymentAsync(
@@ -28,6 +29,12 @@ public sealed class ResourceOrchestrationDeploymentTests
             cause: "Container app deployment.");
 
         Assert.Equal(ResourceOrchestratorDeploymentStatus.Active, result.Deployment.Status);
+        Assert.Equal(deployment.RevisionId, result.Revision.Id);
+        Assert.Equal(deployment.Id, result.Revision.DeploymentId);
+        Assert.Equal(deployment.SourceResourceId, result.Revision.SourceResourceId);
+        Assert.Equal(deployment.ServiceId, result.Revision.ServiceId);
+        Assert.Equal(1, result.Revision.RevisionNumber);
+        Assert.Equal(ResourceOrchestratorRevisionStatus.Active, result.Revision.Status);
         Assert.Equal(deployment.Spec.Service.Name, Assert.Single(provider.PreparedServices).Name);
         Assert.Equal(
             [1, 2, 3],
@@ -71,6 +78,15 @@ public sealed class ResourceOrchestrationDeploymentTests
             resourceEvent =>
                 resourceEvent.EventType == ResourceEventTypes.Events.Deployment.ReplicaMaterializing &&
                 resourceEvent.Message.Contains("replica 2/3", StringComparison.Ordinal));
+        var deploymentRecord = Assert.Single(deploymentStore.List(new ResourceOrchestratorDeploymentQuery(
+            SourceResourceId: resource.Id,
+            DeploymentId: deployment.Id)));
+        Assert.Equal(ResourceOrchestratorDeploymentStatus.Active, deploymentRecord.Status);
+        Assert.Equal(result.Revision, deploymentRecord.Revision);
+        Assert.Equal("tests", deploymentRecord.TriggeredBy);
+        Assert.Equal("Container app deployment.", deploymentRecord.Cause);
+        Assert.Equal(result.ProcedureResult.Message, deploymentRecord.Message);
+        Assert.NotNull(deploymentRecord.CompletedAt);
     }
 
     [Fact]
@@ -94,13 +110,75 @@ public sealed class ResourceOrchestrationDeploymentTests
     }
 
     [Fact]
+    public async Task ApplyDeploymentAsync_RecordsFailedDeployment()
+    {
+        var resource = CreateResource();
+        var provider = new RecordingServiceProcedureProvider(resource, failOnExecute: true);
+        var resourceEvents = new InMemoryResourceEventStore();
+        var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();
+        var orchestration = CreateOrchestration(resource, provider, resourceEvents, deploymentStore);
+        var deployment = CreateDeployment(resource.Id, "default", replicas: 1);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            orchestration.ApplyDeploymentAsync(
+                resource,
+                deployment,
+                triggeredBy: "tests",
+                cause: "Container app deployment."));
+
+        Assert.Equal("Replica execution failed.", exception.Message);
+        var deploymentRecord = Assert.Single(deploymentStore.List(new ResourceOrchestratorDeploymentQuery(
+            SourceResourceId: resource.Id,
+            DeploymentId: deployment.Id)));
+        Assert.Equal(ResourceOrchestratorDeploymentStatus.Failed, deploymentRecord.Status);
+        Assert.Null(deploymentRecord.Revision);
+        Assert.Equal("tests", deploymentRecord.TriggeredBy);
+        Assert.Equal("Container app deployment.", deploymentRecord.Cause);
+        Assert.Equal("Replica execution failed.", deploymentRecord.Error);
+        Assert.NotNull(deploymentRecord.CompletedAt);
+        Assert.Contains(
+            resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: resource.Id)),
+            resourceEvent =>
+                resourceEvent.EventType == ResourceEventTypes.Events.Deployment.Failed &&
+                resourceEvent.Severity == ResourceSignalSeverity.Error);
+    }
+
+    [Fact]
+    public async Task ApplyDeploymentAsync_IncrementsOrchestratorRevisionNumberForSameDeployment()
+    {
+        var resource = CreateResource();
+        var provider = new RecordingServiceProcedureProvider(resource);
+        var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();
+        var orchestration = CreateOrchestration(resource, provider, deploymentStore: deploymentStore);
+        var firstDeployment = CreateDeployment(resource.Id, "default", replicas: 1);
+        var secondDeployment = firstDeployment with { RevisionId = "rev-3" };
+
+        var firstResult = await orchestration.ApplyDeploymentAsync(resource, firstDeployment);
+        var secondResult = await orchestration.ApplyDeploymentAsync(resource, secondDeployment);
+
+        Assert.Equal(1, firstResult.Revision.RevisionNumber);
+        Assert.Equal(2, secondResult.Revision.RevisionNumber);
+        var records = deploymentStore.List(new ResourceOrchestratorDeploymentQuery(
+            SourceResourceId: resource.Id,
+            DeploymentId: firstDeployment.Id));
+        Assert.Equal(2, records.Count);
+        Assert.Contains(records, record =>
+            record.RevisionId == "rev-2" &&
+            record.Revision?.RevisionNumber == 1);
+        Assert.Contains(records, record =>
+            record.RevisionId == "rev-3" &&
+            record.Revision?.RevisionNumber == 2);
+    }
+
+    [Fact]
     public async Task ApplyDeploymentAsync_AllowsDifferentResourcesToApplyConcurrently()
     {
         var api = CreateResource("application:api", "API");
         var worker = CreateResource("application:worker", "Worker");
         var gate = new ConcurrentDeploymentGate(expectedCount: 2);
         var provider = new RecordingServiceProcedureProvider([api, worker], gate);
-        var orchestration = CreateOrchestration([api, worker], provider);
+        var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();
+        var orchestration = CreateOrchestration([api, worker], provider, deploymentStore: deploymentStore);
 
         var apiApply = orchestration.ApplyDeploymentAsync(
             api,
@@ -121,30 +199,39 @@ public sealed class ResourceOrchestrationDeploymentTests
                 .Select(service => service.ResourceId)
                 .Order(StringComparer.OrdinalIgnoreCase)
                 .ToArray());
+        Assert.Equal(
+            [api.Id, worker.Id],
+            deploymentStore.List()
+                .Select(record => record.SourceResourceId)
+                .Order(StringComparer.OrdinalIgnoreCase)
+                .ToArray());
     }
 
     private static ResourceOrchestrationService CreateOrchestration(
         Resource resource,
         RecordingServiceProcedureProvider provider,
-        IResourceEventSink? resourceEvents = null) =>
-        CreateOrchestration([resource], provider, resourceEvents);
+        IResourceEventSink? resourceEvents = null,
+        IResourceOrchestratorDeploymentStore? deploymentStore = null) =>
+        CreateOrchestration([resource], provider, resourceEvents, deploymentStore);
 
     private static ResourceOrchestrationService CreateOrchestration(
         IReadOnlyList<Resource> resources,
         RecordingServiceProcedureProvider provider,
-        IResourceEventSink? resourceEvents = null)
+        IResourceEventSink? resourceEvents = null,
+        IResourceOrchestratorDeploymentStore? deploymentStore = null)
     {
         var registrations = new TestResourceRegistrationStore(
             resources.Select(resource =>
                 new ResourceRegistration(resource.Id, provider.Id, null, DateTimeOffset.UtcNow, resource.DependsOn)));
         return new ResourceOrchestrationService(
-            [new DefaultResourceOrchestrator()],
+            [new DefaultResourceOrchestrator(deploymentStore)],
             [],
             new TestResourceManagerStore(resources, provider),
             registrations,
             new ResourceDeclarationStore(),
             CreateSelectionStore(),
-            resourceEvents: resourceEvents);
+            resourceEvents: resourceEvents,
+            deploymentStore: deploymentStore);
     }
 
     private static Resource CreateResource(
@@ -197,12 +284,18 @@ public sealed class ResourceOrchestrationDeploymentTests
 
     private sealed class RecordingServiceProcedureProvider(
         IReadOnlyList<Resource> resources,
-        ConcurrentDeploymentGate? gate = null) :
+        ConcurrentDeploymentGate? gate = null,
+        bool failOnExecute = false) :
         IResourceProvider,
         IResourceOrchestratorServiceProcedureProvider
     {
         public RecordingServiceProcedureProvider(Resource resource)
             : this([resource])
+        {
+        }
+
+        public RecordingServiceProcedureProvider(Resource resource, bool failOnExecute)
+            : this([resource], failOnExecute: failOnExecute)
         {
         }
 
@@ -243,6 +336,11 @@ public sealed class ResourceOrchestrationDeploymentTests
             ResourceAction action,
             CancellationToken cancellationToken = default)
         {
+            if (failOnExecute)
+            {
+                throw new InvalidOperationException("Replica execution failed.");
+            }
+
             ExecutedInstances.Add(context);
             return Task.CompletedTask;
         }
