@@ -530,6 +530,33 @@ to map the same CloudShell deployment specification into Docker, Docker
 Compose, Kubernetes, or a custom runtime without exposing those backend models
 as the common CloudShell contract.
 
+Lifecycle and materialization intent should be part of the requested resource
+or replica state in the deployment definition. This follows the same model as
+`RequestedReplicas`: the actor requests a target state, and the orchestrator
+decides what can be granted and materialized. If the actor requests that a
+resource, replica group member, or standalone runtime resource should be
+started, stopped, paused, or left in another allowed state, that request is
+expressed as ordinary requested-state metadata on the relevant service or
+resource definition.
+
+The selected orchestrator validates the requested state against the resource
+type, provider capabilities, capacity, policy, and deployment context, then
+reconciles toward it during apply. This avoids modeling deployment setup as a
+sequence of imperative follow-up commands such as "create this replica, then
+start it"; the deployment requests the target state, and the orchestrator
+decides which provider operations are required to materialize it. The
+Environment revision records the materialized outcome, which may confirm the
+requested state or record that the request failed or could not be fully
+granted.
+
+The default requested state should be explicit in the model. For runtime
+resources that can participate in lifecycle, the deployment definition should
+make clear whether the requested materialized state is started, stopped, or a
+resource-type-specific default. Not every resource kind supports every
+lifecycle state, and some logical resources may not have lifecycle state at
+all. Invalid requested states should fail deployment validation before the
+orchestrator begins materialization.
+
 An orchestrator revision has a CloudShell-wide unique `Id`. It may also expose
 a scoped `RevisionNumber` as a projection for a service, standalone resource,
 or environment history view; that number is not the global identity.
@@ -1052,11 +1079,32 @@ implementation, but the baseline model should not force a full resource restart
 for image updates.
 
 Scale-only operations remain different. Increasing or decreasing replicas for
-the active runtime group reconciles runtime capacity and should not require traffic
-cutover or replacement of healthy existing replicas unless an orchestrator's
-backend requires it. The replica group model should own the change calculation:
-scale-up sets up target group members, scale-down tears down previous group
-members, and unchanged members remain part of the active runtime set.
+the active runtime group reconciles runtime capacity and should not require
+traffic cutover or replacement of healthy existing replicas unless an
+orchestrator's backend requires it. The replica group model should own the
+change calculation: scale-up sets up target group members, scale-down tears
+down previous group members, and unchanged members remain part of the active
+runtime set.
+
+For consistency, explicit scaling is still an orchestrator deployment because
+it changes desired runtime state. The deployment says: keep the current
+workload version, service configuration, routing, and active replica group, but
+set `RequestedReplicas` to the requested capacity. A successful scale
+deployment should produce a new Environment revision because the materialized
+hosting environment changed. It should not create a new runtime revision or
+replacement replica group unless the selected orchestrator cannot scale the
+active group in place.
+
+The higher-level resource should ask the orchestrator to materialize the scale
+change rather than manually creating or deleting runtime replicas itself. On
+scale-up, the orchestrator starts the additional replica resources, waits for
+any declared setup/readiness gate that applies to scale materialization, and
+then records the Environment revision with the resulting replica group state.
+On scale-down, the orchestrator drains or stops the removed replica resources
+according to policy and records the resulting Environment revision. The
+resource provider may still execute provider-specific member operations, but
+the desired-capacity diff and member lifecycle sequence belong to the
+orchestration boundary.
 
 ## Docker Compose Orchestrator Behavior
 
@@ -1343,8 +1391,8 @@ The next MVP changes should stay focused:
   container app path proves the model.
 * Decide which fields are environment-revision-relevant beyond workload version
   and requested replicas.
-* Define the boundary between scale-only operations that preserve the active
-  runtime group and deployment operations that replace the runtime group.
+* Define which scale operations must preserve the active runtime group and
+  which orchestrator backends require replacement-group materialization.
 * Decide how revision-scoped replica groups should be surfaced for richer
   inspection beyond the internal revision outcome and projected resource
   metadata.

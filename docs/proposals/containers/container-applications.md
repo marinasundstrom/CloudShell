@@ -199,6 +199,28 @@ runtime resources as a separate tear-down operation. Scaling the currently
 active app revision is capacity management and does not necessarily create
 another app revision.
 
+Explicit replica scaling should be consistent with the orchestration model:
+the container app requests a deployment that changes desired runtime capacity
+for the currently active app revision, and the orchestrator materializes that
+change by starting or stopping replica group members. A successful scale
+operation produces an orchestrator Environment revision because the hosting
+environment changed, but it should not create a new container app
+configuration revision when only the operational requested replica count is
+changed. A new container app revision is appropriate when the deployment
+changes the app configuration that should be versioned, such as image,
+environment, command, endpoint, storage, identity, or a persisted scaling
+policy/template. Manual requested-capacity changes remain deployment history
+and environment history, not app configuration history by default.
+
+When the app requests replicas, the requested lifecycle state of those runtime
+members is part of the orchestrator deployment state. For example, a scale-up
+deployment can request additional replica members in the started state, while a
+scale-down or tear-down operation can request removed members to drain, stop,
+or be deleted according to policy. The orchestrator validates and materializes
+that request, then records the outcome in the Environment revision. The app
+should not model this as manually creating replicas and then issuing separate
+start commands.
+
 Restoring a container app revision means creating a new deployment whose
 requested app configuration is based on the configuration captured by an
 existing app revision. It does not reactivate or mutate the old revision
