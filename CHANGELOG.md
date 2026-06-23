@@ -42,6 +42,13 @@ on `git blame --follow`, and then by the broad type of change.
 - Environment and container app scaling views now show deployment-record
   replica-group details, making scale reconciliation visible through runtime
   revision, replica group, requested replicas, and materialized replicas.
+- Container app projection now preserves revision-scoped replica group and
+  runtime container names after deployment state is persisted without
+  provider-owned deployment history, keeping health and log sources aligned
+  with the containers the orchestrator materialized.
+- Liveness lifecycle projection now degrades a parent resource when only some
+  runtime scopes fail to respond, instead of marking the whole replicated
+  resource stopped while healthy runtime scopes are still serving.
 - Resource Manager orchestration now has an internal service tear-down boundary
   so orchestrator services can stop their materialized runtime resources
   separately from incremental deployment setup.

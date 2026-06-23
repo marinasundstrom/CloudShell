@@ -1893,6 +1893,47 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task ListResourcesAsync_ProjectsParentAsDegradedWhenOnlySomeRuntimeChildrenDoNotRespond()
+    {
+        var parent = CreateResource("application:api", ResourceState.Running);
+        var replica1 = CreateRuntimeReplicaResource(parent.Id, 1) with
+        {
+            HealthChecks = [CreateLivenessCheck()]
+        };
+        var replica2 = CreateRuntimeReplicaResource(parent.Id, 2) with
+        {
+            HealthChecks = [CreateLivenessCheck()]
+        };
+        var controlPlane = CreateControlPlane(
+            [parent, replica1, replica2],
+            probeEvaluators:
+            [
+                new ResourceSpecificProbeEvaluator(
+                    new Dictionary<string, ResourceHealthStatus>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        [replica1.Id] = ResourceHealthStatus.Healthy,
+                        [replica2.Id] = ResourceHealthStatus.Unhealthy
+                    },
+                    new Dictionary<string, ResourceHealthCheckOutcome>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        [replica2.Id] = ResourceHealthCheckOutcome.NoResponse
+                    })
+            ]);
+
+        await controlPlane.RefreshResourceHealthAsync(parent.Id);
+        await controlPlane.RefreshResourceHealthAsync(parent.Id);
+        await controlPlane.RefreshResourceHealthAsync(parent.Id);
+
+        var projected = (await controlPlane.ListResourcesAsync())
+            .Single(resource => resource.Id == parent.Id);
+        var loaded = await controlPlane.GetResourceAsync(parent.Id);
+
+        Assert.Equal(ResourceState.Degraded, projected.State);
+        Assert.NotNull(loaded);
+        Assert.Equal(ResourceState.Degraded, loaded.State);
+    }
+
+    [Fact]
     public async Task RefreshResourceHealthAsync_RecordsDegradedEventWhenLivenessFailureThresholdIsReached()
     {
         var resourceEvents = new InMemoryResourceEventStore();
@@ -3662,7 +3703,8 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     private sealed class ResourceSpecificProbeEvaluator(
-        IReadOnlyDictionary<string, ResourceHealthStatus> statuses) : IResourceProbeEvaluator
+        IReadOnlyDictionary<string, ResourceHealthStatus> statuses,
+        IReadOnlyDictionary<string, ResourceHealthCheckOutcome>? outcomes = null) : IResourceProbeEvaluator
     {
         public bool CanEvaluate(Resource resource, ResourceHealthCheck check) =>
             string.Equals(check.EffectiveSource.Kind, "test", StringComparison.OrdinalIgnoreCase);
@@ -3678,7 +3720,7 @@ public sealed class InProcessControlPlaneResourceStateTests
                 status,
                 $"{resource.Id} is {status.ToString().ToLowerInvariant()}",
                 null,
-                ResourceHealthCheckOutcome.Responded));
+                outcomes?.GetValueOrDefault(resource.Id) ?? ResourceHealthCheckOutcome.Responded));
         }
     }
 

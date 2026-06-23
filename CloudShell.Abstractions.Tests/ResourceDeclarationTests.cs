@@ -9624,6 +9624,7 @@ public sealed class ResourceDeclarationTests
                 "api",
                 executablePath: string.Empty,
                 containerImage: "example/api:latest",
+                containerRevision: "20260622.2",
                 containerHostId: "docker:dev",
                 replicas: 2,
                 resourceType: ApplicationResourceTypes.ContainerApp,
@@ -9643,11 +9644,28 @@ public sealed class ResourceDeclarationTests
             "env-test-1",
             app.ResourceAttributes[ResourceAttributeNames.DeploymentEnvironmentRevisionId]);
         Assert.Equal(2, replicas.Length);
+        Assert.Equal(
+            "cloudshell-application-api-20260622-2-replicas",
+            app.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaGroupId]);
         Assert.All(
             replicas,
-            replica => Assert.Equal(
-                app.ResourceAttributes[ResourceAttributeNames.DeploymentEnvironmentRevisionId],
-                replica.ResourceAttributes[ResourceAttributeNames.DeploymentEnvironmentRevisionId]));
+            replica =>
+            {
+                Assert.Equal(
+                    app.ResourceAttributes[ResourceAttributeNames.DeploymentEnvironmentRevisionId],
+                    replica.ResourceAttributes[ResourceAttributeNames.DeploymentEnvironmentRevisionId]);
+                Assert.Equal(
+                    app.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaGroupId],
+                    replica.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaGroupId]);
+            });
+        Assert.Equal(
+            [
+                "cloudshell-application-api-20260622-2-replica-1",
+                "cloudshell-application-api-20260622-2-replica-2"
+            ],
+            replicas
+                .Select(replica => replica.ResourceAttributes[ResourceAttributeNames.RuntimeContainerName])
+                .ToArray());
     }
 
     [Fact]

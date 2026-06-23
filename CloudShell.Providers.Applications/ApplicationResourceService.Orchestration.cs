@@ -62,9 +62,10 @@ public sealed partial class ApplicationResourceService
         ApplicationResourceDefinition application,
         string revision) =>
         !string.IsNullOrWhiteSpace(revision) &&
-        containerDeployments.ListRevisions(application.Id).Any(entry =>
-            string.Equals(entry.Id, revision, StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(entry.Status, ApplicationContainerRevisionStatuses.Active, StringComparison.OrdinalIgnoreCase));
+        (!string.IsNullOrWhiteSpace(application.DeploymentEnvironmentRevisionId) ||
+            containerDeployments.ListRevisions(application.Id).Any(entry =>
+                string.Equals(entry.Id, revision, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(entry.Status, ApplicationContainerRevisionStatuses.Active, StringComparison.OrdinalIgnoreCase)));
 
     public Task<IReadOnlyList<ResourceOrchestratorReplicaGroupTearDownRequest>> DescribeDeploymentTearDownAsync(
         ResourceProcedureContext context,

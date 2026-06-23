@@ -2237,11 +2237,22 @@ public sealed class InProcessControlPlane(
             return null;
         }
 
-        var state = failedLiveness.Outcome == ResourceHealthCheckOutcome.NoResponse
-            ? ResourceState.Stopped
-            : ResourceState.Degraded;
+        var state = ProjectLivenessState(failedLiveness);
 
         return new LivenessLifecycleProjection(state, failedLiveness);
+    }
+
+    private static ResourceState ProjectLivenessState(ResourceHealthCheckResult failedLiveness)
+    {
+        if (failedLiveness.ScopeObservations.Any(observation =>
+            observation.Status == ResourceHealthStatus.Healthy))
+        {
+            return ResourceState.Degraded;
+        }
+
+        return failedLiveness.Outcome == ResourceHealthCheckOutcome.NoResponse
+            ? ResourceState.Stopped
+            : ResourceState.Degraded;
     }
 
     private static ResourceHealthCheckResult? GetUnhealthyLiveness(ResourceHealthSummary? summary) =>
