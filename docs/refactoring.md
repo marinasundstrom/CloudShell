@@ -155,6 +155,8 @@ without forcing provider-specific logic into shared helpers.
 - [x] Extract application log-source discovery and reads into
   `ApplicationLogProvider` so application logging is no longer owned by the
   shared application resource service.
+- [x] Extract SQL Server declared database child-resource projection into
+  `SqlServerDatabaseResourceProjector`.
 
 ## Next Slices
 

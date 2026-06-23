@@ -124,7 +124,7 @@ public sealed partial class ApplicationResourceService(
                 ApplicationResourceTypes.SqlServer,
                 StringComparison.OrdinalIgnoreCase))
         {
-            foreach (var database in CreateSqlDatabaseResources(application))
+            foreach (var database in SqlServerDatabaseResourceProjector.CreateResources(application))
             {
                 yield return database;
             }
