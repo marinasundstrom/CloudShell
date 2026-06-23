@@ -85,7 +85,11 @@ POST /api/container-apps/v1/{containerAppId}/deployments
 
 with a new image tag. The Control Plane creates a container app deployment,
 records the app-owned revision produced by that deployment, and writes resource
-events for traceability.
+events for traceability. In a real build-server flow, the image upload or push
+to the registry happens before this call. The deployment request names the
+immutable uploaded image tag, then the orchestrator materializes runtime
+replicas for the produced revision and records the routing-remap milestones
+that move endpoint-bearing services toward the new replica version.
 
 Future on-premise validation should cover the same image-update flow through
 the Resource Manager UI after resources have been created through the UI, with

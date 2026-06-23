@@ -200,6 +200,19 @@ public sealed class DefaultResourceOrchestrator(
                     $"Materialized replica {replicaPosition} '{instance.Name}' for deployment '{deployment.Id}'.");
             }
         }
+
+        if (deployment is not null &&
+            service.ServicePorts.Count > 0)
+        {
+            AppendDeploymentEvent(
+                resourceContext,
+                ResourceEventTypes.Events.Deployment.RoutingUpdating,
+                $"Updating routing for orchestrator service '{deployment.ServiceId}' to revision '{deployment.RevisionId}' for deployment '{deployment.Id}'.");
+            AppendDeploymentEvent(
+                resourceContext,
+                ResourceEventTypes.Events.Deployment.RoutingUpdated,
+                $"Updated routing for orchestrator service '{deployment.ServiceId}' to revision '{deployment.RevisionId}' for deployment '{deployment.Id}'.");
+        }
     }
 
     private static string FormatReplicaPosition(ResourceOrchestratorServiceInstance instance) =>

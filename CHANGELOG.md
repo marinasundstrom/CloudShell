@@ -110,6 +110,10 @@ on `git blame --follow`, and then by the broad type of change.
   and records internal Control Plane deployment history for apply attempts,
   successful revisions, and failures without exposing orchestrator deployments
   as a public management API.
+- Default orchestrator deployment apply now records routing update milestones
+  for endpoint-bearing services after replica materialization, clarifying the
+  handoff from an uploaded image deployment to remapping service traffic onto
+  the new replica revision.
 - SQL Server database declarations now use `DeclareDatabase(...)`, and local
   development or test resources can opt in to missing database creation with
   `DeclareDatabase(...).EnsureCreated()` instead of creating declared

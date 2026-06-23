@@ -166,6 +166,16 @@ internal static class ResourceEventDisplayNames
             return localizer["Replica materialized"].Value;
         }
 
+        if (string.Equals(eventType, ResourceEventTypes.Events.Deployment.RoutingUpdating, StringComparison.OrdinalIgnoreCase))
+        {
+            return localizer["Routing updating"].Value;
+        }
+
+        if (string.Equals(eventType, ResourceEventTypes.Events.Deployment.RoutingUpdated, StringComparison.OrdinalIgnoreCase))
+        {
+            return localizer["Routing updated"].Value;
+        }
+
         if (string.Equals(eventType, ResourceEventTypes.Events.Deployment.Applied, StringComparison.OrdinalIgnoreCase))
         {
             return localizer["Deployment applied"].Value;

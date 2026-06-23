@@ -347,9 +347,11 @@ liveness/lifecycle signals, while scaling changes desired capacity.
   when a default is unavailable.
 * Continue evolving the container app deployment operation so it can include
   requested replica count and records an app-owned revision. The orchestrator
-  should materialize new runtime replicas next to the current revision, verify
-  readiness, switch traffic or endpoint routing, retain failed runtime/app
-  revision diagnostics, and retire old runtime replicas according to policy.
+  now records explicit routing update milestones after materializing
+  endpoint-bearing replicas. Remaining rollout work should materialize new
+  runtime replicas next to the current revision, verify readiness, perform the
+  actual traffic or endpoint cutover, retain failed runtime/app revision
+  diagnostics, and retire old runtime replicas according to policy.
 * Continue improving update behavior around replica, environment, endpoint,
   identity, and storage changes, deciding which changes belong to active
   revision capacity/configuration and which require a new deployment revision.

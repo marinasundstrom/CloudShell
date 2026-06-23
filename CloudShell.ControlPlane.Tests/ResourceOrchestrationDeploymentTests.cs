@@ -60,6 +60,8 @@ public sealed class ResourceOrchestrationDeploymentTests
                 ResourceEventTypes.Events.Deployment.ReplicaMaterialized,
                 ResourceEventTypes.Events.Deployment.ReplicaMaterializing,
                 ResourceEventTypes.Events.Deployment.ReplicaMaterialized,
+                ResourceEventTypes.Events.Deployment.RoutingUpdating,
+                ResourceEventTypes.Events.Deployment.RoutingUpdated,
                 ResourceEventTypes.Events.Deployment.Applied
             ],
             events.Select(resourceEvent => resourceEvent.EventType).ToArray());
@@ -266,6 +268,7 @@ public sealed class ResourceOrchestrationDeploymentTests
                 Image: "ghcr.io/example/api:2",
                 Replicas: replicas,
                 ReplicasEnabled: replicas > 1),
+            Ports: [new ServicePort("http", 8080, Protocol: "http")],
             Networks: ["cloudshell"]);
         return new ResourceOrchestratorDeployment(
             $"{serviceName}-deployment",

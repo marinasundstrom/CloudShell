@@ -39,7 +39,11 @@ the app revision through the app provider and, when runtime reconciliation is
 required, asks the Control Plane to apply the provider-described orchestrator
 deployment spec. The default orchestrator now records deployment activity
 events for service reconciliation and replica materialization so Resource
-Manager activity can trace what the orchestrator is doing during apply.
+Manager activity can trace what the orchestrator is doing during apply. It
+also records routing update milestones after endpoint-bearing replicas are
+materialized, making the intended cutover from previous runtime replicas to
+the newly materialized revision visible without exposing traffic-splitting
+controls yet.
 The Control Plane also records internal orchestrator deployment history for
 apply attempts, successful orchestrator revisions, and failed apply results.
 Container apps also keep provider-owned app deployment and revision history

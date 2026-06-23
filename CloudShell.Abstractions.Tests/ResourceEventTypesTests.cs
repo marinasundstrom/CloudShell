@@ -56,6 +56,12 @@ public sealed class ResourceEventTypesTests
             "event.deployment.replica.materialized",
             ResourceEventTypes.Events.Deployment.ReplicaMaterialized);
         Assert.Equal(
+            "event.deployment.routing.updating",
+            ResourceEventTypes.Events.Deployment.RoutingUpdating);
+        Assert.Equal(
+            "event.deployment.routing.updated",
+            ResourceEventTypes.Events.Deployment.RoutingUpdated);
+        Assert.Equal(
             "event.deployment.applied",
             ResourceEventTypes.Events.Deployment.Applied);
         Assert.Equal(
