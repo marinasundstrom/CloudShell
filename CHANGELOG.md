@@ -45,6 +45,9 @@ on `git blame --follow`, and then by the broad type of change.
 - SQL Server credential resolution now lives in
   `SqlServerCredentialResolutionService` behind the existing focused
   operation contract.
+- SQL Server permission grant status inspection now lives in
+  `SqlServerGrantStatusService` behind the SQL Server provider operation
+  contract.
 
 ### 2026-06-23
 

@@ -29,6 +29,8 @@ public sealed class ApplicationProviderOperationsRegistrationTests
             serviceProvider.GetRequiredService<ISqlServerDatabaseInspectionOperations>());
         Assert.IsType<SqlServerCredentialResolutionService>(
             serviceProvider.GetRequiredService<ISqlServerCredentialResolutionOperations>());
+        Assert.IsType<SqlServerGrantStatusService>(
+            serviceProvider.GetRequiredService<ISqlServerApplicationResourceProviderOperations>());
     }
 
     private sealed class TestHostEnvironment(string contentRootPath) : IHostEnvironment
