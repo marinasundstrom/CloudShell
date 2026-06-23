@@ -38,7 +38,7 @@
                        IconName="environment" />
     <SummaryMetricCard Title="@L["Replica groups"].Value"
                        Value="@ReplicaGroupCount"
-                       Summary="@L["Projected materialized runtime groups"].Value"
+                       Summary="@L["Active deployment replica groups"].Value"
                        IconName="container" />
     <SummaryMetricCard Title="@L["Replica slot repairs"].Value"
                        Value="@ReplicaSlotStates.Count"
@@ -158,6 +158,70 @@
                             <td><span class="environment-identifier">@GetOptional(record.BasedOnEnvironmentRevisionId)</span></td>
                             <td>@GetOptional(record.ProvisionedBy ?? record.TriggeredBy)</td>
                             <td>@GetCompletionLabel(record)</td>
+                        </tr>
+                    }
+                </tbody>
+                </ResourceTable>
+            </div>
+        }
+    </ShellPanel>
+
+    <ShellPanel Wide="true" Class="environment-panel-full">
+        <ShellPanelHeader Title="@L["Active replica groups"].Value"
+                          Description="@L["Replica group snapshots produced by active deployment records, correlated with current slot reconciliation state."].Value" />
+
+        @if (ReplicaGroupRows.Count == 0)
+        {
+            <EmptyState Title="@L["No active replica groups"].Value"
+                        Message="@L["Active replica groups will appear here after Resource Manager materializes a deployment with requested replica slots."].Value"
+                        Compact="true" />
+        }
+        else
+        {
+            <div class="environment-replica-group-table">
+                <ResourceTable>
+                <thead>
+                    <tr>
+                        <th>@L["Source resource"]</th>
+                        <th>@L["Service"]</th>
+                        <th>@L["Replica group"]</th>
+                        <th>@L["Runtime revision"]</th>
+                        <th>@L["Requested slots"]</th>
+                        <th>@L["Occupied slots"]</th>
+                        <th>@L["Slot reconciliation"]</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in ReplicaGroupRows)
+                    {
+                        var sourceResource = GetResource(row.SourceResourceId);
+                        <tr>
+                            <td>
+                                <ResourceTableIdentity IconName="@GetResourceIconName(sourceResource, row.SourceResourceId)"
+                                                       IconTitle="@GetResourceIconTitle(sourceResource)"
+                                                       Summary="@row.DeploymentId">
+                                    <TitleContent>
+                                        <FluentAnchor Href="@ResourceManagerCompositionLinks.ResourceDetails(Composition, row.SourceResourceId)">
+                                            @(sourceResource?.EffectiveDisplayName ?? row.SourceResourceId)
+                                        </FluentAnchor>
+                                    </TitleContent>
+                                </ResourceTableIdentity>
+                            </td>
+                            <td><span class="environment-identifier">@row.ServiceId</span></td>
+                            <td>
+                                <span class="environment-identifier">@row.ReplicaGroupId</span>
+                                <div class="table-subtext">@GetEnvironmentRevisionLabel(row.Deployment)</div>
+                            </td>
+                            <td><span class="environment-identifier">@GetOptional(row.RuntimeRevisionId)</span></td>
+                            <td>@row.RequestedSlots.ToString(CultureInfo.InvariantCulture)</td>
+                            <td>
+                                @row.OccupiedSlots.ToString(CultureInfo.InvariantCulture)
+                                <div class="table-subtext">@L["{0} materialized", row.MaterializedReplicas]</div>
+                            </td>
+                            <td>
+                                @GetReplicaGroupReconciliationSummary(row)
+                                <div class="table-subtext">@GetLatestReplicaGroupReconciliationResult(row)</div>
+                            </td>
                         </tr>
                     }
                 </tbody>
@@ -322,16 +386,12 @@
     private IReadOnlyList<EnvironmentRevisionProjectionRow> EnvironmentRevisionRows { get; set; } = [];
     private IReadOnlyList<ResourceDeploymentRecord> DeploymentRecords { get; set; } = [];
     private IReadOnlyList<EnvironmentDeploymentRow> DeploymentRows { get; set; } = [];
+    private IReadOnlyList<EnvironmentReplicaGroupRow> ReplicaGroupRows { get; set; } = [];
     private IReadOnlyList<ResourceReplicaSlotState> ReplicaSlotStates { get; set; } = [];
     private IReadOnlyList<ResourceEvent> DeploymentEvents { get; set; } = [];
     private DateTimeOffset LoadedAt { get; set; }
 
-    private int ReplicaGroupCount =>
-        DeploymentRows
-            .Select(row => row.ReplicaGroupId)
-            .Where(value => !string.IsNullOrWhiteSpace(value) && value != "not projected")
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Count();
+    private int ReplicaGroupCount => ReplicaGroupRows.Count;
 
     protected override async Task OnInitializedAsync() =>
         await RefreshAsync();
@@ -348,6 +408,7 @@
         EnvironmentRevisionRows = EnvironmentRevisionProjection.CreateRows(Resources);
         DeploymentRecords = await Deployments.ListResourceDeploymentsAsync(new ResourceDeploymentQuery(MaxRecords: 100));
         ReplicaSlotStates = await ReplicaSlots.ListReplicaSlotStatesAsync(new ResourceReplicaSlotStateQuery(MaxRecords: 100));
+        ReplicaGroupRows = CreateReplicaGroupRows(DeploymentRecords, ReplicaSlotStates);
         DeploymentEvents = (await ResourceEvents.ListResourceEventsAsync(new ResourceEventQuery(MaxEvents: 100)))
             .Where(IsEnvironmentActivityEvent)
             .Take(15)
@@ -404,6 +465,39 @@
         var timestamp = record.CompletedAt ?? record.StartedAt;
         return timestamp.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
     }
+
+    private string GetReplicaGroupReconciliationSummary(EnvironmentReplicaGroupRow row)
+    {
+        if (row.SlotStateCount == 0)
+        {
+            return L["No observations"].Value;
+        }
+
+        if (row.RepairFailedCount > 0)
+        {
+            return L["{0} failed", row.RepairFailedCount].Value;
+        }
+
+        if (row.RepairingCount > 0)
+        {
+            return L["{0} repairing", row.RepairingCount].Value;
+        }
+
+        if (row.UnhealthyCount > 0)
+        {
+            return L["{0} unhealthy", row.UnhealthyCount].Value;
+        }
+
+        if (row.RepairedCount > 0)
+        {
+            return L["{0} repaired", row.RepairedCount].Value;
+        }
+
+        return L["Observed"].Value;
+    }
+
+    private static string GetLatestReplicaGroupReconciliationResult(EnvironmentReplicaGroupRow row) =>
+        GetOptional(row.LatestSlotState?.LastResult ?? row.LatestSlotState?.Detail);
 
     private string GetReplicaSlotStatusLabel(ResourceReplicaSlotReconciliationStatus status) =>
         status switch
@@ -465,6 +559,88 @@
 
         private static string GetAttribute(Resource resource, string name) =>
             resource.ResourceAttributes.GetValueOrDefault(name) ?? "not projected";
+    }
+
+    private static IReadOnlyList<EnvironmentReplicaGroupRow> CreateReplicaGroupRows(
+        IReadOnlyList<ResourceDeploymentRecord> deployments,
+        IReadOnlyList<ResourceReplicaSlotState> slotStates)
+    {
+        var slotStatesByResource = slotStates
+            .GroupBy(state => state.ResourceId, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.OrdinalIgnoreCase);
+
+        return deployments
+            .Where(record =>
+                record.Status == ResourceOrchestratorDeploymentStatus.Active &&
+                record.ReplicaGroup is not null)
+            .GroupBy(
+                record => string.Join(
+                    '\u001f',
+                    record.SourceResourceId,
+                    record.ServiceId,
+                    record.ReplicaGroup?.Id ?? string.Empty),
+                StringComparer.OrdinalIgnoreCase)
+            .Select(group => group
+                .OrderByDescending(record => record.CompletedAt ?? record.StartedAt)
+                .First())
+            .Select(record =>
+            {
+                slotStatesByResource.TryGetValue(record.SourceResourceId, out var resourceSlotStates);
+                return EnvironmentReplicaGroupRow.Create(record, resourceSlotStates ?? []);
+            })
+            .OrderBy(row => row.SourceResourceId, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(row => row.ServiceId, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(row => row.ReplicaGroupId, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private sealed record EnvironmentReplicaGroupRow(
+        ResourceDeploymentRecord Deployment,
+        string SourceResourceId,
+        string DeploymentId,
+        string ServiceId,
+        string ReplicaGroupId,
+        string? RuntimeRevisionId,
+        int RequestedSlots,
+        int OccupiedSlots,
+        int MaterializedReplicas,
+        int SlotStateCount,
+        int UnhealthyCount,
+        int RepairingCount,
+        int RepairedCount,
+        int RepairFailedCount,
+        ResourceReplicaSlotState? LatestSlotState)
+    {
+        public static EnvironmentReplicaGroupRow Create(
+            ResourceDeploymentRecord deployment,
+            IReadOnlyList<ResourceReplicaSlotState> slotStates)
+        {
+            var replicaGroup = deployment.ReplicaGroup ??
+                throw new InvalidOperationException("Replica group rows require a materialized replica group.");
+            var relevantSlotStates = slotStates
+                .Where(state =>
+                    state.SlotOrdinal >= 1 &&
+                    state.SlotOrdinal <= replicaGroup.RequestedReplicaSlots)
+                .ToArray();
+            return new EnvironmentReplicaGroupRow(
+                deployment,
+                deployment.SourceResourceId,
+                deployment.DeploymentId,
+                deployment.ServiceId,
+                replicaGroup.Id,
+                replicaGroup.RuntimeRevisionId,
+                replicaGroup.RequestedReplicaSlots,
+                replicaGroup.OccupiedReplicaSlots,
+                replicaGroup.MaterializedReplicas,
+                relevantSlotStates.Length,
+                relevantSlotStates.Count(state => state.Status == ResourceReplicaSlotReconciliationStatus.Unhealthy),
+                relevantSlotStates.Count(state => state.Status == ResourceReplicaSlotReconciliationStatus.Repairing),
+                relevantSlotStates.Count(state => state.Status == ResourceReplicaSlotReconciliationStatus.Repaired),
+                relevantSlotStates.Count(state => state.Status == ResourceReplicaSlotReconciliationStatus.RepairFailed),
+                relevantSlotStates
+                    .OrderByDescending(state => state.LastCompletedAt ?? state.LastAttemptedAt ?? state.ObservedAt)
+                    .FirstOrDefault());
+        }
     }
 
     private static bool IsProjected(string value) =>

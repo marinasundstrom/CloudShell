@@ -97,6 +97,10 @@ on `git blame --follow`, and then by the broad type of change.
   Control Plane manager/API/client surface, and the Environment page shows
   slot repair status alongside deployment history and materialized runtime
   state.
+- The Environment page now shows active replica groups from deployment records
+  rather than only counting projected resource attributes, correlating each
+  group with requested slots, occupied slots, materialized replicas, and slot
+  reconciliation status.
 - The repository now includes `ControlPlane.http` as a quick manual endpoint
   scratchpad while the Control Plane OpenAPI document remains the served API
   specification.
