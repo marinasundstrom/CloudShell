@@ -80,7 +80,7 @@ public sealed class DefaultResourceOrchestrator(
         {
             RuntimeRevisionId = deployment.RevisionId
         };
-        var replicaGroup = ResourceOrchestratorServiceInstances.CreateDefaultReplicaGroup(service);
+        var replicaGroup = ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service);
         await ExecuteOrchestratorServiceActionCoreAsync(
             provider,
             resourceContext,
@@ -172,7 +172,7 @@ public sealed class DefaultResourceOrchestrator(
                 $"Reconciling orchestrator service '{deployment.ServiceId}' for deployment '{deployment.Id}'.");
         }
 
-        replicaGroup ??= ResourceOrchestratorServiceInstances.CreateDefaultReplicaGroup(service);
+        replicaGroup ??= ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service);
 
         await provider.PrepareOrchestratorServiceAsync(
             new ResourceOrchestratorServiceProcedureContext(resourceContext, service, replicaGroup),
@@ -187,30 +187,14 @@ public sealed class DefaultResourceOrchestrator(
                 $"Reconciled orchestrator service '{deployment.ServiceId}' for deployment '{deployment.Id}'.");
         }
 
-        foreach (var instance in replicaGroup.Instances)
-        {
-            var replicaPosition = FormatReplicaPosition(instance);
-            if (deployment is not null)
-            {
-                AppendDeploymentEvent(
-                    resourceContext,
-                    ResourceEventTypes.Events.Deployment.ReplicaMaterializing,
-                    $"Materializing replica {replicaPosition} '{instance.Name}' for deployment '{deployment.Id}'.");
-            }
-
-            await provider.ExecuteOrchestratorServiceInstanceAsync(
-                new ResourceOrchestratorServiceInstanceContext(resourceContext, service, instance, replicaGroup),
-                action,
-                cancellationToken);
-
-            if (deployment is not null)
-            {
-                AppendDeploymentEvent(
-                    resourceContext,
-                    ResourceEventTypes.Events.Deployment.ReplicaMaterialized,
-                    $"Materialized replica {replicaPosition} '{instance.Name}' for deployment '{deployment.Id}'.");
-            }
-        }
+        await ExecuteOrchestratorReplicaGroupAsync(
+            provider,
+            resourceContext,
+            service,
+            replicaGroup,
+            action,
+            deployment,
+            cancellationToken);
 
         if (deployment is not null &&
             service.ServicePorts.Count > 0)
@@ -245,6 +229,41 @@ public sealed class DefaultResourceOrchestrator(
         string.Create(
             CultureInfo.InvariantCulture,
             $"{instance.ReplicaOrdinal}/{instance.ReplicaCount}");
+
+    private static async Task ExecuteOrchestratorReplicaGroupAsync(
+        IResourceOrchestratorServiceProcedureProvider provider,
+        ResourceProcedureContext resourceContext,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup replicaGroup,
+        ResourceAction action,
+        ResourceOrchestratorDeployment? deployment,
+        CancellationToken cancellationToken)
+    {
+        foreach (var instance in replicaGroup.Instances)
+        {
+            var replicaPosition = FormatReplicaPosition(instance);
+            if (deployment is not null)
+            {
+                AppendDeploymentEvent(
+                    resourceContext,
+                    ResourceEventTypes.Events.Deployment.ReplicaMaterializing,
+                    $"Materializing replica {replicaPosition} '{instance.Name}' for deployment '{deployment.Id}'.");
+            }
+
+            await provider.ExecuteOrchestratorServiceInstanceAsync(
+                new ResourceOrchestratorServiceInstanceContext(resourceContext, service, instance, replicaGroup),
+                action,
+                cancellationToken);
+
+            if (deployment is not null)
+            {
+                AppendDeploymentEvent(
+                    resourceContext,
+                    ResourceEventTypes.Events.Deployment.ReplicaMaterialized,
+                    $"Materialized replica {replicaPosition} '{instance.Name}' for deployment '{deployment.Id}'.");
+            }
+        }
+    }
 
     private static void AppendDeploymentEvent(
         ResourceProcedureContext context,

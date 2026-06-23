@@ -2,15 +2,15 @@ using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.Abstractions.Tests;
 
-public sealed class ResourceOrchestratorServiceInstancesTests
+public sealed class ResourceOrchestratorReplicaGroupsTests
 {
     [Fact]
-    public void CreateDefaultInstances_UsesStableServiceReplicaNames()
+    public void CreateDefaultReplicaGroup_UsesStableServiceReplicaNames()
     {
         var service = CreateService(replicas: 3);
 
-        var replicaGroup = ResourceOrchestratorServiceInstances.CreateDefaultReplicaGroup(service);
-        var instances = ResourceOrchestratorServiceInstances.CreateDefaultInstances(service);
+        var replicaGroup = ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service);
+        var instances = replicaGroup.Instances;
 
         Assert.Equal("cloudshell-application-api-replicas", replicaGroup.Id);
         Assert.Equal(service.Name, replicaGroup.ServiceId);
@@ -29,15 +29,15 @@ public sealed class ResourceOrchestratorServiceInstancesTests
     }
 
     [Fact]
-    public void CreateDefaultInstances_UsesRevisionScopedReplicaNamesWhenServiceCarriesRuntimeRevision()
+    public void CreateDefaultReplicaGroup_UsesRevisionScopedReplicaNamesWhenServiceCarriesRuntimeRevision()
     {
         var service = CreateService(replicas: 3) with
         {
             RuntimeRevisionId = "Rev_20260623.1"
         };
 
-        var replicaGroup = ResourceOrchestratorServiceInstances.CreateDefaultReplicaGroup(service);
-        var instances = ResourceOrchestratorServiceInstances.CreateDefaultInstances(service);
+        var replicaGroup = ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service);
+        var instances = replicaGroup.Instances;
 
         Assert.Equal("cloudshell-application-api-rev-20260623-1-replicas", replicaGroup.Id);
         Assert.Equal(service.Name, replicaGroup.ServiceId);
@@ -56,12 +56,12 @@ public sealed class ResourceOrchestratorServiceInstancesTests
     }
 
     [Fact]
-    public void CreateRevisionInstances_UsesRevisionScopedSingleReplicaName()
+    public void CreateRevisionReplicaGroup_UsesRevisionScopedSingleReplicaName()
     {
         var service = CreateService(replicas: 1);
 
-        var replicaGroup = ResourceOrchestratorServiceInstances.CreateRevisionReplicaGroup(service, "rev-2");
-        var instance = Assert.Single(ResourceOrchestratorServiceInstances.CreateRevisionInstances(service, "rev-2"));
+        var replicaGroup = ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(service, "rev-2");
+        var instance = Assert.Single(replicaGroup.Instances);
 
         Assert.Equal("cloudshell-application-api-rev-2-replicas", replicaGroup.Id);
         Assert.Equal(service.Name, replicaGroup.ServiceId);
@@ -70,6 +70,17 @@ public sealed class ResourceOrchestratorServiceInstancesTests
         Assert.Equal(1, replicaGroup.MaterializedReplicas);
         Assert.Equal("cloudshell-application-api-rev-2", instance.Name);
         Assert.Equal("rev-2", instance.RuntimeRevisionId);
+    }
+
+    [Fact]
+    public void CreateDefaultInstances_ReturnsInstancesFromDefaultReplicaGroup()
+    {
+        var service = CreateService(replicas: 2);
+
+        var replicaGroup = ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service);
+        var instances = ResourceOrchestratorServiceInstances.CreateDefaultInstances(service);
+
+        Assert.Equal(replicaGroup.Instances, instances);
     }
 
     private static ResourceOrchestratorService CreateService(int replicas) =>

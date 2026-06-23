@@ -76,7 +76,7 @@ Examples include:
 
 * container app replicas
 * runtime containers
-* service instances
+* replica groups
 * scaled workloads
 * rolling updates
 * image changes
@@ -435,11 +435,15 @@ replica grouping. This grouping is not a Kubernetes ReplicaSet and should not be
 introduced as a normal user-authored Resource Manager resource. The structure
 can look similar to Kubernetes because it needs to group runtime instances by
 revision, but CloudShell should reuse resource instances as the unit rather
-than inventing a pod concept. It is the runtime boundary that lets the
-orchestrator track which replica resources belong to one service revision,
-compare requested and materialized replica count, observe readiness, remap
-routing from one revision's replicas to another, and retire superseded replicas
-after cutover.
+than inventing a pod concept. The replica group is the default way the
+orchestrator handles service replication. Resource providers and adjacent
+resources such as load balancers should consume the orchestrator-managed group
+when materializing runtime resources, while still being able to manipulate the
+group and its members individually when the target runtime has no higher-level
+primitive. It is the runtime boundary that lets the orchestrator track which
+replica resources belong to one service revision, compare requested and
+materialized replica count, observe readiness, remap routing from one
+revision's replicas to another, and retire superseded replicas after cutover.
 
 The service, deployment, and revision concepts are intentionally provider
 neutral. The default local orchestrator maps them to convention-named
@@ -466,17 +470,21 @@ Service: api
  └── Routing: active -> api-r12
 ```
 
-The Service remains the runtime grouping primitive.
+The Service remains the stable runtime grouping primitive. The Replica Group is
+the revision-scoped runtime set inside that service.
 
 Deployment and Revision add versioning, rollout history, and traceability.
-During deployment application, service instances should carry revision-scoped
-runtime identity while the service itself keeps its stable identity. That lets
-an orchestrator start replacement replicas for the new revision next to the
-currently serving replicas, update service routing or ingress to those
-revision-scoped targets, and later drain or remove the superseded runtime
-instances. Ordinary active-revision scaling can still use stable instance
-identity because it is capacity management for the current revision rather than
-a workload replacement.
+During deployment application, the requested runtime state should describe the
+stable service, the service routing or load-balancer configuration, and the
+replica group required for that revision. A deployment of image X with N
+replicas should ask the orchestrator to materialize that runtime state, not ask
+the container app provider to manually own N runtime containers. That lets an
+orchestrator start a replacement replica group for a new image revision next to
+the currently serving group, update service routing or ingress to the new
+group, and later drain or remove the superseded group. Ordinary
+active-revision scaling can reconcile the existing replica group by adding or
+removing replica resources because it is capacity management for the current
+revision rather than a workload replacement.
 
 The current revision-scoped replica names are only the first materialization of
 this grouping. The orchestrator revision outcome should retain the materialized

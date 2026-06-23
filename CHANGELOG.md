@@ -28,6 +28,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Orchestrator revisions and internal deployment history now retain the
   materialized replica group snapshot produced by deployment apply, making the
   applied replica set inspectable across revision records.
+- Default orchestrator and container app runtime paths now use replica groups
+  as the primary replication abstraction inside an orchestrator-managed service
+  shape, while still allowing providers to manipulate individual materialized
+  resource instances where required.
 - Default orchestrator deployment apply now has a provider finalization hook,
   and the container app provider uses it to retire superseded local runtime
   replicas after the new revision has been materialized and routing has been

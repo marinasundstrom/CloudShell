@@ -171,7 +171,8 @@ public sealed partial class ApplicationResourceService
             application,
             ResourceState.Unknown,
             runtimeRevisionScoped: true);
-        return CreateDefaultContainerServiceInstances(deployment.Spec.Service)
+        var replicaGroup = CreateDefaultContainerReplicaGroup(deployment.Spec.Service);
+        return replicaGroup.Instances
             .Select(instance =>
             {
                 var resourceId = CreateRuntimeContainerResourceId(application.Id, instance.ReplicaOrdinal);
@@ -208,7 +209,8 @@ public sealed partial class ApplicationResourceService
         foreach (var application in store.GetApplications().Select(ResolveDefinition).Where(IsReplicaModeEnabled))
         {
             var service = CreateActiveContainerOrchestratorService(application);
-            foreach (var instance in CreateDefaultContainerServiceInstances(service))
+            var replicaGroup = CreateDefaultContainerReplicaGroup(service);
+            foreach (var instance in replicaGroup.Instances)
             {
                 if (string.Equals(
                         logId,

@@ -113,8 +113,9 @@ The resource may project:
 * identity binding
 * lifecycle actions and action capability reasons
 
-The app may produce an orchestrator-facing service descriptor for replicas,
-ports, networks, dependencies, and provider-owned ingress. That descriptor is
+The app may produce an orchestrator-facing desired runtime state: a stable
+service, routing or load-balancer configuration for that service, and a
+replica group of N runtime resource instances for image X. That descriptor is
 not a Resource Manager resource by default. Runtime containers or replicas may
 be projected as child resources for diagnostics by a host provider, but image
 updates, replica updates, lifecycle actions, storage, identity, and exposure
@@ -124,7 +125,13 @@ Revision-scoped container app replicas should be tracked as a group within the
 orchestrator service boundary. That group is what lets the orchestrator
 understand which runtime replicas belong to the current revision, which belong
 to a candidate or superseded revision, and which replicas should participate in
-routing, diagnostics, readiness, drain, and cleanup.
+routing, diagnostics, readiness, drain, and cleanup. Container apps should
+therefore consume the orchestrator-managed replica group as the default
+replication model instead of owning replica enumeration in provider-specific
+helpers. The provider can still execute member-level Docker commands where the
+default local runner requires them. New image deployments can create a
+replacement replica group and cut service routing over to it, while scale-only
+updates can reconcile the current group by adding or removing member resources.
 
 ## Managed-Service Configuration Surface
 

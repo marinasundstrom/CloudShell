@@ -19,17 +19,8 @@ public sealed record ResourceOrchestratorReplicaGroup(
     public int MaterializedReplicas => Instances.Count;
 }
 
-public static class ResourceOrchestratorServiceInstances
+public static class ResourceOrchestratorReplicaGroups
 {
-    public static IReadOnlyList<ResourceOrchestratorServiceInstance> CreateDefaultInstances(
-        ResourceOrchestratorService service) =>
-        CreateDefaultReplicaGroup(service).Instances;
-
-    public static IReadOnlyList<ResourceOrchestratorServiceInstance> CreateRevisionInstances(
-        ResourceOrchestratorService service,
-        string runtimeRevisionId) =>
-        CreateRevisionReplicaGroup(service, runtimeRevisionId).Instances;
-
     public static ResourceOrchestratorReplicaGroup CreateDefaultReplicaGroup(
         ResourceOrchestratorService service) =>
         CreateReplicaGroup(service, NormalizeRuntimeRevisionId(service.RuntimeRevisionId));
@@ -128,6 +119,52 @@ public static class ResourceOrchestratorServiceInstances
             ? null
             : revision;
     }
+}
+
+public static class ResourceOrchestratorServiceInstances
+{
+    public static IReadOnlyList<ResourceOrchestratorServiceInstance> CreateDefaultInstances(
+        ResourceOrchestratorService service) =>
+        ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service).Instances;
+
+    public static IReadOnlyList<ResourceOrchestratorServiceInstance> CreateRevisionInstances(
+        ResourceOrchestratorService service,
+        string runtimeRevisionId) =>
+        ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(service, runtimeRevisionId).Instances;
+
+    public static ResourceOrchestratorReplicaGroup CreateDefaultReplicaGroup(
+        ResourceOrchestratorService service) =>
+        ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service);
+
+    public static ResourceOrchestratorReplicaGroup CreateRevisionReplicaGroup(
+        ResourceOrchestratorService service,
+        string runtimeRevisionId) =>
+        ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(service, runtimeRevisionId);
+
+    public static string CreateDefaultServiceName(string resourceId) =>
+        ResourceOrchestratorReplicaGroups.CreateDefaultServiceName(resourceId);
+
+    public static string CreateDefaultInstanceName(
+        string serviceName,
+        int replicaOrdinal,
+        int replicaCount) =>
+        ResourceOrchestratorReplicaGroups.CreateDefaultInstanceName(serviceName, replicaOrdinal, replicaCount);
+
+    public static string CreateRevisionInstanceName(
+        string serviceName,
+        string runtimeRevisionId,
+        int replicaOrdinal,
+        int replicaCount) =>
+        ResourceOrchestratorReplicaGroups.CreateRevisionInstanceName(
+            serviceName,
+            runtimeRevisionId,
+            replicaOrdinal,
+            replicaCount);
+
+    public static string CreateReplicaGroupId(
+        string serviceName,
+        string? runtimeRevisionId) =>
+        ResourceOrchestratorReplicaGroups.CreateReplicaGroupId(serviceName, runtimeRevisionId);
 }
 
 public sealed record ResourceOrchestratorServiceProcedureContext(

@@ -694,7 +694,8 @@ public sealed partial class ApplicationResourceService(
         else if (updatedReplicas < previousReplicas)
         {
             var previousService = CreateActiveContainerOrchestratorService(previous);
-            foreach (var instance in CreateDefaultContainerServiceInstances(previousService)
+            var previousReplicaGroup = CreateDefaultContainerReplicaGroup(previousService);
+            foreach (var instance in previousReplicaGroup.Instances
                          .Where(instance => instance.ReplicaOrdinal > updatedReplicas)
                          .OrderByDescending(instance => instance.ReplicaOrdinal))
             {
@@ -2830,7 +2831,8 @@ public sealed partial class ApplicationResourceService(
                 procedureContext);
         }
 
-        foreach (var instance in CreateDefaultContainerServiceInstances(service))
+        var replicaGroup = CreateDefaultContainerReplicaGroup(service);
+        foreach (var instance in replicaGroup.Instances)
         {
             await StopContainerApplicationInstanceAsync(
                 definition,
@@ -3098,7 +3100,8 @@ public sealed partial class ApplicationResourceService(
                 builder.AppendLine(CultureInfo.InvariantCulture, $"    {routeId}:");
                 builder.AppendLine("      loadBalancer:");
                 builder.AppendLine("        servers:");
-                foreach (var instance in ResourceOrchestratorServiceInstances.CreateDefaultInstances(service))
+                var replicaGroup = CreateDefaultContainerReplicaGroup(service);
+                foreach (var instance in replicaGroup.Instances)
                 {
                     builder.AppendLine(CultureInfo.InvariantCulture, $"          - url: \"http://{instance.Name}:{port.TargetPort.ToString(CultureInfo.InvariantCulture)}\"");
                 }
@@ -3130,7 +3133,8 @@ public sealed partial class ApplicationResourceService(
                 builder.AppendLine(CultureInfo.InvariantCulture, $"    {routeId}:");
                 builder.AppendLine("      loadBalancer:");
                 builder.AppendLine("        servers:");
-                foreach (var instance in ResourceOrchestratorServiceInstances.CreateDefaultInstances(service))
+                var replicaGroup = CreateDefaultContainerReplicaGroup(service);
+                foreach (var instance in replicaGroup.Instances)
                 {
                     builder.AppendLine(CultureInfo.InvariantCulture, $"          - address: \"{instance.Name}:{port.TargetPort.ToString(CultureInfo.InvariantCulture)}\"");
                 }
@@ -3794,7 +3798,8 @@ public sealed partial class ApplicationResourceService(
             }
         }
 
-        foreach (var instance in CreateDefaultContainerServiceInstances(service))
+        var replicaGroup = CreateDefaultContainerReplicaGroup(service);
+        foreach (var instance in replicaGroup.Instances)
         {
             foreach (var port in GetRuntimeContainerProbePorts(application, service))
             {
@@ -4568,7 +4573,7 @@ public sealed partial class ApplicationResourceService(
     }
 
     private static string GetContainerName(ResourceOrchestratorService service, int replica = 1) =>
-        ResourceOrchestratorServiceInstances.CreateDefaultInstanceName(
+        ResourceOrchestratorReplicaGroups.CreateDefaultInstanceName(
             service.Name,
             replica,
             service.Replicas);
@@ -4579,14 +4584,14 @@ public sealed partial class ApplicationResourceService(
     private static string GetContainerName(string resourceId, int replica = 1, int replicas = 1)
     {
         var serviceName = GetContainerServiceName(resourceId);
-        return ResourceOrchestratorServiceInstances.CreateDefaultInstanceName(
+        return ResourceOrchestratorReplicaGroups.CreateDefaultInstanceName(
             serviceName,
             replica,
             replicas);
     }
 
     private static string GetContainerServiceName(string resourceId) =>
-        ResourceOrchestratorServiceInstances.CreateDefaultServiceName(resourceId);
+        ResourceOrchestratorReplicaGroups.CreateDefaultServiceName(resourceId);
 
     private static string CreateDefaultContainerOrchestratorDeploymentId(string resourceId) =>
         $"{GetContainerServiceName(resourceId)}-deployment";

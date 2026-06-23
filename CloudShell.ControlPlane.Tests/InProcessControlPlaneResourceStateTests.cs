@@ -2792,7 +2792,7 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
-    public async Task DefaultOrchestrator_ExecutesOrchestratorServiceInstancesForReplicas()
+    public async Task DefaultOrchestrator_ExecutesReplicaGroupForReplicas()
     {
         var resource = CreateResource("application:api", ResourceState.Stopped);
         var provider = new TestOrchestratorServiceProcedureProvider();

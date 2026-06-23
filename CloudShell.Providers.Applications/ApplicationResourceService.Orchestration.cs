@@ -147,13 +147,9 @@ public sealed partial class ApplicationResourceService
         };
     }
 
-    private static IEnumerable<ResourceOrchestratorServiceInstance> CreateDefaultContainerServiceInstances(
-        ResourceOrchestratorService service) =>
-        CreateDefaultContainerReplicaGroup(service).Instances;
-
     private static ResourceOrchestratorReplicaGroup CreateDefaultContainerReplicaGroup(
         ResourceOrchestratorService service) =>
-        ResourceOrchestratorServiceInstances.CreateDefaultReplicaGroup(service);
+        ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service);
 
     private static ResourceOrchestratorDeploymentStatus GetContainerOrchestratorDeploymentStatus(
         ResourceState state) =>

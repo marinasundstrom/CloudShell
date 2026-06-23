@@ -1427,11 +1427,11 @@ public sealed class PlatformResourceProvider(
         var protocol = string.IsNullOrWhiteSpace(targetEndpoint?.Protocol)
             ? route.Kind == LoadBalancerRouteKind.Http ? "http" : "tcp"
             : targetEndpoint.Protocol;
-        var serviceName = ResourceOrchestratorServiceInstances.CreateDefaultServiceName(targetResource.Id);
+        var serviceName = ResourceOrchestratorReplicaGroups.CreateDefaultServiceName(targetResource.Id);
         return Enumerable
             .Range(1, replicas)
             .Select(replica => new LoadBalancerBackendTarget(
-                ResourceOrchestratorServiceInstances.CreateDefaultInstanceName(
+                ResourceOrchestratorReplicaGroups.CreateDefaultInstanceName(
                     serviceName,
                     replica,
                     replicas),

@@ -26,7 +26,8 @@ public sealed partial class ApplicationResourceService
             definition,
             GetState(definition.Id),
             runtimeRevisionScoped: true);
-        var scopes = CreateDefaultContainerServiceInstances(deployment.Spec.Service)
+        var replicaGroup = CreateDefaultContainerReplicaGroup(deployment.Spec.Service);
+        var scopes = replicaGroup.Instances
             .Select(instance =>
             {
                 var scopeAttributes = CreateRuntimeContainerTelemetryAttributes(
