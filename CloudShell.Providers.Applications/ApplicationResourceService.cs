@@ -38,7 +38,6 @@ public sealed partial class ApplicationResourceService(
     ApplicationResourceDefinitionRegistrationService? applicationDefinitionRegistrations = null,
     ApplicationWorkloadConfigurationProvider? workloadConfigurations = null) :
     IApplicationResourceProjectionSource,
-    IApplicationResourceRunningStateOperations,
     IApplicationResourceProcedureOperations,
     IApplicationResourceActionAvailabilityOperations,
     IContainerApplicationResourceProviderOperations,
@@ -51,8 +50,6 @@ public sealed partial class ApplicationResourceService(
     private const string DefaultContainerNetworkName = "cloudshell";
     public const string HiddenResourceEnvironmentVariable = "CloudShell__ResourceManager__Hidden";
 
-    private readonly ConcurrentDictionary<string, ApplicationProcessState> _processes =
-        new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, Lazy<Task<ApplicationResourceDefinition>>> _containerImageMaterializations =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly IReadOnlyList<IResourceIdentityCredentialEnvironmentProvider> identityCredentialEnvironmentProviders =
@@ -74,6 +71,12 @@ public sealed partial class ApplicationResourceService(
             options,
             declarations,
             identityCredentialEnvironmentProviders);
+    private readonly ApplicationContainerProcessTracker _containerProcesses =
+        serviceProvider.GetService<ApplicationContainerProcessTracker>() ?? new ApplicationContainerProcessTracker(
+            runtimeStates,
+            options,
+            environment,
+            loggerFactory);
 
     public string Id => ApplicationResourceProviderIds.Applications;
 
@@ -310,7 +313,7 @@ public sealed partial class ApplicationResourceService(
             await StopContainerAppIngressAsync(
                 application,
                 stopEngine,
-                GetProcessLog(application.Id),
+                _containerProcesses.GetProcessLog(application.Id),
                 cancellationToken);
             return;
         }
@@ -326,7 +329,7 @@ public sealed partial class ApplicationResourceService(
             context.ResourceContext.PreferredContainerHostId,
             ContainerHostCapabilityIds.ContainerImage,
             cancellationToken);
-        var processLog = GetProcessLog(application.Id);
+        var processLog = _containerProcesses.GetProcessLog(application.Id);
 
         await LoginToContainerRegistryAsync(
             engine,
@@ -626,38 +629,11 @@ public sealed partial class ApplicationResourceService(
     public bool IsRunning(string applicationId) =>
         GetApplication(applicationId) is { } application &&
         (IsContainerBacked(application)
-            ? TryGetRunningProcess(application, out _)
+            ? _containerProcesses.IsRunning(application)
             : localProcesses.IsRunning(ApplicationProcessDefinitions.Create(application)));
 
-    public void Dispose()
-    {
-        foreach (var (applicationId, state) in _processes)
-        {
-            try
-            {
-                if (state.Lifetime == ApplicationLifetime.ControlPlaneScoped &&
-                    !state.Process.HasExited)
-                {
-                    ProcessShutdown.KillProcessTreeAndWait(state.Process);
-                    runtimeStates.Save(new ApplicationRuntimeState(
-                        applicationId,
-                        state.Process.Id,
-                        null,
-                        DateTimeOffset.UtcNow,
-                        TryGetExitCode(state.Process),
-                        state.LogPath,
-                        VolumeMounts: MarkVolumeMountsNotActive(
-                            runtimeStates.Get(applicationId)?.RuntimeVolumeMounts ?? [],
-                            DateTimeOffset.UtcNow)));
-                }
-            }
-            catch (InvalidOperationException)
-            {
-            }
-
-            ReleaseTrackedApplicationProcess(applicationId, state);
-        }
-    }
+    public void Dispose() =>
+        _containerProcesses.Dispose();
 
     private async Task StartApplicationAsync(
         string applicationId,
@@ -679,7 +655,7 @@ public sealed partial class ApplicationResourceService(
 
         if (IsContainerBacked(definition))
         {
-            if (TryGetRunningProcess(definition, out _))
+            if (_containerProcesses.IsRunning(definition))
             {
                 procedureContext?.AppendProviderEvent(
                     Id,
@@ -1478,7 +1454,7 @@ public sealed partial class ApplicationResourceService(
             preferredContainerHostId,
             ContainerHostCapabilityIds.ContainerBuild,
             cancellationToken);
-        var log = GetProcessLog(definition.Id);
+        var log = _containerProcesses.GetProcessLog(definition.Id);
         var imageReference = CreateProjectContainerImageReference(definition);
 
         procedureContext?.AppendProviderEvent(
@@ -1572,9 +1548,7 @@ public sealed partial class ApplicationResourceService(
             Id,
             "application.container.host.resolved",
             $"Application provider resolved container host '{engine.Name}' for '{definition.Name}'.");
-        var logPath = GetLogPath(definition.Id);
-        EnsureLogDirectory(logPath);
-        var processLog = CreateProcessLog(logPath);
+        var processLog = _containerProcesses.CreateProcessLogForStart(definition.Id, out var logPath);
         if (definition.Lifetime == ApplicationLifetime.ControlPlaneScoped)
         {
             procedureContext?.AppendProviderEvent(
@@ -1709,7 +1683,7 @@ public sealed partial class ApplicationResourceService(
                 DateTimeOffset.UtcNow,
                 process.ExitCode,
                 logPath,
-                VolumeMounts: MarkVolumeMountsNotActive(
+                VolumeMounts: ApplicationContainerProcessTracker.MarkVolumeMountsNotActive(
                     volumeMaterializations.Select(mount => mount.RuntimeState),
                     DateTimeOffset.UtcNow)));
         };
@@ -1738,7 +1712,7 @@ public sealed partial class ApplicationResourceService(
                 now,
                 earlyExitCode,
                 logPath,
-                VolumeMounts: MarkVolumeMountsNotActive(
+                VolumeMounts: ApplicationContainerProcessTracker.MarkVolumeMountsNotActive(
                     volumeMaterializations.Select(mount => mount.RuntimeState),
                     now)));
             var failureMessage = CreateContainerStartFailureMessage(
@@ -1749,7 +1723,7 @@ public sealed partial class ApplicationResourceService(
             throw new InvalidOperationException(failureMessage);
         }
 
-        var startedAt = TryGetStartTime(process);
+        var startedAt = ApplicationContainerProcessTracker.TryGetStartTime(process);
         runtimeStates.Save(new ApplicationRuntimeState(
             definition.Id,
             process.Id,
@@ -1794,7 +1768,8 @@ public sealed partial class ApplicationResourceService(
             "application.container.instance.started",
             $"Application provider started container replica '{instance.Name}' for '{definition.Name}'.");
 
-        _processes[definition.Id] = new ApplicationProcessState(
+        _containerProcesses.Track(
+            definition.Id,
             process,
             processLog,
             definition.Lifetime,
@@ -1841,7 +1816,7 @@ public sealed partial class ApplicationResourceService(
         ResourceProcedureContext? procedureContext = null)
     {
         var application = store.GetApplication(applicationId);
-        var log = GetProcessLog(applicationId);
+        var log = _containerProcesses.GetProcessLog(applicationId);
 
         if (application is not null)
         {
@@ -1893,7 +1868,7 @@ public sealed partial class ApplicationResourceService(
             }
         }
 
-        if (!TryGetRunningProcess(application, out var process))
+        if (!_containerProcesses.TryGetRunningProcess(application, out var process))
         {
             ClearStopping(applicationId);
             return;
@@ -1906,17 +1881,15 @@ public sealed partial class ApplicationResourceService(
             $"Application provider is stopping tracked process for '{application?.Name ?? applicationId}'.");
         log.Append(force ? "Stopping process." : "Stopping control-plane-scoped process.", "process", "Information");
         ProcessShutdown.KillProcessTreeAndWait(process);
-        var logPath = _processes.TryGetValue(applicationId, out var state)
-            ? state.LogPath
-            : runtimeStates.Get(applicationId)?.LogPath ?? GetLogPath(applicationId);
+        var logPath = _containerProcesses.GetTrackedLogPath(applicationId);
         runtimeStates.Save(new ApplicationRuntimeState(
             applicationId,
             process.Id,
             null,
             DateTimeOffset.UtcNow,
-            TryGetExitCode(process),
+            ApplicationContainerProcessTracker.TryGetExitCode(process),
             logPath,
-            VolumeMounts: MarkVolumeMountsNotActive(
+            VolumeMounts: ApplicationContainerProcessTracker.MarkVolumeMountsNotActive(
                 runtimeStates.Get(applicationId)?.RuntimeVolumeMounts ?? [],
                 DateTimeOffset.UtcNow)));
         procedureContext?.AppendProviderEvent(
@@ -1986,7 +1959,7 @@ public sealed partial class ApplicationResourceService(
         await StopContainerApplicationInstanceAsync(
             definition,
             engine,
-            GetProcessLog(definition.Id),
+            _containerProcesses.GetProcessLog(definition.Id),
             instance,
             removeContainer,
             cancellationToken);
@@ -2569,206 +2542,6 @@ public sealed partial class ApplicationResourceService(
         IsTcpPortAvailable(IPAddress.Loopback, port) &&
         IsTcpPortAvailable(IPAddress.IPv6Loopback, port);
 
-    private bool TryGetRunningProcess(
-        ApplicationResourceDefinition? definition,
-        [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Process? process)
-    {
-        process = null;
-        if (definition is null)
-        {
-            return false;
-        }
-
-        if (_processes.TryGetValue(definition.Id, out var state))
-        {
-            if (!state.Process.HasExited)
-            {
-                process = state.Process;
-                return true;
-            }
-
-            runtimeStates.Save(new ApplicationRuntimeState(
-                definition.Id,
-                state.Process.Id,
-                null,
-                DateTimeOffset.UtcNow,
-                TryGetExitCode(state.Process),
-                state.LogPath,
-                VolumeMounts: MarkVolumeMountsNotActive(
-                    runtimeStates.Get(definition.Id)?.RuntimeVolumeMounts ?? [],
-                    DateTimeOffset.UtcNow)));
-            if (_processes.TryRemove(definition.Id, out var removedState))
-            {
-                ReleaseTrackedApplicationProcess(definition.Id, removedState);
-            }
-        }
-
-        var runtimeState = runtimeStates.Get(definition.Id);
-        if (runtimeState?.LastKnownProcessId is null ||
-            runtimeState.LastKnownProcessStartedAt is null)
-        {
-            return false;
-        }
-
-        try
-        {
-            var candidate = Process.GetProcessById(runtimeState.LastKnownProcessId.Value);
-            if (candidate.HasExited ||
-                !ProcessStartMatches(candidate, runtimeState.LastKnownProcessStartedAt.Value))
-            {
-                candidate.Dispose();
-                return false;
-            }
-
-            var logPath = runtimeState.LogPath ?? GetLogPath(definition.Id);
-            var log = CreateProcessLog(logPath);
-            candidate.EnableRaisingEvents = true;
-            candidate.Exited += (_, _) =>
-            {
-                log.Append(
-                    $"Process exited with code {TryGetExitCode(candidate)?.ToString() ?? "unknown"}.",
-                    "process",
-                    TryGetExitCode(candidate) == 0 ? "Information" : "Error");
-                runtimeStates.Save(new ApplicationRuntimeState(
-                    definition.Id,
-                    candidate.Id,
-                    null,
-                    DateTimeOffset.UtcNow,
-                    TryGetExitCode(candidate),
-                    logPath,
-                    VolumeMounts: MarkVolumeMountsNotActive(
-                        runtimeStates.Get(definition.Id)?.RuntimeVolumeMounts ?? [],
-                        DateTimeOffset.UtcNow)));
-            };
-
-            _processes[definition.Id] = new ApplicationProcessState(
-                candidate,
-                log,
-                definition.Lifetime,
-                logPath);
-            process = candidate;
-            return true;
-        }
-        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException)
-        {
-            return false;
-        }
-    }
-
-    private void ReleaseTrackedApplicationProcess(
-        string applicationId,
-        ApplicationProcessState state)
-    {
-        var processId = TryGetProcessId(state.Process);
-        dockerHostLogger.LogDebug(
-            "Application provider released tracked {ApplicationLifetime} process handle {ProcessId} for resource {ResourceName}.",
-            state.Lifetime,
-            processId?.ToString(CultureInfo.InvariantCulture) ?? "detached",
-            ResourceDisplayLabels.GetName(applicationId));
-        state.Process.Dispose();
-    }
-
-    private static int? TryGetProcessId(Process process)
-    {
-        try
-        {
-            return process.Id;
-        }
-        catch (InvalidOperationException)
-        {
-            return null;
-        }
-    }
-
-    private ApplicationProcessLog GetProcessLog(string applicationId)
-    {
-        if (_processes.TryGetValue(applicationId, out var state))
-        {
-            return state.Log;
-        }
-
-        return CreateProcessLog(runtimeStates.Get(applicationId)?.LogPath ?? GetLogPath(applicationId));
-    }
-
-    private ApplicationProcessLog CreateProcessLog(string? logPath) =>
-        new(
-            logPath,
-            options.LogRetentionDays,
-            options.RetainedLogEntries,
-            options.SplitLogFilesByDay);
-
-    private string? GetLogPath(string applicationId)
-    {
-        if (!IsFileLogStore())
-        {
-            return null;
-        }
-
-        return GetPersistedLogPath(applicationId);
-    }
-
-    private string GetPersistedLogPath(string applicationId)
-    {
-        var logDirectory = Path.IsPathRooted(options.LogDirectory)
-            ? options.LogDirectory
-            : Path.GetFullPath(options.LogDirectory, environment.ContentRootPath);
-        var logFileName = SlugPattern()
-            .Replace(applicationId.ToLowerInvariant(), "-")
-            .Trim('-');
-
-        return Path.Combine(logDirectory, $"{logFileName}.log");
-    }
-
-    private bool IsFileLogStore() =>
-        string.Equals(options.LogStore, ApplicationLogStores.File, StringComparison.OrdinalIgnoreCase);
-
-    private static void EnsureLogDirectory(string? logPath)
-    {
-        if (string.IsNullOrWhiteSpace(logPath))
-        {
-            return;
-        }
-
-        Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
-    }
-
-    private static bool ProcessStartMatches(
-        Process process,
-        DateTimeOffset expectedStartedAt)
-    {
-        var actualStartedAt = TryGetStartTime(process);
-        if (actualStartedAt is null)
-        {
-            return true;
-        }
-
-        return (actualStartedAt.Value - expectedStartedAt).Duration() <= TimeSpan.FromSeconds(2);
-    }
-
-    private static DateTimeOffset? TryGetStartTime(Process process)
-    {
-        try
-        {
-            return new DateTimeOffset(process.StartTime.ToUniversalTime(), TimeSpan.Zero);
-        }
-        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
-        {
-            return null;
-        }
-    }
-
-    private static int? TryGetExitCode(Process process)
-    {
-        try
-        {
-            return process.HasExited ? process.ExitCode : null;
-        }
-        catch (InvalidOperationException)
-        {
-            return null;
-        }
-    }
-
     private ApplicationResourceDefinition NormalizeDefinition(ApplicationResourceDefinition definition) =>
         _definitionNormalizer.Normalize(definition);
 
@@ -3195,7 +2968,7 @@ public sealed partial class ApplicationResourceService(
             cancellationToken.ThrowIfCancellationRequested();
             if (process.HasExited)
             {
-                var exitCode = TryGetExitCode(process);
+                var exitCode = ApplicationContainerProcessTracker.TryGetExitCode(process);
                 throw new InvalidOperationException(
                     $"Container replica '{instance.Name}' exited before readiness check '{check.Name}' became healthy with code {exitCode?.ToString(CultureInfo.InvariantCulture) ?? "unknown"}.");
             }
@@ -3267,12 +3040,12 @@ public sealed partial class ApplicationResourceService(
         var now = DateTimeOffset.UtcNow;
         runtimeStates.Save(new ApplicationRuntimeState(
             definition.Id,
-            TryGetProcessId(process),
+            ApplicationContainerProcessTracker.TryGetProcessId(process),
             null,
             now,
-            TryGetExitCode(process),
+            ApplicationContainerProcessTracker.TryGetExitCode(process),
             logPath,
-            VolumeMounts: MarkVolumeMountsNotActive(volumeMounts, now)));
+            VolumeMounts: ApplicationContainerProcessTracker.MarkVolumeMountsNotActive(volumeMounts, now)));
         process.Dispose();
     }
 
@@ -3650,12 +3423,6 @@ public sealed partial class ApplicationResourceService(
 
     [GeneratedRegex("[^a-z0-9]+")]
     private static partial Regex SlugPattern();
-
-    private sealed record ApplicationProcessState(
-        Process Process,
-        ApplicationProcessLog Log,
-        ApplicationLifetime Lifetime,
-        string? LogPath);
 
     private sealed record ProjectContainerImageReference(
         string Reference,

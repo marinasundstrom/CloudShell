@@ -225,6 +225,10 @@ without forcing provider-specific logic into shared helpers.
 - [x] Move application orchestration descriptor behavior to a focused
   descriptor provider and extract workload intent mapping into
   `ApplicationWorkloadConfigurationProvider`.
+- [x] Move container runtime process tracking into
+  `ApplicationContainerProcessTracker` and route
+  `IApplicationResourceRunningStateOperations` through a focused running-state
+  operation instead of the shared application resource service facade.
 
 ## Next Slices
 

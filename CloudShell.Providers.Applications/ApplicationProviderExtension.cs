@@ -35,6 +35,7 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
         builder.Services.TryAddSingleton<ApplicationRuntimeStateStore>();
         builder.Services.TryAddSingleton<ApplicationContainerDeploymentStore>();
         builder.Services.TryAddSingleton<ApplicationContainerHostResolver>();
+        builder.Services.TryAddSingleton<ApplicationContainerProcessTracker>();
         builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<
             IApplicationResourceDefinitionNormalizationRule,
             ProjectBackedApplicationResourceDefinitionNormalizationRule>());
@@ -57,6 +58,7 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
         builder.Services.TryAddSingleton<ApplicationResourceDefinitionRegistrationService>();
         builder.Services.TryAddSingleton<ApplicationResourceDefinitionSource>();
         builder.Services.TryAddSingleton<ApplicationResourceRegistrationOperations>();
+        builder.Services.TryAddSingleton<ApplicationResourceRunningStateOperations>();
         builder.Services.TryAddSingleton<ApplicationResourceConfigurationOperations>();
         builder.Services.TryAddSingleton<ApplicationResourceDeclarationOperations>();
         builder.Services.TryAddSingleton<ApplicationResourceTemplateOperations>();
@@ -76,7 +78,7 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
         builder.Services.TryAddSingleton<IApplicationResourceRegistrationOperations>(
             serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceRegistrationOperations>());
         builder.Services.TryAddSingleton<IApplicationResourceRunningStateOperations>(
-            serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceService>());
+            serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceRunningStateOperations>());
         builder.Services.TryAddSingleton<IContainerApplicationHistoryOperations>(
             serviceProvider => serviceProvider.GetRequiredService<ApplicationContainerHistoryService>());
         builder.Services.TryAddSingleton<ISqlServerDatabaseInspectionOperations>(
