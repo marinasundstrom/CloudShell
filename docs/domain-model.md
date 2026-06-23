@@ -81,6 +81,16 @@ A resource is the central CloudShell artifact. It represents something the
 platform can inspect or operate, such as a Docker Engine, container, executable
 application, configuration service, database, queue, or internal service.
 
+Resources normally exist as declared or accepted resource identities before
+providers apply changes to them. A declaration may come from code, persistence,
+import, or a future API. The resource provider for the resource type validates
+that declaration, maps its attributes to provider-owned behavior, and projects
+the current resource state back to Resource Manager. Provider-projected child,
+runtime, or diagnostic artifacts can also appear as `Resource` projections, but
+those projections are not automatically the same as user-declared resources.
+This distinction matters because `GetResources()` currently returns a unified
+projection over both stable declared resources and provider/runtime artifacts.
+
 The resource model is the portability boundary. CloudShell should not require
 users to learn a provider-specific vocabulary, such as pods, container groups,
 app-service products, or vendor-specific deployment units, before they can

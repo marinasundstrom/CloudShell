@@ -14,6 +14,28 @@ consumed by Resource Manager UI, remote clients, and extensions. It is not the
 runtime object itself. It is the current known description of a managed
 resource.
 
+Resource projection is not the same thing as resource declaration. A declared
+resource is the stable authored or persisted resource identity that CloudShell
+expects to exist and that a resource provider validates and handles for its
+resource type. A projection is the current shape returned to consumers. Today
+`IResourceProvider.GetResources()` is used for both declared resources and
+provider-observed or runtime-managed artifacts, such as container replicas,
+runtime containers, and provider-discovered child resources. That overloaded
+surface is useful for building a unified graph, but it should not imply that
+every projected artifact was explicitly declared by a user or program.
+
+Future Resource Manager refactoring should keep those concerns distinct:
+
+- declared resource inventory: stable resources that have been authored,
+  persisted, imported, or otherwise accepted into CloudShell as resources
+- provider projection/listing: the current resource-shaped view of declared
+  resources and provider-observed artifacts
+- runtime/diagnostic projections: implementation artifacts that are useful for
+  inspection, cleanup, health, logs, or topology but are not the primary
+  declared resource
+- validation and change application: provider-owned behavior for a declared
+  resource type and its accepted attributes/capabilities
+
 A resource projection is made from these groups:
 
 | Group | Purpose |

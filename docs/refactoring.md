@@ -22,6 +22,11 @@ without forcing provider-specific logic into shared helpers.
   availability, resource projection/listing, logs, monitoring,
   attribute-to-runtime mapping, and provider-specific commands can be separate
   concerns coordinated under that umbrella.
+- Declared resources and projected resources are related but not identical.
+  Declared resources are stable authored, persisted, imported, or accepted
+  resource identities. `GetResources()` currently also projects provider-
+  observed and runtime-managed artifacts into the unified graph, so projection
+  must not be treated as proof that a resource was explicitly declared.
 - Shared application services are implementation support for application-like
   resources: process/container spawning, runtime state tracking, logs,
   environment-variable resolution, reusable projection helpers, and app-owned
@@ -121,6 +126,10 @@ without forcing provider-specific logic into shared helpers.
   definition/declaration, change application, lifecycle, projection/listing,
   logs, monitoring, and runtime support. The shared application infrastructure
   should provide reusable toolkit pieces, not be the resource inventory owner.
+- [ ] Define the Resource Manager distinction between declared resource
+  inventory and provider/runtime projections before changing `GetResources()`
+  semantics. The unified graph can still include both, but code should know
+  whether it is handling a declared resource or a projected artifact.
 - [x] Add a diagram to the provider/application-resource docs showing the
   layering from raw Resource Provider infrastructure to Application Resource
   Provider infrastructure and the dogfooded implementors: Container app,

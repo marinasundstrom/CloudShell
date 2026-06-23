@@ -105,6 +105,10 @@ on `git blame --follow`, and then by the broad type of change.
   for separate resource-type concerns such as projection/listing, lifecycle,
   logs, monitoring, and change application, while shared application
   infrastructure remains a toolkit rather than an inventory owner.
+- Resource model documentation now separates declared resources from
+  provider/runtime projections, calling out that `GetResources()` currently
+  returns a unified graph that can include artifacts which were not explicitly
+  declared.
 - The deployment proposal now clarifies that deployment definitions describe
   resource intent through resource definitions and provider-owned attributes,
   with serialized formats treated as projections of that model.
