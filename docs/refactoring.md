@@ -168,6 +168,9 @@ without forcing provider-specific logic into shared helpers.
   and SQL database inspection operation contracts.
 - [x] Move container app deployment and revision history reads into
   `ApplicationContainerHistoryService`.
+- [x] Move SQL Server database inspection reads into
+  `SqlServerDatabaseInspectionService` and keep shared SQL connection behavior
+  in a focused helper.
 
 ## Next Slices
 

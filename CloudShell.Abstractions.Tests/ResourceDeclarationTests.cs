@@ -9176,7 +9176,8 @@ public sealed class ResourceDeclarationTests
         var descriptor = await provider.DescribeAsync(
             resource,
             new ResourceOrchestrationDescriptorContext(null, null, null!));
-        var liveDatabases = await provider.QuerySqlServerDatabasesAsync("application:sql");
+        var databaseInspection = serviceProvider.GetRequiredService<ISqlServerDatabaseInspectionOperations>();
+        var liveDatabases = await databaseInspection.QuerySqlServerDatabasesAsync("application:sql");
         var workload = descriptor.Configuration.Deserialize<ResourceWorkloadConfiguration>(
             new JsonSerializerOptions(JsonSerializerDefaults.Web));
         var environment = workload?.WorkloadEnvironmentVariables
@@ -9384,7 +9385,8 @@ public sealed class ResourceDeclarationTests
         var descriptor = await provider.DescribeAsync(
             resource,
             new ResourceOrchestrationDescriptorContext(null, null, null!));
-        var liveDatabases = await provider.QuerySqlServerDatabasesAsync("application:sql");
+        var databaseInspection = serviceProvider.GetRequiredService<ISqlServerDatabaseInspectionOperations>();
+        var liveDatabases = await databaseInspection.QuerySqlServerDatabasesAsync("application:sql");
         var workload = descriptor.Configuration.Deserialize<ResourceWorkloadConfiguration>(
             new JsonSerializerOptions(JsonSerializerDefaults.Web));
         var environment = workload?.WorkloadEnvironmentVariables

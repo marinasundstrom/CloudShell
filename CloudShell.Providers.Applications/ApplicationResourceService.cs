@@ -47,7 +47,6 @@ public sealed partial class ApplicationResourceService(
     IApplicationResourceProjectionSource,
     IHostScopedResourceCleanupProvider,
     IApplicationResourceManagementOperations,
-    ISqlServerDatabaseInspectionOperations,
     IApplicationResourceDefinitionSource,
     IApplicationResourceProcedureOperations,
     IApplicationResourceTemplateOperations,
@@ -62,8 +61,6 @@ public sealed partial class ApplicationResourceService(
     private const string SqlServerManagedUserPrefix = "cloudshell_";
     private static readonly JsonSerializerOptions TemplateSerializerOptions = new(JsonSerializerDefaults.Web);
     private static readonly TimeSpan StartingStateTimeout = TimeSpan.FromMinutes(5);
-    private static readonly TimeSpan SqlServerDatabaseReconciliationTimeout = TimeSpan.FromSeconds(90);
-    private static readonly TimeSpan SqlServerDatabaseReconciliationRetryDelay = TimeSpan.FromSeconds(1);
     private static readonly SemaphoreSlim AspNetCoreProjectBuildLock = new(1, 1);
     private static readonly HttpClient ContainerReadinessHttpClient = new();
     private static readonly ApplicationWorkloadConfigurationFactory WorkloadConfigurationFactory = new();
@@ -644,52 +641,6 @@ public sealed partial class ApplicationResourceService(
             ? TryGetRunningProcess(application, out _)
             : localProcesses.IsRunning(ApplicationProcessDefinitions.Create(application)));
 
-    public async Task<IReadOnlyList<SqlServerDatabaseInfo>> QuerySqlServerDatabasesAsync(
-        string sqlServerResourceId,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(sqlServerResourceId);
-
-        var application = GetApplication(sqlServerResourceId);
-        if (application is null ||
-            !string.Equals(application.ResourceType, ApplicationResourceTypes.SqlServer, StringComparison.OrdinalIgnoreCase) ||
-            !IsRunning(application.Id))
-        {
-            return [];
-        }
-
-        var server = GetResources().FirstOrDefault(resource =>
-            string.Equals(resource.Id, application.Id, StringComparison.OrdinalIgnoreCase));
-        if (server is null ||
-            !TryCreateSqlServerConnectionString(application, server, "master", out var connectionString))
-        {
-            return [];
-        }
-
-        var databases = new List<SqlServerDatabaseInfo>();
-        await using var connection = await OpenSqlServerConnectionWithRetryAsync(
-            application,
-            connectionString,
-            cancellationToken);
-        await using var command = connection.CreateCommand();
-        command.CommandText = """
-            SELECT [name], [state_desc],
-                CAST(CASE WHEN [database_id] <= 4 THEN 1 ELSE 0 END AS bit) AS [is_system]
-            FROM sys.databases
-            ORDER BY [database_id]
-            """;
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
-        {
-            databases.Add(new SqlServerDatabaseInfo(
-                reader.GetString(0),
-                reader.GetString(1),
-                reader.GetBoolean(2)));
-        }
-
-        return databases;
-    }
-
     public async Task<SqlServerCredentialResolutionResult> ResolveSqlServerCredentialAsync(
         string sqlServerResourceName,
         string databaseName,
@@ -760,7 +711,7 @@ public sealed partial class ApplicationResourceService(
             string.Equals(resource.Id, application.Id, StringComparison.OrdinalIgnoreCase));
         if (serverResource is null ||
             !serverResource.TryGetResolvedEndpointUri("tds", out var endpoint) ||
-            !TryCreateSqlServerConnectionString(application, serverResource, "master", out var masterConnectionString))
+            !SqlServerConnectionFactory.TryCreateAdministratorConnectionString(application, serverResource, "master", out var masterConnectionString))
         {
             AppendSqlServerCredentialEvent(
                 application,
@@ -789,16 +740,11 @@ public sealed partial class ApplicationResourceService(
             userName,
             cancellationToken);
 
-        var connectionString = new SqlConnectionStringBuilder
-        {
-            DataSource = CreateSqlDataSource(endpoint),
-            InitialCatalog = databaseName.Trim(),
-            UserID = userName,
-            Password = password,
-            Encrypt = false,
-            TrustServerCertificate = true,
-            ConnectTimeout = 5
-        }.ConnectionString;
+        var connectionString = SqlServerConnectionFactory.CreateConnectionString(
+            endpoint,
+            databaseName.Trim(),
+            userName,
+            password);
 
         AppendSqlServerCredentialEvent(
             application,
@@ -1619,7 +1565,7 @@ public sealed partial class ApplicationResourceService(
         var serverResource = GetResources().FirstOrDefault(resource =>
             string.Equals(resource.Id, application.Id, StringComparison.OrdinalIgnoreCase));
         if (serverResource is null ||
-            !TryCreateSqlServerConnectionString(application, serverResource, "master", out _))
+            !SqlServerConnectionFactory.TryCreateAdministratorConnectionString(application, serverResource, "master", out _))
         {
             return new ResourcePermissionGrantStatus(
                 request.Grant,
@@ -1709,7 +1655,7 @@ public sealed partial class ApplicationResourceService(
         var serverResource = GetResources().FirstOrDefault(resource =>
             string.Equals(resource.Id, definition.Id, StringComparison.OrdinalIgnoreCase));
         if (serverResource is null ||
-            !TryCreateSqlServerConnectionString(definition, serverResource, "master", out var masterConnectionString))
+            !SqlServerConnectionFactory.TryCreateAdministratorConnectionString(definition, serverResource, "master", out var masterConnectionString))
         {
             throw new InvalidOperationException(
                 $"SQL Server resource '{definition.Name}' cannot reconcile databases because its TDS endpoint or administrator password is not available.");
@@ -1773,7 +1719,7 @@ public sealed partial class ApplicationResourceService(
             "application.sql.databases.reconciling",
             $"Application provider is ensuring {databases.Count.ToString(CultureInfo.InvariantCulture)} SQL database{Pluralize(databases.Count)} exist for '{definition.Name}'.");
 
-        await using var connection = await OpenSqlServerConnectionWithRetryAsync(
+        await using var connection = await SqlServerConnectionFactory.OpenWithRetryAsync(
             definition,
             masterConnectionString,
             cancellationToken);
@@ -1805,13 +1751,13 @@ public sealed partial class ApplicationResourceService(
         IReadOnlyCollection<string> managedUsers,
         CancellationToken cancellationToken)
     {
-        if (!TryCreateSqlServerConnectionString(server, serverResource, databaseName, out var connectionString))
+        if (!SqlServerConnectionFactory.TryCreateAdministratorConnectionString(server, serverResource, databaseName, out var connectionString))
         {
             throw new InvalidOperationException(
                 $"SQL Server resource '{server.Name}' cannot reconcile database access for '{databaseName}' because its TDS endpoint or administrator password is not available.");
         }
 
-        await using var connection = await OpenSqlServerConnectionWithRetryAsync(
+        await using var connection = await SqlServerConnectionFactory.OpenWithRetryAsync(
             server,
             connectionString,
             cancellationToken);
@@ -1910,7 +1856,7 @@ public sealed partial class ApplicationResourceService(
         string userName,
         CancellationToken cancellationToken)
     {
-        if (!TryCreateSqlServerConnectionString(server, serverResource, databaseName, out var connectionString))
+        if (!SqlServerConnectionFactory.TryCreateAdministratorConnectionString(server, serverResource, databaseName, out var connectionString))
         {
             return false;
         }
@@ -2024,7 +1970,7 @@ public sealed partial class ApplicationResourceService(
         string password,
         CancellationToken cancellationToken)
     {
-        await using var connection = await OpenSqlServerConnectionWithRetryAsync(
+        await using var connection = await SqlServerConnectionFactory.OpenWithRetryAsync(
             server,
             masterConnectionString,
             cancellationToken);
@@ -2060,7 +2006,7 @@ public sealed partial class ApplicationResourceService(
         string userName,
         CancellationToken cancellationToken)
     {
-        if (!TryCreateSqlServerConnectionString(server, serverResource, databaseName, out var connectionString))
+        if (!SqlServerConnectionFactory.TryCreateAdministratorConnectionString(server, serverResource, databaseName, out var connectionString))
         {
             throw new InvalidOperationException(
                 $"SQL Server resource '{server.Name}' cannot map database access for '{databaseName}' because its TDS endpoint or administrator password is not available.");
@@ -2129,60 +2075,6 @@ public sealed partial class ApplicationResourceService(
         databases.Count == 1
             ? $"database '{databases[0]}'"
             : $"{databases.Count.ToString(CultureInfo.InvariantCulture)} databases: {string.Join(", ", databases.Select(database => $"'{database}'"))}";
-
-    private static async Task<SqlConnection> OpenSqlServerConnectionWithRetryAsync(
-        ApplicationResourceDefinition definition,
-        string connectionString,
-        CancellationToken cancellationToken)
-    {
-        var stopwatch = Stopwatch.StartNew();
-        Exception? lastError = null;
-
-        while (stopwatch.Elapsed < SqlServerDatabaseReconciliationTimeout)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var connection = new SqlConnection(connectionString);
-            try
-            {
-                await connection.OpenAsync(cancellationToken);
-                return connection;
-            }
-            catch (SqlException exception) when (ShouldRetrySqlServerConnection(exception))
-            {
-                lastError = exception;
-                await connection.DisposeAsync();
-            }
-
-            var remaining = SqlServerDatabaseReconciliationTimeout - stopwatch.Elapsed;
-            if (remaining <= TimeSpan.Zero)
-            {
-                break;
-            }
-
-            await Task.Delay(
-                remaining < SqlServerDatabaseReconciliationRetryDelay
-                    ? remaining
-                    : SqlServerDatabaseReconciliationRetryDelay,
-                cancellationToken);
-        }
-
-        throw new InvalidOperationException(
-            $"SQL Server resource '{definition.Name}' started, but declared database reconciliation could not connect to the instance within {SqlServerDatabaseReconciliationTimeout.TotalSeconds.ToString(CultureInfo.InvariantCulture)} seconds.",
-            lastError);
-    }
-
-    private static bool ShouldRetrySqlServerConnection(SqlException exception)
-    {
-        foreach (SqlError error in exception.Errors)
-        {
-            if (error.Number == 4060)
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
 
     private async Task<ApplicationResourceDefinition> MaterializeContainerImageAsync(
         ApplicationResourceDefinition definition,
@@ -3145,55 +3037,6 @@ public sealed partial class ApplicationResourceService(
             throw new InvalidOperationException(
                 $"Dockerfile build failed with exit code {exitCode.ToString(CultureInfo.InvariantCulture)}.");
         }
-    }
-
-    private static bool TryCreateSqlServerConnectionString(
-        ApplicationResourceDefinition server,
-        Resource serverResource,
-        string databaseName,
-        out string connectionString)
-    {
-        connectionString = string.Empty;
-
-        if (!serverResource.TryGetResolvedEndpointUri("tds", out var endpoint))
-        {
-            return false;
-        }
-
-        var password = GetSqlServerPassword(server);
-        if (string.IsNullOrWhiteSpace(password))
-        {
-            return false;
-        }
-
-        var builder = new SqlConnectionStringBuilder
-        {
-            DataSource = CreateSqlDataSource(endpoint),
-            UserID = "sa",
-            Password = password,
-            InitialCatalog = string.IsNullOrWhiteSpace(databaseName) ? "master" : databaseName.Trim(),
-            Encrypt = false,
-            TrustServerCertificate = true,
-            ConnectTimeout = 5
-        };
-        connectionString = builder.ConnectionString;
-        return true;
-    }
-
-    private static string? GetSqlServerPassword(ApplicationResourceDefinition application) =>
-        application.EnvironmentVariables.FirstOrDefault(variable =>
-            string.Equals(variable.Name, "MSSQL_SA_PASSWORD", StringComparison.OrdinalIgnoreCase))?.Value;
-
-    private static string CreateSqlDataSource(Uri endpoint)
-    {
-        if (string.IsNullOrWhiteSpace(endpoint.Host))
-        {
-            return endpoint.ToString();
-        }
-
-        return endpoint.Port > 0
-            ? $"{endpoint.Host},{endpoint.Port.ToString(CultureInfo.InvariantCulture)}"
-            : endpoint.Host;
     }
 
     private static void AddIfNotEmpty(

@@ -34,6 +34,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Container app deployment and revision history reads now live in
   `ApplicationContainerHistoryService` behind
   `IContainerApplicationHistoryOperations`.
+- SQL Server database inspection now lives in
+  `SqlServerDatabaseInspectionService` and shares SQL connection creation with
+  provider reconciliation code.
 
 ### 2026-06-23
 
