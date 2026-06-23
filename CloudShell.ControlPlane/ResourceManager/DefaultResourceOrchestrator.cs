@@ -9,7 +9,8 @@ public sealed class DefaultResourceOrchestrator(
     IResourceOrchestratorDeploymentStore? deploymentStore = null) :
     IResourceOrchestrator,
     IResourceOrchestratorDeploymentApplier,
-    IResourceOrchestratorServiceTearDown
+    IResourceOrchestratorServiceTearDown,
+    IResourceOrchestratorReplicaGroupTearDown
 {
     public string Id => "default";
 
@@ -90,6 +91,49 @@ public sealed class DefaultResourceOrchestrator(
             ResourceAction.Stop,
             cancellationToken);
         return ResourceProcedureResult.Completed($"Tore down service '{service.Name}' for {context.Resource.Name}.");
+    }
+
+    public bool CanTearDownReplicaGroup(
+        ResourceOrchestrationContext context,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup replicaGroup) =>
+        string.Equals(context.Resource.Id, service.ResourceId, StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(service.Name, replicaGroup.ServiceId, StringComparison.OrdinalIgnoreCase) &&
+        GetServiceProcedureProvider(context, ResourceAction.Stop) is not null;
+
+    public async Task<ResourceProcedureResult> TearDownReplicaGroupAsync(
+        ResourceOrchestrationContext context,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup replicaGroup,
+        CancellationToken cancellationToken = default)
+    {
+        if (!string.Equals(context.Resource.Id, service.ResourceId, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ControlPlaneException(
+                ControlPlaneError.InvalidRequest(
+                    $"Replica group '{replicaGroup.Id}' belongs to service '{service.Name}' for resource '{service.ResourceId}', not '{context.Resource.Id}'."));
+        }
+
+        if (!string.Equals(service.Name, replicaGroup.ServiceId, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ControlPlaneException(
+                ControlPlaneError.InvalidRequest(
+                    $"Replica group '{replicaGroup.Id}' belongs to service '{replicaGroup.ServiceId}', not '{service.Name}'."));
+        }
+
+        var provider = GetServiceProcedureProvider(context, ResourceAction.Stop)
+            ?? throw new ControlPlaneException(
+                ControlPlaneError.ResourceActionUnsupported(context.Resource.Name));
+        await ExecuteOrchestratorReplicaGroupAsync(
+            provider,
+            CreateProcedureContext(context),
+            service,
+            replicaGroup,
+            ResourceAction.Stop,
+            deployment: null,
+            cancellationToken);
+        return ResourceProcedureResult.Completed(
+            $"Tore down replica group '{replicaGroup.Id}' for service '{service.Name}'.");
     }
 
     public bool CanApplyDeployment(
@@ -240,20 +284,6 @@ public sealed class DefaultResourceOrchestrator(
                 $"Updated routing for orchestrator service '{deployment.ServiceId}' to revision '{deployment.RevisionId}' for deployment '{deployment.Id}'.");
         }
 
-        if (deployment is not null)
-        {
-            AppendDeploymentEvent(
-                resourceContext,
-                ResourceEventTypes.Events.Deployment.Finalizing,
-                $"Finalizing deployment '{deployment.Id}' for revision '{deployment.RevisionId}'.");
-            await provider.CompleteOrchestratorDeploymentAsync(
-                new ResourceOrchestratorDeploymentProcedureContext(resourceContext, service, deployment, replicaGroup),
-                cancellationToken);
-            AppendDeploymentEvent(
-                resourceContext,
-                ResourceEventTypes.Events.Deployment.Finalized,
-                $"Finalized deployment '{deployment.Id}' for revision '{deployment.RevisionId}'.");
-        }
     }
 
     private static string FormatReplicaPosition(ResourceOrchestratorServiceInstance instance) =>

@@ -22,6 +22,7 @@ internal sealed class ContainerApplicationResourceProvider(
     IResourceImageUpdateProvider,
     IResourceReplicaUpdateProvider,
     IResourceOrchestratorDeploymentProvider,
+    IResourceOrchestratorDeploymentTearDownProvider,
     IResourceOrchestratorServiceProcedureProvider
 {
     public const string ProviderId = ApplicationResourceProviderIds.ContainerApplication;
@@ -94,8 +95,12 @@ internal sealed class ContainerApplicationResourceProvider(
         CancellationToken cancellationToken = default) =>
         containerApplications.ExecuteOrchestratorServiceInstanceAsync(context, action, cancellationToken);
 
-    public Task CompleteOrchestratorDeploymentAsync(
-        ResourceOrchestratorDeploymentProcedureContext context,
+    public bool CanDescribeDeploymentTearDown(Resource resource) =>
+        containerApplications.CanDescribeDeployment(resource);
+
+    public Task<IReadOnlyList<ResourceOrchestratorReplicaGroupTearDownRequest>> DescribeDeploymentTearDownAsync(
+        ResourceProcedureContext context,
+        ResourceOrchestratorDeploymentApplyResult applyResult,
         CancellationToken cancellationToken = default) =>
-        containerApplications.CompleteOrchestratorDeploymentAsync(context, cancellationToken);
+        containerApplications.DescribeDeploymentTearDownAsync(context, applyResult, cancellationToken);
 }

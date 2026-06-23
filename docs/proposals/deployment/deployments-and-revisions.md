@@ -72,10 +72,9 @@ The Control Plane also records internal orchestrator deployment history for
 apply attempts, successful orchestrator revisions, and failed apply results.
 When the default orchestrator applies a deployment, it now materializes service
 instances with revision-scoped runtime names so new replicas can be started next
-to the currently serving revision before routing is remapped. It also exposes a
-deployment finalization hook after materialization and routing updates so
-providers can retire superseded runtime instances without baking provider
-cleanup details into the common orchestrator.
+to the currently serving revision before routing is remapped. Superseded
+runtime instances are described as explicit replica-group tear-down targets
+after deployment setup, keeping cleanup separate from deployment apply.
 Container apps also keep provider-owned app deployment and revision history
 separately from the desired application definition. Those app deployment
 records correlate the deployment request to the produced container app
@@ -508,7 +507,7 @@ replicas should ask the orchestrator to materialize that runtime state, not ask
 the container app provider to manually own N runtime containers. That lets an
 orchestrator start a replacement replica group for a new image revision next to
 the currently serving group, update service routing or ingress to the new
-group, and then run a separate finalization or tear-down operation to drain or
+group, and then run a separate replica-group tear-down operation to drain or
 remove the superseded group. Ordinary active-revision scaling can reconcile the
 existing replica group by adding members during setup or tearing members down
 when the requested capacity decreases because it is capacity management for the
@@ -520,10 +519,10 @@ replica group snapshot so runtime replica resources can be associated with
 their deployment service and revision across materialization, readiness,
 cutover, diagnostics, and cleanup.
 
-Deployment finalization is an orchestrator-provider boundary. The common
-orchestrator decides when finalization runs in the apply sequence, after the new
-runtime instances are materialized and after routing milestones are recorded.
-The provider decides which provider-owned runtime artifacts are safe to retire.
+Replica-group tear-down is an orchestrator-provider boundary. A provider can
+describe which superseded replica group should be retired after deployment
+setup, and Resource Manager orchestration asks the selected orchestrator to tear
+that group down separately from the deployment apply operation.
 
 ## Resource Relationship
 

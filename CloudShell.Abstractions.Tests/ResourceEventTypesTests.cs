@@ -62,12 +62,6 @@ public sealed class ResourceEventTypesTests
             "event.deployment.routing.updated",
             ResourceEventTypes.Events.Deployment.RoutingUpdated);
         Assert.Equal(
-            "event.deployment.finalizing",
-            ResourceEventTypes.Events.Deployment.Finalizing);
-        Assert.Equal(
-            "event.deployment.finalized",
-            ResourceEventTypes.Events.Deployment.Finalized);
-        Assert.Equal(
             "event.deployment.applied",
             ResourceEventTypes.Events.Deployment.Applied);
         Assert.Equal(

@@ -221,9 +221,9 @@ Implemented pieces include:
   readiness, routing, diagnostics, drain, and cleanup
 * orchestrator revision outcomes and internal deployment history retain the
   materialized replica group snapshot produced by deployment apply
-* the container app provider retires superseded local runtime replicas through
-  the default orchestrator deployment finalization hook after the replacement
-  revision has been materialized and routing milestones have been recorded
+* the container app provider describes superseded local runtime replicas as a
+  post-apply replica-group tear-down target after the replacement revision has
+  been materialized and routing milestones have been recorded
 * hidden runtime-managed child resources for container app replicas, parented
   to and owned by the stable container app resource, with
   deployment/service/revision correlation metadata
@@ -384,10 +384,10 @@ liveness/lifecycle signals, while scaling changes desired capacity.
 * Continue evolving the container app deployment operation so it can include
   requested replica count and records an app-owned revision. The orchestrator
   now materializes deployment-applied replicas with revision-scoped identity,
-  records explicit routing update milestones, and finalizes local deployments by
-  retiring superseded runtime replicas. Remaining rollout work should verify
-  readiness, perform explicit traffic or endpoint cutover, retain failed
-  runtime/app revision diagnostics, and make cleanup policy configurable.
+  records explicit routing update milestones, and tears down superseded runtime
+  replica groups as a separate post-apply operation. Remaining rollout work
+  should verify readiness, perform explicit traffic or endpoint cutover, retain
+  failed runtime/app revision diagnostics, and make cleanup policy configurable.
 * Continue improving update behavior around replica, environment, endpoint,
   identity, and storage changes, deciding which changes belong to active
   revision capacity/configuration and which require a new deployment revision.

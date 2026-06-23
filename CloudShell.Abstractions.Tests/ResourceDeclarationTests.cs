@@ -10681,6 +10681,7 @@ public sealed class ResourceDeclarationTests
             var resourceManager = new StaticResourceManagerStore(resources, providers);
             var resource = Assert.Single(provider.GetResources(), resource =>
                 resource.Id == "application:api");
+            var originalRevision = resource.ResourceAttributes[ResourceAttributeNames.ContainerRevision];
 
             await provider.UpdateImageAsync(
                 new ResourceProcedureContext(
@@ -10704,25 +10705,39 @@ public sealed class ResourceDeclarationTests
 
             Assert.NotNull(deployment);
 
-            await provider.CompleteOrchestratorDeploymentAsync(
-                new ResourceOrchestratorDeploymentProcedureContext(
-                    new ResourceProcedureContext(
-                        updatedResource,
-                        registrations.GetRegistration(updatedResource.Id),
-                        null,
-                        registrations,
-                        resourceManager),
-                    deployment.Spec.Service with { RuntimeRevisionId = deployment.RevisionId },
-                    deployment));
+            var tearDowns = await provider.DescribeDeploymentTearDownAsync(
+                new ResourceProcedureContext(
+                    updatedResource,
+                    registrations.GetRegistration(updatedResource.Id),
+                    null,
+                    registrations,
+                    resourceManager),
+                new ResourceOrchestratorDeploymentApplyResult(
+                    deployment,
+                    new ResourceOrchestratorRevision(
+                        deployment.RevisionId,
+                        deployment.Id,
+                        deployment.SourceResourceId,
+                        deployment.ServiceId,
+                        RevisionNumber: 1,
+                        DateTimeOffset.UtcNow,
+                        ResourceOrchestratorRevisionStatus.Active),
+                    ResourceProcedureResult.Completed("Applied deployment.")));
 
-            var commands = File.ReadAllLines(commandLogPath);
+            var tearDown = Assert.Single(tearDowns);
 
-            Assert.Contains("rm -f cloudshell-application-api-replica-1", commands);
-            Assert.Contains("rm -f cloudshell-application-api-replica-2", commands);
-            Assert.Contains("rm -f cloudshell-application-api-replica-3", commands);
-            Assert.DoesNotContain(
-                commands,
-                command => command.Contains(deployment.RevisionId, StringComparison.OrdinalIgnoreCase));
+            Assert.Equal("cloudshell-application-api", tearDown.Service.Name);
+            Assert.Null(tearDown.Service.RuntimeRevisionId);
+            Assert.NotNull(tearDown.ReplicaGroup);
+            Assert.Equal("cloudshell-application-api-replicas", tearDown.ReplicaGroup.Id);
+            Assert.Equal(
+                [
+                    "cloudshell-application-api-replica-1",
+                    "cloudshell-application-api-replica-2",
+                    "cloudshell-application-api-replica-3"
+                ],
+                tearDown.ReplicaGroup.Instances.Select(instance => instance.Name).ToArray());
+            Assert.Contains(originalRevision, tearDown.Reason, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {

@@ -65,21 +65,23 @@ public sealed partial class ApplicationResourceService
             string.Equals(entry.Id, revision, StringComparison.OrdinalIgnoreCase) &&
             string.Equals(entry.Status, ApplicationContainerRevisionStatuses.Active, StringComparison.OrdinalIgnoreCase));
 
-    public async Task CompleteOrchestratorDeploymentAsync(
-        ResourceOrchestratorDeploymentProcedureContext context,
+    public Task<IReadOnlyList<ResourceOrchestratorReplicaGroupTearDownRequest>> DescribeDeploymentTearDownAsync(
+        ResourceProcedureContext context,
+        ResourceOrchestratorDeploymentApplyResult applyResult,
         CancellationToken cancellationToken = default)
     {
-        var application = GetContainerApplication(context.ResourceContext.Resource.Id);
+        cancellationToken.ThrowIfCancellationRequested();
+        var application = GetContainerApplication(context.Resource.Id);
         var appDeployment = containerDeployments
             .List(application.Id)
             .FirstOrDefault(deployment =>
-                string.Equals(deployment.OrchestratorDeploymentId, context.Deployment.Id, StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(deployment.RevisionId, context.Deployment.RevisionId, StringComparison.OrdinalIgnoreCase));
+                string.Equals(deployment.OrchestratorDeploymentId, applyResult.Deployment.Id, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(deployment.RevisionId, applyResult.Deployment.RevisionId, StringComparison.OrdinalIgnoreCase));
         var sourceRevisionId = NormalizeNullable(appDeployment?.SourceRevisionId);
         if (sourceRevisionId is null ||
-            string.Equals(sourceRevisionId, context.Deployment.RevisionId, StringComparison.OrdinalIgnoreCase))
+            string.Equals(sourceRevisionId, applyResult.Deployment.RevisionId, StringComparison.OrdinalIgnoreCase))
         {
-            return;
+            return Task.FromResult<IReadOnlyList<ResourceOrchestratorReplicaGroupTearDownRequest>>([]);
         }
 
         var sourceRevision = containerDeployments
@@ -90,35 +92,14 @@ public sealed partial class ApplicationResourceService
             application,
             sourceRevisionId,
             sourceRevision);
-        var engine = await ResolveRequiredContainerHostAsync(
-            application,
-            context.ResourceContext.ResourceManager,
-            context.ResourceContext.PreferredContainerHostId,
-            ContainerHostCapabilityIds.ContainerImage,
-            cancellationToken);
-        var log = GetProcessLog(application.Id);
-        context.ResourceContext.AppendProviderEvent(
-            Id,
-            "application.container.revision.retiring",
-            $"Application provider is retiring superseded container app revision '{sourceRevisionId}' for '{application.Name}'.");
-
         var sourceReplicaGroup = CreateDefaultContainerReplicaGroup(sourceService);
-        foreach (var instance in sourceReplicaGroup.Instances
-                     .OrderByDescending(instance => instance.ReplicaOrdinal))
-        {
-            await StopContainerApplicationInstanceAsync(
-                application,
-                engine,
-                log,
-                instance,
-                cancellationToken,
-                context.ResourceContext);
-        }
-
-        context.ResourceContext.AppendProviderEvent(
-            Id,
-            "application.container.revision.retired",
-            $"Application provider retired superseded container app revision '{sourceRevisionId}' for '{application.Name}'.");
+        return Task.FromResult<IReadOnlyList<ResourceOrchestratorReplicaGroupTearDownRequest>>(
+            [
+                new ResourceOrchestratorReplicaGroupTearDownRequest(
+                    sourceService,
+                    sourceReplicaGroup,
+                    $"Image deployment retired superseded container app revision '{sourceRevisionId}'.")
+            ]);
     }
 
     private ResourceOrchestratorService CreateSupersededContainerOrchestratorService(

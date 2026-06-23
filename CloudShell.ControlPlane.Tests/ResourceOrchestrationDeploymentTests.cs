@@ -76,10 +76,6 @@ public sealed class ResourceOrchestrationDeploymentTests
         Assert.All(
             provider.ExecutedInstances,
             instance => Assert.Equal(deployment.Spec.Service.Name, instance.Service.Name));
-        var completedDeployment = Assert.Single(provider.CompletedDeployments);
-        Assert.Equal(deployment.Id, completedDeployment.Deployment.Id);
-        Assert.Equal(deployment.RevisionId, completedDeployment.Service.RuntimeRevisionId);
-        Assert.Equal(preparedContext.ReplicaGroup, completedDeployment.ReplicaGroup);
         var events = resourceEvents
             .GetEvents(new ResourceEventQuery(ResourceId: resource.Id))
             .Reverse()
@@ -97,8 +93,6 @@ public sealed class ResourceOrchestrationDeploymentTests
                 ResourceEventTypes.Events.Deployment.ReplicaMaterialized,
                 ResourceEventTypes.Events.Deployment.RoutingUpdating,
                 ResourceEventTypes.Events.Deployment.RoutingUpdated,
-                ResourceEventTypes.Events.Deployment.Finalizing,
-                ResourceEventTypes.Events.Deployment.Finalized,
                 ResourceEventTypes.Events.Deployment.Applied
             ],
             events.Select(resourceEvent => resourceEvent.EventType).ToArray());
@@ -282,7 +276,6 @@ public sealed class ResourceOrchestrationDeploymentTests
         Assert.All(
             provider.ExecutedActions,
             action => Assert.Equal(ResourceActionKind.Stop, action.Kind));
-        Assert.Empty(provider.CompletedDeployments);
     }
 
     [Fact]
@@ -303,6 +296,45 @@ public sealed class ResourceOrchestrationDeploymentTests
             StringComparison.Ordinal);
         Assert.Empty(provider.PreparedContexts);
         Assert.Empty(provider.ExecutedInstances);
+    }
+
+    [Fact]
+    public async Task TearDownReplicaGroupAsync_TearsDownProvidedReplicaGroupWithoutServicePrepare()
+    {
+        var resource = CreateResource();
+        var provider = new RecordingServiceProcedureProvider(resource);
+        var orchestration = CreateOrchestration(resource, provider);
+        var service = CreateDeployment(resource.Id, "default", replicas: 3).Spec.Service with
+        {
+            RuntimeRevisionId = "rev-2"
+        };
+        var replicaGroup = ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service);
+
+        var result = await orchestration.TearDownReplicaGroupAsync(
+            resource,
+            service,
+            replicaGroup,
+            triggeredBy: "tests",
+            cause: "Container app replica group cleanup.");
+
+        Assert.Equal($"Tore down replica group '{replicaGroup.Id}' for service '{service.Name}'.", result.Message);
+        Assert.Empty(provider.PreparedContexts);
+        Assert.Equal(
+            [
+                "cloudshell-application-api-rev-2-replica-1",
+                "cloudshell-application-api-rev-2-replica-2",
+                "cloudshell-application-api-rev-2-replica-3"
+            ],
+            provider.ExecutedInstances
+                .Select(instance => instance.Instance.Name)
+                .Order(StringComparer.OrdinalIgnoreCase)
+                .ToArray());
+        Assert.All(
+            provider.ExecutedActions,
+            action => Assert.Equal(ResourceActionKind.Stop, action.Kind));
+        Assert.All(
+            provider.ExecutedInstances,
+            instance => Assert.Equal(replicaGroup, instance.ReplicaGroup));
     }
 
     private static ResourceOrchestrationService CreateOrchestration(
@@ -412,8 +444,6 @@ public sealed class ResourceOrchestrationDeploymentTests
 
         public ConcurrentBag<ResourceAction> ExecutedActions { get; } = [];
 
-        public ConcurrentBag<ResourceOrchestratorDeploymentProcedureContext> CompletedDeployments { get; } = [];
-
         public IReadOnlyList<Resource> GetResources() => resources;
 
         public bool CanExecuteOrchestratorService(
@@ -455,13 +485,6 @@ public sealed class ResourceOrchestrationDeploymentTests
             return Task.CompletedTask;
         }
 
-        public Task CompleteOrchestratorDeploymentAsync(
-            ResourceOrchestratorDeploymentProcedureContext context,
-            CancellationToken cancellationToken = default)
-        {
-            CompletedDeployments.Add(context);
-            return Task.CompletedTask;
-        }
     }
 
     private sealed class ConcurrentDeploymentGate(int expectedCount)

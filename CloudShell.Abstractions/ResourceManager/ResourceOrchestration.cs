@@ -127,12 +127,36 @@ public interface IResourceOrchestratorServiceTearDown
         CancellationToken cancellationToken = default);
 }
 
+public interface IResourceOrchestratorReplicaGroupTearDown
+{
+    bool CanTearDownReplicaGroup(
+        ResourceOrchestrationContext context,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup replicaGroup);
+
+    Task<ResourceProcedureResult> TearDownReplicaGroupAsync(
+        ResourceOrchestrationContext context,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup replicaGroup,
+        CancellationToken cancellationToken = default);
+}
+
 public interface IResourceOrchestratorDeploymentProvider
 {
     bool CanDescribeDeployment(Resource resource);
 
     Task<ResourceOrchestratorDeployment?> DescribeDeploymentAsync(
         ResourceProcedureContext context,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IResourceOrchestratorDeploymentTearDownProvider
+{
+    bool CanDescribeDeploymentTearDown(Resource resource);
+
+    Task<IReadOnlyList<ResourceOrchestratorReplicaGroupTearDownRequest>> DescribeDeploymentTearDownAsync(
+        ResourceProcedureContext context,
+        ResourceOrchestratorDeploymentApplyResult applyResult,
         CancellationToken cancellationToken = default);
 }
 

@@ -226,11 +226,10 @@ public sealed record ResourceOrchestratorServiceInstanceContext(
     ResourceOrchestratorServiceInstance Instance,
     ResourceOrchestratorReplicaGroup? ReplicaGroup = null);
 
-public sealed record ResourceOrchestratorDeploymentProcedureContext(
-    ResourceProcedureContext ResourceContext,
+public sealed record ResourceOrchestratorReplicaGroupTearDownRequest(
     ResourceOrchestratorService Service,
-    ResourceOrchestratorDeployment Deployment,
-    ResourceOrchestratorReplicaGroup? ReplicaGroup = null);
+    ResourceOrchestratorReplicaGroup? ReplicaGroup = null,
+    string? Reason = null);
 
 public interface IResourceOrchestratorServiceProcedureProvider
 {
@@ -252,9 +251,4 @@ public interface IResourceOrchestratorServiceProcedureProvider
         ResourceOrchestratorServiceInstanceContext context,
         ResourceAction action,
         CancellationToken cancellationToken = default);
-
-    Task CompleteOrchestratorDeploymentAsync(
-        ResourceOrchestratorDeploymentProcedureContext context,
-        CancellationToken cancellationToken = default) =>
-        Task.CompletedTask;
 }

@@ -2372,13 +2372,16 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.False(result.RestartRequired);
         Assert.Contains("Updated target.", result.Message, StringComparison.Ordinal);
         Assert.Contains("Applied deployment 'target-deployment'", result.Message, StringComparison.Ordinal);
+        Assert.Contains("Tore down replica group 'target-service-revision-1-replicas'", result.Message, StringComparison.Ordinal);
         Assert.Equal(["target:example/api:20260623:False:build-server:2"], provider.UpdatedImages);
         Assert.Equal(["target"], provider.DescribedDeployments);
+        Assert.Equal(["target-deployment:revision-2"], provider.DescribedTearDowns);
         Assert.Equal(["start:target-service"], provider.PreparedActions);
         Assert.Equal(
             [
                 "start:target-service-revision-2-replica-1:1/2",
-                "start:target-service-revision-2-replica-2:2/2"
+                "start:target-service-revision-2-replica-2:2/2",
+                "stop:target-service-revision-1:1/1"
             ],
             provider.InstanceActions);
         var deploymentRecord = Assert.Single(deploymentStore.List(new ResourceOrchestratorDeploymentQuery(
@@ -3594,6 +3597,7 @@ public sealed class InProcessControlPlaneResourceStateTests
         IResourceProvider,
         IResourceImageUpdateProvider,
         IResourceOrchestratorDeploymentProvider,
+        IResourceOrchestratorDeploymentTearDownProvider,
         IResourceOrchestratorServiceProcedureProvider
     {
         public string Id => "test";
@@ -3603,6 +3607,8 @@ public sealed class InProcessControlPlaneResourceStateTests
         public List<string> UpdatedImages { get; } = [];
 
         public List<string> DescribedDeployments { get; } = [];
+
+        public List<string> DescribedTearDowns { get; } = [];
 
         public List<string> PreparedActions { get; } = [];
 
@@ -3653,10 +3659,36 @@ public sealed class InProcessControlPlaneResourceStateTests
                 ResourceOrchestratorDeploymentStatus.Pending));
         }
 
+        public bool CanDescribeDeploymentTearDown(Resource resource) => true;
+
+        public Task<IReadOnlyList<ResourceOrchestratorReplicaGroupTearDownRequest>> DescribeDeploymentTearDownAsync(
+            ResourceProcedureContext context,
+            ResourceOrchestratorDeploymentApplyResult applyResult,
+            CancellationToken cancellationToken = default)
+        {
+            DescribedTearDowns.Add($"{applyResult.Deployment.Id}:{applyResult.Deployment.RevisionId}");
+            var service = applyResult.Deployment.Spec.Service with
+            {
+                Workload = applyResult.Deployment.Spec.Service.Workload with
+                {
+                    Replicas = 1,
+                    ReplicasEnabled = false
+                },
+                RuntimeRevisionId = "revision-1"
+            };
+            return Task.FromResult<IReadOnlyList<ResourceOrchestratorReplicaGroupTearDownRequest>>(
+                [
+                    new ResourceOrchestratorReplicaGroupTearDownRequest(
+                        service,
+                        ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service),
+                        "Retire previous test revision.")
+                ]);
+        }
+
         public bool CanExecuteOrchestratorService(
             Resource resource,
             ResourceAction action) =>
-            action.Kind == ResourceActionKind.Start;
+            action.Kind is ResourceActionKind.Start or ResourceActionKind.Stop;
 
         public Task<ResourceOrchestratorService> CreateOrchestratorServiceAsync(
             ResourceProcedureContext context,

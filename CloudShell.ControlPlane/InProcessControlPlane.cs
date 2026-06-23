@@ -793,7 +793,36 @@ public sealed class InProcessControlPlane(
             cancellationToken,
             triggeredBy,
             "Image deployment requested runtime reconciliation.");
-        return MergeAppliedDeploymentResult(result, applyResult.ProcedureResult);
+        var mergedResult = MergeAppliedDeploymentResult(result, applyResult.ProcedureResult);
+        var tearDownProvider = GetDeploymentTearDownProvider(resource);
+        if (tearDownProvider is null ||
+            !tearDownProvider.CanDescribeDeploymentTearDown(resource))
+        {
+            return mergedResult;
+        }
+
+        var tearDowns = await tearDownProvider.DescribeDeploymentTearDownAsync(
+            CreateProcedureContext(
+                resource,
+                triggeredBy,
+                "Image deployment requested runtime reconciliation."),
+            applyResult,
+            cancellationToken);
+        foreach (var tearDown in tearDowns)
+        {
+            var replicaGroup = tearDown.ReplicaGroup ??
+                ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(tearDown.Service);
+            var tearDownResult = await orchestration.TearDownReplicaGroupAsync(
+                resource,
+                tearDown.Service,
+                replicaGroup,
+                cancellationToken,
+                triggeredBy,
+                tearDown.Reason ?? "Image deployment retired superseded replica group.");
+            mergedResult = MergeAppliedDeploymentResult(mergedResult, tearDownResult);
+        }
+
+        return mergedResult;
     }
 
     private static ResourceProcedureResult MergeAppliedDeploymentResult(
@@ -2478,6 +2507,21 @@ public sealed class InProcessControlPlane(
         return resourceManager.Providers.FirstOrDefault(provider =>
             string.Equals(provider.DisplayName, resource.Provider, StringComparison.OrdinalIgnoreCase))
             as IResourceOrchestratorDeploymentProvider;
+    }
+
+    private IResourceOrchestratorDeploymentTearDownProvider? GetDeploymentTearDownProvider(Resource resource)
+    {
+        var registration = GetRegistrationForResourceOrAncestor(resource);
+        if (registration is not null)
+        {
+            return resourceManager.Providers.FirstOrDefault(provider =>
+                string.Equals(provider.Id, registration.ProviderId, StringComparison.OrdinalIgnoreCase))
+                as IResourceOrchestratorDeploymentTearDownProvider;
+        }
+
+        return resourceManager.Providers.FirstOrDefault(provider =>
+            string.Equals(provider.DisplayName, resource.Provider, StringComparison.OrdinalIgnoreCase))
+            as IResourceOrchestratorDeploymentTearDownProvider;
     }
 
     private ResourceProcedureContext CreateProcedureContext(

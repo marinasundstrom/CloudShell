@@ -583,9 +583,9 @@ listed here before pulling in broader proposal work.
    local/default container-host MVP path.
 14. Runtime-managed resources and deployment model: the first ownership,
    visibility, cleanup, and internal orchestrator deployment/revision contracts
-   are in place. Default deployment apply now has a provider finalization hook,
-   and container apps use it to retire superseded local runtime replicas after a
-   replacement revision has been materialized. Container apps now materialize
+   are in place. Deployment apply now materializes the requested runtime state,
+   and container apps describe superseded local runtime replicas as explicit
+   post-apply replica-group tear-down targets. Container apps now materialize
    desired replica resources as hidden runtime-managed children parented to the
    app, with Resource Manager visibility controlled separately for hidden
    resources and hidden runtime-managed artifacts. Docker host raw container

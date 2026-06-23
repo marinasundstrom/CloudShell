@@ -112,8 +112,9 @@ public interface IContainerApplicationResourceProviderOperations
         ResourceAction action,
         CancellationToken cancellationToken = default);
 
-    Task CompleteOrchestratorDeploymentAsync(
-        ResourceOrchestratorDeploymentProcedureContext context,
+    Task<IReadOnlyList<ResourceOrchestratorReplicaGroupTearDownRequest>> DescribeDeploymentTearDownAsync(
+        ResourceProcedureContext context,
+        ResourceOrchestratorDeploymentApplyResult applyResult,
         CancellationToken cancellationToken = default);
 }
 

@@ -76,6 +76,30 @@ public sealed class ResourceOrchestrationService(
         return await tearDown.TearDownServiceAsync(context, service, cancellationToken);
     }
 
+    public async Task<ResourceProcedureResult> TearDownReplicaGroupAsync(
+        Resource resource,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup replicaGroup,
+        CancellationToken cancellationToken = default,
+        string? triggeredBy = null,
+        string? cause = null)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentNullException.ThrowIfNull(service);
+        ArgumentNullException.ThrowIfNull(replicaGroup);
+
+        if (!string.Equals(resource.Id, service.ResourceId, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ControlPlaneException(
+                ControlPlaneError.InvalidRequest(
+                    $"Service '{service.Name}' belongs to resource '{service.ResourceId}', not '{resource.Id}'."));
+        }
+
+        var context = CreateContext(resource, triggeredBy, cause);
+        var tearDown = SelectReplicaGroupTearDown(context, service, replicaGroup);
+        return await tearDown.TearDownReplicaGroupAsync(context, service, replicaGroup, cancellationToken);
+    }
+
     public async Task<ResourceOrchestratorDeploymentApplyResult> ApplyDeploymentAsync(
         Resource resource,
         ResourceOrchestratorDeployment deployment,
@@ -803,6 +827,15 @@ public sealed class ResourceOrchestrationService(
         ?? throw new ControlPlaneException(
             ControlPlaneError.ResourceActionUnsupported(context.Resource.Name));
 
+    private IResourceOrchestratorReplicaGroupTearDown SelectReplicaGroupTearDown(
+        ResourceOrchestrationContext context,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup replicaGroup) =>
+        SelectPreferredReplicaGroupTearDown((_, tearDown) =>
+            tearDown.CanTearDownReplicaGroup(context, service, replicaGroup))
+        ?? throw new ControlPlaneException(
+            ControlPlaneError.ResourceActionUnsupported(context.Resource.Name));
+
     private IResourceOrchestratorDeploymentApplier? SelectPreferredDeploymentApplier(
         Func<IResourceOrchestrator, IResourceOrchestratorDeploymentApplier, bool> predicate)
     {
@@ -847,6 +880,29 @@ public sealed class ResourceOrchestrationService(
             orchestrator is IResourceOrchestratorServiceTearDown tearDown &&
             predicate(orchestrator, tearDown));
         return defaultOrchestrator as IResourceOrchestratorServiceTearDown;
+    }
+
+    private IResourceOrchestratorReplicaGroupTearDown? SelectPreferredReplicaGroupTearDown(
+        Func<IResourceOrchestrator, IResourceOrchestratorReplicaGroupTearDown, bool> predicate)
+    {
+        var selectedId = selectionStore.Get().OrchestratorId;
+        if (!string.Equals(selectedId, "default", StringComparison.OrdinalIgnoreCase))
+        {
+            var selected = orchestrators.FirstOrDefault(orchestrator =>
+                string.Equals(orchestrator.Id, selectedId, StringComparison.OrdinalIgnoreCase) &&
+                orchestrator is IResourceOrchestratorReplicaGroupTearDown tearDown &&
+                predicate(orchestrator, tearDown));
+            if (selected is IResourceOrchestratorReplicaGroupTearDown selectedTearDown)
+            {
+                return selectedTearDown;
+            }
+        }
+
+        var defaultOrchestrator = orchestrators.FirstOrDefault(orchestrator =>
+            string.Equals(orchestrator.Id, "default", StringComparison.OrdinalIgnoreCase) &&
+            orchestrator is IResourceOrchestratorReplicaGroupTearDown tearDown &&
+            predicate(orchestrator, tearDown));
+        return defaultOrchestrator as IResourceOrchestratorReplicaGroupTearDown;
     }
 
     private IResourceOrchestrator? SelectPreferredOrchestrator(
