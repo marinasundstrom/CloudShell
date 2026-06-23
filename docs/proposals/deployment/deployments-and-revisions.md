@@ -1189,6 +1189,8 @@ value.
 
 CloudShell should allow users and tooling to inspect:
 
+* the baseline environment revision produced by the current declared resource
+  graph before deployment-produced revisions exist
 * active deployment
 * previous environment revisions
 * failed deployment attempts
@@ -1204,6 +1206,15 @@ the current host environment. The first version can aggregate projected
 resource metadata and deployment events so users can see deployments,
 environment revisions, replica groups, and materialized resources without
 making orchestrator deployments a primary container app UI concept.
+
+Programmatic declarations should count as the initial logical environment
+revision for the current host. Starting a declared resource materializes that
+baseline state; it does not by itself create a new environment revision unless
+the operation applies a deployment that changes the desired runtime state.
+Until Resource Manager persists declaration-derived environment snapshots, the
+Environment page can project a `baseline-current` revision from the current
+resource graph and list deployment-produced environment revisions alongside
+that baseline.
 
 Example diagnostic view:
 

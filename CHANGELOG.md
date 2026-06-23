@@ -119,6 +119,10 @@ on `git blame --follow`, and then by the broad type of change.
   environment revision id on the app definition and projects it onto the stable
   app resource and hidden runtime replica resources for environment-level
   diagnostics.
+- The Environment page now shows a `baseline-current` revision for the current
+  declared resource graph alongside deployment-produced environment revisions,
+  so a freshly started host still has an inspectable logical environment
+  revision.
 - Resource Manager deployment coordination now lives separately from
   orchestration execution under dedicated Deployment and Orchestration
   namespaces, with the default deployment service reusable for orchestrators

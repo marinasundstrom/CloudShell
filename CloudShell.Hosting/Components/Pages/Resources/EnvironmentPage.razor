@@ -43,7 +43,7 @@
 <section class="dashboard-grid">
     <ShellPanel Wide="true">
         <ShellPanelHeader Title="@L["Environment revisions"].Value"
-                          Description="@L["Revision identifiers projected by resources that have materialized runtime state in the current host environment."].Value">
+                          Description="@L["Current environment revisions, including the baseline declared resource graph before deployment-produced revisions exist."].Value">
             <Actions>
                 <span class="toolbar-meta">@GetLoadedAtLabel()</span>
             </Actions>
@@ -51,8 +51,8 @@
 
         @if (EnvironmentRevisionRows.Count == 0)
         {
-            <EmptyState Title="@L["No environment revisions projected"].Value"
-                        Message="@L["Environment revisions will appear here when resources materialize runtime state through Resource Manager deployment."].Value"
+            <EmptyState Title="@L["No environment resources"].Value"
+                        Message="@L["Environment revisions will appear here when resources are declared or materialized through Resource Manager deployment."].Value"
                         Compact="true" />
         }
         else
@@ -74,7 +74,7 @@
                         <tr>
                             <td>
                                 <strong>@revision.EnvironmentRevisionId</strong>
-                                <div class="table-subtext">@L["Current host environment"]</div>
+                                <div class="table-subtext">@revision.Description</div>
                             </td>
                             <td>@revision.ResourceCount</td>
                             <td>@revision.DeploymentCount</td>
@@ -173,7 +173,7 @@
 
 @code {
     private IReadOnlyList<Resource> Resources { get; set; } = [];
-    private IReadOnlyList<EnvironmentRevisionRow> EnvironmentRevisionRows { get; set; } = [];
+    private IReadOnlyList<EnvironmentRevisionProjectionRow> EnvironmentRevisionRows { get; set; } = [];
     private IReadOnlyList<EnvironmentDeploymentRow> DeploymentRows { get; set; } = [];
     private IReadOnlyList<ResourceEvent> DeploymentEvents { get; set; } = [];
     private DateTimeOffset LoadedAt { get; set; }
@@ -197,12 +197,7 @@
             .OrderBy(row => row.Resource.Name, StringComparer.CurrentCultureIgnoreCase)
             .ThenBy(row => row.Resource.Id, StringComparer.OrdinalIgnoreCase)
             .ToArray();
-        EnvironmentRevisionRows = DeploymentRows
-            .Where(row => row.EnvironmentRevisionId != "not projected")
-            .GroupBy(row => row.EnvironmentRevisionId, StringComparer.OrdinalIgnoreCase)
-            .Select(EnvironmentRevisionRow.Create)
-            .OrderBy(row => row.EnvironmentRevisionId, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+        EnvironmentRevisionRows = EnvironmentRevisionProjection.CreateRows(Resources);
         DeploymentEvents = (await ResourceEvents.ListResourceEventsAsync(new ResourceEventQuery(MaxEvents: 100)))
             .Where(resourceEvent => resourceEvent.EventType.StartsWith(
                 ResourceEventTypes.Events.Deployment.Prefix,
@@ -219,27 +214,6 @@
 
     private string GetEventTitle(string eventType) =>
         ResourceEventDisplayNames.GetDisplayName(eventType, L);
-
-    private sealed record EnvironmentRevisionRow(
-        string EnvironmentRevisionId,
-        int ResourceCount,
-        int DeploymentCount,
-        int ServiceCount,
-        int ReplicaGroupCount,
-        string LatestStatus)
-    {
-        public static EnvironmentRevisionRow Create(IGrouping<string, EnvironmentDeploymentRow> group)
-        {
-            var rows = group.ToArray();
-            return new EnvironmentRevisionRow(
-                group.Key,
-                rows.Select(row => row.Resource.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
-                rows.Select(row => row.DeploymentId).Where(IsProjected).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
-                rows.Select(row => row.ServiceId).Where(IsProjected).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
-                rows.Select(row => row.ReplicaGroupId).Where(IsProjected).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
-                rows.Select(row => row.Status).FirstOrDefault(IsProjected) ?? "not projected");
-        }
-    }
 
     private sealed record EnvironmentDeploymentRow(
         Resource Resource,
