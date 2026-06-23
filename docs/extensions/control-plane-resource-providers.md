@@ -145,14 +145,15 @@ implement descriptor-based read and stream operations. Descriptors can point at
 a resource through `ResourceId`, an extension artifact through `ArtifactId`, or
 a provider-owned source through `SourceKind`, and they carry compatible source
 metadata so the Control Plane can project them into `LogSource`. New resource
-types should prefer declaring `ResourceLogSource` on the resource model and use
+types should prefer declaring `ResourceLogSource` on the resource model and
+returning `LogSource` records from `ILogProvider.GetLogSources()`. Use
 descriptor compatibility only for existing provider read/stream integration.
 The Logs view opens resource-scoped log lists through `/logs?resourceId=...`.
 
 Declare `LogSourceCapabilities.Stream` only when the provider can support live
 tail semantics. For descriptor compatibility, set `SupportsStreaming = true`
-for the same case. Streaming-capable logs are tailed automatically in the Logs
-view when selected, and users can pause or resume streaming from the log
+for the same case. Streaming-capable sources are tailed automatically in the
+Logs view when selected, and users can pause or resume streaming from the log
 header. The viewer keeps a bounded entry window: it loads the newest page
 first, appends streamed entries into that window, and fetches older pages only
 when requested. It follows the latest entry only while the user is already at
@@ -166,16 +167,15 @@ public sealed class AcmeLogProvider : ILogProvider
 
     public string DisplayName => "Acme";
 
-    public IReadOnlyList<LogDescriptor> GetLogs() =>
+    public IReadOnlyList<LogSource> GetLogSources() =>
     [
-        new LogDescriptor(
+        new LogSource(
             Id: "acme:worker:orders:stdout",
             Name: "stdout",
             Provider: DisplayName,
             SourceName: "orders",
             SourceKind: LogSourceKind.Resource,
             ResourceId: "acme:worker:orders",
-            SupportsStreaming: true,
             Kind: ResourceLogSourceKind.ProcessStdout,
             Format: LogFormat.JsonConsole,
             Capabilities: LogSourceCapabilities.Read |
@@ -247,8 +247,8 @@ Streaming implementation guidance:
 - Keep `ReadLogAsync` as the bounded snapshot API. It should return recent
   entries and complete quickly. When `before` is supplied, return the newest
   entries older than that timestamp so the view can page backward.
-- Override `StreamLogAsync` only for descriptors that set
-  `SupportsStreaming = true`.
+- Override `StreamLogAsync` only for sources that advertise
+  `LogSourceCapabilities.Stream`.
 - Honor cancellation promptly. The Logs view cancels the stream when users
   pause streaming, select another log, or leave the page.
 - Yield parsed `LogEntry` values as complete lines/events arrive. Do not

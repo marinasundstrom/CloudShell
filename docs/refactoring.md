@@ -132,6 +132,9 @@ without forcing provider-specific logic into shared helpers.
 - [x] Extract application resource naming helpers for stable identifiers and
   runtime container resource IDs so projection, logs, observability, and
   runtime child-resource concerns can share the same naming boundary.
+- [x] Align log provider contracts and docs with the `LogSource` direction so
+  new providers can expose sources directly while descriptor-shaped logs remain
+  compatibility metadata.
 
 ## Next Slices
 

@@ -6,7 +6,7 @@ public interface ILogProvider : ILogSourceContributor
 
     string DisplayName { get; }
 
-    IReadOnlyList<LogDescriptor> GetLogs();
+    IReadOnlyList<LogDescriptor> GetLogs() => [];
 
     IReadOnlyList<LogSource> ILogSourceContributor.GetLogSources() =>
         GetLogSources();
