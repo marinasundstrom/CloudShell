@@ -35,6 +35,9 @@ public sealed class ResourceOrchestrationDeploymentTests
         Assert.Equal(deployment.Id, result.Revision.DeploymentId);
         Assert.Equal(deployment.SourceResourceId, result.Revision.SourceResourceId);
         Assert.Equal(deployment.ServiceId, result.Revision.ServiceId);
+        Assert.Null(result.Deployment.BasedOnRevisionId);
+        Assert.Null(result.Revision.BasedOnRevisionId);
+        Assert.Equal("tests", result.Revision.ProvisionedBy);
         Assert.Equal(1, result.Revision.RevisionNumber);
         Assert.Equal(ResourceOrchestratorRevisionStatus.Active, result.Revision.Status);
         Assert.NotNull(result.Revision.ReplicaGroup);
@@ -117,7 +120,9 @@ public sealed class ResourceOrchestrationDeploymentTests
             SourceResourceId: resource.Id,
             DeploymentId: deployment.Id)));
         Assert.Equal(ResourceOrchestratorDeploymentStatus.Active, deploymentRecord.Status);
+        Assert.Null(deploymentRecord.Deployment.BasedOnRevisionId);
         Assert.Equal(result.Revision, deploymentRecord.Revision);
+        Assert.Equal("tests", deploymentRecord.Revision?.ProvisionedBy);
         Assert.Equal(result.Revision.ReplicaGroup, deploymentRecord.ReplicaGroup);
         Assert.Equal("tests", deploymentRecord.TriggeredBy);
         Assert.Equal("Container app deployment.", deploymentRecord.Cause);
@@ -255,16 +260,65 @@ public sealed class ResourceOrchestrationDeploymentTests
 
         Assert.Equal(1, firstResult.Revision.RevisionNumber);
         Assert.Equal(2, secondResult.Revision.RevisionNumber);
+        Assert.Null(firstResult.Deployment.BasedOnRevisionId);
+        Assert.Null(firstResult.Revision.BasedOnRevisionId);
+        Assert.Null(firstResult.Revision.ProvisionedBy);
+        Assert.Equal(firstResult.Revision.Id, secondResult.Deployment.BasedOnRevisionId);
+        Assert.Equal(firstResult.Revision.Id, secondResult.Revision.BasedOnRevisionId);
+        Assert.Null(secondResult.Revision.ProvisionedBy);
+        Assert.True(firstResult.Revision.CreatedAt <= secondResult.Revision.CreatedAt);
         var records = deploymentStore.List(new ResourceOrchestratorDeploymentQuery(
             SourceResourceId: resource.Id,
             DeploymentId: firstDeployment.Id));
         Assert.Equal(2, records.Count);
+        Assert.Equal(
+            ["rev-2", "rev-3"],
+            records
+                .Select(record => record.Revision)
+                .Where(revision => revision is not null)
+                .OrderBy(revision => revision!.RevisionNumber)
+                .Select(revision => revision!.Id)
+                .ToArray());
         Assert.Contains(records, record =>
             record.RevisionId == "rev-2" &&
             record.Revision?.RevisionNumber == 1);
         Assert.Contains(records, record =>
             record.RevisionId == "rev-3" &&
-            record.Revision?.RevisionNumber == 2);
+            record.Revision?.RevisionNumber == 2 &&
+            record.Deployment.BasedOnRevisionId == "rev-2" &&
+            record.Revision.BasedOnRevisionId == "rev-2");
+    }
+
+    [Fact]
+    public async Task ApplyDeploymentAsync_PreservesExplicitBasedOnRevisionId()
+    {
+        var resource = CreateResource();
+        var provider = new RecordingServiceProcedureProvider(resource);
+        var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();
+        var deployments = CreateDeployments(resource, provider, deploymentStore: deploymentStore);
+        var firstDeployment = CreateDeployment(resource.Id, "default", replicas: 1);
+        var secondDeployment = firstDeployment with { RevisionId = "rev-3" };
+        var restoreDeployment = firstDeployment with
+        {
+            RevisionId = "rev-4",
+            BasedOnRevisionId = " rev-2 "
+        };
+
+        await deployments.ApplyDeploymentAsync(resource, firstDeployment);
+        await deployments.ApplyDeploymentAsync(resource, secondDeployment);
+
+        var restoreResult = await deployments.ApplyDeploymentAsync(resource, restoreDeployment);
+
+        Assert.Equal("rev-2", restoreResult.Deployment.BasedOnRevisionId);
+        Assert.Equal("rev-2", restoreResult.Revision.BasedOnRevisionId);
+        Assert.Equal("rev-4", restoreResult.Revision.Id);
+        var restoreRecord = Assert.Single(
+            deploymentStore.List(new ResourceOrchestratorDeploymentQuery(
+                SourceResourceId: resource.Id,
+                DeploymentId: firstDeployment.Id)),
+            record => string.Equals(record.RevisionId, "rev-4", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal("rev-2", restoreRecord.Deployment.BasedOnRevisionId);
+        Assert.Equal("rev-2", restoreRecord.Revision?.BasedOnRevisionId);
     }
 
     [Fact]

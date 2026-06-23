@@ -82,6 +82,12 @@ on `git blame --follow`, and then by the broad type of change.
   implementation boundary for `BasedOnRevisionId`: orchestrators track the
   metadata and materialized revision state, while Resource Manager or
   provider-owned workflows author restore and merge deployments.
+- Orchestrator deployments and revision outcomes now carry `BasedOnRevisionId`.
+  Resource Manager deployment apply defaults it to the active/latest
+  successful revision for the same resource service and preserves explicit
+  based-on revision ids for restore-like deployments. Revision outcomes also
+  carry `ProvisionedBy` so the materialized snapshot records who provisioned
+  the deployment that produced it.
 - Resource Manager deployment coordination now lives separately from
   orchestration execution under dedicated Deployment and Orchestration
   namespaces, with the default deployment service reusable for orchestrators

@@ -36,8 +36,9 @@ public sealed class ResourceDeploymentService(
         }
 
         var context = CreateContext(resource, triggeredBy, cause);
-        var applier = SelectDeploymentApplier(context, deployment);
-        var applyingDeployment = deployment with { Status = ResourceOrchestratorDeploymentStatus.Applying };
+        var preparedDeployment = PrepareDeploymentBase(deployment);
+        var applier = SelectDeploymentApplier(context, preparedDeployment);
+        var applyingDeployment = preparedDeployment with { Status = ResourceOrchestratorDeploymentStatus.Applying };
         deploymentStore?.RecordApplying(
             applyingDeployment,
             DateTimeOffset.UtcNow,
@@ -55,6 +56,10 @@ public sealed class ResourceDeploymentService(
                 context,
                 applyingDeployment,
                 cancellationToken);
+            result = NormalizeApplyResult(
+                result,
+                applyingDeployment,
+                triggeredBy);
             deploymentStore?.RecordApplied(
                 result.Deployment,
                 result.Revision,
@@ -72,7 +77,7 @@ public sealed class ResourceDeploymentService(
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             deploymentStore?.RecordFailed(
-                deployment,
+                applyingDeployment,
                 DateTimeOffset.UtcNow,
                 exception.Message,
                 triggeredBy,
@@ -103,6 +108,67 @@ public sealed class ResourceDeploymentService(
             triggeredBy,
             cause,
             resourceEvents);
+    }
+
+    private ResourceOrchestratorDeployment PrepareDeploymentBase(
+        ResourceOrchestratorDeployment deployment)
+    {
+        var explicitBasedOnRevisionId = Normalize(deployment.BasedOnRevisionId);
+        if (explicitBasedOnRevisionId is not null)
+        {
+            return deployment with { BasedOnRevisionId = explicitBasedOnRevisionId };
+        }
+
+        var latestRevisionId = GetLatestSuccessfulRevisionId(deployment);
+        return latestRevisionId is null
+            ? deployment with { BasedOnRevisionId = null }
+            : deployment with { BasedOnRevisionId = latestRevisionId };
+    }
+
+    private string? GetLatestSuccessfulRevisionId(ResourceOrchestratorDeployment deployment)
+    {
+        if (deploymentStore is null)
+        {
+            return null;
+        }
+
+        var records = deploymentStore.List(new ResourceOrchestratorDeploymentQuery(
+            SourceResourceId: deployment.SourceResourceId,
+            OrchestratorId: Normalize(deployment.OrchestratorId),
+            MaxRecords: 1_000));
+        return records
+            .Where(record =>
+                string.Equals(record.ServiceId, deployment.ServiceId, StringComparison.OrdinalIgnoreCase) &&
+                record.Status == ResourceOrchestratorDeploymentStatus.Active &&
+                record.Revision is not null &&
+                !string.IsNullOrWhiteSpace(record.Revision.Id))
+            .OrderByDescending(record => record.CompletedAt ?? record.StartedAt)
+            .Select(record => record.Revision!.Id)
+            .FirstOrDefault();
+    }
+
+    private static ResourceOrchestratorDeploymentApplyResult NormalizeApplyResult(
+        ResourceOrchestratorDeploymentApplyResult result,
+        ResourceOrchestratorDeployment requestedDeployment,
+        string? triggeredBy)
+    {
+        var basedOnRevisionId =
+            Normalize(result.Deployment.BasedOnRevisionId) ??
+            Normalize(requestedDeployment.BasedOnRevisionId);
+        var provisionedBy =
+            Normalize(result.Revision.ProvisionedBy) ??
+            Normalize(triggeredBy);
+        var deployment = result.Deployment with { BasedOnRevisionId = basedOnRevisionId };
+        var revision = result.Revision with
+        {
+            BasedOnRevisionId = Normalize(result.Revision.BasedOnRevisionId) ?? basedOnRevisionId,
+            ProvisionedBy = provisionedBy
+        };
+        return result with
+        {
+            Deployment = deployment,
+            Revision = revision
+        };
     }
 
     private IResourceOrchestratorDeploymentApplier SelectDeploymentApplier(
@@ -221,4 +287,7 @@ public sealed class ResourceDeploymentService(
         string.IsNullOrWhiteSpace(cause)
             ? string.Empty
             : $" Cause: {cause.Trim().TrimEnd('.')}.";
+
+    private static string? Normalize(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

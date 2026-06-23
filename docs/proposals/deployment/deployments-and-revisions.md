@@ -232,6 +232,10 @@ The MVP must support:
   do not have their own native deployment concept.
 * An orchestrator revision outcome only after apply succeeds, including the
   materialized replica group snapshot.
+* Orchestrator-level `BasedOnRevisionId` tracking on deployments and revision
+  outcomes. Ordinary deployments default their base to the active or latest
+  successful revision for the same resource service, while explicit based-on
+  revision ids are preserved for restore-like deployments.
 * Failed deployment attempts recorded without producing an orchestrator
   revision.
 * Provider-owned failure handling when resource revision history was recorded
@@ -404,6 +408,7 @@ public sealed class OrchestratorRevision
     public string ServiceId { get; init; }
     public int RevisionNumber { get; init; }
     public DateTimeOffset CreatedAt { get; init; }
+    public string? ProvisionedBy { get; init; }
     public RevisionStatus Status { get; init; }
 }
 ```
@@ -617,7 +622,11 @@ A revision should allow CloudShell to determine:
 * which version was previously active
 * which version failed
 * which version can provide state for a state-restore deployment
-* which prior revision or deployment the revision was based on
+* which deployment produced the revision
+* who provisioned the deployment that produced the revision
+* which prior revision logically preceded it through `BasedOnRevisionId`
+* where the revision belongs in chronological order through `RevisionNumber`
+  and `CreatedAt`
 * which resource change caused the revision
 
 ### Restore To Revision State
@@ -809,8 +818,8 @@ Orchestrators are responsible for:
   revision when no explicit base is supplied
 * retaining the materialized revision state needed to author a later deployment
   based on that revision
-* returning revision outcomes with `DeploymentId` and `BasedOnRevisionId` for
-  traceability
+* returning revision outcomes with `DeploymentId`, `BasedOnRevisionId`, and
+  `ProvisionedBy` for traceability
 * reporting deployment status
 * reporting revision status
 * mapping the common deployment model to backend-specific behavior
@@ -1191,9 +1200,9 @@ The next MVP changes should stay focused:
 * Define restore behavior for each orchestrator. Restoring to the state
   captured by an old app revision should create a new deployment based on that
   state, not reactivate the old revision in place.
-* Implement orchestrator-level `BasedOnRevisionId` tracking, including default
-  base selection, persistence on deployment and revision outcomes, and enough
-  materialized revision state to author future based-on deployments.
+* Define how much materialized revision state must be retained to author future
+  based-on deployments beyond the current revision outcome and replica-group
+  snapshot.
 * Define revision merge behavior as a deployment-authoring workflow that
   produces a final deployable state from selected revision state snapshots,
   using deployment records for diff context.

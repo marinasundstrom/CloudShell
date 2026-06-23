@@ -58,7 +58,8 @@ public sealed class DefaultResourceDeploymentService(
             applied,
             revisionCreatedAt,
             ResourceOrchestratorRevisionStatus.Active,
-            replicaGroup) ??
+            replicaGroup,
+            context.TriggeredBy) ??
             new ResourceOrchestratorRevision(
                 applied.RevisionId,
                 applied.Id,
@@ -67,7 +68,9 @@ public sealed class DefaultResourceDeploymentService(
                 RevisionNumber: 1,
                 revisionCreatedAt,
                 ResourceOrchestratorRevisionStatus.Active,
-                replicaGroup);
+                replicaGroup,
+                applied.BasedOnRevisionId,
+                context.TriggeredBy);
         return new ResourceOrchestratorDeploymentApplyResult(
             applied,
             revision,

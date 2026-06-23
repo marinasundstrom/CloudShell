@@ -9,7 +9,8 @@ public interface IResourceOrchestratorDeploymentStore
         ResourceOrchestratorDeployment deployment,
         DateTimeOffset createdAt,
         ResourceOrchestratorRevisionStatus status,
-        ResourceOrchestratorReplicaGroup? replicaGroup = null);
+        ResourceOrchestratorReplicaGroup? replicaGroup = null,
+        string? provisionedBy = null);
 
     IReadOnlyList<ResourceOrchestratorDeploymentRecord> List(ResourceOrchestratorDeploymentQuery? query = null);
 
@@ -69,7 +70,8 @@ public sealed class InMemoryResourceOrchestratorDeploymentStore : IResourceOrche
         ResourceOrchestratorDeployment deployment,
         DateTimeOffset createdAt,
         ResourceOrchestratorRevisionStatus status,
-        ResourceOrchestratorReplicaGroup? replicaGroup = null)
+        ResourceOrchestratorReplicaGroup? replicaGroup = null,
+        string? provisionedBy = null)
     {
         ArgumentNullException.ThrowIfNull(deployment);
 
@@ -85,7 +87,9 @@ public sealed class InMemoryResourceOrchestratorDeploymentStore : IResourceOrche
             revisionNumber,
             createdAt,
             status,
-            replicaGroup);
+            replicaGroup,
+            Normalize(deployment.BasedOnRevisionId),
+            Normalize(provisionedBy));
     }
 
     public IReadOnlyList<ResourceOrchestratorDeploymentRecord> List(ResourceOrchestratorDeploymentQuery? query = null)

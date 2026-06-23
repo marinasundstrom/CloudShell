@@ -1205,11 +1205,11 @@ listed here before pulling in broader proposal work.
   rich rollout history, restore-to-revision-state behavior, revision lineage,
   state merge from revisions, retention, and first-class deployment resources
   until runtime ownership and traceability are clear.
-- Add orchestrator-level based-on revision tracking before public restore or
-  merge workflows: deployments should default their base to the active/latest
-  successful revision, revision outcomes should retain `BasedOnRevisionId`, and
-  orchestrators should keep enough materialized state to author a later
-  based-on deployment.
+- Orchestrator-level based-on revision tracking now exists as foundation for
+  future public restore or merge workflows: deployments default their base to
+  the active/latest successful revision and revision outcomes retain
+  `BasedOnRevisionId`. The remaining work is deciding how much materialized
+  state must be retained to author later based-on deployments.
 
 ### Later: Advanced App and Environment Concepts
 
