@@ -60,6 +60,9 @@ public sealed class ResourceOrchestrationDeploymentTests
         Assert.All(
             provider.ExecutedInstances,
             instance => Assert.Equal(deployment.Spec.Service.Name, instance.Service.Name));
+        var completedDeployment = Assert.Single(provider.CompletedDeployments);
+        Assert.Equal(deployment.Id, completedDeployment.Deployment.Id);
+        Assert.Equal(deployment.RevisionId, completedDeployment.Service.RuntimeRevisionId);
         var events = resourceEvents
             .GetEvents(new ResourceEventQuery(ResourceId: resource.Id))
             .Reverse()
@@ -77,6 +80,8 @@ public sealed class ResourceOrchestrationDeploymentTests
                 ResourceEventTypes.Events.Deployment.ReplicaMaterialized,
                 ResourceEventTypes.Events.Deployment.RoutingUpdating,
                 ResourceEventTypes.Events.Deployment.RoutingUpdated,
+                ResourceEventTypes.Events.Deployment.Finalizing,
+                ResourceEventTypes.Events.Deployment.Finalized,
                 ResourceEventTypes.Events.Deployment.Applied
             ],
             events.Select(resourceEvent => resourceEvent.EventType).ToArray());
@@ -325,6 +330,8 @@ public sealed class ResourceOrchestrationDeploymentTests
 
         public ConcurrentBag<ResourceOrchestratorServiceInstanceContext> ExecutedInstances { get; } = [];
 
+        public ConcurrentBag<ResourceOrchestratorDeploymentProcedureContext> CompletedDeployments { get; } = [];
+
         public IReadOnlyList<Resource> GetResources() => resources;
 
         public bool CanExecuteOrchestratorService(
@@ -360,6 +367,14 @@ public sealed class ResourceOrchestrationDeploymentTests
             }
 
             ExecutedInstances.Add(context);
+            return Task.CompletedTask;
+        }
+
+        public Task CompleteOrchestratorDeploymentAsync(
+            ResourceOrchestratorDeploymentProcedureContext context,
+            CancellationToken cancellationToken = default)
+        {
+            CompletedDeployments.Add(context);
             return Task.CompletedTask;
         }
     }

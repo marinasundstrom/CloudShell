@@ -65,6 +65,87 @@ public sealed partial class ApplicationResourceService
             string.Equals(entry.Id, revision, StringComparison.OrdinalIgnoreCase) &&
             string.Equals(entry.Status, ApplicationContainerRevisionStatuses.Active, StringComparison.OrdinalIgnoreCase));
 
+    public async Task CompleteOrchestratorDeploymentAsync(
+        ResourceOrchestratorDeploymentProcedureContext context,
+        CancellationToken cancellationToken = default)
+    {
+        var application = GetContainerApplication(context.ResourceContext.Resource.Id);
+        var appDeployment = containerDeployments
+            .List(application.Id)
+            .FirstOrDefault(deployment =>
+                string.Equals(deployment.OrchestratorDeploymentId, context.Deployment.Id, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(deployment.RevisionId, context.Deployment.RevisionId, StringComparison.OrdinalIgnoreCase));
+        var sourceRevisionId = NormalizeNullable(appDeployment?.SourceRevisionId);
+        if (sourceRevisionId is null ||
+            string.Equals(sourceRevisionId, context.Deployment.RevisionId, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var sourceRevision = containerDeployments
+            .ListRevisions(application.Id)
+            .FirstOrDefault(revision =>
+                string.Equals(revision.Id, sourceRevisionId, StringComparison.OrdinalIgnoreCase));
+        var sourceService = CreateSupersededContainerOrchestratorService(
+            application,
+            sourceRevisionId,
+            sourceRevision);
+        var engine = await ResolveRequiredContainerHostAsync(
+            application,
+            context.ResourceContext.ResourceManager,
+            context.ResourceContext.PreferredContainerHostId,
+            ContainerHostCapabilityIds.ContainerImage,
+            cancellationToken);
+        var log = GetProcessLog(application.Id);
+        context.ResourceContext.AppendProviderEvent(
+            Id,
+            "application.container.revision.retiring",
+            $"Application provider is retiring superseded container app revision '{sourceRevisionId}' for '{application.Name}'.");
+
+        foreach (var instance in CreateDefaultContainerServiceInstances(sourceService)
+                     .OrderByDescending(instance => instance.ReplicaOrdinal))
+        {
+            await StopContainerApplicationInstanceAsync(
+                application,
+                engine,
+                log,
+                instance,
+                cancellationToken,
+                context.ResourceContext);
+        }
+
+        context.ResourceContext.AppendProviderEvent(
+            Id,
+            "application.container.revision.retired",
+            $"Application provider retired superseded container app revision '{sourceRevisionId}' for '{application.Name}'.");
+    }
+
+    private ResourceOrchestratorService CreateSupersededContainerOrchestratorService(
+        ApplicationResourceDefinition application,
+        string sourceRevisionId,
+        ApplicationContainerRevisionHistoryEntry? sourceRevision)
+    {
+        var sourceReplicas = Math.Max(
+            1,
+            sourceRevision?.RequestedReplicas ??
+            application.ContainerRevisions.FirstOrDefault(revision =>
+                string.Equals(revision.Id, sourceRevisionId, StringComparison.OrdinalIgnoreCase))
+                ?.RequestedReplicas ??
+            application.Replicas);
+        var service = CreateDefaultContainerOrchestratorService(application);
+        return service with
+        {
+            Workload = service.Workload with
+            {
+                Replicas = sourceReplicas,
+                ReplicasEnabled = sourceReplicas > 1
+            },
+            RuntimeRevisionId = string.IsNullOrWhiteSpace(sourceRevision?.DeploymentId)
+                ? null
+                : sourceRevisionId
+        };
+    }
+
     private static IEnumerable<ResourceOrchestratorServiceInstance> CreateDefaultContainerServiceInstances(
         ResourceOrchestratorService service) =>
         ResourceOrchestratorServiceInstances.CreateDefaultInstances(service);

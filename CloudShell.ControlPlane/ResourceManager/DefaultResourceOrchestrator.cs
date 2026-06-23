@@ -217,6 +217,21 @@ public sealed class DefaultResourceOrchestrator(
                 ResourceEventTypes.Events.Deployment.RoutingUpdated,
                 $"Updated routing for orchestrator service '{deployment.ServiceId}' to revision '{deployment.RevisionId}' for deployment '{deployment.Id}'.");
         }
+
+        if (deployment is not null)
+        {
+            AppendDeploymentEvent(
+                resourceContext,
+                ResourceEventTypes.Events.Deployment.Finalizing,
+                $"Finalizing deployment '{deployment.Id}' for revision '{deployment.RevisionId}'.");
+            await provider.CompleteOrchestratorDeploymentAsync(
+                new ResourceOrchestratorDeploymentProcedureContext(resourceContext, service, deployment),
+                cancellationToken);
+            AppendDeploymentEvent(
+                resourceContext,
+                ResourceEventTypes.Events.Deployment.Finalized,
+                $"Finalized deployment '{deployment.Id}' for revision '{deployment.RevisionId}'.");
+        }
     }
 
     private static string FormatReplicaPosition(ResourceOrchestratorServiceInstance instance) =>

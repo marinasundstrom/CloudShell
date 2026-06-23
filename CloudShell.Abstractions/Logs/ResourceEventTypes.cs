@@ -88,6 +88,8 @@ public static class ResourceEventTypes
             public const string ReplicaMaterialized = "event.deployment.replica.materialized";
             public const string RoutingUpdating = "event.deployment.routing.updating";
             public const string RoutingUpdated = "event.deployment.routing.updated";
+            public const string Finalizing = "event.deployment.finalizing";
+            public const string Finalized = "event.deployment.finalized";
             public const string Applied = "event.deployment.applied";
             public const string Failed = "event.deployment.failed";
         }

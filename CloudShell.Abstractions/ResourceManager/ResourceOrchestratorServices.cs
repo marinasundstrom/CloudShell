@@ -110,6 +110,11 @@ public sealed record ResourceOrchestratorServiceInstanceContext(
     ResourceOrchestratorService Service,
     ResourceOrchestratorServiceInstance Instance);
 
+public sealed record ResourceOrchestratorDeploymentProcedureContext(
+    ResourceProcedureContext ResourceContext,
+    ResourceOrchestratorService Service,
+    ResourceOrchestratorDeployment Deployment);
+
 public interface IResourceOrchestratorServiceProcedureProvider
 {
     bool CanExecuteOrchestratorService(
@@ -130,4 +135,9 @@ public interface IResourceOrchestratorServiceProcedureProvider
         ResourceOrchestratorServiceInstanceContext context,
         ResourceAction action,
         CancellationToken cancellationToken = default);
+
+    Task CompleteOrchestratorDeploymentAsync(
+        ResourceOrchestratorDeploymentProcedureContext context,
+        CancellationToken cancellationToken = default) =>
+        Task.CompletedTask;
 }

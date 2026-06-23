@@ -193,6 +193,9 @@ Implemented pieces include:
 * deployment-applied container app replicas use revision-scoped runtime
   container names so a new image revision can materialize beside the currently
   serving revision before ingress/routing cutover
+* the container app provider retires superseded local runtime replicas through
+  the default orchestrator deployment finalization hook after the replacement
+  revision has been materialized and routing milestones have been recorded
 * hidden runtime-managed child resources for container app replicas, parented
   to and owned by the stable container app resource, with
   deployment/service/revision correlation metadata
@@ -282,10 +285,10 @@ liveness/lifecycle signals, while scaling changes desired capacity.
    boundary for dispatching a deployment spec to the selected orchestrator, and
    running image deployments use that boundary when runtime reconciliation is
    required. Defer full rollout history, restore, revision management, traffic
-   splitting, readiness-gated cutover, superseded-replica cleanup, and advanced
-   rollout controls to later deployment/revision slices. Deployment-applied
-   replicas now have revision-scoped runtime identity as the foundation for the
-   side-by-side replacement path.
+   splitting, readiness-gated cutover, and advanced rollout controls to later
+   deployment/revision slices. Deployment-applied replicas now have
+   revision-scoped runtime identity and local superseded-replica retirement as
+   the foundation for the side-by-side replacement path.
 7. Keep container app replica diagnostics app-scoped in Scale and replicas. It
    shows app-owned replica/runtime diagnostics to users who can view or manage
    the container app without requiring the global runtime-managed inventory

@@ -48,7 +48,10 @@ The Control Plane also records internal orchestrator deployment history for
 apply attempts, successful orchestrator revisions, and failed apply results.
 When the default orchestrator applies a deployment, it now materializes service
 instances with revision-scoped runtime names so new replicas can be started next
-to the currently serving revision before routing is remapped.
+to the currently serving revision before routing is remapped. It also exposes a
+deployment finalization hook after materialization and routing updates so
+providers can retire superseded runtime instances without baking provider
+cleanup details into the common orchestrator.
 Container apps also keep provider-owned app deployment and revision history
 separately from the desired application definition. Those app deployment
 records correlate the deployment request to the produced container app
@@ -427,6 +430,11 @@ revision-scoped targets, and later drain or remove the superseded runtime
 instances. Ordinary active-revision scaling can still use stable instance
 identity because it is capacity management for the current revision rather than
 a workload replacement.
+
+Deployment finalization is an orchestrator-provider boundary. The common
+orchestrator decides when finalization runs in the apply sequence, after the new
+runtime instances are materialized and after routing milestones are recorded.
+The provider decides which provider-owned runtime artifacts are safe to retire.
 
 ## Resource Relationship
 

@@ -93,4 +93,9 @@ internal sealed class ContainerApplicationResourceProvider(
         ResourceAction action,
         CancellationToken cancellationToken = default) =>
         containerApplications.ExecuteOrchestratorServiceInstanceAsync(context, action, cancellationToken);
+
+    public Task CompleteOrchestratorDeploymentAsync(
+        ResourceOrchestratorDeploymentProcedureContext context,
+        CancellationToken cancellationToken = default) =>
+        containerApplications.CompleteOrchestratorDeploymentAsync(context, cancellationToken);
 }

@@ -111,6 +111,10 @@ public interface IContainerApplicationResourceProviderOperations
         ResourceOrchestratorServiceInstanceContext context,
         ResourceAction action,
         CancellationToken cancellationToken = default);
+
+    Task CompleteOrchestratorDeploymentAsync(
+        ResourceOrchestratorDeploymentProcedureContext context,
+        CancellationToken cancellationToken = default);
 }
 
 public interface ISqlServerApplicationResourceProviderOperations

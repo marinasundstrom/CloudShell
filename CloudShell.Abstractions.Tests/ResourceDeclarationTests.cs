@@ -10614,6 +10614,117 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
+    public async Task ContainerApplicationProvider_RetiresSupersededStableReplicasAfterDeploymentCompletion()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(contentRoot);
+        var commandLogPath = Path.Combine(contentRoot, "fake-docker-commands.log");
+        var fakeDocker = CreateRecordingContainerHostExecutable(contentRoot, commandLogPath);
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .UseContainerHost(new ContainerHostDescriptor(
+                "docker:test",
+                "Test Docker",
+                ContainerHostKind.Docker,
+                "unix:///var/run/docker.sock",
+                Metadata: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["cloudshell.executable"] = fakeDocker
+                },
+                Capabilities:
+                [
+                    ContainerHostCapabilityIds.ContainerImage,
+                    ContainerHostCapabilityIds.StorageMountFileSystem
+                ]))
+            .AddApplicationProvider(options =>
+            {
+                options.DefinitionsPath = "application-resources.json";
+                options.RuntimeStatePath = "application-runtime-state.json";
+                options.ContainerDeploymentHistoryPath = "container-deployments.json";
+                options.LogDirectory = "application-logs";
+            })
+            .Resources(resources =>
+            {
+                resources
+                    .AddContainer("api", "example/api:latest", replicas: 3)
+                    .WithContainerHost("docker:test");
+            });
+
+        try
+        {
+            using var serviceProvider = services.BuildServiceProvider();
+            var declarationStore = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+            var registrations = new DeclarationRegistrationStore(declarationStore);
+            var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+            var providers = serviceProvider.GetServices<IResourceProvider>().ToArray();
+            var resources = providers
+                .SelectMany(provider => provider.GetResources())
+                .ToArray();
+            var resourceManager = new StaticResourceManagerStore(resources, providers);
+            var resource = Assert.Single(provider.GetResources(), resource =>
+                resource.Id == "application:api");
+
+            await provider.UpdateImageAsync(
+                new ResourceProcedureContext(
+                    resource,
+                    registrations.GetRegistration(resource.Id),
+                    null,
+                    registrations,
+                    resourceManager),
+                "example/api:20260623",
+                restartIfRunning: false,
+                requestedReplicas: 2);
+            var updatedResource = Assert.Single(provider.GetResources(), resource =>
+                resource.Id == "application:api");
+            var deployment = await provider.DescribeDeploymentAsync(
+                new ResourceProcedureContext(
+                    updatedResource,
+                    registrations.GetRegistration(updatedResource.Id),
+                    null,
+                    registrations,
+                    resourceManager));
+
+            Assert.NotNull(deployment);
+
+            await provider.CompleteOrchestratorDeploymentAsync(
+                new ResourceOrchestratorDeploymentProcedureContext(
+                    new ResourceProcedureContext(
+                        updatedResource,
+                        registrations.GetRegistration(updatedResource.Id),
+                        null,
+                        registrations,
+                        resourceManager),
+                    deployment.Spec.Service with { RuntimeRevisionId = deployment.RevisionId },
+                    deployment));
+
+            var commands = File.ReadAllLines(commandLogPath);
+
+            Assert.Contains("rm -f cloudshell-application-api-replica-1", commands);
+            Assert.Contains("rm -f cloudshell-application-api-replica-2", commands);
+            Assert.Contains("rm -f cloudshell-application-api-replica-3", commands);
+            Assert.DoesNotContain(
+                commands,
+                command => command.Contains(deployment.RevisionId, StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            if (Directory.Exists(contentRoot))
+            {
+                Directory.Delete(contentRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task ContainerApplicationProvider_PreflightsRestartBeforeImageUpdate()
     {
         var services = new ServiceCollection();

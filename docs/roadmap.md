@@ -583,11 +583,14 @@ listed here before pulling in broader proposal work.
    local/default container-host MVP path.
 14. Runtime-managed resources and deployment model: the first ownership,
    visibility, cleanup, and internal orchestrator deployment/revision contracts
-   are in place. Container apps now materialize desired replica resources as
-   hidden runtime-managed children parented to the app, with Resource Manager
-   visibility controlled separately for hidden resources and hidden
-   runtime-managed artifacts. Docker host raw container discoveries are a
-   separate provider-observation path that projects Docker container resources
+   are in place. Default deployment apply now has a provider finalization hook,
+   and container apps use it to retire superseded local runtime replicas after a
+   replacement revision has been materialized. Container apps now materialize
+   desired replica resources as hidden runtime-managed children parented to the
+   app, with Resource Manager visibility controlled separately for hidden
+   resources and hidden runtime-managed artifacts. Docker host raw container
+   discoveries are a separate provider-observation path that projects Docker
+   container resources
    as hidden runtime-managed resources by default, while explicitly declared
    Docker containers remain normal user-managed resources. Generic
    child-resource UI should honor visibility settings; providers should expose
