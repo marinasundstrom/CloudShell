@@ -489,6 +489,21 @@ public sealed class ResourceTemplateTests
                 options,
                 declarations,
                 []);
+            var containerProcesses = new ApplicationContainerProcessTracker(
+                runtimeStates,
+                options,
+                environment);
+            var runningState = new ApplicationResourceRunningStateOperations(
+                definitionSource,
+                localProcesses,
+                containerProcesses);
+            var projectionSource = new ApplicationResourceProjectionSource(
+                definitionSource,
+                runtimeStates,
+                runningState,
+                workloadConfigurations,
+                containerDeployments,
+                options);
             var descriptorOperations = new ApplicationResourceDescriptorOperations(
                 definitionSource,
                 workloadConfigurations);
@@ -507,7 +522,7 @@ public sealed class ResourceTemplateTests
                 [],
                 declarations);
             ResourceProvider = new ExecutableApplicationResourceProvider(
-                Provider,
+                projectionSource,
                 definitionSource,
                 Provider,
                 templateOperations,

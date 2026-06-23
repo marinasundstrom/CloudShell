@@ -37,7 +37,6 @@ public sealed partial class ApplicationResourceService(
     ApplicationResourceDefinitionNormalizer? definitionNormalizer = null,
     ApplicationResourceDefinitionRegistrationService? applicationDefinitionRegistrations = null,
     ApplicationWorkloadConfigurationProvider? workloadConfigurations = null) :
-    IApplicationResourceProjectionSource,
     IApplicationResourceProcedureOperations,
     IApplicationResourceActionAvailabilityOperations,
     IContainerApplicationResourceProviderOperations,
@@ -77,60 +76,39 @@ public sealed partial class ApplicationResourceService(
             options,
             environment,
             loggerFactory);
+    private readonly ApplicationResourceProjectionSource _projectionSource =
+        serviceProvider.GetService<ApplicationResourceProjectionSource>() ?? new ApplicationResourceProjectionSource(
+            new ApplicationResourceDefinitionSource(
+                store,
+                definitionNormalizer ?? new ApplicationResourceDefinitionNormalizer(environment)),
+            runtimeStates,
+            serviceProvider.GetService<IApplicationResourceRunningStateOperations>() ??
+                new ApplicationResourceRunningStateOperations(
+                    new ApplicationResourceDefinitionSource(
+                        store,
+                        definitionNormalizer ?? new ApplicationResourceDefinitionNormalizer(environment)),
+                    localProcesses,
+                    new ApplicationContainerProcessTracker(
+                        runtimeStates,
+                        options,
+                        environment,
+                        loggerFactory)),
+            workloadConfigurations ?? new ApplicationWorkloadConfigurationProvider(
+                options,
+                declarations,
+                identityCredentialEnvironmentProviders),
+            containerDeployments,
+            options);
 
     public string Id => ApplicationResourceProviderIds.Applications;
 
     public string DisplayName => "Applications";
 
-    public IReadOnlyList<Resource> GetResources() => store
-        .GetApplications()
-        .Select(ResolveDefinition)
-        .Where(application => !IsHidden(application))
-        .SelectMany(application => CreateResourceProjection(
-            application,
-            ApplicationResourceProjectionProfiles.CreateInfrastructureProjection(application)))
-        .ToArray();
+    public IReadOnlyList<Resource> GetResources() =>
+        _projectionSource.GetResources();
 
-    IReadOnlyList<Resource> IApplicationResourceProjectionSource.GetResources(
-        ApplicationResourceProjection projection) =>
-        GetResources(projection);
-
-    internal IReadOnlyList<Resource> GetResources(ApplicationResourceProjection projection) => store
-        .GetApplications()
-        .Select(ResolveDefinition)
-        .Where(application => !IsHidden(application))
-        .Where(projection.CanProject)
-        .SelectMany(application => CreateResourceProjection(application, projection))
-        .ToArray();
-
-    private IEnumerable<Resource> CreateResourceProjection(
-        ApplicationResourceDefinition application,
-        ApplicationResourceProjection projection)
-    {
-        yield return CreateApplicationResourceProjector()
-            .CreateResource(application, projection, DisplayName);
-
-        if (string.Equals(
-                application.ResourceType,
-                ApplicationResourceTypes.SqlServer,
-                StringComparison.OrdinalIgnoreCase))
-        {
-            foreach (var database in SqlServerDatabaseResourceProjector.CreateResources(application))
-            {
-                yield return database;
-            }
-        }
-
-        if (!ApplicationResourceTypes.IsContainerApp(application.ResourceType))
-        {
-            yield break;
-        }
-
-        foreach (var runtimeResource in CreateRuntimeContainerResources(application))
-        {
-            yield return runtimeResource;
-        }
-    }
+    internal IReadOnlyList<Resource> GetResources(ApplicationResourceProjection projection) =>
+        _projectionSource.GetResources(projection);
 
     public Task SetupApplicationAsync(
         ApplicationResourceDefinition definition,

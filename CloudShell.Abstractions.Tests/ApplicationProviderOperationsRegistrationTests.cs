@@ -47,6 +47,8 @@ public sealed class ApplicationProviderOperationsRegistrationTests
             serviceProvider.GetRequiredService<IResourceEnvironmentVariableConfigurationProvider>());
         Assert.IsType<ApplicationResourceDescriptorOperations>(
             serviceProvider.GetRequiredService<IApplicationResourceDescriptorOperations>());
+        Assert.IsType<ApplicationResourceProjectionSource>(
+            serviceProvider.GetRequiredService<IApplicationResourceProjectionSource>());
         Assert.IsType<SqlServerDatabaseReconciliationService>(
             serviceProvider.GetRequiredService<SqlServerDatabaseReconciliationService>());
     }

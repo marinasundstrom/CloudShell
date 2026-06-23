@@ -97,6 +97,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Container runtime process tracking now lives in
   `ApplicationContainerProcessTracker`, and application running-state checks
   use a focused operation instead of the shared application resource service.
+- Application resource graph projection and runtime container child-resource
+  projection now live in `ApplicationResourceProjectionSource` instead of the
+  shared application resource service.
 
 ### 2026-06-23
 

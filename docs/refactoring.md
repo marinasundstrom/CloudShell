@@ -229,6 +229,9 @@ without forcing provider-specific logic into shared helpers.
   `ApplicationContainerProcessTracker` and route
   `IApplicationResourceRunningStateOperations` through a focused running-state
   operation instead of the shared application resource service facade.
+- [x] Move application resource graph projection and runtime container child
+  projection into `ApplicationResourceProjectionSource` instead of the shared
+  application resource service facade.
 
 ## Next Slices
 
