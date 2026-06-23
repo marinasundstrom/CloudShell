@@ -20,8 +20,7 @@ public sealed class ApplicationProviderOperationsRegistrationTests
         using var serviceProvider = services.BuildServiceProvider();
         var applicationService = serviceProvider.GetRequiredService<ApplicationResourceService>();
 
-        Assert.Same(
-            applicationService,
+        Assert.IsType<ApplicationResourceConfigurationOperations>(
             serviceProvider.GetRequiredService<IApplicationResourceConfigurationOperations>());
         Assert.IsType<ApplicationResourceRegistrationOperations>(
             serviceProvider.GetRequiredService<IApplicationResourceRegistrationOperations>());

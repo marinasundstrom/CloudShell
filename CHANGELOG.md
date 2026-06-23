@@ -70,6 +70,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Application registration operations now use a dedicated focused adapter over
   definition lookup and definition registration instead of the shared
   application resource service.
+- Application configuration operations now use a dedicated focused adapter over
+  definition lookup, running-state checks, and definition registration instead
+  of the shared application resource service.
 
 ### 2026-06-23
 

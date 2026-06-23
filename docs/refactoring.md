@@ -200,6 +200,9 @@ without forcing provider-specific logic into shared helpers.
 - [x] Move application registration operations to a focused adapter over
   definition lookup and definition registration instead of the shared
   application resource service facade.
+- [x] Move application configuration operations to a focused adapter over
+  definition lookup, running-state checks, and definition registration instead
+  of the shared application resource service facade.
 
 ## Next Slices
 
