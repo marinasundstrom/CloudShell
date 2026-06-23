@@ -110,7 +110,7 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
             .AddResourceProvider<AspNetCoreProjectResourceProvider>()
             .AddResourceProvider<ContainerApplicationResourceProvider>()
             .AddResourceProvider<SqlServerApplicationResourceProvider>()
-            .AddLogProvider<ApplicationResourceService>()
+            .AddLogProvider<ApplicationLogProvider>()
             .AddResourceType<ExecutableAppPages.RegisterApplicationResource>(
                 ApplicationResourceTypes.ExecutableApplication,
                 "Executable application",

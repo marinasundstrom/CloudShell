@@ -41,7 +41,6 @@ public sealed partial class ApplicationResourceService(
     ILoggerFactory? loggerFactory = null,
     ApplicationResourceDefinitionNormalizer? definitionNormalizer = null,
     ApplicationResourceDefinitionRegistrationService? applicationDefinitionRegistrations = null) :
-    ILogProvider,
     IResourceMonitoringProvider,
     IResourceAppSettingConfigurationProvider,
     IResourceEnvironmentVariableConfigurationProvider,

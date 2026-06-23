@@ -1,30 +1,55 @@
 using CloudShell.Abstractions.Logging;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 
 namespace CloudShell.Providers.Applications;
 
-public sealed partial class ApplicationResourceService
+public sealed class ApplicationLogProvider(
+    ApplicationResourceStore store,
+    ApplicationContainerDeploymentStore containerDeployments,
+    LocalProcessRunner localProcesses,
+    ApplicationContainerHostResolver containerHosts,
+    IHostEnvironment environment,
+    ILoggerFactory? loggerFactory = null,
+    ApplicationResourceDefinitionNormalizer? definitionNormalizer = null) : ILogProvider
 {
+    private static readonly ApplicationWorkloadConfigurationFactory WorkloadConfigurationFactory = new();
+    private static readonly ApplicationContainerOrchestratorDeploymentFactory ContainerOrchestratorDeploymentFactory = new();
+    private static readonly ApplicationContainerRevisionService ContainerRevisionService = new();
+    private static readonly ContainerApplicationRuntimeRevisionPolicy ContainerRuntimeRevisionPolicy = new();
+    private readonly ILogger dockerHostLogger =
+        loggerFactory?.CreateLogger(CloudShellLogCategories.DockerHostLifecycle) ??
+        NullLogger.Instance;
+    private readonly ApplicationResourceDefinitionNormalizer definitionNormalizer =
+        definitionNormalizer ?? new ApplicationResourceDefinitionNormalizer(environment);
+
+    public string Id => ApplicationResourceProviderIds.Applications;
+
+    public string DisplayName => "Applications";
+
     public IReadOnlyList<LogSource> GetLogSources() => store
         .GetApplications()
+        .Select(ResolveDefinition)
         .SelectMany(CreateLogSources)
         .ToArray();
 
     public async Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
-        string logId,
+        string logSourceId,
         int maxEntries = 200,
         DateTimeOffset? before = null,
         CancellationToken cancellationToken = default)
     {
-        if (TryGetRuntimeContainerLogTarget(logId, out var target))
+        if (TryGetRuntimeContainerLogTarget(logSourceId, out var target))
         {
             return await ReadRuntimeContainerLogAsync(target, maxEntries, before, cancellationToken);
         }
 
-        if (TryGetApplicationLogId(logId, out var applicationId))
+        if (TryGetApplicationLogId(logSourceId, out var applicationId))
         {
             var entries = await localProcesses.ReadLogAsync(applicationId, maxEntries, before, cancellationToken);
             return entries
@@ -35,13 +60,35 @@ public sealed partial class ApplicationResourceService
         return [];
     }
 
+    public async IAsyncEnumerable<LogEntry> StreamLogSourceAsync(
+        string logSourceId,
+        int initialEntries = 50,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        if (!TryGetApplicationLogId(logSourceId, out var applicationId))
+        {
+            yield break;
+        }
+
+        await foreach (var entry in localProcesses.StreamLogAsync(
+                           applicationId,
+                           initialEntries,
+                           cancellationToken))
+        {
+            if (IsConsoleLogEntry(entry))
+            {
+                yield return entry;
+            }
+        }
+    }
+
     private async Task<IReadOnlyList<LogEntry>> ReadRuntimeContainerLogAsync(
         RuntimeContainerLogTarget target,
         int maxEntries,
         DateTimeOffset? before,
         CancellationToken cancellationToken)
     {
-        var engine = await ResolveStaticContainerHostAsync(target.Application, cancellationToken);
+        var engine = await containerHosts.ResolveStaticAsync(target.Application, cancellationToken);
         if (engine is null)
         {
             return
@@ -104,28 +151,6 @@ public sealed partial class ApplicationResourceService
             .ToArray();
     }
 
-    public async IAsyncEnumerable<LogEntry> StreamLogSourceAsync(
-        string logId,
-        int initialEntries = 50,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
-        if (!TryGetApplicationLogId(logId, out var applicationId))
-        {
-            yield break;
-        }
-
-        await foreach (var entry in localProcesses.StreamLogAsync(
-                           applicationId,
-                           initialEntries,
-                           cancellationToken))
-        {
-            if (IsConsoleLogEntry(entry))
-            {
-                yield return entry;
-            }
-        }
-    }
-
     private IReadOnlyList<LogSource> CreateLogSources(ApplicationResourceDefinition application) =>
     [
         .. CreateApplicationLogSources(application),
@@ -166,15 +191,16 @@ public sealed partial class ApplicationResourceService
             return [];
         }
 
-        var deployment = CreateDefaultContainerOrchestratorDeployment(
+        var deployment = CreateContainerOrchestratorDeployment(
             application,
-            ResourceState.Unknown,
             runtimeRevisionScoped: true);
-        var replicaGroup = CreateDefaultContainerReplicaGroup(deployment.Spec.Service);
+        var replicaGroup = ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(deployment.Spec.Service);
         return replicaGroup.Instances
             .Select(instance =>
             {
-                var resourceId = CreateRuntimeContainerResourceId(application.Id, instance.ReplicaOrdinal);
+                var resourceId = ApplicationResourceNames.CreateRuntimeContainerResourceId(
+                    application.Id,
+                    instance.ReplicaOrdinal);
                 var source = ApplicationLogSources.CreateRuntimeContainerLogSource(
                     application.Id,
                     instance,
@@ -202,17 +228,19 @@ public sealed partial class ApplicationResourceService
     }
 
     private bool TryGetRuntimeContainerLogTarget(
-        string logId,
+        string logSourceId,
         out RuntimeContainerLogTarget target)
     {
         foreach (var application in store.GetApplications().Select(ResolveDefinition).Where(IsReplicaModeEnabled))
         {
-            var service = CreateActiveContainerOrchestratorService(application);
-            var replicaGroup = CreateDefaultContainerReplicaGroup(service);
+            var deployment = CreateContainerOrchestratorDeployment(
+                application,
+                runtimeRevisionScoped: true);
+            var replicaGroup = ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(deployment.Spec.Service);
             foreach (var instance in replicaGroup.Instances)
             {
                 if (string.Equals(
-                        logId,
+                        logSourceId,
                         GetRuntimeContainerLogId(application.Id, instance.ReplicaOrdinal),
                         StringComparison.OrdinalIgnoreCase))
                 {
@@ -226,30 +254,60 @@ public sealed partial class ApplicationResourceService
         return false;
     }
 
+    private ResourceOrchestratorDeployment CreateContainerOrchestratorDeployment(
+        ApplicationResourceDefinition application,
+        bool runtimeRevisionScoped)
+    {
+        var revision = ContainerRevisionService.GetEffectiveRevision(application);
+        return ContainerOrchestratorDeploymentFactory.CreateDeployment(
+            application,
+            ResourceState.Unknown,
+            CreateWorkloadConfiguration(application),
+            runtimeRevisionScoped &&
+                ContainerRuntimeRevisionPolicy.ShouldUseRevisionScopedRuntimeInstances(
+                    application,
+                    revision,
+                    containerDeployments.ListRevisions(application.Id)));
+    }
+
+    private ResourceWorkloadConfiguration CreateWorkloadConfiguration(
+        ApplicationResourceDefinition application) =>
+        WorkloadConfigurationFactory.Create(
+            application,
+            application.EnvironmentVariables,
+            application.Observability ?? ResourceObservability.Default);
+
+    private ApplicationResourceDefinition ResolveDefinition(ApplicationResourceDefinition definition) =>
+        definitionNormalizer.Resolve(definition);
+
     private static string GetLogId(string applicationId) => $"{applicationId}:logs";
 
     private static string GetRuntimeContainerLogId(string applicationId, int replica) =>
-        $"{CreateRuntimeContainerResourceId(applicationId, replica)}:logs";
+        $"{ApplicationResourceNames.CreateRuntimeContainerResourceId(applicationId, replica)}:logs";
 
     private static bool TryGetApplicationLogId(
-        string logId,
+        string logSourceId,
         [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? applicationId) =>
-        TryGetApplicationIdFromLogId(logId, ":logs", out applicationId);
+        TryGetApplicationIdFromLogId(logSourceId, ":logs", out applicationId);
 
     private static bool TryGetApplicationIdFromLogId(
-        string logId,
+        string logSourceId,
         string suffix,
         [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? applicationId)
     {
-        if (logId.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+        if (logSourceId.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
         {
-            applicationId = logId[..^suffix.Length];
+            applicationId = logSourceId[..^suffix.Length];
             return true;
         }
 
         applicationId = null;
         return false;
     }
+
+    private static bool IsReplicaModeEnabled(ApplicationResourceDefinition application) =>
+        ApplicationResourceTypes.IsContainerApp(application.ResourceType) &&
+        application.ReplicasEnabled;
 
     private static bool IsConsoleLogEntry(LogEntry entry) =>
         string.Equals(entry.Source, "stdout", StringComparison.OrdinalIgnoreCase) ||

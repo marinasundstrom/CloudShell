@@ -64,6 +64,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Application container-host resolution now lives in
   `ApplicationContainerHostResolver`, giving application provider units a
   focused boundary for host selection and capability validation.
+- Application log-source discovery and reads now live in `ApplicationLogProvider`
+  instead of `ApplicationResourceService`, continuing the split between shared
+  application infrastructure and provider-owned concerns.
 - Container app orchestrator deployment shape now lives in a dedicated factory
   with direct unit tests for service identity, deployment inputs, revision
   scoping, and status mapping, while deployment-history decisions remain in

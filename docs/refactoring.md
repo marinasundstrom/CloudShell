@@ -152,6 +152,9 @@ without forcing provider-specific logic into shared helpers.
   `ApplicationContainerHostResolver` so runtime, logging, and future provider
   units can share host selection without depending on the full application
   resource service.
+- [x] Extract application log-source discovery and reads into
+  `ApplicationLogProvider` so application logging is no longer owned by the
+  shared application resource service.
 
 ## Next Slices
 

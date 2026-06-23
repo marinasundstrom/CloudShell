@@ -9596,7 +9596,8 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("2", replicas[1].ResourceAttributes[ResourceAttributeNames.RuntimeReplicaOrdinal]);
         Assert.Equal("3", replicas[2].ResourceAttributes[ResourceAttributeNames.RuntimeReplicaOrdinal]);
 
-        var logs = provider.GetLogSources()
+        var logProvider = serviceProvider.GetRequiredService<ApplicationLogProvider>();
+        var logs = logProvider.GetLogSources()
             .Where(source => string.Equals(source.ProducerResourceId, app.Id, StringComparison.OrdinalIgnoreCase))
             .OrderBy(source => source.ResourceId, StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -9739,7 +9740,8 @@ public sealed class ResourceDeclarationTests
             Assert.True(source.Configuration.IsConfigurable);
         });
 
-        var logs = provider.GetLogSources()
+        var logProvider = serviceProvider.GetRequiredService<ApplicationLogProvider>();
+        var logs = logProvider.GetLogSources()
             .Where(source => string.Equals(source.ProducerResourceId, app.Id, StringComparison.OrdinalIgnoreCase))
             .OrderBy(source => source.ResourceId, StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -10802,7 +10804,8 @@ public sealed class ResourceDeclarationTests
 
         var updated = provider.GetApplication("application:api");
         Assert.NotNull(updated);
-        var log = Assert.Single(provider.GetLogSources(), log =>
+        var logProvider = serviceProvider.GetRequiredService<ApplicationLogProvider>();
+        var log = Assert.Single(logProvider.GetLogSources(), log =>
             log.ResourceId == "application:api" &&
             log.Name == "Console logs");
 
