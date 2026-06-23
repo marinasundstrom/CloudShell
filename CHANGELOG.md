@@ -44,6 +44,13 @@ on `git blame --follow`, and then by the broad type of change.
 - Default orchestrator deployment apply now logs rollback events and attempts
   best-effort teardown of the candidate replica group when setup fails before a
   revision is produced.
+- Container app deployment apply failures now notify the provider so failed
+  candidate app deployments/revisions are marked failed and the source app
+  revision remains active.
+- Local Docker container app deployment now preserves local/Docker Hub image
+  tags, passes the inspected image platform when starting containers, scopes
+  automatic replica probe ports by revision, and uses short network aliases for
+  revision-scoped ingress targets.
 - The deployment/revision and container app proposals now define the internal
   MVP as a generalized Resource Manager orchestration deployment model, with
   container apps as the first validation path while leaving public deployment

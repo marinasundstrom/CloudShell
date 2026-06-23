@@ -21,14 +21,17 @@ public sealed partial class ApplicationResourceService
     private int ResolveReplicaProbeLocalPort(
         string resourceId,
         ServicePort port,
-        int replicaOrdinal)
+        ResourceOrchestratorServiceInstance instance)
     {
         var start = Math.Max(1, options.AutoLocalPortStart);
         var end = Math.Max(start, options.AutoLocalPortEnd);
         var range = end - start + 1;
-        var normalizedReplicaOrdinal = Math.Max(1, replicaOrdinal);
+        var normalizedReplicaOrdinal = Math.Max(1, instance.ReplicaOrdinal);
+        var groupKey = string.IsNullOrWhiteSpace(instance.RuntimeRevisionId)
+            ? resourceId
+            : $"{resourceId}:revision:{instance.RuntimeRevisionId}";
         return start + (int)(StableHash(
-            $"{resourceId}:replica:{normalizedReplicaOrdinal.ToString(CultureInfo.InvariantCulture)}:{port.Name}") %
+            $"{groupKey}:replica:{normalizedReplicaOrdinal.ToString(CultureInfo.InvariantCulture)}:{port.Name}") %
             (uint)range);
     }
 

@@ -160,6 +160,17 @@ public interface IResourceOrchestratorDeploymentTearDownProvider
         CancellationToken cancellationToken = default);
 }
 
+public interface IResourceOrchestratorDeploymentFailureProvider
+{
+    bool CanHandleDeploymentApplyFailed(Resource resource);
+
+    Task HandleDeploymentApplyFailedAsync(
+        ResourceProcedureContext context,
+        ResourceOrchestratorDeployment deployment,
+        Exception exception,
+        CancellationToken cancellationToken = default);
+}
+
 public interface IResourceOrchestrationDescriptorProvider
 {
     bool CanDescribe(Resource resource);

@@ -795,12 +795,35 @@ public sealed class InProcessControlPlane(
             return result;
         }
 
-        var applyResult = await deployments.ApplyDeploymentAsync(
-            resource,
-            deployment,
-            cancellationToken,
-            triggeredBy,
-            "Image deployment requested runtime reconciliation.");
+        ResourceOrchestratorDeploymentApplyResult applyResult;
+        try
+        {
+            applyResult = await deployments.ApplyDeploymentAsync(
+                resource,
+                deployment,
+                cancellationToken,
+                triggeredBy,
+                "Image deployment requested runtime reconciliation.");
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            var failureProvider = GetDeploymentFailureProvider(resource);
+            if (failureProvider is not null &&
+                failureProvider.CanHandleDeploymentApplyFailed(resource))
+            {
+                await failureProvider.HandleDeploymentApplyFailedAsync(
+                    CreateProcedureContext(
+                        resource,
+                        triggeredBy,
+                        "Image deployment requested runtime reconciliation."),
+                    deployment,
+                    exception,
+                    cancellationToken);
+            }
+
+            throw;
+        }
+
         var mergedResult = MergeAppliedDeploymentResult(result, applyResult.ProcedureResult);
         var tearDownProvider = GetDeploymentTearDownProvider(resource);
         if (tearDownProvider is null ||
@@ -2530,6 +2553,21 @@ public sealed class InProcessControlPlane(
         return resourceManager.Providers.FirstOrDefault(provider =>
             string.Equals(provider.DisplayName, resource.Provider, StringComparison.OrdinalIgnoreCase))
             as IResourceOrchestratorDeploymentTearDownProvider;
+    }
+
+    private IResourceOrchestratorDeploymentFailureProvider? GetDeploymentFailureProvider(Resource resource)
+    {
+        var registration = GetRegistrationForResourceOrAncestor(resource);
+        if (registration is not null)
+        {
+            return resourceManager.Providers.FirstOrDefault(provider =>
+                string.Equals(provider.Id, registration.ProviderId, StringComparison.OrdinalIgnoreCase))
+                as IResourceOrchestratorDeploymentFailureProvider;
+        }
+
+        return resourceManager.Providers.FirstOrDefault(provider =>
+            string.Equals(provider.DisplayName, resource.Provider, StringComparison.OrdinalIgnoreCase))
+            as IResourceOrchestratorDeploymentFailureProvider;
     }
 
     private ResourceProcedureContext CreateProcedureContext(

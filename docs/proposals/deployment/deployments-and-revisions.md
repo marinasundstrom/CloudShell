@@ -81,10 +81,19 @@ records correlate the deployment request to the produced container app
 revision and to the orchestrator deployment used to materialize runtime state,
 but they are not the same entity as orchestrator deployments or orchestrator
 revisions.
+When orchestrator apply fails after a resource-owned revision has been
+recorded, the provider is notified so it can mark the candidate resource
+deployment and revision as failed and keep the previously active resource
+revision active. For container apps this prevents an unmaterialized app
+revision from being presented as the active successful revision while still
+retaining failed-attempt history.
 The intended general rule is broader than container apps: when an orchestrator
 handles a resource state change that has runtime workload intent, it may derive
 a default deployment for that change even when the user manages the resource
-directly rather than managing an explicit deployment resource.
+directly rather than managing an explicit deployment resource. That implicit
+deployment gives standalone resource changes the same traceability as service
+deployments: the current materialized state of a resource can be associated
+with the deployment, implicit or explicit, that produced the active revision.
 They are not yet a public Resource Manager or Control Plane management surface.
 Public APIs for orchestrator-level deployments may be useful later, but they
 are not a current use case. Rich rollout history, restore deployments, traffic
@@ -207,6 +216,9 @@ The MVP must support:
   materialized replica group snapshot.
 * Failed deployment attempts recorded without producing an orchestrator
   revision.
+* Provider-owned failure handling when resource revision history was recorded
+  before orchestrator apply, so the candidate resource revision can be marked
+  failed and the previously active resource revision can remain active.
 * Deployment activity events for apply, service reconciliation, replica
   materialization, rollback, routing milestones, success, and failure.
 * Best-effort rollback of the candidate deployment unit when setup fails before
@@ -234,10 +246,6 @@ The MVP should add or refine next:
 * Define the first readiness gate used before declaring an orchestrator
   revision active. This can start with provider-observed "container started" or
   declared health checks; it does not need advanced traffic policies.
-* Define how a failed resource deployment updates provider-owned deployment and
-  revision history when a resource revision was created before orchestrator
-  apply. For container apps, the intent is to avoid presenting an
-  unmaterialized app revision as active.
 * Keep post-apply tear-down best-effort and observable, with configurable
   cleanup policy deferred.
 * Keep rollback scoped to the candidate deployment unit. Automatic restore of
@@ -997,20 +1005,17 @@ The next MVP changes should stay focused:
 1. Add a minimal deployment readiness gate before marking the orchestrator
    revision active. Start with provider-observed container start or declared
    health checks; keep advanced traffic policies out of scope.
-2. Make failed resource deployment state explicit when a resource revision was
-   recorded before orchestrator apply failed. For container apps, the UI should
-   not present an unmaterialized app revision as the active successful revision.
-3. Surface deployment apply, rollback, and post-apply tear-down diagnostics
+2. Surface deployment apply, rollback, failed-attempt, and post-apply tear-down diagnostics
    using the existing resource events and provider-owned deployment history.
    The first UI surface is the container app Deployment tab.
-4. Keep rollback scoped to tearing down the candidate replica group. Do not add
+3. Keep rollback scoped to tearing down the candidate replica group. Do not add
    automatic restore or traffic policy machinery for MVP.
-5. Keep post-apply tear-down best-effort and observable. Configurable retention
+4. Keep post-apply tear-down best-effort and observable. Configurable retention
    and cleanup policies can follow after the basic model is credible.
-6. Add focused tests around failed deployment projection, readiness-gated
+5. Add focused tests around failed deployment projection, readiness-gated
    success/failure, post-apply tear-down failure visibility, and extension to
    at least one non-container-app workload shape.
-7. Revisit Docker Compose integration only after the default orchestrator and
+6. Revisit Docker Compose integration only after the default orchestrator and
    first container app path settle; adapters should translate the common model,
    not redefine it.
 

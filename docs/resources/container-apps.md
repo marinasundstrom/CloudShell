@@ -145,9 +145,13 @@ replicas are the runtime instances the orchestrator actually produced.
 When an image deployment changes a running app, the Control Plane applies the
 provider-described deployment spec through the selected orchestrator instead
 of returning a user-facing restart requirement. The default local orchestrator
-still uses its current container start mechanics; side-by-side replacement,
-readiness gates, traffic cutover, and old-replica cleanup remain rollout
-strategy work.
+starts a revision-scoped replica group beside the currently serving revision,
+remaps ingress to the new replica group after apply, and tears down the
+superseded group as a separate post-apply operation. If setup fails before the
+orchestrator revision is produced, the candidate group is rolled back, the
+candidate app deployment/revision is marked failed, and the previously active
+app revision remains active. Readiness gates, advanced traffic policies, and
+configurable cleanup/retention remain rollout strategy work.
 
 ## Service Discovery
 

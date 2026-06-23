@@ -395,10 +395,10 @@ liveness/lifecycle signals, while scaling changes desired capacity.
   deployment-applied replicas with revision-scoped identity, records explicit
   routing update milestones, rolls back the candidate replica group on setup
   failure, and tears down superseded runtime replica groups as a separate
-  post-apply operation. Remaining rollout work should verify readiness, avoid
-  marking unmaterialized app revisions as active after failed apply, perform
-  explicit traffic or endpoint cutover, retain failed runtime/app revision
-  diagnostics, and make cleanup policy configurable.
+  post-apply operation. Failed apply now marks the candidate app
+  deployment/revision failed and restores the source app revision as active.
+  Remaining rollout work should verify readiness, retain failed runtime/app
+  revision diagnostics, and make traffic and cleanup policy configurable.
 * Continue improving update behavior around replica, environment, endpoint,
   identity, and storage changes, deciding which changes belong to active
   revision capacity/configuration and which require a new deployment revision.

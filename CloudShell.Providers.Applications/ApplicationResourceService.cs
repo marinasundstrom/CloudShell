@@ -2533,14 +2533,19 @@ public sealed partial class ApplicationResourceService(
             startInfo.ArgumentList.Add("--rm");
         }
 
+        var useIngress = ShouldUseContainerAppIngress(service);
         var network = service.ServiceNetworks.FirstOrDefault(candidate => !string.IsNullOrWhiteSpace(candidate));
         if (!string.IsNullOrWhiteSpace(network))
         {
             startInfo.ArgumentList.Add("--network");
             startInfo.ArgumentList.Add(network);
+            if (useIngress)
+            {
+                startInfo.ArgumentList.Add("--network-alias");
+                startInfo.ArgumentList.Add(CreateContainerAppIngressTargetName(service, instance));
+            }
         }
 
-        var useIngress = ShouldUseContainerAppIngress(service);
         if (instance.ReplicaOrdinal == 1)
         {
             foreach (var port in service.ServicePorts.Where(port => !useIngress || !IsContainerAppIngressPort(port)))
@@ -2553,7 +2558,7 @@ public sealed partial class ApplicationResourceService(
 
         foreach (var port in GetRuntimeContainerProbePorts(definition, service))
         {
-            var hostPort = ResolveReplicaProbeLocalPort(definition.Id, port, instance.ReplicaOrdinal);
+            var hostPort = ResolveReplicaProbeLocalPort(definition.Id, port, instance);
             startInfo.ArgumentList.Add("-p");
             startInfo.ArgumentList.Add($"{hostPort}:{port.TargetPort}/{NormalizeContainerPublishProtocol(port.Protocol)}");
         }
@@ -2593,11 +2598,22 @@ public sealed partial class ApplicationResourceService(
             "application.container.volume.mounts.prepared",
             $"Application provider prepared {volumeMaterializations.Count.ToString(CultureInfo.InvariantCulture)} volume mount{Pluralize(volumeMaterializations.Count)} for '{definition.Name}'.");
 
-        startInfo.ArgumentList.Add(definition.ProjectContainerBuild
+        var imageReference = definition.ProjectContainerBuild
             ? definition.ContainerImage
             : CreateRegistryImageReference(
                 GetEffectiveContainerRegistry(definition),
-                definition.ContainerImage));
+                definition.ContainerImage);
+        var imagePlatform = await TryResolveContainerImagePlatformAsync(
+            engine,
+            imageReference,
+            cancellationToken);
+        if (!string.IsNullOrWhiteSpace(imagePlatform))
+        {
+            startInfo.ArgumentList.Add("--platform");
+            startInfo.ArgumentList.Add(imagePlatform);
+        }
+
+        startInfo.ArgumentList.Add(imageReference);
 
         var process = new Process
         {
@@ -3101,7 +3117,7 @@ public sealed partial class ApplicationResourceService(
                 var replicaGroup = CreateDefaultContainerReplicaGroup(service);
                 foreach (var instance in replicaGroup.Instances)
                 {
-                    builder.AppendLine(CultureInfo.InvariantCulture, $"          - url: \"http://{instance.Name}:{port.TargetPort.ToString(CultureInfo.InvariantCulture)}\"");
+                    builder.AppendLine(CultureInfo.InvariantCulture, $"          - url: \"http://{CreateContainerAppIngressTargetName(service, instance)}:{port.TargetPort.ToString(CultureInfo.InvariantCulture)}\"");
                 }
             }
         }
@@ -3134,7 +3150,7 @@ public sealed partial class ApplicationResourceService(
                 var replicaGroup = CreateDefaultContainerReplicaGroup(service);
                 foreach (var instance in replicaGroup.Instances)
                 {
-                    builder.AppendLine(CultureInfo.InvariantCulture, $"          - address: \"{instance.Name}:{port.TargetPort.ToString(CultureInfo.InvariantCulture)}\"");
+                    builder.AppendLine(CultureInfo.InvariantCulture, $"          - address: \"{CreateContainerAppIngressTargetName(service, instance)}:{port.TargetPort.ToString(CultureInfo.InvariantCulture)}\"");
                 }
             }
         }
@@ -3737,11 +3753,11 @@ public sealed partial class ApplicationResourceService(
     private string CreateRuntimeContainerProbeEndpointAddress(
         string resourceId,
         ServicePort port,
-        int replicaOrdinal)
+        ResourceOrchestratorServiceInstance instance)
     {
         var protocol = NormalizeProtocol(port.Protocol);
         var host = FirstNonEmpty(port.IPAddress, port.Host, "localhost")!;
-        return $"{protocol}://{host}:{ResolveReplicaProbeLocalPort(resourceId, port, replicaOrdinal).ToString(CultureInfo.InvariantCulture)}";
+        return $"{protocol}://{host}:{ResolveReplicaProbeLocalPort(resourceId, port, instance).ToString(CultureInfo.InvariantCulture)}";
     }
 
     private string? GetEndpointUnavailableReason(
@@ -3801,7 +3817,7 @@ public sealed partial class ApplicationResourceService(
         {
             foreach (var port in GetRuntimeContainerProbePorts(application, service))
             {
-                var localPort = ResolveReplicaProbeLocalPort(application.Id, port, instance.ReplicaOrdinal);
+                var localPort = ResolveReplicaProbeLocalPort(application.Id, port, instance);
                 if (!occupiedPorts.Add(localPort))
                 {
                     return $"Replica probe endpoint '{port.Name}' for container app resource '{application.Id}' cannot use local port {localPort.ToString(CultureInfo.InvariantCulture)} because another endpoint on the resource already uses that port.";
@@ -3965,12 +3981,25 @@ public sealed partial class ApplicationResourceService(
         string applicationId,
         ApplicationProcessState state)
     {
+        var processId = TryGetProcessId(state.Process);
         dockerHostLogger.LogDebug(
             "Application provider released tracked {ApplicationLifetime} process handle {ProcessId} for resource {ResourceName}.",
             state.Lifetime,
-            state.Process.Id,
+            processId?.ToString(CultureInfo.InvariantCulture) ?? "detached",
             ResourceDisplayLabels.GetName(applicationId));
         state.Process.Dispose();
+    }
+
+    private static int? TryGetProcessId(Process process)
+    {
+        try
+        {
+            return process.Id;
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
     }
 
     private ApplicationProcessLog GetProcessLog(string applicationId)
@@ -4649,6 +4678,27 @@ public sealed partial class ApplicationResourceService(
     private static string GetContainerAppIngressName(ResourceOrchestratorService service) =>
         $"{service.Name}-ingress";
 
+    private static string CreateContainerAppIngressTargetName(
+        ResourceOrchestratorService service,
+        ResourceOrchestratorServiceInstance instance)
+    {
+        const int maxDnsLabelLength = 63;
+        if (instance.Name.Length <= maxDnsLabelLength)
+        {
+            return instance.Name;
+        }
+
+        var serviceName = CreateStableIdentifier(service.Name);
+        if (serviceName.Length > 40)
+        {
+            serviceName = serviceName[..40].Trim('-');
+        }
+
+        var hash = StableHash(instance.Name).ToString("x8", CultureInfo.InvariantCulture);
+        var replica = Math.Max(1, instance.ReplicaOrdinal).ToString(CultureInfo.InvariantCulture);
+        return $"{serviceName}-r{replica}-{hash}";
+    }
+
     private static string CreateContainerAppIngressEntrypoint(ServicePort port) =>
         CreateStableIdentifier(string.IsNullOrWhiteSpace(port.Name) ? $"port-{port.TargetPort}" : port.Name);
 
@@ -4837,13 +4887,57 @@ public sealed partial class ApplicationResourceService(
     {
         var imageRegistry = GetImageRegistryAddress(registry);
         var normalizedImage = image.Trim();
-        if (normalizedImage.StartsWith($"{imageRegistry}/", StringComparison.OrdinalIgnoreCase) ||
-            (IsDockerHubRegistry(imageRegistry) && HasExplicitRegistry(normalizedImage)))
+        if (IsDockerHubRegistry(imageRegistry) ||
+            normalizedImage.StartsWith($"{imageRegistry}/", StringComparison.OrdinalIgnoreCase))
         {
             return normalizedImage;
         }
 
         return $"{imageRegistry}/{normalizedImage}";
+    }
+
+    private async Task<string?> TryResolveContainerImagePlatformAsync(
+        ContainerHostDescriptor engine,
+        string imageReference,
+        CancellationToken cancellationToken)
+    {
+        var result = await ApplicationContainerHostCommands.CaptureAsync(
+            engine,
+            [
+                "image",
+                "inspect",
+                "--format",
+                "{{.Os}}/{{.Architecture}}{{if .Variant}}/{{.Variant}}{{end}}",
+                imageReference
+            ],
+            cancellationToken,
+            dockerHostLogger);
+        if (result.ExitCode != 0)
+        {
+            return null;
+        }
+
+        var platform = result.Output
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .FirstOrDefault();
+        return IsValidContainerImagePlatform(platform)
+            ? platform
+            : null;
+    }
+
+    private static bool IsValidContainerImagePlatform(string? platform)
+    {
+        if (string.IsNullOrWhiteSpace(platform) ||
+            platform.Contains("<no value>", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var parts = platform.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return parts.Length is 2 or 3 &&
+            parts.All(part => part.All(character =>
+                char.IsAsciiLetterOrDigit(character) ||
+                character is '_' or '-' or '.'));
     }
 
     private static string GetImageRegistryAddress(string registry) =>
@@ -4855,20 +4949,6 @@ public sealed partial class ApplicationResourceService(
     private static bool IsDockerHubRegistry(string registry) =>
         string.Equals(registry, ContainerRegistryDefaults.DockerHub, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(registry, "index.docker.io", StringComparison.OrdinalIgnoreCase);
-
-    private static bool HasExplicitRegistry(string image)
-    {
-        var slashIndex = image.IndexOf('/');
-        if (slashIndex <= 0)
-        {
-            return false;
-        }
-
-        var firstSegment = image[..slashIndex];
-        return firstSegment.Contains('.', StringComparison.Ordinal) ||
-            firstSegment.Contains(':', StringComparison.Ordinal) ||
-            string.Equals(firstSegment, "localhost", StringComparison.OrdinalIgnoreCase);
-    }
 
     private static async Task LoginToContainerRegistryAsync(
         ContainerHostDescriptor engine,

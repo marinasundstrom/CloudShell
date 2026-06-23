@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using System.Globalization;
 
@@ -100,6 +101,66 @@ public sealed partial class ApplicationResourceService
                     sourceReplicaGroup,
                     $"Image deployment retired superseded container app revision '{sourceRevisionId}'.")
             ]);
+    }
+
+    public Task HandleDeploymentApplyFailedAsync(
+        ResourceProcedureContext context,
+        ResourceOrchestratorDeployment deployment,
+        Exception exception,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var application = GetContainerApplication(context.Resource.Id);
+        var appDeployment = containerDeployments
+            .List(application.Id)
+            .FirstOrDefault(candidate =>
+                string.Equals(candidate.OrchestratorDeploymentId, deployment.Id, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(candidate.RevisionId, deployment.RevisionId, StringComparison.OrdinalIgnoreCase));
+        var sourceRevisionId =
+            NormalizeNullable(appDeployment?.SourceRevisionId) ??
+            application.ContainerRevisions
+                .FirstOrDefault(revision =>
+                    string.Equals(revision.Id, deployment.RevisionId, StringComparison.OrdinalIgnoreCase))
+                ?.SourceRevisionId;
+
+        containerDeployments.RecordDeploymentFailed(
+            application.Id,
+            appDeployment?.Id ?? deployment.Id,
+            deployment.RevisionId,
+            sourceRevisionId);
+
+        if (!string.IsNullOrWhiteSpace(sourceRevisionId))
+        {
+            var sourceRevision = application.ContainerRevisions.FirstOrDefault(revision =>
+                string.Equals(revision.Id, sourceRevisionId, StringComparison.OrdinalIgnoreCase));
+            if (sourceRevision is not null)
+            {
+                var restored = NormalizeDefinition(application with
+                {
+                    ContainerImage = sourceRevision.Image,
+                    ContainerRevision = sourceRevision.Id,
+                    Replicas = Math.Max(1, sourceRevision.RequestedReplicas),
+                    ReplicasEnabled = sourceRevision.RequestedReplicas > 1,
+                    ContainerRevisions = application.ContainerRevisions
+                        .Where(revision => !string.Equals(
+                            revision.Id,
+                            deployment.RevisionId,
+                            StringComparison.OrdinalIgnoreCase))
+                        .ToArray()
+                });
+                store.Save(restored);
+            }
+        }
+
+        resourceEvents?.Append(new ResourceEvent(
+            application.Id,
+            ResourceEventTypes.Events.Deployment.Failed,
+            $"Deployment '{deployment.Id}' for revision '{deployment.RevisionId}' failed before the container app revision became active. Reason: {exception.Message}",
+            DateTimeOffset.UtcNow,
+            context.TriggeredBy,
+            ResourceSignalSeverity.Error));
+
+        return Task.CompletedTask;
     }
 
     private ResourceOrchestratorService CreateSupersededContainerOrchestratorService(

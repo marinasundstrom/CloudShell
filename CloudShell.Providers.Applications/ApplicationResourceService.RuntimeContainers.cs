@@ -129,7 +129,7 @@ public sealed partial class ApplicationResourceService
             .Select(port => ResourceEndpointNetworkMapping.ForEndpoint(
                 resourceId,
                 port.Name,
-                CreateRuntimeContainerProbeEndpointAddress(application.Id, port, instance.ReplicaOrdinal),
+                CreateRuntimeContainerProbeEndpointAddress(application.Id, port, instance),
                 ResourceExposureScope.Local,
                 networkResourceId: NormalizeNullable(port.NetworkResourceId),
                 sourceEndpointName: port.Name))

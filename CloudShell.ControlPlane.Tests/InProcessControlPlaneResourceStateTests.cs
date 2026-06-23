@@ -2415,6 +2415,37 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task UpdateResourceImageAsync_NotifiesProviderWhenDeploymentApplyFails()
+    {
+        var provider = new TestDeploymentImageUpdateResourceProvider
+        {
+            FailDeploymentInstanceStart = true
+        };
+        var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            provider,
+            deploymentStore: deploymentStore);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            controlPlane.UpdateResourceImageAsync(
+                new UpdateResourceImageCommand(
+                    "target",
+                    "example/api:20260623",
+                    RestartIfRunning: false,
+                    TriggeredBy: "build-server",
+                    RequestedReplicas: 2)));
+
+        Assert.Equal("Deployment instance start failed.", exception.Message);
+        Assert.Equal(["target-deployment:revision-2:Deployment instance start failed."], provider.FailedDeployments);
+        var deploymentRecord = Assert.Single(deploymentStore.List(new ResourceOrchestratorDeploymentQuery(
+            SourceResourceId: "target",
+            DeploymentId: "target-deployment")));
+        Assert.Equal(ResourceOrchestratorDeploymentStatus.Failed, deploymentRecord.Status);
+        Assert.Null(deploymentRecord.Revision);
+    }
+
+    [Fact]
     public async Task UpdateResourceReplicasAsync_RejectsInvalidReplicaCount()
     {
         var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)]);
@@ -3619,6 +3650,7 @@ public sealed class InProcessControlPlaneResourceStateTests
         IResourceImageUpdateProvider,
         IResourceOrchestratorDeploymentProvider,
         IResourceOrchestratorDeploymentTearDownProvider,
+        IResourceOrchestratorDeploymentFailureProvider,
         IResourceOrchestratorServiceProcedureProvider
     {
         public string Id => "test";
@@ -3631,9 +3663,13 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         public List<string> DescribedTearDowns { get; } = [];
 
+        public List<string> FailedDeployments { get; } = [];
+
         public List<string> PreparedActions { get; } = [];
 
         public List<string> InstanceActions { get; } = [];
+
+        public bool FailDeploymentInstanceStart { get; init; }
 
         public IReadOnlyList<Resource> GetResources() => [];
 
@@ -3706,6 +3742,18 @@ public sealed class InProcessControlPlaneResourceStateTests
                 ]);
         }
 
+        public bool CanHandleDeploymentApplyFailed(Resource resource) => true;
+
+        public Task HandleDeploymentApplyFailedAsync(
+            ResourceProcedureContext context,
+            ResourceOrchestratorDeployment deployment,
+            Exception exception,
+            CancellationToken cancellationToken = default)
+        {
+            FailedDeployments.Add($"{deployment.Id}:{deployment.RevisionId}:{exception.Message}");
+            return Task.CompletedTask;
+        }
+
         public bool CanExecuteOrchestratorService(
             Resource resource,
             ResourceAction action) =>
@@ -3730,6 +3778,12 @@ public sealed class InProcessControlPlaneResourceStateTests
             ResourceAction action,
             CancellationToken cancellationToken = default)
         {
+            if (FailDeploymentInstanceStart &&
+                action.Kind is ResourceActionKind.Start)
+            {
+                throw new InvalidOperationException("Deployment instance start failed.");
+            }
+
             InstanceActions.Add(
                 $"{action.Kind.ToString().ToLowerInvariant()}:{context.Instance.Name}:{context.Instance.ReplicaOrdinal}/{context.Instance.ReplicaCount}");
             return Task.CompletedTask;

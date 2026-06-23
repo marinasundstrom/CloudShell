@@ -99,6 +99,54 @@ public sealed class ApplicationContainerDeploymentStore
         }
     }
 
+    public void RecordDeploymentFailed(
+        string applicationId,
+        string deploymentId,
+        string revisionId,
+        string? sourceRevisionId = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(applicationId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(deploymentId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(revisionId);
+
+        lock (_gate)
+        {
+            var deployments = _history.Deployments
+                .Select(deployment =>
+                    string.Equals(deployment.ApplicationId, applicationId, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(deployment.Id, deploymentId, StringComparison.OrdinalIgnoreCase)
+                        ? deployment with { Status = ApplicationContainerDeploymentStatuses.Failed }
+                        : deployment)
+                .ToList();
+
+            var revisions = _history.Revisions
+                .Select(revision =>
+                {
+                    if (!string.Equals(revision.ApplicationId, applicationId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return revision;
+                    }
+
+                    if (string.Equals(revision.Id, revisionId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return revision with { Status = ApplicationContainerRevisionStatuses.Failed };
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(sourceRevisionId) &&
+                        string.Equals(revision.Id, sourceRevisionId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return revision with { Status = ApplicationContainerRevisionStatuses.Active };
+                    }
+
+                    return revision;
+                })
+                .ToList();
+
+            _history = new ApplicationContainerDeploymentHistory(deployments, revisions);
+            Persist();
+        }
+    }
+
     public void RemoveApplication(string applicationId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(applicationId);

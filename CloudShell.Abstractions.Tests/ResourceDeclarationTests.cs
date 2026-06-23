@@ -10350,7 +10350,8 @@ public sealed class ResourceDeclarationTests
     }
 
     [Theory]
-    [InlineData(ContainerRegistryDefaults.Default, "redis:7.2", "docker.io/redis:7.2")]
+    [InlineData(ContainerRegistryDefaults.Default, "redis:7.2", "redis:7.2")]
+    [InlineData(ContainerRegistryDefaults.Default, "cloudshell-application-api:20260622.2", "cloudshell-application-api:20260622.2")]
     [InlineData(ContainerRegistryDefaults.Default, "mcr.microsoft.com/mssql/server:2022-latest", "mcr.microsoft.com/mssql/server:2022-latest")]
     [InlineData("http://localhost:5000", "team/api:dev", "localhost:5000/team/api:dev")]
     [InlineData("https://registry.example.com", "registry.example.com/team/api:dev", "registry.example.com/team/api:dev")]
@@ -10623,6 +10624,86 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(
             $"Deployed api image 'example/api:20260608' and produced revision '{updated.ContainerRevision}'.",
             result.Message);
+    }
+
+    [Fact]
+    public async Task ContainerApplicationProvider_RestoresSourceRevisionWhenDeploymentApplyFails()
+    {
+        var services = new ServiceCollection();
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddExtension<ApplicationProviderExtension>()
+            .Resources(resources =>
+            {
+                resources
+                    .AddContainer("api", "example/api:latest", replicas: 3)
+                    .WithContainerHost("docker");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var declarationStore = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+        var registrations = new DeclarationRegistrationStore(declarationStore);
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceService>(serviceProvider);
+        var resource = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == "application:api");
+        var originalRevision = resource.ResourceAttributes[ResourceAttributeNames.ContainerRevision];
+
+        await provider.UpdateImageAsync(
+            new ResourceProcedureContext(resource, registrations.GetRegistration(resource.Id), null, registrations),
+            "example/api:20260608",
+            restartIfRunning: false,
+            triggeredBy: "build-server",
+            requestedReplicas: 2);
+        var failedDefinition = provider.GetApplication("application:api");
+        Assert.NotNull(failedDefinition);
+        var failedRevision = failedDefinition.ContainerRevision;
+        Assert.NotNull(failedRevision);
+        Assert.NotEqual(originalRevision, failedRevision);
+        var deployment = Assert.Single(provider.GetContainerDeployments("application:api"));
+
+        await provider.HandleDeploymentApplyFailedAsync(
+            new ResourceProcedureContext(resource, registrations.GetRegistration(resource.Id), null, registrations),
+            new ResourceOrchestratorDeployment(
+                deployment.OrchestratorDeploymentId!,
+                "default",
+                "application:api",
+                "cloudshell-application-api",
+                failedRevision,
+                new ResourceOrchestratorDeploymentSpec(
+                    new ResourceOrchestratorService(
+                        "application:api",
+                        "cloudshell-application-api",
+                        new ResourceWorkloadConfiguration(
+                            ResourceWorkloadKind.ContainerImage,
+                            "cloudshell-application-api",
+                            Image: "example/api:20260608",
+                            Replicas: 2,
+                            ReplicasEnabled: true)),
+                    failedRevision),
+                ResourceOrchestratorDeploymentStatus.Applying),
+            new InvalidOperationException("container start failed"));
+
+        var restored = provider.GetApplication("application:api");
+        Assert.NotNull(restored);
+        Assert.Equal("example/api:latest", restored.ContainerImage);
+        Assert.Equal(originalRevision, restored.ContainerRevision);
+        Assert.Equal(3, restored.Replicas);
+        Assert.True(restored.ReplicasEnabled);
+        Assert.DoesNotContain(
+            restored.ContainerRevisions,
+            revision => revision.Id == failedRevision);
+
+        var failedDeployment = Assert.Single(provider.GetContainerDeployments("application:api"));
+        var revisions = provider.GetContainerRevisions("application:api");
+        var sourceRevisionHistory = Assert.Single(revisions, revision => revision.Id == originalRevision);
+        var failedRevisionHistory = Assert.Single(revisions, revision => revision.Id == failedRevision);
+
+        Assert.Equal(ApplicationContainerDeploymentStatuses.Failed, failedDeployment.Status);
+        Assert.Equal(ApplicationContainerRevisionStatuses.Active, sourceRevisionHistory.Status);
+        Assert.Equal(ApplicationContainerRevisionStatuses.Failed, failedRevisionHistory.Status);
     }
 
     [Fact]
