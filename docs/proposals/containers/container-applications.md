@@ -132,6 +132,60 @@ returns materialization data such as the replica group. The container app can
 correlate its app revision to that orchestrator deployment or environment
 revision, especially when projecting runtime replica resources, but it does not
 share revision identity with the orchestrator.
+
+The conceptual mapping is:
+
+```mermaid
+flowchart LR
+    subgraph App["Container app domain"]
+        AppResource["Container app resource\napplication.container-app"]
+        AppDeployment["Container app deployment\nuser/provider request"]
+        AppRevision["Container app revision\nconfiguration snapshot"]
+    end
+
+    subgraph ResourceManager["Resource Manager"]
+        DeploymentSpec["Orchestrator deployment\ndesired runtime state"]
+        Orchestrator["Orchestration service\nmaterializes resources"]
+        EnvironmentRevision["Environment revision\nmaterialized outcome"]
+    end
+
+    subgraph Runtime["Materialized runtime"]
+        Service["Orchestrator service\nservice boundary"]
+        Routing["Routing / load balancer\ntraffic mapping"]
+        ReplicaGroup["Replica group\nversioned runtime set"]
+        Slot1["Replica slot 1\nstable desired position"]
+        Slot2["Replica slot 2\nstable desired position"]
+        Replica1["Runtime resource occupant\ncontainer replica 1"]
+        Replica2["Runtime resource occupant\ncontainer replica 2"]
+    end
+
+    AppResource --> AppDeployment
+    AppDeployment --> AppRevision
+    AppRevision --> DeploymentSpec
+    DeploymentSpec --> Orchestrator
+    Orchestrator --> Service
+    Orchestrator --> Routing
+    Orchestrator --> ReplicaGroup
+    Service --> Routing
+    Service --> ReplicaGroup
+    ReplicaGroup --> Slot1
+    ReplicaGroup --> Slot2
+    Slot1 --> Replica1
+    Slot2 --> Replica2
+    Orchestrator --> EnvironmentRevision
+    EnvironmentRevision -. "records" .-> Service
+    EnvironmentRevision -. "records" .-> ReplicaGroup
+    AppRevision -. "may reference" .-> EnvironmentRevision
+```
+
+The stable app resource owns the user-facing app configuration and app
+configuration revisions. The orchestrator deployment is the translated desired
+runtime state for that app revision. The orchestrator service, routing, replica
+group, slots, and runtime resource occupants are the materialized runtime
+shape. Environment revisions record the materialized hosting-environment
+outcome; they are traceable from the container app revision but do not share
+identity with it.
+
 Deployment apply is incremental: the requested runtime state creates or updates
 specified resources by id, and removal remains an explicit scale-down,
 revision-retirement, or service tear-down operation. Runtime containers or
