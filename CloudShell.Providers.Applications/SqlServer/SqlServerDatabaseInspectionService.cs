@@ -20,7 +20,7 @@ internal sealed class SqlServerDatabaseInspectionService(
             return [];
         }
 
-        var server = GetProjectedServerResource(application);
+        var server = SqlServerResourceProjection.GetProjectedServerResource(application, projections);
         if (server is null ||
             !SqlServerConnectionFactory.TryCreateAdministratorConnectionString(
                 application,
@@ -55,19 +55,4 @@ internal sealed class SqlServerDatabaseInspectionService(
         return databases;
     }
 
-    private Resource? GetProjectedServerResource(ApplicationResourceDefinition application)
-    {
-        var profile = ApplicationResourceProjectionProfiles.CreateInfrastructureProjection(application);
-        var scopedProfile = new ApplicationResourceProjection(
-            current => string.Equals(current.Id, application.Id, StringComparison.OrdinalIgnoreCase),
-            profile.GetResourceKind,
-            profile.GetResourceVersion,
-            profile.GetWorkloadKind,
-            profile.GetResourceClass);
-
-        return projections
-            .GetResources(scopedProfile)
-            .FirstOrDefault(resource =>
-                string.Equals(resource.Id, application.Id, StringComparison.OrdinalIgnoreCase));
-    }
 }

@@ -42,6 +42,9 @@ on `git blame --follow`, and then by the broad type of change.
   resource service.
 - SQL Server managed credential naming now lives in a focused helper shared by
   credential resolution, grant status, and reconciliation.
+- SQL Server credential resolution now lives in
+  `SqlServerCredentialResolutionService` behind the existing focused
+  operation contract.
 
 ### 2026-06-23
 

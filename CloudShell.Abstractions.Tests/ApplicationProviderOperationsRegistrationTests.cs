@@ -27,8 +27,7 @@ public sealed class ApplicationProviderOperationsRegistrationTests
             serviceProvider.GetRequiredService<IContainerApplicationHistoryOperations>());
         Assert.IsType<SqlServerDatabaseInspectionService>(
             serviceProvider.GetRequiredService<ISqlServerDatabaseInspectionOperations>());
-        Assert.Same(
-            applicationService,
+        Assert.IsType<SqlServerCredentialResolutionService>(
             serviceProvider.GetRequiredService<ISqlServerCredentialResolutionOperations>());
     }
 
