@@ -52,6 +52,13 @@ lifecycle, graph validation, authorization, grouping, persistence, and runtime
 materialization. Its public surface is the logical facade for resource-facing
 operations, while orchestrators are how Resource Manager materializes runtime
 services and resources behind that facade.
+Resource providers remain the Resource Manager integration boundary for
+resource types. A provider defines the resource type's lifecycle actions,
+validation, configuration-to-runtime mapping, action availability, and
+provider-specific commands. Shared helper services can support families of
+resources, such as application resources that spawn local processes or
+containers, but those helpers should not own Resource Manager deployment,
+revision, lifecycle, or replica-management semantics.
 Providers can opt into `IResourceOrchestratorDeploymentProvider` to describe
 the deployment spec that should be applied after a domain update. These are
 intended for container apps, providers, and orchestrators to build on first.
@@ -251,6 +258,10 @@ The MVP must support:
 * A resource-owned deployment request that describes workload intent. The first
   implementation is container app image deployment, optionally with requested
   replicas.
+* Resource lifecycle start for deployment-capable workload resources can create
+  the initial deployment baseline, so the first materialized runtime state is
+  tied to deployment history and an environment revision rather than appearing
+  as an unversioned provider side effect.
 * Resource-owned deployment history, separate from the desired resource
   definition, so providers can correlate domain requests to the orchestrator
   deployments and environment revisions that materialized them.

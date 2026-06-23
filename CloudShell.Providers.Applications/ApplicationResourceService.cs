@@ -66,8 +66,6 @@ public sealed partial class ApplicationResourceService(
     private static readonly HttpClient ContainerReadinessHttpClient = new();
     private const string DefaultContainerNetworkName = "cloudshell";
     private const string DefaultOrchestratorId = "default";
-    private const string ReplicaScalingRuntimeReconciliationCause =
-        "Replica scaling requested runtime reconciliation.";
     private const string AspNetCoreUrlsEnvironmentVariable = "ASPNETCORE_URLS";
     private const string DotNetWatchRestartOnRudeEditEnvironmentVariable = "DOTNET_WATCH_RESTART_ON_RUDE_EDIT";
     public const string HiddenResourceEnvironmentVariable = "CloudShell__ResourceManager__Hidden";
@@ -622,15 +620,6 @@ public sealed partial class ApplicationResourceService(
             DateTimeOffset.UtcNow,
             triggeredBy));
 
-        if (!restartIfRunning &&
-            wasRunning &&
-            !IsReplicaScalingRuntimeReconciliation(context) &&
-            await TryApplyLiveReplicaUpdateAsync(application, updated, context, cancellationToken))
-        {
-            return ResourceProcedureResult.Completed(
-                $"Updated {application.Name} to {updated.Replicas} replica{Pluralize(updated.Replicas)}.");
-        }
-
         if (restartIfRunning && wasRunning)
         {
             await StartApplicationAsync(
@@ -660,78 +649,6 @@ public sealed partial class ApplicationResourceService(
                 "The container app is running. Restart it to apply the replica count.")
             : ResourceProcedureResult.Completed(
                 $"Updated {application.Name} to {updated.Replicas} replica{Pluralize(updated.Replicas)}.");
-    }
-
-    private static bool IsReplicaScalingRuntimeReconciliation(ResourceProcedureContext context) =>
-        string.Equals(
-            context.Cause,
-            ReplicaScalingRuntimeReconciliationCause,
-            StringComparison.OrdinalIgnoreCase);
-
-    private async Task<bool> TryApplyLiveReplicaUpdateAsync(
-        ApplicationResourceDefinition previous,
-        ApplicationResourceDefinition updated,
-        ResourceProcedureContext context,
-        CancellationToken cancellationToken)
-    {
-        if (!IsContainerBacked(previous) ||
-            !IsContainerBacked(updated) ||
-            !IsReplicaModeEnabled(previous) ||
-            !IsReplicaModeEnabled(updated) ||
-            previous.Replicas <= 1 ||
-            updated.Replicas <= 1 ||
-            context.ResourceManager is null)
-        {
-            return false;
-        }
-
-        var previousService = CreateActiveContainerOrchestratorService(previous);
-        var updatedService = CreateActiveContainerOrchestratorService(updated);
-        var replicaGroupChange = ResourceOrchestratorReplicaGroups.CreateChange(
-            CreateDefaultContainerReplicaGroup(previousService),
-            CreateDefaultContainerReplicaGroup(updatedService));
-        if (replicaGroupChange.AddedInstances.Count > 0)
-        {
-            await PrepareOrchestratorServiceAsync(
-                new ResourceOrchestratorServiceProcedureContext(context, updatedService, replicaGroupChange.Target),
-                ResourceAction.Start,
-                cancellationToken);
-
-            foreach (var instance in replicaGroupChange.AddedInstances)
-            {
-                await ExecuteOrchestratorServiceInstanceAsync(
-                    new ResourceOrchestratorServiceInstanceContext(
-                        context,
-                        updatedService,
-                        instance,
-                        replicaGroupChange.Target),
-                    ResourceAction.Start,
-                    cancellationToken);
-            }
-        }
-
-        foreach (var instance in replicaGroupChange.RemovedInstances
-                     .OrderByDescending(instance => instance.ReplicaOrdinal))
-        {
-            await StopContainerApplicationInstanceAsync(
-                previous,
-                context.ResourceManager,
-                context.PreferredContainerHostId,
-                instance,
-                removeContainer: true,
-                cancellationToken);
-        }
-
-        if (ShouldUseContainerAppIngress(updatedService))
-        {
-            await WriteContainerAppIngressConfigurationAsync(
-                updated,
-                updatedService,
-                cancellationToken,
-                context);
-        }
-
-        return true;
     }
 
     private async Task EnsureContainerRestartAvailableForUpdateAsync(

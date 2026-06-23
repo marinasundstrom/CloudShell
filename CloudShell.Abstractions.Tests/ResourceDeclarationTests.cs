@@ -11338,7 +11338,7 @@ public sealed class ResourceDeclarationTests
 
     [Fact]
     [Trait("Category", "Integration")]
-    public async Task ContainerApplicationProvider_ScalesDownRunningReplicaSetWithoutRestart()
+    public async Task ContainerApplicationProvider_RequestsRuntimeReconciliationWhenScalingRunningReplicaSet()
     {
         if (OperatingSystem.IsWindows())
         {
@@ -11404,14 +11404,16 @@ public sealed class ResourceDeclarationTests
                 restartIfRunning: false);
 
             var updated = provider.GetApplication("application:api");
-            var commands = File.ReadAllLines(commandLogPath);
+            var commands = File.Exists(commandLogPath)
+                ? File.ReadAllLines(commandLogPath)
+                : [];
 
-            Assert.False(result.RestartRequired);
+            Assert.True(result.RestartRequired);
             Assert.Equal("Updated api to 2 replicas.", result.Message);
             Assert.NotNull(updated);
             Assert.True(updated.ReplicasEnabled);
             Assert.Equal(2, updated.Replicas);
-            Assert.Contains("rm -f cloudshell-application-api-replica-3", commands);
+            Assert.Empty(commands);
             Assert.DoesNotContain("rm -f cloudshell-application-api-replica-1", commands);
             Assert.DoesNotContain("rm -f cloudshell-application-api-replica-2", commands);
         }

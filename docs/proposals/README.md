@@ -11,6 +11,11 @@ belong in ADR; landed implementation changes belong in the changelog. The
 repo-local Codex skills also require this synchronization for feature and
 stabilization work.
 
+Use the [Refactoring tracker](../refactoring.md) for active cross-cutting
+cleanup task lists. Proposals should retain feature shape and open questions;
+the tracker should carry current refactoring slices, completed cleanup, and
+near-term boundary work.
+
 ## Proposal Status
 
 This table is the authoritative proposal status index. Keep it current whenever

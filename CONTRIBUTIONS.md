@@ -7,6 +7,11 @@ truth for how work is performed and landed.
 CloudShell changes should be delivered as small, coherent slices that can be
 reviewed and verified independently.
 
+Use [Refactoring tracker](docs/refactoring.md) for active cross-cutting
+refactoring task lists. It is a living work tracker for boundary and ownership
+cleanup; durable decisions still belong in `ADR.md`, and landed behavior still
+belongs in `CHANGELOG.md`.
+
 ## Workflow
 
 1. **Understand the goal and owning layer**

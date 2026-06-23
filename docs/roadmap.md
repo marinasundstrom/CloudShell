@@ -23,6 +23,7 @@ Useful references:
 - [Programmatic resources](programmatic-resources.md)
 - [Control Plane API](control-plane-api.md)
 - [CloudShell and Aspire](cloudshell-and-aspire.md)
+- [Refactoring tracker](refactoring.md)
 - [Container applications proposal](proposals/containers/container-applications.md)
 - [Resource graph import and code generation proposal](proposals/core/resource-graph-import.md)
 

@@ -32,7 +32,8 @@ public sealed class DefaultResourceDeploymentService(
         var previousReplicaGroup = GetLatestActiveReplicaGroup(deployment);
         try
         {
-            if (previousReplicaGroup is not null &&
+            if (context.Resource.State is ResourceState.Running or ResourceState.Degraded &&
+                previousReplicaGroup is not null &&
                 string.Equals(previousReplicaGroup.Id, replicaGroup.Id, StringComparison.OrdinalIgnoreCase))
             {
                 await ApplyReplicaGroupChangeAsync(

@@ -27,7 +27,8 @@ public sealed class ResourceOrchestrationService(
     IEnumerable<IResourceActionAvailabilityProvider>? actionAvailabilityProviders = null,
     IResourceEventSink? resourceEvents = null,
     IResourceOrchestratorDeploymentStore? deploymentStore = null,
-    ILoggerFactory? loggerFactory = null)
+    ILoggerFactory? loggerFactory = null,
+    ResourceDeploymentService? deployments = null)
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
     private readonly IReadOnlyList<IResourceOrchestrator> orchestrators = orchestrators.ToArray();
@@ -35,6 +36,15 @@ public sealed class ResourceOrchestrationService(
         descriptorProviders.ToArray();
     private readonly IReadOnlyList<IResourceActionAvailabilityProvider> actionAvailabilityProviders =
         actionAvailabilityProviders?.ToArray() ?? [];
+    private readonly ResourceDeploymentService deploymentService = deployments ??
+        new ResourceDeploymentService(
+            orchestrators,
+            [new DefaultResourceDeploymentService(deploymentStore)],
+            resourceManager,
+            registrations,
+            selectionStore,
+            resourceEvents,
+            deploymentStore);
     private readonly ConcurrentDictionary<string, byte> activeReplicaSlotReconciliations =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly IContainerHostResolver containerHostResolver =
@@ -411,7 +421,11 @@ public sealed class ResourceOrchestrationService(
 
         try
         {
-            var result = await orchestrator.ExecuteActionAsync(context, action, cancellationToken);
+            var result = await ExecuteResourceActionWithDeploymentAsync(
+                orchestrator,
+                context,
+                action,
+                cancellationToken);
             AppendLifecycleEvent(
                 resource,
                 GetLifecycleEventTypes(action)?.Completed,
@@ -463,6 +477,70 @@ public sealed class ResourceOrchestrationService(
 
             throw;
         }
+    }
+
+    private async Task<ResourceProcedureResult> ExecuteResourceActionWithDeploymentAsync(
+        IResourceOrchestrator orchestrator,
+        ResourceOrchestrationContext context,
+        ResourceAction action,
+        CancellationToken cancellationToken)
+    {
+        if (action.Kind is not ResourceActionKind.Start)
+        {
+            return await orchestrator.ExecuteActionAsync(context, action, cancellationToken);
+        }
+
+        var deploymentProvider = ResourceOrchestratorProviderResolver.GetDeploymentProvider(context);
+        if (deploymentProvider is null)
+        {
+            return await orchestrator.ExecuteActionAsync(context, action, cancellationToken);
+        }
+
+        var resourceContext = ResourceOrchestratorProviderResolver.CreateProcedureContext(context);
+        var deployment = await deploymentProvider.DescribeDeploymentAsync(
+            resourceContext,
+            cancellationToken);
+        if (deployment is null)
+        {
+            return await orchestrator.ExecuteActionAsync(context, action, cancellationToken);
+        }
+
+        ResourceOrchestratorDeploymentApplyResult applyResult;
+        try
+        {
+            applyResult = await deploymentService.ApplyDeploymentAsync(
+                context.Resource,
+                deployment,
+                cancellationToken,
+                context.TriggeredBy,
+                context.Cause ?? "Resource start requested runtime materialization.");
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            var failureProvider = ResourceOrchestratorProviderResolver.GetDeploymentFailureProvider(context);
+            if (failureProvider is not null)
+            {
+                await failureProvider.HandleDeploymentApplyFailedAsync(
+                    resourceContext,
+                    deployment,
+                    exception,
+                    cancellationToken);
+            }
+
+            throw;
+        }
+
+        var appliedProvider = ResourceOrchestratorProviderResolver.GetDeploymentAppliedProvider(context);
+        if (appliedProvider is not null)
+        {
+            await appliedProvider.HandleDeploymentAppliedAsync(
+                resourceContext,
+                applyResult,
+                cancellationToken);
+        }
+
+        return ResourceProcedureResult.Completed(
+            $"Started {context.Resource.Name}. {applyResult.ProcedureResult.Message}");
     }
 
     private void LogLifecycle(ResourceAction action, Resource resource, string message, params object?[] args)

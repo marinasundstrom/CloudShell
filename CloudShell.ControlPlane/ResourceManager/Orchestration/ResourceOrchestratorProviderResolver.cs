@@ -64,4 +64,61 @@ internal static class ResourceOrchestratorProviderResolver
             serviceProvider.CanExecuteOrchestratorService(context.Resource, action))
             as IResourceOrchestratorServiceProcedureProvider;
     }
+
+    public static IResourceOrchestratorDeploymentProvider? GetDeploymentProvider(
+        ResourceOrchestrationContext context)
+    {
+        if (context.Registration is not null)
+        {
+            return context.ResourceManager.Providers.FirstOrDefault(provider =>
+                string.Equals(provider.Id, context.Registration.ProviderId, StringComparison.OrdinalIgnoreCase) &&
+                provider is IResourceOrchestratorDeploymentProvider deploymentProvider &&
+                deploymentProvider.CanDescribeDeployment(context.Resource))
+                as IResourceOrchestratorDeploymentProvider;
+        }
+
+        return context.ResourceManager.Providers.FirstOrDefault(provider =>
+            string.Equals(provider.DisplayName, context.Resource.Provider, StringComparison.OrdinalIgnoreCase) &&
+            provider is IResourceOrchestratorDeploymentProvider deploymentProvider &&
+            deploymentProvider.CanDescribeDeployment(context.Resource))
+            as IResourceOrchestratorDeploymentProvider;
+    }
+
+    public static IResourceOrchestratorDeploymentAppliedProvider? GetDeploymentAppliedProvider(
+        ResourceOrchestrationContext context)
+    {
+        if (context.Registration is not null)
+        {
+            return context.ResourceManager.Providers.FirstOrDefault(provider =>
+                string.Equals(provider.Id, context.Registration.ProviderId, StringComparison.OrdinalIgnoreCase) &&
+                provider is IResourceOrchestratorDeploymentAppliedProvider appliedProvider &&
+                appliedProvider.CanHandleDeploymentApplied(context.Resource))
+                as IResourceOrchestratorDeploymentAppliedProvider;
+        }
+
+        return context.ResourceManager.Providers.FirstOrDefault(provider =>
+            string.Equals(provider.DisplayName, context.Resource.Provider, StringComparison.OrdinalIgnoreCase) &&
+            provider is IResourceOrchestratorDeploymentAppliedProvider appliedProvider &&
+            appliedProvider.CanHandleDeploymentApplied(context.Resource))
+            as IResourceOrchestratorDeploymentAppliedProvider;
+    }
+
+    public static IResourceOrchestratorDeploymentFailureProvider? GetDeploymentFailureProvider(
+        ResourceOrchestrationContext context)
+    {
+        if (context.Registration is not null)
+        {
+            return context.ResourceManager.Providers.FirstOrDefault(provider =>
+                string.Equals(provider.Id, context.Registration.ProviderId, StringComparison.OrdinalIgnoreCase) &&
+                provider is IResourceOrchestratorDeploymentFailureProvider failureProvider &&
+                failureProvider.CanHandleDeploymentApplyFailed(context.Resource))
+                as IResourceOrchestratorDeploymentFailureProvider;
+        }
+
+        return context.ResourceManager.Providers.FirstOrDefault(provider =>
+            string.Equals(provider.DisplayName, context.Resource.Provider, StringComparison.OrdinalIgnoreCase) &&
+            provider is IResourceOrchestratorDeploymentFailureProvider failureProvider &&
+            failureProvider.CanHandleDeploymentApplyFailed(context.Resource))
+            as IResourceOrchestratorDeploymentFailureProvider;
+    }
 }

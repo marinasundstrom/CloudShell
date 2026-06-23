@@ -141,6 +141,37 @@ public sealed class ResourceOrchestrationDeploymentTests
     }
 
     [Fact]
+    public async Task ApplyDeploymentAsync_RematerializesSameReplicaGroupWhenResourceIsStopped()
+    {
+        var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();
+        var running = CreateResource();
+        var initialProvider = new RecordingServiceProcedureProvider(running);
+        var initialDeployments = CreateDeployments(running, initialProvider, deploymentStore: deploymentStore);
+        var deployment = CreateDeployment(running.Id, "default", replicas: 2);
+        await initialDeployments.ApplyDeploymentAsync(running, deployment);
+
+        var stopped = CreateResource(state: ResourceState.Stopped);
+        var restartProvider = new RecordingServiceProcedureProvider(stopped);
+        var restartDeployments = CreateDeployments(stopped, restartProvider, deploymentStore: deploymentStore);
+
+        var result = await restartDeployments.ApplyDeploymentAsync(stopped, deployment);
+
+        Assert.Equal(ResourceOrchestratorDeploymentStatus.Active, result.Deployment.Status);
+        Assert.Equal(
+            [
+                "cloudshell-application-api-rev-2-replica-1",
+                "cloudshell-application-api-rev-2-replica-2"
+            ],
+            restartProvider.ExecutedInstances
+                .Select(instance => instance.Instance.Name)
+                .Order(StringComparer.OrdinalIgnoreCase)
+                .ToArray());
+        Assert.DoesNotContain(
+            restartProvider.ExecutedActions,
+            action => action.Kind == ResourceActionKind.Stop);
+    }
+
+    [Fact]
     public async Task ApplyDeploymentAsync_RejectsProviderIdAsOrchestratorId()
     {
         var resource = CreateResource();
@@ -879,14 +910,15 @@ public sealed class ResourceOrchestrationDeploymentTests
 
     private static Resource CreateResource(
         string id = "application:api",
-        string name = "API") =>
+        string name = "API",
+        ResourceState state = ResourceState.Running) =>
         new(
             id,
             name,
             "container-app",
             "Container App",
             "local",
-            ResourceState.Running,
+            state,
             [],
             "1",
             DateTimeOffset.UtcNow,

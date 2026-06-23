@@ -59,6 +59,17 @@ CloudShell needs one clear managed-service surface for containerized workloads,
 similar in spirit to Azure Container Apps, while keeping CloudShell's resource
 model provider-neutral and self-hosted.
 
+The container app resource provider is the Resource Manager integration for
+`application.container-app`. It defines the lifecycle actions, action
+availability, validation, app-configuration updates, deployment description,
+and provider-specific runtime commands for the resource type. Shared
+application services can provide reusable support for process/container
+spawning, runtime state tracking, logs, environment-variable resolution, and
+projection helpers across executable apps, ASP.NET Core projects, SQL Server,
+and container apps. Those services are implementation support; they should not
+be the owner of Resource Manager deployment, revision, lifecycle, or replica
+group semantics.
+
 ## Goals
 
 * Make `application.container-app` the stable managed-service resource for
@@ -185,6 +196,11 @@ group, slots, and runtime resource occupants are the materialized runtime
 shape. Environment revisions record the materialized hosting-environment
 outcome; they are traceable from the container app revision but do not share
 identity with it.
+Starting a deployment-capable container app should establish the initial
+orchestrator deployment baseline and environment revision for the materialized
+runtime state. Later image and replica changes can then compare against the
+active deployment record instead of inferring predecessor runtime resources
+from provider-specific names or projected child resources.
 
 Deployment apply is incremental: the requested runtime state creates or updates
 specified resources by id, and removal remains an explicit scale-down,

@@ -2554,6 +2554,53 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task ExecuteResourceActionAsync_StartAppliesDeploymentForDeploymentCapableResource()
+    {
+        var provider = new TestDeploymentImageUpdateResourceProvider();
+        var resourceEvents = new InMemoryResourceEventStore();
+        var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Stopped)],
+            provider,
+            resourceEvents: resourceEvents,
+            deploymentStore: deploymentStore);
+
+        var result = await controlPlane.ExecuteResourceActionAsync(
+            new ExecuteResourceActionCommand(
+                "target",
+                ResourceActionIds.Start,
+                TriggeredBy: "operator"));
+
+        Assert.Contains("Started target.", result.Message, StringComparison.Ordinal);
+        Assert.Contains("Applied deployment 'target-deployment'", result.Message, StringComparison.Ordinal);
+        Assert.Empty(provider.ExecutedActions);
+        Assert.Equal(["target"], provider.DescribedDeployments);
+        Assert.Single(provider.AppliedDeployments);
+        Assert.Equal(["start:target-service"], provider.PreparedActions);
+        Assert.Equal(
+            [
+                "start:target-service-revision-2-replica-1:1/2",
+                "start:target-service-revision-2-replica-2:2/2"
+            ],
+            provider.InstanceActions);
+
+        var deploymentRecord = Assert.Single(deploymentStore.List(new ResourceOrchestratorDeploymentQuery(
+            SourceResourceId: "target",
+            DeploymentId: "target-deployment")));
+        Assert.Equal(ResourceOrchestratorDeploymentStatus.Active, deploymentRecord.Status);
+        Assert.NotNull(deploymentRecord.Revision);
+        Assert.Equal("operator", deploymentRecord.TriggeredBy);
+        Assert.Equal("operator", deploymentRecord.Revision?.ProvisionedBy);
+        Assert.Equal(2, deploymentRecord.ReplicaGroup?.RequestedReplicas);
+        Assert.Contains(
+            resourceEvents.GetEvents(new ResourceEventQuery(
+                ResourceId: "target",
+                EventType: ResourceEventTypes.Events.Deployment.Applied,
+                TriggeredBy: "operator")),
+            resourceEvent => resourceEvent.Message.Contains("target-deployment", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task UpdateResourceImageAsync_LeavesDeploymentAppliedWhenPostApplyTearDownFails()
     {
         var provider = new TestDeploymentImageUpdateResourceProvider
@@ -4032,6 +4079,7 @@ public sealed class InProcessControlPlaneResourceStateTests
 
     private sealed class TestDeploymentImageUpdateResourceProvider :
         IResourceProvider,
+        IResourceProcedureProvider,
         IResourceImageUpdateProvider,
         IResourceReplicaUpdateProvider,
         IResourceOrchestratorDeploymentProvider,
@@ -4056,6 +4104,8 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         public List<string> FailedDeployments { get; } = [];
 
+        public List<string> ExecutedActions { get; } = [];
+
         public List<string> PreparedActions { get; } = [];
 
         public List<string> InstanceActions { get; } = [];
@@ -4067,6 +4117,20 @@ public sealed class InProcessControlPlaneResourceStateTests
         public int RequestedReplicas { get; private set; } = 2;
 
         public IReadOnlyList<Resource> GetResources() => [];
+
+        public Task<ResourceProcedureResult> DeleteAsync(
+            ResourceProcedureContext context,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(ResourceProcedureResult.Completed($"Deleted {context.Resource.Id}."));
+
+        public Task<ResourceProcedureResult> ExecuteActionAsync(
+            ResourceProcedureContext context,
+            ResourceAction action,
+            CancellationToken cancellationToken = default)
+        {
+            ExecutedActions.Add($"{context.Resource.Id}:{action.Id}");
+            return Task.FromResult(ResourceProcedureResult.Completed($"Executed {action.Id} for {context.Resource.Id}."));
+        }
 
         public bool CanUpdateImage(Resource resource) => true;
 

@@ -33,12 +33,19 @@ on `git blame --follow`, and then by the broad type of change.
   shape, while still allowing providers to manipulate individual materialized
   resource instances where required.
 - Replica groups now expose a change model for active revision scaling, and
-  container app live replica updates use it to add or remove group members
-  instead of manually diffing replica counts.
+  Resource Manager deployment apply uses it to add or remove group members
+  instead of making container app providers manually diff replica counts.
 - Default deployment apply now reconciles capacity changes for the active
   versioned replica group through Resource Manager deployment history, so scale
   changes produce Environment revisions while preserving unchanged group
   members.
+- Resource Manager lifecycle start now applies provider-described deployments
+  for deployment-capable resources, giving container apps an initial
+  deployment/environment-revision baseline instead of treating first start as
+  an unversioned provider side effect.
+- Container app replica scaling no longer starts or removes replica containers
+  inside the shared application service. The provider updates app intent and
+  Resource Manager deployment apply reconciles the replica group.
 - Environment and container app scaling views now show deployment-record
   replica-group details, making scale reconciliation visible through runtime
   revision, replica group, requested replica slots, and materialized replicas.
