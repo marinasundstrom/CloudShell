@@ -81,6 +81,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Container app revision and replica normalization now lives in a
   container-app-owned rule, while the shared application normalizer fallback
   only constructs provider-neutral project/container-backed cleanup rules.
+- Container app image-deployment planning now lives in a container-app-owned
+  planner with direct tests for produced app revisions, deployment history, and
+  image-only replica-mode preservation.
 - Application resource documentation now includes a provider layering diagram
   that separates raw Resource Provider infrastructure, the Application Resource
   Provider toolkit, and the built-in dogfooded application resource providers.

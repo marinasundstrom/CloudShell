@@ -84,6 +84,10 @@ without forcing provider-specific logic into shared helpers.
   and replica normalization, and keep provider-specific normalization composed
   by the application provider extension instead of the shared normalizer
   fallback.
+- [x] Extract container app image-deployment planning into a container-app
+  unit that owns definition mutation plus deployment/revision history records,
+  while leaving runtime restart and persistence coordination in the current
+  facade for this slice.
 
 ## Next Slices
 
@@ -97,10 +101,10 @@ without forcing provider-specific logic into shared helpers.
   Executable app, and ASP.NET Core Web project.
 - [ ] Move provider UI pages off direct `ApplicationResourceService` injection
   where they only need an authoring/query facade or Resource Manager managers.
-- [ ] Move container-app-specific Resource Manager semantics into
-  `ContainerApplicationResourceProvider` instead of delegating all behavior to
-  the shared application service.
-- [ ] Extract the container app orchestrator deployment factory from the shared
+- [ ] Move remaining container-app-specific Resource Manager semantics into
+  container-app-owned operation services instead of delegating all behavior to
+  the shared application service facade.
+- [x] Extract the container app orchestrator deployment factory from the shared
   service so deployment description is independently testable.
 - [ ] Revisit post-apply teardown ownership. Prefer Resource Manager
   deployment/orchestration outcome data over provider-specific predecessor
@@ -108,6 +112,24 @@ without forcing provider-specific logic into shared helpers.
 - [ ] Define a provider-facing change-application contract for applying
   attribute/configuration changes to materialized resources without requiring
   every provider to invent one-off update methods.
+
+## Future Resource Provider Refactoring
+
+- [ ] Define resource attribute schemas across provider-owned resource
+  type/kind/class boundaries, including scalar and complex values, so
+  Resource Manager can understand desired resource state without hard-coding
+  provider-specific attributes.
+- [ ] Define provider validation contracts for attributes and capabilities.
+  Providers should be able to validate whether a declared or deployed resource
+  state conforms to the provider-supported schema and capability set.
+- [ ] Define provider apply contracts for attribute changes. A provider should
+  own how validated desired state maps to its runtime target, whether that
+  target is an executable, container, orchestrator service, database, or other
+  managed resource.
+- [ ] Feed the schema/validation/apply model into orchestrator deployments so
+  deployment definitions can describe desired resource state consistently
+  across resource types while leaving type-specific reconciliation to the
+  owning provider.
 
 ## Environment and UI Follow-Ups
 

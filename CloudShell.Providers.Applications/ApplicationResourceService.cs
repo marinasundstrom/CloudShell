@@ -460,57 +460,20 @@ public sealed partial class ApplicationResourceService(
                 cancellationToken);
         }
 
-        var nextRevision = CreateContainerRevision();
-        var deploymentId = CreateContainerDeploymentId();
-        var createdAt = DateTimeOffset.UtcNow;
-        var updated = NormalizeDefinition(application with
-        {
-            ContainerImage = normalizedImage,
-            ContainerBuildContext = null,
-            ContainerDockerfile = null,
-            ContainerRevision = nextRevision,
-            Replicas = requestedReplicaCount,
-            ReplicasEnabled = requestedReplicas.HasValue
-                ? application.ReplicasEnabled || requestedReplicas.Value > 1
-                : application.ReplicasEnabled,
-            ContainerRevisions = AppendContainerRevision(
-                application,
-                nextRevision,
-                normalizedImage,
-                requestedReplicaCount,
-                ApplicationContainerRevisionChangeKinds.ImageDeployment,
-                triggeredBy)
-        });
+        var plan = ContainerDeploymentPlanner.PlanImageDeployment(
+            application,
+            normalizedImage,
+            requestedReplicaCount,
+            requestedReplicas.HasValue,
+            triggeredBy,
+            CreateDefaultContainerOrchestratorDeploymentId(application.Id),
+            NormalizeDefinition);
+        var updated = plan.Definition;
         store.Save(updated);
-        var basedOnRevisionId = NormalizeNullable(application.ContainerRevision);
-        var currentRevisionRecord = updated.ContainerRevisions.First(revision =>
-            string.Equals(revision.Id, nextRevision, StringComparison.OrdinalIgnoreCase));
         containerDeployments.RecordDeployment(
-            new ApplicationContainerDeployment(
-                deploymentId,
-                application.Id,
-                nextRevision,
-                basedOnRevisionId,
-                normalizedImage,
-                requestedReplicaCount,
-                createdAt,
-                ApplicationContainerDeploymentStatuses.Completed,
-                ApplicationContainerRevisionChangeKinds.ImageDeployment,
-                NormalizeNullable(triggeredBy),
-                CreateDefaultContainerOrchestratorDeploymentId(application.Id)),
-            new ApplicationContainerRevisionHistoryEntry(
-                nextRevision,
-                application.Id,
-                normalizedImage,
-                requestedReplicaCount,
-                createdAt,
-                ApplicationContainerRevisionStatuses.Active,
-                ApplicationContainerRevisionChangeKinds.ImageDeployment,
-                basedOnRevisionId,
-                NormalizeNullable(triggeredBy),
-                deploymentId,
-                currentRevisionRecord.RevisionNumber),
-            CreateBasedOnContainerRevisionHistoryEntry(application, basedOnRevisionId));
+            plan.Deployment,
+            plan.Revision,
+            plan.BasedOnRevision);
 
         resourceEvents?.Append(new ResourceEvent(
             application.Id,
@@ -4844,12 +4807,6 @@ public sealed partial class ApplicationResourceService(
 
     internal static string FormatContainerHostCommandLine(IReadOnlyList<string> arguments) =>
         ApplicationContainerHostCommands.FormatCommandLine(arguments);
-
-    private static string CreateContainerRevision() =>
-        $"rev-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..27];
-
-    private static string CreateContainerDeploymentId() =>
-        $"dep-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..27];
 
     private static bool IsHidden(ApplicationResourceDefinition application) =>
         application.EnvironmentVariables.Any(variable =>
