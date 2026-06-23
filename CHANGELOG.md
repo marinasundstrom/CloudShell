@@ -126,6 +126,9 @@ on `git blame --follow`, and then by the broad type of change.
   remote client now use `LogSource` as the log discovery contract; legacy
   `LogDescriptor` discovery support and `/logs` descriptor endpoints have been
   removed.
+- `ILogProvider` runtime access methods are now source-addressed as
+  `ReadLogSourceAsync` and `StreamLogSourceAsync`, aligning provider access
+  with `LogSource` discovery.
 - Application resource log discovery now returns `LogSource` records directly
   instead of manufacturing `LogDescriptor` compatibility metadata for
   application and runtime-container sources.

@@ -13,7 +13,7 @@ public sealed partial class ApplicationResourceService
         .SelectMany(CreateLogSources)
         .ToArray();
 
-    public async Task<IReadOnlyList<LogEntry>> ReadLogAsync(
+    public async Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
         string logId,
         int maxEntries = 200,
         DateTimeOffset? before = null,
@@ -104,7 +104,7 @@ public sealed partial class ApplicationResourceService
             .ToArray();
     }
 
-    public async IAsyncEnumerable<LogEntry> StreamLogAsync(
+    public async IAsyncEnumerable<LogEntry> StreamLogSourceAsync(
         string logId,
         int initialEntries = 50,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)

@@ -35,14 +35,14 @@ public interface ILogProvider : ILogSourceContributor
             source is null ? null : new DelegatingLogSourceSession(this, source.Id));
     }
 
-    Task<IReadOnlyList<LogEntry>> ReadLogAsync(
-        string logId,
+    Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
+        string logSourceId,
         int maxEntries = 200,
         DateTimeOffset? before = null,
         CancellationToken cancellationToken = default);
 
-    async IAsyncEnumerable<LogEntry> StreamLogAsync(
-        string logId,
+    async IAsyncEnumerable<LogEntry> StreamLogSourceAsync(
+        string logSourceId,
         int initialEntries = 50,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
@@ -51,7 +51,7 @@ public interface ILogProvider : ILogSourceContributor
             yield break;
         }
 
-        var entries = await ReadLogAsync(logId, initialEntries, cancellationToken: cancellationToken);
+        var entries = await ReadLogSourceAsync(logSourceId, initialEntries, cancellationToken: cancellationToken);
         foreach (var entry in entries)
         {
             cancellationToken.ThrowIfCancellationRequested();

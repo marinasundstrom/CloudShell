@@ -32,12 +32,12 @@ internal sealed class DelegatingLogSourceSession(
         int maxEntries = 200,
         DateTimeOffset? before = null,
         CancellationToken cancellationToken = default) =>
-        provider.ReadLogAsync(sourceId, maxEntries, before, cancellationToken);
+        provider.ReadLogSourceAsync(sourceId, maxEntries, before, cancellationToken);
 
     public IAsyncEnumerable<LogEntry> StreamAsync(
         int initialEntries = 50,
         CancellationToken cancellationToken = default) =>
-        provider.StreamLogAsync(sourceId, initialEntries, cancellationToken);
+        provider.StreamLogSourceAsync(sourceId, initialEntries, cancellationToken);
 
     public ValueTask DisposeAsync()
     {

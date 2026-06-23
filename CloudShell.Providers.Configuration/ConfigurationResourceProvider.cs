@@ -70,7 +70,7 @@ public sealed partial class ConfigurationResourceProvider :
             Availability: LogSourceAvailability.ResourceRunning))
         .ToArray();
 
-    public Task<IReadOnlyList<LogEntry>> ReadLogAsync(
+    public Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
         string logId,
         int maxEntries = 200,
         DateTimeOffset? before = null,
@@ -86,7 +86,7 @@ public sealed partial class ConfigurationResourceProvider :
                 cancellationToken);
     }
 
-    public async IAsyncEnumerable<LogEntry> StreamLogAsync(
+    public async IAsyncEnumerable<LogEntry> StreamLogSourceAsync(
         string logId,
         int initialEntries = 50,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)

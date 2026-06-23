@@ -4390,7 +4390,7 @@ public sealed class ResourceDeclarationTests
                 "Example Configuration"));
 
         var log = Assert.Single(provider.GetLogSources());
-        var entries = await provider.ReadLogAsync(log.Id);
+        var entries = await provider.ReadLogSourceAsync(log.Id);
         var resource = Assert.Single(provider.GetResources());
 
         Assert.Equal("configuration:example", log.ResourceId);
@@ -4426,7 +4426,7 @@ public sealed class ResourceDeclarationTests
                 "Example Secrets"));
 
         var log = Assert.Single(provider.GetLogSources());
-        var entries = await provider.ReadLogAsync(log.Id);
+        var entries = await provider.ReadLogSourceAsync(log.Id);
         var resource = Assert.Single(provider.GetResources());
 
         Assert.Equal("secrets-vault:example", log.ResourceId);

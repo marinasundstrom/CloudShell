@@ -1265,7 +1265,7 @@ public sealed class ExtensionRegistrationTests
 
         public IReadOnlyList<LogSource> GetLogSources() => [];
 
-        public Task<IReadOnlyList<LogEntry>> ReadLogAsync(
+        public Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
             string logId,
             int maxEntries = 200,
             DateTimeOffset? before = null,

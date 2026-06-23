@@ -107,7 +107,7 @@ public sealed partial class DockerContainerResourceProvider :
         .ThenBy(source => source.Name, StringComparer.OrdinalIgnoreCase)
         .ToArray();
 
-    public async Task<IReadOnlyList<LogEntry>> ReadLogAsync(
+    public async Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
         string logId,
         int maxEntries = 200,
         DateTimeOffset? before = null,
@@ -161,7 +161,7 @@ public sealed partial class DockerContainerResourceProvider :
             .ToArray();
     }
 
-    public async IAsyncEnumerable<LogEntry> StreamLogAsync(
+    public async IAsyncEnumerable<LogEntry> StreamLogSourceAsync(
         string logId,
         int initialEntries = 50,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
@@ -173,7 +173,7 @@ public sealed partial class DockerContainerResourceProvider :
 
         if (initialEntries > 0)
         {
-            var entries = await ReadLogAsync(logId, initialEntries, cancellationToken: cancellationToken);
+            var entries = await ReadLogSourceAsync(logId, initialEntries, cancellationToken: cancellationToken);
             foreach (var entry in entries)
             {
                 cancellationToken.ThrowIfCancellationRequested();

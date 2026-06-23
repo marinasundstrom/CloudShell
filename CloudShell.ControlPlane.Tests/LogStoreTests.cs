@@ -197,7 +197,7 @@ public sealed class LogStoreTests
             "operator"));
 
         var source = Assert.Single(provider.GetLogSources());
-        var entries = await provider.ReadLogAsync(source.Id);
+        var entries = await provider.ReadLogSourceAsync(source.Id);
 
         Assert.Equal(ResourceEventLogProvider.GetLogId(resource.Id), source.Id);
         Assert.Equal("Activity", source.Name);
@@ -261,7 +261,7 @@ public sealed class LogStoreTests
                     ? new TestLogSourceSession(logSourceId)
                     : null);
 
-        public Task<IReadOnlyList<LogEntry>> ReadLogAsync(
+        public Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
             string logId,
             int maxEntries = 200,
             DateTimeOffset? before = null,
@@ -341,7 +341,7 @@ public sealed class LogStoreTests
             return ValueTask.FromResult<ILogSourceSession?>(new TestLogSourceSession(source.Id));
         }
 
-        public Task<IReadOnlyList<LogEntry>> ReadLogAsync(
+        public Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
             string logId,
             int maxEntries = 200,
             DateTimeOffset? before = null,

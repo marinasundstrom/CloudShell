@@ -32,7 +32,7 @@ public sealed class ResourceEventLogProvider(
                 Origin: ResourceLogSourceOrigin.ProviderProjected))
             .ToArray();
 
-    public Task<IReadOnlyList<LogEntry>> ReadLogAsync(
+    public Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
         string logId,
         int maxEntries = 200,
         DateTimeOffset? before = null,

@@ -146,6 +146,8 @@ without forcing provider-specific logic into shared helpers.
   resource declarations with contributed `LogSource` records.
 - [x] Remove legacy `LogDescriptor` discovery support from provider, store,
   manager, API, and remote-client contracts.
+- [x] Rename provider runtime log access methods to source-addressed
+  `ReadLogSourceAsync` and `StreamLogSourceAsync`.
 
 ## Next Slices
 
