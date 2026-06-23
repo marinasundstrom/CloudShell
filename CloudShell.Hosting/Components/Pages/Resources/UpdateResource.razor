@@ -241,8 +241,8 @@
     [SupplyParameterFromQuery(Name = "spanId")]
     private string? RequestedSpanId { get; set; }
 
-    [SupplyParameterFromQuery(Name = "logId")]
-    private string? RequestedLogId { get; set; }
+    [SupplyParameterFromQuery(Name = "logSourceId")]
+    private string? RequestedLogSourceId { get; set; }
 
     [SupplyParameterFromQuery(Name = "logView")]
     private string? RequestedLogView { get; set; }
@@ -837,7 +837,7 @@
         }
         else if (selectedTab.Id == GeneratedLogsTabId)
         {
-            parameters["LogId"] = RequestedLogId;
+            parameters["LogSourceId"] = RequestedLogSourceId;
             parameters["TraceId"] = RequestedTraceId;
             parameters["View"] = RequestedLogView;
             parameters["SourceIds"] = RequestedLogSourceIds;
@@ -1290,7 +1290,7 @@
 
         if (ResourceLogSources.Count == 1)
         {
-            query["logId"] = ResourceLogSources[0].Id;
+            query["logSourceId"] = ResourceLogSources[0].Id;
         }
 
         Navigation.NavigateTo(Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(

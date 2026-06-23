@@ -146,6 +146,8 @@ without forcing provider-specific logic into shared helpers.
   manager, API, and remote-client contracts.
 - [x] Rename provider runtime log access methods to source-addressed
   `ReadLogSourceAsync` and `StreamLogSourceAsync`.
+- [x] Rename log selection routes and component parameters from `logId` to
+  `logSourceId` so the UI contract matches the source-first log model.
 
 ## Next Slices
 

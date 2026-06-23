@@ -1391,7 +1391,7 @@ resourceGroups) =>
 
         if (logs.Count == 1)
         {
-            query["logId"] = logs[0].Id;
+            query["logSourceId"] = logs[0].Id;
         }
 
         Navigation.NavigateTo(Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("/logs", query));

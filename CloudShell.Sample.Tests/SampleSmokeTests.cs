@@ -900,7 +900,7 @@ public sealed class SampleSmokeTests
         Assert.DoesNotContain(" / Activity", globalLogsHtml);
 
         var selectedLogHtml = await host.GetStringAsync(
-            $"/logs?logId={Uri.EscapeDataString("application:application-topology-api:logs")}");
+            $"/logs?logSourceId={Uri.EscapeDataString("application:application-topology-api:logs")}");
         Assert.Contains("All resources", selectedLogHtml);
         Assert.Contains("application-topology-api / Console logs", selectedLogHtml);
         Assert.Contains("application-topology-frontend / Console logs", selectedLogHtml);
@@ -912,7 +912,7 @@ public sealed class SampleSmokeTests
         Assert.DoesNotContain("application-topology-frontend / Console logs", apiLogsHtml);
 
         var missingLogHtml = await host.GetStringAsync(
-            $"/logs?logId={Uri.EscapeDataString("application:application-topology-missing:logs")}");
+            $"/logs?logSourceId={Uri.EscapeDataString("application:application-topology-missing:logs")}");
         Assert.Contains("Log source not found", missingLogHtml);
         Assert.Contains("application:application-topology-missing:logs", missingLogHtml);
         Assert.Contains("Show available logs", missingLogHtml);
@@ -931,7 +931,7 @@ public sealed class SampleSmokeTests
         Assert.DoesNotContain("application-topology-frontend / Console logs", inlineApiLogsHtml);
 
         var missingInlineLogHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Logs.Value)}&logId={Uri.EscapeDataString("application:application-topology-missing:logs")}");
+            $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Logs.Value)}&logSourceId={Uri.EscapeDataString("application:application-topology-missing:logs")}");
         Assert.Contains("Log source not found", missingInlineLogHtml);
         Assert.Contains("application:application-topology-missing:logs", missingInlineLogHtml);
         Assert.Contains("Show available logs", missingInlineLogHtml);
@@ -2035,7 +2035,7 @@ public sealed class SampleSmokeTests
         var logSourcesHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Logs.Value)}&logView=sources");
         Assert.Contains(
-            "href=\"/resources/application%3Aapi/logs?logId=runtime-container%3Aapplication-api%3Areplica-1%3Alogs",
+            "href=\"/resources/application%3Aapi/logs?logSourceId=runtime-container%3Aapplication-api%3Areplica-1%3Alogs",
             logSourcesHtml);
         Assert.DoesNotContain(
             "href=\"/resources/runtime-container%3Aapplication-api%3Areplica-1/logs",

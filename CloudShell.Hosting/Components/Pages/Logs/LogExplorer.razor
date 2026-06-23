@@ -316,7 +316,7 @@ else if (ShowHeading)
     public string? ResourceId { get; set; }
 
     [Parameter]
-    public string? LogId { get; set; }
+    public string? LogSourceId { get; set; }
 
     [Parameter]
     public string? TraceId { get; set; }
@@ -703,10 +703,10 @@ else if (ShowHeading)
             return null;
         }
 
-        if (!string.IsNullOrWhiteSpace(LogId))
+        if (!string.IsNullOrWhiteSpace(LogSourceId))
         {
             var requested = logs.FirstOrDefault(log =>
-                string.Equals(log.Id, LogId, StringComparison.OrdinalIgnoreCase));
+                string.Equals(log.Id, LogSourceId, StringComparison.OrdinalIgnoreCase));
             if (requested is not null)
             {
                 return requested;
@@ -728,15 +728,15 @@ else if (ShowHeading)
                 "/logs");
         }
 
-        if (!string.IsNullOrWhiteSpace(LogId) &&
-            !logs.Any(log => string.Equals(log.Id, LogId, StringComparison.OrdinalIgnoreCase)))
+        if (!string.IsNullOrWhiteSpace(LogSourceId) &&
+            !logs.Any(log => string.Equals(log.Id, LogSourceId, StringComparison.OrdinalIgnoreCase)))
         {
             var recoveryHref = Inline && !string.IsNullOrWhiteSpace(ResourceId)
                 ? ResourceManagerCompositionLinks.ResourceDetails(Composition, ResourceId, ResourcePredefinedViewIds.Logs)
                 : BuildAllLogsRoute();
             return new LogSelectionIssue(
                 L["Log source not found"].Value,
-                L["Log source '{0}' is not available in the current log view.", LogId.Trim()].Value,
+                L["Log source '{0}' is not available in the current log view.", LogSourceId.Trim()].Value,
                 L["Show available logs"].Value,
                 recoveryHref);
         }
@@ -794,7 +794,7 @@ else if (ShowHeading)
     private void SelectLog(string? logId)
     {
         if (string.IsNullOrWhiteSpace(logId) ||
-            string.Equals(logId, LogId, StringComparison.OrdinalIgnoreCase))
+            string.Equals(logId, LogSourceId, StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
@@ -1254,7 +1254,7 @@ else if (ShowHeading)
         var query = new Dictionary<string, string?>();
         if (!IsCombinedLog(log))
         {
-            query["logId"] = log.Id;
+            query["logSourceId"] = log.Id;
         }
         else
         {
@@ -1297,7 +1297,7 @@ else if (ShowHeading)
 
         var query = new Dictionary<string, string?>
         {
-            ["logId"] = log.Id
+            ["logSourceId"] = log.Id
         };
         AddLogViewQuery(query, LogStreamView);
 
@@ -1314,7 +1314,7 @@ else if (ShowHeading)
         var query = new Dictionary<string, string?>();
         if (selected is not null && !IsCombinedLog(selected))
         {
-            query["logId"] = selected.Id;
+            query["logSourceId"] = selected.Id;
         }
         else if (selected is not null)
         {

@@ -14,7 +14,7 @@
 else
 {
     <LogExplorer ResourceId="@ResourceId"
-                 LogId="@LogId"
+                 LogSourceId="@LogSourceId"
                  TraceId="@TraceId"
                  View="@View"
                  SourceIds="@SourceIds" />
@@ -27,7 +27,7 @@ else
 
     [Parameter]
     [SupplyParameterFromQuery]
-    public string? LogId { get; set; }
+    public string? LogSourceId { get; set; }
 
     [Parameter]
     [SupplyParameterFromQuery]

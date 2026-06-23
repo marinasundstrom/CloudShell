@@ -1142,7 +1142,7 @@
     {
         var query = new Dictionary<string, string?>
         {
-            ["logId"] = log.Id
+            ["logSourceId"] = log.Id
         };
 
         return QueryHelpers.AddQueryString(
@@ -1156,7 +1156,7 @@
 
         if (logs.Count == 1)
         {
-            query["logId"] = logs[0].Id;
+            query["logSourceId"] = logs[0].Id;
         }
 
         return QueryHelpers.AddQueryString(
