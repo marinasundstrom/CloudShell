@@ -98,8 +98,6 @@ on `git blame --follow`, and then by the broad type of change.
   planner with direct tests for recording materialized environment revisions.
 - Container app deployment store, revision service, and orchestrator deployment
   factory files now live under the `ContainerApp` provider directory.
-- Application resource catalog reads now have a narrower collaborator for
-  normalized definition queries and container app history projection.
 - The deployment proposal now clarifies that deployment definitions describe
   resource intent through resource definitions and provider-owned attributes,
   with serialized formats treated as projections of that model.

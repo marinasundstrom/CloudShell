@@ -8,7 +8,7 @@ namespace CloudShell.Providers.Applications;
 
 public sealed partial class ApplicationResourceService
 {
-    public IReadOnlyList<LogDescriptor> GetLogs() => _applicationCatalog
+    public IReadOnlyList<LogDescriptor> GetLogs() => store
         .GetApplications()
         .SelectMany(CreateLogDescriptors)
         .ToArray();
@@ -206,7 +206,7 @@ public sealed partial class ApplicationResourceService
         string logId,
         out RuntimeContainerLogTarget target)
     {
-        foreach (var application in _applicationCatalog.GetApplications().Where(IsReplicaModeEnabled))
+        foreach (var application in store.GetApplications().Select(ResolveDefinition).Where(IsReplicaModeEnabled))
         {
             var service = CreateActiveContainerOrchestratorService(application);
             var replicaGroup = CreateDefaultContainerReplicaGroup(service);

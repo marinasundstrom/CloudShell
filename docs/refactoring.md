@@ -105,9 +105,6 @@ without forcing provider-specific logic into shared helpers.
 - [x] Move container app deployment store, revision service, and orchestrator
   deployment factory files under the `ContainerApp` provider directory so the
   source layout reflects provider-owned implementation.
-- [x] Extract application resource catalog reads from the shared resource
-  service so normalized definition queries and container app history projection
-  have a narrower provider-facing boundary.
 
 ## Next Slices
 

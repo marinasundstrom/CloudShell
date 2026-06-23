@@ -5,16 +5,31 @@ namespace CloudShell.Providers.Applications;
 public sealed partial class ApplicationResourceService
 {
     public ApplicationResourceDefinition? GetApplication(string id) =>
-        _applicationCatalog.GetApplication(id);
+        store.GetApplication(id) is { } application
+            ? ResolveDefinition(application)
+            : null;
 
-    public IReadOnlyList<ApplicationResourceDefinition> GetApplications() =>
-        _applicationCatalog.GetApplications();
+    public IReadOnlyList<ApplicationResourceDefinition> GetApplications() => store
+        .GetApplications()
+        .Select(ResolveDefinition)
+        .ToArray();
 
     public IReadOnlyList<ApplicationContainerDeployment> GetContainerDeployments(string applicationId) =>
-        _applicationCatalog.GetContainerDeployments(applicationId);
+        containerDeployments.List(applicationId);
 
-    public IReadOnlyList<ApplicationContainerRevisionHistoryEntry> GetContainerRevisions(string applicationId) =>
-        _applicationCatalog.GetContainerRevisions(applicationId);
+    public IReadOnlyList<ApplicationContainerRevisionHistoryEntry> GetContainerRevisions(string applicationId)
+    {
+        var revisions = containerDeployments.ListRevisions(applicationId);
+        if (revisions.Count > 0)
+        {
+            return AssignContainerRevisionHistoryNumbers(revisions);
+        }
+
+        var application = GetApplication(applicationId);
+        return application is null
+            ? []
+            : AssignContainerRevisionHistoryNumbers(CreateContainerRevisionHistoryEntries(application));
+    }
 
     public bool CanApplyDeclaration(ResourceDeclaration declaration) =>
         ApplicationResourceProviderIds.IsApplicationProvider(declaration.ProviderId);

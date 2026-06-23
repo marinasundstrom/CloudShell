@@ -12,7 +12,7 @@ public sealed partial class ApplicationResourceService
         {
             return !string.IsNullOrWhiteSpace(resource.OwnerResourceId) &&
                 store.GetApplication(resource.OwnerResourceId) is { } owner &&
-                IsReplicaModeEnabled(_applicationCatalog.Resolve(owner));
+                IsReplicaModeEnabled(ResolveDefinition(owner));
         }
 
         if (!ApplicationResourceTypes.IsApplication(resource.EffectiveTypeId))
