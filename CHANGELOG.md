@@ -61,6 +61,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Log selection links now use the `logSourceId` query parameter in the global
   and resource-scoped log views, aligning the UI route contract with the
   source-first logging model.
+- Application container-host resolution now lives in
+  `ApplicationContainerHostResolver`, giving application provider units a
+  focused boundary for host selection and capability validation.
 - Container app orchestrator deployment shape now lives in a dedicated factory
   with direct unit tests for service identity, deployment inputs, revision
   scoping, and status mapping, while deployment-history decisions remain in

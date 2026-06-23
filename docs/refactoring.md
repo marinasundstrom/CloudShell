@@ -148,6 +148,10 @@ without forcing provider-specific logic into shared helpers.
   `ReadLogSourceAsync` and `StreamLogSourceAsync`.
 - [x] Rename log selection routes and component parameters from `logId` to
   `logSourceId` so the UI contract matches the source-first log model.
+- [x] Extract application container-host resolution into
+  `ApplicationContainerHostResolver` so runtime, logging, and future provider
+  units can share host selection without depending on the full application
+  resource service.
 
 ## Next Slices
 
