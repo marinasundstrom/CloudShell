@@ -614,6 +614,44 @@ public sealed class ResourceOrchestrationDeploymentTests
                 resourceEvent.Message.Contains("Connection refused.", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public async Task ReconcileReplicaSlotAsync_UsesActiveMaterializedReplicaGroup()
+    {
+        var resource = CreateResource();
+        var deploymentProvider = new RecordingServiceProcedureProvider(resource);
+        var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();
+        var deployments = CreateDeployments(resource, deploymentProvider, deploymentStore: deploymentStore);
+
+        var result = await deployments.ApplyDeploymentAsync(
+            resource,
+            CreateDeployment(resource.Id, "default", replicas: 3),
+            triggeredBy: "tests");
+        var repairProvider = new RecordingServiceProcedureProvider(resource);
+        var orchestration = CreateOrchestration(
+            resource,
+            repairProvider,
+            deploymentStore: deploymentStore);
+
+        await orchestration.ReconcileReplicaSlotAsync(
+            resource,
+            2,
+            "Container exited.",
+            triggeredBy: "replica-management");
+
+        Assert.Equal("cloudshell-application-api-rev-2-replicas", result.Revision.ReplicaGroup?.Id);
+        Assert.Equal(
+            [
+                "Stop:cloudshell-application-api-rev-2-replica-2",
+                "Start:cloudshell-application-api-rev-2-replica-2"
+            ],
+            repairProvider.ExecutedInstanceActions.ToArray());
+        var stopContext = repairProvider.ExecutedInstances.First(context =>
+            context.Instance.ReplicaOrdinal == 2 &&
+            context.Instance.RuntimeRevisionId == "rev-2");
+        Assert.Equal(result.Revision.ReplicaGroup, stopContext.ReplicaGroup);
+        Assert.Equal("rev-2", stopContext.Service.RuntimeRevisionId);
+    }
+
     private static ResourceDeploymentService CreateDeployments(
         Resource resource,
         RecordingServiceProcedureProvider provider,
@@ -645,13 +683,15 @@ public sealed class ResourceOrchestrationDeploymentTests
     private static ResourceOrchestrationService CreateOrchestration(
         Resource resource,
         RecordingServiceProcedureProvider provider,
-        IResourceEventSink? resourceEvents = null) =>
-        CreateOrchestration([resource], provider, resourceEvents);
+        IResourceEventSink? resourceEvents = null,
+        IResourceOrchestratorDeploymentStore? deploymentStore = null) =>
+        CreateOrchestration([resource], provider, resourceEvents, deploymentStore);
 
     private static ResourceOrchestrationService CreateOrchestration(
         IReadOnlyList<Resource> resources,
         RecordingServiceProcedureProvider provider,
-        IResourceEventSink? resourceEvents = null)
+        IResourceEventSink? resourceEvents = null,
+        IResourceOrchestratorDeploymentStore? deploymentStore = null)
     {
         var registrations = new TestResourceRegistrationStore(
             resources.Select(resource =>
@@ -663,7 +703,8 @@ public sealed class ResourceOrchestrationDeploymentTests
             registrations,
             new ResourceDeclarationStore(),
             CreateSelectionStore(),
-            resourceEvents: resourceEvents);
+            resourceEvents: resourceEvents,
+            deploymentStore: deploymentStore);
     }
 
     private static Resource CreateResource(

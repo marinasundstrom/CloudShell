@@ -1194,6 +1194,11 @@ reconciler owns these responsibilities:
 * record slot-level events and the resulting Environment revision or
   reconciliation observation
 
+The MVP implementation should prefer the latest active materialized replica
+group from deployment history when repairing a slot. Recreating a provider
+default group is only a compatibility fallback for resources that do not yet
+have deployment-produced history.
+
 Health/liveness evaluation is an input to that controller, not the controller
 itself. The health path should detect failed runtime scope observations and
 queue slot reconciliation work, while a replica-group reconciliation service

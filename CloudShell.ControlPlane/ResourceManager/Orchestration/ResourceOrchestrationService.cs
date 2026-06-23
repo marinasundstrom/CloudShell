@@ -4,6 +4,7 @@ using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager;
+using CloudShell.ControlPlane.ResourceManager.Deployment;
 using CloudShell.ControlPlane.ResourceManager.Observability;
 using CloudShell.ControlPlane.ResourceManager.Platform;
 using Microsoft.Extensions.Logging;
@@ -25,6 +26,7 @@ public sealed class ResourceOrchestrationService(
     IContainerHostResolver? containerHostResolver = null,
     IEnumerable<IResourceActionAvailabilityProvider>? actionAvailabilityProviders = null,
     IResourceEventSink? resourceEvents = null,
+    IResourceOrchestratorDeploymentStore? deploymentStore = null,
     ILoggerFactory? loggerFactory = null)
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
@@ -125,8 +127,59 @@ public sealed class ResourceOrchestrationService(
             ?? throw new ControlPlaneException(
                 ControlPlaneError.ResourceActionUnsupported(context.Resource.Name));
         var resourceContext = ResourceOrchestratorProviderResolver.CreateProcedureContext(context);
-        var service = await provider.CreateOrchestratorServiceAsync(resourceContext, cancellationToken);
-        var replicaGroup = ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service);
+        var activeRuntime = ResolveActiveReplicaGroup(resource);
+        var service = activeRuntime?.Service ??
+            await provider.CreateOrchestratorServiceAsync(resourceContext, cancellationToken);
+        var replicaGroup = activeRuntime?.ReplicaGroup ??
+            ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service);
+
+        return await ReconcileReplicaSlotAsync(
+            resource,
+            service,
+            replicaGroup,
+            slotOrdinal,
+            detail,
+            cancellationToken,
+            triggeredBy);
+    }
+
+    public async Task<ResourceProcedureResult> ReconcileReplicaSlotAsync(
+        Resource resource,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup replicaGroup,
+        int slotOrdinal,
+        string? detail = null,
+        CancellationToken cancellationToken = default,
+        string? triggeredBy = null)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentNullException.ThrowIfNull(service);
+        ArgumentNullException.ThrowIfNull(replicaGroup);
+        if (slotOrdinal < 1)
+        {
+            throw new ControlPlaneException(
+                ControlPlaneError.InvalidRequest("Replica slot ordinal must be greater than or equal to 1."));
+        }
+
+        if (!string.Equals(resource.Id, service.ResourceId, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ControlPlaneException(
+                ControlPlaneError.InvalidRequest(
+                    $"Service '{service.Name}' belongs to resource '{service.ResourceId}', not '{resource.Id}'."));
+        }
+
+        if (!string.Equals(service.Name, replicaGroup.ServiceId, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ControlPlaneException(
+                ControlPlaneError.InvalidRequest(
+                    $"Replica group '{replicaGroup.Id}' belongs to service '{replicaGroup.ServiceId}', not '{service.Name}'."));
+        }
+
+        var context = CreateContext(resource, triggeredBy, detail);
+        var provider = ResourceOrchestratorProviderResolver.GetServiceProcedureProvider(context, ResourceAction.Start)
+            ?? throw new ControlPlaneException(
+                ControlPlaneError.ResourceActionUnsupported(context.Resource.Name));
+        var resourceContext = ResourceOrchestratorProviderResolver.CreateProcedureContext(context);
         var slot = replicaGroup.Slots.FirstOrDefault(candidate => candidate.Ordinal == slotOrdinal)
             ?? throw new ControlPlaneException(
                 ControlPlaneError.InvalidRequest(
@@ -155,6 +208,39 @@ public sealed class ResourceOrchestrationService(
             activeReplicaSlotReconciliations.TryRemove(key, out _);
         }
     }
+
+    private ActiveReplicaGroup? ResolveActiveReplicaGroup(Resource resource)
+    {
+        if (deploymentStore is null)
+        {
+            return null;
+        }
+
+        var record = deploymentStore
+            .List(new ResourceOrchestratorDeploymentQuery(
+                SourceResourceId: resource.Id,
+                MaxRecords: 1_000))
+            .Where(record =>
+                record.Status == ResourceOrchestratorDeploymentStatus.Active &&
+                record.ReplicaGroup is not null)
+            .OrderByDescending(record => record.CompletedAt ?? record.StartedAt)
+            .FirstOrDefault();
+        if (record is null)
+        {
+            return null;
+        }
+
+        var replicaGroup = record.ReplicaGroup!;
+        var service = record.Deployment.Spec.Service with
+        {
+            RuntimeRevisionId = replicaGroup.RuntimeRevisionId
+        };
+        return new ActiveReplicaGroup(service, replicaGroup);
+    }
+
+    private sealed record ActiveReplicaGroup(
+        ResourceOrchestratorService Service,
+        ResourceOrchestratorReplicaGroup ReplicaGroup);
 
     public async Task<ResourceProcedureResult> ExecuteActionAsync(
         Resource resource,

@@ -77,6 +77,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Replica slot reconciliation now processes unhealthy slot observations while
   a container app remains degraded, so an app that was already degraded can
   still replace a killed replica after a later health refresh.
+- Replica slot reconciliation now targets the latest active materialized
+  replica group from deployment history when one exists, instead of deriving
+  the repair target from provider default service declarations.
 - Replica slot replacement now restarts the failed slot occupant without
   rerunning full service preparation, avoiding project container rebuilds during
   local replica repair.

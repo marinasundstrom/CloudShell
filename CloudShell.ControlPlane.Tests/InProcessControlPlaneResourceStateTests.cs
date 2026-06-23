@@ -3468,7 +3468,8 @@ public sealed class InProcessControlPlaneResourceStateTests
             selectionStore,
             containerHostProviders ?? [],
             actionAvailabilityProviders: actionAvailabilityProviders ?? [],
-            resourceEvents: resourceEvents);
+            resourceEvents: resourceEvents,
+            deploymentStore: deploymentStore);
         var replicaReconciliationStore = new InMemoryResourceReplicaGroupReconciliationStore();
         var replicaGroupReconciliation = new ResourceReplicaGroupReconciliationService(
             orchestration,

@@ -416,8 +416,8 @@ Implemented pieces include:
 * first liveness-driven replica slot replacement path: a failed runtime slot
   is observed by health refresh, queued for replica management, emits
   replica-management events, and is replaced by the orchestration service
-  according to the replica group policy without rerunning full service
-  preparation
+  according to the latest active materialized replica group when deployment
+  history exists, without rerunning full service preparation
 * orchestrator services derive an explicit revision-scoped replica group for
   runtime resource instances, and projected container app replicas carry the
   group id so replicas can be tracked as a set across materialization,
