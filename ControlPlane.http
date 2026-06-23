@@ -1,3 +1,6 @@
+## Sample: ReplicatedContainerHealth
+# dotnet run --project samples/ReplicatedContainerHealth -- --urls http://localhost:5011
+
 @host = http://localhost:5011
 @api = {{host}}/api/control-plane/v1
 @resourceId = application:api
