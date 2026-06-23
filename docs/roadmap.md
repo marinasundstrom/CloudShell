@@ -271,12 +271,13 @@ application from Resource Manager.
 
 After the recent action-readiness and container deployment hardening, including
 the first HTTP readiness gate for container app deployment materialization and
-Deployment tab surfacing for orchestration activity, keep Control Plane
-feedback and Resource Manager surfacing as core MVP quality, but judge that
-work through the full developer experience rather than as an isolated backend
-checklist. The next urgent MVP slice is to prove the Application Topology
-sample end to end and make the app-centric Resource Manager path explain the
-runtime model without requiring sample-specific knowledge.
+Deployment/Revisions UI separation for deploying versus inspecting materialized
+states, keep Control Plane feedback and Resource Manager surfacing as core MVP
+quality, but judge that work through the full developer experience rather than
+as an isolated backend checklist. The next urgent MVP slice is to prove the
+Application Topology sample end to end and make the app-centric Resource
+Manager path explain the runtime model without requiring sample-specific
+knowledge.
 
 Plan and verify MVP work through use cases. The priority use cases are:
 

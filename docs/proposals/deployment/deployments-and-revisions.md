@@ -1012,9 +1012,11 @@ The current implementation already has the internal foundation:
 9. Stable resources and runtime-managed resources can carry deployment,
    service, revision, and replica-group correlation metadata. Container apps
    and their hidden runtime replicas are the first projection path.
-10. The container app Deployment tab surfaces recent deployment, readiness,
-    rollback, and cleanup resource events beside provider-owned app deployment
-    and revision history.
+10. The container app Deployment tab focuses on deploying an image and reading
+    deployment, readiness, rollback, and cleanup events. The Revisions tab
+    separately shows the current and previous materialized app states so users
+    can inspect versioned outcomes without needing revisions for the initial
+    deployment workflow.
 11. Post-apply cleanup of superseded replica groups is best-effort. Cleanup
     failures are warning diagnostics on the applied deployment rather than a
     failure of the active revision.

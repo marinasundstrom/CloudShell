@@ -228,6 +228,13 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 20,
                 groupTitle: ResourceTabGroupTitles.Application,
                 icon: "deployment")
+            .AddResourceTab<ContainerAppPages.ApplicationRevisions>(
+                ApplicationResourceTypes.ContainerApp,
+                new ResourceViewId(ResourceTabGroupIds.Application, "revisions"),
+                "Revisions",
+                25,
+                groupTitle: ResourceTabGroupTitles.Application,
+                icon: "runtime")
             .AddResourceTab<ContainerAppPages.ApplicationScaling>(
                 ApplicationResourceTypes.ContainerApp,
                 new ResourceViewId(ResourceTabGroupIds.Application, "scale-replicas"),

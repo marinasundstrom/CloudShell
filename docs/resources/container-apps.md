@@ -126,22 +126,25 @@ setting for Docker child-container resources; that setting also defaults to
 Container app resources expose container app deployment controls on the
 Deployment tab. Enter a new image tag, and optionally a requested replica count
 for replicated apps. The tab calls the same container app deployment path used
-by remote clients, then refreshes the projected container image, app revision,
-and revision history.
+by remote clients, then refreshes the projected running image and recent
+deployment events.
 
 The Deployment tab also shows deployment readiness before enabling the deploy
 command. It reports missing manage permission, missing image input, no-op
 deployments, and invalid requested replica counts.
 
-The same tab shows the app's current internal deployment projection: deployment
-status, orchestrator service id, scaling mode, requested replicas, and
-materialized runtime replica resources. It also shows recent orchestrator
-deployment, readiness, rollback, and cleanup activity for the app resource.
-This is an inspection surface over CloudShell's internal orchestrator
-deployment model, not a public rollout-history or restore API. Runtime
-materialization is requested through the internal orchestrator deployment-apply
-boundary; the container app domain records app revisions and does not directly
-replace replicas or remap ingress.
+The same tab shows the current running image, deployment status, requested and
+materialized replica counts, and recent orchestrator deployment, readiness,
+routing, rollback, and cleanup activity for the app resource. The Deployment
+tab is focused on the act of deploying and observing that deployment; it does
+not ask users to understand revisions before they can update an app.
+
+The Revisions tab shows the current and previous materialized app states.
+Almost every meaningful container app change is modeled as a deployment and
+versioned as a revision, but revision details stay one level deeper than the
+default deployment workflow. Runtime materialization is requested through the
+internal orchestrator deployment-apply boundary; the container app domain
+records app revisions and does not directly replace replicas or remap ingress.
 Requested replicas are the count asked for by the deployment; materialized
 replicas are the runtime instances the orchestrator actually produced.
 When an image deployment changes a running app, the Control Plane applies the

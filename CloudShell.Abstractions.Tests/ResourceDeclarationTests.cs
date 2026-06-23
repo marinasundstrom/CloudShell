@@ -1268,6 +1268,7 @@ public sealed class ResourceDeclarationTests
 
         var containerAppType = resourceTypes[ApplicationResourceTypes.ContainerApp];
         AssertDeploymentTab(containerAppType);
+        AssertRevisionsTab(containerAppType);
         AssertScalingTab(containerAppType);
         AssertNoStandaloneReplicaTab(containerAppType);
         AssertContainerAppMonitoringTab(containerAppType);
@@ -1543,6 +1544,20 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(20, deploymentTab.Order);
         Assert.Equal("deployment", deploymentTab.Icon);
         Assert.Equal(typeof(CloudShell.Providers.Applications.ContainerApp.Pages.ApplicationDeployment), deploymentTab.ComponentType);
+    }
+
+    private static void AssertRevisionsTab(ResourceTypeContribution resourceType)
+    {
+        var revisionsTab = Assert.Single(
+            resourceType.ResourceTabs,
+            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Application, "revisions"));
+
+        Assert.Equal("Revisions", revisionsTab.Title);
+        Assert.Equal(ResourceTabGroupTitles.Application, revisionsTab.GroupTitle);
+        Assert.False(revisionsTab.ShowsApplyButton);
+        Assert.Equal(25, revisionsTab.Order);
+        Assert.Equal("runtime", revisionsTab.Icon);
+        Assert.Equal(typeof(CloudShell.Providers.Applications.ContainerApp.Pages.ApplicationRevisions), revisionsTab.ComponentType);
     }
 
     private static void AssertNoStandaloneReplicaTab(ResourceTypeContribution resourceType)

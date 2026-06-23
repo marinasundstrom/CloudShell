@@ -1512,6 +1512,116 @@ h3 {
     color: var(--cloudshell-accent);
 }
 
+.container-app-status-pill {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    padding: .16rem .55rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 999px;
+    color: var(--cloudshell-text-muted);
+    font-size: .78rem;
+    font-weight: 650;
+    white-space: nowrap;
+}
+
+.container-app-status-pill.success {
+    border-color: var(--cloudshell-success-text);
+    color: var(--cloudshell-success-text);
+    background: var(--cloudshell-success-fill);
+}
+
+.container-app-status-pill.info {
+    border-color: var(--cloudshell-info-text);
+    color: var(--cloudshell-info-text);
+    background: var(--cloudshell-info-fill);
+}
+
+.container-app-status-pill.warning {
+    border-color: #f2c94c;
+    color: #8a6100;
+    background: var(--cloudshell-warning-fill);
+}
+
+.container-app-status-pill.error {
+    border-color: var(--cloudshell-danger-text);
+    color: var(--cloudshell-danger-text);
+    background: var(--cloudshell-danger-fill);
+}
+
+.container-app-deployment-summary {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(16rem, .9fr);
+    gap: .7rem;
+    align-items: stretch;
+}
+
+.container-app-deployment-primary,
+.container-app-deployment-metrics {
+    padding: .7rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 4px;
+    background: var(--cloudshell-surface-muted);
+}
+
+.container-app-deployment-primary {
+    display: grid;
+    gap: .18rem;
+    min-width: 0;
+}
+
+.container-app-deployment-primary small,
+.container-app-deployment-primary span {
+    color: var(--cloudshell-text-muted);
+}
+
+.container-app-deployment-primary strong {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-size: 1rem;
+}
+
+.container-app-deployment-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .55rem;
+    margin: 0;
+}
+
+.container-app-deployment-metrics div {
+    display: grid;
+    gap: .12rem;
+    min-width: 0;
+}
+
+.container-app-deployment-metrics dt {
+    color: var(--cloudshell-text-muted);
+    font-size: .76rem;
+}
+
+.container-app-deployment-metrics dd {
+    margin: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-weight: 650;
+}
+
+.container-app-deployment-timeline {
+    display: grid;
+    gap: .45rem;
+}
+
+.container-app-deployment-timeline .generated-diagnostic {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: .5rem;
+    align-items: start;
+    padding: .55rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 4px;
+    background: var(--cloudshell-surface-muted);
+}
+
 .generated-deploy-form {
     display: grid;
     gap: .55rem;
@@ -1523,6 +1633,18 @@ h3 {
 
 .generated-deploy-form fluent-text-field {
     width: 100%;
+}
+
+.generated-deploy-form fluent-number-field {
+    width: 12rem;
+    max-width: 100%;
+}
+
+@media (max-width: 760px) {
+    .container-app-deployment-summary,
+    .container-app-deployment-metrics {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }
 
 .generated-access-form {
