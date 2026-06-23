@@ -98,9 +98,13 @@ on `git blame --follow`, and then by the broad type of change.
   planner with direct tests for recording materialized environment revisions.
 - Container app deployment store, revision service, and orchestrator deployment
   factory files now live under the `ContainerApp` provider directory.
-- The refactoring tracker now clarifies that concrete application resource
-  providers should own resource and log projection; shared application
-  infrastructure remains a runtime support toolkit.
+- Top-level application resource projection now lives in a reusable projector
+  helper with direct tests for endpoint mapping, SQL actions, and replicated
+  container app health-check projection.
+- The refactoring tracker now clarifies that resource providers are an umbrella
+  for separate resource-type concerns such as projection/listing, lifecycle,
+  logs, monitoring, and change application, while shared application
+  infrastructure remains a toolkit rather than an inventory owner.
 - The deployment proposal now clarifies that deployment definitions describe
   resource intent through resource definitions and provider-owned attributes,
   with serialized formats treated as projections of that model.

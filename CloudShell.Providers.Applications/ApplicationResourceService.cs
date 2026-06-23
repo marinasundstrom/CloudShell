@@ -114,7 +114,8 @@ public sealed partial class ApplicationResourceService(
         ApplicationResourceDefinition application,
         ApplicationResourceProjection projection)
     {
-        yield return CreateResource(application, projection);
+        yield return CreateApplicationResourceProjector()
+            .CreateResource(application, projection, DisplayName);
 
         if (string.Equals(
                 application.ResourceType,
@@ -1525,7 +1526,10 @@ public sealed partial class ApplicationResourceService(
         await PrepareOrchestratorServiceAsync(
             new ResourceOrchestratorServiceProcedureContext(
                 new ResourceProcedureContext(
-                    CreateResource(runtimeDefinition, CreateInfrastructureProjection(runtimeDefinition)),
+                    CreateApplicationResourceProjector().CreateResource(
+                        runtimeDefinition,
+                        CreateInfrastructureProjection(runtimeDefinition),
+                        DisplayName),
                     null,
                     resourceGroupId,
                     registrations,
@@ -3138,48 +3142,6 @@ public sealed partial class ApplicationResourceService(
         }
     }
 
-    private Resource CreateResource(
-        ApplicationResourceDefinition application,
-        ApplicationResourceProjection projection)
-    {
-        var state = GetState(application.Id);
-        var endpoints = CreateEndpoints(application);
-        return new Resource(
-            application.Id,
-            GetResourceName(application.Id),
-            projection.GetResourceKind(application),
-            DisplayName,
-            "local",
-            state,
-            endpoints,
-            projection.GetResourceVersion(application),
-            DateTimeOffset.UtcNow,
-            application.DependsOn,
-            TypeId: application.ResourceType,
-            Actions: CreateActions(application, state),
-            HealthChecks: CreateHealthChecks(application),
-            RecoveryPolicies: application.RecoveryPolicies,
-            Observability: CreateResourceObservability(application),
-            ResourceClass: projection.GetResourceClass(application),
-            Attributes: CreateResourceProjectionFactory().CreateAttributes(application, state, projection),
-            Capabilities: ApplicationResourceProjectionFactory.CreateCapabilities(application, endpoints),
-            EndpointNetworkMappings: CreateEndpointNetworkMappings(application),
-            DisplayName: application.Name,
-            LogSources: ApplicationLogSources.GetApplicationLogSources(application));
-    }
-
-    private static IReadOnlyList<ResourceHealthCheck> CreateHealthChecks(
-        ApplicationResourceDefinition application)
-    {
-        if (!ApplicationResourceTypes.IsContainerApp(application.ResourceType) ||
-            !IsReplicaModeEnabled(application))
-        {
-            return application.HealthChecks;
-        }
-
-        return [];
-    }
-
     private static ApplicationResourceProjection CreateInfrastructureProjection(
         ApplicationResourceDefinition application)
     {
@@ -3312,35 +3274,16 @@ public sealed partial class ApplicationResourceService(
     private ResourceState GetState(string applicationId)
         => CreateRuntimeStateTracker().GetState(applicationId);
 
-    private ApplicationResourceProjectionFactory CreateResourceProjectionFactory() =>
+    private ApplicationResourceProjector CreateApplicationResourceProjector() =>
         new(
             runtimeStates,
+            GetState,
+            CreateResourceObservability,
             (application, state, runtimeRevisionScoped) => CreateDefaultContainerOrchestratorDeployment(
                 application,
                 state,
-                runtimeRevisionScoped));
-
-    private static IReadOnlyList<ResourceAction> CreateActions(
-        ApplicationResourceDefinition application,
-        ResourceState state)
-    {
-        var lifecycleActions = state is ResourceState.Running or ResourceState.Starting or ResourceState.Stopping
-            ? new[] { ResourceAction.Stop, ResourceAction.Restart }
-            : [ResourceAction.Start];
-
-        if (!string.Equals(application.ResourceType, ApplicationResourceTypes.SqlServer, StringComparison.OrdinalIgnoreCase))
-        {
-            return lifecycleActions;
-        }
-
-        return lifecycleActions
-            .Append(new ResourceAction(
-                ReconcileSqlServerAccessActionId,
-                "Reconcile database access",
-                Description: "Create or update SQL Server database users and roles for CloudShell database grants.",
-                RequiredPermission: DatabaseResourceOperationPermissions.ReconcileAccess))
-            .ToArray();
-    }
+                runtimeRevisionScoped),
+            ResolveLocalPort);
 
     private void MarkStarting(string applicationId)
         => CreateRuntimeStateTracker().MarkStarting(applicationId);
@@ -3361,78 +3304,14 @@ public sealed partial class ApplicationResourceService(
             transientStateTimeout: StartingStateTimeout);
 
     private IReadOnlyList<ResourceEndpoint> CreateEndpoints(ApplicationResourceDefinition application)
-    {
-        if (application.EndpointPorts.Count > 0)
-        {
-            return application.EndpointPorts
-                .Select(port => ResourceEndpoint.Contract(
-                    port.Name,
-                    NormalizeProtocol(port.Protocol),
-                    port.Exposure,
-                    Math.Max(1, port.TargetPort)))
-                .ToArray();
-        }
-
-        if (string.IsNullOrWhiteSpace(application.Endpoint))
-        {
-            if (IsContainerBacked(application))
-            {
-                return [];
-            }
-
-            return [ResourceEndpoint.Logical("process", $"process://{application.Id}", "process")];
-        }
-
-        var endpoint = application.Endpoint;
-        var protocol = Uri.TryCreate(endpoint, UriKind.Absolute, out var uri)
-            ? uri.Scheme
-            : "tcp";
-
-        return [ResourceEndpoint.Contract(
-            "application",
-            protocol,
-            ResourceExposureScope.Public,
-            ResourceEndpoint.TryGetPort(endpoint, out var port) ? port : null)];
-    }
+        => CreateApplicationResourceProjector().CreateEndpoints(application);
 
     private IReadOnlyList<ResourceEndpointNetworkMapping> CreateEndpointNetworkMappings(
         ApplicationResourceDefinition application)
-    {
-        if (application.EndpointPorts.Count > 0)
-        {
-            return application.EndpointPorts
-                .Select(port => ResourceEndpointNetworkMapping.ForEndpoint(
-                    application.Id,
-                    port.Name,
-                    CreateServiceEndpointAddress(application.Id, port),
-                    port.Exposure,
-                    networkResourceId: NormalizeNullable(port.NetworkResourceId),
-                    sourceEndpointName: port.Name))
-                .ToArray();
-        }
+        => CreateApplicationResourceProjector().CreateEndpointNetworkMappings(application);
 
-        if (string.IsNullOrWhiteSpace(application.Endpoint))
-        {
-            return [];
-        }
-
-        return
-        [
-            ResourceEndpointNetworkMapping.ForEndpoint(
-                application.Id,
-                "application",
-                application.Endpoint,
-                ResourceExposureScope.Public,
-                sourceEndpointName: "application")
-        ];
-    }
-
-    private string CreateServiceEndpointAddress(string resourceId, ServicePort port)
-    {
-        var protocol = NormalizeProtocol(port.Protocol);
-        var host = FirstNonEmpty(port.IPAddress, port.Host, "localhost")!;
-        return $"{protocol}://{host}:{ResolveLocalPort(resourceId, port).ToString(CultureInfo.InvariantCulture)}";
-    }
+    private string CreateServiceEndpointAddress(string resourceId, ServicePort port) =>
+        CreateApplicationResourceProjector().CreateServiceEndpointAddress(resourceId, port);
 
     private string CreateRuntimeContainerProbeEndpointAddress(
         string resourceId,

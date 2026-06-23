@@ -16,10 +16,12 @@ without forcing provider-specific logic into shared helpers.
 - Resource Manager owns lifecycle orchestration, deployment apply,
   environment revision recording, dependency policy, authorization gates,
   resource graph state, and cross-provider diagnostics.
-- Resource providers are the Resource Manager integration boundary for a
-  resource type. A provider owns type-specific validation, lifecycle actions,
-  action availability, resource projection, attribute-to-runtime mapping, and
-  provider-specific commands.
+- Resource providers are the Resource Manager integration umbrella for a
+  resource type. A provider capability does not have to be one monolithic
+  class; creation/declaration, change application, lifecycle actions, action
+  availability, resource projection/listing, logs, monitoring,
+  attribute-to-runtime mapping, and provider-specific commands can be separate
+  concerns coordinated under that umbrella.
 - Shared application services are implementation support for application-like
   resources: process/container spawning, runtime state tracking, logs,
   environment-variable resolution, reusable projection helpers, and app-owned
@@ -31,10 +33,9 @@ without forcing provider-specific logic into shared helpers.
   lifecycle, validation, and projection policy as that behavior is separated
   from shared support.
 - The shared Application Resource Provider infrastructure must not become a
-  catalog for application resources or logs. Resource and log projection should
-  be owned by each concrete application resource provider, with shared
-  infrastructure exposing reusable helpers for process/container execution,
-  state tracking, and log reading.
+  catalog for application resources or logs. It may provide reusable projection
+  and log helpers, but the resource-type integration should decide what is
+  projected and which concern receives or lists projected resources.
 - Treat the Application Resource Provider infrastructure as if it could move
   to a shared library, while provider implementors that use, extend, or
   dogfood that infrastructure can live in separate assemblies. Shared
@@ -110,12 +111,16 @@ without forcing provider-specific logic into shared helpers.
 - [x] Move container app deployment store, revision service, and orchestrator
   deployment factory files under the `ContainerApp` provider directory so the
   source layout reflects provider-owned implementation.
+- [x] Extract top-level application resource projection into a reusable
+  toolkit helper, without making shared application infrastructure the
+  resource inventory owner.
 
 ## Next Slices
 
-- [ ] Split `ApplicationResourceService` by moving provider-owned resource and
-  log projection into the concrete application resource providers, while
-  shared application infrastructure remains a toolkit for runtime support.
+- [ ] Split `ApplicationResourceService` by separating resource-type concerns:
+  definition/declaration, change application, lifecycle, projection/listing,
+  logs, monitoring, and runtime support. The shared application infrastructure
+  should provide reusable toolkit pieces, not be the resource inventory owner.
 - [x] Add a diagram to the provider/application-resource docs showing the
   layering from raw Resource Provider infrastructure to Application Resource
   Provider infrastructure and the dogfooded implementors: Container app,
