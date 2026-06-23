@@ -181,40 +181,22 @@ public sealed partial class ApplicationResourceService
             .FirstOrDefault(candidate =>
                 string.Equals(candidate.OrchestratorDeploymentId, deployment.Id, StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(candidate.RevisionId, deployment.RevisionId, StringComparison.OrdinalIgnoreCase));
-        var basedOnRevisionId =
-            NormalizeNullable(appDeployment?.BasedOnRevisionId) ??
-            application.ContainerRevisions
-                .FirstOrDefault(revision =>
-                    string.Equals(revision.Id, deployment.RevisionId, StringComparison.OrdinalIgnoreCase))
-                ?.BasedOnRevisionId;
+        var plan = ContainerDeploymentFailurePlanner.PlanApplyFailure(
+            application,
+            deployment.Id,
+            deployment.RevisionId,
+            appDeployment,
+            NormalizeDefinition);
 
         containerDeployments.RecordDeploymentFailed(
             application.Id,
-            appDeployment?.Id ?? deployment.Id,
-            deployment.RevisionId,
-            basedOnRevisionId);
+            plan.DeploymentId,
+            plan.RevisionId,
+            plan.BasedOnRevisionId);
 
-        if (!string.IsNullOrWhiteSpace(basedOnRevisionId))
+        if (plan.RestoredDefinition is not null)
         {
-            var basedOnRevision = application.ContainerRevisions.FirstOrDefault(revision =>
-                string.Equals(revision.Id, basedOnRevisionId, StringComparison.OrdinalIgnoreCase));
-            if (basedOnRevision is not null)
-            {
-                var restored = NormalizeDefinition(application with
-                {
-                    ContainerImage = basedOnRevision.Image,
-                    ContainerRevision = basedOnRevision.Id,
-                    Replicas = Math.Max(1, basedOnRevision.RequestedReplicas),
-                    ReplicasEnabled = basedOnRevision.RequestedReplicas > 1,
-                    ContainerRevisions = application.ContainerRevisions
-                        .Where(revision => !string.Equals(
-                            revision.Id,
-                            deployment.RevisionId,
-                            StringComparison.OrdinalIgnoreCase))
-                        .ToArray()
-                });
-                store.Save(restored);
-            }
+            store.Save(plan.RestoredDefinition);
         }
 
         resourceEvents?.Append(new ResourceEvent(

@@ -91,6 +91,8 @@ without forcing provider-specific logic into shared helpers.
 - [x] Extract container app replica-scaling planning into a container-app unit
   that owns requested replica intent changes while runtime reconciliation
   remains coordinated by the current facade.
+- [x] Extract container app deployment failure planning into a container-app
+  unit that owns failed-deployment base revision lookup and rollback state.
 
 ## Next Slices
 
