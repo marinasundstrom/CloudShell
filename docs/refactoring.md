@@ -27,6 +27,13 @@ without forcing provider-specific logic into shared helpers.
   resource identities. `GetResources()` currently also projects provider-
   observed and runtime-managed artifacts into the unified graph, so projection
   must not be treated as proof that a resource was explicitly declared.
+  Projected/listed resources can still be referenced and may support provider-
+  owned operations, but they should be considered read-only unless the owning
+  provider implements management behavior for them.
+- Resource definitions describe declared resource identity, resource type, and
+  resource-specific intent through typed payloads and provider-owned
+  attributes. The definition structure should remain separate from JSON, YAML,
+  builders, persistence records, or other serialized format projections.
 - Shared application services are implementation support for application-like
   resources: process/container spawning, runtime state tracking, logs,
   environment-variable resolution, reusable projection helpers, and app-owned
@@ -130,6 +137,13 @@ without forcing provider-specific logic into shared helpers.
   inventory and provider/runtime projections before changing `GetResources()`
   semantics. The unified graph can still include both, but code should know
   whether it is handling a declared resource or a projected artifact.
+- [ ] Define reference semantics for declared resources and projected/listed
+  resources, including when a provider may resolve and project a referenced
+  artifact on demand and what capabilities make a projected resource
+  manageable instead of read-only.
+- [ ] Define the resource definition structure used for declarations and
+  deployment inputs: identity, type, optional definition version, typed payload,
+  provider-owned attributes, and validation by the owning resource provider.
 - [x] Add a diagram to the provider/application-resource docs showing the
   layering from raw Resource Provider infrastructure to Application Resource
   Provider infrastructure and the dogfooded implementors: Container app,

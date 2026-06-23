@@ -109,6 +109,13 @@ on `git blame --follow`, and then by the broad type of change.
   provider/runtime projections, calling out that `GetResources()` currently
   returns a unified graph that can include artifacts which were not explicitly
   declared.
+- Resource model documentation now clarifies that declared and
+  projected/listed resources can both be referenced, while projected resources
+  remain read-only unless the owning provider exposes operations or change
+  handling for them.
+- Resource model documentation now describes resource definitions as identity,
+  type, typed payload, and provider-owned attributes, with serialized formats
+  such as JSON treated as projections of that structure.
 - The deployment proposal now clarifies that deployment definitions describe
   resource intent through resource definitions and provider-owned attributes,
   with serialized formats treated as projections of that model.

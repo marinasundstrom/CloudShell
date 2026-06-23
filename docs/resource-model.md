@@ -17,24 +17,68 @@ resource.
 Resource projection is not the same thing as resource declaration. A declared
 resource is the stable authored or persisted resource identity that CloudShell
 expects to exist and that a resource provider validates and handles for its
-resource type. A projection is the current shape returned to consumers. Today
-`IResourceProvider.GetResources()` is used for both declared resources and
-provider-observed or runtime-managed artifacts, such as container replicas,
+resource type. A projected or listed resource is a resource-shaped artifact the
+provider can surface from its runtime, platform, or child-resource inventory.
+Both declared resources and projected/listed resources can be referenced inside
+CloudShell, including by stable resource ID or by future weak references that a
+provider can resolve and project on demand.
+
+Today `IResourceProvider.GetResources()` is used for both declared resources
+and provider-observed or runtime-managed artifacts, such as container replicas,
 runtime containers, and provider-discovered child resources. That overloaded
 surface is useful for building a unified graph, but it should not imply that
 every projected artifact was explicitly declared by a user or program.
+Projected/listed resources should initially be treated as read-only graph
+members unless the provider exposes actions, update handling, orchestration
+participation, or other management support for that projected resource. A
+Docker container projected below a Docker/container host is a concrete example:
+it is not a declared resource persisted by Resource Manager, and it does not
+currently participate in orchestration, but the Docker provider can still
+expose operations such as start and stop for it.
 
 Future Resource Manager refactoring should keep those concerns distinct:
 
 - declared resource inventory: stable resources that have been authored,
   persisted, imported, or otherwise accepted into CloudShell as resources
+- resource definitions: declarations of resource identity, resource type,
+  optional definition version, typed payload, and provider-owned attributes
+  that describe what CloudShell should accept as the resource's intended shape
 - provider projection/listing: the current resource-shaped view of declared
   resources and provider-observed artifacts
 - runtime/diagnostic projections: implementation artifacts that are useful for
   inspection, cleanup, health, logs, or topology but are not the primary
   declared resource
+- references: strong or weak references to either declared resources or
+  provider-projected resources that may be projected on demand by the owning
+  provider
 - validation and change application: provider-owned behavior for a declared
   resource type and its accepted attributes/capabilities
+
+A resource definition can be projected into a serialized format such as JSON,
+but the structure and the serialized format are separate concerns. Conceptually
+a resource definition contains a resource name, a resource type, and the
+resource-specific intent that the owning provider can validate. That intent may
+be represented by a typed definition payload and by provider-owned attributes,
+including complex typed values when the resource schema allows them. A
+serialized projection might look like:
+
+```jsonc
+{
+  "name": "acme-api",
+  "type": "application.executable",
+  "executable.path": "whatsup.exe",
+  "executable.arguments": "doc",
+  "executable.workingDirectory": ".",
+  "custom.data": {
+    "example": "complex value"
+  }
+}
+```
+
+The provider for `application.executable` owns validation and application of
+those attributes. Resource Manager should not hard-code executable-specific
+attribute semantics, but it can store, compare, version, reference, and project
+resource definitions once the owning provider accepts them.
 
 A resource projection is made from these groups:
 
