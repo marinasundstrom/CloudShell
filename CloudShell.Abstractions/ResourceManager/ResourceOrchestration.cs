@@ -41,12 +41,19 @@ public sealed record ResourceOrchestratorDeployment(
 public sealed record ResourceOrchestratorDeploymentSpec(
     ResourceOrchestratorService Service,
     string WorkloadVersion,
-    IReadOnlyDictionary<string, string>? Inputs = null)
+    IReadOnlyDictionary<string, string>? Inputs = null,
+    ResourceOrchestratorDeploymentDefinition? Definition = null)
 {
     private static readonly IReadOnlyDictionary<string, string> EmptyInputs =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
     public IReadOnlyDictionary<string, string> DeploymentInputs => Inputs ?? EmptyInputs;
+
+    public ResourceOrchestratorDeploymentDefinition DeploymentDefinition =>
+        Definition ?? ResourceOrchestratorDeploymentDefinition.FromService(
+            Service,
+            WorkloadVersion,
+            DeploymentInputs);
 }
 
 public sealed record ResourceOrchestratorRevision(

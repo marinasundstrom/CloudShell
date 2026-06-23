@@ -104,6 +104,10 @@ on `git blame --follow`, and then by the broad type of change.
   `ResourceOrchestratorEnvironmentRevisionId` and generated separately from
   deployment/runtime revision ids, so container app revision ids are not reused
   as Resource Manager environment revision identities.
+- Orchestrator deployment specs now expose a deployment-definition structure
+  with typed service definitions, grouped resource definitions, and standalone
+  resource definitions, separating the domain structure from any eventual JSON,
+  builder, database, or API projection format.
 - Resource Manager deployment coordination now lives separately from
   orchestration execution under dedicated Deployment and Orchestration
   namespaces, with the default deployment service reusable for orchestrators
