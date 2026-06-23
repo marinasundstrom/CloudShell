@@ -1,6 +1,7 @@
 @using System.Globalization
 @inject ApplicationResourceService ApplicationProvider
 @inject IResourceHealthManager HealthManager
+@inject IResourceDeploymentManager Deployments
 @inject IResourceManager ResourceActions
 @inject IResourceManagerStore ResourceManager
 @inject IResourceRegistrationStore Registrations
@@ -175,6 +176,54 @@ else
                 </ResourceTable>
             }
         </section>
+
+        <section class="blade-section">
+            <h3>Deployment trace</h3>
+            @if (DeploymentRecords.Count == 0)
+            {
+                <EmptyState Title="No deployment records"
+                            Message="Replica scaling deployments will appear here after Resource Manager materializes runtime capacity." />
+            }
+            else
+            {
+                <ResourceTable>
+                    <thead>
+                        <tr>
+                            <th>Deployment</th>
+                            <th>Runtime revision</th>
+                            <th>Environment revision</th>
+                            <th>Replica group</th>
+                            <th>Replicas</th>
+                            <th>Status</th>
+                            <th>Completed</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var record in DeploymentRecords)
+                        {
+                            <tr>
+                                <td>
+                                    <strong class="deployment-trace-identifier">@record.DeploymentId</strong>
+                                    <div class="table-subtext">@GetOptional(record.Cause)</div>
+                                </td>
+                                <td><span class="deployment-trace-identifier">@GetRuntimeRevisionLabel(record)</span></td>
+                                <td>
+                                    <span class="deployment-trace-identifier">@GetEnvironmentRevisionLabel(record)</span>
+                                    <div class="table-subtext">@GetOptional(record.BasedOnEnvironmentRevisionId)</div>
+                                </td>
+                                <td><span class="deployment-trace-identifier">@GetReplicaGroupLabel(record)</span></td>
+                                <td>@GetDeploymentReplicaSummary(record)</td>
+                                <td>
+                                    @record.Status
+                                    <div class="table-subtext">@GetOptional(record.Error ?? record.Message)</div>
+                                </td>
+                                <td>@GetCompletionLabel(record)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </ResourceTable>
+            }
+        </section>
     }
 }
 
@@ -191,6 +240,7 @@ else
     private ApplicationResourceDefinition? Application { get; set; }
     private Resource? ProjectedResource { get; set; }
     private IReadOnlyList<Resource> MaterializedReplicas { get; set; } = [];
+    private IReadOnlyList<ResourceDeploymentRecord> DeploymentRecords { get; set; } = [];
     private IReadOnlyDictionary<string, ResourceHealthSummary> HealthResults { get; set; } =
         new Dictionary<string, ResourceHealthSummary>(StringComparer.OrdinalIgnoreCase);
     private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
@@ -238,6 +288,11 @@ else
         HealthResults = MaterializedReplicas.Count == 0
             ? new Dictionary<string, ResourceHealthSummary>(StringComparer.OrdinalIgnoreCase)
             : await HealthManager.ListResourceHealthAsync();
+        DeploymentRecords = string.IsNullOrWhiteSpace(ResourceId)
+            ? []
+            : await Deployments.ListResourceDeploymentsAsync(new ResourceDeploymentQuery(
+                SourceResourceId: ResourceId,
+                MaxRecords: 10));
 
         if (Application is not null)
         {
@@ -354,6 +409,9 @@ else
                     .OrderBy(GetReplicaOrdinal)
                     .ThenBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
                     .ToArray();
+            DeploymentRecords = await Deployments.ListResourceDeploymentsAsync(new ResourceDeploymentQuery(
+                SourceResourceId: applicationId,
+                MaxRecords: 10));
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -405,6 +463,33 @@ else
         resource.ResourceAttributes.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
             ? value
             : fallback;
+
+    private static string GetRuntimeRevisionLabel(ResourceDeploymentRecord record) =>
+        GetOptional(record.ReplicaGroup?.RuntimeRevisionId ?? record.RuntimeRevisionId);
+
+    private static string GetReplicaGroupLabel(ResourceDeploymentRecord record) =>
+        GetOptional(record.ReplicaGroup?.Id);
+
+    private static string GetDeploymentReplicaSummary(ResourceDeploymentRecord record) =>
+        record.ReplicaGroup is null
+            ? "not projected"
+            : string.Create(
+                CultureInfo.InvariantCulture,
+                $"{record.ReplicaGroup.MaterializedReplicas} of {record.ReplicaGroup.RequestedReplicas}");
+
+    private static string GetEnvironmentRevisionLabel(ResourceDeploymentRecord record) =>
+        record.EnvironmentRevisionNumber is { } revisionNumber
+            ? string.Create(CultureInfo.InvariantCulture, $"Revision {revisionNumber}")
+            : GetOptional(record.EnvironmentRevisionId);
+
+    private static string GetCompletionLabel(ResourceDeploymentRecord record)
+    {
+        var timestamp = record.CompletedAt ?? record.StartedAt;
+        return timestamp.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
+    }
+
+    private static string GetOptional(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? "not projected" : value;
 
     private ResourceHealthSummary? GetReplicaHealth(Resource replica) =>
         HealthResults.GetValueOrDefault(replica.Id);

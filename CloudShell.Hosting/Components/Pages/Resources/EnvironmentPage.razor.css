@@ -23,7 +23,7 @@
 }
 
 .environment-history-table ::deep .resource-table {
-    min-width: 86rem;
+    min-width: 106rem;
 }
 
 .environment-history-table ::deep th,

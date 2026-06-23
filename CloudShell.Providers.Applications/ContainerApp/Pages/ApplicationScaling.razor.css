@@ -17,3 +17,8 @@
 .replica-health-assessment small {
     color: var(--cloudshell-text-muted);
 }
+
+.deployment-trace-identifier {
+    overflow-wrap: anywhere;
+    word-break: normal;
+}

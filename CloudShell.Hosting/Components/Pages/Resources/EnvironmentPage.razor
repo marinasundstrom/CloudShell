@@ -93,7 +93,7 @@
 
     <ShellPanel Wide="true" Class="environment-panel-full">
         <ShellPanelHeader Title="@L["Deployment history"].Value"
-                          Description="@L["Deployment records produced by Resource Manager deployment apply. Runtime-capacity updates remain environment activity unless they apply a deployment."].Value" />
+                          Description="@L["Deployment records produced by Resource Manager deployment apply, including image rollouts and scale reconciliation that changes desired runtime capacity."].Value" />
 
         @if (DeploymentRecords.Count == 0)
         {
@@ -109,6 +109,9 @@
                     <tr>
                         <th>@L["Deployment"]</th>
                         <th>@L["Source resource"]</th>
+                        <th>@L["Runtime revision"]</th>
+                        <th>@L["Replica group"]</th>
+                        <th>@L["Replicas"]</th>
                         <th>@L["Status"]</th>
                         <th>@L["Environment revision"]</th>
                         <th>@L["Based on"]</th>
@@ -123,7 +126,7 @@
                         <tr>
                             <td>
                                 <strong class="environment-identifier">@record.DeploymentId</strong>
-                                <div class="table-subtext">@record.RuntimeRevisionId</div>
+                                <div class="table-subtext">@GetOptional(record.Cause)</div>
                             </td>
                             <td>
                                 <ResourceTableIdentity IconName="@GetResourceIconName(sourceResource, record.SourceResourceId)"
@@ -136,6 +139,9 @@
                                     </TitleContent>
                                 </ResourceTableIdentity>
                             </td>
+                            <td><span class="environment-identifier">@GetRuntimeRevisionLabel(record)</span></td>
+                            <td><span class="environment-identifier">@GetReplicaGroupLabel(record)</span></td>
+                            <td>@GetDeploymentReplicaSummary(record)</td>
                             <td>
                                 @record.Status
                                 <div class="table-subtext">@GetDeploymentRecordMessage(record)</div>
@@ -305,6 +311,19 @@
 
     private string GetDeploymentRecordMessage(ResourceDeploymentRecord record) =>
         GetOptional(record.Error ?? record.Message ?? record.Cause);
+
+    private static string GetRuntimeRevisionLabel(ResourceDeploymentRecord record) =>
+        GetOptional(record.ReplicaGroup?.RuntimeRevisionId ?? record.RuntimeRevisionId);
+
+    private static string GetReplicaGroupLabel(ResourceDeploymentRecord record) =>
+        GetOptional(record.ReplicaGroup?.Id);
+
+    private static string GetDeploymentReplicaSummary(ResourceDeploymentRecord record) =>
+        record.ReplicaGroup is null
+            ? "not projected"
+            : string.Create(
+                CultureInfo.InvariantCulture,
+                $"{record.ReplicaGroup.MaterializedReplicas} of {record.ReplicaGroup.RequestedReplicas}");
 
     private string GetEnvironmentRevisionLabel(ResourceDeploymentRecord record) =>
         record.EnvironmentRevisionNumber is { } revisionNumber

@@ -39,6 +39,9 @@ on `git blame --follow`, and then by the broad type of change.
   versioned replica group through Resource Manager deployment history, so scale
   changes produce Environment revisions while preserving unchanged group
   members.
+- Environment and container app scaling views now show deployment-record
+  replica-group details, making scale reconciliation visible through runtime
+  revision, replica group, requested replicas, and materialized replicas.
 - Resource Manager orchestration now has an internal service tear-down boundary
   so orchestrator services can stop their materialized runtime resources
   separately from incremental deployment setup.
