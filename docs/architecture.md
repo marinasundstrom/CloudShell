@@ -106,6 +106,43 @@ which may be backed by an in-process Control Plane in a combined host or by a
 remote Control Plane service. UI integrations should not depend on Control
 Plane stores or provider runtime internals.
 
+Resource Manager is the logical facade over the services that manage
+resources. The Control Plane side owns inventory, validation, lifecycle,
+deployment coordination, orchestration, health, events, and API projection.
+Orchestrators are execution adapters inside Resource Manager: they materialize
+runtime state for resources and services, but they do not own the resource
+graph or replace Resource Manager as the authority.
+
+```mermaid
+flowchart TD
+    User["User or automation"] --> ResourceManagerUi["Resource Manager UI\nshell extension"]
+    ResourceManagerUi --> Managers["Public managers and client adapters"]
+    Api["Control Plane API"] --> Managers
+    Managers --> Facade["Resource Manager facade"]
+
+    subgraph ControlPlane["Control Plane Resource Manager backend"]
+        Facade --> Inventory["Resource inventory\nregistrations, groups, dependencies"]
+        Facade --> Lifecycle["Lifecycle procedures\nactions, delete, dependency ordering"]
+        Facade --> Deployment["Deployment service\napply attempts and outcomes"]
+        Facade --> Health["Health, events, logs\noperational observations"]
+        Deployment --> Orchestration["Orchestration service\nruntime materialization"]
+        Orchestration --> Revisions["Environment revisions\nmaterialized history"]
+        Orchestration --> ReplicaManagement["Replica group reconciliation\nslot runtime state"]
+    end
+
+    subgraph Runtime["Runtime providers and orchestrators"]
+        Orchestrator["Default or external orchestrator"]
+        Providers["Resource providers\nDocker, apps, networking, storage"]
+        RuntimeResources["Materialized runtime resources\ncontainers, routes, volumes"]
+    end
+
+    Orchestration --> Orchestrator
+    Lifecycle --> Providers
+    Orchestrator --> Providers
+    Providers --> RuntimeResources
+    RuntimeResources --> Health
+```
+
 ## Host topology
 
 CloudShell separates the environment from the host applications and capability

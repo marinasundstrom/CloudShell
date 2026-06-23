@@ -104,6 +104,48 @@ are not a current use case. Rich rollout history, environment replay, traffic
 splitting, retention, and live resource/orchestrator graph visualization remain
 deferred.
 
+```mermaid
+flowchart TD
+    Resource["CloudShell resource\nfor example container app"] --> Provider["Resource provider\nprojects workload intent"]
+    Provider --> Deployment["Orchestrator deployment\ndesired runtime state"]
+
+    subgraph ResourceManager["Resource Manager"]
+        DeploymentService["Deployment service\nrecords apply attempt"]
+        Orchestration["Orchestration service\nselects orchestrator"]
+        DeploymentHistory["Deployment history\nattempts, status, actor"]
+        RevisionHistory["Environment revisions\nmaterialized outcomes"]
+        Reconciliation["Replica group reconciler\nkeeps active slots aligned"]
+    end
+
+    subgraph Orchestrator["Selected orchestrator"]
+        Service["Orchestrator service\nruntime boundary"]
+        Routing["Routing or loader\nservice endpoint"]
+        ReplicaGroup["Replica group\nrequested replica slots"]
+        Slot1["Replica slot 1\nstable position"]
+        Slot2["Replica slot 2\nstable position"]
+        SlotN["Replica slot N\nstable position"]
+        Replica1["Runtime resource\nslot occupant"]
+        Replica2["Runtime resource\nslot occupant"]
+        ReplicaN["Runtime resource\nslot occupant"]
+    end
+
+    Deployment --> DeploymentService
+    DeploymentService --> DeploymentHistory
+    DeploymentService --> Orchestration
+    Orchestration --> Service
+    Service --> Routing
+    Service --> ReplicaGroup
+    ReplicaGroup --> Slot1
+    ReplicaGroup --> Slot2
+    ReplicaGroup --> SlotN
+    Slot1 --> Replica1
+    Slot2 --> Replica2
+    SlotN --> ReplicaN
+    Orchestration --> RevisionHistory
+    RevisionHistory --> Reconciliation
+    Reconciliation --> ReplicaGroup
+```
+
 ## Problem
 
 CloudShell resources may express desired runtime behavior that requires orchestration.

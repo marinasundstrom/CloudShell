@@ -93,6 +93,9 @@ on `git blame --follow`, and then by the broad type of change.
   unhealthy, repairing, repaired, and repair-failed slots, including attempt
   counts and provider results, so future UI/API surfaces do not need to infer
   repair status from health events or container listings.
+- Architecture and orchestrator deployment documentation now include diagrams
+  that show Resource Manager as the facade over deployment, orchestration,
+  environment revisions, replica groups, and runtime providers.
 - The Resource Manager resource table now refreshes its projected resource
   model immediately after lifecycle actions complete, keeping row state aligned
   with the resource detail view after starts and stops.
