@@ -48,6 +48,9 @@ without forcing provider-specific logic into shared helpers.
 - [x] Commit the deployment-backed start and scaling boundary slice.
 - [x] Split resource procedure follow-up signals so runtime reconciliation is
   distinct from restart-required UI prompts.
+- [x] Move container app revision numbering/history helpers into a dedicated
+  `ApplicationResourceService` partial so revision tracking is easier to
+  separate from runtime process/container helpers.
 
 ## Next Slices
 

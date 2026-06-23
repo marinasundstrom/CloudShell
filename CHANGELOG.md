@@ -50,6 +50,9 @@ on `git blame --follow`, and then by the broad type of change.
   restart-required prompts, so container app image and replica updates can
   request deployment apply without telling the UI that the whole resource must
   restart.
+- Container app revision numbering and revision-history helpers now live in a
+  dedicated application-service partial, starting the service split by moving
+  revision tracking away from runtime process/container helper code.
 - Environment and container app scaling views now show deployment-record
   replica-group details, making scale reconciliation visible through runtime
   revision, replica group, requested replica slots, and materialized replicas.
