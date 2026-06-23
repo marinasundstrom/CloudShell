@@ -26,6 +26,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Application local port allocation now lives in `ApplicationResourcePortResolver`
   with a shared stable hash helper, reducing endpoint/projection coupling in
   `ApplicationResourceService`.
+- Removed the unused SQL database normalization partial from
+  `ApplicationResourceService` after SQL database projection moved to a
+  SQL-specific projector.
 
 ### 2026-06-23
 

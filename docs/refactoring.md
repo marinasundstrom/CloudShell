@@ -161,6 +161,8 @@ without forcing provider-specific logic into shared helpers.
   `ApplicationResourceProjectionProfiles`.
 - [x] Extract application local port allocation into
   `ApplicationResourcePortResolver`.
+- [x] Remove the unused SQL database normalization partial from
+  `ApplicationResourceService`.
 
 ## Next Slices
 
