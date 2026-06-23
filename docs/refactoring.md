@@ -166,6 +166,8 @@ without forcing provider-specific logic into shared helpers.
 - [x] Move provider UI pages off direct `ApplicationResourceService`
   injection by introducing focused application management, container history,
   and SQL database inspection operation contracts.
+- [x] Move container app deployment and revision history reads into
+  `ApplicationContainerHistoryService`.
 
 ## Next Slices
 

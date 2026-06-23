@@ -10822,8 +10822,9 @@ public sealed class ResourceDeclarationTests
         var currentRevisionRecord = Assert.Single(
             updated.ContainerRevisions,
             revision => revision.Id == updated.ContainerRevision);
-        var currentDeployment = Assert.Single(provider.GetContainerDeployments("application:api"));
-        var revisionHistory = provider.GetContainerRevisions("application:api");
+        var containerHistory = serviceProvider.GetRequiredService<IContainerApplicationHistoryOperations>();
+        var currentDeployment = Assert.Single(containerHistory.GetContainerDeployments("application:api"));
+        var revisionHistory = containerHistory.GetContainerRevisions("application:api");
         var basedOnRevisionHistory = Assert.Single(
             revisionHistory,
             revision => revision.Id == originalRevision);
@@ -10914,7 +10915,8 @@ public sealed class ResourceDeclarationTests
         var failedRevision = failedDefinition.ContainerRevision;
         Assert.NotNull(failedRevision);
         Assert.NotEqual(originalRevision, failedRevision);
-        var deployment = Assert.Single(provider.GetContainerDeployments("application:api"));
+        var containerHistory = serviceProvider.GetRequiredService<IContainerApplicationHistoryOperations>();
+        var deployment = Assert.Single(containerHistory.GetContainerDeployments("application:api"));
 
         await provider.HandleDeploymentApplyFailedAsync(
             new ResourceProcedureContext(resource, registrations.GetRegistration(resource.Id), null, registrations),
@@ -10948,8 +10950,8 @@ public sealed class ResourceDeclarationTests
             restored.ContainerRevisions,
             revision => revision.Id == failedRevision);
 
-        var failedDeployment = Assert.Single(provider.GetContainerDeployments("application:api"));
-        var revisions = provider.GetContainerRevisions("application:api");
+        var failedDeployment = Assert.Single(containerHistory.GetContainerDeployments("application:api"));
+        var revisions = containerHistory.GetContainerRevisions("application:api");
         var basedOnRevisionHistory = Assert.Single(revisions, revision => revision.Id == originalRevision);
         var failedRevisionHistory = Assert.Single(revisions, revision => revision.Id == failedRevision);
 
