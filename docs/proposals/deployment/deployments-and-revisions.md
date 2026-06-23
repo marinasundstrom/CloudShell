@@ -391,7 +391,62 @@ public sealed class OrchestratorRevision
 }
 ```
 
-The deployment model should represent the orchestrator’s computed workload intent, not the full user-facing resource graph.
+The deployment model should represent the orchestrator's computed runtime
+intent, not the full user-facing resource graph. The durable shape should be a
+deployment specification, or deployment definition, containing versioned typed
+service and resource definitions or deltas. Services are first-class
+orchestrator grouping and boundary objects. A service can group related
+runtime resources such as a load balancer, replica group, and materialized
+replicas. The same deployment can also include standalone resources that are
+not grouped under a service.
+
+Each resource entry names the resource being reconciled, declares its resource
+type, and carries a resource-specific definition payload that can be validated
+by the owning resource type or provider. Structurally:
+
+```text
+DeploymentDefinition
+  DeploymentId
+  BasedOnRevisionId
+  DefinitionVersion
+  Services
+    ServiceDefinition
+      Name
+      Type
+      DefinitionVersion
+      Definition
+      Attributes
+      Resources
+        ResourceDefinition
+          Name
+          Type
+          DefinitionVersion
+          Definition
+          Attributes
+  Resources
+    ResourceDefinition
+      Name
+      Type
+      DefinitionVersion
+      Definition
+      Attributes
+```
+
+The deployment definition structure and its serialized format should remain
+separate concerns. The structure is the Resource Manager and orchestrator
+contract. JSON, YAML, a builder API, database records, or a generated DTO are
+format projections of that structure. The important model constraint is that
+deployment inputs are expressed as service-shaped and resource-shaped objects:
+stable identity, type, versioned definition data, and portable attributes where
+those attributes are intended for querying, correlation, or projection.
+Attributes should not become an unbounded substitute for provider
+configuration schemas; service- or resource-specific configuration that needs
+validation belongs in a typed, versioned definition payload. This keeps
+deployments easy to validate, compare, version, replay, and project into
+environment revisions. It also keeps the door open for different orchestrators
+to map the same CloudShell deployment specification into Docker, Docker
+Compose, Kubernetes, or a custom runtime without exposing those backend models
+as the common CloudShell contract.
 
 An orchestrator revision has a CloudShell-wide unique `Id`. It may also expose
 a scoped `RevisionNumber` as a projection for a service, standalone resource,
