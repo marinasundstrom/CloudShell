@@ -54,6 +54,10 @@ on `git blame --follow`, and then by the broad type of change.
   a dedicated revision service with direct unit tests, starting the application
   service split by moving revision tracking away from runtime process/container
   helper code.
+- Application workload configuration mapping now lives in a dedicated factory
+  with direct unit tests for workload kind selection, common runtime
+  attributes, and replica-mode behavior, reducing the mapping responsibility
+  inside `ApplicationResourceService`.
 - Environment and container app scaling views now show deployment-record
   replica-group details, making scale reconciliation visible through runtime
   revision, replica group, requested replica slots, and materialized replicas.

@@ -64,6 +64,7 @@ public sealed partial class ApplicationResourceService(
     private static readonly TimeSpan SqlServerDatabaseReconciliationRetryDelay = TimeSpan.FromSeconds(1);
     private static readonly SemaphoreSlim AspNetCoreProjectBuildLock = new(1, 1);
     private static readonly HttpClient ContainerReadinessHttpClient = new();
+    private static readonly ApplicationWorkloadConfigurationFactory WorkloadConfigurationFactory = new();
     private const string DefaultContainerNetworkName = "cloudshell";
     private const string DefaultOrchestratorId = "default";
     private const string AspNetCoreUrlsEnvironmentVariable = "ASPNETCORE_URLS";
@@ -4168,100 +4169,11 @@ public sealed partial class ApplicationResourceService(
     private ResourceWorkloadConfiguration CreateWorkloadConfiguration(
         ApplicationResourceDefinition application,
         string? resourceGroupId = null,
-        IResourceManagerStore? resourceManager = null)
-    {
-        if (!string.IsNullOrWhiteSpace(application.ContainerImage))
-        {
-            return new ResourceWorkloadConfiguration(
-                ResourceWorkloadKind.ContainerImage,
-                application.Name,
-                Image: application.ContainerImage,
-                Registry: GetEffectiveContainerRegistry(application),
-                ContainerHostId: application.ContainerHostId,
-                Replicas: Math.Max(1, application.Replicas),
-                ReplicasEnabled: IsReplicaModeEnabled(application),
-                AppSettings: application.AppSettings,
-                EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application, resourceGroupId, resourceManager),
-                Ports: application.EndpointPorts,
-                Lifetime: ToResourceLifetime(application.Lifetime),
-                Observability: GetEffectiveObservability(application),
-                VolumeMounts: application.VolumeMounts);
-        }
-
-        if (!string.IsNullOrWhiteSpace(application.ContainerBuildContext))
-        {
-            return new ResourceWorkloadConfiguration(
-                ResourceWorkloadKind.ContainerBuild,
-                application.Name,
-                BuildContext: application.ContainerBuildContext,
-                Dockerfile: application.ContainerDockerfile,
-                ProjectPath: application.ProjectPath,
-                ProjectArguments: application.ProjectArguments,
-                Registry: GetEffectiveContainerRegistry(application),
-                ContainerHostId: application.ContainerHostId,
-                Replicas: Math.Max(1, application.Replicas),
-                ReplicasEnabled: IsReplicaModeEnabled(application),
-                AppSettings: application.AppSettings,
-                EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application, resourceGroupId, resourceManager),
-                Ports: application.EndpointPorts,
-                Lifetime: ToResourceLifetime(application.Lifetime),
-                Observability: GetEffectiveObservability(application),
-                VolumeMounts: application.VolumeMounts);
-        }
-
-        if (application.ProjectContainerBuild)
-        {
-            return new ResourceWorkloadConfiguration(
-                ResourceWorkloadKind.ContainerBuild,
-                application.Name,
-                Dockerfile: application.ContainerDockerfile,
-                ProjectPath: application.ProjectPath,
-                ProjectArguments: application.ProjectArguments,
-                Registry: GetEffectiveContainerRegistry(application),
-                ContainerHostId: application.ContainerHostId,
-                Replicas: Math.Max(1, application.Replicas),
-                ReplicasEnabled: IsReplicaModeEnabled(application),
-                AppSettings: application.AppSettings,
-                EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application, resourceGroupId, resourceManager),
-                Ports: application.EndpointPorts,
-                Lifetime: ToResourceLifetime(application.Lifetime),
-                Observability: GetEffectiveObservability(application),
-                VolumeMounts: application.VolumeMounts);
-        }
-
-        if (ApplicationResourceTypes.IsAspNetCoreProject(application.ResourceType))
-        {
-            return new ResourceWorkloadConfiguration(
-                ResourceWorkloadKind.AspNetCoreProject,
-                application.Name,
-                WorkingDirectory: application.WorkingDirectory,
-                ProjectPath: application.ProjectPath,
-                ProjectArguments: application.ProjectArguments,
-                AspNetCoreHotReload: application.AspNetCoreHotReload,
-                Replicas: Math.Max(1, application.Replicas),
-                ReplicasEnabled: IsReplicaModeEnabled(application),
-                AppSettings: application.AppSettings,
-                EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application, resourceGroupId, resourceManager),
-                Ports: application.EndpointPorts,
-                Lifetime: ToResourceLifetime(application.Lifetime),
-                Observability: GetEffectiveObservability(application),
-                VolumeMounts: application.VolumeMounts);
-        }
-
-        return new ResourceWorkloadConfiguration(
-            ResourceWorkloadKind.LocalExecutable,
-            application.Name,
-            ExecutablePath: application.ExecutablePath,
-            Arguments: application.Arguments,
-            WorkingDirectory: application.WorkingDirectory,
-            Replicas: Math.Max(1, application.Replicas),
-            ReplicasEnabled: IsReplicaModeEnabled(application),
-            AppSettings: application.AppSettings,
-            EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application, resourceGroupId, resourceManager),
-            Lifetime: ToResourceLifetime(application.Lifetime),
-            Observability: GetEffectiveObservability(application),
-            VolumeMounts: application.VolumeMounts);
-    }
+        IResourceManagerStore? resourceManager = null) =>
+        WorkloadConfigurationFactory.Create(
+            application,
+            ResolveWorkloadEnvironmentVariables(application, resourceGroupId, resourceManager),
+            GetEffectiveObservability(application));
 
     private ApplicationResourceDefinition GetContainerApplication(string resourceId)
     {
@@ -5211,13 +5123,6 @@ public sealed partial class ApplicationResourceService(
 
     private static string CreateContainerDeploymentId() =>
         $"dep-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..27];
-
-    private static ResourceLifetime ToResourceLifetime(ApplicationLifetime lifetime) =>
-        lifetime switch
-        {
-            ApplicationLifetime.ControlPlaneScoped => ResourceLifetime.ControlPlaneScoped,
-            _ => ResourceLifetime.Detached
-        };
 
     private static bool IsHidden(ApplicationResourceDefinition application) =>
         application.EnvironmentVariables.Any(variable =>
