@@ -73,6 +73,8 @@ without forcing provider-specific logic into shared helpers.
   policy into ASP.NET Core Web project provider-owned units.
 - [x] Move ASP.NET Core Web project endpoint defaulting and launch-settings
   endpoint discovery into ASP.NET Core Web project provider-owned units.
+- [x] Move ASP.NET Core Web project definition normalization into an ASP.NET
+  Core Web project provider-owned rule.
 
 ## Next Slices
 

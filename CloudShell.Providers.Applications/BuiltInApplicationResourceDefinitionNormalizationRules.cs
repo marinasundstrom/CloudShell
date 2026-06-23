@@ -11,9 +11,12 @@ public sealed class ProjectBackedApplicationResourceDefinitionNormalizationRule 
         ApplicationResourceDefinition definition,
         ApplicationResourceDefinitionNormalizationContext context)
     {
-        var isAspNetCoreProject = IsAspNetCoreProject(definition);
-        if (!isAspNetCoreProject &&
-            !definition.ProjectContainerBuild)
+        if (ApplicationResourceTypes.IsAspNetCoreProject(definition.ResourceType))
+        {
+            return definition;
+        }
+
+        if (!definition.ProjectContainerBuild)
         {
             return definition with
             {
@@ -24,27 +27,17 @@ public sealed class ProjectBackedApplicationResourceDefinitionNormalizationRule 
             };
         }
 
-        var legacyProjectPath = isAspNetCoreProject
-            ? ApplicationProcessDefinitions.TryExtractProjectPathFromDotNetArguments(definition.Arguments)
-            : null;
-        var projectPath = NormalizeNullable(definition.ProjectPath) ?? legacyProjectPath;
-
         return definition with
         {
             ExecutablePath = string.Empty,
             Arguments = null,
-            ProjectPath = projectPath,
-            ProjectArguments = NormalizeNullable(definition.ProjectArguments) ??
-                ApplicationProcessDefinitions.TryExtractApplicationArgumentsFromDotNetArguments(definition.Arguments),
-            AspNetCoreHotReload = ApplicationProcessDefinitions.ResolveAspNetCoreHotReload(definition),
-            UseLaunchSettingsEndpoints = isAspNetCoreProject && definition.UseLaunchSettingsEndpoints,
+            ProjectPath = NormalizeNullable(definition.ProjectPath),
+            ProjectArguments = NormalizeNullable(definition.ProjectArguments),
+            UseLaunchSettingsEndpoints = false,
             ProjectContainerBuild = string.IsNullOrWhiteSpace(definition.ContainerImage) &&
                 definition.ProjectContainerBuild
         };
     }
-
-    private static bool IsAspNetCoreProject(ApplicationResourceDefinition definition) =>
-        ApplicationResourceTypes.IsAspNetCoreProject(definition.ResourceType);
 
     private static string? NormalizeNullable(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();

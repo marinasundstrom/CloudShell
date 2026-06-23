@@ -75,6 +75,9 @@ on `git blame --follow`, and then by the broad type of change.
 - ASP.NET Core Web project endpoint defaulting and launch-settings endpoint
   discovery now live in ASP.NET Core project provider-owned units with direct
   tests.
+- ASP.NET Core Web project definition normalization now lives in an ASP.NET
+  Core project provider-owned rule, separating legacy dotnet argument parsing
+  and hot-reload policy from generic project-backed application cleanup.
 - Application resource documentation now includes a provider layering diagram
   that separates raw Resource Provider infrastructure, the Application Resource
   Provider toolkit, and the built-in dogfooded application resource providers.
