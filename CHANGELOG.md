@@ -64,6 +64,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Remaining application provider UI pages now depend on focused definition,
   running-state, and configuration contracts instead of broad application
   management operations.
+- Removed the unused broad `IApplicationResourceManagementOperations`
+  provider contract after UI and provider services moved to focused
+  application operation contracts.
 
 ### 2026-06-23
 

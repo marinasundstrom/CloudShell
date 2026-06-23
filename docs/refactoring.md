@@ -195,6 +195,8 @@ without forcing provider-specific logic into shared helpers.
 - [x] Move remaining application provider UI pages off broad application
   management operations by reusing focused definition, running-state, and
   configuration contracts.
+- [x] Remove the unused broad `IApplicationResourceManagementOperations`
+  contract once consumers moved to focused operation contracts.
 
 ## Next Slices
 

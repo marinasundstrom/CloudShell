@@ -36,23 +36,6 @@ public interface IApplicationResourceRegistrationOperations : IApplicationResour
         CancellationToken cancellationToken = default);
 }
 
-public interface IApplicationResourceManagementOperations : IApplicationResourceDefinitionSource
-{
-    Task SetupApplicationAsync(
-        ApplicationResourceDefinition definition,
-        string? resourceGroupId,
-        IResourceRegistrationStore registrations,
-        CancellationToken cancellationToken = default);
-
-    Task UpdateApplicationAsync(
-        ApplicationResourceDefinition definition,
-        string? resourceGroupId,
-        IResourceRegistrationStore registrations,
-        CancellationToken cancellationToken = default);
-
-    bool IsRunning(string applicationId);
-}
-
 public interface IContainerApplicationHistoryOperations
 {
     IReadOnlyList<ApplicationContainerDeployment> GetContainerDeployments(string applicationId);

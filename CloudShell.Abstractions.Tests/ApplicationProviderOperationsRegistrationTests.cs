@@ -22,9 +22,6 @@ public sealed class ApplicationProviderOperationsRegistrationTests
 
         Assert.Same(
             applicationService,
-            serviceProvider.GetRequiredService<IApplicationResourceManagementOperations>());
-        Assert.Same(
-            applicationService,
             serviceProvider.GetRequiredService<IApplicationResourceConfigurationOperations>());
         Assert.Same(
             applicationService,
