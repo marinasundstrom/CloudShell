@@ -81,6 +81,8 @@ on `git blame --follow`, and then by the broad type of change.
   application resource service.
 - Application resource template import/export now uses a dedicated focused
   operation service instead of the shared application resource service.
+- Host-scoped application process cleanup now uses a dedicated cleanup
+  provider instead of the shared application resource service.
 
 ### 2026-06-23
 

@@ -9,23 +9,6 @@ public sealed partial class ApplicationResourceService
         ApplicationResourceTypes.IsApplication(resource.EffectiveTypeId) &&
         store.GetApplication(resource.Id) is not null;
 
-    public async Task CleanupHostScopedResourcesAsync(CancellationToken cancellationToken = default)
-    {
-        foreach (var application in GetApplications())
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (application.Lifetime != ApplicationLifetime.ControlPlaneScoped ||
-                IsContainerBacked(application))
-            {
-                continue;
-            }
-
-            await localProcesses.CleanupHostScopedProcessAsync(
-                ApplicationProcessDefinitions.Create(application),
-                cancellationToken);
-        }
-    }
-
     public Task<ResourceOrchestrationDescriptor> DescribeAsync(
         Resource resource,
         ResourceOrchestrationDescriptorContext context,

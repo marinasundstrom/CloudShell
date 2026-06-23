@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Hosting;
+using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Providers.Applications;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
@@ -41,6 +42,8 @@ public sealed class ApplicationProviderOperationsRegistrationTests
             serviceProvider.GetRequiredService<IApplicationResourceDeclarationOperations>());
         Assert.IsType<ApplicationResourceTemplateOperations>(
             serviceProvider.GetRequiredService<IApplicationResourceTemplateOperations>());
+        Assert.IsType<ApplicationHostScopedResourceCleanupProvider>(
+            serviceProvider.GetRequiredService<IHostScopedResourceCleanupProvider>());
         Assert.IsType<SqlServerDatabaseReconciliationService>(
             serviceProvider.GetRequiredService<SqlServerDatabaseReconciliationService>());
     }

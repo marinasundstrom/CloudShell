@@ -212,6 +212,8 @@ without forcing provider-specific logic into shared helpers.
 - [x] Move application template import/export operations to a focused adapter
   over definition lookup and registration operations instead of the shared
   application resource service facade.
+- [x] Move host-scoped application process cleanup to a focused cleanup
+  provider instead of the shared application resource service facade.
 
 ## Next Slices
 
