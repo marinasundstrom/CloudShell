@@ -186,6 +186,9 @@ without forcing provider-specific logic into shared helpers.
   into `ApplicationResourceDefinitionSource`.
 - [x] Add `IApplicationResourceRunningStateOperations` so SQL services can
   depend on running-state checks without depending on management operations.
+- [x] Add `IApplicationResourceConfigurationOperations` so application
+  configuration UI depends on definition lookup, updates, and running-state
+  checks without depending on the full management facade.
 
 ## Next Slices
 

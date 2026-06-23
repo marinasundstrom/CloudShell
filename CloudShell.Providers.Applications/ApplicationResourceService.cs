@@ -44,6 +44,7 @@ public sealed partial class ApplicationResourceService(
     IApplicationResourceProjectionSource,
     IHostScopedResourceCleanupProvider,
     IApplicationResourceManagementOperations,
+    IApplicationResourceConfigurationOperations,
     IApplicationResourceRunningStateOperations,
     IApplicationResourceDefinitionSource,
     IApplicationResourceProcedureOperations,

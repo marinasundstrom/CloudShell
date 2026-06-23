@@ -16,6 +16,17 @@ public interface IApplicationResourceRunningStateOperations
     bool IsRunning(string applicationId);
 }
 
+public interface IApplicationResourceConfigurationOperations :
+    IApplicationResourceDefinitionSource,
+    IApplicationResourceRunningStateOperations
+{
+    Task UpdateApplicationAsync(
+        ApplicationResourceDefinition definition,
+        string? resourceGroupId,
+        IResourceRegistrationStore registrations,
+        CancellationToken cancellationToken = default);
+}
+
 public interface IApplicationResourceManagementOperations : IApplicationResourceDefinitionSource
 {
     Task SetupApplicationAsync(

@@ -55,6 +55,9 @@ on `git blame --follow`, and then by the broad type of change.
   `ApplicationResourceDefinitionSource` for resource-type providers.
 - Application running-state checks now have a focused
   `IApplicationResourceRunningStateOperations` contract used by SQL services.
+- Application configuration pages now use a focused
+  `IApplicationResourceConfigurationOperations` contract for definition edits
+  instead of the broader application management operations.
 
 ### 2026-06-23
 
