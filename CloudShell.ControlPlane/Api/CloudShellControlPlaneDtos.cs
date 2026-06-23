@@ -394,6 +394,18 @@ public sealed record ResourceDeploymentRecordResponse(
     ResourceOrchestratorReplicaGroup? ReplicaGroup,
     ResourceOrchestratorDeploymentDefinition? Definition);
 
+public sealed record ResourceReplicaSlotStateResponse(
+    string ResourceId,
+    int SlotOrdinal,
+    ResourceReplicaSlotReconciliationStatus Status,
+    string? Detail,
+    DateTimeOffset ObservedAt,
+    DateTimeOffset? LastAttemptedAt,
+    DateTimeOffset? LastCompletedAt,
+    int AttemptCount,
+    string? TriggeredBy,
+    string? LastResult);
+
 public sealed record LogEntryResponse(
     DateTimeOffset Timestamp,
     string Message,
@@ -824,6 +836,19 @@ internal static class CloudShellControlPlaneDtoMapper
             deployment.ProvisionedBy,
             deployment.ReplicaGroup,
             deployment.Definition);
+
+    public static ResourceReplicaSlotStateResponse ToResponse(this ResourceReplicaSlotState state) =>
+        new(
+            state.ResourceId,
+            state.SlotOrdinal,
+            state.Status,
+            state.Detail,
+            state.ObservedAt,
+            state.LastAttemptedAt,
+            state.LastCompletedAt,
+            state.AttemptCount,
+            state.TriggeredBy,
+            state.LastResult);
 
     public static LogEntryResponse ToResponse(this LogEntry entry) =>
         new(

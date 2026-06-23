@@ -1,0 +1,43 @@
+@host = http://localhost:5011
+@api = {{host}}/api/control-plane/v1
+@resourceId = application:api
+
+### OpenAPI specification
+GET {{host}}/openapi/control-plane-v1.json
+Accept: application/json
+
+### Resources
+GET {{api}}/resources
+Accept: application/json
+
+### Resource by id
+GET {{api}}/resources/{{resourceId}}
+Accept: application/json
+
+### Resource events
+GET {{api}}/resource-events?resourceId={{resourceId}}&maxEvents=50
+Accept: application/json
+
+### Start resource
+POST {{api}}/resources/{{resourceId}}/actions/start?triggeredBy=http-file
+Accept: application/json
+
+### Stop resource
+POST {{api}}/resources/{{resourceId}}/actions/stop?triggeredBy=http-file
+Accept: application/json
+
+### Delete resource
+DELETE {{api}}/resources/{{resourceId}}
+Accept: application/json
+
+### Deployment records
+GET {{api}}/deployments?sourceResourceId={{resourceId}}&maxRecords=50
+Accept: application/json
+
+### Replica slot reconciliation state
+GET {{api}}/replica-slot-states?resourceId={{resourceId}}&maxRecords=50
+Accept: application/json
+
+### Log sources
+GET {{api}}/log-sources?resourceId={{resourceId}}
+Accept: application/json

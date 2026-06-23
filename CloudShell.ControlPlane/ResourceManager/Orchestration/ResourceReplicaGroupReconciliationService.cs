@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using System.Globalization;
@@ -10,6 +11,25 @@ public sealed class ResourceReplicaGroupReconciliationService(
     IResourceReplicaGroupReconciliationStore reconciliationStore,
     IResourceEventSink? resourceEvents = null)
 {
+    public Task<IReadOnlyList<ResourceReplicaSlotState>> ListReplicaSlotStatesAsync(
+        ResourceReplicaSlotStateQuery? query = null,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        query ??= new ResourceReplicaSlotStateQuery();
+        var states = reconciliationStore
+            .ListRuntimeStates(query.ResourceId)
+            .Where(state => query.SlotOrdinal is null || state.SlotOrdinal == query.SlotOrdinal.Value)
+            .Select(ToReplicaSlotState)
+            .Where(state => query.Status is null || state.Status == query.Status.Value)
+            .OrderBy(state => state.ResourceId, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(state => state.SlotOrdinal)
+            .Take(Math.Clamp(query.MaxRecords, 1, 1000))
+            .ToArray();
+
+        return Task.FromResult<IReadOnlyList<ResourceReplicaSlotState>>(states);
+    }
+
     public void ObserveUnhealthyReplicaSlot(
         Resource resource,
         int slotOrdinal,
@@ -98,8 +118,33 @@ public sealed class ResourceReplicaGroupReconciliationService(
                     $"Replica slot {request.SlotOrdinal.ToString(CultureInfo.InvariantCulture)} reconciliation failed: {exception.Message}",
                     DateTimeOffset.UtcNow,
                     request.TriggeredBy,
-                    ResourceSignalSeverity.Error));
+                ResourceSignalSeverity.Error));
             }
         }
     }
+
+    private static ResourceReplicaSlotState ToReplicaSlotState(
+        ResourceReplicaSlotRuntimeState state) =>
+        new(
+            state.ResourceId,
+            state.SlotOrdinal,
+            ToPublicStatus(state.Status),
+            state.Detail,
+            state.ObservedAt,
+            state.LastAttemptedAt,
+            state.LastCompletedAt,
+            state.AttemptCount,
+            state.TriggeredBy,
+            state.LastResult);
+
+    private static ResourceReplicaSlotReconciliationStatus ToPublicStatus(
+        ResourceReplicaSlotRuntimeStatus status) =>
+        status switch
+        {
+            ResourceReplicaSlotRuntimeStatus.Unhealthy => ResourceReplicaSlotReconciliationStatus.Unhealthy,
+            ResourceReplicaSlotRuntimeStatus.Repairing => ResourceReplicaSlotReconciliationStatus.Repairing,
+            ResourceReplicaSlotRuntimeStatus.Repaired => ResourceReplicaSlotReconciliationStatus.Repaired,
+            ResourceReplicaSlotRuntimeStatus.RepairFailed => ResourceReplicaSlotReconciliationStatus.RepairFailed,
+            _ => ResourceReplicaSlotReconciliationStatus.Unhealthy
+        };
 }

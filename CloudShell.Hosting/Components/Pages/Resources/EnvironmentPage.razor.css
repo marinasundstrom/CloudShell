@@ -10,7 +10,8 @@
 
 .environment-revision-table,
 .environment-history-table,
-.environment-deployment-table {
+.environment-deployment-table,
+.environment-replica-slot-table {
     min-width: 0;
 }
 
@@ -26,10 +27,16 @@
     min-width: 106rem;
 }
 
+.environment-replica-slot-table ::deep .resource-table {
+    min-width: 84rem;
+}
+
 .environment-history-table ::deep th,
 .environment-history-table ::deep td,
 .environment-deployment-table ::deep th,
-.environment-deployment-table ::deep td {
+.environment-deployment-table ::deep td,
+.environment-replica-slot-table ::deep th,
+.environment-replica-slot-table ::deep td {
     vertical-align: top;
 }
 

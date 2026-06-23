@@ -589,6 +589,19 @@ public sealed class RemoteControlPlane : IControlPlane
         .Select(response => response.ToResourceDeploymentRecord())
         .ToArray();
 
+    public async Task<IReadOnlyList<ResourceReplicaSlotState>> ListReplicaSlotStatesAsync(
+        ResourceReplicaSlotStateQuery? query = null,
+        CancellationToken cancellationToken = default) =>
+        (await GetRequiredAsync<IReadOnlyList<ResourceReplicaSlotStateResponse>>(
+            "replica-slot-states",
+            cancellationToken,
+            ("resourceId", query?.ResourceId),
+            ("slotOrdinal", query?.SlotOrdinal?.ToString(CultureInfo.InvariantCulture)),
+            ("status", query?.Status?.ToString()),
+            ("maxRecords", (query?.MaxRecords ?? 200).ToString(CultureInfo.InvariantCulture))))
+        .Select(response => response.ToResourceReplicaSlotState())
+        .ToArray();
+
     public async Task<LogDescriptor?> GetLogAsync(
         string logId,
         CancellationToken cancellationToken = default)
@@ -1400,6 +1413,18 @@ file sealed record ResourceDeploymentRecordResponse(
     ResourceOrchestratorReplicaGroup? ReplicaGroup,
     ResourceOrchestratorDeploymentDefinition? Definition);
 
+file sealed record ResourceReplicaSlotStateResponse(
+    string ResourceId,
+    int SlotOrdinal,
+    ResourceReplicaSlotReconciliationStatus Status,
+    string? Detail,
+    DateTimeOffset ObservedAt,
+    DateTimeOffset? LastAttemptedAt,
+    DateTimeOffset? LastCompletedAt,
+    int AttemptCount,
+    string? TriggeredBy,
+    string? LastResult);
+
 file sealed record LogEntryResponse(
     DateTimeOffset Timestamp,
     string Message,
@@ -1885,4 +1910,18 @@ file static class RemoteControlPlaneMapper
             response.ProvisionedBy,
             response.ReplicaGroup,
             response.Definition);
+
+    public static ResourceReplicaSlotState ToResourceReplicaSlotState(
+        this ResourceReplicaSlotStateResponse response) =>
+        new(
+            response.ResourceId,
+            response.SlotOrdinal,
+            response.Status,
+            response.Detail,
+            response.ObservedAt,
+            response.LastAttemptedAt,
+            response.LastCompletedAt,
+            response.AttemptCount,
+            response.TriggeredBy,
+            response.LastResult);
 }

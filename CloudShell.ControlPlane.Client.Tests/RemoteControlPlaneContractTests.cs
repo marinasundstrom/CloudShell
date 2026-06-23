@@ -9,6 +9,7 @@ using CloudShell.ControlPlane.Api;
 using CloudShell.ControlPlane.Hosting;
 using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager.Deployment;
+using CloudShell.ControlPlane.ResourceManager.Orchestration;
 using CloudShell.ControlPlane.ResourceManager.Platform;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
@@ -868,6 +869,54 @@ public sealed class RemoteControlPlaneContractTests
     }
 
     [Fact]
+    public async Task RemoteControlPlane_ListsReplicaSlotStates()
+    {
+        await using var app = await CreateAppAsync(includeImageResource: true);
+        var store = app.Services.GetRequiredService<IResourceReplicaGroupReconciliationStore>();
+        store.SetRuntimeState(new ResourceReplicaSlotRuntimeState(
+            ContractImageResourceProvider.ResourceId,
+            2,
+            ResourceReplicaSlotRuntimeStatus.RepairFailed,
+            "Container exited.",
+            DateTimeOffset.UtcNow.AddMinutes(-2),
+            LastAttemptedAt: DateTimeOffset.UtcNow.AddMinutes(-1),
+            LastCompletedAt: DateTimeOffset.UtcNow,
+            AttemptCount: 1,
+            TriggeredBy: "contract-test",
+            LastResult: "Replica execution failed."));
+        var controlPlane = CreateClient(app);
+
+        var states = await controlPlane.ListReplicaSlotStatesAsync(new ResourceReplicaSlotStateQuery(
+            ResourceId: ContractImageResourceProvider.ResourceId,
+            SlotOrdinal: 2,
+            Status: ResourceReplicaSlotReconciliationStatus.RepairFailed,
+            MaxRecords: 10));
+        var state = Assert.Single(states);
+
+        Assert.Equal(ContractImageResourceProvider.ResourceId, state.ResourceId);
+        Assert.Equal(2, state.SlotOrdinal);
+        Assert.Equal(ResourceReplicaSlotReconciliationStatus.RepairFailed, state.Status);
+        Assert.Equal("Container exited.", state.Detail);
+        Assert.Equal(1, state.AttemptCount);
+        Assert.Equal("contract-test", state.TriggeredBy);
+        Assert.Equal("Replica execution failed.", state.LastResult);
+
+        var response = await app.GetTestClient().GetAsync(
+            "/api/control-plane/v1/replica-slot-states" +
+            $"?resourceId={Uri.EscapeDataString(ContractImageResourceProvider.ResourceId)}" +
+            "&slotOrdinal=2&status=RepairFailed&maxRecords=10");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var stateResponse = Assert.Single(document.RootElement.EnumerateArray());
+        Assert.Equal(ContractImageResourceProvider.ResourceId, stateResponse.GetProperty("resourceId").GetString());
+        Assert.Equal(2, stateResponse.GetProperty("slotOrdinal").GetInt32());
+        Assert.Equal(
+            (int)ResourceReplicaSlotReconciliationStatus.RepairFailed,
+            stateResponse.GetProperty("status").GetInt32());
+        Assert.Equal(1, stateResponse.GetProperty("attemptCount").GetInt32());
+    }
+
+    [Fact]
     public async Task RemoteControlPlane_UpdatesResourceReplicas()
     {
         await using var app = await CreateAppAsync(includeImageResource: true);
@@ -1004,6 +1053,7 @@ public sealed class RemoteControlPlaneContractTests
         Assert.True(paths.TryGetProperty("/api/control-plane/v1/log-sources/{logSourceId}", out _));
         Assert.True(paths.TryGetProperty("/api/control-plane/v1/log-sources/{logSourceId}/entries", out _));
         Assert.True(paths.TryGetProperty("/api/control-plane/v1/log-sources/{logSourceId}/stream", out _));
+        Assert.True(paths.TryGetProperty("/api/control-plane/v1/replica-slot-states", out _));
         Assert.False(paths.TryGetProperty("/api/control-plane/v1/resources/{resourceId}/image", out _));
         Assert.True(paths.TryGetProperty("/api/container-apps/v1/{containerAppId}/deployments", out _));
         Assert.True(paths.TryGetProperty("/api/container-apps/v1/{containerAppId}/replicas", out _));

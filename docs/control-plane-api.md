@@ -22,6 +22,13 @@ The matching OpenAPI document is:
 /openapi/control-plane-v1.json
 ```
 
+The repository also includes [ControlPlane.http](../ControlPlane.http) for
+quick manual endpoint testing from editors that support `.http` files. Treat
+that file as a practical scratchpad for useful Control Plane endpoints we want
+to exercise during development, not as the exhaustive API contract. The
+OpenAPI document remains the discoverable specification for the served HTTP
+surface.
+
 Configuration services expose a provider-owned runtime API under
 `/api/configuration`. That API is separate from the Control Plane API because it
 is consumed directly by resource processes and uses configuration-service access

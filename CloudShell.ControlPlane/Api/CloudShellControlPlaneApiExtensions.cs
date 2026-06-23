@@ -196,6 +196,10 @@ public static class CloudShellControlPlaneApiExtensions
             .WithName("CloudShellControlPlane_ListResourceDeployments")
             .Produces<ResourceDeploymentRecordResponse[]>(StatusCodes.Status200OK);
 
+        api.MapGet("/replica-slot-states", ListReplicaSlotStates)
+            .WithName("CloudShellControlPlane_ListReplicaSlotStates")
+            .Produces<ResourceReplicaSlotStateResponse[]>(StatusCodes.Status200OK);
+
         api.MapGet("/logs/{logId}", GetLog)
             .WithName("CloudShellControlPlane_GetLog");
 
@@ -1089,6 +1093,23 @@ public static class CloudShellControlPlaneApiExtensions
                     MaxRecords: Math.Clamp(maxRecords ?? 200, 1, 1000)),
                 cancellationToken))
             .Select(deployment => deployment.ToResponse())
+            .ToArray());
+
+    private static async Task<IResult> ListReplicaSlotStates(
+        string? resourceId,
+        int? slotOrdinal,
+        ResourceReplicaSlotReconciliationStatus? status,
+        int? maxRecords,
+        IResourceReplicaSlotStateManager replicaSlots,
+        CancellationToken cancellationToken) =>
+        Results.Ok((await replicaSlots.ListReplicaSlotStatesAsync(
+                new ResourceReplicaSlotStateQuery(
+                    ResourceId: NormalizeOptional(resourceId),
+                    SlotOrdinal: slotOrdinal,
+                    Status: status,
+                    MaxRecords: Math.Clamp(maxRecords ?? 200, 1, 1000)),
+                cancellationToken))
+            .Select(state => state.ToResponse())
             .ToArray());
 
     private static async Task<IResult> GetLog(

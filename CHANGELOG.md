@@ -93,6 +93,13 @@ on `git blame --follow`, and then by the broad type of change.
   unhealthy, repairing, repaired, and repair-failed slots, including attempt
   counts and provider results, so future UI/API surfaces do not need to infer
   repair status from health events or container listings.
+- Resource Manager now exposes replica slot reconciliation state through the
+  Control Plane manager/API/client surface, and the Environment page shows
+  slot repair status alongside deployment history and materialized runtime
+  state.
+- The repository now includes `ControlPlane.http` as a quick manual endpoint
+  scratchpad while the Control Plane OpenAPI document remains the served API
+  specification.
 - Architecture and orchestrator deployment documentation now include diagrams
   that show Resource Manager as the facade over deployment, orchestration,
   environment revisions, replica groups, and runtime providers.

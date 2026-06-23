@@ -4,6 +4,7 @@
 @inject IResourceManager ResourceManager
 @inject IResourceEventManager ResourceEvents
 @inject IResourceDeploymentManager Deployments
+@inject IResourceReplicaSlotStateManager ReplicaSlots
 @inject IStringLocalizer<SharedResource> L
 @inject CloudShell.UI.Composition.CompositionRegistry Composition
 
@@ -39,6 +40,10 @@
                        Value="@ReplicaGroupCount"
                        Summary="@L["Projected materialized runtime groups"].Value"
                        IconName="container" />
+    <SummaryMetricCard Title="@L["Replica slot repairs"].Value"
+                       Value="@ReplicaSlotStates.Count"
+                       Summary="@L["Observed slot reconciliation states"].Value"
+                       IconName="health" />
 </SummaryMetricGrid>
 
 <section class="environment-page-grid">
@@ -218,6 +223,67 @@
         }
     </ShellPanel>
 
+    <ShellPanel Wide="true" Class="environment-panel-full">
+        <ShellPanelHeader Title="@L["Replica slot reconciliation"].Value"
+                          Description="@L["Current Resource Manager replica slot observations and repair outcomes for active replica groups."].Value" />
+
+        @if (ReplicaSlotStates.Count == 0)
+        {
+            <EmptyState Title="@L["No replica slot observations"].Value"
+                        Message="@L["Replica slot reconciliation state will appear here after liveness or runtime observations report an unhealthy requested slot."].Value"
+                        Compact="true" />
+        }
+        else
+        {
+            <div class="environment-replica-slot-table">
+                <ResourceTable>
+                <thead>
+                    <tr>
+                        <th>@L["Resource"]</th>
+                        <th>@L["Slot"]</th>
+                        <th>@L["Status"]</th>
+                        <th>@L["Attempts"]</th>
+                        <th>@L["Observed"]</th>
+                        <th>@L["Last attempt"]</th>
+                        <th>@L["Result"]</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var state in ReplicaSlotStates)
+                    {
+                        var resource = GetResource(state.ResourceId);
+                        <tr>
+                            <td>
+                                <ResourceTableIdentity IconName="@GetResourceIconName(resource, state.ResourceId)"
+                                                       IconTitle="@GetResourceIconTitle(resource)"
+                                                       Summary="@state.ResourceId">
+                                    <TitleContent>
+                                        <FluentAnchor Href="@ResourceManagerCompositionLinks.ResourceDetails(Composition, state.ResourceId)">
+                                            @(resource?.EffectiveDisplayName ?? state.ResourceId)
+                                        </FluentAnchor>
+                                    </TitleContent>
+                                </ResourceTableIdentity>
+                            </td>
+                            <td>@state.SlotOrdinal.ToString(CultureInfo.InvariantCulture)</td>
+                            <td>
+                                @GetReplicaSlotStatusLabel(state.Status)
+                                <div class="table-subtext">@GetOptional(state.Detail)</div>
+                            </td>
+                            <td>@state.AttemptCount.ToString(CultureInfo.InvariantCulture)</td>
+                            <td>@state.ObservedAt.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)</td>
+                            <td>@GetOptionalTimestamp(state.LastAttemptedAt)</td>
+                            <td>
+                                @GetOptional(state.LastResult)
+                                <div class="table-subtext">@GetOptional(state.TriggeredBy)</div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+                </ResourceTable>
+            </div>
+        }
+    </ShellPanel>
+
     <ShellPanel>
         <ShellPanelHeader Title="@L["Recent environment activity"].Value"
                           Description="@L["Latest deployment and runtime-capacity events emitted by resources in this environment."].Value" />
@@ -256,6 +322,7 @@
     private IReadOnlyList<EnvironmentRevisionProjectionRow> EnvironmentRevisionRows { get; set; } = [];
     private IReadOnlyList<ResourceDeploymentRecord> DeploymentRecords { get; set; } = [];
     private IReadOnlyList<EnvironmentDeploymentRow> DeploymentRows { get; set; } = [];
+    private IReadOnlyList<ResourceReplicaSlotState> ReplicaSlotStates { get; set; } = [];
     private IReadOnlyList<ResourceEvent> DeploymentEvents { get; set; } = [];
     private DateTimeOffset LoadedAt { get; set; }
 
@@ -280,10 +347,9 @@
             .ToArray();
         EnvironmentRevisionRows = EnvironmentRevisionProjection.CreateRows(Resources);
         DeploymentRecords = await Deployments.ListResourceDeploymentsAsync(new ResourceDeploymentQuery(MaxRecords: 100));
+        ReplicaSlotStates = await ReplicaSlots.ListReplicaSlotStatesAsync(new ResourceReplicaSlotStateQuery(MaxRecords: 100));
         DeploymentEvents = (await ResourceEvents.ListResourceEventsAsync(new ResourceEventQuery(MaxEvents: 100)))
-            .Where(resourceEvent => resourceEvent.EventType.StartsWith(
-                ResourceEventTypes.Events.Deployment.Prefix,
-                StringComparison.OrdinalIgnoreCase))
+            .Where(IsEnvironmentActivityEvent)
             .Take(15)
             .ToArray();
         LoadedAt = DateTimeOffset.UtcNow;
@@ -339,8 +405,31 @@
         return timestamp.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
     }
 
+    private string GetReplicaSlotStatusLabel(ResourceReplicaSlotReconciliationStatus status) =>
+        status switch
+        {
+            ResourceReplicaSlotReconciliationStatus.Unhealthy => L["Unhealthy"].Value,
+            ResourceReplicaSlotReconciliationStatus.Repairing => L["Repairing"].Value,
+            ResourceReplicaSlotReconciliationStatus.Repaired => L["Repaired"].Value,
+            ResourceReplicaSlotReconciliationStatus.RepairFailed => L["Repair failed"].Value,
+            _ => status.ToString()
+        };
+
+    private string GetOptionalTimestamp(DateTimeOffset? timestamp) =>
+        timestamp is null
+            ? GetOptional(null)
+            : timestamp.Value.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
+
     private static string GetOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? "not projected" : value;
+
+    private static bool IsEnvironmentActivityEvent(ResourceEvent resourceEvent) =>
+        resourceEvent.EventType.StartsWith(
+            ResourceEventTypes.Events.Deployment.Prefix,
+            StringComparison.OrdinalIgnoreCase) ||
+        resourceEvent.EventType.StartsWith(
+            ResourceEventTypes.Events.ReplicaManagement.Prefix,
+            StringComparison.OrdinalIgnoreCase);
 
     private static string? FirstNonEmpty(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));

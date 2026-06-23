@@ -1181,6 +1181,26 @@ public sealed class InProcessControlPlane(
         CancellationToken cancellationToken = default) =>
         deployments.ListResourceDeploymentsAsync(query, cancellationToken);
 
+    public async Task<IReadOnlyList<ResourceReplicaSlotState>> ListReplicaSlotStatesAsync(
+        ResourceReplicaSlotStateQuery? query = null,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var visibleResourceIds = resourceManager.GetResources()
+            .Select(resource => resource.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (query?.ResourceId is not null &&
+            !visibleResourceIds.Contains(query.ResourceId))
+        {
+            return [];
+        }
+
+        var states = await replicaGroupReconciliation.ListReplicaSlotStatesAsync(query, cancellationToken);
+        return states
+            .Where(state => visibleResourceIds.Contains(state.ResourceId))
+            .ToArray();
+    }
+
     public Task<LogDescriptor?> GetLogAsync(
         string logId,
         CancellationToken cancellationToken = default)

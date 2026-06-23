@@ -1909,6 +1909,10 @@ public sealed class InProcessControlPlaneResourceStateTests
         await host.ControlPlane.RefreshResourceHealthAsync(parent.Id);
 
         Assert.Empty(provider.ExecutedInstanceActions);
+        var observedState = Assert.Single(await host.ControlPlane.ListReplicaSlotStatesAsync(
+            new ResourceReplicaSlotStateQuery(ResourceId: parent.Id, SlotOrdinal: 2)));
+        Assert.Equal(ResourceReplicaSlotReconciliationStatus.Unhealthy, observedState.Status);
+        Assert.Equal(0, observedState.AttemptCount);
 
         await host.ReplicaGroupReconciliation.ProcessPendingAsync();
 
@@ -1919,6 +1923,13 @@ public sealed class InProcessControlPlaneResourceStateTests
             "start:cloudshell-application-api-replica-2",
             provider.ExecutedInstanceActions);
         Assert.Empty(provider.PreparedActions);
+        var repairedState = Assert.Single(await host.ControlPlane.ListReplicaSlotStatesAsync(
+            new ResourceReplicaSlotStateQuery(
+                ResourceId: parent.Id,
+                SlotOrdinal: 2,
+                Status: ResourceReplicaSlotReconciliationStatus.Repaired)));
+        Assert.Equal(1, repairedState.AttemptCount);
+        Assert.Contains("Replaced replica group", repairedState.LastResult, StringComparison.Ordinal);
     }
 
     [Fact]

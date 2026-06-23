@@ -10,6 +10,7 @@ public interface IControlPlane :
     IResourceTemplateManager,
     IResourceEventManager,
     IResourceDeploymentManager,
+    IResourceReplicaSlotStateManager,
     ILogManager,
     ITraceManager,
     IMetricManager,
@@ -201,6 +202,13 @@ public interface IResourceDeploymentManager
         CancellationToken cancellationToken = default);
 }
 
+public interface IResourceReplicaSlotStateManager
+{
+    Task<IReadOnlyList<ResourceReplicaSlotState>> ListReplicaSlotStatesAsync(
+        ResourceReplicaSlotStateQuery? query = null,
+        CancellationToken cancellationToken = default);
+}
+
 public interface ITraceManager
 {
     Task<IReadOnlyList<TraceSpan>> ListTraceSpansAsync(
@@ -314,6 +322,32 @@ public sealed record ResourceDeploymentRecord(
     string? ProvisionedBy = null,
     ResourceOrchestratorReplicaGroup? ReplicaGroup = null,
     ResourceOrchestratorDeploymentDefinition? Definition = null);
+
+public sealed record ResourceReplicaSlotStateQuery(
+    string? ResourceId = null,
+    int? SlotOrdinal = null,
+    ResourceReplicaSlotReconciliationStatus? Status = null,
+    int MaxRecords = 200);
+
+public sealed record ResourceReplicaSlotState(
+    string ResourceId,
+    int SlotOrdinal,
+    ResourceReplicaSlotReconciliationStatus Status,
+    string? Detail,
+    DateTimeOffset ObservedAt,
+    DateTimeOffset? LastAttemptedAt = null,
+    DateTimeOffset? LastCompletedAt = null,
+    int AttemptCount = 0,
+    string? TriggeredBy = null,
+    string? LastResult = null);
+
+public enum ResourceReplicaSlotReconciliationStatus
+{
+    Unhealthy,
+    Repairing,
+    Repaired,
+    RepairFailed
+}
 
 public sealed record ResourcePrincipalQuery(
     string? SearchText = null,
