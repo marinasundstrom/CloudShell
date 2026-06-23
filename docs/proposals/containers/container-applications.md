@@ -7,17 +7,23 @@ In progress.
 Container applications are the MVP's primary managed-service resource. They are
 the stable user-facing deployment, configuration, scaling, exposure, identity,
 storage, and observability surface for containerized application workloads.
+Most CloudShell resources represent things that exist in an environment or
+configuration that should be available to workloads. Container apps are
+different: they are workload resources that intentionally change the hosting
+environment by asking Resource Manager orchestration to deploy and reconcile
+runtime resources such as services, replica groups, routing, and runtime
+containers.
 
 This proposal tracks the container app resource itself. Related proposals own
 adjacent subdomains:
 
 * [Container host abstraction](container-host-abstraction.md) owns host
   selection and provider-owned runtime placement.
-* [Deployments and revisions](../deployment/deployments-and-revisions.md) owns
-  the generalized Resource Manager orchestration deployment/revision model.
-  Container apps are the first feature using that model, not the feature that
-  owns it. The same model should remain available for other workload resources
-  that need versioned runtime materialization later.
+* [Orchestrator deployments and environment revisions](../deployment/deployments-and-revisions.md)
+  owns the generalized Resource Manager orchestration deployment/revision
+  model. Container apps are the first feature using that model, not the feature
+  that owns it. The same model should remain available for other workload
+  resources that need versioned runtime materialization later.
 * [Virtual network resource](../networking/virtual-network-resource.md),
   [Load balancer resource](../networking/load-balancer-resource.md), and
   [DNS and name mapping](../networking/dns-and-name-mapping-resource.md) own
@@ -121,9 +127,11 @@ service, routing or load-balancer configuration for that service, and a
 replica group of N runtime resource instances for image X. That descriptor is
 not a Resource Manager resource by default. It is the container app's request
 for the orchestrator to manage CloudShell runtime resources and configuration
-for the app. After apply, the orchestrator returns a revision that describes
-what was materialized. The container app should use that revision, especially
-its replica group, when correlating or projecting runtime replica resources.
+for the app. After apply, the orchestrator records an environment revision and
+returns materialization data such as the replica group. The container app can
+correlate its app revision to that orchestrator deployment or environment
+revision, especially when projecting runtime replica resources, but it does not
+share revision identity with the orchestrator.
 Deployment apply is incremental: the requested runtime state creates or updates
 specified resources by id, and removal remains an explicit scale-down,
 revision-retirement, or service tear-down operation. Runtime containers or
@@ -144,6 +152,88 @@ replacement replica group and cut service routing over to it, while scale-only
 updates can reconcile the current group by adding or removing member resources.
 The group change calculation belongs to the orchestrator abstraction so the
 container app provider does not have to own replica-count diffing itself.
+
+## Container App Deployments and Configuration Revisions
+
+Container app revisions are configuration-management snapshots owned by the
+container app domain. They are not orchestrator revisions and they do not share
+identity with orchestrator environment revisions.
+
+For container apps, these configuration revisions are first-class because they
+describe the app's configuration state and history. They are the records a user
+inspects when asking what changed in the app configuration or which known-good
+configuration can be used as the base for a restore.
+
+A container app deployment records a user, build, or provider request to change
+the app. It can create a new app revision, restore configuration from an old
+app revision into a new app revision, or update app-owned operational history.
+The app revision captures the configuration that defines app state:
+
+* image and registry reference
+* requested replica count for the deployment
+* environment and command settings
+* resource references and service discovery intent
+* ingress, endpoint, and exposure intent
+* identity, storage, and other resource configuration that affects runtime
+  materialization
+* the app revision it was based on, when the deployment starts from an older
+  configuration snapshot
+* the actor that provisioned the deployment
+
+When runtime reconciliation is required, the container app provider translates
+the selected app revision into an orchestrator deployment. The orchestrator
+applies desired runtime state and records an environment revision describing
+what changed in the hosting environment. The app revision may reference the
+orchestrator deployment or environment revision for traceability, and the
+orchestrator environment revision may reference the source container app
+deployment, but the records remain separate.
+
+Updating the image for a running container app should not be modeled as
+"restart this resource." It should create a new container app configuration
+revision for the requested image, optionally with a new requested replica
+count, and then ask Resource Manager orchestration to materialize that
+configuration. The orchestrator starts new runtime resources next to the
+currently serving resources when availability requires it, switches traffic or
+endpoint routing once the new runtime state is ready, and retires the old
+runtime resources as a separate tear-down operation. Scaling the currently
+active app revision is capacity management and does not necessarily create
+another app revision.
+
+Restoring a container app revision means creating a new deployment whose
+requested app configuration is based on the configuration captured by an
+existing app revision. It does not reactivate or mutate the old revision
+object. The successful restore produces a new app revision that records the
+based-on app revision relationship:
+
+```text
+App revision app-r12: known-good image and network config
+    |
+App deployment app-d13: image update with bad config
+    |
+App revision app-r13: failed or unhealthy desired app state
+    |
+App deployment app-d14: restore config from app-r12
+    |
+App revision app-r14: new active app configuration, basedOnRevisionId = app-r12
+    |
+Orchestrator deployment orch-d27: materialize app-r14 runtime state
+    |
+Orchestrator environment revision env-r27: hosting-environment change
+```
+
+The restore deployment may use the selected app revision configuration exactly,
+or it may start from that configuration and include additional deployment
+input before execution. The resulting app revision answers "which app
+configuration state was this based on?" The resulting orchestrator environment
+revision answers "which hosting-environment change materialized this
+deployment?"
+
+Future merge workflows should also be app-domain authoring operations. A merge
+could create a new app revision from selected configuration fragments, such as
+network settings from one app revision, image or environment state from
+another, and replica settings from the current active app revision. The
+selected app revisions are inputs to authoring a new deployment; they are not
+mutated and they are not applied directly.
 
 ## Managed-Service Configuration Surface
 
@@ -213,23 +303,25 @@ Implemented pieces include:
   replica mode
 * shared resource metadata for provider/orchestrator/runtime ownership,
   visibility, owner resource, and cleanup behavior
-* internal orchestrator deployment/revision data contracts and a Control Plane
-  deployment-apply boundary for future container app runtime materialization
+* internal orchestrator deployment/environment-revision data contracts and a
+  Control Plane deployment-apply boundary for future container app runtime
+  materialization
 * deployment-applied container app replicas use revision-scoped runtime
-  container names so a new image revision can materialize beside the currently
-  serving revision before ingress/routing cutover
+  container names based on the app revision so a new image revision can
+  materialize beside the currently serving app revision before ingress/routing
+  cutover
 * orchestrator services derive an explicit revision-scoped replica group for
   runtime resource instances, and projected container app replicas carry the
   group id so replicas can be tracked as a set across materialization,
   readiness, routing, diagnostics, drain, and cleanup
-* orchestrator revision outcomes and internal deployment history retain the
-  materialized replica group snapshot produced by deployment apply
+* orchestrator environment revisions and internal deployment history retain or
+  reference the materialized replica group state produced by deployment apply
 * the container app provider describes superseded local runtime replicas as a
   post-apply replica-group tear-down target after the replacement revision has
   been materialized and routing milestones have been recorded
 * default orchestrator rollback events and best-effort candidate replica-group
-  tear-down when deployment setup fails before an orchestrator revision is
-  produced
+  tear-down when deployment setup fails before an orchestrator environment
+  revision is produced
 * hidden runtime-managed child resources for container app replicas, parented
   to and owned by the stable container app resource, with
   deployment/service/revision correlation metadata
@@ -309,20 +401,21 @@ liveness/lifecycle signals, while scaling changes desired capacity.
    deliberate Application > Scale and replicas action or programmatic
    `WithReplicas(...)` declaration. Scale and replicas now prompts
    endpoint-bearing apps to create a load-balancer route when replicas are
-   enabled. Treat container app deployment as the bridge to Deployments and
-   revisions: the app records the app-owned revision and requested replica
-   count, then asks the orchestrator to materialize it. Starting replacement
-   replicas, verifying readiness, switching ingress/load-balancer routing, and
-   retiring old runtime replicas are orchestrator responsibilities. Use the
-   internal orchestrator deployment/revision contracts for container app
-   implementation work. The Control Plane now has an internal deployment-apply
-   boundary for dispatching a deployment spec to the selected orchestrator, and
-   running image deployments use that boundary when runtime reconciliation is
-   required. Defer full rollout history, restore, revision management, traffic
+   enabled. Treat container app deployment as the bridge to orchestrator
+   deployments and environment revisions: the app records the app-owned
+   revision and requested replica count, then asks the orchestrator to
+   materialize it. Starting replacement replicas, verifying readiness,
+   switching ingress/load-balancer routing, and retiring old runtime replicas
+   are orchestrator responsibilities. Use the internal orchestrator
+   deployment/environment-revision contracts for container app implementation
+   work. The Control Plane now has an internal deployment-apply boundary for
+   dispatching a deployment spec to the selected orchestrator, and running
+   image deployments use that boundary when runtime reconciliation is required.
+   Defer full rollout history, restore UI, app revision management, traffic
    splitting, readiness-gated cutover, and advanced rollout controls to later
-   deployment/revision slices. Deployment-applied replicas now have
-   revision-scoped runtime identity and local superseded-replica retirement as
-   the foundation for the side-by-side replacement path.
+   container app deployment slices. Deployment-applied replicas now have
+   app-revision-scoped runtime identity and local superseded-replica retirement
+   as the foundation for the side-by-side replacement path.
 7. Keep container app replica diagnostics app-scoped in Scale and replicas. It
    shows app-owned replica/runtime diagnostics to users who can view or manage
    the container app without requiring the global runtime-managed inventory
@@ -392,21 +485,22 @@ liveness/lifecycle signals, while scaling changes desired capacity.
   the generalized deployment model, not make deployment semantics
   container-app-specific. It can include requested replica count and records
   app-owned deployment/revision history. The orchestrator now materializes
-  deployment-applied replicas with revision-scoped identity, records explicit
-  routing update milestones, rolls back the candidate replica group on setup
-  failure, and tears down superseded runtime replica groups as a separate
+  deployment-applied replicas with app-revision-scoped identity, records
+  explicit routing update milestones, rolls back the candidate replica group on
+  setup failure, and tears down superseded runtime replica groups as a separate
   post-apply operation. Failed apply now marks the candidate app
   deployment/revision failed and keeps the previously active app revision
-  active. A later restore should be modeled as a new deployment based on the
-  state captured by a selected revision, producing a new revision that records
-  the based-on revision relationship rather than reactivating the selected
-  revision object.
+  active. Restore is a container app configuration operation: a later restore
+  should create a new app deployment based on the configuration captured by a
+  selected app revision, producing a new app revision that records the based-on
+  app revision relationship rather than reactivating the selected revision
+  object.
   Deployment materialization now waits for declared HTTP startup/readiness
   checks, or HTTP health checks when no explicit startup/readiness check is
   present. The Resource Manager UI now keeps Deployment focused on deploying
   an image and reading deployment events, while Revisions separately shows the
-  current and previous materialized app states. Post-apply cleanup failures
-  are warnings instead of failures of the already-applied revision. Remaining
+  current and previous app configuration revisions. Post-apply cleanup failures
+  are warnings instead of failures of the already-applied app revision. Remaining
   rollout work should retain failed runtime/app revision diagnostics and make
   traffic and cleanup policy configurable.
 * Continue improving update behavior around replica, environment, endpoint,
@@ -428,8 +522,9 @@ liveness/lifecycle signals, while scaling changes desired capacity.
 * Should internal DNS-style names and custom domains share one UI flow with an
   exposure-scope selector, or should custom domains get a specialized flow once
   TLS/certificate automation exists?
-* What is the smallest useful revision history that belongs to the container
-  app before the richer orchestrator deployment/revision model lands?
+* What is the smallest useful app configuration revision history that belongs
+  to the container app before the richer orchestrator environment-history model
+  lands?
 * What readiness signal is sufficient for switching a local container app to a
   newly deployed revision when no explicit health checks are declared?
 * Which telemetry scope dimension names should become stable contract

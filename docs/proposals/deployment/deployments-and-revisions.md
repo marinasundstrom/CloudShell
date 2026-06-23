@@ -1,4 +1,4 @@
-# Deployments and Revisions Proposal
+# Orchestrator Deployments and Environment Revisions Proposal
 
 > This proposal depends on the [Runtime managed resource](runtime-managed-resource.md) proposal.
 
@@ -21,15 +21,21 @@ by the orchestrator when actions require dependency ordering or dependency
 startup. Services, deployments, revisions, and replica groups extend the
 orchestrator model for systems that scale; they should not make every
 orchestrated resource pretend to be a scaled service.
+Most resources primarily represent things that exist in an environment, such as
+hosts, networks, volumes, databases, load balancers, configuration stores, or
+provider-owned services. They may still be orchestrated for lifecycle and
+dependency ordering, but they do not necessarily create a deployment. Workload
+resources such as container apps are different when they affect the environment
+by asking the orchestrator to create or reconcile runtime resources. Those are
+the cases where Resource Manager deployment and environment-revision tracking
+become useful.
 
-Container app image updates are the clearest motivating case. Updating the
-image for a running container app should not be modeled as "restart this
-resource." It should deploy a new revision for the requested image, optionally
-with a new requested replica count. That revision starts its containers next to
-the currently serving revision. Once the new revision is ready, CloudShell can
-switch traffic or endpoint routing to it and then retire the old revision.
-Scaling the currently active revision is a separate operation that adjusts
-desired capacity without necessarily creating another revision.
+Container apps are the first motivating workload, but this proposal is not the
+container app revision model. It defines how Resource Manager asks an
+orchestrator to apply desired runtime state and how the orchestrator records
+environment history after apply. Container app configuration revisions,
+restore-to-configuration behavior, and app UI terminology belong in the
+[Container applications](../containers/container-applications.md) proposal.
 
 Initial implementation now adds internal data contracts for
 `ResourceOrchestratorDeployment`, `ResourceOrchestratorDeploymentSpec`, and
@@ -55,66 +61,46 @@ Resource Manager orchestration now has an internal service tear-down boundary
 for stopping or deleting the runtime resources that belong to an orchestration
 service. Tear-down is a separate operation over individual runtime resources,
 replica groups, or all resources belonging to an orchestration service.
-Container apps now use the deployment contract to project deployment status,
-service id, workload version, requested replicas, and materialized replica count
-onto the stable app resource and Deployment tab. Materialized runtime replica
-resources also carry the deployment id, service id, and deployment revision
-they implement for traceability. The deployment represents the requested
-runtime state. The revision represents the materialized result of that
-deployment: the current state when active and the past state when retained for
-history, diagnostics, or restore-to-state workflows. Restoring means creating a
-new deployment whose requested state is based on the materialized state
-captured by a selected prior revision; it does not reactivate or mutate that
-revision object. If the deployment succeeds, the resulting revision records the
-based-on revision relationship for change tracking. Container app image
-deployment now records
-the app revision through the app provider and, when runtime reconciliation is
-required, asks the Control Plane to apply the provider-described orchestrator
-deployment spec. The default orchestrator now records deployment activity
-events for service reconciliation and replica materialization so Resource
-Manager activity can trace what the orchestrator is doing during apply. It
-also records routing update milestones after endpoint-bearing replicas are
-materialized, making the intended cutover from previous runtime replicas to
-the newly materialized revision visible without exposing traffic-splitting
-controls yet.
-In this model, the container app resource defines and manages the
-resource-owned deployment it wants Resource Manager to apply. That deployment
-targets an identifiable orchestrator service tracked by the container app. The
+Workload resources can use the deployment contract to project deployment
+status, service id, workload version, requested replicas, and materialized
+replica count onto their own resource surfaces. Materialized runtime resources
+can also carry the deployment id, service id, and orchestrator revision id for
+traceability. In this model, the resource provider describes the desired
+runtime state it wants Resource Manager to apply. That deployment targets an
+identifiable orchestrator service or standalone runtime scope. The
 orchestrator service unit is the runtime boundary that can contain service
 routing or loader materialization plus a replica group with the requested
-number of replicas for a specific image and replicated configuration.
+number of replicas for a specific workload version and replicated
+configuration.
 The Control Plane also records internal orchestrator deployment history for
 apply attempts, successful orchestrator revisions, and failed apply results.
 When the default orchestrator applies a deployment, it now materializes service
-instances with revision-scoped runtime names so new replicas can be started next
-to the currently serving revision before routing is remapped. Container app
-replica materialization now waits for declared HTTP startup, readiness, or
-health checks before a replica is reported as materialized and before the
-orchestrator revision is produced. Superseded runtime instances are described
-as explicit replica-group tear-down targets after deployment setup, keeping
-cleanup separate from deployment apply.
-Container apps also keep provider-owned app deployment and revision history
-separately from the desired application definition. Those app deployment
-records correlate the deployment request to the produced container app
-revision and to the orchestrator deployment used to materialize runtime state,
-but they are not the same entity as orchestrator deployments or orchestrator
-revisions.
-When orchestrator apply fails after a resource-owned revision has been
-recorded, the provider is notified so it can mark the candidate resource
-deployment and revision as failed and keep the previously active resource
-revision active. For container apps this prevents an unmaterialized app
-revision from being presented as the active successful revision while still
-retaining failed-attempt history.
+instances with deployment-scoped runtime names so new replicas can be started
+next to currently serving replicas before routing is remapped. Replica
+materialization can wait for declared startup, readiness, or health checks
+before a replica is reported as materialized and before the orchestrator
+revision is produced. Superseded runtime instances are described as explicit
+replica-group tear-down targets after deployment setup, keeping cleanup
+separate from deployment apply.
+Providers may keep their own domain deployment or revision history separately
+from desired resource definitions. Those records can correlate the domain
+request to the orchestrator deployment and environment revision used to
+materialize runtime state, but they are not the same entities as orchestrator
+deployments or orchestrator revisions. When orchestrator apply fails after a
+provider has recorded candidate domain state, Resource Manager can notify the
+provider so it can mark that candidate failed and keep the previously active
+domain state active.
 The intended general rule is broader than container apps: when an orchestrator
 handles a resource state change that has runtime workload intent, it may derive
 a default deployment for that change even when the user manages the resource
 directly rather than managing an explicit deployment resource. That implicit
 deployment gives standalone resource changes the same traceability as service
 deployments: the current materialized state of a resource can be associated
-with the deployment, implicit or explicit, that produced the active revision.
+with the deployment, implicit or explicit, that produced the active environment
+revision.
 They are not yet a public Resource Manager or Control Plane management surface.
 Public APIs for orchestrator-level deployments may be useful later, but they
-are not a current use case. Rich rollout history, restore deployments, traffic
+are not a current use case. Rich rollout history, environment replay, traffic
 splitting, retention, and live resource/orchestrator graph visualization remain
 deferred.
 
@@ -143,15 +129,14 @@ Today, these changes can be applied by orchestrators, but CloudShell lacks a uni
 * which service it affected
 * which replicas were created
 * which runtime resources belong to the applied version
-* what revision was produced by the change
-* how traffic or endpoint routing moved from the previous revision to the new
-  revision
+* what environment revision was produced by the change
+* how traffic or endpoint routing moved from one runtime group to another
 
-Without deployments and revisions, several problems appear:
+Without orchestrator deployments and environment revisions, several problems appear:
 
 * replica creation becomes orchestrator-specific
 * rollout history becomes fragmented
-* restore from previous state is harder to model
+* replay from previous environment state is harder to model
 * traceability is incomplete
 * resource changes cannot easily be correlated with runtime changes
 * default and Docker Compose orchestrators may represent changes differently
@@ -164,8 +149,8 @@ CloudShell needs a unified way to represent versioned orchestration changes whil
 
 * Introduce Deployment as CloudShell's orchestrator-level representation of
   desired runtime state.
-* Introduce Orchestrator Revision as the materialized runtime outcome produced
-  by applying an orchestrator deployment.
+* Introduce Orchestrator Revision as CloudShell's environment-history record
+  produced by successfully applying an orchestrator deployment.
 * Allow an orchestrator to derive a default deployment for a resource state
   change when the resource has runtime workload intent.
 * Allow higher-level resources to request orchestration without managing replicas directly.
@@ -173,10 +158,15 @@ CloudShell needs a unified way to represent versioned orchestration changes whil
 * Support consistent deployment behavior across the default orchestrator, custom
   orchestrators, Docker Compose integrations, Kubernetes integrations, and
   future orchestrator adapters.
-* Support traceability from user-managed resources to deployments, revisions, services, replicas, and runtime-managed resources.
-* Enable orchestration-level restore, diagnostics, and history inspection while allowing higher-level resources to maintain their own domain-specific revision models.
-* Keep deployments and revisions in the orchestrator layer rather than making them normal user-authored resources.
-* Allow deployments and revisions to participate in diagnostics and runtime inspection.
+* Support traceability from user-managed resources to deployments, environment
+  revisions, services, replicas, and runtime-managed resources.
+* Enable orchestration-level diagnostics, replay, and environment history
+  inspection while allowing higher-level resources to maintain their own
+  domain-specific revision models and restore semantics.
+* Keep deployments and environment revisions in the orchestrator layer rather
+  than making them normal user-authored resources.
+* Allow deployments and environment revisions to participate in diagnostics and
+  runtime inspection.
 * Preserve the existing Resource Manager responsibility for validation, lifecycle coordination, state, ownership, and graph management.
 
 ## Non-Goals
@@ -219,9 +209,9 @@ The MVP must support:
 * A resource-owned deployment request that describes workload intent. The first
   implementation is container app image deployment, optionally with requested
   replicas.
-* Resource-owned deployment and revision history, separate from the desired
-  resource definition. The first implementation is container app-owned
-  deployment and revision history.
+* Resource-owned deployment history, separate from the desired resource
+  definition, so providers can correlate domain requests to the orchestrator
+  deployments and environment revisions that materialized them.
 * A provider-described orchestrator deployment that says "this is the runtime
   state I want" for the selected Resource Manager orchestrator.
 * A Resource Manager deployment service that records apply attempts, selects a
@@ -234,13 +224,14 @@ The MVP must support:
   materialized replica group snapshot.
 * Orchestrator-level `BasedOnRevisionId` tracking on deployments and revision
   outcomes. Ordinary deployments default their base to the active or latest
-  successful revision for the same resource service, while explicit based-on
-  revision ids are preserved for restore-like deployments.
+  successful environment revision for the same resource, service, or
+  orchestrator scope, while explicit based-on revision ids are preserved for
+  replay-like deployments.
 * Failed deployment attempts recorded without producing an orchestrator
   revision.
-* Provider-owned failure handling when resource revision history was recorded
-  before orchestrator apply, so the candidate resource revision can be marked
-  failed and the previously active resource revision can remain active.
+* Provider-owned failure handling when a domain model records candidate state
+  before orchestrator apply, so the provider can mark that candidate failed and
+  keep its previously active domain state active.
 * A first readiness gate before revision activation. Container apps use
   declared HTTP startup/readiness checks when present, otherwise declared HTTP
   health checks, without introducing advanced traffic policy machinery.
@@ -253,37 +244,40 @@ The MVP must support:
   separate from deployment setup. Cleanup failures are warning diagnostics on
   the applied deployment rather than failures of the already-produced active
   revision.
-* Active-revision replica scaling through the replica-group change model
-  without forcing a resource restart or creating a new workload revision.
-* Projection of active deployment, active resource revision, requested replicas,
-  materialized replica count, deployment service id, deployment revision id,
-  and replica-group id onto the stable resource and runtime-managed resources.
-  The first projection target is the stable container app and its hidden runtime
-  replica resources.
+* Active runtime replica scaling through the replica-group change model without
+  forcing a resource restart or creating a new domain revision when the
+  provider treats the change as capacity management.
+* Projection of active deployment, requested replicas, materialized replica
+  count, deployment service id, orchestrator revision id, and replica-group id
+  onto the stable resource and runtime-managed resources. The first projection
+  target is the stable container app and its hidden runtime replica resources,
+  but the projection is not container-app-specific.
   Requested replicas are the count requested by the resource/provider; the
   orchestrator may materialize fewer replicas when capacity, placement, policy,
   or runtime failures prevent granting the full request.
-* Focused tests for successful apply, failed apply, rollback logging, image
+* Focused tests for successful apply, failed apply, rollback logging,
   deployment with post-apply tear-down, cleanup warning behavior, active
-  revision scaling, and concurrent deployments for different container apps.
+  replica-group scaling, and concurrent deployments for different source
+  resources.
 
 The MVP should add or refine next:
 
-* Keep rollback scoped to the candidate deployment unit. Restore is a future
-  user or rollout-policy change operation based on the state captured by a
-  selected revision; it is not MVP rollback and it does not mutate or
-  reactivate the older revision.
+* Keep rollback scoped to the candidate deployment unit. Orchestrator
+  environment replay is a future operation based on retained environment state
+  or revision history; it is not MVP rollback and it does not mutate or
+  reactivate an older revision.
 * Keep configurable cleanup and retention policy deferred until the basic
   diagnostics and runtime cleanup model has proven useful.
 
 The MVP deliberately leaves these flexible:
 
-* Whether orchestrator deployments and revisions become a public Control Plane
-  API.
-* Whether revisions are projected as runtime-managed resources, stored only as
-  orchestrator metadata, or both.
+* Whether orchestrator deployments and environment revisions become a public
+  Control Plane API.
+* Whether environment revisions are projected as runtime-managed resources,
+  stored only as orchestrator metadata, or both.
 * The exact long-term readiness model, traffic shifting model, drain policy,
-  retention policy, restore workflow, and revision-lineage projection.
+  retention policy, environment replay workflow, and revision-lineage
+  projection.
 * Which resource types opt into the deployment model next and which continue as
   standalone orchestrated resources.
 * How Docker Compose, Kubernetes, or custom orchestrator adapters map the
@@ -298,53 +292,39 @@ The term `Revision` is used in different CloudShell subdomains and should not
 be treated as a single global concept.
 
 A resource type may define its own revision concept as part of its domain model.
-For example, a Container App may have Container App deployments that produce
-Container App revisions. Those revisions record materialized application
-state, including traffic behavior, image references, environment settings, and
-state that can be used as input to a later restore deployment.
+For example, a container app defines container app configuration revisions in
+the [Container applications](../containers/container-applications.md) proposal.
+Those app revisions are not orchestrator revisions.
 
-The orchestrator may also define revisions. An orchestrator revision represents
-a versioned runtime realization of a deployment. It tracks the workload shape
-that was applied, the service state that resulted, and the runtime-managed
-resources associated with that version.
+An orchestrator revision is an environment-history record. It is produced after
+the orchestrator applies a deployment and compares the requested runtime state
+to the hosting environment it actually changed. It tracks the deployment that
+was applied, the affected service or standalone runtime resources, the
+resources created or updated, the resources selected for tear-down, routing or
+load-balancer changes, and enough lineage to derive the environment state by
+replaying a chain of revisions or by replaying from a checkpoint.
 
-These concepts may be correlated, and they may even share identifiers for
-traceability, but they are not the same entity.
+These concepts may be correlated, and either record may reference the other for
+traceability, but they do not share identity and they should not be modeled as
+the same revision object.
 
-```text
-Container App Deployment
-        ↓
-produces
-        ↓
-Container App Revision
-        ↓
-materialized by
-        ↓
-Orchestrator Deployment
-        ↓
-Orchestrator Revision
-        ↓
-Service + Runtime Resources
-```
-
-Each subdomain owns the revision data relevant to its own behavior.
-
-Container App revisions answer questions such as:
-
-* what application state was materialized?
-* which image and environment settings are part of this app version?
-* which revision receives traffic?
-* which revision captures state that can be used for a restore deployment?
-* which deployment produced this revision?
-* which revision state this revision was based on?
+Each subdomain owns the revision data relevant to its own behavior. A
+resource-domain revision can point to an orchestrator deployment or
+environment revision for traceability, and an orchestrator revision can point
+back to the source resource or domain request that caused it. Those references
+are correlations, not shared identity.
 
 Orchestrator revisions answer questions such as:
 
-* what workload definition was applied?
-* which orchestrator service was reconciled?
-* which replicas were set up or torn down?
-* which runtime-managed resources belong to this applied deployment?
-* what rollout state resulted?
+* which deployment changed the hosting environment?
+* which desired runtime state was applied?
+* which orchestrator environment or runtime target was changed?
+* which service or standalone runtime resources were reconciled?
+* which runtime-managed resources were created, updated, routed, drained,
+  selected for tear-down, or removed?
+* which prior environment revision this change follows?
+* can the environment state be derived by replaying revisions from a clean
+  environment or from a checkpoint?
 
 The deployment and revision model in this proposal refers specifically to
 orchestrator deployments and orchestrator revisions unless otherwise stated.
@@ -359,21 +339,19 @@ left alone unless a separate scale-down, revision-retirement, or service
 tear-down operation targets them. A deployment may be explicit in a future
 management surface, but the MVP path treats it primarily as a default
 deployment derived by the orchestrator when a resource state change needs
-runtime materialization. A deployment may also be initialized from the
-materialized state captured by a retained revision. That is the restore or
-revert-like model: the revision supplies state for a new deployment, but the
-revision itself is not restored in place.
+runtime materialization. A future environment replay workflow may also author a
+deployment from retained environment state, revision deltas, or a checkpoint,
+but that is separate from product-specific restore workflows.
 
-An Orchestrator Revision represents the outcome: the materialized runtime state
-produced when an orchestrator applies a deployment. It records the resulting
-applied version and the runtime-managed resources or provider-native artifacts
-associated with that application of desired state, allowing CloudShell to
-version and track runtime-environment changes and eventually restore to the
-state captured by older revisions. A revision is the snapshot result of the
-deployment, not the individual change itself. It should be immutable once
-recorded; a restore creates another deployment and another revision, with a
-based-on revision relationship back to the revision that captured the requested
-state.
+An Orchestrator Revision represents the environment-history outcome of a
+successful apply. It is derived after the orchestrator applies the deployment:
+the orchestrator records what changed in the hosting environment, which runtime
+resources were affected, and how that change follows from the previous
+environment revision. This is closer to an environment revision than an app
+configuration revision. It should be immutable once recorded. A later
+environment replay would author and apply another deployment from retained
+environment state or revision history; it would not mutate the old revision in
+place.
 
 This is a CloudShell abstraction, not an attempt to copy Kubernetes
 Deployments, Docker Compose services, or another orchestrator's native model. A
@@ -415,13 +393,14 @@ public sealed class OrchestratorRevision
 
 The deployment model should represent the orchestrator’s computed workload intent, not the full user-facing resource graph.
 
-An orchestrator revision has a CloudShell-wide unique `Id`. It also has a
-`RevisionNumber`, which is the ordinal for the orchestrator service, not the
-global identity. `CreatedAt` records when the snapshot was produced, and
-`ProvisionedBy` records who provisioned the deployment that produced the
-revision.
+An orchestrator revision has a CloudShell-wide unique `Id`. It may also expose
+a scoped `RevisionNumber` as a projection for a service, standalone resource,
+or environment history view; that number is not the global identity.
+`CreatedAt` records when the environment-history record was produced, and
+`ProvisionedBy` records who provisioned the deployment that produced it.
 
-For change tracking, the restore relationship should be represented as:
+For environment-history tracking, the based-on relationship should be
+represented as:
 
 ```text
 Deployment <deployment-id>
@@ -432,58 +411,57 @@ Revision <new-revision-id>
   Based on revision <base-revision-id>
 ```
 
-The deployment's `BasedOnRevisionId` records which revision state was used as
-input. The resulting revision's `DeploymentId` records the change that produced
-it, and its `BasedOnRevisionId` records the prior revision state it was based
-on. For ordinary deployments, `BasedOnRevisionId` defaults to the current
-active or latest successful revision for that resource or service. A restore
-deployment explicitly selects an older revision as its base. This keeps the
-normal change history linear by default while still allowing explicit branches
-for restore or future merge workflows.
+The deployment's `BasedOnRevisionId` records which prior orchestrator
+environment revision the deployment is intended to follow or derive from. The
+resulting revision's `DeploymentId` records the deployment that produced the
+environment change, and its `BasedOnRevisionId` records the prior environment
+revision used as the base. For ordinary deployments, `BasedOnRevisionId`
+defaults to the current active or latest successful environment revision for
+that resource, service, or orchestrator scope.
 
-When a deployment is based on a revision, its default requested state is the
-state captured by that revision. The actor may still include additional
-resources, overrides, or other deployment input before apply. In that case the
-deployment is still based on the selected revision, but the resulting revision
-records the newly materialized state produced by the full deployment request.
+When a deployment is based on an orchestrator revision, its default requested
+state can be derived from the environment state produced by replaying that
+revision chain or loading an environment checkpoint. The actor may still
+include additional resources, overrides, or other deployment input before
+apply. In that case the deployment is still based on the selected
+orchestrator revision, but the resulting revision records the newly observed
+environment change produced by the full deployment request.
 
-This should be implemented at the orchestrator level as metadata and state
-tracking, not as a product-specific restore command. The selected orchestrator
-should accept and persist `BasedOnRevisionId`, default it to the active or
-latest successful revision when the caller does not specify a base, retain the
-materialized state needed to author a later deployment from a revision, and
-return the resulting revision with both `DeploymentId` and
-`BasedOnRevisionId`. Resource Manager, deployment services, or provider-owned
-flows decide when to author a restore, revert-like, or merge deployment and
-which additional deployment input is applied before materialization.
+This should be implemented at the orchestrator level as metadata and
+environment-history tracking, not as a product-specific restore command. The
+selected orchestrator should accept and persist `BasedOnRevisionId`, default it
+to the active or latest successful environment revision when the caller does
+not specify a base, retain enough state or deltas to derive desired runtime
+state from revision history, and return the resulting revision with both
+`DeploymentId` and `BasedOnRevisionId`. Resource Manager, deployment services,
+or provider-owned flows decide when to author an environment replay or
+merge-like deployment and which additional deployment input is applied before
+materialization.
 
-The same change-tracking model should eventually allow state merge from
-revisions. Merging does not mutate the selected revisions and does not bypass
-deployment. It is an authoring operation that takes one or more retained
-revision state snapshots, optionally consults the deployments or change records
-that produced those revisions for diff context, resolves the selected state
-against a chosen base, and produces a final deployment representing the desired
-state that could be applied. If that deployment succeeds, the new revision
-records the deployment that produced it and the revision relationships used to
-build its requested state.
+The same environment-history model should eventually allow replay from a clean
+environment or from checkpoints. Replay does not mutate selected revisions and
+does not bypass deployment. It is an authoring operation that derives desired
+runtime state from retained environment state, revision deltas, and deployment
+records, then produces a deployment that can be applied. If that deployment
+succeeds, the new orchestrator revision records the environment change and the
+revision relationships used to derive it.
 
 ### Resource and Orchestrator Boundary
 
 Higher-level resource infrastructure owns the domain request and the
 domain-specific history. Orchestrators own runtime rollout mechanics.
 
-For container apps, the container app infrastructure owns:
+Provider or resource infrastructure owns:
 
-* accepting a container app deployment request
-* validating app-level deployment input such as image, app configuration,
-  requested replicas, ingress intent, and identity references
-* producing and tracking container app revisions
-* recording based-on revision, trigger, requested replica count, and revision
-  status in the container app domain model
-* recording app deployment and revision history in provider-owned operational
-  state rather than embedding unbounded rollout history in the desired app
-  definition
-* asking the selected orchestrator to materialize the requested app revision
+* accepting the resource-domain request
+* validating domain input such as workload version, configuration, requested
+  capacity, ingress intent, identity references, or resource references
+* recording domain-specific history when the resource type has its own
+  revision or deployment model
+* describing the orchestrator deployment that should materialize the requested
+  runtime state
+* correlating the domain request to the orchestrator deployment and
+  environment revision that materialized it
 
 The orchestrator owns the mechanics required to apply that request:
 
@@ -505,22 +483,22 @@ route, load balancer, local container group, or future orchestrator performs
 the rollout.
 
 The boundary is intentionally asymmetric: the resource domain can decide what
-changed and which app revision should exist, but it should not directly
+changed and which domain state should exist, but it should not directly
 manipulate orchestrator-owned replicas, routing tables, backend registrations,
-or cleanup behavior.
+or cleanup behavior when those are part of the orchestrator-managed runtime
+scope.
 
 Deployment application is scoped to a resource and deployment. CloudShell must
-be able to apply deployments for different container apps concurrently; any
+be able to apply deployments for different source resources concurrently; any
 serialization should be limited to the same resource, same runtime target, or
 provider-specific critical section that truly cannot be run in parallel.
 The deployment model should retain enough status, timing, and revision
 correlation for diagnostics. A future live graph of Resource Manager and
 orchestrator activity should build on broader event observation rather than
 being tied only to orchestrator deployment records. That visualization could
-show several container app deployments progressing at the same time: the
-orchestrator materializing runtime resources, updating existing runtime
-resources, acting on routing or ingress resources, and cleaning up superseded
-runtime resources.
+show several deployments progressing at the same time: the orchestrator
+materializing runtime resources, updating existing runtime resources, acting on
+routing or ingress resources, and cleaning up superseded runtime resources.
 
 ## Conceptual Flow
 
@@ -535,7 +513,7 @@ Default Deployment is created or updated
         ↓
 Selected orchestrator sets up the deployment
         ↓
-Revision is produced as the outcome
+Environment revision is produced as the history record
         ↓
 Service and replicas are reconciled
         ↓
@@ -545,9 +523,9 @@ Runtime-managed resources named by the deployment are created or updated
 Example:
 
 ```text
-ContainerApp
- ├── image: myapp:v2
- ├── replicas: 3
+Workload resource
+ ├── workload version: v2
+ ├── requested replicas: 3
  └── port: 8080
 ```
 
@@ -555,11 +533,11 @@ may produce:
 
 ```text
 Deployment: api
- └── Revision: api-r12
+ └── Environment revision: env-r12
       └── Service: api
-           ├── Replica: api-r12-1
-           ├── Replica: api-r12-2
-           └── Replica: api-r12-3
+           ├── Replica: api-env-r12-1
+           ├── Replica: api-env-r12-2
+           └── Replica: api-env-r12-3
 ```
 
 ## Deployment Model
@@ -569,6 +547,11 @@ the common path, a stable resource remains individually manageable by Resource
 Manager, while the orchestrator generates a default deployment for each
 deployment-relevant state or configuration change. This lets CloudShell track
 what was requested without requiring the user to author a deployment resource.
+At the orchestrator level, the deployment is the primary operational object:
+it is what Resource Manager asks the orchestrator to apply. Environment
+revisions matter because they record what changed after the deployment was
+applied, but they are historical records rather than the main object being
+operated.
 
 It may include:
 
@@ -593,14 +576,19 @@ A Deployment should answer:
 * which resource requested it?
 * which service does it affect?
 * what desired runtime shape should be materialized?
-* what revision was created?
-* what runtime resources were produced?
+* which orchestrator environment revision recorded the successful apply?
+* which runtime resources should be created, updated, retained, or torn down?
 
 ## Revision Model
 
-A Revision represents a specific materialized outcome of a deployment.
+An orchestrator revision represents a successful environment change produced
+by applying a deployment. It is not the same kind of snapshot as a container
+app revision. The deployment states desired runtime state; after apply, the
+orchestrator derives the environment delta that actually occurred and records
+that as the environment revision.
 
-A new revision should be created when deployment-relevant inputs change.
+A new orchestrator revision should be created when a deployment successfully
+changes the hosting environment.
 
 Examples:
 
@@ -614,94 +602,72 @@ Examples:
 * endpoint configuration changed
 * resource template changed
 
-Replica count changes need more nuance. A manual scale operation against the
-currently active revision can reconcile the service replica count while
-preserving that revision association. A deployment operation can also include
-a requested replica count for the new revision, in which case the new revision
-should be materialized at that target capacity before cutover when the rollout
-strategy requires availability.
+Replica count changes need more nuance. A scale operation against the currently
+active runtime group can reconcile service capacity while preserving the active
+runtime version. It can still produce an orchestrator environment revision if
+the hosting environment changed. A deployment operation can also include a
+requested replica count for a replacement runtime group, in which case the
+orchestrator should materialize that runtime state at the requested capacity
+before cutover when the rollout strategy requires availability.
 
-A revision should allow CloudShell to determine:
+An orchestrator revision should allow CloudShell to determine:
 
-* which runtime resources belong to a version
-* which version is currently active
-* which version was previously active
-* which version failed
-* which version can provide state for a state-restore deployment
-* which deployment produced the revision
-* who provisioned the deployment that produced the revision
-* which prior revision logically preceded it through `BasedOnRevisionId`
-* where the revision belongs in service-local chronological order through
-  `RevisionNumber` and `CreatedAt`
-* which resource change caused the revision
+* which deployment produced the environment change
+* who provisioned the deployment that produced the environment change
+* which prior orchestrator revision logically preceded it through
+  `BasedOnRevisionId`
+* which orchestrator scope was affected, such as an environment, service,
+  standalone resource, or runtime target
+* which runtime resources were created, updated, retained, routed, drained,
+  selected for tear-down, or removed
+* which higher-level resource revision or deployment caused the runtime change,
+  when such a correlation exists
+* where the revision belongs in chronological order through `CreatedAt` and any
+  scoped revision number projection
+* whether the hosting environment state can be derived by replaying the
+  revision chain from a clean environment or from a checkpoint
 
-### Restore To Revision State
+### Environment Replay
 
-Restoring means restoring to the materialized state captured by an existing
-revision. It does not restore the revision object. CloudShell models this as a
-new deployment whose requested state is based on the selected prior revision's
-state snapshot instead of the default latest revision. If the deployment
-succeeds, CloudShell records a new revision as the outcome and links that
-revision back to the based-on revision used to define the requested state.
+Environment replay authors an orchestrator deployment from retained
+environment state, revision deltas, or a checkpoint, and then records a new
+orchestrator revision after the deployment changes the hosting environment.
+It does not reactivate or mutate the old orchestrator revision object.
 
-This makes restore part of change tracking. Revisions record materialized
-state snapshots. Deployments record requested changes to state. A
-state-restore deployment is a revert-like change record that says "make the
-current runtime state look like the state captured by revision r12." By
-default it recreates that captured state, but the deployment may also specify
-additional resources, overrides, or other desired-state input before execution.
-This keeps revisions immutable while still supporting recovery from a bad
-change, such as an invalid image, network configuration, resource reference, or
-replicated resource configuration. A typical history may look like:
+Replay keeps environment revisions immutable while still supporting recovery
+from a bad runtime change, such as an invalid routing update, failed resource
+configuration, or replicated resource configuration problem. A typical
+orchestrator history may look like:
 
 ```text
-Revision r12: known-good image and network config
+Environment revision env-r12: known-good service routing and replica group
     |
-Deployment d13: image update with bad config
+Deployment orch-d13: runtime update with bad routing config
     |
-Revision r13: failed or unhealthy materialized state
+Failed deployment attempt orch-d13, no environment revision produced
     |
-Deployment d14: restore to state captured by revision r12
+Deployment orch-d14: replay desired runtime state from env-r12 plus override
     |
-Revision r14: new active state, basedOnRevisionId = r12
+Environment revision env-r14: new environment change, basedOnRevisionId = env-r12
 ```
 
-The state-restore deployment may use the selected revision state exactly, or it
-may start from that state and include additional deployment input before
-execution. The resulting revision should retain enough lineage to answer "what
-state was this revision based on?" and "which change did it replace?" Over time
-this can become a revision lineage graph or tree rather than only a flat list.
-
 Rollback is different. MVP rollback is best-effort cleanup of the candidate
-deployment unit when setup fails before activation. Restore is an explicit
-change operation after a previous deployment produced an
-undesired, failed, or unhealthy state.
+deployment unit when setup fails before activation. Environment replay is an
+explicit operation after a previous deployment produced an undesired, failed,
+or unhealthy environment state.
 
-### Merging State From Revisions
-
-Revision lineage can also support merge workflows. A user may want the network
-configuration from one revision, the image or environment state from another,
-and the replica configuration from the current active state. CloudShell should
-model that as a deployment-authoring step: choose a base revision state, merge
-selected state fragments captured by retained revisions, resolve conflicts,
-then produce a deployment that represents the final desired state.
-
-The deployment is the object applied by the orchestrator. The selected
-revisions are materialized-state inputs to the authoring process; they are not
-the changes themselves. A successful apply produces a new revision that records
-the deployment it came from and the based-on revision relationships needed to
-explain how the desired state was assembled.
-
-This is future revision-management behavior, not part of the MVP rollout path.
-The MVP only needs to retain enough state, deployment diff context, and lineage
-information that a future merge UI or API could construct a deployable state
-without treating revisions as mutable resources or individual change records.
+Environment lineage can also support merge workflows, but merge semantics
+remain future work. A merge would resolve environment-history deltas or
+checkpoints into a new orchestrator deployment. The selected revisions are
+inputs to authoring that deployment; they are not mutated and they are not
+applied directly.
 
 ## Service Relationship
 
 CloudShell already has an orchestrator-level Service abstraction.
 
-Deployments and revisions should build on this abstraction.
+Orchestrator deployments and environment revisions should build on this
+abstraction.
 
 A Service is the logical runtime grouping used by the orchestrator.
 
@@ -710,20 +676,21 @@ A Deployment defines the desired versioned runtime state for that Service.
 A Revision represents the concrete materialized outcome of executing that
 Deployment.
 
-Within a service, each materialized revision should have an orchestrator-owned
-replica grouping. This grouping is not a Kubernetes ReplicaSet and should not be
+Within a service, each materialized workload version that needs replicated
+runtime instances should have an orchestrator-owned replica grouping. This
+grouping is not a Kubernetes ReplicaSet and should not be
 introduced as a normal user-authored Resource Manager resource. The structure
-can look similar to Kubernetes because it needs to group runtime instances by
-revision, but CloudShell should reuse resource instances as the unit rather
-than inventing a pod concept. The replica group is the default way the
+can look similar to Kubernetes because it needs to group runtime instances by a
+deployment-applied runtime version, but CloudShell should reuse resource
+instances as the unit rather than inventing a pod concept. The replica group is the default way the
 orchestrator handles service replication. Resource providers and adjacent
 resources such as load balancers should consume the orchestrator-managed group
 when materializing runtime resources, while still being able to manipulate the
 group and its members individually when the target runtime has no higher-level
 primitive. It is the runtime boundary that lets the orchestrator track which
-replica resources belong to one service revision, compare requested and
+replica resources belong to one service runtime version, compare requested and
 materialized replica count, observe readiness, remap routing from one
-revision's replicas to another, and retire superseded replicas after cutover.
+replica group to another, and retire superseded replicas after cutover.
 
 The service, deployment, and revision concepts are intentionally provider
 neutral. The default local orchestrator maps them to convention-named
@@ -731,46 +698,47 @@ containers and ingress configuration. A Docker Compose orchestrator can map
 them to Compose services and generated configuration. A Kubernetes-oriented
 orchestrator can map them to Kubernetes workload and service resources. In each
 case CloudShell's model remains the same: desired state enters through a
-deployment, and the orchestrator reports the resulting revision.
+deployment, and the orchestrator records an environment revision for the
+resulting hosting-environment change.
 
 Example:
 
 ```text
 Service: api
- ├── Active Revision: api-r12
+ ├── Active runtime version: api-v2
  │    └── Replica Group
- │         ├── api-r12-1
- │         ├── api-r12-2
- │         └── api-r12-3
- ├── Previous Revision: api-r11
+ │         ├── api-v2-1
+ │         ├── api-v2-2
+ │         └── api-v2-3
+ ├── Previous runtime version: api-v1
  │    └── Replica Group
- │         ├── api-r11-1
- │         ├── api-r11-2
- │         └── api-r11-3
- └── Routing: active -> api-r12
+ │         ├── api-v1-1
+ │         ├── api-v1-2
+ │         └── api-v1-3
+ └── Routing: active -> api-v2
 ```
 
 The Service remains the stable runtime grouping primitive. The Replica Group is
-the revision-scoped runtime set inside that service.
+the deployment-scoped runtime set inside that service.
 
 Deployment and Revision add versioning, rollout history, and traceability.
 During deployment application, the requested runtime state should describe the
 stable service, the service routing or load-balancer configuration, and the
-replica group required for that revision. A deployment of image X with N
+replica group required for that runtime version. A deployment of workload X with N
 replicas should ask the orchestrator to materialize that runtime state, not ask
-the container app provider to manually own N runtime containers. That lets an
-orchestrator start a replacement replica group for a new image revision next to
-the currently serving group, update service routing or ingress to the new
+the source resource provider to manually own N runtime instances. That lets an
+orchestrator start a replacement replica group for a new workload version next
+to the currently serving group, update service routing or ingress to the new
 group, and then run a separate replica-group tear-down operation to drain or
-remove the superseded group. Ordinary active-revision scaling can reconcile the
+remove the superseded group. Ordinary active runtime scaling can reconcile the
 existing replica group by adding members during setup or tearing members down
-when the requested capacity decreases because it is capacity management for the
-current revision rather than a workload replacement.
+when the requested capacity decreases because it is capacity management rather
+than workload replacement.
 
-The current revision-scoped replica names are only the first materialization of
-this grouping. The orchestrator revision outcome should retain the materialized
-replica group snapshot so runtime replica resources can be associated with
-their deployment service and revision across materialization, readiness,
+The current deployment-scoped replica names are only the first materialization
+of this grouping. The orchestrator revision should retain or reference enough
+replica group state so runtime replica resources can be associated with their
+deployment service and environment revision across materialization, readiness,
 cutover, diagnostics, and cleanup.
 
 Replica-group tear-down is an orchestrator-provider boundary. A provider can
@@ -787,53 +755,48 @@ A resource should express desired runtime behavior.
 Example:
 
 ```text
-ContainerApp
- ├── Image
- ├── Environment
+Workload resource
+ ├── Workload version
+ ├── Runtime configuration
  ├── Ports
- ├── Replicas
+ ├── Requested replicas
  ├── Dependencies
  └── Runtime requirements
 ```
 
 The Resource Manager validates the resource and its graph relationships.
 
-The orchestrator computes the deployment, revision, service state, and runtime-managed sub-resources.
+The orchestrator applies the deployment, records the environment revision, and
+reconciles service state and runtime-managed sub-resources.
 
 This keeps resource definitions focused on intent rather than runtime implementation details.
-
-For example, a container app deployment may request image `api:v2` with three
-replicas. The container app records the app revision and asks the orchestrator
-to apply it. The orchestrator decides how to create the new runtime replicas,
-verify readiness, move the ingress or load-balancer mapping, and clean up the
-old runtime replicas.
 
 ## Orchestrator Responsibilities
 
 Orchestrators are responsible for:
 
 * creating deployments
-* producing revisions
+* recording environment revisions after successful apply
 * reconciling services
 * creating and removing replicas
 * applying rollout behavior
 * applying routing or load-balancer cutover
 * draining and cleaning up superseded runtime replicas
-* tracking active and previous revisions
+* tracking active and previous runtime groups and their environment history
 * defaulting deployment `BasedOnRevisionId` to the active or latest successful
-  revision when no explicit base is supplied
-* retaining the materialized revision state needed to author a later deployment
-  based on that revision
+  environment revision when no explicit base is supplied
+* retaining the environment history, deltas, or checkpoints needed to author a
+  later deployment from a prior environment state
 * returning revision outcomes with `DeploymentId`, `BasedOnRevisionId`, and
   `ProvisionedBy` for traceability
 * reporting deployment status
 * reporting revision status
 * mapping the common deployment model to backend-specific behavior
 
-Orchestrators should not own the product workflow named restore or merge. They
-own deployment application, revision outcome recording, based-on revision
-metadata, and enough materialized state for higher-level Resource Manager or
-provider workflows to author a future deployment from prior revision state.
+Orchestrators should not own product-specific workflows named restore or merge.
+They own deployment application, revision outcome recording, based-on revision
+metadata, and enough environment history for higher-level Resource Manager or
+provider workflows to author a future deployment from prior environment state.
 
 The default orchestrator may manage services and replicas directly using the default container host.
 
@@ -868,62 +831,62 @@ Example behavior:
 
 ```text
 Deployment created
-Revision created
 Service reconciled
 Replica resources created
 Containers started through default container host
-Revision marked active
+Environment revision recorded
+Runtime group marked active
 ```
 
 For scale changes:
 
 ```text
 Deployment updated
-Revision may or may not change depending on policy
 Service reconciled
 Replica count adjusted
+Environment revision recorded if runtime state changed
 ```
 
 For image or template changes:
 
 ```text
 Deployment updated
-New revision created
-New revision replicas created to the desired count next to current replicas
-Startup/readiness checks pass for the new replicas
-Traffic or endpoint routing switches to the new revision
+Replacement runtime group created to the desired count next to current replicas
+Startup/readiness checks pass for the replacement replicas
+Traffic or endpoint routing switches to the replacement group
 Old replicas drained or stopped after cutover
-Revision marked active
-Previous revision retained for history
+Environment revision recorded
+Previous runtime group retained or torn down according to policy
 ```
 
 ## Rollout and Availability Semantics
 
-Deployment-relevant updates to a running service should be revision-based.
-They should not mutate or restart the active revision in place. The old
-revision remains the serving version until the new revision is ready, unless
+Deployment-relevant updates to a running service should be side-by-side when
+availability matters. They should not mutate or restart the active runtime
+group in place unless the selected strategy permits disruption. The old runtime
+group remains the serving version until the replacement group is ready, unless
 the user explicitly chooses a disruptive strategy.
 
-The baseline rollout strategy for a container app should be:
+The baseline rollout strategy for a replicated service should be:
 
-1. Deploy a new revision from the requested image, environment, endpoint,
-   storage, identity, and requested replica settings.
-2. Materialize the new revision's runtime resources without deactivating the
-   current serving revision.
-3. Wait for the new revision to provision, reach the desired minimum serving
+1. Apply a deployment from the requested workload version, runtime
+   configuration, endpoint, storage, identity, and requested replica settings.
+2. Materialize the replacement runtime resources without deactivating the
+   current serving group.
+3. Wait for the replacement runtime group to provision, reach the desired minimum serving
    capacity, and pass startup/readiness or liveness gates that are relevant to
    routing.
-4. Switch traffic, ingress configuration, or endpoint routing to the new
-   revision.
-5. Drain or stop the old revision according to the rollout and retention
+4. Switch traffic, ingress configuration, or endpoint routing to the
+   replacement group.
+5. Drain or stop the old runtime group according to the rollout and retention
    policy.
 
 This model allows image updates to be combined with a requested replica count.
 For example, deploying `api:v2` with three replicas should create a new
-revision at three replicas, verify that enough replicas are ready, then switch
-serving traffic from the old revision to the new revision. If the new revision
-fails readiness, the old revision remains active and the failed revision stays
-inspectable for diagnostics.
+runtime group at three replicas, verify that enough replicas are ready, then
+switch serving traffic from the old group to the new group. If the new group
+fails readiness, the old group remains active and the failed deployment attempt
+stays inspectable for diagnostics.
 
 Deployment apply fails when the orchestrator cannot set up the requested
 runtime state: for example, the spec is invalid for the selected orchestrator,
@@ -937,17 +900,17 @@ records a failed deployment attempt and no orchestrator revision is produced.
 The selected orchestrator should then make a best-effort rollback of the
 deployment unit it was setting up, usually by tearing down the candidate replica
 group. Rollback failure must be logged but should not hide the original apply
-failure. Automatic restore to the previously serving state is a separate
-rollout policy, not the baseline meaning of deployment apply failure.
+failure. Automatic replay to a previously serving environment state is a
+separate rollout policy, not the baseline meaning of deployment apply failure.
 
 Advanced strategies such as blue/green, canary percentages, labels, gradual
-traffic shifting, and automatic restore-to-state can build on the same
-deployment and revision model. They are not required for the first
+traffic shifting, and automatic environment replay can build on the same
+deployment and environment-revision model. They are not required for the first
 implementation, but the baseline model should not force a full resource restart
 for image updates.
 
 Scale-only operations remain different. Increasing or decreasing replicas for
-the active revision reconciles runtime capacity and should not require traffic
+the active runtime group reconciles runtime capacity and should not require traffic
 cutover or replacement of healthy existing replicas unless an orchestrator's
 backend requires it. The replica group model should own the change calculation:
 scale-up sets up target group members, scale-down tears down previous group
@@ -971,7 +934,8 @@ Docker Compose does not provide the same revision model as Kubernetes, so CloudS
 
 ## Runtime-Managed Resource Relationship
 
-Deployments and revisions may create runtime-managed resources.
+Orchestrator deployments and environment revisions may create runtime-managed
+resources.
 
 Examples:
 
@@ -993,9 +957,9 @@ These runtime-managed resources should be associated with:
 Example:
 
 ```text
-ContainerApp
+Source resource
  └── Deployment api
-      └── Revision api-r12
+      └── Environment revision env-r12
            └── Service api
                 ├── Replica api-1
                 │    └── ContainerInstance
@@ -1009,29 +973,30 @@ This provides a clean ownership and diagnostic path from user intent to runtime 
 
 ## Lifecycle Management
 
-Deployments and revisions should participate in orchestration lifecycle operations.
+Orchestrator deployments and environment revisions should participate in
+orchestration lifecycle operations.
 
 ### Initial Deployment
 
 ```text
 Resource created
 Deployment created
-Revision created
 Service created
 Replicas created
 Runtime resources started
+Environment revision recorded
 ```
 
 ### Deploy Revision
 
 ```text
-Revision-relevant resource intent changed
-Deployment updated with new revision spec
-New revision created
-New revision replicas started next to active revision replicas
-New revision readiness verified
-Traffic or endpoint routing switched to new revision
-Previous revision retained, drained, or stopped according to policy
+Runtime-relevant resource intent changed
+Deployment updated with new desired runtime state
+Replacement replicas started next to active replicas
+Replacement readiness verified
+Traffic or endpoint routing switched to replacement replicas
+Previous replicas retained, drained, or stopped according to policy
+Environment revision recorded
 ```
 
 ### Scale Up
@@ -1052,17 +1017,17 @@ Excess replicas removed
 Revision association preserved
 ```
 
-### Restore From Revision
+### Replay Environment State
 
 ```text
-Previous app revision selected as restore source
-New deployment requested from previous revision template
-Orchestrator applies the restored runtime spec
-New runtime replicas started next to active revision replicas when needed
+Prior environment state selected from history or checkpoint
+New deployment authored from retained environment state
+Orchestrator applies the requested runtime state
+New runtime replicas started next to active replicas when needed
 Readiness verified
-Traffic or endpoint routing switched to restored runtime version
+Traffic or endpoint routing switched to replacement runtime group
 Superseded runtime replicas retained, drained, or stopped according to policy
-Restore deployment recorded in app revision history
+Environment revision recorded
 ```
 
 ### Delete
@@ -1077,27 +1042,28 @@ Owned runtime-managed resources deleted
 
 ## Diagnostics and Inspection
 
-Deployments and revisions should provide diagnostic value.
+Orchestrator deployments and environment revisions should provide diagnostic
+value.
 
 CloudShell should allow users and tooling to inspect:
 
-* active revision
-* previous revisions
-* failed revisions
+* active deployment
+* previous environment revisions
+* failed deployment attempts
 * deployment history
 * rollout events
 * replica state
-* runtime resources created by a revision
-* resource changes that caused a revision
-* logs and health state associated with revision-owned replicas
+* runtime resources affected by an environment revision
+* resource changes that caused an environment revision
+* logs and health state associated with deployment-owned replicas
 
 Example diagnostic view:
 
 ```text
-ContainerApp: api
+Source resource: api
  ├── Deployment
- │    ├── Active Revision: api-r12
- │    ├── Previous Revision: api-r11
+ │    ├── Active Environment Revision: env-r12
+ │    ├── Previous Environment Revision: env-r11
  │    └── Status: Healthy
  └── Runtime
       ├── Replica api-1: Running
@@ -1111,7 +1077,8 @@ The API should expose deployment and revision information through the orchestrat
 
 Normal resource views may show:
 
-* active revision
+* active deployment
+* active environment revision id
 * deployment status
 * replica count
 * rollout status
@@ -1119,24 +1086,24 @@ Normal resource views may show:
 Advanced views may show:
 
 * deployment details
-* revision history
-* revision diff
+* environment revision history
+* environment revision diff
 * replica ownership
 * runtime-managed resources
 * rollout events
-* restore actions
+* environment replay diagnostics
 
 Example:
 
 ```text
-ContainerApp
+Source resource
  ├── Status
  ├── Endpoints
  ├── Dependencies
  ├── Deployment
- │    ├── Active Revision
+ │    ├── Active Environment Revision
  │    ├── Rollout Status
- │    └── Revision History
+ │    └── Environment History
  └── Runtime Resources
 ```
 
@@ -1160,27 +1127,27 @@ The current implementation already has the internal foundation:
    directly.
 6. Container app image deployment is the first consumer: it records app-owned
    deployment/revision history and asks Resource Manager deployment to apply
-   the described runtime state.
+   the described runtime state. The app-owned revision model itself is defined
+   in the container app proposal.
 7. Provider-owned post-apply cleanup descriptions can identify superseded
    replica groups for explicit tear-down. Container apps use this first for
    superseded local runtime replicas.
 8. Active-revision replica scaling uses the replica-group change model.
 9. Stable resources and runtime-managed resources can carry deployment,
-   service, revision, and replica-group correlation metadata. Container apps
-   and their hidden runtime replicas are the first projection path.
-10. The container app Deployment tab focuses on deploying an image and reading
-    deployment, readiness, rollback, and cleanup events. The Revisions tab
-    separately shows the current and previous materialized app states so users
-    can inspect versioned outcomes without needing revisions for the initial
-    deployment workflow.
+   service, orchestrator revision, and replica-group correlation metadata.
+   Container apps and their hidden runtime replicas are the first projection
+   path.
+10. Resource UI surfaces can show deployment, readiness, rollback, cleanup, and
+    environment-history events without making users manage orchestrator
+    deployment objects directly.
 11. Post-apply cleanup of superseded replica groups is best-effort. Cleanup
     failures are warning diagnostics on the applied deployment rather than a
-    failure of the active revision.
+    failure of the active runtime group or active environment revision.
 
 The next MVP changes should stay focused:
 
 1. Keep rollback scoped to tearing down the candidate replica group. Do not add
-   automatic restore-to-state or traffic policy machinery for MVP.
+   automatic environment replay or traffic policy machinery for MVP.
 2. Add configurable retention and cleanup policies after the basic
    best-effort cleanup model is credible.
 3. Add focused tests around failed deployment projection, readiness-gated
@@ -1192,52 +1159,51 @@ The next MVP changes should stay focused:
 
 ## Remaining Tasks
 
-* Decide which resources should opt into deployment semantics after container
-  apps prove the first path.
-* Decide which fields are revision-relevant beyond image and requested
-  replicas.
+* Decide which resources should opt into deployment semantics after the first
+  container app path proves the model.
+* Decide which fields are environment-revision-relevant beyond workload version
+  and requested replicas.
 * Define the boundary between scale-only operations that preserve the active
-  revision and deployment operations that include requested replica count in a
-  new revision.
+  runtime group and deployment operations that replace the runtime group.
 * Decide how revision-scoped replica groups should be surfaced for richer
   inspection beyond the internal revision outcome and projected resource
   metadata.
 * Define how long revisions are retained.
-* Define restore behavior for each orchestrator. Restoring to the state
-  captured by an old app revision should create a new deployment based on that
-  state, not reactivate the old revision in place.
-* Define how much materialized revision state must be retained to author future
-  based-on deployments beyond the current revision outcome and replica-group
-  snapshot.
-* Define revision merge behavior as a deployment-authoring workflow that
-  produces a final deployable state from selected revision state snapshots,
-  using deployment records for diff context.
-* Define revision diff format.
+* Define environment replay behavior for each orchestrator.
+* Define how much environment history, state, or checkpoint data must be
+  retained to author future based-on deployments beyond the current revision
+  outcome and replica-group snapshot.
+* Define environment-history merge behavior as a deployment-authoring workflow
+  that produces a final deployable runtime state from selected history state or
+  deltas, using deployment records for diff context.
+* Define environment revision diff format.
 * Define endpoint cutover, drain behavior, and failure handling beyond the
   current routing milestones and rollback events.
-* Define whether revisions are represented as runtime-managed resources or orchestrator metadata.
+* Define whether environment revisions are represented as runtime-managed
+  resources or orchestrator metadata.
 * Define how deployment events integrate with traceability.
 * Define how deployment state is persisted across orchestrator restarts.
 
 ## Open Questions
 
 * Should Deployment be represented as a runtime-managed resource, orchestrator metadata, or both?
-* Should Revision be represented as a runtime-managed resource, orchestrator metadata, or both?
-* Which scale changes are active-revision capacity changes, and which scale
-  changes are revision-scoped template changes?
-* Should failed revisions remain visible by default?
-* Which based-on revision fields should a state-restore deployment and its
-  resulting revision expose, and which deployment/change records provide diff
-  context?
-* Which conflict model should state merge from revisions use when selected
-  revision states contain different values for the same resource field?
+* Should Environment Revision be represented as a runtime-managed resource,
+  orchestrator metadata, or both?
+* Which scale changes are active runtime capacity changes, and which scale
+  changes are replacement runtime-group changes?
+* Should failed deployment attempts remain visible by default?
+* Which based-on revision fields should an environment replay deployment and
+  its resulting revision expose, and which deployment/change records provide
+  diff context?
+* Which conflict model should environment-state merge use when selected
+  history states contain different values for the same runtime field?
 * How should Docker Compose revisions be represented when Compose has no native revision concept?
 * How should deployments be garbage-collected when source resources are deleted?
 * Should deployment history be stored in the Resource Manager or orchestrator state?
 * How should authorization work for inspecting revisions and runtime-managed resources?
 * What minimum deployment behavior must every orchestrator implement?
 * Should advanced rollout strategies be part of the first version?
-* What is the minimum readiness gate for switching traffic to a new revision
+* What is the minimum readiness gate for switching traffic to a replacement group
   when no explicit health checks are declared?
 * How should deployment and revision events appear in audit logs?
 * How should deployment state be reconciled if runtime state has drifted?

@@ -61,8 +61,8 @@ on `git blame --follow`, and then by the broad type of change.
   as warning activity instead of failing an already-applied revision.
 - Container app Resource Manager UI now separates the deployment operation
   from revision inspection: the Deployment tab focuses on deploying an image
-  and reading deployment events, while the new Revisions tab shows the current
-  and previous materialized app states.
+  and reading deployment events, while the new Revisions tab shows current and
+  previous app configuration revisions.
 - The deployment/revision and container app proposals now define the internal
   MVP as a generalized Resource Manager orchestration deployment model, with
   container apps as the first validation path while leaving public deployment
@@ -94,6 +94,12 @@ on `git blame --follow`, and then by the broad type of change.
 - Container app revision records now carry app-local revision numbers and the
   provisioned-by actor, and the Revisions tab uses the revision number as the
   visible identifier while retaining the unique revision id in metadata.
+- The deployment/revision proposal has been split by ownership: container app
+  revisions are documented as app-owned configuration-management snapshots,
+  while orchestrator revisions are documented as environment-history records
+  produced by applying desired runtime state. The orchestrator deployment is
+  the primary operational object; the environment revision is historical
+  traceability.
 - Resource Manager deployment coordination now lives separately from
   orchestration execution under dedicated Deployment and Orchestration
   namespaces, with the default deployment service reusable for orchestrators

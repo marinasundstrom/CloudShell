@@ -261,6 +261,13 @@ not need to be modeled as a service, deployment, revision, or replica group.
 Those concepts are added for the complexity that appears when running systems
 scale, need versioned runtime configuration, or need several materialized
 resources to behave as one runtime service.
+Most resources therefore represent things that exist in the environment or
+configuration that other workloads use. Workload resources such as container
+apps can actively affect the environment: they ask Resource Manager
+orchestration to deploy and reconcile runtime resources, such as service
+bindings, replica groups, routing targets, and runtime containers. Deployment
+and environment-revision tracking belongs to that runtime-changing path, not
+to every resource merely because it participates in the resource graph.
 
 Orchestrators materialize a scaled container app by producing an
 orchestration-level runtime service descriptor. In CloudShell's orchestration
@@ -301,18 +308,22 @@ orchestrators are Resource Manager execution components that manage CloudShell
 runtime resources and their runtime configuration. An
 orchestrator deployment represents the desired runtime state for a resource, as
 specified by the actor deploying the workload. An orchestrator revision
-represents the outcome: the materialized runtime resources and configuration
-reported after the selected orchestrator executes that desired state. For
-container apps, the app submits a deployment that says "this is the runtime
-state I want"; when the orchestrator completes, the returned revision holds the
-materialized service state, including the replica group from which the app can
-correlate or project runtime replica resources. Deployment apply is
+represents the environment-history outcome: the change record produced after
+the selected orchestrator applies that desired runtime state. At this layer,
+the deployment is the object Resource Manager asks the orchestrator to apply;
+the revision is the historical record of the environment change that followed.
+For container
+apps, the app submits a deployment that says "this is the runtime state I
+want"; when the orchestrator completes, the resulting environment revision and
+materialization data let the app correlate or project runtime replica
+resources without sharing identity with the app-owned configuration revision.
+Deployment apply is
 incremental: specified runtime resources are created or updated by id, while
 removing runtime resources is a separate tear-down operation such as scaling
-down a replica group, retiring a superseded revision, or cleaning up the
+down a replica group, retiring a superseded runtime group, or cleaning up the
 resources that belong to an orchestration service. A failed deployment attempt
-is an apply failure, not a materialized outcome, so it does not produce an
-orchestrator revision. The orchestrator should log the failure and attempt
+is an apply failure, not an environment-history outcome, so it does not produce
+an orchestrator revision. The orchestrator should log the failure and attempt
 best-effort rollback of the deployment unit it was setting up. Runtime health
 problems after setup are resource health unless they were declared as part of a
 deployment readiness gate. A resource can still be managed directly by Resource
@@ -322,10 +333,10 @@ available for internal container-app, provider, and orchestrator implementation
 work before they are announced as a public management surface. The Control
 Plane exposes an internal deployment-apply boundary that dispatches a
 deployment to the selected orchestrator instead of having the resource domain
-manipulate runtime replicas directly. A container app revision answers
-application-version questions; an orchestrator deployment and revision answer
-what CloudShell runtime state was requested, what runtime resources and
-configuration were materialized, and which service/runtime resources resulted.
+manipulate runtime replicas directly. A container app revision answers app
+configuration-version questions; an orchestrator deployment and environment
+revision answer what CloudShell runtime state was requested, what hosting
+environment changed, and which service/runtime resources were affected.
 
 This model is not a Kubernetes copy. CloudShell orchestrators are an abstraction
 for executing desired runtime state. A custom orchestrator can implement the
