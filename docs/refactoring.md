@@ -78,7 +78,7 @@ without forcing provider-specific logic into shared helpers.
   application definition/query facade, projection service, container app
   deployment/revision service, runtime process/container runner support, and
   provider operation adapters.
-- [ ] Add a diagram to the provider/application-resource docs showing the
+- [x] Add a diagram to the provider/application-resource docs showing the
   layering from raw Resource Provider infrastructure to Application Resource
   Provider infrastructure and the dogfooded implementors: Container app,
   Executable app, and ASP.NET Core Web project.

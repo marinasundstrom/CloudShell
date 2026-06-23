@@ -72,6 +72,9 @@ on `git blame --follow`, and then by the broad type of change.
 - ASP.NET Core Web project runtime environment and dotnet run/watch argument
   policy now live in ASP.NET Core project provider-owned units with direct
   tests, while shared application infrastructure delegates to them.
+- Application resource documentation now includes a provider layering diagram
+  that separates raw Resource Provider infrastructure, the Application Resource
+  Provider toolkit, and the built-in dogfooded application resource providers.
 - Development workflow docs now call out local Docker daemon crash handling for
   Docker-backed sample verification, including using `docker info` to
   distinguish host/runtime failures from product regressions.

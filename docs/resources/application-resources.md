@@ -50,6 +50,48 @@ templates, and orchestration. This keeps each provider responsible for its own
 resource boundary while avoiding repeated implementation work for behavior
 that application-style resources naturally share.
 
+```mermaid
+flowchart TB
+    subgraph Raw["Raw Resource Provider infrastructure"]
+        Contracts["IResourceProvider and related provider contracts"]
+        ResourceManager["Resource Manager coordination"]
+        Projection["Uniform Resource projection"]
+    end
+
+    subgraph Toolkit["Application Resource Provider infrastructure"]
+        Definition["ApplicationResourceDefinition"]
+        BaseProvider["ApplicationResourceTypeProvider"]
+        SharedRuntime["Shared process, container, log, endpoint, volume, and projection helpers"]
+        RoleContracts["Provider-facing role contracts"]
+    end
+
+    subgraph Implementors["Dogfooded application resource providers"]
+        Executable["Executable app provider"]
+        AspNet["ASP.NET Core Web project provider"]
+        Container["Container app provider"]
+        SqlServer["SQL Server application provider"]
+    end
+
+    Contracts --> Toolkit
+    ResourceManager --> RoleContracts
+    Projection --> BaseProvider
+    Definition --> BaseProvider
+    SharedRuntime --> BaseProvider
+    RoleContracts --> BaseProvider
+    BaseProvider --> Executable
+    BaseProvider --> AspNet
+    BaseProvider --> Container
+    BaseProvider --> SqlServer
+```
+
+The layering is intentional. Raw resource provider contracts are the lowest
+extension point for any resource type. Application Resource Provider
+infrastructure is a toolkit over those contracts for application-like
+resources. The built-in executable app, ASP.NET Core Web project, container
+app, and SQL Server providers dogfood that toolkit but should still own their
+resource-type-specific configuration, validation, lifecycle policy, projection
+policy, and operation semantics.
+
 The application-resource abstraction is intended to give provider authors as
 much as possible for free. A provider should describe the resource's authored
 shape, endpoints, configuration, dependencies, environment variables,
