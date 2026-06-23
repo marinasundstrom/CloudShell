@@ -676,16 +676,17 @@ public sealed partial class ApplicationResourceService(
         if (updatedReplicas > previousReplicas)
         {
             var service = CreateActiveContainerOrchestratorService(updated);
+            var replicaGroup = CreateDefaultContainerReplicaGroup(service);
             await PrepareOrchestratorServiceAsync(
-                new ResourceOrchestratorServiceProcedureContext(context, service),
+                new ResourceOrchestratorServiceProcedureContext(context, service, replicaGroup),
                 ResourceAction.Start,
                 cancellationToken);
 
-            foreach (var instance in CreateDefaultContainerServiceInstances(service)
+            foreach (var instance in replicaGroup.Instances
                          .Where(instance => instance.ReplicaOrdinal > previousReplicas))
             {
                 await ExecuteOrchestratorServiceInstanceAsync(
-                    new ResourceOrchestratorServiceInstanceContext(context, service, instance),
+                    new ResourceOrchestratorServiceInstanceContext(context, service, instance, replicaGroup),
                     ResourceAction.Start,
                     cancellationToken);
             }
@@ -1668,6 +1669,7 @@ public sealed partial class ApplicationResourceService(
             cancellationToken,
             procedureContext);
         var service = CreateActiveContainerOrchestratorService(runtimeDefinition);
+        var replicaGroup = CreateDefaultContainerReplicaGroup(service);
         procedureContext?.AppendProviderEvent(
             Id,
             "application.container.service.preparing",
@@ -1684,14 +1686,15 @@ public sealed partial class ApplicationResourceService(
                     procedureContext?.TriggeredBy,
                     procedureContext?.Cause,
                     procedureContext?.ResourceEvents),
-                service),
+                service,
+                replicaGroup),
             ResourceAction.Start,
             cancellationToken);
         procedureContext?.AppendProviderEvent(
             Id,
             "application.container.service.prepared",
             $"Application provider prepared container service '{service.Name}' for '{runtimeDefinition.Name}'.");
-        foreach (var instance in CreateDefaultContainerServiceInstances(service))
+        foreach (var instance in replicaGroup.Instances)
         {
             await StartContainerApplicationInstanceAsync(
                 runtimeDefinition,
@@ -3460,8 +3463,9 @@ public sealed partial class ApplicationResourceService(
                 application,
                 state,
                 runtimeRevisionScoped: true);
+            var replicaGroup = CreateDefaultContainerReplicaGroup(deployment.Spec.Service);
             var materializedReplicas = IsReplicaModeEnabled(application)
-                ? CreateDefaultContainerServiceInstances(deployment.Spec.Service).Count()
+                ? replicaGroup.MaterializedReplicas
                 : 0;
 
             attributes[ResourceAttributeNames.ContainerReplicas] =
@@ -3485,6 +3489,7 @@ public sealed partial class ApplicationResourceService(
                 materializedReplicas.ToString(CultureInfo.InvariantCulture);
             attributes[ResourceAttributeNames.DeploymentProjectedReplicas] =
                 materializedReplicas.ToString(CultureInfo.InvariantCulture);
+            attributes[ResourceAttributeNames.DeploymentReplicaGroupId] = replicaGroup.Id;
         }
 
         if (!IsProjectBacked(application) && !IsContainerBacked(application))

@@ -21,6 +21,10 @@ on `git blame --follow`, and then by the broad type of change.
   revision-scoped runtime names so container app image deployments can start new
   replica containers beside the currently serving revision before routing
   cutover.
+- Orchestrator services now derive an explicit revision-scoped replica group
+  for materialized resource instances, and container app runtime replica
+  resources expose the group id alongside deployment, service, and revision
+  metadata.
 - Default orchestrator deployment apply now has a provider finalization hook,
   and the container app provider uses it to retire superseded local runtime
   replicas after the new revision has been materialized and routing has been

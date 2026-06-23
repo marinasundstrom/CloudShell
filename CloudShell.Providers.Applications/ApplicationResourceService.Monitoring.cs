@@ -161,11 +161,12 @@ public sealed partial class ApplicationResourceService
         var metrics = new List<ResourceMetricSample>();
         var unavailableMessages = new List<string>();
         var available = 0;
-        var instances = CreateDefaultContainerServiceInstances(deployment.Spec.Service).ToArray();
+        var replicaGroup = CreateDefaultContainerReplicaGroup(deployment.Spec.Service);
+        var instances = replicaGroup.Instances;
 
         foreach (var instance in instances)
         {
-            var replicaResource = CreateRuntimeContainerResource(application, deployment, instance, state);
+            var replicaResource = CreateRuntimeContainerResource(application, deployment, replicaGroup, instance, state);
             var snapshot = await GetContainerMonitoringSnapshotAsync(
                 replicaResource,
                 engine,
@@ -186,7 +187,7 @@ public sealed partial class ApplicationResourceService
             }
         }
 
-        if (available == instances.Length)
+        if (available == replicaGroup.MaterializedReplicas)
         {
             return new ResourceMonitoringSnapshot(
                 resource.Id,
@@ -194,7 +195,7 @@ public sealed partial class ApplicationResourceService
                 DateTimeOffset.UtcNow,
                 metrics,
                 "Available",
-                $"{available.ToString(CultureInfo.InvariantCulture)}/{instances.Length.ToString(CultureInfo.InvariantCulture)} replica monitoring snapshots are available.");
+                $"{available.ToString(CultureInfo.InvariantCulture)}/{replicaGroup.MaterializedReplicas.ToString(CultureInfo.InvariantCulture)} replica monitoring snapshots are available.");
         }
 
         if (available > 0)
@@ -205,7 +206,7 @@ public sealed partial class ApplicationResourceService
                 DateTimeOffset.UtcNow,
                 metrics,
                 "Degraded",
-                $"{available.ToString(CultureInfo.InvariantCulture)}/{instances.Length.ToString(CultureInfo.InvariantCulture)} replica monitoring snapshots are available.");
+                $"{available.ToString(CultureInfo.InvariantCulture)}/{replicaGroup.MaterializedReplicas.ToString(CultureInfo.InvariantCulture)} replica monitoring snapshots are available.");
         }
 
         return new ResourceMonitoringSnapshot(

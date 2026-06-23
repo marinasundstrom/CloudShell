@@ -228,6 +228,7 @@ public static class ResourceAttributeNames
     public const string DeploymentDesiredReplicas = "deployment.replicas.desired";
     public const string DeploymentMaterializedReplicas = "deployment.replicas.materialized";
     public const string DeploymentProjectedReplicas = "deployment.replicas.projected";
+    public const string DeploymentReplicaGroupId = "deployment.replicaGroup.id";
     public const string RuntimeKind = "runtime.kind";
     public const string RuntimeContainerName = "runtime.container.name";
     public const string RuntimeReplicaOrdinal = "runtime.replica.ordinal";

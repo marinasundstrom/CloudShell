@@ -850,8 +850,8 @@ ContainerApp
 * Define the boundary between scale-only operations that preserve the active
   revision and deployment operations that include requested replica count in a
   new revision.
-* Define the revision-scoped replica grouping model that tracks runtime replica
-  resources within a deployment service across revisions.
+* Decide how revision-scoped replica groups should be persisted and observed
+  beyond the current derived in-memory model and projected resource metadata.
 * Define how long revisions are retained.
 * Define restore behavior for each orchestrator. Restoring an old app revision
   should create a new deployment sourced from that revision, not reactivate the

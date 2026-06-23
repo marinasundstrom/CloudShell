@@ -9,26 +9,40 @@ public sealed record ResourceOrchestratorServiceInstance(
     int ReplicaCount,
     string? RuntimeRevisionId = null);
 
+public sealed record ResourceOrchestratorReplicaGroup(
+    string Id,
+    string ServiceId,
+    string? RuntimeRevisionId,
+    int RequestedReplicas,
+    IReadOnlyList<ResourceOrchestratorServiceInstance> Instances)
+{
+    public int MaterializedReplicas => Instances.Count;
+}
+
 public static class ResourceOrchestratorServiceInstances
 {
     public static IReadOnlyList<ResourceOrchestratorServiceInstance> CreateDefaultInstances(
-        ResourceOrchestratorService service)
-    {
-        var runtimeRevision = NormalizeRuntimeRevisionId(service.RuntimeRevisionId);
-        return runtimeRevision is null
-            ? CreateInstances(service, runtimeRevision)
-            : CreateRevisionInstances(service, runtimeRevision);
-    }
+        ResourceOrchestratorService service) =>
+        CreateDefaultReplicaGroup(service).Instances;
 
     public static IReadOnlyList<ResourceOrchestratorServiceInstance> CreateRevisionInstances(
+        ResourceOrchestratorService service,
+        string runtimeRevisionId) =>
+        CreateRevisionReplicaGroup(service, runtimeRevisionId).Instances;
+
+    public static ResourceOrchestratorReplicaGroup CreateDefaultReplicaGroup(
+        ResourceOrchestratorService service) =>
+        CreateReplicaGroup(service, NormalizeRuntimeRevisionId(service.RuntimeRevisionId));
+
+    public static ResourceOrchestratorReplicaGroup CreateRevisionReplicaGroup(
         ResourceOrchestratorService service,
         string runtimeRevisionId)
     {
         var revision = NormalizeRuntimeRevisionId(runtimeRevisionId) ?? "revision";
-        return CreateInstances(service, revision);
+        return CreateReplicaGroup(service, revision);
     }
 
-    private static IReadOnlyList<ResourceOrchestratorServiceInstance> CreateInstances(
+    private static ResourceOrchestratorReplicaGroup CreateReplicaGroup(
         ResourceOrchestratorService service,
         string? runtimeRevisionId)
     {
@@ -44,7 +58,12 @@ public static class ResourceOrchestratorServiceInstances
                 runtimeRevisionId);
         }
 
-        return instances;
+        return new ResourceOrchestratorReplicaGroup(
+            CreateReplicaGroupId(service.Name, runtimeRevisionId),
+            service.Name,
+            runtimeRevisionId,
+            service.Replicas,
+            instances);
     }
 
     public static string CreateDefaultServiceName(string resourceId)
@@ -81,6 +100,16 @@ public static class ResourceOrchestratorServiceInstances
             : $"{serviceName}-{revision}-replica-{Math.Max(1, replicaOrdinal).ToString(CultureInfo.InvariantCulture)}";
     }
 
+    public static string CreateReplicaGroupId(
+        string serviceName,
+        string? runtimeRevisionId)
+    {
+        var revision = NormalizeRuntimeRevisionId(runtimeRevisionId);
+        return revision is null
+            ? $"{serviceName}-replicas"
+            : $"{serviceName}-{revision}-replicas";
+    }
+
     private static string? NormalizeRuntimeRevisionId(string? runtimeRevisionId)
     {
         if (string.IsNullOrWhiteSpace(runtimeRevisionId))
@@ -103,17 +132,20 @@ public static class ResourceOrchestratorServiceInstances
 
 public sealed record ResourceOrchestratorServiceProcedureContext(
     ResourceProcedureContext ResourceContext,
-    ResourceOrchestratorService Service);
+    ResourceOrchestratorService Service,
+    ResourceOrchestratorReplicaGroup? ReplicaGroup = null);
 
 public sealed record ResourceOrchestratorServiceInstanceContext(
     ResourceProcedureContext ResourceContext,
     ResourceOrchestratorService Service,
-    ResourceOrchestratorServiceInstance Instance);
+    ResourceOrchestratorServiceInstance Instance,
+    ResourceOrchestratorReplicaGroup? ReplicaGroup = null);
 
 public sealed record ResourceOrchestratorDeploymentProcedureContext(
     ResourceProcedureContext ResourceContext,
     ResourceOrchestratorService Service,
-    ResourceOrchestratorDeployment Deployment);
+    ResourceOrchestratorDeployment Deployment,
+    ResourceOrchestratorReplicaGroup? ReplicaGroup = null);
 
 public interface IResourceOrchestratorServiceProcedureProvider
 {

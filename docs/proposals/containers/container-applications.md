@@ -198,8 +198,11 @@ Implemented pieces include:
   deployment-apply boundary for future container app runtime materialization
 * deployment-applied container app replicas use revision-scoped runtime
   container names so a new image revision can materialize beside the currently
-  serving revision before ingress/routing cutover. This is the first local
-  implementation of the broader revision-scoped replica grouping model.
+  serving revision before ingress/routing cutover
+* orchestrator services derive an explicit revision-scoped replica group for
+  runtime resource instances, and projected container app replicas carry the
+  group id so replicas can be tracked as a set across materialization,
+  readiness, routing, diagnostics, drain, and cleanup
 * the container app provider retires superseded local runtime replicas through
   the default orchestrator deployment finalization hook after the replacement
   revision has been materialized and routing milestones have been recorded

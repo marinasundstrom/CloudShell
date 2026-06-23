@@ -17,14 +17,16 @@ public sealed partial class ApplicationResourceService
             application,
             parentState,
             runtimeRevisionScoped: true);
-        return CreateDefaultContainerServiceInstances(deployment.Spec.Service)
-            .Select(instance => CreateRuntimeContainerResource(application, deployment, instance, parentState))
+        var replicaGroup = CreateDefaultContainerReplicaGroup(deployment.Spec.Service);
+        return replicaGroup.Instances
+            .Select(instance => CreateRuntimeContainerResource(application, deployment, replicaGroup, instance, parentState))
             .ToArray();
     }
 
     private Resource CreateRuntimeContainerResource(
         ApplicationResourceDefinition application,
         ResourceOrchestratorDeployment deployment,
+        ResourceOrchestratorReplicaGroup replicaGroup,
         ResourceOrchestratorServiceInstance instance,
         ResourceState state)
     {
@@ -34,6 +36,7 @@ public sealed partial class ApplicationResourceService
             [ResourceAttributeNames.DeploymentId] = deployment.Id,
             [ResourceAttributeNames.DeploymentServiceId] = deployment.ServiceId,
             [ResourceAttributeNames.DeploymentRevision] = deployment.RevisionId,
+            [ResourceAttributeNames.DeploymentReplicaGroupId] = replicaGroup.Id,
             [ResourceAttributeNames.RuntimeKind] = "containerReplica",
             [ResourceAttributeNames.RuntimeContainerName] = instance.Name,
             [ResourceAttributeNames.RuntimeReplicaOrdinal] = instance.ReplicaOrdinal.ToString(CultureInfo.InvariantCulture),

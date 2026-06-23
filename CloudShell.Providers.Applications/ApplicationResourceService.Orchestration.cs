@@ -102,7 +102,8 @@ public sealed partial class ApplicationResourceService
             "application.container.revision.retiring",
             $"Application provider is retiring superseded container app revision '{sourceRevisionId}' for '{application.Name}'.");
 
-        foreach (var instance in CreateDefaultContainerServiceInstances(sourceService)
+        var sourceReplicaGroup = CreateDefaultContainerReplicaGroup(sourceService);
+        foreach (var instance in sourceReplicaGroup.Instances
                      .OrderByDescending(instance => instance.ReplicaOrdinal))
         {
             await StopContainerApplicationInstanceAsync(
@@ -148,7 +149,11 @@ public sealed partial class ApplicationResourceService
 
     private static IEnumerable<ResourceOrchestratorServiceInstance> CreateDefaultContainerServiceInstances(
         ResourceOrchestratorService service) =>
-        ResourceOrchestratorServiceInstances.CreateDefaultInstances(service);
+        CreateDefaultContainerReplicaGroup(service).Instances;
+
+    private static ResourceOrchestratorReplicaGroup CreateDefaultContainerReplicaGroup(
+        ResourceOrchestratorService service) =>
+        ResourceOrchestratorServiceInstances.CreateDefaultReplicaGroup(service);
 
     private static ResourceOrchestratorDeploymentStatus GetContainerOrchestratorDeploymentStatus(
         ResourceState state) =>

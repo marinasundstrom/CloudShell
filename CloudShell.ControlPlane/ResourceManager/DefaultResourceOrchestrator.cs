@@ -167,8 +167,10 @@ public sealed class DefaultResourceOrchestrator(
                 $"Reconciling orchestrator service '{deployment.ServiceId}' for deployment '{deployment.Id}'.");
         }
 
+        var replicaGroup = ResourceOrchestratorServiceInstances.CreateDefaultReplicaGroup(service);
+
         await provider.PrepareOrchestratorServiceAsync(
-            new ResourceOrchestratorServiceProcedureContext(resourceContext, service),
+            new ResourceOrchestratorServiceProcedureContext(resourceContext, service, replicaGroup),
             action,
             cancellationToken);
 
@@ -180,7 +182,7 @@ public sealed class DefaultResourceOrchestrator(
                 $"Reconciled orchestrator service '{deployment.ServiceId}' for deployment '{deployment.Id}'.");
         }
 
-        foreach (var instance in ResourceOrchestratorServiceInstances.CreateDefaultInstances(service))
+        foreach (var instance in replicaGroup.Instances)
         {
             var replicaPosition = FormatReplicaPosition(instance);
             if (deployment is not null)
@@ -192,7 +194,7 @@ public sealed class DefaultResourceOrchestrator(
             }
 
             await provider.ExecuteOrchestratorServiceInstanceAsync(
-                new ResourceOrchestratorServiceInstanceContext(resourceContext, service, instance),
+                new ResourceOrchestratorServiceInstanceContext(resourceContext, service, instance, replicaGroup),
                 action,
                 cancellationToken);
 
@@ -225,7 +227,7 @@ public sealed class DefaultResourceOrchestrator(
                 ResourceEventTypes.Events.Deployment.Finalizing,
                 $"Finalizing deployment '{deployment.Id}' for revision '{deployment.RevisionId}'.");
             await provider.CompleteOrchestratorDeploymentAsync(
-                new ResourceOrchestratorDeploymentProcedureContext(resourceContext, service, deployment),
+                new ResourceOrchestratorDeploymentProcedureContext(resourceContext, service, deployment, replicaGroup),
                 cancellationToken);
             AppendDeploymentEvent(
                 resourceContext,

@@ -9373,6 +9373,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("3", app.ResourceAttributes[ResourceAttributeNames.DeploymentDesiredReplicas]);
         Assert.Equal("3", app.ResourceAttributes[ResourceAttributeNames.DeploymentMaterializedReplicas]);
         Assert.Equal("3", app.ResourceAttributes[ResourceAttributeNames.DeploymentProjectedReplicas]);
+        Assert.False(string.IsNullOrWhiteSpace(app.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaGroupId]));
         Assert.Equal("true", app.ResourceAttributes[ResourceAttributeNames.ContainerReplicasEnabled]);
         Assert.Equal(
             app.ResourceAttributes[ResourceAttributeNames.ContainerRevision],
@@ -9433,6 +9434,9 @@ public sealed class ResourceDeclarationTests
             Assert.Equal(
                 app.ResourceAttributes[ResourceAttributeNames.DeploymentRevision],
                 replica.ResourceAttributes[ResourceAttributeNames.DeploymentRevision]);
+            Assert.Equal(
+                app.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaGroupId],
+                replica.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaGroupId]);
             Assert.Equal(
                 app.ResourceAttributes[ResourceAttributeNames.ContainerRevision],
                 replica.ResourceAttributes[ResourceAttributeNames.RuntimeRevision]);
@@ -10608,6 +10612,11 @@ public sealed class ResourceDeclarationTests
             runtimeReplicas
                 .Select(replica => replica.ResourceAttributes[ResourceAttributeNames.RuntimeContainerName])
                 .ToArray());
+        Assert.All(
+            runtimeReplicas,
+            replica => Assert.Equal(
+                $"cloudshell-application-api-{updated.ContainerRevision}-replicas",
+                replica.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaGroupId]));
         Assert.Equal(
             $"Deployed api image 'example/api:20260608' and produced revision '{updated.ContainerRevision}'.",
             result.Message);

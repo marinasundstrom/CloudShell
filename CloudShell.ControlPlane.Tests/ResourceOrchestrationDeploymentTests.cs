@@ -38,6 +38,13 @@ public sealed class ResourceOrchestrationDeploymentTests
         var preparedService = Assert.Single(provider.PreparedServices);
         Assert.Equal(deployment.Spec.Service.Name, preparedService.Name);
         Assert.Equal(deployment.RevisionId, preparedService.RuntimeRevisionId);
+        var preparedContext = Assert.Single(provider.PreparedContexts);
+        Assert.NotNull(preparedContext.ReplicaGroup);
+        Assert.Equal("cloudshell-application-api-rev-2-replicas", preparedContext.ReplicaGroup.Id);
+        Assert.Equal(deployment.ServiceId, preparedContext.ReplicaGroup.ServiceId);
+        Assert.Equal(deployment.RevisionId, preparedContext.ReplicaGroup.RuntimeRevisionId);
+        Assert.Equal(3, preparedContext.ReplicaGroup.RequestedReplicas);
+        Assert.Equal(3, preparedContext.ReplicaGroup.MaterializedReplicas);
         Assert.Equal(
             [1, 2, 3],
             provider.ExecutedInstances
@@ -59,10 +66,14 @@ public sealed class ResourceOrchestrationDeploymentTests
             instance => Assert.Equal(deployment.RevisionId, instance.Instance.RuntimeRevisionId));
         Assert.All(
             provider.ExecutedInstances,
+            instance => Assert.Equal(preparedContext.ReplicaGroup, instance.ReplicaGroup));
+        Assert.All(
+            provider.ExecutedInstances,
             instance => Assert.Equal(deployment.Spec.Service.Name, instance.Service.Name));
         var completedDeployment = Assert.Single(provider.CompletedDeployments);
         Assert.Equal(deployment.Id, completedDeployment.Deployment.Id);
         Assert.Equal(deployment.RevisionId, completedDeployment.Service.RuntimeRevisionId);
+        Assert.Equal(preparedContext.ReplicaGroup, completedDeployment.ReplicaGroup);
         var events = resourceEvents
             .GetEvents(new ResourceEventQuery(ResourceId: resource.Id))
             .Reverse()
@@ -328,6 +339,8 @@ public sealed class ResourceOrchestrationDeploymentTests
 
         public ConcurrentBag<ResourceOrchestratorService> PreparedServices { get; } = [];
 
+        public ConcurrentBag<ResourceOrchestratorServiceProcedureContext> PreparedContexts { get; } = [];
+
         public ConcurrentBag<ResourceOrchestratorServiceInstanceContext> ExecutedInstances { get; } = [];
 
         public ConcurrentBag<ResourceOrchestratorDeploymentProcedureContext> CompletedDeployments { get; } = [];
@@ -349,6 +362,7 @@ public sealed class ResourceOrchestrationDeploymentTests
             ResourceAction action,
             CancellationToken cancellationToken = default)
         {
+            PreparedContexts.Add(context);
             PreparedServices.Add(context.Service);
             if (gate is not null)
             {
