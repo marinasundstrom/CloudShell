@@ -40,8 +40,8 @@
                        IconName="container" />
 </SummaryMetricGrid>
 
-<section class="dashboard-grid">
-    <ShellPanel Wide="true">
+<section class="environment-page-grid">
+    <ShellPanel Wide="true" Class="environment-panel-full">
         <ShellPanelHeader Title="@L["Environment revisions"].Value"
                           Description="@L["Current environment revisions, including the baseline declared resource graph before deployment-produced revisions exist."].Value">
             <Actions>
@@ -57,7 +57,8 @@
         }
         else
         {
-            <ResourceTable>
+            <div class="environment-revision-table">
+                <ResourceTable>
                 <thead>
                     <tr>
                         <th>@L["Environment revision"]</th>
@@ -84,11 +85,12 @@
                         </tr>
                     }
                 </tbody>
-            </ResourceTable>
+                </ResourceTable>
+            </div>
         }
     </ShellPanel>
 
-    <ShellPanel Wide="true">
+    <ShellPanel Wide="true" Class="environment-panel-full">
         <ShellPanelHeader Title="@L["Materialized deployment state"].Value"
                           Description="@L["Resource Manager deployment metadata projected by resources in the current environment."].Value" />
 
@@ -100,7 +102,8 @@
         }
         else
         {
-            <ResourceTable>
+            <div class="environment-deployment-table">
+                <ResourceTable>
                 <thead>
                     <tr>
                         <th>@L["Resource"]</th>
@@ -123,29 +126,30 @@
                                 <div class="table-subtext">@row.Resource.Id</div>
                             </td>
                             <td>
-                                <strong>@row.DeploymentId</strong>
+                                <strong class="environment-identifier">@row.DeploymentId</strong>
                                 <div class="table-subtext">@row.Status</div>
                             </td>
-                            <td>@row.RuntimeRevision</td>
-                            <td>@row.EnvironmentRevisionId</td>
-                            <td>@row.ServiceId</td>
-                            <td>@row.ReplicaGroupId</td>
+                            <td><span class="environment-identifier">@row.RuntimeRevision</span></td>
+                            <td><span class="environment-identifier">@row.EnvironmentRevisionId</span></td>
+                            <td><span class="environment-identifier">@row.ServiceId</span></td>
+                            <td><span class="environment-identifier">@row.ReplicaGroupId</span></td>
                             <td>@row.ReplicaSummary</td>
                         </tr>
                     }
                 </tbody>
-            </ResourceTable>
+                </ResourceTable>
+            </div>
         }
     </ShellPanel>
 
     <ShellPanel>
-        <ShellPanelHeader Title="@L["Recent deployment activity"].Value"
-                          Description="@L["Latest deployment events emitted by resources in this environment."].Value" />
+        <ShellPanelHeader Title="@L["Recent environment activity"].Value"
+                          Description="@L["Latest deployment and runtime-capacity events emitted by resources in this environment."].Value" />
 
         @if (DeploymentEvents.Count == 0)
         {
-            <EmptyState Title="@L["No deployment activity"].Value"
-                        Message="@L["Deployment events will appear after Resource Manager applies or cleans up runtime state."].Value"
+            <EmptyState Title="@L["No environment activity"].Value"
+                        Message="@L["Environment activity will appear after Resource Manager applies deployments, updates runtime capacity, or cleans up runtime state."].Value"
                         Compact="true" />
         }
         else

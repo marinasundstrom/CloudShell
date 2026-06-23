@@ -123,6 +123,9 @@ on `git blame --follow`, and then by the broad type of change.
   declared resource graph alongside deployment-produced environment revisions,
   so a freshly started host still has an inspectable logical environment
   revision.
+- Environment inspection now gives revision and materialized deployment tables
+  the full page width and labels the event feed as environment activity, so
+  scale-only replica updates are not presented as deployment operations.
 - Resource Manager deployment coordination now lives separately from
   orchestration execution under dedicated Deployment and Orchestration
   namespaces, with the default deployment service reusable for orchestrators

@@ -1,0 +1,42 @@
+.environment-page-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(22rem, 1fr);
+    gap: .9rem;
+}
+
+.environment-panel-full {
+    grid-column: 1 / -1;
+}
+
+.environment-revision-table,
+.environment-deployment-table {
+    min-width: 0;
+}
+
+.environment-revision-table ::deep .resource-table {
+    min-width: 54rem;
+}
+
+.environment-deployment-table ::deep .resource-table {
+    min-width: 78rem;
+}
+
+.environment-deployment-table ::deep th,
+.environment-deployment-table ::deep td {
+    vertical-align: top;
+}
+
+.environment-identifier {
+    overflow-wrap: anywhere;
+    word-break: normal;
+}
+
+@media (max-width: 1180px) {
+    .environment-page-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .environment-panel-full {
+        grid-column: auto;
+    }
+}
