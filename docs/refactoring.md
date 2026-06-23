@@ -25,6 +25,11 @@ without forcing provider-specific logic into shared helpers.
   environment-variable resolution, reusable projection helpers, and app-owned
   stores. They should not own Resource Manager deployment, revision, lifecycle,
   or replica-management semantics.
+- Application provider infrastructure should be the common toolkit for
+  application-like resource providers. Implementors such as Container app,
+  Executable app, and ASP.NET Core Web project own their unique configuration,
+  lifecycle, validation, and projection policy as that behavior is separated
+  from shared support.
 - Container app configuration revisions and Resource Manager environment
   revisions are separate concepts. Container app revisions track app
   configuration snapshots; environment revisions track materialized hosting
@@ -62,6 +67,8 @@ without forcing provider-specific logic into shared helpers.
   running fallback, and clear-starting/clear-stopping behavior.
 - [x] Document local Docker daemon crash handling for Docker-backed
   verification runs.
+- [x] Extract application resource projection attributes/capabilities into a
+  dedicated projection factory with direct tests.
 
 ## Next Slices
 
@@ -69,6 +76,14 @@ without forcing provider-specific logic into shared helpers.
   application definition/query facade, projection service, container app
   deployment/revision service, runtime process/container runner support, and
   provider operation adapters.
+- [ ] Move ASP.NET Core Web project-specific behavior from the shared
+  application service toward the ASP.NET Core Web project resource provider
+  when the behavior is provider-owned configuration, lifecycle, or projection
+  policy rather than generic application runtime support.
+- [ ] Add a diagram to the provider/application-resource docs showing the
+  layering from raw Resource Provider infrastructure to Application Resource
+  Provider infrastructure and the dogfooded implementors: Container app,
+  Executable app, and ASP.NET Core Web project.
 - [ ] Move provider UI pages off direct `ApplicationResourceService` injection
   where they only need an authoring/query facade or Resource Manager managers.
 - [ ] Move container-app-specific Resource Manager semantics into

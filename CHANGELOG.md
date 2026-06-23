@@ -66,6 +66,9 @@ on `git blame --follow`, and then by the broad type of change.
   live in a dedicated tracker with direct unit tests for fresh/expired
   starting/stopping state, running fallback, and clear-starting/clear-stopping
   behavior.
+- Application resource attributes and capabilities are now projected through a
+  dedicated projection factory with direct tests for replica deployment
+  attributes, volume materialization status, and capability flags.
 - Development workflow docs now call out local Docker daemon crash handling for
   Docker-backed sample verification, including using `docker info` to
   distinguish host/runtime failures from product regressions.

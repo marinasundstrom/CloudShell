@@ -3245,8 +3245,8 @@ public sealed partial class ApplicationResourceService(
             RecoveryPolicies: application.RecoveryPolicies,
             Observability: CreateResourceObservability(application),
             ResourceClass: projection.GetResourceClass(application),
-            Attributes: CreateAttributes(application, state, projection),
-            Capabilities: CreateCapabilities(application, endpoints),
+            Attributes: CreateResourceProjectionFactory().CreateAttributes(application, state, projection),
+            Capabilities: ApplicationResourceProjectionFactory.CreateCapabilities(application, endpoints),
             EndpointNetworkMappings: CreateEndpointNetworkMappings(application),
             DisplayName: application.Name,
             LogSources: ApplicationLogSources.GetApplicationLogSources(application));
@@ -3370,169 +3370,6 @@ public sealed partial class ApplicationResourceService(
             : endpoint.Host;
     }
 
-    private static IReadOnlyList<ResourceCapability> CreateCapabilities(
-        ApplicationResourceDefinition application,
-        IReadOnlyList<ResourceEndpoint> endpoints)
-    {
-        var capabilities = new List<ResourceCapability>
-        {
-            new(ResourceCapabilityIds.EnvironmentVariables),
-            new(ResourceCapabilityIds.LogSources),
-            new(ResourceCapabilityIds.Monitoring)
-        };
-
-        if (endpoints.Count > 0)
-        {
-            capabilities.Add(new(ResourceCapabilityIds.EndpointSource));
-        }
-
-        if (application.VolumeMounts.Count > 0)
-        {
-            capabilities.Add(new(ResourceCapabilityIds.StorageVolumeConsumer));
-        }
-
-        return capabilities;
-    }
-
-    private IReadOnlyDictionary<string, string> CreateAttributes(
-        ApplicationResourceDefinition application,
-        ResourceState state,
-        ApplicationResourceProjection projection)
-    {
-        var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            [ResourceAttributeNames.WorkloadKind] = projection.GetWorkloadKind(application),
-            [ResourceAttributeNames.EndpointCount] = application.EndpointPorts.Count.ToString(CultureInfo.InvariantCulture),
-            [ResourceAttributeNames.VolumeMountCount] = application.VolumeMounts.Count.ToString(CultureInfo.InvariantCulture)
-        };
-
-        if (string.Equals(application.ResourceType, ApplicationResourceTypes.SqlServer, StringComparison.OrdinalIgnoreCase))
-        {
-            attributes[ResourceAttributeNames.DatabaseCount] =
-                application.SqlDatabases.Count.ToString(CultureInfo.InvariantCulture);
-        }
-
-        if (application.VolumeMounts.Count > 0)
-        {
-            var runtimeMounts = runtimeStates.Get(application.Id)?.RuntimeVolumeMounts ?? [];
-            var materializedCount = runtimeMounts.Count(mount =>
-                string.Equals(
-                    mount.Status,
-                    ResourceVolumeMountMaterializationStatus.Materialized,
-                    StringComparison.OrdinalIgnoreCase));
-            attributes[ResourceAttributeNames.VolumeMountMaterializedCount] =
-                materializedCount.ToString(CultureInfo.InvariantCulture);
-            attributes[ResourceAttributeNames.VolumeMountMaterializationStatus] =
-                GetVolumeMountMaterializationStatus(
-                    application,
-                    state,
-                    runtimeMounts,
-                    materializedCount);
-        }
-
-        if (IsProjectBacked(application))
-        {
-            AddIfNotEmpty(attributes, ResourceAttributeNames.ProjectPath, application.ProjectPath);
-            AddIfNotEmpty(attributes, ResourceAttributeNames.ProjectArguments, application.ProjectArguments);
-            attributes[ResourceAttributeNames.ProjectHotReload] =
-                application.AspNetCoreHotReload.ToString(CultureInfo.InvariantCulture).ToLowerInvariant();
-        }
-        if (IsContainerBacked(application))
-        {
-            var deployment = CreateDefaultContainerOrchestratorDeployment(
-                application,
-                state,
-                runtimeRevisionScoped: true);
-            var replicaGroup = CreateDefaultContainerReplicaGroup(deployment.Spec.Service);
-            var materializedReplicas = IsReplicaModeEnabled(application)
-                ? replicaGroup.MaterializedReplicas
-                : 0;
-            var materializedReplicaSlots = IsReplicaModeEnabled(application)
-                ? replicaGroup.Slots.Count
-                : 0;
-
-            attributes[ResourceAttributeNames.ContainerReplicas] =
-                Math.Max(1, application.Replicas).ToString(CultureInfo.InvariantCulture);
-            attributes[ResourceAttributeNames.ContainerReplicasEnabled] =
-                IsReplicaModeEnabled(application).ToString(CultureInfo.InvariantCulture).ToLowerInvariant();
-            AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerImage, application.ContainerImage);
-            attributes[ResourceAttributeNames.ContainerRegistry] = GetEffectiveContainerRegistry(application);
-            AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerBuildContext, application.ContainerBuildContext);
-            AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerDockerfile, application.ContainerDockerfile);
-            AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerHostId, application.ContainerHostId);
-            AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerRevision, GetEffectiveContainerRevision(application));
-            attributes[ResourceAttributeNames.DeploymentId] = deployment.Id;
-            attributes[ResourceAttributeNames.DeploymentServiceId] = deployment.ServiceId;
-            attributes[ResourceAttributeNames.DeploymentStatus] = ToAttributeValue(deployment.Status);
-            attributes[ResourceAttributeNames.DeploymentRevision] = deployment.RevisionId;
-            AddIfNotEmpty(
-                attributes,
-                ResourceAttributeNames.DeploymentEnvironmentRevisionId,
-                application.DeploymentEnvironmentRevisionId);
-            attributes[ResourceAttributeNames.DeploymentWorkloadVersion] = deployment.Spec.WorkloadVersion;
-            attributes[ResourceAttributeNames.DeploymentRequestedReplicaSlots] =
-                replicaGroup.RequestedReplicaSlots.ToString(CultureInfo.InvariantCulture);
-            attributes[ResourceAttributeNames.DeploymentReplicaSlots] =
-                materializedReplicaSlots.ToString(CultureInfo.InvariantCulture);
-            attributes[ResourceAttributeNames.DeploymentReplicaCount] =
-                materializedReplicas.ToString(CultureInfo.InvariantCulture);
-            attributes[ResourceAttributeNames.DeploymentRequestedReplicas] =
-                deployment.Spec.Service.Replicas.ToString(CultureInfo.InvariantCulture);
-            attributes[ResourceAttributeNames.DeploymentMaterializedReplicas] =
-                materializedReplicas.ToString(CultureInfo.InvariantCulture);
-            attributes[ResourceAttributeNames.DeploymentProjectedReplicas] =
-                materializedReplicas.ToString(CultureInfo.InvariantCulture);
-            attributes[ResourceAttributeNames.DeploymentReplicaGroupId] = replicaGroup.Id;
-            var replicaManagementPolicy = replicaGroup.EffectiveManagementPolicy;
-            attributes[ResourceAttributeNames.DeploymentReplicaRestartMode] =
-                replicaManagementPolicy.RestartMode.ToString();
-            attributes[ResourceAttributeNames.DeploymentReplicaFailureThreshold] =
-                replicaManagementPolicy.FailureThreshold.ToString(CultureInfo.InvariantCulture);
-            attributes[ResourceAttributeNames.DeploymentReplicaMaxAttempts] =
-                replicaManagementPolicy.MaxAttempts.ToString(CultureInfo.InvariantCulture);
-        }
-
-        if (!IsProjectBacked(application) && !IsContainerBacked(application))
-        {
-            AddIfNotEmpty(attributes, ResourceAttributeNames.ExecutablePath, application.ExecutablePath);
-            AddIfNotEmpty(attributes, ResourceAttributeNames.ExecutableArguments, application.Arguments);
-            AddIfNotEmpty(attributes, ResourceAttributeNames.WorkingDirectory, application.WorkingDirectory);
-        }
-
-        return attributes;
-    }
-
-    private static string GetVolumeMountMaterializationStatus(
-        ApplicationResourceDefinition application,
-        ResourceState state,
-        IReadOnlyList<ResourceVolumeMountMaterialization> runtimeMounts,
-        int materializedCount)
-    {
-        if (application.VolumeMounts.Count == 0)
-        {
-            return "notApplicable";
-        }
-
-        if (materializedCount == application.VolumeMounts.Count)
-        {
-            return "materialized";
-        }
-
-        if (materializedCount > 0)
-        {
-            return "partial";
-        }
-
-        if (runtimeMounts.Count > 0)
-        {
-            return "notActive";
-        }
-
-        return state == ResourceState.Running && IsContainerBacked(application)
-            ? "unknown"
-            : "notActive";
-    }
-
     private static void AddIfNotEmpty(
         IDictionary<string, string> attributes,
         string name,
@@ -3558,6 +3395,14 @@ public sealed partial class ApplicationResourceService(
 
     private ResourceState GetState(string applicationId)
         => CreateRuntimeStateTracker().GetState(applicationId);
+
+    private ApplicationResourceProjectionFactory CreateResourceProjectionFactory() =>
+        new(
+            runtimeStates,
+            (application, state, runtimeRevisionScoped) => CreateDefaultContainerOrchestratorDeployment(
+                application,
+                state,
+                runtimeRevisionScoped));
 
     private static IReadOnlyList<ResourceAction> CreateActions(
         ApplicationResourceDefinition application,
@@ -4456,9 +4301,6 @@ public sealed partial class ApplicationResourceService(
 
     private static string CreateDefaultContainerOrchestratorDeploymentId(string resourceId) =>
         ApplicationContainerOrchestratorDeploymentFactory.CreateDeploymentId(resourceId);
-
-    private static string ToAttributeValue(ResourceOrchestratorDeploymentStatus status) =>
-        status.ToString().ToLowerInvariant();
 
     private bool ShouldUseContainerAppIngress(ResourceOrchestratorService service) =>
         options.EnableReplicatedContainerAppIngress &&
