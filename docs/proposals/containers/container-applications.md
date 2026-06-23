@@ -14,7 +14,10 @@ adjacent subdomains:
 * [Container host abstraction](container-host-abstraction.md) owns host
   selection and provider-owned runtime placement.
 * [Deployments and revisions](../deployment/deployments-and-revisions.md) owns
-  rich rollout history and orchestrator deployment/revision semantics.
+  the generalized Resource Manager orchestration deployment/revision model.
+  Container apps are the first feature using that model, not the feature that
+  owns it. The same model should remain available for other workload resources
+  that need versioned runtime materialization later.
 * [Virtual network resource](../networking/virtual-network-resource.md),
   [Load balancer resource](../networking/load-balancer-resource.md), and
   [DNS and name mapping](../networking/dns-and-name-mapping-resource.md) own
@@ -224,6 +227,9 @@ Implemented pieces include:
 * the container app provider describes superseded local runtime replicas as a
   post-apply replica-group tear-down target after the replacement revision has
   been materialized and routing milestones have been recorded
+* default orchestrator rollback events and best-effort candidate replica-group
+  tear-down when deployment setup fails before an orchestrator revision is
+  produced
 * hidden runtime-managed child resources for container app replicas, parented
   to and owned by the stable container app resource, with
   deployment/service/revision correlation metadata
@@ -381,13 +387,18 @@ liveness/lifecycle signals, while scaling changes desired capacity.
   preflight occupied local TCP/HTTP endpoint ports before Start. Future
   registry-backed providers should also suggest or allocate alternate ports
   when a default is unavailable.
-* Continue evolving the container app deployment operation so it can include
-  requested replica count and records an app-owned revision. The orchestrator
-  now materializes deployment-applied replicas with revision-scoped identity,
-  records explicit routing update milestones, and tears down superseded runtime
-  replica groups as a separate post-apply operation. Remaining rollout work
-  should verify readiness, perform explicit traffic or endpoint cutover, retain
-  failed runtime/app revision diagnostics, and make cleanup policy configurable.
+* Continue evolving the container app deployment operation as the first
+  Resource Manager orchestration deployment path. The operation should validate
+  the generalized deployment model, not make deployment semantics
+  container-app-specific. It can include requested replica count and records
+  app-owned deployment/revision history. The orchestrator now materializes
+  deployment-applied replicas with revision-scoped identity, records explicit
+  routing update milestones, rolls back the candidate replica group on setup
+  failure, and tears down superseded runtime replica groups as a separate
+  post-apply operation. Remaining rollout work should verify readiness, avoid
+  marking unmaterialized app revisions as active after failed apply, perform
+  explicit traffic or endpoint cutover, retain failed runtime/app revision
+  diagnostics, and make cleanup policy configurable.
 * Continue improving update behavior around replica, environment, endpoint,
   identity, and storage changes, deciding which changes belong to active
   revision capacity/configuration and which require a new deployment revision.

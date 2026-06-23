@@ -168,6 +168,88 @@ CloudShell needs a unified way to represent versioned orchestration changes whil
 * Do not require resources to manually create their own replicas.
 * Do not make deployments responsible for general resource dependency resolution.
 
+## MVP Definition
+
+The MVP is an internal Resource Manager orchestration and deployment capability.
+It generalizes how Resource Manager asks an orchestrator to materialize desired
+runtime state, track the resulting runtime outcome, and tear down runtime units
+that no longer belong to the active state. Container apps are the first
+validation path because they combine image deployment, explicit replicas,
+service exposure, health, logs, and runtime-managed replica resources. They
+should prove the abstraction, not own it.
+
+The same model should remain available to other workload resources, such as
+ASP.NET Core project containerization, Docker Compose-backed services, imported
+services, or custom providers that need Resource Manager to materialize a
+desired runtime state. The MVP should prove the runtime model without
+committing CloudShell to public deployment-management APIs or to one
+orchestrator's native object model. The default orchestrator is the first
+implementation, and future orchestrators should implement the same Resource
+Manager contracts rather than redefining deployment semantics.
+
+The MVP must support:
+
+* A resource-owned deployment request that describes workload intent. The first
+  implementation is container app image deployment, optionally with requested
+  replicas.
+* Resource-owned deployment and revision history, separate from the desired
+  resource definition. The first implementation is container app-owned
+  deployment and revision history.
+* A provider-described orchestrator deployment that says "this is the runtime
+  state I want" for the selected Resource Manager orchestrator.
+* Default orchestrator apply that incrementally sets up the requested service
+  and revision-scoped replica group.
+* An orchestrator revision outcome only after apply succeeds, including the
+  materialized replica group snapshot.
+* Failed deployment attempts recorded without producing an orchestrator
+  revision.
+* Deployment activity events for apply, service reconciliation, replica
+  materialization, rollback, routing milestones, success, and failure.
+* Best-effort rollback of the candidate deployment unit when setup fails before
+  a revision is produced.
+* Explicit post-apply replica-group tear-down for superseded runtime replicas,
+  separate from deployment setup.
+* Active-revision replica scaling through the replica-group change model
+  without forcing a resource restart or creating a new workload revision.
+* Projection of active deployment, active resource revision, requested replicas,
+  materialized replica count, deployment service id, deployment revision id,
+  and replica-group id onto the stable resource and runtime-managed resources.
+  The first projection target is the stable container app and its hidden runtime
+  replica resources.
+* Focused tests for successful apply, failed apply, rollback logging, image
+  deployment with post-apply tear-down, active revision scaling, and concurrent
+  deployments for different container apps.
+
+The MVP should add or refine next:
+
+* Make deployment apply result diagnostics visible enough in the Deployment tab
+  to distinguish setup, rollback, and post-apply tear-down.
+* Define the first readiness gate used before declaring an orchestrator
+  revision active. This can start with provider-observed "container started" or
+  declared health checks; it does not need advanced traffic policies.
+* Define how a failed resource deployment updates provider-owned deployment and
+  revision history when a resource revision was created before orchestrator
+  apply. For container apps, the intent is to avoid presenting an
+  unmaterialized app revision as active.
+* Keep post-apply tear-down best-effort and observable, with configurable
+  cleanup policy deferred.
+* Keep rollback scoped to the candidate deployment unit. Automatic restore of
+  older revisions is a future rollout policy, not MVP rollback.
+
+The MVP deliberately leaves these flexible:
+
+* Whether orchestrator deployments and revisions become a public Control Plane
+  API.
+* Whether revisions are projected as runtime-managed resources, stored only as
+  orchestrator metadata, or both.
+* The exact long-term readiness model, traffic shifting model, drain policy,
+  retention policy, and restore workflow.
+* Which resource types opt into the deployment model next and which continue as
+  standalone orchestrated resources.
+* How Docker Compose, Kubernetes, or custom orchestrator adapters map the
+  common contracts to their native objects.
+* Live graph visualization of Resource Manager and orchestrator activity.
+
 ## Domain Model
 
 ### Revision Terminology
@@ -874,32 +956,60 @@ ContainerApp
  └── Runtime Resources
 ```
 
-## Implementation Plan
+## Focused MVP Plan
 
-1. Define common Deployment and Revision domain types.
-2. Define deployment status and revision status models.
-3. Define how deployments relate to orchestrator services.
-4. Define how deployments relate back to source resources.
-5. Add orchestrator APIs for applying deployments, scaling active revisions,
-   applying cutover, and deleting deployments.
-6. Add revision creation rules for deployment-relevant changes.
-7. Add active revision tracking.
-8. Add revision history storage.
-9. Integrate deployments with the default orchestrator.
-10. Integrate deployments with the Docker Compose orchestrator.
-11. Associate replicas and runtime-managed resources with revision-scoped
-    replica groups.
-12. Add diagnostics APIs for deployment and revision inspection.
-13. Add Resource Manager projection for active deployment state.
-14. Add lifecycle tests for create, deploy image, scale active revision,
-    restore from revision, and delete.
-15. Add UI support for active revision and revision history.
-16. Add traceability events for deployment and revision changes.
+The current implementation already has the internal foundation:
+
+1. Common orchestrator deployment, deployment spec, revision, replica group,
+   service tear-down, replica-group tear-down, and deployment tear-down
+   description contracts.
+2. Resource Manager orchestration dispatch for deployment apply and explicit
+   tear-down operations.
+3. Default orchestrator setup of revision-scoped replica groups, routing
+   milestones, revision creation, failed-attempt recording, and best-effort
+   rollback logging.
+4. Provider-owned deployment descriptions let a resource ask Resource Manager
+   orchestration to apply a runtime state without managing runtime replicas
+   directly.
+5. Container app image deployment is the first consumer: it records app-owned
+   deployment/revision history and asks Resource Manager orchestration to apply
+   the described runtime state.
+6. Provider-owned post-apply cleanup descriptions can identify superseded
+   replica groups for explicit tear-down. Container apps use this first for
+   superseded local runtime replicas.
+7. Active-revision replica scaling uses the replica-group change model.
+8. Stable resources and runtime-managed resources can carry deployment,
+   service, revision, and replica-group correlation metadata. Container apps
+   and their hidden runtime replicas are the first projection path.
+
+The next MVP changes should stay focused:
+
+1. Add a minimal deployment readiness gate before marking the orchestrator
+   revision active. Start with provider-observed container start or declared
+   health checks; keep advanced traffic policies out of scope.
+2. Make failed resource deployment state explicit when a resource revision was
+   recorded before orchestrator apply failed. For container apps, the UI should
+   not present an unmaterialized app revision as the active successful revision.
+3. Surface deployment apply, rollback, and post-apply tear-down diagnostics
+   using the existing resource events and provider-owned deployment history.
+   The first UI surface is the container app Deployment tab.
+4. Keep rollback scoped to tearing down the candidate replica group. Do not add
+   automatic restore or traffic policy machinery for MVP.
+5. Keep post-apply tear-down best-effort and observable. Configurable retention
+   and cleanup policies can follow after the basic model is credible.
+6. Add focused tests around failed deployment projection, readiness-gated
+   success/failure, post-apply tear-down failure visibility, and extension to
+   at least one non-container-app workload shape.
+7. Revisit Docker Compose integration only after the default orchestrator and
+   first container app path settle; adapters should translate the common model,
+   not redefine it.
 
 ## Remaining Tasks
 
-* Define the exact boundary between Deployment, Service, and Resource.
-* Decide which fields are revision-relevant.
+* Decide which resources should opt into deployment semantics after container
+  apps prove the first path.
+* Decide which fields are revision-relevant beyond image and requested
+  replicas.
 * Define the boundary between scale-only operations that preserve the active
   revision and deployment operations that include requested replica count in a
   new revision.
@@ -911,11 +1021,8 @@ ContainerApp
   should create a new deployment sourced from that revision, not reactivate the
   old revision in place.
 * Define revision diff format.
-* Define the first rollout strategy for container app image updates, including
-  readiness gates, traffic or endpoint cutover, drain behavior, and failure
-  handling.
-* Define the Control Plane and orchestrator contracts for app-level deployment
-  requests that result in orchestrator-owned runtime rollout.
+* Define endpoint cutover, drain behavior, and failure handling beyond the
+  current routing milestones and rollback events.
 * Define whether revisions are represented as runtime-managed resources or orchestrator metadata.
 * Define how deployment events integrate with traceability.
 * Define how deployment state is persisted across orchestrator restarts.
