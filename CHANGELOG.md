@@ -17,6 +17,10 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Added a resource definitions and capability providers proposal to track the
+  distinction between projected `Resource` instances and persisted
+  `ResourceDefinition` intent, including DI-backed capability providers as
+  attached behavior over definition payloads.
 - SQL Server declared database child-resource projection now lives in
   `SqlServerDatabaseResourceProjector`, moving another resource-type concern
   out of `ApplicationResourceService`.

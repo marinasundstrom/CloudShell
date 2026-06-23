@@ -45,9 +45,10 @@ changes. Milestone scope remains authoritative in [Roadmap](../roadmap.md).
 | 19 | [UI composition library](core/ui-composition.md) | Current implementation working document | Post-MVP reusable UI foundation | Tracks the standalone `CloudShell.UI.Composition` and `CloudShell.UI.Composition.Blazor` library direction: generic graph primitives, typed IDs, modules, menus, pages, section containers, sections, route metadata, renderer hints, plain Blazor renderers, descriptor projection, and future graph persistence. This is separate from the CoreShell product experience and extension API. |
 | 20 | [Shell composition](core/shell-composition.md) | Proposed | Post-MVP extensible shell platform | Tracks the future CoreShell direction above the UI composition library: formal main navigation, common Settings hierarchy, notifications, provider workspaces, documented extension areas, shell-owned validation, default Fluent UI presenters, and adapters from CloudShell product abstractions into generic composition primitives. The current MVP should consume the landed composition work only to stabilize existing shell, Settings, and Resource Manager surfaces. |
 | 21 | [Resource Manager project structure](core/resource-manager-project-structure.md) | Proposed | Post-MVP UI and hosting structure | Tracks the desired logical and physical split between CoreShell infrastructure, CoreShell extension contracts, CoreShell Fluent UI presenters, the CloudShell product host, Resource Manager UI, Resource Manager UI abstractions, Resource Manager host installation, Control Plane services, and provider UI versus provider runtime integrations. |
-| 22 | [Resource graph import and code generation](core/resource-graph-import.md) | Proposed | Later portability and advanced authoring | Tracks external file import into CloudShell graph drafts, starting with Docker Compose YAML, with generated programmatic declarations as the preferred first output. |
-| 23 | [Managed SQL Server resource](resources/managed-sql-server.md) | Partially implemented | Post-MVP managed database resource shape | Tracks the future SQL Server managed resource surface. The current `application.sql-server` implementation remains a local-development container-backed bridge, but now has a provider-owned builder, projects as a service resource, displays declared database children, reports requested-versus-effective grant status, and avoids generic container-app deployment controls by default. |
-| 24 | [IoT device provisioning](core/iot-device-provisioning.md) | Proposed future direction | Later device and edge integration | Tracks a future IoT/edge story where devices bootstrap with pre-issued credentials, are reconciled into the CloudShell resource graph, receive principals and service access through the existing identity/access model, and publish health, activity, and telemetry without requiring a separate Azure-like service catalog. |
+| 22 | [Resource definitions and capability providers](core/resource-definitions-and-capability-providers.md) | Proposed | Later authoring, persistence, and provider model foundation | Tracks the distinction between projected `Resource` instances and `ResourceDefinition` intent, plus DI-backed capability providers as attached behavior over definition payloads. |
+| 23 | [Resource graph import and code generation](core/resource-graph-import.md) | Proposed | Later portability and advanced authoring | Tracks external file import into CloudShell graph drafts, starting with Docker Compose YAML, with generated programmatic declarations as the preferred first output. |
+| 24 | [Managed SQL Server resource](resources/managed-sql-server.md) | Partially implemented | Post-MVP managed database resource shape | Tracks the future SQL Server managed resource surface. The current `application.sql-server` implementation remains a local-development container-backed bridge, but now has a provider-owned builder, projects as a service resource, displays declared database children, reports requested-versus-effective grant status, and avoids generic container-app deployment controls by default. |
+| 25 | [IoT device provisioning](core/iot-device-provisioning.md) | Proposed future direction | Later device and edge integration | Tracks a future IoT/edge story where devices bootstrap with pre-issued credentials, are reconciled into the CloudShell resource graph, receive principals and service access through the existing identity/access model, and publish health, activity, and telemetry without requiring a separate Azure-like service catalog. |
 
 ## Current proposal order
 
@@ -112,9 +113,10 @@ hardening.
     During MVP convergence, only take composition or project-boundary work that
     fixes regressions or directly supports the current shell, Resource Manager,
     and Settings experience.
-13. Advanced app and environment concepts, including external-format resource
-    graph import and code generation, IoT device provisioning, and edge/device
-    resource management
+13. Advanced app and environment concepts, including formal resource
+    definitions and capability providers, external-format resource graph import
+    and code generation, IoT device provisioning, and edge/device resource
+    management
 
 Use [Roadmap](../roadmap.md) for the reasoning behind this order and the
 concrete MVP execution plan.
