@@ -54,6 +54,28 @@ public sealed class ResourceOrchestrationService(
         return await orchestrator.DeleteAsync(context, cancellationToken);
     }
 
+    public async Task<ResourceProcedureResult> TearDownServiceAsync(
+        Resource resource,
+        ResourceOrchestratorService service,
+        CancellationToken cancellationToken = default,
+        string? triggeredBy = null,
+        string? cause = null)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentNullException.ThrowIfNull(service);
+
+        if (!string.Equals(resource.Id, service.ResourceId, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ControlPlaneException(
+                ControlPlaneError.InvalidRequest(
+                    $"Service '{service.Name}' belongs to resource '{service.ResourceId}', not '{resource.Id}'."));
+        }
+
+        var context = CreateContext(resource, triggeredBy, cause);
+        var tearDown = SelectServiceTearDown(context, service);
+        return await tearDown.TearDownServiceAsync(context, service, cancellationToken);
+    }
+
     public async Task<ResourceOrchestratorDeploymentApplyResult> ApplyDeploymentAsync(
         Resource resource,
         ResourceOrchestratorDeployment deployment,
@@ -774,6 +796,13 @@ public sealed class ResourceOrchestrationService(
                     $"No orchestrator can apply deployment '{deployment.Id}' for resource '{context.Resource.Name}'."));
     }
 
+    private IResourceOrchestratorServiceTearDown SelectServiceTearDown(
+        ResourceOrchestrationContext context,
+        ResourceOrchestratorService service) =>
+        SelectPreferredServiceTearDown((_, tearDown) => tearDown.CanTearDownService(context, service))
+        ?? throw new ControlPlaneException(
+            ControlPlaneError.ResourceActionUnsupported(context.Resource.Name));
+
     private IResourceOrchestratorDeploymentApplier? SelectPreferredDeploymentApplier(
         Func<IResourceOrchestrator, IResourceOrchestratorDeploymentApplier, bool> predicate)
     {
@@ -795,6 +824,29 @@ public sealed class ResourceOrchestrationService(
             orchestrator is IResourceOrchestratorDeploymentApplier applier &&
             predicate(orchestrator, applier));
         return defaultOrchestrator as IResourceOrchestratorDeploymentApplier;
+    }
+
+    private IResourceOrchestratorServiceTearDown? SelectPreferredServiceTearDown(
+        Func<IResourceOrchestrator, IResourceOrchestratorServiceTearDown, bool> predicate)
+    {
+        var selectedId = selectionStore.Get().OrchestratorId;
+        if (!string.Equals(selectedId, "default", StringComparison.OrdinalIgnoreCase))
+        {
+            var selected = orchestrators.FirstOrDefault(orchestrator =>
+                string.Equals(orchestrator.Id, selectedId, StringComparison.OrdinalIgnoreCase) &&
+                orchestrator is IResourceOrchestratorServiceTearDown tearDown &&
+                predicate(orchestrator, tearDown));
+            if (selected is IResourceOrchestratorServiceTearDown selectedTearDown)
+            {
+                return selectedTearDown;
+            }
+        }
+
+        var defaultOrchestrator = orchestrators.FirstOrDefault(orchestrator =>
+            string.Equals(orchestrator.Id, "default", StringComparison.OrdinalIgnoreCase) &&
+            orchestrator is IResourceOrchestratorServiceTearDown tearDown &&
+            predicate(orchestrator, tearDown));
+        return defaultOrchestrator as IResourceOrchestratorServiceTearDown;
     }
 
     private IResourceOrchestrator? SelectPreferredOrchestrator(

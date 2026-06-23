@@ -248,6 +248,63 @@ public sealed class ResourceOrchestrationDeploymentTests
                 .ToArray());
     }
 
+    [Fact]
+    public async Task TearDownServiceAsync_TearsDownProvidedServiceSpec()
+    {
+        var resource = CreateResource();
+        var provider = new RecordingServiceProcedureProvider(resource);
+        var orchestration = CreateOrchestration(resource, provider);
+        var service = CreateDeployment(resource.Id, "default", replicas: 2).Spec.Service with
+        {
+            RuntimeRevisionId = "rev-2"
+        };
+
+        var result = await orchestration.TearDownServiceAsync(
+            resource,
+            service,
+            triggeredBy: "tests",
+            cause: "Container app service cleanup.");
+
+        Assert.Equal($"Tore down service '{service.Name}' for {resource.Name}.", result.Message);
+        var preparedContext = Assert.Single(provider.PreparedContexts);
+        Assert.Equal(ResourceActionKind.Stop, Assert.Single(provider.PreparedActions).Kind);
+        Assert.Equal(service.Name, preparedContext.Service.Name);
+        Assert.Equal("cloudshell-application-api-rev-2-replicas", preparedContext.ReplicaGroup?.Id);
+        Assert.Equal(
+            [
+                "cloudshell-application-api-rev-2-replica-1",
+                "cloudshell-application-api-rev-2-replica-2"
+            ],
+            provider.ExecutedInstances
+                .Select(instance => instance.Instance.Name)
+                .Order(StringComparer.OrdinalIgnoreCase)
+                .ToArray());
+        Assert.All(
+            provider.ExecutedActions,
+            action => Assert.Equal(ResourceActionKind.Stop, action.Kind));
+        Assert.Empty(provider.CompletedDeployments);
+    }
+
+    [Fact]
+    public async Task TearDownServiceAsync_RejectsServiceForDifferentResource()
+    {
+        var resource = CreateResource();
+        var provider = new RecordingServiceProcedureProvider(resource);
+        var orchestration = CreateOrchestration(resource, provider);
+        var service = CreateDeployment("application:worker", "default", replicas: 1).Spec.Service;
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
+            orchestration.TearDownServiceAsync(resource, service));
+
+        Assert.Equal(ControlPlaneErrorCodes.InvalidRequest, exception.Error.Code);
+        Assert.Contains(
+            $"Service '{service.Name}' belongs to resource 'application:worker', not '{resource.Id}'",
+            exception.Message,
+            StringComparison.Ordinal);
+        Assert.Empty(provider.PreparedContexts);
+        Assert.Empty(provider.ExecutedInstances);
+    }
+
     private static ResourceOrchestrationService CreateOrchestration(
         Resource resource,
         RecordingServiceProcedureProvider provider,
@@ -349,7 +406,11 @@ public sealed class ResourceOrchestrationDeploymentTests
 
         public ConcurrentBag<ResourceOrchestratorServiceProcedureContext> PreparedContexts { get; } = [];
 
+        public ConcurrentBag<ResourceAction> PreparedActions { get; } = [];
+
         public ConcurrentBag<ResourceOrchestratorServiceInstanceContext> ExecutedInstances { get; } = [];
+
+        public ConcurrentBag<ResourceAction> ExecutedActions { get; } = [];
 
         public ConcurrentBag<ResourceOrchestratorDeploymentProcedureContext> CompletedDeployments { get; } = [];
 
@@ -370,6 +431,7 @@ public sealed class ResourceOrchestrationDeploymentTests
             ResourceAction action,
             CancellationToken cancellationToken = default)
         {
+            PreparedActions.Add(action);
             PreparedContexts.Add(context);
             PreparedServices.Add(context.Service);
             if (gate is not null)
@@ -388,6 +450,7 @@ public sealed class ResourceOrchestrationDeploymentTests
                 throw new InvalidOperationException("Replica execution failed.");
             }
 
+            ExecutedActions.Add(action);
             ExecutedInstances.Add(context);
             return Task.CompletedTask;
         }

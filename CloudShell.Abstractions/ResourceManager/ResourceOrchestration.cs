@@ -115,6 +115,18 @@ public interface IResourceOrchestratorDeploymentApplier
         CancellationToken cancellationToken = default);
 }
 
+public interface IResourceOrchestratorServiceTearDown
+{
+    bool CanTearDownService(
+        ResourceOrchestrationContext context,
+        ResourceOrchestratorService service);
+
+    Task<ResourceProcedureResult> TearDownServiceAsync(
+        ResourceOrchestrationContext context,
+        ResourceOrchestratorService service,
+        CancellationToken cancellationToken = default);
+}
+
 public interface IResourceOrchestratorDeploymentProvider
 {
     bool CanDescribeDeployment(Resource resource);

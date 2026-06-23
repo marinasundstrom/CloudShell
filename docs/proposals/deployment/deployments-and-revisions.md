@@ -39,13 +39,21 @@ These are CloudShell runtime concepts: the orchestrator manages resources and
 their runtime configuration, and deployment/revisioning records the desired and
 materialized CloudShell runtime state rather than exposing a Kubernetes,
 Docker Compose, or other provider-native deployment object as the domain model.
+The orchestrator is part of Resource Manager's execution layer. Resource
+Manager is the umbrella concept for the services that manage resources:
+lifecycle, graph validation, authorization, grouping, persistence, and runtime
+materialization. Its public surface is the logical facade for resource-facing
+operations, while orchestrators are how Resource Manager materializes runtime
+services and resources behind that facade.
 Providers can opt into `IResourceOrchestratorDeploymentProvider` to describe
 the deployment spec that should be applied after a domain update. These are
 intended for container apps, providers, and orchestrators to build on first.
 A deployment apply is incremental setup: it creates or updates the specified
 runtime resources by stable id. It does not implicitly remove omitted resources.
-Tear-down is a separate operation over individual runtime resources, replica
-groups, or all resources belonging to an orchestration service.
+Resource Manager orchestration now has an internal service tear-down boundary
+for stopping or deleting the runtime resources that belong to an orchestration
+service. Tear-down is a separate operation over individual runtime resources,
+replica groups, or all resources belonging to an orchestration service.
 Container apps now use the deployment contract to project deployment status,
 service id, workload version, requested replicas, and materialized replica count
 onto the stable app resource and Deployment tab. Materialized runtime replica
@@ -335,11 +343,11 @@ User-managed Resource
         ↓
 Resource Manager validates graph and lifecycle
         ↓
-Orchestrator receives desired runtime state
+Resource Manager orchestration receives desired runtime state
         ↓
 Default Deployment is created or updated
         ↓
-Orchestrator sets up the deployment
+Selected orchestrator sets up the deployment
         ↓
 Revision is produced as the outcome
         ↓

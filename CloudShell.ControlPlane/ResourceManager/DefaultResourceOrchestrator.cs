@@ -8,7 +8,8 @@ namespace CloudShell.ControlPlane.ResourceManager;
 public sealed class DefaultResourceOrchestrator(
     IResourceOrchestratorDeploymentStore? deploymentStore = null) :
     IResourceOrchestrator,
-    IResourceOrchestratorDeploymentApplier
+    IResourceOrchestratorDeploymentApplier,
+    IResourceOrchestratorServiceTearDown
 {
     public string Id => "default";
 
@@ -59,6 +60,36 @@ public sealed class DefaultResourceOrchestrator(
         return provider.DeleteAsync(
             CreateProcedureContext(context),
             cancellationToken);
+    }
+
+    public bool CanTearDownService(
+        ResourceOrchestrationContext context,
+        ResourceOrchestratorService service) =>
+        string.Equals(context.Resource.Id, service.ResourceId, StringComparison.OrdinalIgnoreCase) &&
+        GetServiceProcedureProvider(context, ResourceAction.Stop) is not null;
+
+    public async Task<ResourceProcedureResult> TearDownServiceAsync(
+        ResourceOrchestrationContext context,
+        ResourceOrchestratorService service,
+        CancellationToken cancellationToken = default)
+    {
+        if (!string.Equals(context.Resource.Id, service.ResourceId, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ControlPlaneException(
+                ControlPlaneError.InvalidRequest(
+                    $"Service '{service.Name}' belongs to resource '{service.ResourceId}', not '{context.Resource.Id}'."));
+        }
+
+        var provider = GetServiceProcedureProvider(context, ResourceAction.Stop)
+            ?? throw new ControlPlaneException(
+                ControlPlaneError.ResourceActionUnsupported(context.Resource.Name));
+        await ExecuteOrchestratorServiceActionCoreAsync(
+            provider,
+            CreateProcedureContext(context),
+            service,
+            ResourceAction.Stop,
+            cancellationToken);
+        return ResourceProcedureResult.Completed($"Tore down service '{service.Name}' for {context.Resource.Name}.");
     }
 
     public bool CanApplyDeployment(
