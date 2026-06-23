@@ -1,5 +1,6 @@
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ResourceManager;
+using System.Security.Claims;
 
 namespace CloudShell.Providers.Applications;
 
@@ -38,6 +39,16 @@ public interface ISqlServerDatabaseInspectionOperations
 {
     Task<IReadOnlyList<SqlServerDatabaseInfo>> QuerySqlServerDatabasesAsync(
         string sqlServerResourceId,
+        CancellationToken cancellationToken = default);
+}
+
+public interface ISqlServerCredentialResolutionOperations
+{
+    Task<SqlServerCredentialResolutionResult> ResolveSqlServerCredentialAsync(
+        string sqlServerResourceName,
+        string databaseName,
+        string permission,
+        ClaimsPrincipal principal,
         CancellationToken cancellationToken = default);
 }
 

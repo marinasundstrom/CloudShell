@@ -37,6 +37,9 @@ on `git blame --follow`, and then by the broad type of change.
 - SQL Server database inspection now lives in
   `SqlServerDatabaseInspectionService` and shares SQL connection creation with
   provider reconciliation code.
+- The SQL Server credential API now depends on
+  `ISqlServerCredentialResolutionOperations` instead of the full application
+  resource service.
 
 ### 2026-06-23
 

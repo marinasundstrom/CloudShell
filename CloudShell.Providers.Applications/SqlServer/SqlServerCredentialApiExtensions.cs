@@ -33,7 +33,7 @@ public static class SqlServerCredentialApiExtensions
     private static async Task<IResult> ResolveCredential(
         ResolveSqlServerCredentialRequest request,
         HttpContext httpContext,
-        ApplicationResourceService applications,
+        ISqlServerCredentialResolutionOperations credentials,
         CancellationToken cancellationToken)
     {
         try
@@ -41,7 +41,7 @@ public static class SqlServerCredentialApiExtensions
             var permission = string.IsNullOrWhiteSpace(request.Permission)
                 ? DatabaseResourceOperationPermissions.ReadWrite
                 : request.Permission.Trim();
-            var result = await applications.ResolveSqlServerCredentialAsync(
+            var result = await credentials.ResolveSqlServerCredentialAsync(
                 request.SqlServerResourceName,
                 request.DatabaseName,
                 permission,

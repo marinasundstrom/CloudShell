@@ -171,6 +171,9 @@ without forcing provider-specific logic into shared helpers.
 - [x] Move SQL Server database inspection reads into
   `SqlServerDatabaseInspectionService` and keep shared SQL connection behavior
   in a focused helper.
+- [x] Move the SQL Server credential API route off direct
+  `ApplicationResourceService` dependency by introducing a focused credential
+  resolution operation contract.
 
 ## Next Slices
 

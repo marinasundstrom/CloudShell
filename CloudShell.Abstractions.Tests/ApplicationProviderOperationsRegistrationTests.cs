@@ -27,6 +27,9 @@ public sealed class ApplicationProviderOperationsRegistrationTests
             serviceProvider.GetRequiredService<IContainerApplicationHistoryOperations>());
         Assert.IsType<SqlServerDatabaseInspectionService>(
             serviceProvider.GetRequiredService<ISqlServerDatabaseInspectionOperations>());
+        Assert.Same(
+            applicationService,
+            serviceProvider.GetRequiredService<ISqlServerCredentialResolutionOperations>());
     }
 
     private sealed class TestHostEnvironment(string contentRootPath) : IHostEnvironment
