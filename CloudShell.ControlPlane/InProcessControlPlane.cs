@@ -25,6 +25,7 @@ public sealed class InProcessControlPlane(
     ResourceDeclarationStore declarations,
     ResourceOrchestrationService orchestration,
     ResourceDeploymentService deployments,
+    ResourceReplicaGroupReconciliationService replicaGroupReconciliation,
     ResourceIdentityProvisioningService resourceIdentityProvisioning,
     ResourceIdentityProviderSetupService resourceIdentityProviderSetup,
     ResourceTemplateService templates,
@@ -1842,7 +1843,7 @@ public sealed class InProcessControlPlane(
         resourceHealth.AddRange(summaries.Values);
         AddRuntimeHealthAggregateSummaries(allResources, aggregateParents);
         RecordLivenessLifecycleTransitions(lifecycleResources, previousLivenessStates);
-        await ReconcileReplicaSlotsAsync(lifecycleResources, previousLivenessStates, cancellationToken);
+        ObserveUnhealthyReplicaSlots(lifecycleResources);
     }
 
     private IReadOnlyList<Resource> GetRuntimeHealthAggregateParents(
@@ -2356,17 +2357,13 @@ public sealed class InProcessControlPlane(
         }
     }
 
-    private async Task ReconcileReplicaSlotsAsync(
-        IReadOnlyList<Resource> resources,
-        IReadOnlyDictionary<string, ResourceState?> previousStates,
-        CancellationToken cancellationToken)
+    private void ObserveUnhealthyReplicaSlots(IReadOnlyList<Resource> resources)
     {
         foreach (var resource in resources)
         {
             var projection = GetLivenessLifecycleProjection(resource);
             if (projection is null ||
-                projection.State != ResourceState.Degraded ||
-                previousStates.GetValueOrDefault(resource.Id) == ResourceState.Degraded)
+                projection.State != ResourceState.Degraded)
             {
                 continue;
             }
@@ -2378,25 +2375,11 @@ public sealed class InProcessControlPlane(
                     continue;
                 }
 
-                try
-                {
-                    await orchestration.ReconcileReplicaSlotAsync(
-                        resource,
-                        slotOrdinal,
-                        observation.Detail,
-                        cancellationToken,
-                        ReplicaManagementTriggeredBy);
-                }
-                catch (Exception exception) when (exception is not OperationCanceledException)
-                {
-                    resourceEvents?.Append(new ResourceEvent(
-                        resource.Id,
-                        ResourceEventTypes.Events.ReplicaManagement.ReconciliationFailed,
-                        $"Replica slot {slotOrdinal.ToString(CultureInfo.InvariantCulture)} reconciliation failed: {exception.Message}",
-                        DateTimeOffset.UtcNow,
-                        ReplicaManagementTriggeredBy,
-                        ResourceSignalSeverity.Error));
-                }
+                replicaGroupReconciliation.ObserveUnhealthyReplicaSlot(
+                    resource,
+                    slotOrdinal,
+                    observation.Detail,
+                    ReplicaManagementTriggeredBy);
             }
         }
     }

@@ -71,6 +71,15 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager orchestration now performs an initial liveness-driven
   replica slot replacement for unhealthy container app slots, emitting
   replica-management events for the slot decision and replacement outcome.
+- Resource health refresh now queues unhealthy replica slot observations for a
+  replica-group reconciliation service instead of running replacement work
+  inline with health evaluation.
+- Replica slot reconciliation now processes unhealthy slot observations while
+  a container app remains degraded, so an app that was already degraded can
+  still replace a killed replica after a later health refresh.
+- Replica slot replacement now restarts the failed slot occupant without
+  rerunning full service preparation, avoiding project container rebuilds during
+  local replica repair.
 - The container app Scale and replicas view now displays requested replica
   slots as the primary rows, with optional occupant details and auto-refresh so
   slot repair transitions are visible.

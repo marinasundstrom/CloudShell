@@ -1867,6 +1867,61 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task RefreshResourceHealthAsync_QueuesUnhealthyReplicaSlotWhenParentIsAlreadyDegraded()
+    {
+        var parent = CreateResource("application:api", ResourceState.Running);
+        var replica1 = CreateRuntimeReplicaResource(parent.Id, 1) with
+        {
+            HealthChecks = [CreateLivenessCheck()]
+        };
+        var replica2 = CreateRuntimeReplicaResource(parent.Id, 2) with
+        {
+            HealthChecks = [CreateLivenessCheck()]
+        };
+        var provider = new TestOrchestratorServiceProvider(new ResourceOrchestratorService(
+            parent.Id,
+            "cloudshell-application-api",
+            new ResourceWorkloadConfiguration(
+                ResourceWorkloadKind.ContainerImage,
+                "api",
+                Image: "example/api:latest",
+                Replicas: 2,
+                ReplicasEnabled: true)));
+        var host = CreateControlPlaneHost(
+            [parent, replica1, replica2],
+            provider,
+            probeEvaluators:
+            [
+                new ResourceSpecificProbeEvaluator(
+                    new Dictionary<string, ResourceHealthStatus>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        [replica1.Id] = ResourceHealthStatus.Healthy,
+                        [replica2.Id] = ResourceHealthStatus.Unhealthy
+                    })
+            ]);
+
+        await host.ControlPlane.RefreshResourceHealthAsync(parent.Id);
+        await host.ControlPlane.RefreshResourceHealthAsync(parent.Id);
+        await host.ControlPlane.RefreshResourceHealthAsync(parent.Id);
+        provider.ExecutedInstanceActions.Clear();
+        provider.PreparedActions.Clear();
+
+        await host.ControlPlane.RefreshResourceHealthAsync(parent.Id);
+
+        Assert.Empty(provider.ExecutedInstanceActions);
+
+        await host.ReplicaGroupReconciliation.ProcessPendingAsync();
+
+        Assert.Contains(
+            "stop:cloudshell-application-api-replica-2",
+            provider.ExecutedInstanceActions);
+        Assert.Contains(
+            "start:cloudshell-application-api-replica-2",
+            provider.ExecutedInstanceActions);
+        Assert.Empty(provider.PreparedActions);
+    }
+
+    [Fact]
     public async Task ListResourcesAsync_ProjectsParentAsDegradedWhenRuntimeChildLivenessFails()
     {
         var parent = CreateResource("application:api", ResourceState.Running);
@@ -3319,13 +3374,61 @@ public sealed class InProcessControlPlaneResourceStateTests
         IResourceOrchestratorDeploymentStore? deploymentStore = null)
     {
         provider ??= new TestResourceProvider();
-        var registrations = new TestResourceRegistrationStore(resources.Select(resource =>
-            new ResourceRegistration(
-                resource.Id,
-                provider.Id,
-                null,
-                DateTimeOffset.UtcNow,
-                resource.DependsOn)));
+        return CreateControlPlaneHost(
+            resources,
+            provider,
+            groups,
+            resourceTypeClasses,
+            descriptorProviders,
+            containerHostProviders,
+            actionAvailabilityProviders,
+            probeEvaluators,
+            resourceEvents,
+            logStore,
+            traceStore,
+            metricStore,
+            resourceRecoveryStore,
+            authorization,
+            httpContextAccessor,
+            permissionGrants,
+            configureDeclarations,
+            identityProviders,
+            identityProvisioners,
+            identityProviderSetupHandlers,
+            identityDirectoryProviders,
+            permissionGrantStatusProviders,
+            deploymentStore).ControlPlane;
+    }
+
+    private static ControlPlaneTestHost CreateControlPlaneHost(
+        IReadOnlyList<Resource> resources,
+        IResourceProvider? provider = null,
+        IReadOnlyList<ResourceGroup>? groups = null,
+        IReadOnlyDictionary<string, ResourceClass>? resourceTypeClasses = null,
+        IReadOnlyList<IResourceOrchestrationDescriptorProvider>? descriptorProviders = null,
+        IReadOnlyList<IContainerHostProvider>? containerHostProviders = null,
+        IReadOnlyList<IResourceActionAvailabilityProvider>? actionAvailabilityProviders = null,
+        IReadOnlyList<IResourceProbeEvaluator>? probeEvaluators = null,
+        IResourceEventStore? resourceEvents = null,
+        ILogStore? logStore = null,
+        ITraceStore? traceStore = null,
+        IMetricStore? metricStore = null,
+        IResourceRecoveryStore? resourceRecoveryStore = null,
+        ICloudShellAuthorizationService? authorization = null,
+        IHttpContextAccessor? httpContextAccessor = null,
+        IReadOnlyList<ResourcePermissionGrant>? permissionGrants = null,
+        Action<ResourceDeclarationStore>? configureDeclarations = null,
+        IReadOnlyList<ResourceIdentityProviderDefinition>? identityProviders = null,
+        IReadOnlyList<IResourceIdentityProvisioner>? identityProvisioners = null,
+        IReadOnlyList<IResourceIdentityProviderSetupHandler>? identityProviderSetupHandlers = null,
+        IReadOnlyList<IResourceIdentityDirectoryProvider>? identityDirectoryProviders = null,
+        IReadOnlyList<IResourcePermissionGrantStatusProvider>? permissionGrantStatusProviders = null,
+        IResourceOrchestratorDeploymentStore? deploymentStore = null)
+    {
+        provider ??= new TestResourceProvider();
+        var registrations = new TestResourceRegistrationStore(
+            resources.Select(resource =>
+                new ResourceRegistration(resource.Id, provider.Id, null, DateTimeOffset.UtcNow, resource.DependsOn)));
         var resourceManager = new TestResourceManagerStore(
             resources,
             [provider],
@@ -3366,6 +3469,12 @@ public sealed class InProcessControlPlaneResourceStateTests
             containerHostProviders ?? [],
             actionAvailabilityProviders: actionAvailabilityProviders ?? [],
             resourceEvents: resourceEvents);
+        var replicaReconciliationStore = new InMemoryResourceReplicaGroupReconciliationStore();
+        var replicaGroupReconciliation = new ResourceReplicaGroupReconciliationService(
+            orchestration,
+            resourceManager,
+            replicaReconciliationStore,
+            resourceEvents);
         var deployments = new ResourceDeploymentService(
             orchestrators,
             deploymentAppliers,
@@ -3375,13 +3484,14 @@ public sealed class InProcessControlPlaneResourceStateTests
             resourceEvents,
             deploymentStore);
 
-        return new InProcessControlPlane(
+        var controlPlane = new InProcessControlPlane(
             resourceManager,
             resourceGroups,
             registrations,
             declarations,
             orchestration,
             deployments,
+            replicaGroupReconciliation,
             identityProvisioning,
             identityProviderSetup,
             templates,
@@ -3401,7 +3511,13 @@ public sealed class InProcessControlPlaneResourceStateTests
             new ResourceIdentityProviderCatalog(identityProviders ?? []),
             identityDirectoryProviders ?? [],
             permissionGrantStatusProviders ?? []);
+
+        return new ControlPlaneTestHost(controlPlane, replicaGroupReconciliation);
     }
+
+    private sealed record ControlPlaneTestHost(
+        InProcessControlPlane ControlPlane,
+        ResourceReplicaGroupReconciliationService ReplicaGroupReconciliation);
 
     private static IHttpContextAccessor CreateHttpContextAccessor(params Claim[] claims)
     {
@@ -3671,6 +3787,48 @@ public sealed class InProcessControlPlaneResourceStateTests
                 "action.executed",
                 $"Test provider executed action '{action.Id}'.");
             return Task.FromResult(ResourceProcedureResult.Completed($"Executed {action.Id}."));
+        }
+    }
+
+    private sealed class TestOrchestratorServiceProvider(
+        ResourceOrchestratorService service) : IResourceProvider, IResourceOrchestratorServiceProcedureProvider
+    {
+        public string Id => "test";
+
+        public string DisplayName => "Test";
+
+        public List<string> PreparedActions { get; } = [];
+
+        public List<string> ExecutedInstanceActions { get; } = [];
+
+        public IReadOnlyList<Resource> GetResources() => [];
+
+        public bool CanExecuteOrchestratorService(
+            Resource resource,
+            ResourceAction action) =>
+            string.Equals(resource.Id, service.ResourceId, StringComparison.OrdinalIgnoreCase);
+
+        public Task<ResourceOrchestratorService> CreateOrchestratorServiceAsync(
+            ResourceProcedureContext context,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(service);
+
+        public Task PrepareOrchestratorServiceAsync(
+            ResourceOrchestratorServiceProcedureContext context,
+            ResourceAction action,
+            CancellationToken cancellationToken = default)
+        {
+            PreparedActions.Add(action.Id);
+            return Task.CompletedTask;
+        }
+
+        public Task ExecuteOrchestratorServiceInstanceAsync(
+            ResourceOrchestratorServiceInstanceContext context,
+            ResourceAction action,
+            CancellationToken cancellationToken = default)
+        {
+            ExecutedInstanceActions.Add($"{action.Id}:{context.Instance.Name}");
+            return Task.CompletedTask;
         }
     }
 

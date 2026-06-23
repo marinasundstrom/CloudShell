@@ -117,6 +117,10 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
         builder.Services.AddScoped<ResourceTemplateService>();
         builder.Services.AddScoped<IContainerHostResolver, ContainerHostResolver>();
         builder.Services.AddScoped<ResourceOrchestrationService>();
+        builder.Services.TryAddSingleton<
+            IResourceReplicaGroupReconciliationStore,
+            InMemoryResourceReplicaGroupReconciliationStore>();
+        builder.Services.AddScoped<ResourceReplicaGroupReconciliationService>();
         builder.Services.AddScoped<ResourceDeploymentService>();
         builder.Services.AddScoped<ResourceDeclarationStartupService>();
         builder.Services.AddScoped<ResourceIdentityProvisioningService>();
@@ -205,6 +209,8 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
             ServiceDescriptor.Singleton<IHostedService, ResourceHealthPollingService>());
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, ResourceRecoveryPollingService>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IHostedService, ResourceReplicaGroupReconciliationPollingService>());
 
         return controlPlane;
     }

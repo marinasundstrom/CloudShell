@@ -590,9 +590,7 @@ public sealed class ResourceOrchestrationDeploymentTests
                 "Start:cloudshell-application-api-replica-2"
             ],
             provider.ExecutedInstanceActions.ToArray());
-        Assert.Equal(
-            ResourceActionKind.Start,
-            Assert.Single(provider.PreparedActions).Kind);
+        Assert.Empty(provider.PreparedActions);
         var events = resourceEvents
             .GetEvents(new ResourceEventQuery(ResourceId: resource.Id))
             .Reverse()

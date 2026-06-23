@@ -749,10 +749,6 @@ public sealed class ResourceOrchestrationService(
                 $"Replica group '{replicaGroup.Id}' slot {FormatReplicaSlot(slot)} replacement occupant '{occupant.Name}' is materializing.",
                 triggeredBy,
                 ResourceSignalSeverity.Warning);
-            await provider.PrepareOrchestratorServiceAsync(
-                new ResourceOrchestratorServiceProcedureContext(resourceContext, service, replicaGroup),
-                ResourceAction.Start,
-                cancellationToken);
             await provider.ExecuteOrchestratorServiceInstanceAsync(
                 new ResourceOrchestratorServiceInstanceContext(resourceContext, service, occupant, replicaGroup),
                 ResourceAction.Start,

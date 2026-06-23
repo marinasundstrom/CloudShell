@@ -209,6 +209,13 @@ That decision belongs to the replica group reconciler because it has the active
 deployment, replica group, slot policy, liveness observations, and environment
 revision context.
 
+Liveness evaluation should observe and record unhealthy or vacant replica
+slots, then hand those observations to replica management. Health refresh must
+not synchronously own replacement work, rebuild images, or rerun full service
+preparation. A separate replica group reconciliation service can process the
+observations, coalesce repeated reports for the same slot, and invoke the
+provider with the narrower intent of restarting or replacing the slot occupant.
+
 Container app activity should surface replica management events without making
 the user inspect orchestrator internals first. The app should show that a
 replica slot became vacant or unhealthy, which policy decision was selected,
@@ -407,9 +414,10 @@ Implemented pieces include:
   container names based on the app revision so a new image revision can
   materialize beside the currently serving app revision before ingress/routing
 * first liveness-driven replica slot replacement path: a failed runtime slot
-  emits replica-management events and is replaced by the orchestration service
-  according to the replica group policy
-  cutover
+  is observed by health refresh, queued for replica management, emits
+  replica-management events, and is replaced by the orchestration service
+  according to the replica group policy without rerunning full service
+  preparation
 * orchestrator services derive an explicit revision-scoped replica group for
   runtime resource instances, and projected container app replicas carry the
   group id so replicas can be tracked as a set across materialization,

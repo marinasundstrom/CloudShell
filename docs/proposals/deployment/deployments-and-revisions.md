@@ -1194,6 +1194,13 @@ reconciler owns these responsibilities:
 * record slot-level events and the resulting Environment revision or
   reconciliation observation
 
+Health/liveness evaluation is an input to that controller, not the controller
+itself. The health path should detect failed runtime scope observations and
+queue slot reconciliation work, while a replica-group reconciliation service
+processes that work outside the health refresh critical path. This keeps
+normal resource health observation, resource-level recovery, deployment apply,
+and replica slot repair as separate responsibilities.
+
 Replica management activity should be logged separately from deployment apply
 activity. Deployment events answer "what happened while applying this desired
 runtime state?" Replica management events answer "what happened after the
