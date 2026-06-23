@@ -537,8 +537,9 @@ public sealed class OrchestratorRevision
 }
 ```
 
-The deployment model should represent desired resource state in the CloudShell
-environment, not provider-private imperative commands and not the full
+The deployment model should represent resource intent in the CloudShell
+environment: what the actor wants the runtime to materialize. It should not
+represent provider-private imperative commands, and it should not be the full
 user-facing resource graph. The durable shape should be a deployment
 specification, or deployment definition, containing versioned typed service
 and resource definitions or deltas. Services are first-class orchestrator
@@ -548,9 +549,9 @@ deployment can also include standalone resources that are not grouped under a
 service.
 
 Each resource entry names the resource being reconciled, declares its resource
-type, and carries the desired resource state that can be validated by the
-owning resource type or provider. That desired state may be represented by a
-typed versioned definition payload, provider-owned attributes such as
+type, and carries resource intent that can be validated by the owning resource
+type or provider. That intent may be represented by a typed versioned
+definition payload, provider-owned attributes such as
 `executable.path`, `executable.arguments`, and
 `executable.workingDirectory`, and eventually complex typed attribute values
 when the resource schema allows them. Structurally:
@@ -590,11 +591,11 @@ format projections of that structure. The important model constraint is that
 deployment inputs are expressed as service-shaped and resource-shaped objects:
 stable identity, type, versioned definition data, and portable attributes where
 those attributes are intended for querying, correlation, or projection.
-Attributes are still part of desired resource state when they are declared by
-the owning resource schema. They should not become an unbounded substitute for
-provider configuration schemas; service- or resource-specific configuration
-that needs validation belongs in either a typed, versioned definition payload
-or typed provider-owned attributes. This keeps deployments easy to validate,
+Attributes are still part of resource intent when they are declared by the
+owning resource schema. They should not become an unbounded substitute for
+provider configuration schemas; service- or resource-specific intent that
+needs validation belongs in either a typed, versioned definition payload or
+typed provider-owned attributes. This keeps deployments easy to validate,
 compare, version, replay, and project into environment revisions. It also
 keeps the door open for different orchestrators to map the same CloudShell
 deployment specification into Docker, Docker Compose, Kubernetes, or a custom
@@ -605,8 +606,8 @@ For example, a serialized projection of a deployment definition might contain
 a resource definition for an executable application with attributes such as
 `executable.path`, `executable.arguments`, `executable.workingDirectory`, and
 a future complex `custom.data` value. The JSON shape is only one projection;
-the model concept is a resource definition that states intent and desired
-state for a named resource of a known type.
+the model concept is a resource definition that states intent for a named
+resource of a known type.
 
 Lifecycle and materialization intent should be part of the requested resource
 or replica state in the deployment definition. This follows the same model as

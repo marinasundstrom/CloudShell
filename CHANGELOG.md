@@ -91,9 +91,12 @@ on `git blame --follow`, and then by the broad type of change.
 - Container app deployment tear-down planning now lives in a container-app-owned
   planner with direct tests for superseded revision and legacy stable replica
   group cleanup decisions.
+- Container app runtime revision scoping now lives in a container-app-owned
+  policy with direct tests for environment revision and active app revision
+  history.
 - The deployment proposal now clarifies that deployment definitions describe
-  desired resource state through resource definitions and provider-owned
-  attributes, with serialized formats treated as projections of that model.
+  resource intent through resource definitions and provider-owned attributes,
+  with serialized formats treated as projections of that model.
 - Application resource documentation now includes a provider layering diagram
   that separates raw Resource Provider infrastructure, the Application Resource
   Provider toolkit, and the built-in dogfooded application resource providers.

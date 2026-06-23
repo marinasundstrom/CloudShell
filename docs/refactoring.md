@@ -96,6 +96,9 @@ without forcing provider-specific logic into shared helpers.
 - [x] Extract container app deployment tear-down planning into a container-app
   unit that owns superseded revision and legacy stable replica group cleanup
   decisions.
+- [x] Extract container app runtime revision scoping policy into a
+  container-app unit that owns when replica runtime names should include the
+  active app revision.
 
 ## Next Slices
 
@@ -125,24 +128,24 @@ without forcing provider-specific logic into shared helpers.
 
 - [ ] Define resource attribute schemas across provider-owned resource
   type/kind/class boundaries, including scalar and complex values, so
-  Resource Manager can understand desired resource state without hard-coding
+  Resource Manager can understand resource intent without hard-coding
   provider-specific attributes.
 - [ ] Define provider validation contracts for attributes and capabilities.
   Providers should be able to validate whether a declared or deployed resource
   state conforms to the provider-supported schema and capability set.
 - [ ] Define provider apply contracts for attribute changes. A provider should
-  own how validated desired state maps to its runtime target, whether that
+  own how validated resource intent maps to its runtime target, whether that
   target is an executable, container, orchestrator service, database, or other
   managed resource.
 - [ ] Feed the schema/validation/apply model into orchestrator deployments so
-  deployment definitions can describe desired resource state consistently
+  deployment definitions can describe resource intent consistently
   across resource types while leaving type-specific reconciliation to the
   owning provider. Conceptually, a deployment definition contains resource
   definitions: resource identity, resource type/kind/class, and provider-owned
   attributes such as `executable.path`, `executable.arguments`, or future
-  complex typed values. The deployment definition describes intent and desired
-  state in CloudShell; providers validate and apply that state to their
-  runtime target.
+  complex typed values. The deployment definition tells CloudShell what the
+  actor wants the runtime to materialize; providers validate and apply that
+  intent to their runtime target.
 
 ## Environment and UI Follow-Ups
 

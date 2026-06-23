@@ -36,11 +36,10 @@ public sealed partial class ApplicationResourceService
     private bool ShouldUseRevisionScopedRuntimeInstances(
         ApplicationResourceDefinition application,
         string revision) =>
-        !string.IsNullOrWhiteSpace(revision) &&
-        (!string.IsNullOrWhiteSpace(application.DeploymentEnvironmentRevisionId) ||
-            containerDeployments.ListRevisions(application.Id).Any(entry =>
-                string.Equals(entry.Id, revision, StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(entry.Status, ApplicationContainerRevisionStatuses.Active, StringComparison.OrdinalIgnoreCase)));
+        ContainerRuntimeRevisionPolicy.ShouldUseRevisionScopedRuntimeInstances(
+            application,
+            revision,
+            containerDeployments.ListRevisions(application.Id));
 
     public Task<IReadOnlyList<ResourceOrchestratorReplicaGroupTearDownRequest>> DescribeDeploymentTearDownAsync(
         ResourceProcedureContext context,
