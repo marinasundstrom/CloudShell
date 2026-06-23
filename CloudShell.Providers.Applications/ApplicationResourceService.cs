@@ -86,6 +86,7 @@ public sealed partial class ApplicationResourceService(
             definitionNormalizer ?? new ApplicationResourceDefinitionNormalizer(environment));
     private readonly ApplicationContainerHostResolver _containerHosts =
         containerHosts ?? new ApplicationContainerHostResolver(serviceProvider);
+    private readonly ApplicationResourcePortResolver _ports = new(options);
 
     public string Id => ApplicationResourceProviderIds.Applications;
 
@@ -3823,21 +3824,6 @@ public sealed partial class ApplicationResourceService(
     private IReadOnlyList<ContainerHostDescriptor> GetContainerHosts() =>
         _containerHosts.GetContainerHosts();
 
-    private static uint StableHash(string value)
-    {
-        const uint offset = 2166136261;
-        const uint prime = 16777619;
-
-        var hash = offset;
-        foreach (var character in value)
-        {
-            hash ^= character;
-            hash *= prime;
-        }
-
-        return hash;
-    }
-
     private static string GetContainerName(ResourceOrchestratorService service, int replica = 1) =>
         ResourceOrchestratorReplicaGroups.CreateDefaultInstanceName(
             service.Name,
@@ -3930,7 +3916,7 @@ public sealed partial class ApplicationResourceService(
             serviceName = serviceName[..40].Trim('-');
         }
 
-        var hash = StableHash(instance.Name).ToString("x8", CultureInfo.InvariantCulture);
+        var hash = ApplicationResourceHash.StableHash(instance.Name).ToString("x8", CultureInfo.InvariantCulture);
         var replica = Math.Max(1, instance.ReplicaOrdinal).ToString(CultureInfo.InvariantCulture);
         return $"{serviceName}-r{replica}-{hash}";
     }

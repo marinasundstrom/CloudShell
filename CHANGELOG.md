@@ -23,6 +23,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Application infrastructure projection profile selection now lives in
   `ApplicationResourceProjectionProfiles`, making top-level projection
   decisions reusable outside `ApplicationResourceService`.
+- Application local port allocation now lives in `ApplicationResourcePortResolver`
+  with a shared stable hash helper, reducing endpoint/projection coupling in
+  `ApplicationResourceService`.
 
 ### 2026-06-23
 

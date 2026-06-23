@@ -159,6 +159,8 @@ without forcing provider-specific logic into shared helpers.
   `SqlServerDatabaseResourceProjector`.
 - [x] Extract application infrastructure projection profile selection into
   `ApplicationResourceProjectionProfiles`.
+- [x] Extract application local port allocation into
+  `ApplicationResourcePortResolver`.
 
 ## Next Slices
 
