@@ -29,6 +29,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Removed the unused SQL database normalization partial from
   `ApplicationResourceService` after SQL database projection moved to a
   SQL-specific projector.
+- Application provider UI pages now depend on focused operation contracts
+  instead of injecting `ApplicationResourceService` directly.
 
 ### 2026-06-23
 

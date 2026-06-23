@@ -1,5 +1,5 @@
 @using System.Globalization
-@inject ApplicationResourceService ApplicationProvider
+@inject IContainerApplicationHistoryOperations ContainerHistory
 @inject IResourceManager ResourceManager
 
 @if (Resource is null)
@@ -103,7 +103,7 @@ else
             : await ResourceManager.GetResourceAsync(ResourceId);
         Revisions = string.IsNullOrWhiteSpace(ResourceId)
             ? []
-            : ApplicationProvider.GetContainerRevisions(ResourceId);
+            : ContainerHistory.GetContainerRevisions(ResourceId);
     }
 
     private static string GetDeploymentRevision(Resource? resource) =>

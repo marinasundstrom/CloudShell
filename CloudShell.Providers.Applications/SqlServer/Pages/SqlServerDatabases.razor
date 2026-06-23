@@ -1,4 +1,5 @@
-@inject ApplicationResourceService ApplicationProvider
+@inject IApplicationResourceManagementOperations ApplicationProvider
+@inject ISqlServerDatabaseInspectionOperations DatabaseInspection
 
 @if (Application is null)
 {
@@ -111,7 +112,7 @@ else
             try
             {
                 WasLiveQueryAttempted = true;
-                liveDatabases = await ApplicationProvider.QuerySqlServerDatabasesAsync(Application.Id);
+                liveDatabases = await DatabaseInspection.QuerySqlServerDatabasesAsync(Application.Id);
             }
             catch (Exception exception)
             {

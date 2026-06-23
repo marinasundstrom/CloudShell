@@ -8,6 +8,39 @@ public interface IApplicationResourceDefinitionSource
     ApplicationResourceDefinition? GetApplication(string id);
 }
 
+public interface IApplicationResourceManagementOperations : IApplicationResourceDefinitionSource
+{
+    IReadOnlyList<ApplicationResourceDefinition> GetApplications();
+
+    Task SetupApplicationAsync(
+        ApplicationResourceDefinition definition,
+        string? resourceGroupId,
+        IResourceRegistrationStore registrations,
+        CancellationToken cancellationToken = default);
+
+    Task UpdateApplicationAsync(
+        ApplicationResourceDefinition definition,
+        string? resourceGroupId,
+        IResourceRegistrationStore registrations,
+        CancellationToken cancellationToken = default);
+
+    bool IsRunning(string applicationId);
+}
+
+public interface IContainerApplicationHistoryOperations
+{
+    IReadOnlyList<ApplicationContainerDeployment> GetContainerDeployments(string applicationId);
+
+    IReadOnlyList<ApplicationContainerRevisionHistoryEntry> GetContainerRevisions(string applicationId);
+}
+
+public interface ISqlServerDatabaseInspectionOperations
+{
+    Task<IReadOnlyList<SqlServerDatabaseInfo>> QuerySqlServerDatabasesAsync(
+        string sqlServerResourceId,
+        CancellationToken cancellationToken = default);
+}
+
 public interface IApplicationResourceProcedureOperations
 {
     Task<ResourceProcedureResult> DeleteAsync(

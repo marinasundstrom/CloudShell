@@ -1,0 +1,45 @@
+using CloudShell.Abstractions.Hosting;
+using CloudShell.Providers.Applications;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
+
+namespace CloudShell.Abstractions.Tests;
+
+public sealed class ApplicationProviderOperationsRegistrationTests
+{
+    [Fact]
+    public void AddApplicationProvider_RegistersUiFacingOperationContracts()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(Path.GetTempPath()));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider();
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var applicationService = serviceProvider.GetRequiredService<ApplicationResourceService>();
+
+        Assert.Same(
+            applicationService,
+            serviceProvider.GetRequiredService<IApplicationResourceManagementOperations>());
+        Assert.Same(
+            applicationService,
+            serviceProvider.GetRequiredService<IContainerApplicationHistoryOperations>());
+        Assert.Same(
+            applicationService,
+            serviceProvider.GetRequiredService<ISqlServerDatabaseInspectionOperations>());
+    }
+
+    private sealed class TestHostEnvironment(string contentRootPath) : IHostEnvironment
+    {
+        public string EnvironmentName { get; set; } = Environments.Development;
+
+        public string ApplicationName { get; set; } = "CloudShell.Tests";
+
+        public string ContentRootPath { get; set; } = contentRootPath;
+
+        public IFileProvider ContentRootFileProvider { get; set; } =
+            new PhysicalFileProvider(contentRootPath);
+    }
+}

@@ -163,6 +163,9 @@ without forcing provider-specific logic into shared helpers.
   `ApplicationResourcePortResolver`.
 - [x] Remove the unused SQL database normalization partial from
   `ApplicationResourceService`.
+- [x] Move provider UI pages off direct `ApplicationResourceService`
+  injection by introducing focused application management, container history,
+  and SQL database inspection operation contracts.
 
 ## Next Slices
 
@@ -185,7 +188,7 @@ without forcing provider-specific logic into shared helpers.
   layering from raw Resource Provider infrastructure to Application Resource
   Provider infrastructure and the dogfooded implementors: Container app,
   Executable app, and ASP.NET Core Web project.
-- [ ] Move provider UI pages off direct `ApplicationResourceService` injection
+- [x] Move provider UI pages off direct `ApplicationResourceService` injection
   where they can depend on concrete provider operations or Resource Manager
   managers instead.
 - [ ] Move remaining container-app-specific Resource Manager semantics into

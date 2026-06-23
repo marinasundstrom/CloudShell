@@ -1,6 +1,6 @@
 @using Microsoft.JSInterop
 @using System.Globalization
-@inject ApplicationResourceService ApplicationProvider
+@inject IContainerApplicationHistoryOperations ContainerHistory
 @inject IResourceManager ResourceManager
 @inject IResourceEventManager ResourceEvents
 @inject IJSRuntime JS
@@ -180,7 +180,7 @@ else
             : await ResourceManager.GetResourceAsync(ResourceId);
         Deployments = string.IsNullOrWhiteSpace(ResourceId)
             ? []
-            : ApplicationProvider.GetContainerDeployments(ResourceId);
+            : ContainerHistory.GetContainerDeployments(ResourceId);
         DeploymentEvents = string.IsNullOrWhiteSpace(ResourceId)
             ? []
             : await LoadDeploymentEventsAsync(ResourceId);
@@ -248,7 +248,7 @@ else
             if (updatedResource is not null)
             {
                 Resource = updatedResource;
-                Deployments = ApplicationProvider.GetContainerDeployments(updatedResource.Id);
+                Deployments = ContainerHistory.GetContainerDeployments(updatedResource.Id);
                 DeploymentEvents = await LoadDeploymentEventsAsync(updatedResource.Id);
                 DeploymentImage = GetCurrentContainerImage(Resource);
                 DeploymentRequestedReplicas = GetDeploymentRequestedReplicasValue(Resource);
