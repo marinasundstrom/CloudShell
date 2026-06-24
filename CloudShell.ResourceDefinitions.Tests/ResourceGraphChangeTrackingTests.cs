@@ -223,6 +223,45 @@ public sealed class ResourceGraphChangeTrackingTests
     }
 
     [Fact]
+    public async Task ResourceGraphTransaction_StagesChangesAndCommitsThroughModel()
+    {
+        var stateProvider = new InMemoryResourceStateProvider([CreateState("api", "./api")]);
+        var model = new ResourceGraphModel(stateProvider);
+        var applyDispatcher = new ResourceChangeApplyDispatcher(
+            [new ExecutableApplicationResourceTypeProvider()]);
+
+        await using var transaction = await model.BeginTransactionAsync();
+        transaction.Track(await StageExecutablePathChangeAsync(
+            transaction.Snapshot,
+            "application.executable:api",
+            "./api-transaction",
+            applyDispatcher));
+
+        var changes = transaction.GetChanges();
+        var commit = await transaction.CommitAsync(new ResourceGraphCommitContext());
+        var current = await model.GetSnapshotAsync();
+
+        Assert.Equal(ResourceGraphVersion.Initial, transaction.BaseVersion);
+        Assert.True(changes.HasChanges);
+        Assert.True(commit.IsCommitted);
+        Assert.Equal(new ResourceGraphVersion(1), current.Version);
+        Assert.Equal("./api-transaction", FindState(current, "application.executable:api")
+            .ResourceAttributes[ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
+    }
+
+    [Fact]
+    public async Task ResourceGraphTransaction_CannotBeReusedAfterCommit()
+    {
+        var stateProvider = new InMemoryResourceStateProvider([CreateState("api", "./api")]);
+        var model = new ResourceGraphModel(stateProvider);
+
+        await using var transaction = await model.BeginTransactionAsync();
+
+        Assert.True((await transaction.CommitAsync(new ResourceGraphCommitContext())).IsCommitted);
+        Assert.Throws<InvalidOperationException>(() => transaction.GetChanges());
+    }
+
+    [Fact]
     public async Task ResourceGraphModel_RejectsStaleTrackedChangesBeforeProviderCommit()
     {
         var stateProvider = new InMemoryResourceStateProvider([CreateState("api", "./api")]);

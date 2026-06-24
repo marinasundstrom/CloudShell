@@ -82,6 +82,9 @@ on `git blame --follow`, and then by the broad type of change.
   unversioned transaction proposals, with graph versions and resource
   revisions assigned only when the resource graph commit boundary accepts
   changes.
+- The resource definitions POC now includes a small `ResourceGraphTransaction`
+  facade that stages accepted resource changes against a graph snapshot and
+  commits them once through `ResourceGraphModel`.
 - The resource definitions POC now includes a capability resolver so
   provider-owned capability behavior can be composed into type-specific
   resource projections without making the definition stop being the persisted

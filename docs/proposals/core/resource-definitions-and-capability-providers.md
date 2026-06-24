@@ -1134,11 +1134,11 @@ ResourceChangeSet staged = changeContext.ApplyChanges();
 ResourceChangeApplyResult accepted =
     await changeApplyDispatcher.ApplyChangesAsync(staged, context, cancellationToken);
 
-var graphChanges = new ResourceGraphChangeTracker(snapshot);
-graphChanges.Track(accepted);
+await using var transaction = await graphModel.BeginTransactionAsync(cancellationToken);
+transaction.Track(accepted);
 
 ResourceGraphCommitResult commit =
-    await graphModel.CommitAsync(graphChanges.GetChanges(), commitContext, cancellationToken);
+    await transaction.CommitAsync(commitContext, cancellationToken);
 ```
 
 For a hypothetical container type provider, changing `container.image` while
@@ -1175,8 +1175,11 @@ Versions are assigned only when changes become committed state:
 - `Resource.Revision` identifies committed resource state.
 - `ResourceChangeSet` carries proposed changes and the base graph version it
   was prepared against.
-- A future `ResourceGraphTransaction` should own staging, provider validation,
-  conflict checks, commit, diagnostics, summary, and future event creation.
+- `ResourceGraphTransaction` owns staged accepted changes for a graph snapshot
+  and commits them through `ResourceGraphModel`.
+- Future transaction slices can add provider validation orchestration,
+  conflict policy, diagnostics enrichment, summary enrichment, and event
+  creation.
 
 That transaction layer sits above the core resource projection. The core model
 resolves state and allows proposed changes to be expressed; the transaction or
@@ -1187,6 +1190,13 @@ graph is newer, the transaction is rejected with a version conflict and the
 caller refreshes the graph or relevant resources before creating a new change
 set. Future merge or rebase support should be explicit, provider-aware, and
 auditable rather than implicit in `Resource` or capability projections.
+
+The current POC transaction is intentionally small. It captures the base
+`ResourceGraphSnapshot`, tracks accepted `ResourceChangeApplyResult` values,
+exposes the pending `ResourceGraphChangeSet` for inspection, and can be
+committed once through the graph model. It prevents reusing a completed
+transaction, but it does not yet resolve resources, run capability providers,
+or apply merge policies itself.
 
 ## Capability Providers
 

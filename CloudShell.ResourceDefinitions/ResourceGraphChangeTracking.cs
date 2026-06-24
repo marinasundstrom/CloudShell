@@ -37,6 +37,8 @@ public sealed record ResourceGraphChangeSet(
     IReadOnlyList<ResourceChangeApplyResult> Resources,
     IReadOnlyList<ResourceDefinitionDiagnostic> Diagnostics)
 {
+    public bool HasChanges => Resources.Any(resource => resource.ChangeSet.HasChanges);
+
     public bool HasErrors =>
         Diagnostics.Any(diagnostic => diagnostic.Severity == ResourceDefinitionDiagnosticSeverity.Error) ||
         Resources.Any(resource => resource.HasErrors);
@@ -245,6 +247,10 @@ public sealed class ResourceGraphModel(IResourceStateProvider stateProvider)
         CancellationToken cancellationToken = default) =>
         new(await GetSnapshotAsync(cancellationToken));
 
+    public async ValueTask<ResourceGraphTransaction> BeginTransactionAsync(
+        CancellationToken cancellationToken = default) =>
+        new(this, await GetSnapshotAsync(cancellationToken));
+
     public async ValueTask<ResourceGraphCommitResult> CommitAsync(
         ResourceGraphChangeSet changes,
         ResourceGraphCommitContext context,
@@ -331,6 +337,69 @@ public sealed class ResourceGraphModel(IResourceStateProvider stateProvider)
         ResourceDefinitionDiagnostic.Error(
             ResourceDefinitionDiagnosticCodes.ResourceGraphVersionConflict,
             $"Resource graph version '{expected}' is stale. Current version is '{current}'.");
+}
+
+public sealed class ResourceGraphTransaction(
+    ResourceGraphModel model,
+    ResourceGraphSnapshot snapshot) : IAsyncDisposable
+{
+    private readonly ResourceGraphChangeTracker _tracker = new(snapshot);
+    private bool _isCompleted;
+    private bool _isDisposed;
+
+    public ResourceGraphSnapshot Snapshot { get; } = snapshot;
+
+    public ResourceGraphVersion BaseVersion => Snapshot.Version;
+
+    public void Track(ResourceChangeApplyResult result)
+    {
+        ObjectDisposedException.ThrowIf(_isDisposed, this);
+
+        if (_isCompleted)
+        {
+            throw new InvalidOperationException("The resource graph transaction has already completed.");
+        }
+
+        _tracker.Track(result);
+    }
+
+    public ResourceGraphChangeSet GetChanges()
+    {
+        ObjectDisposedException.ThrowIf(_isDisposed, this);
+
+        if (_isCompleted)
+        {
+            throw new InvalidOperationException("The resource graph transaction has already completed.");
+        }
+
+        return _tracker.GetChanges();
+    }
+
+    public async ValueTask<ResourceGraphCommitResult> CommitAsync(
+        ResourceGraphCommitContext context,
+        CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_isDisposed, this);
+        ArgumentNullException.ThrowIfNull(context);
+
+        if (_isCompleted)
+        {
+            throw new InvalidOperationException("The resource graph transaction has already completed.");
+        }
+
+        _isCompleted = true;
+
+        return await model.CommitAsync(
+            _tracker.GetChanges(),
+            context,
+            cancellationToken);
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        _isDisposed = true;
+        return ValueTask.CompletedTask;
+    }
 }
 
 public sealed class InMemoryResourceStateProvider(
