@@ -64,6 +64,43 @@ public sealed class ResourceChangeApplyDispatcherTests
     }
 
     [Fact]
+    public async Task ApplyChangesAsync_RejectsReadOnlyAttributeChangesBeforeProviderDispatch()
+    {
+        var resource = CreateReadOnlyResource();
+        resource.SetAttribute("system.generated", "changed");
+        var changes = resource.ApplyChanges();
+        var dispatcher = new ResourceChangeApplyDispatcher([]);
+
+        var result = await dispatcher.ApplyChangesAsync(
+            changes,
+            new ResourceChangeApplyContext());
+
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.False(result.IsAccepted);
+        Assert.Null(result.AcceptedState);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.ReadOnlyAttributeChange, diagnostic.Code);
+        Assert.Equal("system.generated", diagnostic.Target);
+    }
+
+    [Fact]
+    public async Task ApplyChangesAsync_RejectsReadOnlyAttributesOnNewResources()
+    {
+        var resource = CreateReadOnlyResource("caller-value");
+        var changes = ResourceChangeSet.FromNewResource(resource);
+        var dispatcher = new ResourceChangeApplyDispatcher([]);
+
+        var result = await dispatcher.ApplyChangesAsync(
+            changes,
+            new ResourceChangeApplyContext());
+
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.False(result.IsAccepted);
+        Assert.Null(result.AcceptedState);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.ReadOnlyAttributeChange, diagnostic.Code);
+        Assert.Equal("system.generated", diagnostic.Target);
+    }
+
+    [Fact]
     public async Task ApplyChangesAsync_AcceptsNoOpChangeSetWithoutProviderDispatch()
     {
         var resource = CreateResource("./api");
@@ -92,6 +129,31 @@ public sealed class ResourceChangeApplyDispatcherTests
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
                 [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = executablePath
+            }));
+    }
+
+    private static Resource CreateReadOnlyResource(string value = "generated")
+    {
+        ResourceClassId classId = "test";
+        ResourceTypeId typeId = "test.read-only";
+        var resolver = new ResourceResolver(
+            [new ResourceClassDefinition(classId)],
+            [
+                new(
+                    typeId,
+                    classId,
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                    {
+                        ["system.generated"] = new(ReadOnly: true)
+                    })
+            ]);
+
+        return resolver.Resolve(new ResourceState(
+            "resource",
+            typeId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                ["system.generated"] = value
             }));
     }
 }

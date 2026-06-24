@@ -193,21 +193,36 @@ public sealed class ResourceResolver
         ResourceState state)
     {
         var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeResolution>();
+        var readOnlyAttributes = ResolveReadOnlyAttributeIds(resourceType);
 
         foreach (var attribute in resourceType.Attributes)
         {
             attributes[attribute.Name] = attribute;
         }
 
-        MergeAttributes(attributes, state.ResourceAttributes, ResourceDefinitionValueSource.ResourceState);
+        MergeAttributes(
+            attributes,
+            state.ResourceAttributes,
+            ResourceDefinitionValueSource.ResourceState,
+            readOnlyAttributes);
 
         return new(attributes.Values);
+    }
+
+    private static IReadOnlySet<ResourceAttributeId> ResolveReadOnlyAttributeIds(
+        ResourceType resourceType)
+    {
+        var readOnlyAttributes = new HashSet<ResourceAttributeId>();
+        MergeReadOnlyAttributeDefinitions(readOnlyAttributes, resourceType.Class.Definition.Attributes);
+        MergeReadOnlyAttributeDefinitions(readOnlyAttributes, resourceType.Definition.Attributes);
+        return readOnlyAttributes;
     }
 
     private static void MergeAttributes(
         Dictionary<ResourceAttributeId, ResourceAttributeResolution> target,
         IReadOnlyDictionary<ResourceAttributeId, string>? attributes,
-        ResourceDefinitionValueSource source)
+        ResourceDefinitionValueSource source,
+        IReadOnlySet<ResourceAttributeId>? readOnlyAttributes = null)
     {
         if (attributes is null)
         {
@@ -216,7 +231,32 @@ public sealed class ResourceResolver
 
         foreach (var (name, value) in attributes)
         {
-            target[name] = new(name, value, source);
+            var readOnly =
+                target.TryGetValue(name, out var inherited) && inherited.ReadOnly ||
+                readOnlyAttributes?.Contains(name) == true;
+            target[name] = new(name, value, source, readOnly);
+        }
+    }
+
+    private static void MergeReadOnlyAttributeDefinitions(
+        HashSet<ResourceAttributeId> target,
+        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? attributeDefinitions)
+    {
+        if (attributeDefinitions is null)
+        {
+            return;
+        }
+
+        foreach (var (name, attributeDefinition) in attributeDefinitions)
+        {
+            if (attributeDefinition.ReadOnly)
+            {
+                target.Add(name);
+            }
+            else
+            {
+                target.Remove(name);
+            }
         }
     }
 
@@ -241,7 +281,8 @@ public sealed class ResourceResolver
             target[name] = new(
                 name,
                 value,
-                source);
+                source,
+                attributeDefinition.ReadOnly);
         }
     }
 
@@ -594,6 +635,7 @@ public static class ResourceDefinitionDiagnosticCodes
     public const string ResourceCapabilityProjectionMissing = "resourceDefinition.capabilityProjectionMissing";
     public const string ResourceOperationProjectionMissing = "resourceDefinition.operationProjectionMissing";
     public const string AttributeDefinitionDefaultInvalid = "resourceDefinition.attributeDefinitionDefaultInvalid";
+    public const string ReadOnlyAttributeChange = "resourceDefinition.readOnlyAttributeChange";
     public const string ResourceDefinitionTargetMismatch = "resourceDefinition.targetMismatch";
 }
 

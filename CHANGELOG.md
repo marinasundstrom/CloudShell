@@ -175,6 +175,10 @@ on `git blame --follow`, and then by the broad type of change.
   records and operation provider services in separate files next to the owning
   resource type provider, keeping type providers focused on definition shape,
   validation, and apply planning.
+- `ResourceAttributeDefinition` now carries read-only metadata, resolved
+  attributes preserve that effective flag, and Resource model apply rejects
+  caller-authored create/update changes for read-only attributes before
+  dispatching to type-specific apply providers.
 - The container application reference provider now validates optional
   container-host placement references declared as typed `ResourceReference`
   dependencies, and the proposal records `database.server` as the future

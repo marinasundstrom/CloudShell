@@ -32,7 +32,8 @@ public sealed class ResourceAttributeSet : IReadOnlyCollection<ResourceAttribute
 public sealed record ResourceAttributeResolution(
     ResourceAttributeId Name,
     string Value,
-    ResourceDefinitionValueSource Source);
+    ResourceDefinitionValueSource Source,
+    bool ReadOnly = false);
 
 public sealed class ResourceCapabilitySet : IReadOnlyCollection<ResourceCapabilityResolution>
 {

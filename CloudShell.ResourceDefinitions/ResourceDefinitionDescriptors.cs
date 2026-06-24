@@ -23,7 +23,8 @@ public sealed record ResourceAttributeDefinition(
     bool Required = false,
     string? RequiredMessage = null,
     string? Description = null,
-    ResourceAttributeValueShape? ValueShape = null);
+    ResourceAttributeValueShape? ValueShape = null,
+    bool ReadOnly = false);
 
 public sealed record ResourceAttributeValueShape(
     ResourceAttributeValueKind Kind,

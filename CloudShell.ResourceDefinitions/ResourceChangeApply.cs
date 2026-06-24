@@ -63,6 +63,14 @@ public sealed class ResourceChangeApplyDispatcher(
             return ResourceChangeApplyResult.Rejected(changes, changes.Diagnostics);
         }
 
+        var readOnlyDiagnostics = ValidateReadOnlyAttributeChanges(changes);
+        if (readOnlyDiagnostics.Count > 0)
+        {
+            return ResourceChangeApplyResult.Rejected(
+                changes,
+                [.. changes.Diagnostics, .. readOnlyDiagnostics]);
+        }
+
         var provider = _providers.FirstOrDefault(provider =>
             provider.TypeId == changes.Resource.Type.TypeId &&
             provider.CanApply(changes));
@@ -80,6 +88,63 @@ public sealed class ResourceChangeApplyDispatcher(
         }
 
         return await provider.ApplyChangesAsync(changes, context, cancellationToken);
+    }
+
+    private static IReadOnlyList<ResourceDefinitionDiagnostic> ValidateReadOnlyAttributeChanges(
+        ResourceChangeSet changes)
+    {
+        var diagnostics = new List<ResourceDefinitionDiagnostic>();
+
+        foreach (var change in changes.AttributeChanges)
+        {
+            if (IsReadOnlyAttribute(changes.Resource, change.AttributeId))
+            {
+                diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                    ResourceDefinitionDiagnosticCodes.ReadOnlyAttributeChange,
+                    $"Attribute '{change.AttributeId}' is read-only and cannot be changed through resource definition apply.",
+                    change.AttributeId));
+            }
+        }
+
+        return diagnostics;
+    }
+
+    private static bool IsReadOnlyAttribute(
+        Resource resource,
+        ResourceAttributeId attributeId)
+    {
+        var hasClassDefinition =
+            TryGetReadOnly(resource.Class.Definition.Attributes, attributeId, out var classReadOnly);
+        var hasTypeDefinition =
+            TryGetReadOnly(resource.Type.Definition.Attributes, attributeId, out var typeReadOnly);
+
+        if (hasTypeDefinition)
+        {
+            return typeReadOnly == true;
+        }
+
+        if (hasClassDefinition)
+        {
+            return classReadOnly == true;
+        }
+
+        return resource.Attributes.Resolve(attributeId)?.ReadOnly == true;
+    }
+
+    private static bool TryGetReadOnly(
+        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? attributeDefinitions,
+        ResourceAttributeId attributeId,
+        out bool? readOnly)
+    {
+        if (attributeDefinitions is not null &&
+            attributeDefinitions.TryGetValue(attributeId, out var attributeDefinition))
+        {
+            readOnly = attributeDefinition.ReadOnly;
+            return true;
+        }
+
+        readOnly = null;
+        return false;
     }
 }
 
