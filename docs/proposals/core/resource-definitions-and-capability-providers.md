@@ -462,7 +462,7 @@ Persistable definition model:
 
 ```mermaid
 flowchart TD
-    classDef["ResourceClassDefinition<br/>shared class contract"]
+    resourceClassDefinition["ResourceClassDefinition<br/>shared class contract"]
     typeDef["ResourceTypeDefinition<br/>type contract within a class"]
     resourceDef["ResourceDefinition<br/>persisted resource intent"]
 
@@ -470,10 +470,10 @@ flowchart TD
     typeValues["Attributes, capabilities, operations<br/>type defaults and requirements"]
     resourceValues["Attributes, capabilities, operations<br/>resource-owned values and payloads"]
 
-    classDef --> typeDef
+    resourceClassDefinition --> typeDef
     typeDef --> resourceDef
 
-    classDef --> classValues
+    resourceClassDefinition --> classValues
     typeDef --> typeValues
     resourceDef --> resourceValues
 ```
@@ -482,36 +482,36 @@ Runtime resolution, providers, and generated wrappers:
 
 ```mermaid
 flowchart TD
-    subgraph definitions["Persistable definition inputs"]
-        classDef["ResourceClassDefinition"]
+    subgraph definitions [Persistable definition inputs]
+        resourceClassDefinition["ResourceClassDefinition"]
         typeDef["ResourceTypeDefinition"]
         resourceDef["ResourceDefinition"]
     end
 
-    subgraph resolvedLayer["Resolved definition state"]
+    subgraph resolvedLayer [Resolved definition state]
         resolver["ResourceDefinitionResolver"]
         resolved["ResolvedResourceDefinition<br/>complete value set after inheritance"]
     end
 
-    subgraph behaviorLayer["Provider behavior"]
+    subgraph behaviorLayer [Provider behavior]
         capabilityProviders["Capability providers<br/>capability-owned behavior"]
         operationProviders["Operation providers<br/>operation-owned behavior"]
     end
 
-    subgraph resourceViewLayer["Resolved resource view"]
+    subgraph resourceViewLayer [Resolved resource view]
         resourceView["ResourceDefinitionProjection<br/>view over resolved data"]
         capabilityResolver["ResourceCapabilityResolver<br/>resolves capability providers"]
         operationResolver["ResourceOperationResolver<br/>future operation provider resolver"]
         resource["Resource<br/>capabilities and operations resolved for callers"]
     end
 
-    subgraph wrapperLayer["Generated wrappers"]
+    subgraph wrapperLayer [Generated wrappers]
         projectionResolver["ResourceProjectionResolver<br/>selects wrapper by resource type"]
         wrapper["ExecutableApplicationResource<br/>source-generated facade"]
         method["GetVolumesAsync()<br/>wrapper method"]
     end
 
-    classDef --> resolver
+    resourceClassDefinition --> resolver
     typeDef --> resolver
     resourceDef --> resolver
     resolver --> resolved --> resourceView
@@ -526,7 +526,7 @@ flowchart TD
     resourceView --> projectionResolver --> wrapper --> method
     method --> capabilityResolver
     operationProviders --> capabilityResolver
-    capabilityProviders -. may update intent .-> resourceDef
+    capabilityProviders -.-> resourceDef
 ```
 
 The same principle applies to projected resources. A `Resource` projection can
@@ -607,7 +607,7 @@ Sample provider package structure:
 
 ```mermaid
 flowchart TD
-    subgraph package["CloudShell.Providers.ExecutableApplications"]
+    subgraph package [CloudShell.Providers.ExecutableApplications]
         registration["AddExecutableApplicationProvider()<br/>DI registration boundary"]
         typeProvider["ExecutableApplicationResourceTypeProvider<br/>IResourceTypeProvider"]
         typeDefinition["ResourceTypeDefinition<br/>application.executable"]
@@ -616,17 +616,17 @@ flowchart TD
         wrapper["ExecutableApplicationResource<br/>generated resource wrapper"]
         definitionFacade["ExecutableApplicationDefinition<br/>optional typed authoring facade"]
 
-        subgraph capabilities["Provider-owned or referenced capabilities"]
+        subgraph capabilities [Provider-owned or referenced capabilities]
             volumeCapability["VolumeConsumerCapabilityProvider<br/>IResourceDefinitionCapabilityProvider"]
             identityCapability["IdentityCapabilityProvider<br/>IResourceDefinitionCapabilityProvider"]
         end
 
-        subgraph operations["Provider-owned operations"]
+        subgraph operations [Provider-owned operations]
             startOperation["ExecutableStartOperationProvider<br/>IResourceOperationProvider"]
             stopOperation["ExecutableStopOperationProvider<br/>IResourceOperationProvider"]
         end
 
-        subgraph internals["Provider internals"]
+        subgraph internals [Provider internals]
             store["Definition/runtime store"]
             runner["Process runner"]
             state["Runtime state projector"]
