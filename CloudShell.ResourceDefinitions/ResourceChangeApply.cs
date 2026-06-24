@@ -126,25 +126,8 @@ public sealed class ResourceChangeApplyDispatcher(
 
     private static bool IsReadOnlyAttribute(
         Resource resource,
-        ResourceAttributeId attributeId)
-    {
-        var hasClassDefinition =
-            TryGetReadOnly(resource.Class.Definition.Attributes, attributeId, out var classReadOnly);
-        var hasTypeDefinition =
-            TryGetReadOnly(resource.Type.Definition.Attributes, attributeId, out var typeReadOnly);
-
-        if (hasTypeDefinition)
-        {
-            return typeReadOnly == true;
-        }
-
-        if (hasClassDefinition)
-        {
-            return classReadOnly == true;
-        }
-
-        return resource.Attributes.Resolve(attributeId)?.ReadOnly == true;
-    }
+        ResourceAttributeId attributeId) =>
+        resource.IsReadOnlyAttribute(attributeId);
 
     private static IReadOnlyList<ResourceDefinitionDiagnostic> ValidateProviderReadOnlyAttributeChanges(
         ResourceChangeSet changes,
@@ -168,7 +151,7 @@ public sealed class ResourceChangeApplyDispatcher(
             }
 
             if (IsReadOnlyAttribute(changes.Resource, attributeId) &&
-                GetAttributeMutability(changes.Resource, attributeId) != ResourceAttributeMutability.ProviderManaged)
+                changes.Resource.GetAttributeMutability(attributeId) != ResourceAttributeMutability.ProviderManaged)
             {
                 diagnostics.Add(ResourceDefinitionDiagnostic.Error(
                     ResourceDefinitionDiagnosticCodes.ReadOnlyAttributeChange,
@@ -178,63 +161,6 @@ public sealed class ResourceChangeApplyDispatcher(
         }
 
         return diagnostics;
-    }
-
-    private static ResourceAttributeMutability GetAttributeMutability(
-        Resource resource,
-        ResourceAttributeId attributeId)
-    {
-        var hasClassDefinition =
-            TryGetMutability(resource.Class.Definition.Attributes, attributeId, out var classMutability);
-        var hasTypeDefinition =
-            TryGetMutability(resource.Type.Definition.Attributes, attributeId, out var typeMutability);
-
-        if (hasTypeDefinition)
-        {
-            return typeMutability;
-        }
-
-        if (hasClassDefinition)
-        {
-            return classMutability;
-        }
-
-        return resource.Attributes.Resolve(attributeId)?.Mutability ??
-            ResourceAttributeMutability.CallerManaged;
-    }
-
-    private static bool TryGetReadOnly(
-        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? attributeDefinitions,
-        ResourceAttributeId attributeId,
-        out bool? readOnly)
-    {
-        if (attributeDefinitions is not null &&
-            attributeDefinitions.TryGetValue(attributeId, out var attributeDefinition) &&
-            attributeDefinition.ReadOnly.HasValue)
-        {
-            readOnly = attributeDefinition.ReadOnly;
-            return true;
-        }
-
-        readOnly = null;
-        return false;
-    }
-
-    private static bool TryGetMutability(
-        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? attributeDefinitions,
-        ResourceAttributeId attributeId,
-        out ResourceAttributeMutability mutability)
-    {
-        if (attributeDefinitions is not null &&
-            attributeDefinitions.TryGetValue(attributeId, out var attributeDefinition) &&
-            attributeDefinition.Mutability.HasValue)
-        {
-            mutability = attributeDefinition.Mutability.Value;
-            return true;
-        }
-
-        mutability = ResourceAttributeMutability.CallerManaged;
-        return false;
     }
 }
 

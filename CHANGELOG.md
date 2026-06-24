@@ -33,6 +33,9 @@ on `git blame --follow`, and then by the broad type of change.
   attributes only when the resolved attribute is provider-managed, and keeps
   those accepted provider-managed values out of rendered ResourceDefinition
   interchange output.
+- ResourceDefinition filtering now uses effective class/type attribute
+  metadata, so provider-managed read-only values are omitted even when the
+  attribute has no default value in the resolved projection.
 
 ### 2026-06-24
 

@@ -297,7 +297,13 @@ public sealed record Resource(
         };
 
     internal bool IsReadOnlyAttribute(ResourceAttributeId attributeId) =>
+        GetReadOnlyAttributePolicy(attributeId) ??
         Attributes.Resolve(attributeId)?.ReadOnly == true;
+
+    internal ResourceAttributeMutability GetAttributeMutability(ResourceAttributeId attributeId) =>
+        GetAttributeMutabilityPolicy(attributeId) ??
+        Attributes.Resolve(attributeId)?.Mutability ??
+        ResourceAttributeMutability.CallerManaged;
 
     internal IReadOnlyDictionary<ResourceAttributeId, string>? FilterInterchangeAttributes(
         IReadOnlyDictionary<ResourceAttributeId, string> attributes)
@@ -308,6 +314,38 @@ public sealed record Resource(
 
         return filtered.Count == 0 ? null : filtered;
     }
+
+    private bool? GetReadOnlyAttributePolicy(ResourceAttributeId attributeId)
+    {
+        var classReadOnly = TryGetReadOnly(Class.Definition.Attributes, attributeId);
+        var typeReadOnly = TryGetReadOnly(Type.Definition.Attributes, attributeId);
+        return typeReadOnly ?? classReadOnly;
+    }
+
+    private ResourceAttributeMutability? GetAttributeMutabilityPolicy(ResourceAttributeId attributeId)
+    {
+        var classMutability = TryGetMutability(Class.Definition.Attributes, attributeId);
+        var typeMutability = TryGetMutability(Type.Definition.Attributes, attributeId);
+        return typeMutability ?? classMutability;
+    }
+
+    private static bool? TryGetReadOnly(
+        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? attributeDefinitions,
+        ResourceAttributeId attributeId) =>
+        attributeDefinitions is not null &&
+        attributeDefinitions.TryGetValue(attributeId, out var attributeDefinition) &&
+        attributeDefinition.ReadOnly.HasValue
+            ? attributeDefinition.ReadOnly
+            : null;
+
+    private static ResourceAttributeMutability? TryGetMutability(
+        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? attributeDefinitions,
+        ResourceAttributeId attributeId) =>
+        attributeDefinitions is not null &&
+        attributeDefinitions.TryGetValue(attributeId, out var attributeDefinition) &&
+        attributeDefinition.Mutability.HasValue
+            ? attributeDefinition.Mutability
+            : null;
 }
 
 public sealed class ResourceChangeContext(

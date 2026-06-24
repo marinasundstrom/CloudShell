@@ -166,7 +166,6 @@ public sealed class ResourceResolverTests
                     Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
                     {
                         ["endpoints.count"] = new(
-                            DefaultValue: 0,
                             ValueShape: new(ResourceAttributeValueKind.Integer),
                             ReadOnly: true,
                             Mutability: ResourceAttributeMutability.ProviderManaged)
@@ -202,7 +201,6 @@ public sealed class ResourceResolverTests
                     Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
                     {
                         ["endpoints.count"] = new(
-                            DefaultValue: 0,
                             ValueShape: new(ResourceAttributeValueKind.Integer),
                             ReadOnly: true,
                             Mutability: ResourceAttributeMutability.ProviderManaged)
