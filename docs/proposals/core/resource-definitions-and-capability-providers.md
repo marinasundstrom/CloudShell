@@ -448,6 +448,14 @@ and apply/change handlers needed by that type. It should not grow into a broad
 application-provider aggregate that registers unrelated executable, project,
 container, and database resource types behind one provider identity.
 
+Host infrastructure registration is a separate concern from provider
+registration. A host may compose the generic graph services once from whatever
+class definitions, type providers, validators, capability providers, operation
+providers, projection providers, and apply/change handlers are registered. The
+generic graph-service helper should not own provider identity or decide which
+resource types belong together; each resource type provider package keeps that
+boundary.
+
 This migration does not mean Resource Manager stops owning resources in its
 Control Plane domain. Resource Manager can continue to keep operational
 resource records and project from its own data, from the resolved Resource

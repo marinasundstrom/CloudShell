@@ -30,13 +30,8 @@ public sealed class ResourceProviderDispatcherTests
     {
         var services = new ServiceCollection();
         services.AddExecutableApplicationResourceType();
-        services.AddResourceModelResolver(
+        services.AddResourceModelGraphServices(
             [new(ExecutableApplicationResourceTypeProvider.ClassId)]);
-        services.AddSingleton<ResourceProviderDispatcher>();
-        services.AddSingleton<ResourceCapabilityResolver>();
-        services.AddSingleton<ResourceOperationResolver>();
-        services.AddSingleton<ResourceProjectionResolver>();
-        services.AddSingleton<ResourceDefinitionGraphApplyPlanner>();
         using var serviceProvider = services.BuildServiceProvider();
 
         var definition = new ResourceDefinition(
@@ -59,56 +54,36 @@ public sealed class ResourceProviderDispatcherTests
                         new("volume:data", "App_Data")
                     ]))
             });
-        var resource = serviceProvider
-            .GetRequiredService<ResourceResolver>()
-            .Resolve(definition);
-        var dispatcher = serviceProvider.GetRequiredService<ResourceProviderDispatcher>();
+        var validation = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphValidationPipeline>()
+            .ValidateAsync(
+                new ResourceDefinitionGraph([definition]),
+                new ResourceDefinitionValidationContext("local", "developer"));
 
-        var typeResult = await dispatcher.ValidateResourceTypeAsync(
-            resource,
-            new ResourceProviderContext("local", "developer"));
-        var capabilityResult = await dispatcher.ValidateCapabilitiesAsync(
-            resource,
-            new ResourceProviderContext("local", "developer"));
-        var operationResult = await dispatcher.ValidateOperationsAsync(
-            resource,
-            new ResourceProviderContext("local", "developer"));
+        Assert.False(validation.HasErrors);
 
-        Assert.Empty(typeResult.Diagnostics);
-        Assert.Empty(capabilityResult.Diagnostics);
-        Assert.Empty(operationResult.Diagnostics);
-
-        await serviceProvider
-            .GetRequiredService<ResourceCapabilityResolver>()
-            .BindAsync(resource, new ResourceCapabilityProjectionContext("local", "developer"));
-        await serviceProvider
-            .GetRequiredService<ResourceOperationResolver>()
-            .BindAsync(resource, new ResourceOperationProjectionContext("local", "developer"));
-
-        var volumes = resource.Capabilities.Get<VolumeConsumerCapability>();
-        var start = resource.Operations.Get<ExecutableStartOperation>();
-
-        Assert.NotNull(volumes);
-        Assert.NotNull(start);
-        Assert.Equal("volume:data", Assert.Single(volumes.Mounts).Volume);
-        Assert.True(await start.CanExecuteAsync());
-
-        var projection = await serviceProvider
-            .GetRequiredService<ResourceProjectionResolver>()
-            .GetResourceProjectionAsync<ExecutableApplicationResource>(
-                resource,
+        var projectedGraph = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphProjectionResolver>()
+            .ProjectAsync(
+                validation,
                 new ResourceProjectionContext("local", "developer"));
+        var projection = projectedGraph.Find<ExecutableApplicationResource>(
+            "application.executable:api");
 
         Assert.NotNull(projection);
+
+        var volumes = await projection.GetVolumesAsync();
+        var start = await projection.GetStartOperationAsync();
+
+        Assert.NotNull(start);
+        Assert.Equal("volume:data", Assert.Single(volumes).Volume);
+        Assert.True(await start.CanExecuteAsync());
         Assert.Equal("dotnet", projection.ExecutablePath);
 
         var applyPlan = await serviceProvider
             .GetRequiredService<ResourceDefinitionGraphApplyPlanner>()
             .PlanApplyAsync(
-                new ResourceDefinitionGraphValidationPipelineResult(
-                    new ResourceDefinitionGraph([definition]),
-                    [new(resource, [])],
-                    []),
+                validation,
                 new ResourceDefinitionApplyContext("local", "developer"));
 
         Assert.False(applyPlan.HasErrors);

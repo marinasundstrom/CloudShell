@@ -5,6 +5,27 @@ namespace CloudShell.ResourceDefinitions.ResourceManager;
 
 public static class ResourceModelResourceManagerServiceCollectionExtensions
 {
+    public static IServiceCollection AddResourceModelGraphServices(
+        this IServiceCollection services,
+        IEnumerable<ResourceClassDefinition> classDefinitions)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(classDefinitions);
+
+        services.AddResourceModelResolver(classDefinitions);
+        services.AddScoped<ResourceProviderDispatcher>();
+        services.AddScoped<ResourceCapabilityResolver>();
+        services.AddScoped<ResourceOperationResolver>();
+        services.AddScoped<ResourceProjectionResolver>();
+        services.AddScoped<ResourceDefinitionValidationPipeline>();
+        services.AddScoped<ResourceDefinitionGraphValidationPipeline>();
+        services.AddScoped<ResourceDefinitionGraphProjectionResolver>();
+        services.AddScoped<ResourceDefinitionGraphApplyPlanner>();
+        services.AddScoped<ResourceChangeApplyDispatcher>();
+
+        return services;
+    }
+
     public static IServiceCollection AddResourceModelResolver(
         this IServiceCollection services,
         IEnumerable<ResourceClassDefinition> classDefinitions)

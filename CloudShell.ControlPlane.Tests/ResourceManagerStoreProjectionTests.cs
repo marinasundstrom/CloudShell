@@ -606,7 +606,7 @@ public sealed class ResourceManagerStoreProjectionTests
     {
         var services = new ServiceCollection();
         services.AddExecutableApplicationResourceType();
-        services.AddResourceModelResolver(
+        services.AddResourceModelGraphServices(
             [new(ExecutableApplicationResourceTypeProvider.ClassId)]);
         services.AddResourceModelGraphResourceProvider(
             "resource-model",
