@@ -45,6 +45,9 @@ public sealed class ResourceDefinitionModelPocTests
         var volumes = await executable.GetVolumesAsync();
         var volume = Assert.Single(volumes);
         Assert.Equal("volume:data", volume.Volume);
+        var startOperation = await executable.GetStartOperationAsync();
+        Assert.NotNull(startOperation);
+        Assert.True(await startOperation.CanExecuteAsync());
 
         var plan = await CreateApplyPlanner().PlanApplyAsync(
             validation,
@@ -88,13 +91,13 @@ public sealed class ResourceDefinitionModelPocTests
                 [new(ExecutableApplicationResourceTypeProvider.ClassId)],
                 [new ExecutableApplicationResourceTypeProvider()],
                 capabilityProviders: [new VolumeConsumerCapabilityProvider()],
-                operationProviders: [new ExecutableStartOperationProvider()]));
+                operationProviders: [new ExecutableStartOperationProvider()],
+                capabilityProjectors: [new VolumeConsumerCapabilityProvider()],
+                operationProjectors: [new ExecutableStartOperationProvider()]));
 
     private static ResourceDefinitionGraphProjectionResolver CreateGraphProjectionResolver() =>
         new(new ResourceProjectionResolver(
-            [new ExecutableApplicationResourceProjectionProvider()],
-            new ResourceCapabilityResolver([new VolumeConsumerCapabilityProvider()]),
-            new ResourceOperationResolver([new ExecutableStartOperationProvider()])));
+            [new ExecutableApplicationResourceProjectionProvider()]));
 
     private static ResourceDefinitionGraphApplyPlanner CreateApplyPlanner() =>
         new([new ExecutableApplicationResourceTypeProvider()]);

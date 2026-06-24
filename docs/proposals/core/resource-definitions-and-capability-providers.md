@@ -564,8 +564,9 @@ capabilities, operations, type definition, and class definition. A second,
 resource-type-specific wrapper can then provide an
 object-oriented surface such as
 `ExecutableApplicationResource.GetVolumesAsync()`. That method is owned by the
-executable resource projection, but it internally asks a
-`ResourceCapabilityResolver` for the matching volume capability behavior.
+executable resource projection, but it internally asks
+`Resource.Capabilities.Get<VolumeConsumerCapability>()` for the matching
+volume capability behavior.
 
 In this shape, capability behavior is not stored on the definition itself and
 is not directly projected as generated wrapper methods. Capability providers
@@ -581,10 +582,27 @@ belongs to.
 Operations should use the same structure. A `ResourceOperationResolver`
 resolves an operation projection for a resolved `Resource` and operation ID.
 The projected operation is a work unit bound to the resource and exposes the
-operation's methods, properties, availability, and diagnostics. Generated
-wrappers can expose operation methods such as `GetStartOperationAsync()` or a
-future source-generated convenience method while keeping the resolved
-`Resource` as the state source.
+operation's resolved definition, methods, properties, availability, and
+diagnostics. The resolved operation can expose async methods such as
+`CanExecuteAsync()` and `ExecuteAsync(...)` because availability and execution
+may require provider state, authorization, dependencies, or runtime checks.
+Generated wrappers can expose operation methods such as
+`GetStartOperationAsync()` or a future source-generated convenience method
+while keeping the resolved `Resource` as the state source.
+
+For example:
+
+```csharp
+var volumeCapability = resource.Capabilities.Get<VolumeConsumerCapability>();
+var mounts = volumeCapability.Mounts;
+var updatedDefinition = volumeCapability.AddMount(new("volume:logs", "Logs"));
+
+var start = resource.Operations.Get<ExecutableStartOperation>();
+if (await start.CanExecuteAsync(cancellationToken))
+{
+    await start.ExecuteAsync(cancellationToken);
+}
+```
 
 The POC can keep these resource-type projection wrappers hand-written, but the
 expected mature implementation is source-generated wrappers from the resource
@@ -1032,8 +1050,7 @@ public sealed class VolumeConsumerCapabilityProvider(IVolumeManager volumes)
         Resource resource,
         ResourceProviderContext context)
     {
-        var volumeConsumer = resource.GetCapability<VolumeConsumerDefinition>(
-            CapabilityId);
+        var declaration = resource.Capabilities.Resolve(CapabilityId);
 
         // Validate mount shape, referenced volume resources, access mode,
         // permissions, and host/storage compatibility.
@@ -1042,8 +1059,8 @@ public sealed class VolumeConsumerCapabilityProvider(IVolumeManager volumes)
     public IEnumerable<Volume> GetVolumes(
         Resource resource)
     {
-        var volumeConsumer = resource.GetCapability<VolumeConsumerDefinition>(
-            CapabilityId);
+        var volumeConsumer =
+            resource.Capabilities.Get<VolumeConsumerCapability>();
 
         return volumeConsumer.Mounts
             .Select(mount => volumes.GetVolume(mount.VolumeReference));

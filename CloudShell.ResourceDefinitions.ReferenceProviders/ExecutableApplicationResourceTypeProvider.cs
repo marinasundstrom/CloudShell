@@ -138,11 +138,17 @@ public sealed class ExecutableStartOperation(
 {
     public Resource Resource { get; } = resource;
 
+    public ResourceOperationResolution Definition { get; } = operation;
+
     public ResourceOperationId OperationId => ExecutableApplicationResourceTypeProvider.Operations.Start;
 
-    public bool IsAvailable => operation.IsAvailable;
+    public bool IsAvailable => Definition.IsAvailable;
 
-    public string? UnavailableReason => operation.UnavailableReason;
+    public string? UnavailableReason => Definition.UnavailableReason;
+
+    public ValueTask<bool> CanExecuteAsync(
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult(IsAvailable);
 
     public ResourceDefinitionApplyStep PlanStart() =>
         new(
@@ -150,4 +156,26 @@ public sealed class ExecutableStartOperation(
             Resource.Type.TypeId,
             ResourceDefinitionApplyStepKind.MaterializeRuntime,
             $"Start executable application resource '{Resource.Name}'.");
+
+    public async ValueTask<ResourceOperationExecutionResult> ExecuteAsync(
+        CancellationToken cancellationToken = default)
+    {
+        if (!await CanExecuteAsync(cancellationToken))
+        {
+            return new ResourceOperationExecutionResult(
+                Resource,
+                OperationId,
+                [
+                    ResourceDefinitionDiagnostic.Error(
+                        "application.executable.startUnavailable",
+                        UnavailableReason ?? "The start operation is not available.",
+                        OperationId)
+                ]);
+        }
+
+        return new ResourceOperationExecutionResult(
+            Resource,
+            OperationId,
+            []);
+    }
 }

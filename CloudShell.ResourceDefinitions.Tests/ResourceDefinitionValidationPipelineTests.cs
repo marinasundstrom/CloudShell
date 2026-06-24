@@ -33,25 +33,33 @@ public sealed class ResourceDefinitionValidationPipelineTests
             result.Resource.Type.TypeId);
         Assert.True(result.Resource.Capabilities.Has(VolumeConsumerCapabilityProvider.CapabilityIdValue));
         Assert.True(result.Resource.Operations.Has(ExecutableApplicationResourceTypeProvider.Operations.Start));
+        var volumeCapability = result.Resource.Capabilities.Get<VolumeConsumerCapability>();
+        var startOperation = result.Resource.Operations.Get<ExecutableStartOperation>();
+
+        Assert.NotNull(volumeCapability);
+        Assert.NotNull(startOperation);
+        Assert.Same(result.Resource, volumeCapability.Resource);
+        Assert.Same(result.Resource, startOperation.Resource);
+        Assert.Equal(ResourceDefinitionValueSource.TypeDefinition, startOperation.Definition.Source);
+        Assert.True(await startOperation.CanExecuteAsync());
 
         var projectionResolver = new ResourceProjectionResolver(
-            [new ExecutableApplicationResourceProjectionProvider()],
-            new ResourceCapabilityResolver([new VolumeConsumerCapabilityProvider()]),
-            new ResourceOperationResolver([new ExecutableStartOperationProvider()]));
+            [new ExecutableApplicationResourceProjectionProvider()]);
         var executable = await projectionResolver.GetResourceProjectionAsync<ExecutableApplicationResource>(
             result.Resource,
             new ResourceProjectionContext("local", "developer"));
 
         Assert.NotNull(executable);
         var volumes = await executable.GetVolumesAsync();
-        var startOperation = await executable.GetStartOperationAsync();
+        var projectedStartOperation = await executable.GetStartOperationAsync();
 
         Assert.Equal("dotnet", executable.ExecutablePath);
         Assert.Single(volumes);
         Assert.Equal("App_Data", volumes[0].TargetPath);
-        Assert.NotNull(startOperation);
-        Assert.Same(result.Resource, startOperation.Resource);
-        Assert.True(startOperation.IsAvailable);
+        Assert.NotNull(projectedStartOperation);
+        Assert.True(projectedStartOperation.IsAvailable);
+        var execution = await projectedStartOperation.ExecuteAsync();
+        Assert.False(execution.HasErrors);
     }
 
     [Fact]
@@ -74,11 +82,7 @@ public sealed class ResourceDefinitionValidationPipelineTests
         var result = await pipeline.ValidateAsync(
             definition,
             new ResourceDefinitionValidationContext("local", "developer"));
-        var capabilityResolver = new ResourceCapabilityResolver([new VolumeConsumerCapabilityProvider()]);
-        var volumeConsumer = await capabilityResolver.ResolveAsync<VolumeConsumerCapability>(
-            result.Resource,
-            VolumeConsumerCapabilityProvider.CapabilityIdValue,
-            new ResourceCapabilityProjectionContext("local", "developer"));
+        var volumeConsumer = result.Resource.Capabilities.Get<VolumeConsumerCapability>();
 
         Assert.NotNull(volumeConsumer);
 
@@ -132,7 +136,9 @@ public sealed class ResourceDefinitionValidationPipelineTests
             [new(ExecutableApplicationResourceTypeProvider.ClassId)],
             [new ExecutableApplicationResourceTypeProvider()],
             capabilityProviders,
-            operationProviders);
+            operationProviders,
+            capabilityProjectors: capabilityProviders.OfType<IResourceCapabilityProjector>(),
+            operationProjectors: operationProviders.OfType<IResourceOperationProjector>());
 
     private static ResourceDefinition CreateExecutableDefinition(
         string path,

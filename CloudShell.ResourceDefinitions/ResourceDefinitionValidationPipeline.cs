@@ -4,13 +4,17 @@ public sealed class ResourceDefinitionValidationPipeline
 {
     private readonly ResourceResolver _resolver;
     private readonly ResourceProviderDispatcher _dispatcher;
+    private readonly ResourceCapabilityResolver _capabilityResolver;
+    private readonly ResourceOperationResolver _operationResolver;
 
     public ResourceDefinitionValidationPipeline(
         IEnumerable<ResourceClassDefinition> classDefinitions,
         IEnumerable<IResourceTypeProvider> typeProviders,
         IEnumerable<IResourceCapabilityProvider>? capabilityProviders = null,
         IEnumerable<IResourceOperationProvider>? operationProviders = null,
-        IEnumerable<IResourceAttributeValidator>? attributeValidators = null)
+        IEnumerable<IResourceAttributeValidator>? attributeValidators = null,
+        IEnumerable<IResourceCapabilityProjector>? capabilityProjectors = null,
+        IEnumerable<IResourceOperationProjector>? operationProjectors = null)
     {
         ArgumentNullException.ThrowIfNull(classDefinitions);
         ArgumentNullException.ThrowIfNull(typeProviders);
@@ -24,6 +28,8 @@ public sealed class ResourceDefinitionValidationPipeline
             materializedTypeProviders,
             capabilityProviders ?? [],
             operationProviders ?? []);
+        _capabilityResolver = new(capabilityProjectors ?? []);
+        _operationResolver = new(operationProjectors ?? []);
     }
 
     public async ValueTask<ResourceDefinitionValidationPipelineResult> ValidateAsync(
@@ -61,6 +67,19 @@ public sealed class ResourceDefinitionValidationPipeline
             providerContext,
             cancellationToken);
         diagnostics.AddRange(operationResult.Diagnostics);
+
+        await _capabilityResolver.BindAsync(
+            resolved,
+            new ResourceCapabilityProjectionContext(
+                context.EnvironmentId,
+                context.PrincipalId),
+            cancellationToken);
+        await _operationResolver.BindAsync(
+            resolved,
+            new ResourceOperationProjectionContext(
+                context.EnvironmentId,
+                context.PrincipalId),
+            cancellationToken);
 
         return new(resolved, diagnostics);
     }

@@ -1,11 +1,7 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
 public sealed class ExecutableApplicationResource(
-    Resource resource,
-    ResourceCapabilityResolver capabilityResolver,
-    ResourceCapabilityProjectionContext capabilityContext,
-    ResourceOperationResolver operationResolver,
-    ResourceOperationProjectionContext operationContext) : IResourceProjection
+    Resource resource) : IResourceProjection
 {
     public Resource Resource { get; } = resource;
 
@@ -13,26 +9,17 @@ public sealed class ExecutableApplicationResource(
         Resource.Attributes.GetString(
             ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath);
 
-    public async ValueTask<IReadOnlyList<VolumeMountDefinition>> GetVolumesAsync(
+    public ValueTask<IReadOnlyList<VolumeMountDefinition>> GetVolumesAsync(
         CancellationToken cancellationToken = default)
     {
-        var volumeConsumer = await capabilityResolver.ResolveAsync<VolumeConsumerCapability>(
-            Resource,
-            VolumeConsumerCapabilityProvider.CapabilityIdValue,
-            capabilityContext,
-            cancellationToken);
+        var volumeConsumer = Resource.Capabilities.Get<VolumeConsumerCapability>();
 
-        return volumeConsumer?.Mounts ?? [];
+        return ValueTask.FromResult(volumeConsumer?.Mounts ?? []);
     }
 
     public ValueTask<ExecutableStartOperation?> GetStartOperationAsync(
         CancellationToken cancellationToken = default) =>
-        operationResolver.ResolveAsync<ExecutableStartOperation>(
-            Resource,
-            ExecutableApplicationResourceTypeProvider.Operations.Start,
-            operationContext,
-            ResourceDefinitionValueSource.TypeDefinition,
-            cancellationToken);
+        ValueTask.FromResult(Resource.Operations.Get<ExecutableStartOperation>());
 }
 
 public sealed class ExecutableApplicationResourceProjectionProvider : IResourceProjectionProvider
@@ -47,14 +34,5 @@ public sealed class ExecutableApplicationResourceProjectionProvider : IResourceP
         ResourceProjectionContext context,
         CancellationToken cancellationToken = default) =>
         ValueTask.FromResult<IResourceProjection>(
-            new ExecutableApplicationResource(
-                resource,
-                context.CapabilityResolver ?? new ResourceCapabilityResolver([]),
-                new ResourceCapabilityProjectionContext(
-                    context.EnvironmentId,
-                    context.PrincipalId),
-                context.OperationResolver ?? new ResourceOperationResolver([]),
-                new ResourceOperationProjectionContext(
-                    context.EnvironmentId,
-                    context.PrincipalId)));
+            new ExecutableApplicationResource(resource));
 }

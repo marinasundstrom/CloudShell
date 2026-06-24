@@ -37,6 +37,7 @@ public sealed record ResourceAttributeResolution(
 public sealed class ResourceCapabilitySet : IReadOnlyCollection<ResourceCapabilityResolution>
 {
     private readonly IReadOnlyDictionary<ResourceCapabilityId, ResourceCapabilityResolution> _capabilities;
+    private IReadOnlyList<IResourceCapabilityProjection> _projections = [];
 
     public ResourceCapabilitySet(IEnumerable<ResourceCapabilityResolution> capabilities)
     {
@@ -51,12 +52,19 @@ public sealed class ResourceCapabilitySet : IReadOnlyCollection<ResourceCapabili
     public ResourceCapabilityResolution? Resolve(ResourceCapabilityId capabilityId) =>
         _capabilities.GetValueOrDefault(capabilityId);
 
+    public TCapability? Get<TCapability>()
+        where TCapability : class, IResourceCapabilityProjection =>
+        _projections.OfType<TCapability>().FirstOrDefault();
+
     public TCapability? Get<TCapability>(
         ResourceCapabilityId capabilityId,
         JsonSerializerOptions? options = null) =>
         Resolve(capabilityId) is { } capability
             ? capability.Payload.Deserialize<TCapability>(options)
             : default;
+
+    internal void SetProjections(IEnumerable<IResourceCapabilityProjection> projections) =>
+        _projections = projections.ToArray();
 
     public IEnumerator<ResourceCapabilityResolution> GetEnumerator() =>
         _capabilities.Values.GetEnumerator();
@@ -74,6 +82,7 @@ public sealed record ResourceCapabilityResolution(
 public sealed class ResourceOperationSet : IReadOnlyCollection<ResourceOperationResolution>
 {
     private readonly IReadOnlyDictionary<ResourceOperationId, ResourceOperationResolution> _operations;
+    private IReadOnlyList<IResourceOperationProjection> _projections = [];
 
     public ResourceOperationSet(IEnumerable<ResourceOperationResolution> operations)
     {
@@ -84,6 +93,10 @@ public sealed class ResourceOperationSet : IReadOnlyCollection<ResourceOperation
     public int Count => _operations.Count;
 
     public bool Has(ResourceOperationId operationId) => _operations.ContainsKey(operationId);
+
+    public TOperation? Get<TOperation>()
+        where TOperation : class, IResourceOperationProjection =>
+        _projections.OfType<TOperation>().FirstOrDefault();
 
     public ResourceOperationResolution Resolve(
         ResourceOperationId operationId,
@@ -106,6 +119,9 @@ public sealed class ResourceOperationSet : IReadOnlyCollection<ResourceOperation
 
     System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() =>
         GetEnumerator();
+
+    internal void SetProjections(IEnumerable<IResourceOperationProjection> projections) =>
+        _projections = projections.ToArray();
 }
 
 public sealed record ResourceOperationResolution(

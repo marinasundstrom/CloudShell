@@ -70,13 +70,52 @@ public sealed class ResourceCapabilityResolver(
         CancellationToken cancellationToken = default)
         where TCapability : class, IResourceCapabilityProjection =>
         await ResolveAsync(resource, capabilityId, context, cancellationToken) as TCapability;
+
+    public async ValueTask<Resource> BindAsync(
+        Resource resource,
+        ResourceCapabilityProjectionContext context,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentNullException.ThrowIfNull(context);
+
+        var projections = new List<IResourceCapabilityProjection>();
+
+        foreach (var capability in resource.Capabilities)
+        {
+            var projection = await ResolveAsync(
+                resource,
+                capability.Id,
+                context,
+                cancellationToken);
+
+            if (projection is not null)
+            {
+                projections.Add(projection);
+            }
+        }
+
+        resource.Capabilities.SetProjections(projections);
+        return resource;
+    }
 }
 
 public interface IResourceOperationProjection
 {
     Resource Resource { get; }
 
+    ResourceOperationResolution Definition { get; }
+
     ResourceOperationId OperationId { get; }
+}
+
+public sealed record ResourceOperationExecutionResult(
+    Resource Resource,
+    ResourceOperationId OperationId,
+    IReadOnlyList<ResourceDefinitionDiagnostic> Diagnostics)
+{
+    public bool HasErrors => Diagnostics.Any(diagnostic =>
+        diagnostic.Severity == ResourceDefinitionDiagnosticSeverity.Error);
 }
 
 public interface IResourceOperationProjector
@@ -152,6 +191,35 @@ public sealed class ResourceOperationResolver(
             context,
             source,
             cancellationToken) as TOperation;
+
+    public async ValueTask<Resource> BindAsync(
+        Resource resource,
+        ResourceOperationProjectionContext context,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentNullException.ThrowIfNull(context);
+
+        var projections = new List<IResourceOperationProjection>();
+
+        foreach (var operation in resource.Operations)
+        {
+            var projection = await ResolveAsync(
+                resource,
+                operation.Id,
+                context,
+                operation.Source,
+                cancellationToken);
+
+            if (projection is not null)
+            {
+                projections.Add(projection);
+            }
+        }
+
+        resource.Operations.SetProjections(projections);
+        return resource;
+    }
 }
 
 public interface IResourceProjection
@@ -207,6 +275,26 @@ public sealed class ResourceProjectionResolver(
             CapabilityResolver = context.CapabilityResolver ?? capabilityResolver,
             OperationResolver = context.OperationResolver ?? operationResolver
         };
+
+        if (resolvedContext.CapabilityResolver is not null)
+        {
+            await resolvedContext.CapabilityResolver.BindAsync(
+                resource,
+                new ResourceCapabilityProjectionContext(
+                    resolvedContext.EnvironmentId,
+                    resolvedContext.PrincipalId),
+                cancellationToken);
+        }
+
+        if (resolvedContext.OperationResolver is not null)
+        {
+            await resolvedContext.OperationResolver.BindAsync(
+                resource,
+                new ResourceOperationProjectionContext(
+                    resolvedContext.EnvironmentId,
+                    resolvedContext.PrincipalId),
+                cancellationToken);
+        }
 
         return await provider.ProjectAsync(resource, resolvedContext, cancellationToken);
     }
