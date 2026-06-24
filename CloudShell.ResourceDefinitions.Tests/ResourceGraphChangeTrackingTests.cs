@@ -258,6 +258,45 @@ public sealed class ResourceGraphChangeTrackingTests
     }
 
     [Fact]
+    public async Task ResourceGraphModel_ChecksStoreVersionBeforeCommit()
+    {
+        var stateProvider = new InMemoryResourceStateProvider([CreateState("api", "./api")]);
+        var model = new ResourceGraphModel(stateProvider);
+        var applyDispatcher = new ResourceChangeApplyDispatcher(
+            [new ExecutableApplicationResourceTypeProvider()]);
+        var staleSnapshot = await model.GetSnapshotAsync();
+        var staleTracker = new ResourceGraphChangeTracker(staleSnapshot);
+        staleTracker.Track(await StageExecutablePathChangeAsync(
+            staleSnapshot,
+            "application.executable:api",
+            "./api-from-model",
+            applyDispatcher));
+
+        var storeSnapshot = await stateProvider.GetSnapshotAsync();
+        var storeTracker = new ResourceGraphChangeTracker(storeSnapshot);
+        storeTracker.Track(await StageExecutablePathChangeAsync(
+            storeSnapshot,
+            "application.executable:api",
+            "./api-from-store",
+            applyDispatcher));
+        Assert.True((await stateProvider.CommitAsync(
+            storeTracker.GetChanges(),
+            new ResourceGraphCommitContext())).IsCommitted);
+
+        var staleCommit = await model.CommitAsync(
+            staleTracker.GetChanges(),
+            new ResourceGraphCommitContext());
+        var current = await model.GetSnapshotAsync();
+
+        Assert.False(staleCommit.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.VersionConflict, staleCommit.Summary.Status);
+        Assert.Equal(new ResourceGraphVersion(1), staleCommit.Summary.ResultVersion);
+        Assert.Equal(new ResourceGraphVersion(1), current.Version);
+        Assert.Equal("./api-from-store", FindState(current, "application.executable:api")
+            .ResourceAttributes[ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
+    }
+
+    [Fact]
     public async Task ResourceGraphModel_ReloadsSnapshotFromStateProvider()
     {
         var stateProvider = new InMemoryResourceStateProvider([CreateState("api", "./api")]);

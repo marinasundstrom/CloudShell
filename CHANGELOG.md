@@ -70,6 +70,10 @@ on `git blame --follow`, and then by the broad type of change.
   with commit status, changed resource counts, changed attribute and
   capability counts, and per-resource revision movement so consumers can act
   on committed, rejected, no-op, or stale changes.
+- The resource definitions POC now refreshes the stored resource graph version
+  before a server-hosted graph model commits changes, keeping per-resource
+  edits staged until the graph commit boundary can reject stale state or write
+  through the state provider.
 - The resource definitions POC now includes a capability resolver so
   provider-owned capability behavior can be composed into type-specific
   resource projections without making the definition stop being the persisted

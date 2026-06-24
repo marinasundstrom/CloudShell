@@ -642,6 +642,9 @@ base graph snapshot, and the state provider commits the batch or rejects it as
 a unit. This is deliberately similar to an EF Core-style change graph: callers
 can inspect the pending graph changes, persist full state, or persist only the
 incremental definitions depending on the chosen persistence provider.
+Individual resource changes never persist on their own; they are staged into a
+resource graph change set and only the resource graph commit boundary writes
+to the backing store.
 
 The first persistence proof is `InMemoryResourceStateProvider`. It
 materializes `ResourceState` objects from an in-memory store, accepts a
@@ -673,6 +676,14 @@ snapshot from the committed provider result. This lets the server keep the
 resource graph hot in memory when there is one primary graph consumer, while
 still preserving explicit commit boundaries, optimistic graph versions, and a
 clear synchronization point with the backing data store.
+
+Before a server-hosted `ResourceGraphModel` commits changes, it should refresh
+the current snapshot from `IResourceStateProvider` and compare the change
+set's base graph version with the stored graph version. If the store has moved
+forward, the model updates its cache and returns a version-conflict result
+instead of attempting to write stale changes. The state provider must still
+perform its own optimistic version check during the actual commit because a
+second consumer can update the store after the preflight read.
 
 Commit results should summarize the outcome in addition to returning
 diagnostics and the committed snapshot. `ResourceGraphCommitResult` carries a

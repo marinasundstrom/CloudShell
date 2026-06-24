@@ -237,14 +237,16 @@ public sealed class ResourceGraphModel(IResourceStateProvider stateProvider)
         await _sync.WaitAsync(cancellationToken);
         try
         {
-            var snapshot = await GetSnapshotCoreAsync(cancellationToken);
-            if (changes.BaseVersion != snapshot.Version)
+            var storedSnapshot = await stateProvider.GetSnapshotAsync(cancellationToken);
+            _snapshot = storedSnapshot;
+
+            if (changes.BaseVersion != storedSnapshot.Version)
             {
                 return new ResourceGraphCommitResult(
-                    snapshot.Version,
+                    storedSnapshot.Version,
                     null,
-                    [CreateVersionConflict(changes.BaseVersion, snapshot.Version)],
-                    ResourceGraphCommitSummary.VersionConflict(changes.BaseVersion, snapshot.Version));
+                    [CreateVersionConflict(changes.BaseVersion, storedSnapshot.Version)],
+                    ResourceGraphCommitSummary.VersionConflict(changes.BaseVersion, storedSnapshot.Version));
             }
 
             var result = await stateProvider.CommitAsync(
@@ -255,6 +257,10 @@ public sealed class ResourceGraphModel(IResourceStateProvider stateProvider)
             if (result.IsCommitted)
             {
                 _snapshot = result.Snapshot;
+            }
+            else if (result.Summary.Status == ResourceGraphCommitStatus.VersionConflict)
+            {
+                _snapshot = await stateProvider.GetSnapshotAsync(cancellationToken);
             }
 
             return result;
