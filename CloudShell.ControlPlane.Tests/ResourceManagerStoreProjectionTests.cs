@@ -647,6 +647,46 @@ public sealed class ResourceManagerStoreProjectionTests
     }
 
     [Fact]
+    public void GetResources_ComposesRegistrationMetadataOverResourceModelBridgeProjection()
+    {
+        var group = new ResourceGroup("apps", "Applications", "Application resources", []);
+        var services = new ServiceCollection();
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddInMemoryResourceModelGraph([CreateResourceModelExecutableState()]);
+        services.AddResourceModelGraphResourceProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var registrations = new TestResourceRegistrationStore(
+        [
+            new(
+                "application.executable:api",
+                "resource-model",
+                group.Id,
+                DateTimeOffset.UtcNow,
+                ["configuration:api"],
+                new ResourceIdentityBinding("identity:dev", Name: "api-service"))
+        ]);
+        var store = new ResourceManagerStore(
+            serviceProvider.GetServices<IResourceProvider>().ToArray(),
+            new TestResourceGroupStore([group]),
+            registrations,
+            new ResourceDeclarationStore(),
+            new ResourceIdentityProviderCatalog(
+                [new("identity:dev", "Development identity", ResourceIdentityProviderKind.BuiltIn)]),
+            new CloudShellExtensionRegistry(),
+            new InMemoryCloudShellExtensionActivationStore());
+
+        var resource = Assert.Single(store.GetResources());
+
+        Assert.Equal(["storage:data", "configuration:api"], resource.DependsOn);
+        Assert.NotNull(resource.IdentityBinding);
+        Assert.Equal("identity:dev", resource.IdentityBinding.ProviderId);
+        Assert.Equal("api-service", resource.IdentityBinding.Name);
+        Assert.Equal(group.Id, store.GetGroupForResource(resource.Id)?.Id);
+        Assert.Empty(store.GetResourceModelDiagnostics());
+    }
+
+    [Fact]
     public async Task ExecuteActionAsync_RoutesGraphResourceThroughProcedureCapableBridgeProvider()
     {
         var services = new ServiceCollection();
