@@ -197,6 +197,76 @@ public sealed class ResourceGraphChangeTrackingTests
     }
 
     [Fact]
+    public async Task DefinitionGraphChangeApplier_StagesDefinitionOverlaysForCommit()
+    {
+        var stateProvider = new InMemoryResourceStateProvider(
+        [
+            CreateState("api", "./api", version: "2") with
+            {
+                Attributes = new Dictionary<ResourceAttributeId, string>
+                {
+                    [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "./api",
+                    ["container.replicas"] = "1"
+                }
+            }
+        ]);
+        var applier = CreateDefinitionGraphChangeApplier();
+        var snapshot = await stateProvider.GetSnapshotAsync();
+        var changes = await applier.ApplyDefinitionsAsync(
+            snapshot,
+            [
+                new(
+                    "api",
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    Attributes: new Dictionary<ResourceAttributeId, string>
+                    {
+                        [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "./api-v2"
+                    })
+            ],
+            new ResourceChangeApplyContext(Commit: true));
+
+        var commit = await stateProvider.CommitAsync(
+            changes,
+            new ResourceGraphCommitContext(Timestamp: new DateTimeOffset(2026, 6, 24, 15, 0, 0, TimeSpan.Zero)));
+
+        var committed = FindState(commit.Snapshot!, "application.executable:api");
+        Assert.False(changes.HasErrors);
+        Assert.Single(changes.AcceptedResources);
+        Assert.True(commit.IsCommitted);
+        Assert.Equal(new ResourceRevision(3), committed.Revision);
+        Assert.Equal("./api-v2", committed.ResourceAttributes[
+            ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
+        Assert.Equal("1", committed.ResourceAttributes["container.replicas"]);
+    }
+
+    [Fact]
+    public async Task DefinitionGraphChangeApplier_ReturnsDiagnosticForMissingResource()
+    {
+        var stateProvider = new InMemoryResourceStateProvider([CreateState("api", "./api")]);
+        var applier = CreateDefinitionGraphChangeApplier();
+        var snapshot = await stateProvider.GetSnapshotAsync();
+
+        var changes = await applier.ApplyDefinitionsAsync(
+            snapshot,
+            [
+                new(
+                    "worker",
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    Attributes: new Dictionary<ResourceAttributeId, string>
+                    {
+                        [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "./worker"
+                    })
+            ],
+            new ResourceChangeApplyContext(Commit: true));
+
+        var diagnostic = Assert.Single(changes.Diagnostics);
+        Assert.True(changes.HasErrors);
+        Assert.Empty(changes.Resources);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.ResourceGraphResourceMissing, diagnostic.Code);
+        Assert.Equal("application.executable:worker", diagnostic.Target);
+    }
+
+    [Fact]
     public async Task CommitAsync_RejectsStaleGraphVersion()
     {
         var stateProvider = new InMemoryResourceStateProvider([CreateState("api", "./api")]);
@@ -592,6 +662,16 @@ public sealed class ResourceGraphChangeTrackingTests
             [typeProvider.TypeDefinition]);
 
         return resolver.Resolve(state);
+    }
+
+    private static ResourceDefinitionGraphChangeApplier CreateDefinitionGraphChangeApplier()
+    {
+        var typeProvider = new ExecutableApplicationResourceTypeProvider();
+        return new(
+            new ResourceResolver(
+                [new ResourceClassDefinition(ExecutableApplicationResourceTypeProvider.ClassId)],
+                [typeProvider.TypeDefinition]),
+            new ResourceChangeApplyDispatcher([typeProvider]));
     }
 
     private static ResourceState CreateState(

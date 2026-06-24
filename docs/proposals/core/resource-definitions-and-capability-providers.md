@@ -1003,6 +1003,12 @@ with diagnostics and an accepted `ResourceState` when the change is allowed.
 The apply context can request commit behavior, but committing accepted state to
 durable persistence or cascading changes through the graph remains a Resource
 Manager/persistence concern outside this low-level projection model.
+`ResourceDefinitionGraphChangeApplier` lifts that behavior to a graph
+snapshot: it resolves each incoming `ResourceDefinition` overlay against the
+current `ResourceState`, builds resource-local changes, runs the type-owned
+apply providers, and returns one `ResourceGraphChangeSet` for the caller to
+commit or reject. Missing target resources remain graph-level diagnostics
+instead of being hidden inside a resource-local provider result.
 
 Several accepted resource changes should also be committed as one graph
 version. The POC models that with `ResourceGraphChangeTracker`,

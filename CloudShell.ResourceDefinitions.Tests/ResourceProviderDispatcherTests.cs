@@ -52,6 +52,7 @@ public sealed class ResourceProviderDispatcherTests
         using var serviceProvider = services.BuildServiceProvider();
 
         Assert.NotNull(serviceProvider.GetRequiredService<ResourceModelGraphResourceResolver>());
+        Assert.NotNull(serviceProvider.GetRequiredService<ResourceDefinitionGraphChangeApplier>());
 
         var definition = new ResourceDefinition(
             "api",

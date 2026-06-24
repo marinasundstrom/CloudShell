@@ -82,3 +82,48 @@ public sealed class ResourceChangeApplyDispatcher(
         return await provider.ApplyChangesAsync(changes, context, cancellationToken);
     }
 }
+
+public sealed class ResourceDefinitionGraphChangeApplier(
+    ResourceResolver resolver,
+    ResourceChangeApplyDispatcher applyDispatcher)
+{
+    public async ValueTask<ResourceGraphChangeSet> ApplyDefinitionsAsync(
+        ResourceGraphSnapshot snapshot,
+        IEnumerable<ResourceDefinition> definitions,
+        ResourceChangeApplyContext context,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        ArgumentNullException.ThrowIfNull(definitions);
+        ArgumentNullException.ThrowIfNull(context);
+
+        var tracker = new ResourceGraphChangeTracker(snapshot);
+        var statesById = snapshot.Resources.ToDictionary(
+            resource => resource.EffectiveResourceId,
+            resource => resource,
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var definition in definitions)
+        {
+            if (!statesById.TryGetValue(definition.EffectiveResourceId, out var state))
+            {
+                tracker.TrackDiagnostic(ResourceDefinitionDiagnostic.Error(
+                    ResourceDefinitionDiagnosticCodes.ResourceGraphResourceMissing,
+                    $"Resource '{definition.EffectiveResourceId}' does not exist in the resource graph.",
+                    definition.EffectiveResourceId));
+                continue;
+            }
+
+            var resource = resolver.Resolve(state);
+            var changes = resource.ApplyDefinition(definition);
+            var accepted = await applyDispatcher.ApplyChangesAsync(
+                changes,
+                context,
+                cancellationToken);
+
+            tracker.Track(accepted);
+        }
+
+        return tracker.GetChanges();
+    }
+}

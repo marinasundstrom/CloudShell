@@ -33,6 +33,13 @@ public sealed class ResourceGraphChangeTracker(ResourceGraphSnapshot snapshot)
         _diagnostics.AddRange(result.Diagnostics);
     }
 
+    public void TrackDiagnostic(ResourceDefinitionDiagnostic diagnostic)
+    {
+        ArgumentNullException.ThrowIfNull(diagnostic);
+
+        _diagnostics.Add(diagnostic);
+    }
+
     public ResourceGraphChangeSet GetChanges() =>
         new(BaseVersion, _resources.ToArray(), _diagnostics.ToArray());
 }
