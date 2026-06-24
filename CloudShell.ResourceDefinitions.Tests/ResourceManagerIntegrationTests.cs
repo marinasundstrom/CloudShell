@@ -79,8 +79,7 @@ public sealed class ResourceManagerIntegrationTests
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
         services.AddExecutableApplicationResourceType();
-        services.AddResourceModelGraphServices(
-            [new(ExecutableApplicationResourceTypeProvider.ClassId)]);
+        services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
 
         var resolution = await serviceProvider
@@ -114,8 +113,7 @@ public sealed class ResourceManagerIntegrationTests
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph([api, worker]);
         services.AddExecutableApplicationResourceType();
-        services.AddResourceModelGraphServices(
-            [new(ExecutableApplicationResourceTypeProvider.ClassId)]);
+        services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
 
         var resolution = await serviceProvider
@@ -134,8 +132,7 @@ public sealed class ResourceManagerIntegrationTests
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
         services.AddExecutableApplicationResourceType();
-        services.AddResourceModelGraphServices(
-            [new(ExecutableApplicationResourceTypeProvider.ClassId)]);
+        services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
 
         var resolution = await serviceProvider
@@ -188,8 +185,7 @@ public sealed class ResourceManagerIntegrationTests
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
         services.AddExecutableApplicationResourceType();
-        services.AddResourceModelGraphServices(
-            [new(ExecutableApplicationResourceTypeProvider.ClassId)]);
+        services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
 
         var resolution = await serviceProvider
@@ -236,8 +232,7 @@ public sealed class ResourceManagerIntegrationTests
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
         services.AddExecutableApplicationResourceType();
-        services.AddResourceModelGraphServices(
-            [new(ExecutableApplicationResourceTypeProvider.ClassId)]);
+        services.AddResourceModelGraphServices();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var provider = serviceProvider
@@ -260,13 +255,30 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public void AddResourceModelGraphProcedureProvider_RegistersSameScopedBridgeForProviderAndAvailability()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+
+        var provider = Assert.IsType<ResourceModelGraphProcedureProvider>(
+            Assert.Single(serviceProvider.GetServices<IResourceProvider>()));
+        var availabilityProvider = Assert.IsType<ResourceModelGraphProcedureProvider>(
+            Assert.Single(serviceProvider.GetServices<IResourceActionAvailabilityProvider>()));
+
+        Assert.Same(provider, availabilityProvider);
+    }
+
+    [Fact]
     public void ResourceModelGraphProcedureProvider_DoesNotEvaluateActionsForOtherProviderResources()
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
         services.AddExecutableApplicationResourceType();
-        services.AddResourceModelGraphServices(
-            [new(ExecutableApplicationResourceTypeProvider.ClassId)]);
+        services.AddResourceModelGraphServices();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var provider = serviceProvider

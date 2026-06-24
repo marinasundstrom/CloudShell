@@ -402,6 +402,20 @@ that originated in the new Resource model. The bridge can also resolve a
 Resource Manager entry point stable while moving graph resolution to the
 provider boundary where graph-aware behavior is needed.
 
+A fuller integration should not make Resource Manager persist resolved
+Resource model `Resource` projections directly. Resource Manager-facing
+resources should be projections composed from resolved Resource model
+resources, stripped Resource model state data such as `ResourceState`, and the
+Control Plane's own operational records. The stripped Resource model state
+data is the durable graph-owned container for identity, declared attributes,
+capability and operation payloads, metadata, revisions, and timestamps. The
+resolved `Resource` is then recomputed from that state plus
+`ResourceTypeDefinition`, `ResourceClassDefinition`, provider declarations,
+and the active resolution context. Resource Manager can add liveness,
+authorization, grouping, procedures, logs, traces, runtime metadata, and other
+operational facts on top without turning those responsibilities into Resource
+model persistence concerns.
+
 The bridge should also project Resource model diagnostics into Resource
 Manager diagnostics. That makes invalid graph definitions visible through the
 existing `GetResourceModelDiagnostics()` surface instead of hiding resolver
@@ -2008,7 +2022,7 @@ flowchart TD
     end
 
     subgraph persistenceProjection [CloudShell persistence projection]
-        record["ResourceRecord<br/>store-optimized shape"]
+        record["ResourceState or ResourceRecord<br/>stripped store-optimized data"]
         tables["Normalized tables"]
         compactJson["Compact resource JSON"]
         indexes["Indexes and metadata"]
