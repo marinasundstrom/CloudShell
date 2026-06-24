@@ -38,7 +38,8 @@ public sealed class SecretsVaultResourceTypeProvider :
                 ValueShape: new(ResourceAttributeValueKind.String)),
             [Attributes.SecretCount] = new(
                 DefaultValue: 0,
-                ValueShape: new(ResourceAttributeValueKind.Integer))
+                ValueShape: new(ResourceAttributeValueKind.Integer),
+                ReadOnly: true)
         },
         Operations:
         [

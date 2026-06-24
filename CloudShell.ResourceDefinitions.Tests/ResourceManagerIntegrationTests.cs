@@ -1240,8 +1240,7 @@ public sealed class ResourceManagerIntegrationTests
             ProviderId: ConfigurationStoreResourceTypeProvider.ProviderId,
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
-                [ConfigurationStoreResourceTypeProvider.Attributes.Endpoint] = "http://localhost:5138",
-                [ConfigurationStoreResourceTypeProvider.Attributes.EntryCount] = "3"
+                [ConfigurationStoreResourceTypeProvider.Attributes.Endpoint] = "http://localhost:5138"
             });
 
         var result = await service.ApplyDeploymentAsync(
@@ -1268,7 +1267,7 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(ConfigurationStoreResourceTypeProvider.ProviderId, projectedStore.Provider);
         Assert.Equal("store", projectedStore.ResourceAttributes["configuration.kind"]);
         Assert.Equal("http://localhost:5138", projectedStore.ResourceAttributes["configuration.endpoint"]);
-        Assert.Equal("3", projectedStore.ResourceAttributes["configuration.entries"]);
+        Assert.Equal("0", projectedStore.ResourceAttributes["configuration.entries"]);
         var inspect = Assert.Single(projectedStore.ResourceActions, action =>
             action.Id == ConfigurationStoreResourceTypeProvider.Operations.Inspect.ToString());
 
@@ -1283,7 +1282,7 @@ public sealed class ResourceManagerIntegrationTests
                 .GetResourceProjectionAsync(
                     resolution.Target!,
                     new ResourceProjectionContext("local", "developer")));
-        Assert.Equal(3, projection.EntryCount);
+        Assert.Equal(0, projection.EntryCount);
 
         var procedure = new ResourceProcedureContext(
             projectedStore,
@@ -1312,10 +1311,7 @@ public sealed class ResourceManagerIntegrationTests
             "host-settings",
             HostConfigurationSourceResourceTypeProvider.ResourceTypeId,
             ProviderId: HostConfigurationSourceResourceTypeProvider.ProviderId,
-            Attributes: new Dictionary<ResourceAttributeId, string>
-            {
-                [HostConfigurationSourceResourceTypeProvider.Attributes.EntryCount] = "4"
-            });
+            Attributes: new Dictionary<ResourceAttributeId, string>());
 
         var result = await service.ApplyDeploymentAsync(
             new ResourceDeploymentDefinition(
@@ -1341,7 +1337,7 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(HostConfigurationSourceResourceTypeProvider.ProviderId, projectedSource.Provider);
         Assert.Equal("host", projectedSource.ResourceAttributes["configuration.kind"]);
         Assert.Equal("host", projectedSource.ResourceAttributes["configuration.source"]);
-        Assert.Equal("4", projectedSource.ResourceAttributes["configuration.entries"]);
+        Assert.Equal("0", projectedSource.ResourceAttributes["configuration.entries"]);
         var inspect = Assert.Single(projectedSource.ResourceActions, action =>
             action.Id == HostConfigurationSourceResourceTypeProvider.Operations.Inspect.ToString());
 
@@ -1356,7 +1352,7 @@ public sealed class ResourceManagerIntegrationTests
                 .GetResourceProjectionAsync(
                     resolution.Target!,
                     new ResourceProjectionContext("local", "developer")));
-        Assert.Equal(4, projection.EntryCount);
+        Assert.Equal(0, projection.EntryCount);
 
         var procedure = new ResourceProcedureContext(
             projectedSource,
@@ -1388,12 +1384,7 @@ public sealed class ResourceManagerIntegrationTests
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
                 [LoadBalancerResourceTypeProvider.Attributes.Provider] = "traefik",
-                [LoadBalancerResourceTypeProvider.Attributes.HostResourceId] = "docker:engine",
-                [LoadBalancerResourceTypeProvider.Attributes.EntrypointCount] = "2",
-                [LoadBalancerResourceTypeProvider.Attributes.RouteCount] = "3",
-                [LoadBalancerResourceTypeProvider.Attributes.HttpRouteCount] = "2",
-                [LoadBalancerResourceTypeProvider.Attributes.TcpRouteCount] = "1",
-                [LoadBalancerResourceTypeProvider.Attributes.EndpointCount] = "2"
+                [LoadBalancerResourceTypeProvider.Attributes.HostResourceId] = "docker:engine"
             });
 
         var result = await service.ApplyDeploymentAsync(
@@ -1420,7 +1411,7 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(LoadBalancerResourceTypeProvider.ProviderId, projectedLoadBalancer.Provider);
         Assert.Equal("traefik", projectedLoadBalancer.ResourceAttributes["loadBalancer.provider"]);
         Assert.Equal("docker:engine", projectedLoadBalancer.ResourceAttributes["loadBalancer.hostResourceId"]);
-        Assert.Equal("3", projectedLoadBalancer.ResourceAttributes["loadBalancer.routes"]);
+        Assert.Equal("0", projectedLoadBalancer.ResourceAttributes["loadBalancer.routes"]);
         Assert.Contains(projectedLoadBalancer.ResourceCapabilities, capability =>
             capability.Id == LoadBalancerResourceTypeProvider.Capabilities.NetworkingLoadBalancer.ToString());
         var apply = Assert.Single(projectedLoadBalancer.ResourceActions, action =>
@@ -1437,7 +1428,7 @@ public sealed class ResourceManagerIntegrationTests
                 .GetResourceProjectionAsync(
                     resolution.Target!,
                     new ResourceProjectionContext("local", "developer")));
-        Assert.Equal(3, projection.RouteCount);
+        Assert.Equal(0, projection.RouteCount);
 
         var procedure = new ResourceProcedureContext(
             projectedLoadBalancer,
@@ -2221,8 +2212,7 @@ public sealed class ResourceManagerIntegrationTests
             ProviderId: SecretsVaultResourceTypeProvider.ProviderId,
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
-                [SecretsVaultResourceTypeProvider.Attributes.Endpoint] = "http://localhost:6138",
-                [SecretsVaultResourceTypeProvider.Attributes.SecretCount] = "2"
+                [SecretsVaultResourceTypeProvider.Attributes.Endpoint] = "http://localhost:6138"
             });
 
         var result = await service.ApplyDeploymentAsync(
@@ -2249,7 +2239,7 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(SecretsVaultResourceTypeProvider.ProviderId, projectedVault.Provider);
         Assert.Equal("vault", projectedVault.ResourceAttributes["secrets.kind"]);
         Assert.Equal("http://localhost:6138", projectedVault.ResourceAttributes["secrets.endpoint"]);
-        Assert.Equal("2", projectedVault.ResourceAttributes["secrets.count"]);
+        Assert.Equal("0", projectedVault.ResourceAttributes["secrets.count"]);
         var inspect = Assert.Single(projectedVault.ResourceActions, action =>
             action.Id == SecretsVaultResourceTypeProvider.Operations.Inspect.ToString());
 
@@ -2264,7 +2254,7 @@ public sealed class ResourceManagerIntegrationTests
                 .GetResourceProjectionAsync(
                     resolution.Target!,
                     new ResourceProjectionContext("local", "developer")));
-        Assert.Equal(2, projection.SecretCount);
+        Assert.Equal(0, projection.SecretCount);
 
         var procedure = new ResourceProcedureContext(
             projectedVault,

@@ -23,6 +23,9 @@ on `git blame --follow`, and then by the broad type of change.
 - ResourceDefinition rendering and validation now treat read-only attributes as
   outside the interchange document surface: read-only Resource state can be
   resolved, but authored and rendered ResourceDefinition attributes omit it.
+- Configuration store, host configuration source, load balancer, and Secrets
+  Vault reference providers now mark count attributes as read-only provider
+  facts instead of ResourceDefinition-authored desired state.
 
 ### 2026-06-24
 

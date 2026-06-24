@@ -52,19 +52,24 @@ public sealed class LoadBalancerResourceTypeProvider :
                 ValueShape: new(ResourceAttributeValueKind.String)),
             [Attributes.EntrypointCount] = new(
                 DefaultValue: 0,
-                ValueShape: new(ResourceAttributeValueKind.Integer)),
+                ValueShape: new(ResourceAttributeValueKind.Integer),
+                ReadOnly: true),
             [Attributes.RouteCount] = new(
                 DefaultValue: 0,
-                ValueShape: new(ResourceAttributeValueKind.Integer)),
+                ValueShape: new(ResourceAttributeValueKind.Integer),
+                ReadOnly: true),
             [Attributes.HttpRouteCount] = new(
                 DefaultValue: 0,
-                ValueShape: new(ResourceAttributeValueKind.Integer)),
+                ValueShape: new(ResourceAttributeValueKind.Integer),
+                ReadOnly: true),
             [Attributes.TcpRouteCount] = new(
                 DefaultValue: 0,
-                ValueShape: new(ResourceAttributeValueKind.Integer)),
+                ValueShape: new(ResourceAttributeValueKind.Integer),
+                ReadOnly: true),
             [Attributes.EndpointCount] = new(
                 DefaultValue: 0,
-                ValueShape: new(ResourceAttributeValueKind.Integer))
+                ValueShape: new(ResourceAttributeValueKind.Integer),
+                ReadOnly: true)
         },
         Capabilities:
         [

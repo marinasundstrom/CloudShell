@@ -39,7 +39,8 @@ public sealed class HostConfigurationSourceResourceTypeProvider :
                 ValueShape: new(ResourceAttributeValueKind.String)),
             [Attributes.EntryCount] = new(
                 DefaultValue: 0,
-                ValueShape: new(ResourceAttributeValueKind.Integer))
+                ValueShape: new(ResourceAttributeValueKind.Integer),
+                ReadOnly: true)
         },
         Operations:
         [

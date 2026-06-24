@@ -661,8 +661,7 @@ public sealed class ResourceProviderDispatcherTests
             ConfigurationStoreResourceTypeProvider.ResourceTypeId,
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
-                [ConfigurationStoreResourceTypeProvider.Attributes.Endpoint] = "http://localhost:5138",
-                [ConfigurationStoreResourceTypeProvider.Attributes.EntryCount] = "3"
+                [ConfigurationStoreResourceTypeProvider.Attributes.Endpoint] = "http://localhost:5138"
             });
 
         var validation = await serviceProvider
@@ -677,7 +676,7 @@ public sealed class ResourceProviderDispatcherTests
             ConfigurationStoreResourceTypeProvider.Attributes.ConfigurationKind));
         Assert.Equal("http://localhost:5138", validation.Resource.Attributes.GetString(
             ConfigurationStoreResourceTypeProvider.Attributes.Endpoint));
-        Assert.Equal("3", validation.Resource.Attributes.GetString(
+        Assert.Equal("0", validation.Resource.Attributes.GetString(
             ConfigurationStoreResourceTypeProvider.Attributes.EntryCount));
         Assert.True(validation.Resource.Operations.Has(
             ConfigurationStoreResourceTypeProvider.Operations.Inspect));
@@ -696,12 +695,12 @@ public sealed class ResourceProviderDispatcherTests
         Assert.NotNull(projection);
         Assert.Equal("store", projection.ConfigurationKind);
         Assert.Equal("http://localhost:5138", projection.Endpoint);
-        Assert.Equal(3, projection.EntryCount);
+        Assert.Equal(0, projection.EntryCount);
         var inspect = await projection.GetInspectOperationAsync();
 
         Assert.NotNull(inspect);
         Assert.True(await inspect.CanExecuteAsync());
-        Assert.Equal(3, inspect.PlanInspection().EntryCount);
+        Assert.Equal(0, inspect.PlanInspection().EntryCount);
     }
 
     [Fact]
@@ -714,10 +713,7 @@ public sealed class ResourceProviderDispatcherTests
         var definition = new ResourceDefinition(
             "host-settings",
             HostConfigurationSourceResourceTypeProvider.ResourceTypeId,
-            Attributes: new Dictionary<ResourceAttributeId, string>
-            {
-                [HostConfigurationSourceResourceTypeProvider.Attributes.EntryCount] = "4"
-            });
+            Attributes: new Dictionary<ResourceAttributeId, string>());
 
         var validation = await serviceProvider
             .GetRequiredService<ResourceDefinitionValidationPipeline>()
@@ -731,7 +727,7 @@ public sealed class ResourceProviderDispatcherTests
             HostConfigurationSourceResourceTypeProvider.Attributes.ConfigurationKind));
         Assert.Equal("host", validation.Resource.Attributes.GetString(
             HostConfigurationSourceResourceTypeProvider.Attributes.Source));
-        Assert.Equal("4", validation.Resource.Attributes.GetString(
+        Assert.Equal("0", validation.Resource.Attributes.GetString(
             HostConfigurationSourceResourceTypeProvider.Attributes.EntryCount));
         Assert.True(validation.Resource.Operations.Has(
             HostConfigurationSourceResourceTypeProvider.Operations.Inspect));
@@ -750,12 +746,12 @@ public sealed class ResourceProviderDispatcherTests
         Assert.NotNull(projection);
         Assert.Equal("host", projection.ConfigurationKind);
         Assert.Equal("host", projection.Source);
-        Assert.Equal(4, projection.EntryCount);
+        Assert.Equal(0, projection.EntryCount);
         var inspect = await projection.GetInspectOperationAsync();
 
         Assert.NotNull(inspect);
         Assert.True(await inspect.CanExecuteAsync());
-        Assert.Equal(4, inspect.PlanInspection().EntryCount);
+        Assert.Equal(0, inspect.PlanInspection().EntryCount);
     }
 
     [Fact]
@@ -771,12 +767,7 @@ public sealed class ResourceProviderDispatcherTests
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
                 [LoadBalancerResourceTypeProvider.Attributes.Provider] = "traefik",
-                [LoadBalancerResourceTypeProvider.Attributes.HostResourceId] = "docker:engine",
-                [LoadBalancerResourceTypeProvider.Attributes.EntrypointCount] = "2",
-                [LoadBalancerResourceTypeProvider.Attributes.RouteCount] = "3",
-                [LoadBalancerResourceTypeProvider.Attributes.HttpRouteCount] = "2",
-                [LoadBalancerResourceTypeProvider.Attributes.TcpRouteCount] = "1",
-                [LoadBalancerResourceTypeProvider.Attributes.EndpointCount] = "2"
+                [LoadBalancerResourceTypeProvider.Attributes.HostResourceId] = "docker:engine"
             });
 
         var validation = await serviceProvider
@@ -810,16 +801,16 @@ public sealed class ResourceProviderDispatcherTests
         Assert.NotNull(projection);
         Assert.Equal("traefik", projection.Provider);
         Assert.Equal("docker:engine", projection.HostResourceId);
-        Assert.Equal(2, projection.EntrypointCount);
-        Assert.Equal(3, projection.RouteCount);
-        Assert.Equal(2, projection.HttpRouteCount);
-        Assert.Equal(1, projection.TcpRouteCount);
+        Assert.Equal(0, projection.EntrypointCount);
+        Assert.Equal(0, projection.RouteCount);
+        Assert.Equal(0, projection.HttpRouteCount);
+        Assert.Equal(0, projection.TcpRouteCount);
         Assert.True(projection.SupportsLoadBalancing);
         var apply = await projection.GetApplyConfigurationOperationAsync();
 
         Assert.NotNull(apply);
         Assert.True(await apply.CanExecuteAsync());
-        Assert.Equal(3, apply.PlanApply().RouteCount);
+        Assert.Equal(0, apply.PlanApply().RouteCount);
     }
 
     [Fact]
@@ -1172,8 +1163,7 @@ public sealed class ResourceProviderDispatcherTests
             SecretsVaultResourceTypeProvider.ResourceTypeId,
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
-                [SecretsVaultResourceTypeProvider.Attributes.Endpoint] = "http://localhost:6138",
-                [SecretsVaultResourceTypeProvider.Attributes.SecretCount] = "2"
+                [SecretsVaultResourceTypeProvider.Attributes.Endpoint] = "http://localhost:6138"
             });
 
         var validation = await serviceProvider
@@ -1188,7 +1178,7 @@ public sealed class ResourceProviderDispatcherTests
             SecretsVaultResourceTypeProvider.Attributes.SecretsKind));
         Assert.Equal("http://localhost:6138", validation.Resource.Attributes.GetString(
             SecretsVaultResourceTypeProvider.Attributes.Endpoint));
-        Assert.Equal("2", validation.Resource.Attributes.GetString(
+        Assert.Equal("0", validation.Resource.Attributes.GetString(
             SecretsVaultResourceTypeProvider.Attributes.SecretCount));
         Assert.True(validation.Resource.Operations.Has(
             SecretsVaultResourceTypeProvider.Operations.Inspect));
@@ -1207,12 +1197,12 @@ public sealed class ResourceProviderDispatcherTests
         Assert.NotNull(projection);
         Assert.Equal("vault", projection.SecretsKind);
         Assert.Equal("http://localhost:6138", projection.Endpoint);
-        Assert.Equal(2, projection.SecretCount);
+        Assert.Equal(0, projection.SecretCount);
         var inspect = await projection.GetInspectOperationAsync();
 
         Assert.NotNull(inspect);
         Assert.True(await inspect.CanExecuteAsync());
-        Assert.Equal(2, inspect.PlanInspection().SecretCount);
+        Assert.Equal(0, inspect.PlanInspection().SecretCount);
     }
 
     [Fact]
