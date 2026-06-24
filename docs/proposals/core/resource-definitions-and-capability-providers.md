@@ -1328,6 +1328,14 @@ Plane validation/apply pipeline, so a provider can depend on platform or
 provider services such as volume managers, identity managers, networking
 managers, policy services, catalogs, or stores.
 
+Capabilities are also integration points. The owner of a capability
+implementation does not have to be the resource type provider. Resource
+Manager, an orchestrator, a provider package, or another Control Plane service
+can own the concrete capability provider when that owner needs to inject its
+own services, enforce its own policy, or coordinate its own domain logic. The
+Resource model declares and resolves the capability; the implementation can
+belong to the boundary that owns the behavior.
+
 Responsibilities:
 
 - declare the capability ID they handle
@@ -1469,6 +1477,14 @@ provider-owned behavior. Operation providers should resolve the operation
 declaration they handle from the resolved resource context at the level they
 explicitly support: class, type, resource state, or a combination of those
 levels.
+
+Operations are also integration points. Resource Manager can own an operation
+provider when the operation is part of the Resource Manager or Control Plane
+domain and needs Resource Manager services, authorization context,
+orchestration state, procedure dispatch, activity logging, or provider runtime
+coordination. The Resource model should define the operation declaration and
+make it resolvable on the resource graph; it should not require the operation
+implementation to live beside the resource type definition.
 
 Operation projections follow the same pattern as capability projections: they
 are resource-bound work units resolved from a `Resource`, an operation ID, and

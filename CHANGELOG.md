@@ -107,6 +107,10 @@ on `git blame --follow`, and then by the broad type of change.
   participate in the existing `ResourceManagerStore` composition path, so
   registered Resource model resources flow through current registration
   filtering, metadata composition, capabilities, and actions.
+- The resource definitions proposal now clarifies that capabilities and
+  operations are integration points whose implementations may be owned by
+  Resource Manager, orchestrators, provider packages, or other Control Plane
+  services when those owners need to inject their own services and logic.
 - The resource definitions POC now includes a capability resolver so
   provider-owned capability behavior can be composed into type-specific
   resource projections without making the definition stop being the persisted
