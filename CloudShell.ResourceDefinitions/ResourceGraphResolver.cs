@@ -149,14 +149,15 @@ public sealed class ResourceGraphResolver(
         {
             var referenceResolution = ResolveReference(reference, statesById, context);
 
-            if (referenceResolution.Resource is null)
+            if (!referenceResolution.IsResolved)
             {
                 referenceResolutions.Add(referenceResolution);
                 diagnostics.AddRange(referenceResolution.Diagnostics);
                 continue;
             }
 
-            var dependencyResourceId = referenceResolution.Resource.EffectiveResourceId;
+            var dependency = referenceResolution.Resource!;
+            var dependencyResourceId = dependency.EffectiveResourceId;
             Resolve(
                 dependencyResourceId,
                 statesById,

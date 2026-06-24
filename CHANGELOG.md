@@ -39,6 +39,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource graph references can now declare an expected resource type, and
   graph resolution reports a diagnostic when a resource-ID reference resolves
   to a resource with a different `ResourceTypeId`.
+- Provider-produced graph dependencies now preserve typed reference diagnostics
+  during dependency-closure resolution, and the volume-consumer dependency
+  provider emits expected local-volume references.
 - The resource definitions proposal now clarifies that resource type providers
   are integration points that may receive injected services, but should not own
   recurring runtime tasks, watchers, polling loops, or reconciliation schedulers

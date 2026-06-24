@@ -148,6 +148,39 @@ public sealed class ResourceGraphResolverTests
     }
 
     [Fact]
+    public void ResolveResourceAndDependencies_ReportsCapabilityDependencyTypeMismatch()
+    {
+        var resolver = new ResourceGraphResolver(
+            CreateResourceResolver(),
+            [new VolumeConsumerGraphDependencyProvider()]);
+        var worker = CreateExecutableState("worker");
+        var api = CreateExecutableState(
+            "api",
+            mounts:
+            [
+                new(worker.EffectiveResourceId, "App_Data")
+            ]);
+        var snapshot = new ResourceGraphSnapshot(ResourceGraphVersion.Initial, [api, worker]);
+
+        var result = resolver.ResolveResourceAndDependencies(snapshot, api.EffectiveResourceId);
+
+        Assert.True(result.HasErrors);
+        Assert.Equal(
+            [api.EffectiveResourceId],
+            result.Resources.Select(resource => resource.EffectiveResourceId));
+
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.ResourceReferenceTypeMismatch, diagnostic.Code);
+        Assert.Equal(worker.EffectiveResourceId, diagnostic.Target);
+
+        var reference = Assert.Single(result.ResolvedReferences);
+        Assert.False(reference.IsResolved);
+        Assert.Equal(worker.EffectiveResourceId, reference.Reference.Value);
+        Assert.Equal(LocalVolumeResourceTypeProvider.ResourceTypeId, reference.Reference.TypeId);
+        Assert.Equal(worker.EffectiveResourceId, reference.Resource?.EffectiveResourceId);
+    }
+
+    [Fact]
     public void ResolveResourceAndDependencies_OnlyFollowsProviderDependenciesAddressedByResourceId()
     {
         var worker = CreateExecutableState("worker");

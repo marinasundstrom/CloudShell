@@ -847,6 +847,10 @@ the definition leaves it unconstrained and the author knows the target shape.
 Validation can then diagnose a `ResourceReference` attribute that resolves to
 the wrong resource type. For graph-level `DependsOn` references, the POC
 already supports the same expected-type check through `ResourceReference.TypeId`.
+Provider-produced dependencies should set this expectation when the provider
+knows the required target shape, so graph resolution can reject a dependency
+that points at an existing resource of the wrong type instead of silently
+following it.
 Resolving a `ResourceReference` is a first-class graph operation:
 when the reference can be resolved, the result carries the projected
 `Resource`; when it cannot, the result can stay unresolved or carry
