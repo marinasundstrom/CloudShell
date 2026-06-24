@@ -147,6 +147,10 @@ on `git blame --follow`, and then by the broad type of change.
   `container.image.update` operation projection that stages image and replica
   attribute changes on its attached resource before the provider apply hook
   accepts or rejects the proposed state.
+- The reference volume-consumer capability provider now attaches to resolved
+  capability declarations instead of hard-coding the resource types that may
+  consume volumes, keeping capability behavior independent from concrete
+  application provider implementations.
 - The resource definitions POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change

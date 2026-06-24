@@ -555,7 +555,10 @@ provider then accepts or rejects those proposed changes through the normal
 apply hook. The shared `storage.volumeConsumer` capability can attach to both
 executable and container application resources through the capability provider
 boundary, so volume behavior is not folded into either application provider
-implementation.
+implementation. The capability provider should act on the resolved capability
+declaration rather than maintaining a hard-coded list of compatible resource
+types; type compatibility can be expressed by which resource types declare or
+accept the capability and by graph-level validation.
 
 Host infrastructure registration is a separate concern from provider
 registration. A host may compose the generic graph services once from whatever
