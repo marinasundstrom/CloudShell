@@ -590,7 +590,32 @@ Class and type definitions can contribute:
 
 `ResourceAttributeDefinition` is the contract-level place for attribute shape
 metadata on `ResourceClassDefinition` and `ResourceTypeDefinition`. In the POC
-it carries the attribute ID, an optional scalar default value,
+class and type definitions carry attributes as a map keyed by
+`ResourceAttributeId`, where each value is a `ResourceAttributeDefinition`:
+
+```json
+{
+  "attributes": {
+    "container:replicas": {
+      "defaultValue": 1,
+      "required": false
+    }
+  }
+}
+```
+
+`ResourceDefinition` keeps a different meaning for `attributes`: it is the
+resource-owned state or interchange value map, keyed by attribute ID directly:
+
+```json
+{
+  "attributes": {
+    "container:replicas": 1
+  }
+}
+```
+
+The attribute definition carries an optional default value,
 required-attribute intent, an optional required message, a description, and an
 optional serializer-neutral `ResourceAttributeValueShape`. Those definitions
 participate in normal resource resolution: class defaults are applied first,
@@ -610,6 +635,16 @@ array element shape, not by embedding `JsonElement` or another format-specific
 DOM as the definition contract. Format adapters can map the value object and
 shape descriptors to JSON, YAML, XML, database records, or compact persistence
 records at the boundary.
+
+Stable IDs should use `:` as the namespace separator and `.` for local
+hierarchy inside that namespace. For example, `container:replicas`,
+`application:executable.path`, and `identity:principal.subject` have clear
+owners while still leaving room for configuration-style sections. Canonical
+resource model documents should keep the full ID as the map key so IDs remain
+unambiguous across JSON, YAML, XML, database records, and in-memory maps.
+Format-specific authoring adapters may render the namespace or dotted suffix
+as nested sections when that improves readability, but that is a document
+projection choice rather than the core model identity.
 
 The resource instance supplies values, selects presets where allowed, and can
 override values only within the constraints defined by the class and type. A

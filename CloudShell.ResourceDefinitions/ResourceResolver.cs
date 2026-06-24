@@ -122,10 +122,9 @@ public sealed class ResourceResolver
     private static ResourceAttributeSet ResolveClassAttributes(ResourceClassDefinition classDefinition)
     {
         var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeResolution>();
-        MergeAttributes(attributes, classDefinition.Attributes, ResourceDefinitionValueSource.ClassDefinition);
         MergeAttributeDefinitions(
             attributes,
-            classDefinition.AttributeDefinitions,
+            classDefinition.Attributes,
             ResourceDefinitionValueSource.ClassDefinition);
         return new(attributes.Values);
     }
@@ -149,15 +148,13 @@ public sealed class ResourceResolver
         ResourceTypeDefinition typeDefinition)
     {
         var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeResolution>();
-        MergeAttributes(attributes, classDefinition.Attributes, ResourceDefinitionValueSource.ClassDefinition);
         MergeAttributeDefinitions(
             attributes,
-            classDefinition.AttributeDefinitions,
+            classDefinition.Attributes,
             ResourceDefinitionValueSource.ClassDefinition);
-        MergeAttributes(attributes, typeDefinition.Attributes, ResourceDefinitionValueSource.TypeDefinition);
         MergeAttributeDefinitions(
             attributes,
-            typeDefinition.AttributeDefinitions,
+            typeDefinition.Attributes,
             ResourceDefinitionValueSource.TypeDefinition);
         return new(attributes.Values);
     }
@@ -217,7 +214,7 @@ public sealed class ResourceResolver
 
     private static void MergeAttributeDefinitions(
         Dictionary<ResourceAttributeId, ResourceAttributeResolution> target,
-        IReadOnlyList<ResourceAttributeDefinition>? attributeDefinitions,
+        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? attributeDefinitions,
         ResourceDefinitionValueSource source)
     {
         if (attributeDefinitions is null)
@@ -225,16 +222,17 @@ public sealed class ResourceResolver
             return;
         }
 
-        foreach (var attributeDefinition in attributeDefinitions)
+        foreach (var (name, attributeDefinition) in attributeDefinitions)
         {
-            if (attributeDefinition.DefaultValue is null)
+            if (attributeDefinition.DefaultValue is null ||
+                !attributeDefinition.DefaultValue.TryGetScalarString(out var value))
             {
                 continue;
             }
 
-            target[attributeDefinition.Name] = new(
-                attributeDefinition.Name,
-                attributeDefinition.DefaultValue,
+            target[name] = new(
+                name,
+                value,
                 source);
         }
     }
@@ -377,13 +375,16 @@ public sealed class ResourceResolver
             requirements[requirement.Name] = requirement;
         }
 
-        foreach (var attributeDefinition in classDefinition.AttributeDefinitions ?? [])
+        if (classDefinition.Attributes is not null)
         {
-            if (attributeDefinition.IsRequired)
+            foreach (var (name, attributeDefinition) in classDefinition.Attributes)
             {
-                requirements[attributeDefinition.Name] = new(
-                    attributeDefinition.Name,
-                    attributeDefinition.RequiredMessage);
+                if (attributeDefinition.Required)
+                {
+                    requirements[name] = new(
+                        name,
+                        attributeDefinition.RequiredMessage);
+                }
             }
         }
 
@@ -392,13 +393,16 @@ public sealed class ResourceResolver
             requirements[requirement.Name] = requirement;
         }
 
-        foreach (var attributeDefinition in typeDefinition.AttributeDefinitions ?? [])
+        if (typeDefinition.Attributes is not null)
         {
-            if (attributeDefinition.IsRequired)
+            foreach (var (name, attributeDefinition) in typeDefinition.Attributes)
             {
-                requirements[attributeDefinition.Name] = new(
-                    attributeDefinition.Name,
-                    attributeDefinition.RequiredMessage);
+                if (attributeDefinition.Required)
+                {
+                    requirements[name] = new(
+                        name,
+                        attributeDefinition.RequiredMessage);
+                }
             }
         }
 

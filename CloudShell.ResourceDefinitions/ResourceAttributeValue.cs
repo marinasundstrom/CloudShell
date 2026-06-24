@@ -1,0 +1,147 @@
+using System.Globalization;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+namespace CloudShell.ResourceDefinitions;
+
+[JsonConverter(typeof(ResourceAttributeValueJsonConverter))]
+public sealed record ResourceAttributeValue
+{
+    private ResourceAttributeValue(
+        ResourceAttributeValueKind kind,
+        string? stringValue = null,
+        bool? booleanValue = null,
+        long? integerValue = null,
+        decimal? decimalValue = null,
+        IReadOnlyDictionary<string, ResourceAttributeValue>? objectValue = null,
+        IReadOnlyList<ResourceAttributeValue>? arrayValue = null)
+    {
+        Kind = kind;
+        StringValue = stringValue;
+        BooleanValue = booleanValue;
+        IntegerValue = integerValue;
+        DecimalValue = decimalValue;
+        ObjectValue = objectValue;
+        ArrayValue = arrayValue;
+    }
+
+    public ResourceAttributeValueKind Kind { get; }
+
+    public string? StringValue { get; }
+
+    public bool? BooleanValue { get; }
+
+    public long? IntegerValue { get; }
+
+    public decimal? DecimalValue { get; }
+
+    public IReadOnlyDictionary<string, ResourceAttributeValue>? ObjectValue { get; }
+
+    public IReadOnlyList<ResourceAttributeValue>? ArrayValue { get; }
+
+    public static ResourceAttributeValue String(string value) =>
+        new(ResourceAttributeValueKind.String, stringValue: value);
+
+    public static ResourceAttributeValue Boolean(bool value) =>
+        new(ResourceAttributeValueKind.Boolean, booleanValue: value);
+
+    public static ResourceAttributeValue Integer(long value) =>
+        new(ResourceAttributeValueKind.Integer, integerValue: value);
+
+    public static ResourceAttributeValue Decimal(decimal value) =>
+        new(ResourceAttributeValueKind.Decimal, decimalValue: value);
+
+    public static ResourceAttributeValue Object(
+        IReadOnlyDictionary<string, ResourceAttributeValue> value) =>
+        new(ResourceAttributeValueKind.Object, objectValue: value);
+
+    public static ResourceAttributeValue Array(
+        IReadOnlyList<ResourceAttributeValue> value) =>
+        new(ResourceAttributeValueKind.Array, arrayValue: value);
+
+    public static implicit operator ResourceAttributeValue(string value) => String(value);
+
+    public static implicit operator ResourceAttributeValue(bool value) => Boolean(value);
+
+    public static implicit operator ResourceAttributeValue(int value) => Integer(value);
+
+    public static implicit operator ResourceAttributeValue(long value) => Integer(value);
+
+    public static implicit operator ResourceAttributeValue(decimal value) => Decimal(value);
+
+    public bool TryGetScalarString(out string value)
+    {
+        switch (Kind)
+        {
+            case ResourceAttributeValueKind.String:
+                value = StringValue ?? string.Empty;
+                return true;
+            case ResourceAttributeValueKind.Boolean:
+                value = BooleanValue.GetValueOrDefault()
+                    ? bool.TrueString.ToLowerInvariant()
+                    : bool.FalseString.ToLowerInvariant();
+                return true;
+            case ResourceAttributeValueKind.Integer:
+                value = IntegerValue.GetValueOrDefault().ToString(CultureInfo.InvariantCulture);
+                return true;
+            case ResourceAttributeValueKind.Decimal:
+                value = DecimalValue.GetValueOrDefault().ToString(CultureInfo.InvariantCulture);
+                return true;
+            default:
+                value = string.Empty;
+                return false;
+        }
+    }
+}
+
+internal sealed class ResourceAttributeValueJsonConverter : JsonConverter<ResourceAttributeValue>
+{
+    public override ResourceAttributeValue Read(
+        ref Utf8JsonReader reader,
+        Type typeToConvert,
+        JsonSerializerOptions options) =>
+        reader.TokenType switch
+        {
+            JsonTokenType.String => ResourceAttributeValue.String(reader.GetString() ?? string.Empty),
+            JsonTokenType.True => ResourceAttributeValue.Boolean(true),
+            JsonTokenType.False => ResourceAttributeValue.Boolean(false),
+            JsonTokenType.Number when reader.TryGetInt64(out var integerValue) =>
+                ResourceAttributeValue.Integer(integerValue),
+            JsonTokenType.Number => ResourceAttributeValue.Decimal(reader.GetDecimal()),
+            JsonTokenType.StartObject => ResourceAttributeValue.Object(
+                JsonSerializer.Deserialize<Dictionary<string, ResourceAttributeValue>>(ref reader, options) ?? []),
+            JsonTokenType.StartArray => ResourceAttributeValue.Array(
+                JsonSerializer.Deserialize<List<ResourceAttributeValue>>(ref reader, options) ?? []),
+            _ => throw new JsonException($"Unsupported resource attribute value token '{reader.TokenType}'.")
+        };
+
+    public override void Write(
+        Utf8JsonWriter writer,
+        ResourceAttributeValue value,
+        JsonSerializerOptions options)
+    {
+        switch (value.Kind)
+        {
+            case ResourceAttributeValueKind.String:
+                writer.WriteStringValue(value.StringValue);
+                break;
+            case ResourceAttributeValueKind.Boolean:
+                writer.WriteBooleanValue(value.BooleanValue.GetValueOrDefault());
+                break;
+            case ResourceAttributeValueKind.Integer:
+                writer.WriteNumberValue(value.IntegerValue.GetValueOrDefault());
+                break;
+            case ResourceAttributeValueKind.Decimal:
+                writer.WriteNumberValue(value.DecimalValue.GetValueOrDefault());
+                break;
+            case ResourceAttributeValueKind.Object:
+                JsonSerializer.Serialize(writer, value.ObjectValue ?? new Dictionary<string, ResourceAttributeValue>(), options);
+                break;
+            case ResourceAttributeValueKind.Array:
+                JsonSerializer.Serialize(writer, value.ArrayValue ?? [], options);
+                break;
+            default:
+                throw new JsonException($"Unsupported resource attribute value kind '{value.Kind}'.");
+        }
+    }
+}

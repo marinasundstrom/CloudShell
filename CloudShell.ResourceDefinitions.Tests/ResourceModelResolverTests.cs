@@ -128,9 +128,9 @@ public sealed class ResourceModelResolverTests
             [
                 new(
                     ExecutableApplicationResourceTypeProvider.ClassId,
-                    Attributes: new Dictionary<ResourceAttributeId, string>
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
                     {
-                        ["workload.kind"] = "executable"
+                        ["workload.kind"] = new(DefaultValue: "executable")
                     },
                     Capabilities:
                     [
@@ -146,9 +146,10 @@ public sealed class ResourceModelResolverTests
                     ExecutableApplicationResourceTypeProvider.ResourceTypeId,
                     ExecutableApplicationResourceTypeProvider.ClassId,
                     DefaultProviderId: ExecutableApplicationResourceTypeProvider.ProviderId,
-                    Attributes: new Dictionary<ResourceAttributeId, string>
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
                     {
-                        [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
+                        [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] =
+                            new(DefaultValue: "dotnet")
                     },
                     Capabilities:
                     [

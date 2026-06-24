@@ -12,9 +12,9 @@ public sealed class ResourceResolverTests
             [
                 new(
                     ExecutableApplicationResourceTypeProvider.ClassId,
-                    Attributes: new Dictionary<ResourceAttributeId, string>
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
                     {
-                        ["workload.kind"] = "executable"
+                        ["workload.kind"] = new(DefaultValue: "executable")
                     },
                     Capabilities:
                     [
@@ -30,9 +30,10 @@ public sealed class ResourceResolverTests
                     ExecutableApplicationResourceTypeProvider.ResourceTypeId,
                     ExecutableApplicationResourceTypeProvider.ClassId,
                     DefaultProviderId: ExecutableApplicationResourceTypeProvider.ProviderId,
-                    Attributes: new Dictionary<ResourceAttributeId, string>
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
                     {
-                        [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
+                        [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] =
+                            new(DefaultValue: "dotnet")
                     },
                     Capabilities:
                     [
@@ -81,29 +82,28 @@ public sealed class ResourceResolverTests
     }
 
     [Fact]
-    public void Resolve_UsesAttributeDefinitionsForDefaultsAndRequirements()
+    public void Resolve_UsesAttributeDefinitionMapForDefaultsAndRequirements()
     {
         var resolver = new ResourceResolver(
             [
                 new(
                     ExecutableApplicationResourceTypeProvider.ClassId,
-                    AttributeDefinitions:
-                    [
-                        new("workload.kind", DefaultValue: "executable")
-                    ])
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                    {
+                        ["workload.kind"] = new(DefaultValue: "executable")
+                    })
             ],
             [
                 new(
                     ExecutableApplicationResourceTypeProvider.ResourceTypeId,
                     ExecutableApplicationResourceTypeProvider.ClassId,
-                    AttributeDefinitions:
-                    [
-                        new(
-                            ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath,
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                    {
+                        [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = new(
                             DefaultValue: "dotnet",
-                            IsRequired: true,
+                            Required: true,
                             RequiredMessage: "Executable path is required.")
-                    ])
+                    })
             ]);
         var definition = new ResourceDefinition(
             "api",
@@ -132,13 +132,12 @@ public sealed class ResourceResolverTests
                 new(
                     ExecutableApplicationResourceTypeProvider.ResourceTypeId,
                     ExecutableApplicationResourceTypeProvider.ClassId,
-                    AttributeDefinitions:
-                    [
-                        new(
-                            ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath,
-                            IsRequired: true,
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                    {
+                        [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = new(
+                            Required: true,
                             RequiredMessage: "Executable path is required.")
-                    ])
+                    })
             ]);
         var definition = new ResourceDefinition(
             "api",

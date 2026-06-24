@@ -8,6 +8,7 @@ using CloudShell.ControlPlane.ResourceManager.Identity;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using CloudShell.ResourceDefinitions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
+using DefinitionAttributeDefinition = CloudShell.ResourceDefinitions.ResourceAttributeDefinition;
 using DefinitionAttributeId = CloudShell.ResourceDefinitions.ResourceAttributeId;
 using DefinitionCapabilityId = CloudShell.ResourceDefinitions.ResourceCapabilityId;
 using DefinitionGraphSnapshot = CloudShell.ResourceDefinitions.ResourceGraphSnapshot;
@@ -614,9 +615,9 @@ public sealed class ResourceManagerStoreProjectionTests
             [
                 new(
                     ExecutableApplicationResourceTypeProvider.ClassId,
-                    Attributes: new Dictionary<DefinitionAttributeId, string>
+                    Attributes: new Dictionary<DefinitionAttributeId, DefinitionAttributeDefinition>
                     {
-                        ["workload.kind"] = "executable"
+                        ["workload.kind"] = new(DefaultValue: "executable")
                     })
             ],
             [

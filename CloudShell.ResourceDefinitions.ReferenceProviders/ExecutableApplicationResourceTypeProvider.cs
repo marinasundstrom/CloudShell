@@ -26,14 +26,13 @@ public sealed class ExecutableApplicationResourceTypeProvider :
         ResourceTypeId,
         ClassId,
         DefaultProviderId: ProviderId,
-        AttributeDefinitions:
-        [
-            new(
-                Attributes.ExecutablePath,
-                IsRequired: true,
+        Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+        {
+            [Attributes.ExecutablePath] = new(
+                Required: true,
                 RequiredMessage: "Executable path is required.",
                 ValueShape: new(ResourceAttributeValueKind.String))
-        ],
+        },
         Operations:
         [
             new(Operations.Start)

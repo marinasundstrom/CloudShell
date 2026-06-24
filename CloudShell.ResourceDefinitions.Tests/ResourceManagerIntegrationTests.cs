@@ -95,9 +95,9 @@ public sealed class ResourceManagerIntegrationTests
             [
                 new(
                     ExecutableApplicationResourceTypeProvider.ClassId,
-                    Attributes: new Dictionary<ResourceAttributeId, string>
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
                     {
-                        ["workload.kind"] = "executable"
+                        ["workload.kind"] = new(DefaultValue: "executable")
                     })
             ],
             [

@@ -128,6 +128,10 @@ on `git blame --follow`, and then by the broad type of change.
   `ResourceAttributeValueShape` metadata so attribute definitions can describe
   scalar values, object fields, and array element shapes without making JSON
   the core definition contract.
+- The resource definitions POC now represents `ResourceClassDefinition` and
+  `ResourceTypeDefinition` attributes as definition maps keyed by attribute
+  ID, keeps `ResourceDefinition` attributes as value maps, and documents `:`
+  as the stable ID namespace separator with `.` reserved for local hierarchy.
 - The resource definitions proposal now clarifies that capabilities and
   operations are integration points whose implementations may be owned by
   Resource Manager, orchestrators, provider packages, or other Control Plane

@@ -4,26 +4,23 @@ namespace CloudShell.ResourceDefinitions;
 
 public sealed record ResourceClassDefinition(
     ResourceClassId ClassId,
-    IReadOnlyDictionary<ResourceAttributeId, string>? Attributes = null,
     IReadOnlyList<ResourceAttributeRequirement>? RequiredAttributes = null,
     IReadOnlyList<ResourceCapabilityDeclaration>? Capabilities = null,
     IReadOnlyList<ResourceOperationDeclaration>? Operations = null,
-    IReadOnlyList<ResourceAttributeDefinition>? AttributeDefinitions = null);
+    IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? Attributes = null);
 
 public sealed record ResourceTypeDefinition(
     ResourceTypeId TypeId,
     ResourceClassId ClassId,
     string? DefaultProviderId = null,
-    IReadOnlyDictionary<ResourceAttributeId, string>? Attributes = null,
     IReadOnlyList<ResourceAttributeRequirement>? RequiredAttributes = null,
     IReadOnlyList<ResourceCapabilityDeclaration>? Capabilities = null,
     IReadOnlyList<ResourceOperationDeclaration>? Operations = null,
-    IReadOnlyList<ResourceAttributeDefinition>? AttributeDefinitions = null);
+    IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? Attributes = null);
 
 public sealed record ResourceAttributeDefinition(
-    ResourceAttributeId Name,
-    string? DefaultValue = null,
-    bool IsRequired = false,
+    ResourceAttributeValue? DefaultValue = null,
+    bool Required = false,
     string? RequiredMessage = null,
     string? Description = null,
     ResourceAttributeValueShape? ValueShape = null);
@@ -36,7 +33,7 @@ public sealed record ResourceAttributeValueShape(
 public sealed record ResourceAttributeFieldDefinition(
     string Name,
     ResourceAttributeValueShape ValueShape,
-    bool IsRequired = false,
+    bool Required = false,
     string? Description = null);
 
 public enum ResourceAttributeValueKind
