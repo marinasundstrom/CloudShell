@@ -502,6 +502,11 @@ narrow: wrong-type existing dependency targets are unsafe for runtime
 execution, while broader dependency validation, missing staged resources, and
 cross-resource orchestration policy remain provider/Resource Manager concerns
 to refine as real providers are ported.
+Runtime-facing operation implementations should sit behind provider-owned
+services that are injected into the operation provider or projector. The
+reference executable start operation demonstrates this with a no-op default
+runtime controller that hosts can replace, proving the integration seam without
+making the resource type provider run background work or own runtime loops.
 
 The bridge project should own registration helpers for this integration seam.
 Hosts can register a graph-backed Resource model provider as an existing

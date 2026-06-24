@@ -1,9 +1,29 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
-public sealed class ExecutableStartOperationProvider :
+public interface IExecutableApplicationRuntimeController
+{
+    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> StartAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed class NoopExecutableApplicationRuntimeController :
+    IExecutableApplicationRuntimeController
+{
+    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> StartAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+}
+
+public sealed class ExecutableStartOperationProvider(
+    IExecutableApplicationRuntimeController? runtimeController = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
+    private readonly IExecutableApplicationRuntimeController _runtimeController =
+        runtimeController ?? new NoopExecutableApplicationRuntimeController();
+
     public ResourceOperationId OperationId =>
         ExecutableApplicationResourceTypeProvider.Operations.Start;
 
@@ -36,14 +56,19 @@ public sealed class ExecutableStartOperationProvider :
         ValueTask.FromResult<IResourceOperationProjection>(
             new ExecutableStartOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
-                operation));
+                operation,
+                _runtimeController));
 }
 
 public sealed class ExecutableStartOperation(
     ResourceProjectionExecutionContext context,
-    ResourceOperationResolution operation) : IResourceOperationExecutorProjection
+    ResourceOperationResolution operation,
+    IExecutableApplicationRuntimeController runtimeController) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
+
+    private readonly IExecutableApplicationRuntimeController _runtimeController =
+        runtimeController;
 
     public Resource Resource => Context.Resource;
 
@@ -79,12 +104,16 @@ public sealed class ExecutableStartOperation(
                         "application.executable.startUnavailable",
                         UnavailableReason ?? "The start operation is not available.",
                         OperationId)
-                ]);
+            ]);
         }
+
+        var diagnostics = await _runtimeController.StartAsync(
+            Resource,
+            cancellationToken);
 
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            []);
+            diagnostics);
     }
 }

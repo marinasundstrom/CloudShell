@@ -55,6 +55,9 @@ on `git blame --follow`, and then by the broad type of change.
   validation into procedure policy.
 - Graph dependency resolution now lets provider-produced typed references
   refine older untyped dependency declarations for the same resource ID.
+- The executable application start operation now delegates runtime-facing start
+  behavior to an injected provider-owned runtime controller with a no-op POC
+  default.
 - The resource definitions proposal now clarifies that resource type providers
   are integration points that may receive injected services, but should not own
   recurring runtime tasks, watchers, polling loops, or reconciliation schedulers

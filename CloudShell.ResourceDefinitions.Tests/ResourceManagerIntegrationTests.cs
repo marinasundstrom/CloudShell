@@ -459,6 +459,34 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphProcedureProvider_ExecutesProviderOwnedOperationService()
+    {
+        var runtimeController = new RecordingExecutableApplicationRuntimeController();
+        var services = new ServiceCollection();
+        services.AddSingleton<IExecutableApplicationRuntimeController>(runtimeController);
+        services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var resource = Assert.Single(provider.GetResources());
+        var procedure = new ResourceProcedureContext(
+            resource,
+            null,
+            null,
+            new EmptyResourceRegistrationStore());
+
+        var result = await provider.ExecuteActionAsync(procedure, ResourceAction.Start);
+
+        Assert.Equal("Executed Start for api.", result.Message);
+        Assert.Equal([resource.Id], runtimeController.StartedResourceIds);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphProcedureProvider_BlocksExecutionForInvalidTypedDependency()
     {
         var worker = CreateExecutableState(
@@ -2791,5 +2819,22 @@ public sealed class ResourceManagerIntegrationTests
             IReadOnlyList<string> dependsOn,
             CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
+    }
+
+    private sealed class RecordingExecutableApplicationRuntimeController :
+        IExecutableApplicationRuntimeController
+    {
+        private readonly List<string> _startedResourceIds = [];
+
+        public IReadOnlyList<string> StartedResourceIds => _startedResourceIds;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> StartAsync(
+            Resource resource,
+            CancellationToken cancellationToken = default)
+        {
+            _startedResourceIds.Add(resource.EffectiveResourceId);
+
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
     }
 }
