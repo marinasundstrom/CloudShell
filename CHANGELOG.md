@@ -192,6 +192,11 @@ on `git blame --follow`, and then by the broad type of change.
   host resource type with Docker host kind, endpoint, registry, default-host
   attributes, passive container capability markers, an inspect operation,
   typed wrapper, and Resource Manager bridge coverage.
+- The resource definitions reference providers now include a narrow load
+  balancer resource type with provider, host, route, entrypoint, and endpoint
+  count attributes, passive networking capability markers, an
+  apply-configuration operation, typed wrapper, and Resource Manager bridge
+  coverage.
 - The resource definitions reference providers now include a narrow Secrets
   Vault resource type with endpoint and secret-count attributes, an inspect
   operation provider, typed wrapper, and Resource Manager bridge coverage

@@ -1248,6 +1248,87 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesLoadBalancerAcrossProviderBoundaries()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddLoadBalancerResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var loadBalancer = new ResourceDefinition(
+            "edge",
+            LoadBalancerResourceTypeProvider.ResourceTypeId,
+            ProviderId: LoadBalancerResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [LoadBalancerResourceTypeProvider.Attributes.Provider] = "traefik",
+                [LoadBalancerResourceTypeProvider.Attributes.HostResourceId] = "docker:engine",
+                [LoadBalancerResourceTypeProvider.Attributes.EntrypointCount] = "2",
+                [LoadBalancerResourceTypeProvider.Attributes.RouteCount] = "3",
+                [LoadBalancerResourceTypeProvider.Attributes.HttpRouteCount] = "2",
+                [LoadBalancerResourceTypeProvider.Attributes.TcpRouteCount] = "1",
+                [LoadBalancerResourceTypeProvider.Attributes.EndpointCount] = "2"
+            });
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "load-balancer",
+                [loadBalancer],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 4, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedLoadBalancer = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == loadBalancer.EffectiveResourceId);
+
+        Assert.Equal(ResourceManagerClass.Network, projectedLoadBalancer.ResourceClass);
+        Assert.Equal(LoadBalancerResourceTypeProvider.ProviderId, projectedLoadBalancer.Provider);
+        Assert.Equal("traefik", projectedLoadBalancer.ResourceAttributes["loadBalancer.provider"]);
+        Assert.Equal("docker:engine", projectedLoadBalancer.ResourceAttributes["loadBalancer.hostResourceId"]);
+        Assert.Equal("3", projectedLoadBalancer.ResourceAttributes["loadBalancer.routes"]);
+        Assert.Contains(projectedLoadBalancer.ResourceCapabilities, capability =>
+            capability.Id == LoadBalancerResourceTypeProvider.Capabilities.NetworkingLoadBalancer.ToString());
+        var apply = Assert.Single(projectedLoadBalancer.ResourceActions, action =>
+            action.Id == LoadBalancerResourceTypeProvider.Operations.ApplyConfiguration.ToString());
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveAsync(loadBalancer.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors);
+        var projection = Assert.IsType<LoadBalancerResource>(
+            await serviceProvider
+                .GetRequiredService<ResourceProjectionResolver>()
+                .GetResourceProjectionAsync(
+                    resolution.Target!,
+                    new ResourceProjectionContext("local", "developer")));
+        Assert.Equal(3, projection.RouteCount);
+
+        var procedure = new ResourceProcedureContext(
+            projectedLoadBalancer,
+            null,
+            null,
+            new EmptyResourceRegistrationStore());
+
+        Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, apply));
+
+        var procedureResult = await provider.ExecuteActionAsync(procedure, apply);
+
+        Assert.Equal("Executed ApplyLoadBalancerConfiguration for edge.", procedureResult.Message);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesSecretsVaultAcrossProviderBoundaries()
     {
         var services = new ServiceCollection();

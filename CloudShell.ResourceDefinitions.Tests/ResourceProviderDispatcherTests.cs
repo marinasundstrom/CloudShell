@@ -501,6 +501,70 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task AddLoadBalancerResourceType_RegistersCompleteResourceTypeBoundary()
+    {
+        var services = new ServiceCollection();
+        services.AddLoadBalancerResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var definition = new ResourceDefinition(
+            "edge",
+            LoadBalancerResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [LoadBalancerResourceTypeProvider.Attributes.Provider] = "traefik",
+                [LoadBalancerResourceTypeProvider.Attributes.HostResourceId] = "docker:engine",
+                [LoadBalancerResourceTypeProvider.Attributes.EntrypointCount] = "2",
+                [LoadBalancerResourceTypeProvider.Attributes.RouteCount] = "3",
+                [LoadBalancerResourceTypeProvider.Attributes.HttpRouteCount] = "2",
+                [LoadBalancerResourceTypeProvider.Attributes.TcpRouteCount] = "1",
+                [LoadBalancerResourceTypeProvider.Attributes.EndpointCount] = "2"
+            });
+
+        var validation = await serviceProvider
+            .GetRequiredService<ResourceDefinitionValidationPipeline>()
+            .ValidateAsync(
+                definition,
+                new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.False(validation.HasErrors);
+        Assert.Equal(LoadBalancerResourceTypeProvider.ClassId, validation.Resource.Class.ClassId);
+        Assert.Equal("traefik", validation.Resource.Attributes.GetString(
+            LoadBalancerResourceTypeProvider.Attributes.Provider));
+        Assert.Equal("docker:engine", validation.Resource.Attributes.GetString(
+            LoadBalancerResourceTypeProvider.Attributes.HostResourceId));
+        Assert.True(validation.Resource.Capabilities.Has(
+            LoadBalancerResourceTypeProvider.Capabilities.NetworkingLoadBalancer));
+        Assert.True(validation.Resource.Operations.Has(
+            LoadBalancerResourceTypeProvider.Operations.ApplyConfiguration));
+
+        var projectedGraph = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphProjectionResolver>()
+            .ProjectAsync(
+                new ResourceDefinitionGraphValidationPipelineResult(
+                    new ResourceDefinitionGraph([definition]),
+                    [validation],
+                    []),
+                new ResourceProjectionContext("local", "developer"));
+        var projection = projectedGraph.Find<LoadBalancerResource>(
+            definition.EffectiveResourceId);
+
+        Assert.NotNull(projection);
+        Assert.Equal("traefik", projection.Provider);
+        Assert.Equal("docker:engine", projection.HostResourceId);
+        Assert.Equal(2, projection.EntrypointCount);
+        Assert.Equal(3, projection.RouteCount);
+        Assert.Equal(2, projection.HttpRouteCount);
+        Assert.Equal(1, projection.TcpRouteCount);
+        Assert.True(projection.SupportsLoadBalancing);
+        var apply = await projection.GetApplyConfigurationOperationAsync();
+
+        Assert.NotNull(apply);
+        Assert.True(await apply.CanExecuteAsync());
+        Assert.Equal(3, apply.PlanApply().RouteCount);
+    }
+
+    [Fact]
     public async Task AddSecretsVaultResourceType_RegistersCompleteResourceTypeBoundary()
     {
         var services = new ServiceCollection();

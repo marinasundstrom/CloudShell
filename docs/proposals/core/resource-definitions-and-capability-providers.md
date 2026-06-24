@@ -605,6 +605,14 @@ coverage. It stays separate from the generic `cloudshell.container-host`
 reference provider so Docker-owned runtime services and attributes can evolve
 inside the Docker provider boundary.
 
+A narrow load balancer reference provider covers the declarative
+`cloudshell.loadBalancer` graph resource. It owns provider, host-resource,
+entrypoint-count, route-count, and endpoint-count attributes, passive
+networking capability markers, an apply-configuration operation, a typed
+projection wrapper, and Resource Manager bridge coverage. The POC records
+summary counts only; route and entrypoint collections can move into typed
+complex values or provider-owned configuration payloads in a later slice.
+
 A narrow Secrets Vault reference provider follows the same boundary while
 keeping secret material out of the Resource model. It owns `secrets.vault`,
 Secrets Vault class defaults, endpoint and secret-count attributes, an inspect
@@ -624,6 +632,7 @@ The working porting status for the reference POC is:
 | SQL database child (`application.sql-database`) | Ported as a narrow reference provider | Database name/source/ensure-created attributes, server `ResourceReference` validation, ensure-created operation, typed wrapper, Resource Manager bridge projection and execution | Real SQL database materialization, credential/grant reconciliation, provider-managed child ownership metadata, and UI tabs |
 | Container host (`cloudshell.container-host`) | Ported as a narrow reference provider | Infrastructure class/type defaults, host kind/endpoint/registry/default attributes, passive container image/build/filesystem-mount capability markers, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real Docker/container host runtime integration, host resolution, placement behavior, credentials, and runtime diagnostics |
 | Docker host (`docker.host`) | Ported as a narrow reference provider | Infrastructure class/type defaults, Docker host kind/endpoint/registry/default attributes, passive container image/build/filesystem-mount capability markers, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real Docker runtime integration, discovery, health, logs, container child projections, credentials, and UI registration/update flow |
+| Load balancer (`cloudshell.loadBalancer`) | Ported as a narrow reference provider | Network class/type defaults, provider/host/count attributes, passive networking capability markers, apply-configuration operation, typed wrapper, Resource Manager bridge projection and execution | Route and entrypoint payloads, target `ResourceReference` graph validation, Traefik/materialization runtime integration, endpoint mappings, and UI registration/update flow |
 | Configuration store (`configuration.store`) | Ported as a narrow reference provider | Configuration class/type defaults, endpoint and entry-count attributes, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real configuration service runtime integration, entry collection payloads, authorization, logs, templates, and UI registration/update flow |
 | Host configuration source (`configuration.host`) | Ported as a narrow reference provider | Configuration class/type defaults, source and entry-count attributes, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Runtime host configuration lookup, entry-name payloads, authorization, templates, and UI registration/update flow |
 | Secrets Vault (`secrets.vault`) | Ported as a narrow reference provider | Secrets Vault class/type defaults, endpoint and secret-count attributes, inspect operation, typed wrapper, Resource Manager bridge projection and execution without storing secret values | Real Secrets Vault runtime integration, secret collection payloads, authorization, logs, templates, and UI registration/update flow |
