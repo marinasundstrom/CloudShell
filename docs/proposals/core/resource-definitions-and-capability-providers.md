@@ -601,9 +601,11 @@ projection. The dependency-closure result also exposes the reference
 resolutions it followed, so consumers can distinguish the declared relationship
 from the target resource projection. The Resource Manager bridge can resolve a
 `ResourceReference` directly and binds capability and operation projections on
-the target when the reference resolves to a graph resource. It also preserves
-followed reference resolutions when resolving dependency closures for Control
-Plane consumers. The closure includes dependency references contributed by
+the target when the reference resolves to a graph resource. Direct bridge
+lookup by resource ID delegates to the same core graph resolver, so missing
+resource diagnostics and graph lookup behavior stay consistent. It also
+preserves followed reference resolutions when resolving dependency closures
+for Control Plane consumers. The closure includes dependency references contributed by
 registered `IResourceGraphDependencyProvider` implementations. Those providers
 return `ResourceReference` objects too, and the current resolver applies the
 same `dependsOn` plus `resourceId` filter before following them. This lets

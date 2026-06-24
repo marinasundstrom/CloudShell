@@ -128,6 +128,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The Resource Manager graph resolver can now resolve a `ResourceReference`
   directly and bind capability and operation projections on the resolved
   resource when the reference targets a graph resource.
+- The Resource Manager graph resolver now routes direct graph resource lookup
+  through the core `ResourceGraphResolver`, keeping missing-resource
+  diagnostics and graph lookup behavior in one place.
 - The resource definitions POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change

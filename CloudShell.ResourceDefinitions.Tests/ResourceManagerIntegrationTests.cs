@@ -106,6 +106,27 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphResourceResolver_ReturnsDiagnosticWhenResourceIsMissing()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveAsync("application.executable:missing");
+
+        Assert.True(resolution.HasErrors);
+        Assert.Null(resolution.Target);
+        Assert.Empty(resolution.Resources);
+        var diagnostic = Assert.Single(resolution.Diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.ResourceGraphResourceMissing, diagnostic.Code);
+        Assert.Equal("application.executable:missing", diagnostic.Target);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphResourceResolver_CanResolveDependencyClosure()
     {
         var worker = CreateExecutableState(

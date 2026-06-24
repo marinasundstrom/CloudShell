@@ -4,15 +4,12 @@ namespace CloudShell.ResourceDefinitions.ResourceManager;
 
 public sealed class ResourceModelGraphResourceResolver(
     ResourceGraphModel graphModel,
-    ResourceResolver resourceResolver,
     ResourceGraphResolver graphResolver,
     ResourceCapabilityResolver capabilityResolver,
     ResourceOperationResolver operationResolver)
 {
     private readonly ResourceGraphModel _graphModel =
         graphModel ?? throw new ArgumentNullException(nameof(graphModel));
-    private readonly ResourceResolver _resourceResolver =
-        resourceResolver ?? throw new ArgumentNullException(nameof(resourceResolver));
     private readonly ResourceGraphResolver _graphResolver =
         graphResolver ?? throw new ArgumentNullException(nameof(graphResolver));
     private readonly ResourceCapabilityResolver _capabilityResolver =
@@ -165,7 +162,10 @@ public sealed class ResourceModelGraphResourceResolver(
                 snapshot,
                 resourceId,
                 resolvedContext)
-            : ResolveSingle(snapshot, resourceId, resolvedContext);
+            : ToGraphResolutionResult(_graphResolver.ResolveResource(
+                snapshot,
+                resourceId,
+                resolvedContext));
 
         foreach (var resource in resolution.Resources)
         {
@@ -182,34 +182,11 @@ public sealed class ResourceModelGraphResourceResolver(
             resolution.ResolvedReferences);
     }
 
-    private ResourceGraphResolutionResult ResolveSingle(
-        ResourceGraphSnapshot snapshot,
-        string resourceId,
-        ResourceDefinitionResolutionContext context)
-    {
-        var state = snapshot.Resources.FirstOrDefault(resource =>
-            string.Equals(
-                resource.EffectiveResourceId,
-                resourceId.Trim(),
-                StringComparison.OrdinalIgnoreCase));
-
-        if (state is null)
-        {
-            return new(
-                [],
-                [
-                    ResourceDefinitionDiagnostic.Error(
-                        ResourceDefinitionDiagnosticCodes.ResourceGraphResourceMissing,
-                        $"Resource graph state '{resourceId}' was not found.",
-                        resourceId)
-                ]);
-        }
-
-        var resource = _resourceResolver.Resolve(state, context);
-        return new(
-            [resource],
-            resource.Diagnostics);
-    }
+    private static ResourceGraphResolutionResult ToGraphResolutionResult(
+        ResourceGraphResourceResolution resolution) =>
+        new(
+            resolution.Resource is null ? [] : [resolution.Resource],
+            resolution.Diagnostics);
 
     private async ValueTask BindProjectionsAsync(
         Resource resource,
