@@ -458,6 +458,77 @@ methods through the projection layer at runtime. The same pattern can later be
 applied to operation projections so operation implementations can consume
 capability projections instead of duplicating capability-specific resolution.
 
+Persistable definition model:
+
+```mermaid
+flowchart TD
+    classDef["ResourceClassDefinition<br/>shared class contract"]
+    typeDef["ResourceTypeDefinition<br/>type contract within a class"]
+    resourceDef["ResourceDefinition<br/>persisted resource intent"]
+
+    classValues["Attributes, capabilities, operations<br/>class defaults and requirements"]
+    typeValues["Attributes, capabilities, operations<br/>type defaults and requirements"]
+    resourceValues["Attributes, capabilities, operations<br/>resource-owned values and payloads"]
+
+    classDef --> typeDef
+    typeDef --> resourceDef
+
+    classDef --> classValues
+    typeDef --> typeValues
+    resourceDef --> resourceValues
+```
+
+Runtime resolution, providers, and generated wrappers:
+
+```mermaid
+flowchart TD
+    subgraph definitions["Persistable definition inputs"]
+        classDef["ResourceClassDefinition"]
+        typeDef["ResourceTypeDefinition"]
+        resourceDef["ResourceDefinition"]
+    end
+
+    subgraph resolvedLayer["Resolved definition state"]
+        resolver["ResourceDefinitionResolver"]
+        resolved["ResolvedResourceDefinition<br/>complete value set after inheritance"]
+    end
+
+    subgraph behaviorLayer["Provider behavior"]
+        capabilityProviders["Capability providers<br/>capability-owned behavior"]
+        operationProviders["Operation providers<br/>operation-owned behavior"]
+    end
+
+    subgraph resourceViewLayer["Resolved resource view"]
+        resourceView["ResourceDefinitionProjection<br/>view over resolved data"]
+        capabilityResolver["ResourceCapabilityResolver<br/>resolves capability providers"]
+        operationResolver["ResourceOperationResolver<br/>future operation provider resolver"]
+        resource["Resource<br/>capabilities and operations resolved for callers"]
+    end
+
+    subgraph wrapperLayer["Generated wrappers"]
+        projectionResolver["ResourceProjectionResolver<br/>selects wrapper by resource type"]
+        wrapper["ExecutableApplicationResource<br/>source-generated facade"]
+        method["GetVolumesAsync()<br/>wrapper method"]
+    end
+
+    classDef --> resolver
+    typeDef --> resolver
+    resourceDef --> resolver
+    resolver --> resolved --> resourceView
+
+    resourceView --> capabilityResolver
+    resourceView --> operationResolver
+    capabilityResolver --> capabilityProviders
+    operationResolver --> operationProviders
+    capabilityProviders --> resource
+    operationProviders --> resource
+
+    resourceView --> projectionResolver --> wrapper --> method
+    method --> capabilityResolver
+    operationProviders --> capabilityResolver
+    capabilityProviders -. may update intent .-> resourceDef
+```
+
 The same principle applies to projected resources. A `Resource` projection can
 be checked against its known class/type expectations, but callers should use a
 validation or resolution helper rather than assuming the projected attribute
@@ -531,6 +602,57 @@ resolved-resource model.
 For example, an executable application resource type provider could own the
 `application.executable` type while delegating storage mounts and start/stop
 operations to DI-backed attached providers:
+
+Sample provider package structure:
+
+```mermaid
+flowchart TD
+    subgraph package["CloudShell.Providers.ExecutableApplications"]
+        registration["AddExecutableApplicationProvider()<br/>DI registration boundary"]
+        typeProvider["ExecutableApplicationResourceTypeProvider<br/>IResourceTypeProvider"]
+        typeDefinition["ResourceTypeDefinition<br/>application.executable"]
+        ids["ExecutableApplicationIds<br/>type, attributes, operations"]
+        payloads["Payload contracts<br/>configuration and operation payloads"]
+        wrapper["ExecutableApplicationResource<br/>generated resource wrapper"]
+        definitionFacade["ExecutableApplicationDefinition<br/>optional typed authoring facade"]
+
+        subgraph capabilities["Provider-owned or referenced capabilities"]
+            volumeCapability["VolumeConsumerCapabilityProvider<br/>IResourceDefinitionCapabilityProvider"]
+            identityCapability["IdentityCapabilityProvider<br/>IResourceDefinitionCapabilityProvider"]
+        end
+
+        subgraph operations["Provider-owned operations"]
+            startOperation["ExecutableStartOperationProvider<br/>IResourceOperationProvider"]
+            stopOperation["ExecutableStopOperationProvider<br/>IResourceOperationProvider"]
+        end
+
+        subgraph internals["Provider internals"]
+            store["Definition/runtime store"]
+            runner["Process runner"]
+            state["Runtime state projector"]
+        end
+    end
+
+    registration --> typeProvider
+    registration --> volumeCapability
+    registration --> identityCapability
+    registration --> startOperation
+    registration --> stopOperation
+
+    typeProvider --> typeDefinition
+    typeProvider --> ids
+    typeProvider --> payloads
+    typeProvider --> definitionFacade
+    typeProvider --> wrapper
+
+    wrapper --> volumeCapability
+    wrapper --> identityCapability
+    startOperation --> runner
+    startOperation --> volumeCapability
+    stopOperation --> runner
+    state --> wrapper
+    store --> typeProvider
+```
 
 ```csharp
 public sealed class ExecutableApplicationResourceTypeProvider(
