@@ -32,14 +32,14 @@ public sealed class ResourceDefinitionModelPocTests
 
         Assert.False(validation.HasErrors);
 
-        var api = validation.FindResource("application.executable:api");
-        Assert.NotNull(api);
-
-        var executable = await CreateProjectionResolver()
-            .GetResourceProjectionAsync<ExecutableApplicationResource>(
-                api.Projection,
+        var projectedGraph = await CreateGraphProjectionResolver()
+            .ProjectAsync(
+                validation,
                 new ResourceProjectionContext("local", "developer"));
 
+        Assert.False(projectedGraph.HasErrors);
+        var executable = projectedGraph.Find<ExecutableApplicationResource>(
+            "application.executable:api");
         Assert.NotNull(executable);
 
         var volumes = await executable.GetVolumesAsync();
@@ -91,8 +91,8 @@ public sealed class ResourceDefinitionModelPocTests
                 operationProviders: [new ExecutableStartOperationProvider()],
                 capabilityProjectors: [new VolumeConsumerCapabilityProvider()]));
 
-    private static ResourceProjectionResolver CreateProjectionResolver() =>
-        new([new ExecutableApplicationResourceProjectionProvider()]);
+    private static ResourceDefinitionGraphProjectionResolver CreateGraphProjectionResolver() =>
+        new(new ResourceProjectionResolver([new ExecutableApplicationResourceProjectionProvider()]));
 
     private static ResourceDefinitionGraphApplyPlanner CreateApplyPlanner() =>
         new([new ExecutableApplicationResourceTypeProvider()]);
