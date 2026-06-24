@@ -55,7 +55,7 @@ public sealed class ResourceModelGraphResourceProvider :
             .Select(resource => ResourceModelResourceManagerMapper.ToResourceManagerResource(
                 resource,
                 _projectionOptions,
-                ResolveDependencyIds(snapshot, resource)))
+                ResolveDependencies(snapshot, resource).DependencyIds))
             .ToArray();
     }
 
@@ -67,16 +67,17 @@ public sealed class ResourceModelGraphResourceProvider :
             .Select(state => _resolver.Resolve(state, _resolutionContext))
             .SelectMany(resource =>
                 ResourceModelResourceManagerMapper.ToResourceModelDiagnostics(resource)
-                    .Concat(ToReferenceDiagnostics(snapshot, resource)))
+                    .Concat(ResolveDependencies(snapshot, resource).Diagnostics))
             .ToArray();
     }
 
-    private IReadOnlyList<string> ResolveDependencyIds(
+    private ResourceModelGraphDependencyProjection ResolveDependencies(
         ResourceGraphSnapshot snapshot,
         Resource resource)
     {
         var dependencies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var invalidDependencies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var diagnostics = new List<ResourceModelDiagnostic>();
 
         foreach (var reference in GetDependencyReferences(resource))
         {
@@ -93,6 +94,10 @@ public sealed class ResourceModelGraphResourceProvider :
             {
                 dependencies.Remove(dependency);
                 invalidDependencies.Add(dependency);
+                diagnostics.AddRange(resolution.Diagnostics
+                    .Where(diagnostic =>
+                        diagnostic.Code == ResourceDefinitionDiagnosticCodes.ResourceReferenceTypeMismatch)
+                    .Select(diagnostic => ToResourceModelDiagnostic(resource, diagnostic)));
                 continue;
             }
 
@@ -102,22 +107,8 @@ public sealed class ResourceModelGraphResourceProvider :
             }
         }
 
-        return dependencies.ToArray();
+        return new(dependencies.ToArray(), diagnostics);
     }
-
-    private IReadOnlyList<ResourceModelDiagnostic> ToReferenceDiagnostics(
-        ResourceGraphSnapshot snapshot,
-        Resource resource) =>
-        GetDependencyReferences(resource)
-            .Select(reference => _graphResolver.ResolveReference(
-                snapshot,
-                reference,
-                _resolutionContext))
-            .SelectMany(resolution => resolution.Diagnostics)
-            .Where(diagnostic =>
-                diagnostic.Code == ResourceDefinitionDiagnosticCodes.ResourceReferenceTypeMismatch)
-            .Select(diagnostic => ToResourceModelDiagnostic(resource, diagnostic))
-            .ToArray();
 
     private IReadOnlyList<ResourceReference> GetDependencyReferences(Resource resource)
     {
@@ -173,4 +164,8 @@ public sealed class ResourceModelGraphResourceProvider :
         Enum.TryParse<ResourceManagerClass>(classId.ToString(), ignoreCase: true, out var resourceClass)
             ? resourceClass
             : ResourceManagerClass.Generic;
+
+    private sealed record ResourceModelGraphDependencyProjection(
+        IReadOnlyList<string> DependencyIds,
+        IReadOnlyList<ResourceModelDiagnostic> Diagnostics);
 }
