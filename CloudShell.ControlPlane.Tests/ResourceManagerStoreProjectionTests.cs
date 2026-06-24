@@ -19,6 +19,7 @@ using DefinitionDiagnosticCodes = CloudShell.ResourceDefinitions.ResourceDefinit
 using DefinitionCapabilityId = CloudShell.ResourceDefinitions.ResourceCapabilityId;
 using DefinitionGraphSnapshot = CloudShell.ResourceDefinitions.ResourceGraphSnapshot;
 using DefinitionGraphVersion = CloudShell.ResourceDefinitions.ResourceGraphVersion;
+using DefinitionResourceTypeProvider = CloudShell.ResourceDefinitions.IResourceTypeProvider;
 using DefinitionResourceResolver = CloudShell.ResourceDefinitions.ResourceResolver;
 using DefinitionResourceState = CloudShell.ResourceDefinitions.ResourceState;
 using DefinitionJson = CloudShell.ResourceDefinitions.ResourceDefinitionJson;
@@ -610,8 +611,7 @@ public sealed class ResourceManagerStoreProjectionTests
     {
         var services = new ServiceCollection();
         services.AddExecutableApplicationResourceType();
-        services.AddResourceModelGraphServices(
-            [new(ExecutableApplicationResourceTypeProvider.ClassId)]);
+        services.AddResourceModelGraphServices();
         services.AddInMemoryResourceModelGraph([CreateResourceModelExecutableState()]);
         services.AddResourceModelGraphResourceProvider(
             "resource-model",
@@ -651,8 +651,7 @@ public sealed class ResourceManagerStoreProjectionTests
     {
         var services = new ServiceCollection();
         services.AddExecutableApplicationResourceType();
-        services.AddResourceModelGraphServices(
-            [new(ExecutableApplicationResourceTypeProvider.ClassId)]);
+        services.AddResourceModelGraphServices();
         services.AddInMemoryResourceModelGraph([CreateResourceModelExecutableState()]);
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
@@ -700,6 +699,58 @@ public sealed class ResourceManagerStoreProjectionTests
             new AllowAllAuthorizationService());
 
         Assert.Equal("Executed Start for api.", result.Message);
+    }
+
+    [Fact]
+    public async Task GetActionUnavailableReasonAsync_ReportsGraphOperationProjectionDiagnostics()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton(ExecutableApplicationResourceTypeProvider.ClassDefinition);
+        services.AddSingleton<DefinitionResourceTypeProvider, ExecutableApplicationResourceTypeProvider>();
+        services.AddResourceModelGraphServices();
+        services.AddInMemoryResourceModelGraph([CreateResourceModelExecutableState()]);
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var providers = serviceProvider
+            .GetServices<IResourceProvider>()
+            .ToArray();
+        var actionAvailabilityProviders = serviceProvider
+            .GetServices<IResourceActionAvailabilityProvider>()
+            .ToArray();
+        var registrations = new TestResourceRegistrationStore(
+        [
+            new(
+                "application.executable:api",
+                "resource-model",
+                null,
+                DateTimeOffset.UtcNow,
+                [])
+        ]);
+        var store = new ResourceManagerStore(
+            providers,
+            new TestResourceGroupStore([]),
+            registrations,
+            new ResourceDeclarationStore(),
+            new ResourceIdentityProviderCatalog(),
+            new CloudShellExtensionRegistry(),
+            new InMemoryCloudShellExtensionActivationStore());
+        var orchestration = new ResourceOrchestrationService(
+            [new DefaultResourceOrchestrator()],
+            [],
+            store,
+            registrations,
+            new ResourceDeclarationStore(),
+            CreateSelectionStore(),
+            actionAvailabilityProviders: actionAvailabilityProviders);
+        var resource = Assert.Single(store.GetResources());
+
+        var reason = await orchestration.GetActionUnavailableReasonAsync(
+            resource,
+            ResourceAction.Start);
+
+        Assert.NotNull(reason);
+        Assert.Contains("no operation projection is available", reason, StringComparison.Ordinal);
+        Assert.Contains("start", reason, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
