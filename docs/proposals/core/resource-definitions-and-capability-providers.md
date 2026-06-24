@@ -631,6 +631,16 @@ or materialization-status attributes from the old platform provider because
 those are derived or observed views that should be exposed through resolved
 capability members or operation plans.
 
+A narrow name-mapping reference provider covers the declarative
+`cloudshell.nameMapping` graph resource. It owns host name, target endpoint,
+and exposure attributes, the passive name-mapping capability marker, a typed
+projection wrapper, apply planning, and Resource Manager bridge projection.
+References to the DNS zone, target resource, or provider resource are declared
+as `ResourceReference` entries in `DependsOn` for the POC instead of raw ID
+attributes. Runtime status, conflict status, and DNS publishing observations
+remain derived or observed views for future capability members or operation
+plans.
+
 A narrow Secrets Vault reference provider follows the same boundary while
 keeping secret material out of the Resource model. It owns `secrets.vault`,
 Secrets Vault class defaults, endpoint and secret-count attributes, an inspect
@@ -653,6 +663,7 @@ The working porting status for the reference POC is:
 | Load balancer (`cloudshell.loadBalancer`) | Ported as a narrow reference provider | Network class/type defaults, provider/host/count attributes, passive networking capability markers, apply-configuration operation, typed wrapper, Resource Manager bridge projection and execution | Route and entrypoint payloads, target `ResourceReference` graph validation, Traefik/materialization runtime integration, endpoint mappings, and UI registration/update flow |
 | Network (`cloudshell.network`) | Ported as a narrow reference provider | Network class/type defaults, kind/readiness/provider attributes, passive networking capability markers, reconcile-endpoint-mappings operation, typed wrapper, Resource Manager bridge projection and execution | Endpoint and mapping payloads, observed mapping state as capability members, host/virtual network specialization, provisioner integration, and UI registration/update flow |
 | DNS Zone (`cloudshell.dnsZone`) | Ported as a narrow reference provider | Network class/type defaults, zone/provider attributes, passive DNS-zone capability marker, reconcile-name-mappings operation, typed wrapper, Resource Manager bridge projection and execution | Name-mapping child resource integration, record/conflict/materialization views as capability members or operation plans, DNS publisher integration, and UI registration/update flow |
+| Name mapping (`cloudshell.nameMapping`) | Ported as a narrow reference provider | Network class/type defaults, host/endpoint/exposure attributes, passive name-mapping capability marker, `ResourceReference` dependencies, typed wrapper, apply planning, and Resource Manager bridge projection | Typed reference attributes when complex attribute values are promoted, target endpoint validation, conflict/materialization views as capability members or operation plans, DNS publisher integration, and UI registration/update flow |
 | Configuration store (`configuration.store`) | Ported as a narrow reference provider | Configuration class/type defaults, endpoint and entry-count attributes, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real configuration service runtime integration, entry collection payloads, authorization, logs, templates, and UI registration/update flow |
 | Host configuration source (`configuration.host`) | Ported as a narrow reference provider | Configuration class/type defaults, source and entry-count attributes, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Runtime host configuration lookup, entry-name payloads, authorization, templates, and UI registration/update flow |
 | Secrets Vault (`secrets.vault`) | Ported as a narrow reference provider | Secrets Vault class/type defaults, endpoint and secret-count attributes, inspect operation, typed wrapper, Resource Manager bridge projection and execution without storing secret values | Real Secrets Vault runtime integration, secret collection payloads, authorization, logs, templates, and UI registration/update flow |

@@ -678,6 +678,64 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task AddNameMappingResourceType_RegistersCompleteResourceTypeBoundary()
+    {
+        var services = new ServiceCollection();
+        services.AddNameMappingResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var definition = new ResourceDefinition(
+            "api-local",
+            NameMappingResourceTypeProvider.ResourceTypeId,
+            DependsOn:
+            [
+                ResourceReference.ResourceId("cloudshell.dnsZone:local"),
+                ResourceReference.ResourceId("application.executable:api")
+            ],
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [NameMappingResourceTypeProvider.Attributes.HostName] = "api.local",
+                [NameMappingResourceTypeProvider.Attributes.TargetEndpointName] = "http",
+                [NameMappingResourceTypeProvider.Attributes.Exposure] = "Public"
+            });
+
+        var validation = await serviceProvider
+            .GetRequiredService<ResourceDefinitionValidationPipeline>()
+            .ValidateAsync(
+                definition,
+                new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.False(validation.HasErrors);
+        Assert.Equal(NameMappingResourceTypeProvider.ClassId, validation.Resource.Class.ClassId);
+        Assert.Equal("api.local", validation.Resource.Attributes.GetString(
+            NameMappingResourceTypeProvider.Attributes.HostName));
+        Assert.Equal("http", validation.Resource.Attributes.GetString(
+            NameMappingResourceTypeProvider.Attributes.TargetEndpointName));
+        Assert.True(validation.Resource.Capabilities.Has(
+            NameMappingResourceTypeProvider.Capabilities.NetworkingNameMapping));
+
+        var projectedGraph = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphProjectionResolver>()
+            .ProjectAsync(
+                new ResourceDefinitionGraphValidationPipelineResult(
+                    new ResourceDefinitionGraph([definition]),
+                    [validation],
+                    []),
+                new ResourceProjectionContext("local", "developer"));
+        var projection = projectedGraph.Find<NameMappingResource>(
+            definition.EffectiveResourceId);
+
+        Assert.NotNull(projection);
+        Assert.Equal("api.local", projection.HostName);
+        Assert.Equal("http", projection.TargetEndpointName);
+        Assert.Equal("Public", projection.Exposure);
+        Assert.True(projection.SupportsNameMapping);
+        Assert.Equal(
+            ["cloudshell.dnsZone:local", "application.executable:api"],
+            projection.References.Select(reference => reference.Value));
+    }
+
+    [Fact]
     public async Task AddSecretsVaultResourceType_RegistersCompleteResourceTypeBoundary()
     {
         var services = new ServiceCollection();

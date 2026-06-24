@@ -1482,6 +1482,93 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesNameMappingAcrossProviderBoundaries()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddDnsZoneResourceType();
+        services.AddLocalVolumeResourceType();
+        services.AddNameMappingResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var zone = new ResourceDefinition(
+            "local",
+            DnsZoneResourceTypeProvider.ResourceTypeId,
+            ProviderId: DnsZoneResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [DnsZoneResourceTypeProvider.Attributes.ZoneName] = "local"
+            });
+        var target = new ResourceDefinition(
+            "api",
+            LocalVolumeResourceTypeProvider.ResourceTypeId,
+            ProviderId: LocalVolumeResourceTypeProvider.ProviderId);
+        var mapping = new ResourceDefinition(
+            "api-local",
+            NameMappingResourceTypeProvider.ResourceTypeId,
+            ProviderId: NameMappingResourceTypeProvider.ProviderId,
+            DependsOn:
+            [
+                ResourceReference.ResourceId(zone.EffectiveResourceId),
+                ResourceReference.ResourceId(target.EffectiveResourceId)
+            ],
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [NameMappingResourceTypeProvider.Attributes.HostName] = "api.local",
+                [NameMappingResourceTypeProvider.Attributes.TargetEndpointName] = "http",
+                [NameMappingResourceTypeProvider.Attributes.Exposure] = "Public"
+            });
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "name-mapping",
+                [zone, target, mapping],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 7, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedMapping = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == mapping.EffectiveResourceId);
+
+        Assert.Equal(ResourceManagerClass.Network, projectedMapping.ResourceClass);
+        Assert.Equal(NameMappingResourceTypeProvider.ProviderId, projectedMapping.Provider);
+        Assert.Equal("api.local", projectedMapping.ResourceAttributes["nameMapping.hostName"]);
+        Assert.Equal("http", projectedMapping.ResourceAttributes["nameMapping.targetEndpointName"]);
+        Assert.Equal("Public", projectedMapping.ResourceAttributes["nameMapping.exposure"]);
+        Assert.DoesNotContain("nameMapping.status", projectedMapping.ResourceAttributes.Keys);
+        Assert.DoesNotContain("nameMapping.materializationStatus", projectedMapping.ResourceAttributes.Keys);
+        Assert.Equal([zone.EffectiveResourceId, target.EffectiveResourceId], projectedMapping.DependsOn);
+        Assert.Contains(projectedMapping.ResourceCapabilities, capability =>
+            capability.Id == NameMappingResourceTypeProvider.Capabilities.NetworkingNameMapping.ToString());
+        Assert.Empty(projectedMapping.ResourceActions);
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveAsync(mapping.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors);
+        var projection = Assert.IsType<NameMappingResource>(
+            await serviceProvider
+                .GetRequiredService<ResourceProjectionResolver>()
+                .GetResourceProjectionAsync(
+                    resolution.Target!,
+                    new ResourceProjectionContext("local", "developer")));
+        Assert.Equal("api.local", projection.HostName);
+        Assert.Equal([zone.EffectiveResourceId, target.EffectiveResourceId], projection.References.Select(reference => reference.Value));
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesSecretsVaultAcrossProviderBoundaries()
     {
         var services = new ServiceCollection();

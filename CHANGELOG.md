@@ -208,6 +208,12 @@ on `git blame --follow`, and then by the broad type of change.
   marker, a reconcile-name-mappings operation, typed wrapper, and Resource
   Manager bridge coverage while keeping derived record/conflict/materialization
   summaries out of normal attributes.
+- The resource definitions reference providers now include a narrow name
+  mapping resource type with host/endpoint/exposure attributes,
+  `ResourceReference` dependencies, a passive name-mapping capability marker,
+  typed wrapper, apply planning, and Resource Manager bridge projection while
+  keeping derived status and DNS publishing observations out of normal
+  attributes.
 - The resource definitions reference providers now include a narrow Secrets
   Vault resource type with endpoint and secret-count attributes, an inspect
   operation provider, typed wrapper, and Resource Manager bridge coverage
