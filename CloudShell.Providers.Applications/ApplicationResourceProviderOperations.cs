@@ -119,7 +119,7 @@ public interface IApplicationResourceActionAvailabilityOperations
         CancellationToken cancellationToken = default);
 }
 
-public interface IContainerApplicationResourceProviderOperations
+public interface IContainerApplicationUpdateOperations
 {
     bool CanUpdateImage(Resource resource);
 
@@ -139,7 +139,10 @@ public interface IContainerApplicationResourceProviderOperations
         bool restartIfRunning,
         string? triggeredBy = null,
         CancellationToken cancellationToken = default);
+}
 
+public interface IContainerApplicationOrchestrationOperations
+{
     bool CanExecuteOrchestratorService(
         Resource resource,
         ResourceAction action);

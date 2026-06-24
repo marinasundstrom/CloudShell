@@ -124,6 +124,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Application volume mount materialization and validation helpers now live in
   `ApplicationResourceVolumeMounts` instead of the runtime/procedure
   coordinator.
+- Container app image and replica update operations now live in
+  `ContainerApplicationUpdateOperations` behind
+  `IContainerApplicationUpdateOperations`; the runtime/procedure coordinator
+  keeps lifecycle execution and container-app orchestration hooks.
 
 ### 2026-06-23
 

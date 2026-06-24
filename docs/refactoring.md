@@ -249,6 +249,9 @@ without forcing provider-specific logic into shared helpers.
 - [x] Move application volume mount materialization and validation helpers into
   `ApplicationResourceVolumeMounts` so action availability and runtime startup
   do not depend on runtime coordinator static helpers.
+- [x] Move container app image and replica update intent operations into
+  `ContainerApplicationUpdateOperations`, leaving lifecycle execution and
+  orchestration hooks in the runtime/procedure coordinator for this slice.
 
 ## Next Slices
 
@@ -278,6 +281,8 @@ without forcing provider-specific logic into shared helpers.
 - [ ] Move remaining container-app-specific Resource Manager semantics into
   container-app-owned operation services instead of delegating all behavior to
   the shared application service facade.
+- [x] Split container app image and replica update operations behind
+  `IContainerApplicationUpdateOperations`.
 - [x] Extract the container app orchestrator deployment factory from the shared
   service so deployment description is independently testable.
 - [ ] Revisit post-apply teardown ownership. Prefer Resource Manager

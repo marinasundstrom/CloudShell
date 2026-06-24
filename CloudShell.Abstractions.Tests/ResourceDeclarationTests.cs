@@ -10813,11 +10813,12 @@ public sealed class ResourceDeclarationTests
         var declarationStore = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
         var registrations = new DeclarationRegistrationStore(declarationStore);
         var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
+        var updates = serviceProvider.GetRequiredService<IContainerApplicationUpdateOperations>();
         var resource = Assert.Single(provider.GetResources(), resource =>
             resource.Id == "application:api");
         var originalRevision = resource.ResourceAttributes[ResourceAttributeNames.ContainerRevision];
 
-        var result = await provider.UpdateImageAsync(
+        var result = await updates.UpdateImageAsync(
             new ResourceProcedureContext(resource, registrations.GetRegistration(resource.Id), null, registrations),
             "example/api:20260608",
             restartIfRunning: false,
@@ -10922,11 +10923,12 @@ public sealed class ResourceDeclarationTests
         var declarationStore = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
         var registrations = new DeclarationRegistrationStore(declarationStore);
         var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
+        var updates = serviceProvider.GetRequiredService<IContainerApplicationUpdateOperations>();
         var resource = Assert.Single(provider.GetResources(), resource =>
             resource.Id == "application:api");
         var originalRevision = resource.ResourceAttributes[ResourceAttributeNames.ContainerRevision];
 
-        await provider.UpdateImageAsync(
+        await updates.UpdateImageAsync(
             new ResourceProcedureContext(resource, registrations.GetRegistration(resource.Id), null, registrations),
             "example/api:20260608",
             restartIfRunning: false,
@@ -11034,6 +11036,7 @@ public sealed class ResourceDeclarationTests
             var declarationStore = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
             var registrations = new DeclarationRegistrationStore(declarationStore);
             var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
+            var updates = serviceProvider.GetRequiredService<IContainerApplicationUpdateOperations>();
             var providers = serviceProvider.GetServices<IResourceProvider>().ToArray();
             var resources = providers
                 .SelectMany(provider => provider.GetResources())
@@ -11043,7 +11046,7 @@ public sealed class ResourceDeclarationTests
                 resource.Id == "application:api");
             var originalRevision = resource.ResourceAttributes[ResourceAttributeNames.ContainerRevision];
 
-            await provider.UpdateImageAsync(
+            await updates.UpdateImageAsync(
                 new ResourceProcedureContext(
                     resource,
                     registrations.GetRegistration(resource.Id),
@@ -11303,6 +11306,7 @@ public sealed class ResourceDeclarationTests
         var declarationStore = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
         var registrations = new DeclarationRegistrationStore(declarationStore);
         var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
+        var updates = serviceProvider.GetRequiredService<IContainerApplicationUpdateOperations>();
         var providers = serviceProvider.GetServices<IResourceProvider>().ToArray();
         var resources = providers
             .SelectMany(provider => provider.GetResources())
@@ -11319,7 +11323,7 @@ public sealed class ResourceDeclarationTests
             DateTimeOffset.UtcNow));
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            provider.UpdateImageAsync(
+            updates.UpdateImageAsync(
                 new ResourceProcedureContext(
                     resource,
                     registrations.GetRegistration(resource.Id),
@@ -11359,10 +11363,11 @@ public sealed class ResourceDeclarationTests
         var declarationStore = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
         var registrations = new DeclarationRegistrationStore(declarationStore);
         var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
+        var updates = serviceProvider.GetRequiredService<IContainerApplicationUpdateOperations>();
         var resource = Assert.Single(provider.GetResources(), resource =>
             resource.Id == "application:api");
 
-        var result = await provider.UpdateReplicasAsync(
+        var result = await updates.UpdateReplicasAsync(
             new ResourceProcedureContext(resource, registrations.GetRegistration(resource.Id), null, registrations),
             3,
             restartIfRunning: false);
@@ -11419,6 +11424,7 @@ public sealed class ResourceDeclarationTests
             var declarationStore = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
             var registrations = new DeclarationRegistrationStore(declarationStore);
             var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
+            var updates = serviceProvider.GetRequiredService<IContainerApplicationUpdateOperations>();
             var providers = serviceProvider.GetServices<IResourceProvider>().ToArray();
             var resources = providers
                 .SelectMany(provider => provider.GetResources())
@@ -11434,7 +11440,7 @@ public sealed class ResourceDeclarationTests
                 currentProcess.StartTime,
                 DateTimeOffset.UtcNow));
 
-            var result = await provider.UpdateReplicasAsync(
+            var result = await updates.UpdateReplicasAsync(
                 new ResourceProcedureContext(
                     resource,
                     registrations.GetRegistration(resource.Id),
@@ -11497,6 +11503,7 @@ public sealed class ResourceDeclarationTests
         var declarationStore = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
         var registrations = new DeclarationRegistrationStore(declarationStore);
         var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
+        var updates = serviceProvider.GetRequiredService<IContainerApplicationUpdateOperations>();
         var providers = serviceProvider.GetServices<IResourceProvider>().ToArray();
         var resources = providers
             .SelectMany(provider => provider.GetResources())
@@ -11513,7 +11520,7 @@ public sealed class ResourceDeclarationTests
             DateTimeOffset.UtcNow));
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            provider.UpdateReplicasAsync(
+            updates.UpdateReplicasAsync(
                 new ResourceProcedureContext(
                     resource,
                     registrations.GetRegistration(resource.Id),

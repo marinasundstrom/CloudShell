@@ -10,7 +10,8 @@ internal sealed class ContainerApplicationResourceProvider(
     IApplicationResourceDeclarationOperations declarations,
     IApplicationResourceDescriptorOperations descriptors,
     IApplicationResourceActionAvailabilityOperations actions,
-    IContainerApplicationResourceProviderOperations containerApplications)
+    IContainerApplicationUpdateOperations containerApplicationUpdates,
+    IContainerApplicationOrchestrationOperations containerApplicationOrchestration)
     : ApplicationResourceTypeProvider(
         projections,
         definitions,
@@ -39,7 +40,7 @@ internal sealed class ContainerApplicationResourceProvider(
         _ => ResourceClass.Container);
 
     public bool CanUpdateImage(Resource resource) =>
-        containerApplications.CanUpdateImage(resource);
+        containerApplicationUpdates.CanUpdateImage(resource);
 
     public Task<ResourceProcedureResult> UpdateImageAsync(
         ResourceProcedureContext context,
@@ -48,7 +49,7 @@ internal sealed class ContainerApplicationResourceProvider(
         string? triggeredBy = null,
         CancellationToken cancellationToken = default,
         int? requestedReplicas = null) =>
-        containerApplications.UpdateImageAsync(
+        containerApplicationUpdates.UpdateImageAsync(
             context,
             image,
             restartIfRunning,
@@ -57,7 +58,7 @@ internal sealed class ContainerApplicationResourceProvider(
             requestedReplicas);
 
     public bool CanUpdateReplicas(Resource resource) =>
-        containerApplications.CanUpdateReplicas(resource);
+        containerApplicationUpdates.CanUpdateReplicas(resource);
 
     public Task<ResourceProcedureResult> UpdateReplicasAsync(
         ResourceProcedureContext context,
@@ -65,63 +66,63 @@ internal sealed class ContainerApplicationResourceProvider(
         bool restartIfRunning,
         string? triggeredBy = null,
         CancellationToken cancellationToken = default) =>
-        containerApplications.UpdateReplicasAsync(context, replicas, restartIfRunning, triggeredBy, cancellationToken);
+        containerApplicationUpdates.UpdateReplicasAsync(context, replicas, restartIfRunning, triggeredBy, cancellationToken);
 
     public bool CanExecuteOrchestratorService(
         Resource resource,
         ResourceAction action) =>
-        containerApplications.CanExecuteOrchestratorService(resource, action);
+        containerApplicationOrchestration.CanExecuteOrchestratorService(resource, action);
 
     public Task<ResourceOrchestratorService> CreateOrchestratorServiceAsync(
         ResourceProcedureContext context,
         CancellationToken cancellationToken = default) =>
-        containerApplications.CreateOrchestratorServiceAsync(context, cancellationToken);
+        containerApplicationOrchestration.CreateOrchestratorServiceAsync(context, cancellationToken);
 
     public bool CanDescribeDeployment(Resource resource) =>
-        containerApplications.CanDescribeDeployment(resource);
+        containerApplicationOrchestration.CanDescribeDeployment(resource);
 
     public Task<ResourceOrchestratorDeployment?> DescribeDeploymentAsync(
         ResourceProcedureContext context,
         CancellationToken cancellationToken = default) =>
-        containerApplications.DescribeDeploymentAsync(context, cancellationToken);
+        containerApplicationOrchestration.DescribeDeploymentAsync(context, cancellationToken);
 
     public Task PrepareOrchestratorServiceAsync(
         ResourceOrchestratorServiceProcedureContext context,
         ResourceAction action,
         CancellationToken cancellationToken = default) =>
-        containerApplications.PrepareOrchestratorServiceAsync(context, action, cancellationToken);
+        containerApplicationOrchestration.PrepareOrchestratorServiceAsync(context, action, cancellationToken);
 
     public Task ExecuteOrchestratorServiceInstanceAsync(
         ResourceOrchestratorServiceInstanceContext context,
         ResourceAction action,
         CancellationToken cancellationToken = default) =>
-        containerApplications.ExecuteOrchestratorServiceInstanceAsync(context, action, cancellationToken);
+        containerApplicationOrchestration.ExecuteOrchestratorServiceInstanceAsync(context, action, cancellationToken);
 
     public bool CanDescribeDeploymentTearDown(Resource resource) =>
-        containerApplications.CanDescribeDeployment(resource);
+        containerApplicationOrchestration.CanDescribeDeployment(resource);
 
     public Task<IReadOnlyList<ResourceOrchestratorReplicaGroupTearDownRequest>> DescribeDeploymentTearDownAsync(
         ResourceProcedureContext context,
         ResourceOrchestratorDeploymentApplyResult applyResult,
         CancellationToken cancellationToken = default) =>
-        containerApplications.DescribeDeploymentTearDownAsync(context, applyResult, cancellationToken);
+        containerApplicationOrchestration.DescribeDeploymentTearDownAsync(context, applyResult, cancellationToken);
 
     public bool CanHandleDeploymentApplied(Resource resource) =>
-        containerApplications.CanDescribeDeployment(resource);
+        containerApplicationOrchestration.CanDescribeDeployment(resource);
 
     public Task HandleDeploymentAppliedAsync(
         ResourceProcedureContext context,
         ResourceOrchestratorDeploymentApplyResult applyResult,
         CancellationToken cancellationToken = default) =>
-        containerApplications.HandleDeploymentAppliedAsync(context, applyResult, cancellationToken);
+        containerApplicationOrchestration.HandleDeploymentAppliedAsync(context, applyResult, cancellationToken);
 
     public bool CanHandleDeploymentApplyFailed(Resource resource) =>
-        containerApplications.CanDescribeDeployment(resource);
+        containerApplicationOrchestration.CanDescribeDeployment(resource);
 
     public Task HandleDeploymentApplyFailedAsync(
         ResourceProcedureContext context,
         ResourceOrchestratorDeployment deployment,
         Exception exception,
         CancellationToken cancellationToken = default) =>
-        containerApplications.HandleDeploymentApplyFailedAsync(context, deployment, exception, cancellationToken);
+        containerApplicationOrchestration.HandleDeploymentApplyFailedAsync(context, deployment, exception, cancellationToken);
 }

@@ -537,7 +537,6 @@ public sealed class ResourceTemplateTests
                 [],
                 declarations,
                 settingResolver: settingResolver,
-                actionAvailability: actionAvailability,
                 environmentVariables: environmentVariables);
             ResourceProvider = new ExecutableApplicationResourceProvider(
                 projectionSource,

@@ -34,10 +34,9 @@ public sealed partial class ApplicationResourceRuntimeOperations(
     ApplicationResourceDefinitionRegistrationService? applicationDefinitionRegistrations = null,
     ApplicationWorkloadConfigurationProvider? workloadConfigurations = null,
     ApplicationResourceSettingResolver? settingResolver = null,
-    IApplicationResourceActionAvailabilityOperations? actionAvailability = null,
     ApplicationResourceEnvironmentVariableResolver? environmentVariables = null) :
     IApplicationResourceProcedureOperations,
-    IContainerApplicationResourceProviderOperations,
+    IContainerApplicationOrchestrationOperations,
     IDisposable
 {
     private static readonly TimeSpan StartingStateTimeout = TimeSpan.FromMinutes(5);
@@ -88,43 +87,6 @@ public sealed partial class ApplicationResourceRuntimeOperations(
                     serviceProvider.GetServices<ISecretReferenceResolver>()),
                 identityCredentialEnvironmentProviders,
                 environmentVariableProviders));
-    private readonly IApplicationResourceActionAvailabilityOperations _actionAvailability =
-        actionAvailability ?? serviceProvider.GetService<IApplicationResourceActionAvailabilityOperations>() ??
-            new ApplicationResourceActionAvailabilityOperations(
-                new ApplicationResourceDefinitionSource(
-                    store,
-                    definitionNormalizer ?? new ApplicationResourceDefinitionNormalizer(environment)),
-                serviceProvider.GetService<IApplicationResourceRunningStateOperations>() ??
-                    new ApplicationResourceRunningStateOperations(
-                        new ApplicationResourceDefinitionSource(
-                            store,
-                            definitionNormalizer ?? new ApplicationResourceDefinitionNormalizer(environment)),
-                        localProcesses,
-                        new ApplicationContainerProcessTracker(
-                            runtimeStates,
-                            options,
-                            environment,
-                            loggerFactory)),
-                settingResolver ?? serviceProvider.GetService<ApplicationResourceSettingResolver>() ?? new ApplicationResourceSettingResolver(
-                    declarations,
-                    serviceProvider.GetServices<IConfigurationEntryReferenceResolver>(),
-                    serviceProvider.GetServices<ISecretReferenceResolver>()),
-                workloadConfigurations ?? serviceProvider.GetService<ApplicationWorkloadConfigurationProvider>() ??
-                    new ApplicationWorkloadConfigurationProvider(
-                        environmentVariables ?? serviceProvider.GetService<ApplicationResourceEnvironmentVariableResolver>() ?? new ApplicationResourceEnvironmentVariableResolver(
-                            options,
-                            declarations,
-                            settingResolver ?? serviceProvider.GetService<ApplicationResourceSettingResolver>() ?? new ApplicationResourceSettingResolver(
-                                declarations,
-                                serviceProvider.GetServices<IConfigurationEntryReferenceResolver>(),
-                                serviceProvider.GetServices<ISecretReferenceResolver>()),
-                            identityCredentialEnvironmentProviders,
-                            environmentVariableProviders)),
-                containerHosts ?? serviceProvider.GetService<ApplicationContainerHostResolver>() ??
-                    new ApplicationContainerHostResolver(serviceProvider),
-                options,
-                environment,
-                declarations);
     private readonly ApplicationContainerProcessTracker _containerProcesses =
         serviceProvider.GetService<ApplicationContainerProcessTracker>() ?? new ApplicationContainerProcessTracker(
             runtimeStates,
@@ -279,14 +241,6 @@ public sealed partial class ApplicationResourceRuntimeOperations(
                     $"Applications do not support action '{action.DisplayName}'.");
         }
     }
-
-    public bool CanUpdateImage(Resource resource) =>
-        ApplicationResourceTypes.IsContainerApp(resource.EffectiveTypeId) &&
-        store.GetApplication(resource.Id) is not null;
-
-    public bool CanUpdateReplicas(Resource resource) =>
-        ApplicationResourceTypes.IsContainerApp(resource.EffectiveTypeId) &&
-        store.GetApplication(resource.Id) is not null;
 
     public bool CanExecuteOrchestratorService(
         Resource resource,
@@ -447,222 +401,6 @@ public sealed partial class ApplicationResourceRuntimeOperations(
             default:
                 throw new NotSupportedException(
                     $"Container app services do not support action '{action.DisplayName}'.");
-        }
-    }
-
-    public async Task<ResourceProcedureResult> UpdateImageAsync(
-        ResourceProcedureContext context,
-        string image,
-        bool restartIfRunning,
-        string? triggeredBy = null,
-        CancellationToken cancellationToken = default,
-        int? requestedReplicas = null)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(image);
-        if (requestedReplicas is < 1)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(requestedReplicas),
-                requestedReplicas,
-                "Requested replicas must be greater than or equal to 1.");
-        }
-
-        var application = store.GetApplication(context.Resource.Id)
-            ?? throw new InvalidOperationException(
-                $"Container app resource '{context.Resource.Id}' is not configured.");
-        if (!ApplicationResourceTypes.IsContainerApp(application.ResourceType))
-        {
-            throw new InvalidOperationException(
-                $"Resource '{context.Resource.Id}' is not a container app.");
-        }
-
-        var normalizedImage = image.Trim();
-        var requestedReplicaCount = requestedReplicas ?? application.Replicas;
-        if (string.Equals(application.ContainerImage, normalizedImage, StringComparison.Ordinal) &&
-            requestedReplicaCount == application.Replicas)
-        {
-            return ResourceProcedureResult.Completed(
-                $"Container app '{application.Name}' already uses image '{normalizedImage}'.");
-        }
-
-        var wasRunning = IsRunning(application.Id);
-        if (restartIfRunning && wasRunning)
-        {
-            await EnsureContainerRestartAvailableForUpdateAsync(
-                context,
-                "update image",
-                cancellationToken);
-        }
-
-        var plan = ContainerDeploymentPlanner.PlanImageDeployment(
-            application,
-            normalizedImage,
-            requestedReplicaCount,
-            requestedReplicas.HasValue,
-            triggeredBy,
-            CreateDefaultContainerOrchestratorDeploymentId(application.Id),
-            NormalizeDefinition);
-        var updated = plan.Definition;
-        store.Save(updated);
-        containerDeployments.RecordDeployment(
-            plan.Deployment,
-            plan.Revision,
-            plan.BasedOnRevision);
-
-        resourceEvents?.Append(new ResourceEvent(
-            application.Id,
-            ResourceEventTypes.Events.Deployment.ImageUpdated,
-            $"Deployed container image '{normalizedImage}' from '{application.ContainerImage ?? "none"}' and produced revision '{updated.ContainerRevision}' with requested replicas '{FormatRequestedReplicas(requestedReplicas)}'.",
-            DateTimeOffset.UtcNow,
-            triggeredBy));
-
-        if (restartIfRunning && wasRunning)
-        {
-            await StopApplicationAsync(
-                application.Id,
-                force: true,
-                context.ResourceManager,
-                context.PreferredContainerHostId,
-                cancellationToken,
-                context);
-            await StartApplicationAsync(
-                application.Id,
-                context.Resource.DependsOn,
-                context.ResourceGroupId,
-                context.Registrations,
-                context.ResourceManager,
-                context.PreferredContainerHostId,
-                cancellationToken,
-                context);
-            resourceEvents?.Append(new ResourceEvent(
-                application.Id,
-                ResourceEventTypes.Events.Lifecycle.Restarted,
-                $"Restarted container app on revision '{updated.ContainerRevision}' after image update.",
-                DateTimeOffset.UtcNow,
-                triggeredBy));
-
-            return ResourceProcedureResult.Completed(
-                $"Deployed {application.Name} image '{normalizedImage}', produced revision '{updated.ContainerRevision}', and restarted it.");
-        }
-
-        return wasRunning
-            ? ResourceProcedureResult.CompletedWithRuntimeReconciliationRequired(
-                $"Deployed {application.Name} image '{normalizedImage}' and produced revision '{updated.ContainerRevision}'.",
-                application.Id,
-                "The container app is running. Runtime reconciliation is required to cut over to this deployment.")
-            : ResourceProcedureResult.Completed(
-                $"Deployed {application.Name} image '{normalizedImage}' and produced revision '{updated.ContainerRevision}'.");
-    }
-
-    public async Task<ResourceProcedureResult> UpdateReplicasAsync(
-        ResourceProcedureContext context,
-        int replicas,
-        bool restartIfRunning,
-        string? triggeredBy = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (replicas < 1)
-        {
-            throw new ArgumentOutOfRangeException(nameof(replicas), replicas, "Replicas must be greater than or equal to 1.");
-        }
-
-        var application = store.GetApplication(context.Resource.Id)
-            ?? throw new InvalidOperationException(
-                $"Container app resource '{context.Resource.Id}' is not configured.");
-        if (!ApplicationResourceTypes.IsContainerApp(application.ResourceType))
-        {
-            throw new InvalidOperationException(
-                $"Resource '{context.Resource.Id}' is not a container app.");
-        }
-
-        if (application.ReplicasEnabled && application.Replicas == replicas)
-        {
-            return ResourceProcedureResult.Completed(
-                $"Container app '{application.Name}' already uses {replicas} replica{Pluralize(replicas)}.");
-        }
-
-        var wasRunning = IsRunning(application.Id);
-        if (restartIfRunning && wasRunning)
-        {
-            await EnsureContainerRestartAvailableForUpdateAsync(
-                context,
-                "update replicas",
-                cancellationToken);
-        }
-
-        var plan = ContainerScalingPlanner.PlanReplicaUpdate(
-            application,
-            replicas,
-            NormalizeDefinition);
-        var updated = plan.Definition;
-
-        if (restartIfRunning && wasRunning)
-        {
-            await StopApplicationAsync(
-                application.Id,
-                force: true,
-                context.ResourceManager,
-                context.PreferredContainerHostId,
-                cancellationToken,
-                context);
-        }
-
-        store.Save(updated);
-
-        resourceEvents?.Append(new ResourceEvent(
-            application.Id,
-            ResourceEventTypes.Events.Deployment.ReplicasUpdated,
-            $"Changed container app replicas from '{application.Replicas}' to '{updated.Replicas}'.",
-            DateTimeOffset.UtcNow,
-            triggeredBy));
-
-        if (restartIfRunning && wasRunning)
-        {
-            await StartApplicationAsync(
-                application.Id,
-                context.Resource.DependsOn,
-                context.ResourceGroupId,
-                context.Registrations,
-                context.ResourceManager,
-                context.PreferredContainerHostId,
-                cancellationToken,
-                context);
-            resourceEvents?.Append(new ResourceEvent(
-                application.Id,
-                ResourceEventTypes.Events.Lifecycle.Restarted,
-                $"Restarted container app with {updated.Replicas} replica{Pluralize(updated.Replicas)}.",
-                DateTimeOffset.UtcNow,
-                triggeredBy));
-
-            return ResourceProcedureResult.Completed(
-                $"Updated {application.Name} to {updated.Replicas} replica{Pluralize(updated.Replicas)} and restarted it.");
-        }
-
-        return wasRunning
-            ? ResourceProcedureResult.CompletedWithRuntimeReconciliationRequired(
-                $"Updated {application.Name} to {updated.Replicas} replica{Pluralize(updated.Replicas)}.",
-                application.Id,
-                "The container app is running. Runtime reconciliation is required to apply the replica count.")
-            : ResourceProcedureResult.Completed(
-                $"Updated {application.Name} to {updated.Replicas} replica{Pluralize(updated.Replicas)}.");
-    }
-
-    private async Task EnsureContainerRestartAvailableForUpdateAsync(
-        ResourceProcedureContext context,
-        string operation,
-        CancellationToken cancellationToken)
-    {
-        var restartReason = await _actionAvailability.GetActionUnavailableReasonAsync(
-            context,
-            ResourceAction.Restart,
-            cancellationToken);
-        if (!string.IsNullOrWhiteSpace(restartReason))
-        {
-            var applicationName = store.GetApplication(context.Resource.Id) is { } application
-                ? FormatApplicationResourceName(application)
-                : context.Resource.Name;
-            throw new InvalidOperationException(
-                $"Container app resource '{applicationName}' cannot {operation} and restart because {restartReason}");
         }
     }
 
@@ -1869,11 +1607,6 @@ public sealed partial class ApplicationResourceRuntimeOperations(
     private static string Pluralize(int count) =>
         count == 1 ? string.Empty : "s";
 
-    private static string FormatApplicationResourceName(ApplicationResourceDefinition application) =>
-        string.IsNullOrWhiteSpace(application.Name)
-            ? application.Id
-            : application.Name;
-
     private static bool IsProjectBacked(ApplicationResourceDefinition application) =>
         ApplicationResourceTypes.IsAspNetCoreProject(application.ResourceType) ||
         !string.IsNullOrWhiteSpace(application.ProjectPath);
@@ -2501,11 +2234,6 @@ public sealed partial class ApplicationResourceRuntimeOperations(
     private static bool IsReplicaModeEnabled(ApplicationResourceDefinition application) =>
         ApplicationResourceTypes.IsContainerApp(application.ResourceType) &&
         application.ReplicasEnabled;
-
-    private static string FormatRequestedReplicas(int? requestedReplicas) =>
-        requestedReplicas is { } value
-            ? value.ToString(CultureInfo.InvariantCulture)
-            : "unchanged";
 
     private static string GetEffectiveContainerRegistry(ApplicationResourceDefinition application) =>
         NormalizeContainerRegistry(application.ContainerRegistry);
