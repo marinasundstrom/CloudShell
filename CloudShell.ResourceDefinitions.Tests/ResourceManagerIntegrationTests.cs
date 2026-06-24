@@ -108,8 +108,14 @@ public sealed class ResourceManagerIntegrationTests
     [Fact]
     public async Task ResourceModelGraphResourceResolver_CanResolveDependencyClosure()
     {
-        var worker = CreateExecutableState("worker", dependsOn: []);
-        var api = CreateExecutableState("api", dependsOn: [worker.EffectiveResourceId]);
+        var worker = CreateExecutableState(
+            "worker",
+            dependsOn: [],
+            includeVolumeConsumer: false);
+        var api = CreateExecutableState(
+            "api",
+            dependsOn: [worker.EffectiveResourceId],
+            includeVolumeConsumer: false);
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph([api, worker]);
         services.AddExecutableApplicationResourceType();
@@ -123,6 +129,28 @@ public sealed class ResourceManagerIntegrationTests
         Assert.False(resolution.HasErrors);
         Assert.Equal(
             [api.EffectiveResourceId, worker.EffectiveResourceId],
+            resolution.Resources.Select(resource => resource.EffectiveResourceId));
+    }
+
+    [Fact]
+    public async Task ResourceModelGraphResourceResolver_IncludesCapabilityProvidedDependencies()
+    {
+        var volume = CreateLocalVolumeState();
+        var api = CreateExecutableState(dependsOn: []);
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph([api, volume]);
+        services.AddLocalVolumeResourceType();
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveWithDependenciesAsync(api.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors);
+        Assert.Equal(
+            [api.EffectiveResourceId, volume.EffectiveResourceId],
             resolution.Resources.Select(resource => resource.EffectiveResourceId));
     }
 
@@ -587,7 +615,8 @@ public sealed class ResourceManagerIntegrationTests
 
     private static ResourceState CreateExecutableState(
         string name = "api",
-        IReadOnlyList<string>? dependsOn = null) =>
+        IReadOnlyList<string>? dependsOn = null,
+        bool includeVolumeConsumer = true) =>
         new(
             name,
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
@@ -603,14 +632,16 @@ public sealed class ResourceManagerIntegrationTests
                 [ExecutableApplicationResourceTypeProvider.ConfigurationSection] =
                     ResourceDefinitionJson.FromValue(new ExecutableApplicationConfiguration("dotnet", "run"))
             },
-            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
-            {
-                [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
-                    ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
-                    [
-                        new("storage.volume:data", "App_Data")
-                    ]))
-            });
+            Capabilities: includeVolumeConsumer
+                ? new Dictionary<ResourceCapabilityId, JsonElement>
+                {
+                    [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
+                        ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
+                        [
+                            new("storage.volume:data", "App_Data")
+                        ]))
+                }
+                : null);
 
     private static ResourceState CreateLocalVolumeState(
         string name = "data") =>

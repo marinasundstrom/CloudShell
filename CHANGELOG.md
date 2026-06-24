@@ -102,6 +102,10 @@ on `git blame --follow`, and then by the broad type of change.
   resolved proposed graph state before commit, and the reference volume
   consumer validator rejects missing or non-volume mount targets without
   moving graph scope into the resource-local capability projection.
+- Resource graph dependency resolution can now compose provider-derived graph
+  dependencies with explicit `DependsOn` entries, and the reference volume
+  consumer provider contributes mounted volumes to dependency closure without
+  duplicating those relationships into every resource definition.
 - The resource definitions POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change

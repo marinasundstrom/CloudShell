@@ -1,10 +1,20 @@
 namespace CloudShell.ResourceDefinitions;
 
+public interface IResourceGraphDependencyProvider
+{
+    bool CanResolveDependencies(Resource resource);
+
+    IEnumerable<string> GetDependencies(Resource resource);
+}
+
 public sealed class ResourceGraphResolver(
-    ResourceResolver resourceResolver)
+    ResourceResolver resourceResolver,
+    IEnumerable<IResourceGraphDependencyProvider>? dependencyProviders = null)
 {
     private readonly ResourceResolver _resourceResolver =
         resourceResolver ?? throw new ArgumentNullException(nameof(resourceResolver));
+    private readonly IReadOnlyList<IResourceGraphDependencyProvider> _dependencyProviders =
+        (dependencyProviders ?? []).ToArray();
 
     public ResourceGraphResolutionResult ResolveResourceAndDependencies(
         ResourceGraphSnapshot snapshot,
@@ -74,7 +84,7 @@ public sealed class ResourceGraphResolver(
         diagnostics.AddRange(resource.Diagnostics);
         included.Add(resourceId);
 
-        foreach (var dependency in state.ResourceDependencies)
+        foreach (var dependency in ResolveDependencies(state, resource))
         {
             Resolve(
                 dependency,
@@ -87,6 +97,33 @@ public sealed class ResourceGraphResolver(
         }
 
         visiting.Remove(resourceId);
+    }
+
+    private IReadOnlyList<string> ResolveDependencies(
+        ResourceState state,
+        Resource resource)
+    {
+        var dependencies = new HashSet<string>(
+            state.ResourceDependencies,
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var provider in _dependencyProviders)
+        {
+            if (!provider.CanResolveDependencies(resource))
+            {
+                continue;
+            }
+
+            foreach (var dependency in provider.GetDependencies(resource))
+            {
+                if (!string.IsNullOrWhiteSpace(dependency))
+                {
+                    dependencies.Add(dependency.Trim());
+                }
+            }
+        }
+
+        return dependencies.ToArray();
     }
 }
 

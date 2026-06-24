@@ -580,10 +580,15 @@ of the Resource Manager, orchestrator, or broader Control Plane coordination
 layer.
 
 The POC supports that lookup shape with a small Resource model graph resolver
-that can resolve a target resource and its declared dependency closure from a
-`ResourceGraphSnapshot`. The resolver returns resolved `Resource` projections
-plus diagnostics for missing graph nodes or dependency cycles; it does not
-decide lifecycle ordering, lock policy, or persistence behavior.
+that can resolve a target resource and its dependency closure from a
+`ResourceGraphSnapshot`. The closure includes explicit `DependsOn` entries and
+dependencies contributed by registered `IResourceGraphDependencyProvider`
+implementations. This lets capability-owned relationships, such as mounted
+volumes, participate in graph traversal without forcing every authoring path
+to duplicate those references into `DependsOn`. The resolver returns resolved
+`Resource` projections plus diagnostics for missing graph nodes or dependency
+cycles; it does not decide lifecycle ordering, lock policy, or persistence
+behavior.
 
 Identity and authorization hooks are Resource model and graph concerns, but
 identity should not automatically become an inherent property of the core

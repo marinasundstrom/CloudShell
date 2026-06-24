@@ -1,3 +1,4 @@
+using System.Text.Json;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 
 namespace CloudShell.ResourceDefinitions.Tests;
@@ -19,6 +20,30 @@ public sealed class ResourceGraphResolverTests
         Assert.Equal(api.EffectiveResourceId, result.Target?.EffectiveResourceId);
         Assert.Equal(
             [api.EffectiveResourceId, worker.EffectiveResourceId],
+            result.Resources.Select(resource => resource.EffectiveResourceId));
+    }
+
+    [Fact]
+    public void ResolveResourceAndDependencies_IncludesCapabilityProvidedDependencies()
+    {
+        var resolver = new ResourceGraphResolver(
+            CreateResourceResolver(),
+            [new VolumeConsumerGraphDependencyProvider()]);
+        var volume = CreateLocalVolumeState("data");
+        var api = CreateExecutableState(
+            "api",
+            mounts:
+            [
+                new(volume.EffectiveResourceId, "App_Data")
+            ]);
+        var snapshot = new ResourceGraphSnapshot(ResourceGraphVersion.Initial, [api, volume]);
+
+        var result = resolver.ResolveResourceAndDependencies(snapshot, api.EffectiveResourceId);
+
+        Assert.False(result.HasErrors);
+        Assert.Empty(result.Diagnostics);
+        Assert.Equal(
+            [api.EffectiveResourceId, volume.EffectiveResourceId],
             result.Resources.Select(resource => resource.EffectiveResourceId));
     }
 
@@ -74,7 +99,8 @@ public sealed class ResourceGraphResolverTests
 
     private static ResourceState CreateExecutableState(
         string name,
-        IReadOnlyList<string>? dependsOn = null) =>
+        IReadOnlyList<string>? dependsOn = null,
+        IReadOnlyList<VolumeMountDefinition>? mounts = null) =>
         new(
             name,
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
@@ -82,14 +108,29 @@ public sealed class ResourceGraphResolverTests
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
                 [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
-            });
+            },
+            Capabilities: mounts is null
+                ? null
+                : new Dictionary<ResourceCapabilityId, JsonElement>
+                {
+                    [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
+                        ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(mounts))
+                });
+
+    private static ResourceState CreateLocalVolumeState(
+        string name) =>
+        new(
+            name,
+            LocalVolumeResourceTypeProvider.ResourceTypeId);
 
     private static ResourceResolver CreateResourceResolver() =>
         new(
             [
-                new(ExecutableApplicationResourceTypeProvider.ClassId)
+                ExecutableApplicationResourceTypeProvider.ClassDefinition,
+                LocalVolumeResourceTypeProvider.ClassDefinition
             ],
             [
-                new ExecutableApplicationResourceTypeProvider().TypeDefinition
+                new ExecutableApplicationResourceTypeProvider().TypeDefinition,
+                new LocalVolumeResourceTypeProvider().TypeDefinition
             ]);
 }
