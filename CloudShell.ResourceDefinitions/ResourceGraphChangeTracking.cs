@@ -74,6 +74,97 @@ public sealed class ResourceGraphChangeTracker(ResourceGraphSnapshot snapshot)
         new(BaseVersion, _resources.ToArray(), _diagnostics.ToArray());
 }
 
+public sealed class ResourceGraphModel(IResourceStateProvider stateProvider)
+{
+    private readonly SemaphoreSlim _sync = new(1, 1);
+    private ResourceGraphSnapshot? _snapshot;
+
+    public async ValueTask<ResourceGraphSnapshot> GetSnapshotAsync(
+        CancellationToken cancellationToken = default)
+    {
+        await _sync.WaitAsync(cancellationToken);
+        try
+        {
+            return await GetSnapshotCoreAsync(cancellationToken);
+        }
+        finally
+        {
+            _sync.Release();
+        }
+    }
+
+    public async ValueTask<ResourceGraphSnapshot> ReloadAsync(
+        CancellationToken cancellationToken = default)
+    {
+        await _sync.WaitAsync(cancellationToken);
+        try
+        {
+            _snapshot = await stateProvider.GetSnapshotAsync(cancellationToken);
+            return _snapshot;
+        }
+        finally
+        {
+            _sync.Release();
+        }
+    }
+
+    public async ValueTask<ResourceGraphChangeTracker> CreateChangeTrackerAsync(
+        CancellationToken cancellationToken = default) =>
+        new(await GetSnapshotAsync(cancellationToken));
+
+    public async ValueTask<ResourceGraphCommitResult> CommitAsync(
+        ResourceGraphChangeSet changes,
+        ResourceGraphCommitContext context,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(changes);
+        ArgumentNullException.ThrowIfNull(context);
+
+        await _sync.WaitAsync(cancellationToken);
+        try
+        {
+            var snapshot = await GetSnapshotCoreAsync(cancellationToken);
+            if (changes.BaseVersion != snapshot.Version)
+            {
+                return new ResourceGraphCommitResult(
+                    snapshot.Version,
+                    null,
+                    [CreateVersionConflict(changes.BaseVersion, snapshot.Version)]);
+            }
+
+            var result = await stateProvider.CommitAsync(
+                changes,
+                context,
+                cancellationToken);
+
+            if (result.IsCommitted)
+            {
+                _snapshot = result.Snapshot;
+            }
+
+            return result;
+        }
+        finally
+        {
+            _sync.Release();
+        }
+    }
+
+    private async ValueTask<ResourceGraphSnapshot> GetSnapshotCoreAsync(
+        CancellationToken cancellationToken)
+    {
+        _snapshot ??= await stateProvider.GetSnapshotAsync(cancellationToken);
+        return _snapshot;
+    }
+
+    private static ResourceDefinitionDiagnostic CreateVersionConflict(
+        ResourceGraphVersion expected,
+        ResourceGraphVersion current) =>
+        ResourceDefinitionDiagnostic.Error(
+            ResourceDefinitionDiagnosticCodes.ResourceGraphVersionConflict,
+            $"Resource graph version '{expected}' is stale. Current version is '{current}'.");
+}
+
 public sealed class InMemoryResourceStateProvider(
     IEnumerable<ResourceState>? resources = null) : IResourceStateProvider
 {

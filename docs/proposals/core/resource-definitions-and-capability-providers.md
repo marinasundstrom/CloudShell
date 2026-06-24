@@ -651,6 +651,15 @@ provider would use the same boundary, but materialize resources from database
 records and persist the accepted state or provider-specific delta format in a
 transaction.
 
+For the server application shape, the POC also allows a single in-memory
+`ResourceGraphModel` to own the current graph snapshot. The model loads from
+`IResourceStateProvider`, hands out trackers based on the current snapshot,
+commits changes back through the state provider, and only updates its cached
+snapshot from the committed provider result. This lets the server keep the
+resource graph hot in memory when there is one primary graph consumer, while
+still preserving explicit commit boundaries, optimistic graph versions, and a
+clear synchronization point with the backing data store.
+
 Typed projections can use the same boundary through a change context:
 
 ```csharp
@@ -1054,7 +1063,7 @@ var graphChanges = new ResourceGraphChangeTracker(snapshot);
 graphChanges.Track(accepted);
 
 ResourceGraphCommitResult commit =
-    await stateProvider.CommitAsync(graphChanges.GetChanges(), commitContext, cancellationToken);
+    await graphModel.CommitAsync(graphChanges.GetChanges(), commitContext, cancellationToken);
 ```
 
 For a hypothetical container type provider, changing `container.image` while
@@ -1071,7 +1080,10 @@ in-place, starts a deployment operation, is blocked by current state, or needs
 manual intervention. That richer planning belongs in a later Resource Manager
 or provider orchestration layer; the POC only proves the low-level resource
 projection can stage changes, route them to the owning type provider, and
-commit accepted changes together as a versioned resource graph.
+commit accepted changes together as a versioned resource graph. In a server
+process, `ResourceGraphModel` can keep that graph in memory and synchronize it
+through the same provider commit boundary rather than forcing each operation
+to rematerialize the whole graph from storage.
 
 ## Capability Providers
 

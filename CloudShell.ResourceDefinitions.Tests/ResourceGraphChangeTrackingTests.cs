@@ -133,6 +133,97 @@ public sealed class ResourceGraphChangeTrackingTests
         Assert.Equal(ResourceGraphVersion.Initial, commit.Version);
     }
 
+    [Fact]
+    public async Task ResourceGraphModel_KeepsInMemorySnapshotInSyncAfterCommit()
+    {
+        var stateProvider = new InMemoryResourceStateProvider([CreateState("api", "./api")]);
+        var model = new ResourceGraphModel(stateProvider);
+        var applyDispatcher = new ResourceChangeApplyDispatcher(
+            [new ExecutableApplicationResourceTypeProvider()]);
+        var tracker = await model.CreateChangeTrackerAsync();
+        var snapshot = await model.GetSnapshotAsync();
+
+        tracker.Track(await StageExecutablePathChangeAsync(
+            snapshot,
+            "application.executable:api",
+            "./api-v2",
+            applyDispatcher));
+
+        var commit = await model.CommitAsync(
+            tracker.GetChanges(),
+            new ResourceGraphCommitContext());
+        var current = await model.GetSnapshotAsync();
+
+        Assert.True(commit.IsCommitted);
+        Assert.Equal(new ResourceGraphVersion(1), current.Version);
+        Assert.Equal("./api-v2", FindState(current, "application.executable:api")
+            .ResourceAttributes[ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
+    }
+
+    [Fact]
+    public async Task ResourceGraphModel_RejectsStaleTrackedChangesBeforeProviderCommit()
+    {
+        var stateProvider = new InMemoryResourceStateProvider([CreateState("api", "./api")]);
+        var model = new ResourceGraphModel(stateProvider);
+        var staleTracker = await model.CreateChangeTrackerAsync();
+        var applyDispatcher = new ResourceChangeApplyDispatcher(
+            [new ExecutableApplicationResourceTypeProvider()]);
+        var snapshot = await model.GetSnapshotAsync();
+
+        staleTracker.Track(await StageExecutablePathChangeAsync(
+            snapshot,
+            "application.executable:api",
+            "./api-v2",
+            applyDispatcher));
+
+        var currentTracker = await model.CreateChangeTrackerAsync();
+        currentTracker.Track(await StageExecutablePathChangeAsync(
+            snapshot,
+            "application.executable:api",
+            "./api-v3",
+            applyDispatcher));
+        Assert.True((await model.CommitAsync(
+            currentTracker.GetChanges(),
+            new ResourceGraphCommitContext())).IsCommitted);
+
+        var staleCommit = await model.CommitAsync(
+            staleTracker.GetChanges(),
+            new ResourceGraphCommitContext());
+
+        var diagnostic = Assert.Single(staleCommit.Diagnostics);
+        Assert.False(staleCommit.IsCommitted);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.ResourceGraphVersionConflict, diagnostic.Code);
+    }
+
+    [Fact]
+    public async Task ResourceGraphModel_ReloadsSnapshotFromStateProvider()
+    {
+        var stateProvider = new InMemoryResourceStateProvider([CreateState("api", "./api")]);
+        var model = new ResourceGraphModel(stateProvider);
+        var applyDispatcher = new ResourceChangeApplyDispatcher(
+            [new ExecutableApplicationResourceTypeProvider()]);
+        var original = await model.GetSnapshotAsync();
+        var providerSnapshot = await stateProvider.GetSnapshotAsync();
+        var providerTracker = new ResourceGraphChangeTracker(providerSnapshot);
+
+        Assert.Equal(ResourceGraphVersion.Initial, original.Version);
+
+        providerTracker.Track(await StageExecutablePathChangeAsync(
+            providerSnapshot,
+            "application.executable:api",
+            "./api-provider",
+            applyDispatcher));
+        Assert.True((await stateProvider.CommitAsync(
+            providerTracker.GetChanges(),
+            new ResourceGraphCommitContext())).IsCommitted);
+
+        var reloaded = await model.ReloadAsync();
+
+        Assert.Equal(new ResourceGraphVersion(1), reloaded.Version);
+        Assert.Equal("./api-provider", FindState(reloaded, "application.executable:api")
+            .ResourceAttributes[ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
+    }
+
     private static async ValueTask<ResourceChangeApplyResult> StageExecutablePathChangeAsync(
         ResourceGraphSnapshot snapshot,
         string resourceId,
