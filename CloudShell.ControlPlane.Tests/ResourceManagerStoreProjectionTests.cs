@@ -781,6 +781,62 @@ public sealed class ResourceManagerStoreProjectionTests
     }
 
     [Fact]
+    public async Task ExecuteActionAsync_RoutesPersistedRecordThroughProcedureCapableBridgeProvider()
+    {
+        var services = new ServiceCollection();
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddInMemoryResourceModelGraphRecords(
+            [DefinitionResourceRecord.FromState(CreateResourceModelExecutableState())]);
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var providers = serviceProvider
+            .GetServices<IResourceProvider>()
+            .ToArray();
+        var actionAvailabilityProviders = serviceProvider
+            .GetServices<IResourceActionAvailabilityProvider>()
+            .ToArray();
+        var registrations = new TestResourceRegistrationStore(
+        [
+            new(
+                "application.executable:api",
+                "resource-model",
+                null,
+                DateTimeOffset.UtcNow,
+                [])
+        ]);
+        var store = new ResourceManagerStore(
+            providers,
+            new TestResourceGroupStore([]),
+            registrations,
+            new ResourceDeclarationStore(),
+            new ResourceIdentityProviderCatalog(),
+            new CloudShellExtensionRegistry(),
+            new InMemoryCloudShellExtensionActivationStore());
+        var orchestration = new ResourceOrchestrationService(
+            [new DefaultResourceOrchestrator()],
+            [],
+            store,
+            registrations,
+            new ResourceDeclarationStore(),
+            CreateSelectionStore(),
+            actionAvailabilityProviders: actionAvailabilityProviders);
+        var resource = Assert.Single(store.GetResources());
+
+        var unavailableReason = await orchestration.GetActionUnavailableReasonAsync(
+            resource,
+            ResourceAction.Start);
+        var result = await orchestration.ExecuteActionAsync(
+            resource,
+            ResourceAction.Start,
+            startDependencies: false,
+            new AllowAllAuthorizationService());
+
+        Assert.Null(unavailableReason);
+        Assert.Equal("Executed Start for api.", result.Message);
+    }
+
+    [Fact]
     public async Task GetActionUnavailableReasonAsync_ReportsGraphOperationProjectionDiagnostics()
     {
         var services = new ServiceCollection();
