@@ -625,6 +625,15 @@ projected as a full or incremental `ResourceDefinition`. A provider or future
 resource manager commit pipeline owns the actual application of those changes
 to resource state and the surrounding resource graph.
 
+The current POC adds that first provider-owned boundary through
+`IResourceChangeApplyProvider` and `ResourceChangeApplyDispatcher`. The
+dispatcher resolves the provider for the resource type in the
+`ResourceChangeSet`, and the provider returns a `ResourceChangeApplyResult`
+with diagnostics and an accepted `ResourceState` when the change is allowed.
+The apply context can request commit behavior, but committing accepted state to
+durable persistence or cascading changes through the graph remains a Resource
+Manager/persistence concern outside this low-level projection model.
+
 Typed projections can use the same boundary through a change context:
 
 ```csharp
@@ -978,49 +987,51 @@ operation implementation in detail. Capability and operation providers can be ad
 by capability packages through DI as long as they use stable resource type,
 capability, and operation identifiers.
 
-## Definition Change Application
+## Resource Change Application
 
-Resource type providers should be able to respond before a
-`ResourceDefinition` interchange update is applied to a resource. The provider
-needs the current `Resource`, the proposed definition, the resolved diff, and
-the current resource/runtime context so it can choose the correct behavior.
+Resource type providers should be able to respond before staged projection
+changes are accepted as resource state. The provider receives a
+`ResourceChangeSet`, which contains the current `Resource`, proposed
+`ResourceState`, and attribute/capability diffs. It can return diagnostics,
+accept the proposed state, or reject the change.
 
-The exact API is open, but the shape should make these inputs available:
-
-```csharp
-public sealed record ResourceDefinitionChange(
-    Resource Current,
-    Resource Proposed,
-    ResourceDefinitionDiff Diff,
-    ResourceChangeRuntimeContext Runtime);
-
-public sealed record ResourceDefinitionDiff(
-    ResourceAttributeDiff Attributes,
-    ResourceCapabilityDiff Capabilities,
-    ResourceOperationDiff Operations,
-    ResourceConfigurationDiff Configuration);
-
-public sealed record ResourceChangeRuntimeContext(
-    Resource? CurrentProjection,
-    ResourceState? State,
-    bool IsTransitioning,
-    string? TransitionName = null);
-```
-
-A resource type provider can then validate and apply the change deliberately:
+The current POC shape is intentionally small:
 
 ```csharp
-public interface IResourceTypeProvider
+public interface IResourceChangeApplyProvider
 {
-    Task<ResourceDefinitionChangePlan> PlanChangeAsync(
-        ResourceDefinitionChange change,
-        CancellationToken cancellationToken);
+    ResourceTypeId TypeId { get; }
 
-    Task<ResourceApplyResult> ApplyChangeAsync(
-        ResourceDefinitionChange change,
-        ResourceDefinitionChangePlan plan,
+    bool CanApply(ResourceChangeSet changes);
+
+    ValueTask<ResourceChangeApplyResult> ApplyChangesAsync(
+        ResourceChangeSet changes,
+        ResourceChangeApplyContext context,
         CancellationToken cancellationToken);
 }
+
+public sealed record ResourceChangeApplyResult(
+    ResourceChangeSet ChangeSet,
+    ResourceState? AcceptedState,
+    IReadOnlyList<ResourceDefinitionDiagnostic> Diagnostics);
+```
+
+This is not the same level as applying a `ResourceDefinition` interchange
+document to a graph. A `ResourceDefinition` can be rendered from a
+`ResourceChangeSet`, or a `ResourceDefinition` can be applied to resource-owned
+state before resolution, but provider-owned change acceptance acts on the
+resolved `Resource` projection and its proposed resource state.
+
+The future Resource Manager model can add a broader transaction or graph
+commit pipeline on top:
+
+```csharp
+using var changeContext = model.CreateChangeContext();
+resource.SetAttribute(NamedAttributeIds.ContainerReplicasAttributeId, 2);
+
+ResourceChangeSet staged = changeContext.ApplyChanges();
+ResourceChangeApplyResult accepted =
+    await changeApplyDispatcher.ApplyChangesAsync(staged, context, cancellationToken);
 ```
 
 For a hypothetical container type provider, changing `container.image` while
@@ -1034,7 +1045,9 @@ Change planning should return diagnostics and an explicit plan rather than
 forcing the caller to infer behavior from changed fields alone. The plan can
 describe whether the change is persist-only, requires restart, can reconcile
 in-place, starts a deployment operation, is blocked by current state, or needs
-manual intervention.
+manual intervention. That richer planning belongs in a later Resource Manager
+or provider orchestration layer; the POC only proves the low-level resource
+projection can stage changes and route them to the owning type provider.
 
 ## Capability Providers
 

@@ -46,6 +46,10 @@ on `git blame --follow`, and then by the broad type of change.
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change
   documents without implying graph-wide commit semantics.
+- The resource definitions POC now routes staged `ResourceChangeSet` instances
+  through provider-owned change apply providers, so a resource type can accept
+  or reject proposed projection state before any future Resource Manager or
+  persistence layer treats it as committed state.
 - The resource definitions POC now includes a capability resolver so
   provider-owned capability behavior can be composed into type-specific
   resource projections without making the definition stop being the persisted
