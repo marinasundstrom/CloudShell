@@ -28,7 +28,13 @@ public sealed record ResourceChangeApplyResult(
     public bool IsAccepted => AcceptedState is not null && !HasErrors;
 
     public ResourceDefinition? ToAcceptedDefinition() =>
-        AcceptedState?.ToDefinition();
+        AcceptedState is null
+            ? null
+            : AcceptedState.ToDefinition() with
+            {
+                Attributes = ChangeSet.Resource.FilterInterchangeAttributes(
+                    AcceptedState.ResourceAttributes)
+            };
 
     public static ResourceChangeApplyResult Accepted(ResourceChangeSet changeSet) =>
         new(changeSet, changeSet.ProposedState, changeSet.Diagnostics);
@@ -87,7 +93,16 @@ public sealed class ResourceChangeApplyDispatcher(
                 ]);
         }
 
-        return await provider.ApplyChangesAsync(changes, context, cancellationToken);
+        var result = await provider.ApplyChangesAsync(changes, context, cancellationToken);
+        var providerManagedDiagnostics = ValidateProviderReadOnlyAttributeChanges(changes, result);
+        if (providerManagedDiagnostics.Count > 0)
+        {
+            return ResourceChangeApplyResult.Rejected(
+                changes,
+                [.. result.Diagnostics, .. providerManagedDiagnostics]);
+        }
+
+        return result;
     }
 
     private static IReadOnlyList<ResourceDefinitionDiagnostic> ValidateReadOnlyAttributeChanges(
@@ -131,6 +146,63 @@ public sealed class ResourceChangeApplyDispatcher(
         return resource.Attributes.Resolve(attributeId)?.ReadOnly == true;
     }
 
+    private static IReadOnlyList<ResourceDefinitionDiagnostic> ValidateProviderReadOnlyAttributeChanges(
+        ResourceChangeSet changes,
+        ResourceChangeApplyResult result)
+    {
+        if (result.AcceptedState is null || result.HasErrors)
+        {
+            return [];
+        }
+
+        var diagnostics = new List<ResourceDefinitionDiagnostic>();
+        foreach (var attributeId in changes.ProposedState.ResourceAttributes.Keys
+            .Concat(result.AcceptedState.ResourceAttributes.Keys)
+            .Distinct())
+        {
+            changes.ProposedState.ResourceAttributes.TryGetValue(attributeId, out var proposedValue);
+            result.AcceptedState.ResourceAttributes.TryGetValue(attributeId, out var acceptedValue);
+            if (string.Equals(proposedValue, acceptedValue, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (IsReadOnlyAttribute(changes.Resource, attributeId) &&
+                GetAttributeMutability(changes.Resource, attributeId) != ResourceAttributeMutability.ProviderManaged)
+            {
+                diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                    ResourceDefinitionDiagnosticCodes.ReadOnlyAttributeChange,
+                    $"Provider apply result changed read-only attribute '{attributeId}', but the attribute is not provider-managed.",
+                    attributeId));
+            }
+        }
+
+        return diagnostics;
+    }
+
+    private static ResourceAttributeMutability GetAttributeMutability(
+        Resource resource,
+        ResourceAttributeId attributeId)
+    {
+        var hasClassDefinition =
+            TryGetMutability(resource.Class.Definition.Attributes, attributeId, out var classMutability);
+        var hasTypeDefinition =
+            TryGetMutability(resource.Type.Definition.Attributes, attributeId, out var typeMutability);
+
+        if (hasTypeDefinition)
+        {
+            return typeMutability;
+        }
+
+        if (hasClassDefinition)
+        {
+            return classMutability;
+        }
+
+        return resource.Attributes.Resolve(attributeId)?.Mutability ??
+            ResourceAttributeMutability.CallerManaged;
+    }
+
     private static bool TryGetReadOnly(
         IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? attributeDefinitions,
         ResourceAttributeId attributeId,
@@ -145,6 +217,23 @@ public sealed class ResourceChangeApplyDispatcher(
         }
 
         readOnly = null;
+        return false;
+    }
+
+    private static bool TryGetMutability(
+        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? attributeDefinitions,
+        ResourceAttributeId attributeId,
+        out ResourceAttributeMutability mutability)
+    {
+        if (attributeDefinitions is not null &&
+            attributeDefinitions.TryGetValue(attributeId, out var attributeDefinition) &&
+            attributeDefinition.Mutability.HasValue)
+        {
+            mutability = attributeDefinition.Mutability.Value;
+            return true;
+        }
+
+        mutability = ResourceAttributeMutability.CallerManaged;
         return false;
     }
 }

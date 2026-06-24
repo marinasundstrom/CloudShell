@@ -29,6 +29,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource attributes now carry `ResourceAttributeMutability`, allowing the
   POC to mark read-only count attributes as provider-managed while preserving
   `ReadOnly` as the caller-write enforcement rule.
+- Resource change apply now permits provider apply results to update read-only
+  attributes only when the resolved attribute is provider-managed, and keeps
+  those accepted provider-managed values out of rendered ResourceDefinition
+  interchange output.
 
 ### 2026-06-24
 

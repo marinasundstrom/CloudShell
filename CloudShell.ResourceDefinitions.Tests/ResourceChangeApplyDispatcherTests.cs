@@ -145,6 +145,65 @@ public sealed class ResourceChangeApplyDispatcherTests
     }
 
     [Fact]
+    public async Task ApplyChangesAsync_AllowsProviderManagedReadOnlyAttributeUpdatesFromProviderResult()
+    {
+        var resource = CreateReadOnlyResource(
+            "generated",
+            typeReadOnly: true,
+            mutability: ResourceAttributeMutability.ProviderManaged);
+        resource.SetAttribute("user.value", "changed");
+        var changes = resource.ApplyChanges();
+        var dispatcher = new ResourceChangeApplyDispatcher(
+            [
+                new TestChangeApplyProvider(
+                    resource.Type.TypeId,
+                    changeSet => UpdateAttribute(
+                        changeSet.ProposedState,
+                        "system.generated",
+                        "provider-value"))
+            ]);
+
+        var result = await dispatcher.ApplyChangesAsync(
+            changes,
+            new ResourceChangeApplyContext());
+
+        Assert.True(result.IsAccepted);
+        Assert.NotNull(result.AcceptedState);
+        Assert.Equal("provider-value", result.AcceptedState.ResourceAttributes["system.generated"]);
+        Assert.DoesNotContain("system.generated", result.ToAcceptedDefinition()!.ResourceAttributes.Keys);
+    }
+
+    [Fact]
+    public async Task ApplyChangesAsync_RejectsProviderResultChangingReadOnlyCallerManagedAttribute()
+    {
+        var resource = CreateReadOnlyResource(
+            "generated",
+            typeReadOnly: true,
+            mutability: ResourceAttributeMutability.CallerManaged);
+        resource.SetAttribute("user.value", "changed");
+        var changes = resource.ApplyChanges();
+        var dispatcher = new ResourceChangeApplyDispatcher(
+            [
+                new TestChangeApplyProvider(
+                    resource.Type.TypeId,
+                    changeSet => UpdateAttribute(
+                        changeSet.ProposedState,
+                        "system.generated",
+                        "provider-value"))
+            ]);
+
+        var result = await dispatcher.ApplyChangesAsync(
+            changes,
+            new ResourceChangeApplyContext());
+
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.False(result.IsAccepted);
+        Assert.Null(result.AcceptedState);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.ReadOnlyAttributeChange, diagnostic.Code);
+        Assert.Equal("system.generated", diagnostic.Target);
+    }
+
+    [Fact]
     public async Task ApplyChangesAsync_AcceptsNoOpChangeSetWithoutProviderDispatch()
     {
         var resource = CreateResource("./api");
@@ -180,7 +239,8 @@ public sealed class ResourceChangeApplyDispatcherTests
         string value = "generated",
         bool? classReadOnly = null,
         bool includeTypeAttributeDefinition = true,
-        bool? typeReadOnly = true)
+        bool? typeReadOnly = true,
+        ResourceAttributeMutability? mutability = null)
     {
         ResourceClassId classId = "test";
         ResourceTypeId typeId = "test.read-only";
@@ -202,7 +262,9 @@ public sealed class ResourceChangeApplyDispatcherTests
                     Attributes: includeTypeAttributeDefinition
                         ? new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
                         {
-                            ["system.generated"] = new(ReadOnly: typeReadOnly)
+                            ["system.generated"] = new(
+                                ReadOnly: typeReadOnly,
+                                Mutability: mutability)
                         }
                         : null)
             ]);
@@ -214,5 +276,37 @@ public sealed class ResourceChangeApplyDispatcherTests
             {
                 ["system.generated"] = value
             }));
+    }
+
+    private static ResourceState UpdateAttribute(
+        ResourceState state,
+        ResourceAttributeId attributeId,
+        string value)
+    {
+        var attributes = new Dictionary<ResourceAttributeId, string>(state.ResourceAttributes)
+        {
+            [attributeId] = value
+        };
+
+        return state with { Attributes = attributes };
+    }
+
+    private sealed class TestChangeApplyProvider(
+        ResourceTypeId typeId,
+        Func<ResourceChangeSet, ResourceState> apply) : IResourceChangeApplyProvider
+    {
+        public ResourceTypeId TypeId { get; } = typeId;
+
+        public bool CanApply(ResourceChangeSet changes) =>
+            changes.Resource.Type.TypeId == TypeId;
+
+        public ValueTask<ResourceChangeApplyResult> ApplyChangesAsync(
+            ResourceChangeSet changes,
+            ResourceChangeApplyContext context,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(new ResourceChangeApplyResult(
+                changes,
+                apply(changes),
+                changes.Diagnostics));
     }
 }

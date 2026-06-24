@@ -1127,9 +1127,14 @@ database records, or any other serialization target.
 read-only is the caller access policy, while mutability is the ownership model
 for how values are produced. The POC currently records
 `ResourceAttributeMutability` on attribute definitions and resolved attribute
-values, while enforcement still flows through `ReadOnly`. Provider-owned
-refresh or apply-result paths can use the mutability metadata to state why a
-value may be updated by a provider but not authored by a caller.
+values, while caller enforcement still flows through `ReadOnly`. Provider-owned
+refresh or apply-result paths use the mutability metadata to state why a value
+may be updated by a provider but not authored by a caller. When a provider
+returns accepted state that changes a read-only attribute, the change is valid
+only if the effective attribute mutability is `ProviderManaged`; otherwise the
+apply result should be rejected as a provider boundary violation. Accepted
+provider-managed state must still be omitted when rendered back to
+`ResourceDefinition`.
 When inherited definitions are resolved, an unset read-only value should
 inherit the class-level policy. A type-level `false` should be treated as an
 explicit definition-level decision to clear inherited read-only behavior, not
