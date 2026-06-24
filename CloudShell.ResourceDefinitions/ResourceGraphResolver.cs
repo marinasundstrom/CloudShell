@@ -4,7 +4,7 @@ public interface IResourceGraphDependencyProvider
 {
     bool CanResolveDependencies(Resource resource);
 
-    IEnumerable<string> GetDependencies(Resource resource);
+    IEnumerable<ResourceReference> GetDependencies(Resource resource);
 }
 
 public sealed class ResourceGraphResolver(
@@ -114,11 +114,11 @@ public sealed class ResourceGraphResolver(
                 continue;
             }
 
-            foreach (var dependency in provider.GetDependencies(resource))
+            foreach (var reference in provider.GetDependencies(resource))
             {
-                if (!string.IsNullOrWhiteSpace(dependency))
+                if (reference.TryGetResourceId(out var dependency))
                 {
-                    dependencies.Add(dependency.Trim());
+                    dependencies.Add(dependency);
                 }
             }
         }

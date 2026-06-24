@@ -48,6 +48,34 @@ public sealed class ResourceGraphResolverTests
     }
 
     [Fact]
+    public void ResolveResourceAndDependencies_OnlyFollowsProviderDependenciesAddressedByResourceId()
+    {
+        var worker = CreateExecutableState("worker");
+        var api = CreateExecutableState("api");
+        var resolver = new ResourceGraphResolver(
+            CreateResourceResolver(),
+            [
+                new StaticGraphDependencyProvider(
+                    [
+                        new(
+                            "provider-native-worker",
+                            ResourceReferenceRelationships.DependsOn,
+                            ResourceReferenceAddressingModes.ProviderNative),
+                        ResourceReference.ResourceId(worker.EffectiveResourceId)
+                    ])
+            ]);
+        var snapshot = new ResourceGraphSnapshot(ResourceGraphVersion.Initial, [api, worker]);
+
+        var result = resolver.ResolveResourceAndDependencies(snapshot, api.EffectiveResourceId);
+
+        Assert.False(result.HasErrors);
+        Assert.Empty(result.Diagnostics);
+        Assert.Equal(
+            [api.EffectiveResourceId, worker.EffectiveResourceId],
+            result.Resources.Select(resource => resource.EffectiveResourceId));
+    }
+
+    [Fact]
     public void ResolveResourceAndDependencies_ReturnsDiagnosticForMissingTarget()
     {
         var resolver = new ResourceGraphResolver(CreateResourceResolver());
@@ -137,4 +165,12 @@ public sealed class ResourceGraphResolverTests
                 new ExecutableApplicationResourceTypeProvider().TypeDefinition,
                 new LocalVolumeResourceTypeProvider().TypeDefinition
             ]);
+
+    private sealed class StaticGraphDependencyProvider(
+        IReadOnlyList<ResourceReference> dependencies) : IResourceGraphDependencyProvider
+    {
+        public bool CanResolveDependencies(Resource resource) => resource.Name == "api";
+
+        public IEnumerable<ResourceReference> GetDependencies(Resource resource) => dependencies;
+    }
 }

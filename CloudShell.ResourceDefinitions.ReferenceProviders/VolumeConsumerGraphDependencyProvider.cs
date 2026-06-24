@@ -5,7 +5,7 @@ public sealed class VolumeConsumerGraphDependencyProvider : IResourceGraphDepend
     public bool CanResolveDependencies(Resource resource) =>
         resource.Capabilities.Has(VolumeConsumerCapabilityProvider.CapabilityIdValue);
 
-    public IEnumerable<string> GetDependencies(Resource resource)
+    public IEnumerable<ResourceReference> GetDependencies(Resource resource)
     {
         ArgumentNullException.ThrowIfNull(resource);
 
@@ -16,6 +16,7 @@ public sealed class VolumeConsumerGraphDependencyProvider : IResourceGraphDepend
             .Select(mount => mount.Volume)
             .Where(volume => !string.IsNullOrWhiteSpace(volume))
             .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select(volume => ResourceReference.ResourceId(volume))
             .ToArray() ?? [];
     }
 }

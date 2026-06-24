@@ -592,8 +592,10 @@ objects, not raw resource ID strings. A reference carries the target value, the
 relationship, and the addressing mode. The current resolver only resolves
 `dependsOn` references addressed by `resourceId`, but the document shape can
 later represent references to projected resources or provider-native
-addresses. The closure also includes dependencies contributed by registered
-`IResourceGraphDependencyProvider` implementations. This lets
+addresses. The closure also includes dependency references contributed by
+registered `IResourceGraphDependencyProvider` implementations. Those providers
+return `ResourceReference` objects too, and the current resolver applies the
+same `dependsOn` plus `resourceId` filter before following them. This lets
 capability-owned relationships, such as mounted volumes, participate in graph
 traversal without forcing every authoring path to duplicate those references
 into `DependsOn`. The resolver returns resolved `Resource` projections plus

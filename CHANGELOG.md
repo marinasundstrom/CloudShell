@@ -110,6 +110,9 @@ on `git blame --follow`, and then by the broad type of change.
   objects with relationship and addressing-mode metadata instead of raw
   resource ID strings, while the current resolver only follows `dependsOn`
   references addressed by `resourceId`.
+- Resource graph dependency providers now contribute `ResourceReference`
+  objects as well, keeping provider-owned graph relationships on the same
+  reference model as explicit `DependsOn` entries.
 - The resource definitions POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change
