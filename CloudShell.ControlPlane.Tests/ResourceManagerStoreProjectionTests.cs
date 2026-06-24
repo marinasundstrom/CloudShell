@@ -17,6 +17,7 @@ using DefinitionGraphSnapshot = CloudShell.ResourceDefinitions.ResourceGraphSnap
 using DefinitionGraphVersion = CloudShell.ResourceDefinitions.ResourceGraphVersion;
 using DefinitionResourceResolver = CloudShell.ResourceDefinitions.ResourceResolver;
 using DefinitionResourceState = CloudShell.ResourceDefinitions.ResourceState;
+using DefinitionResourceTypeProvider = CloudShell.ResourceDefinitions.IResourceTypeProvider;
 using DefinitionJson = CloudShell.ResourceDefinitions.ResourceDefinitionJson;
 
 namespace CloudShell.ControlPlane.Tests;
@@ -605,7 +606,9 @@ public sealed class ResourceManagerStoreProjectionTests
     public void GetResources_ComposesDiRegisteredResourceModelBridgeProvider()
     {
         var services = new ServiceCollection();
-        services.AddSingleton(CreateResourceModelResolver());
+        services.AddSingleton<DefinitionResourceTypeProvider>(new ExecutableApplicationResourceTypeProvider());
+        services.AddResourceModelResolver(
+            [new(ExecutableApplicationResourceTypeProvider.ClassId)]);
         services.AddResourceModelGraphResourceProvider(
             "resource-model",
             "Resource model",

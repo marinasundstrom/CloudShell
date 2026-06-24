@@ -5,6 +5,33 @@ namespace CloudShell.ResourceDefinitions.ResourceManager;
 
 public static class ResourceModelResourceManagerServiceCollectionExtensions
 {
+    public static IServiceCollection AddResourceModelResolver(
+        this IServiceCollection services,
+        IEnumerable<ResourceClassDefinition> classDefinitions)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(classDefinitions);
+
+        foreach (var classDefinition in classDefinitions)
+        {
+            services.AddSingleton(classDefinition);
+        }
+
+        services.AddScoped(serviceProvider =>
+        {
+            var typeProviders = serviceProvider
+                .GetServices<IResourceTypeProvider>()
+                .ToArray();
+
+            return new ResourceResolver(
+                serviceProvider.GetServices<ResourceClassDefinition>(),
+                typeProviders.Select(provider => provider.TypeDefinition),
+                serviceProvider.GetServices<IResourceAttributeValidator>());
+        });
+
+        return services;
+    }
+
     public static IServiceCollection AddResourceModelGraphResourceProvider(
         this IServiceCollection services,
         string id,

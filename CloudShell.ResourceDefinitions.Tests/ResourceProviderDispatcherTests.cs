@@ -1,11 +1,30 @@
 using System.Text.Json;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
+using CloudShell.ResourceDefinitions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CloudShell.ResourceDefinitions.Tests;
 
 public sealed class ResourceProviderDispatcherTests
 {
+    [Fact]
+    public void AddResourceModelResolver_BuildsResolverFromRegisteredTypeProviders()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IResourceTypeProvider>(new ExecutableApplicationResourceTypeProvider());
+        services.AddResourceModelResolver(
+            [new(ExecutableApplicationResourceTypeProvider.ClassId)]);
+        using var serviceProvider = services.BuildServiceProvider();
+
+        var resolver = serviceProvider.GetRequiredService<ResourceResolver>();
+        var resolved = resolver.Resolve(new ResourceDefinition(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId));
+
+        Assert.Equal(ExecutableApplicationResourceTypeProvider.ResourceTypeId, resolved.Type.TypeId);
+        Assert.Equal(ExecutableApplicationResourceTypeProvider.ClassId, resolved.Class.ClassId);
+    }
+
     [Fact]
     public async Task ValidateCapabilitiesAsync_UsesRegisteredCapabilityProvider()
     {

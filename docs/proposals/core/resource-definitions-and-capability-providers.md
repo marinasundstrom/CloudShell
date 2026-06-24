@@ -417,6 +417,13 @@ reference the experimental Resource model infrastructure directly. The host
 still owns which `ResourceResolver`, graph snapshot source, and graph model
 services it registers.
 
+The same integration helper should make `ResourceResolver` host-wirable from
+registered Resource model providers. A host can register class definitions,
+`IResourceTypeProvider` implementations, and attribute validators, then let the
+bridge compose a resolver from those services. That keeps provider packages as
+the owners of their type definitions while Resource Manager consumes the
+resolved graph through the existing provider composition path.
+
 Graph locking, graph update coordination, and transaction policy belong at
 the Resource Manager or Control Plane coordination layer. The Resource model
 can provide change sets, resolved projections, diagnostics, and commit-shaped
