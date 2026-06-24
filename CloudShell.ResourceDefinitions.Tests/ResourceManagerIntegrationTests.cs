@@ -326,6 +326,32 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphResourceResolver_ResolvesCustomOperationProjection()
+    {
+        var volume = CreateLocalVolumeState();
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph([volume]);
+        services.AddLocalVolumeResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var action = new ResourceAction(
+            LocalVolumeResourceTypeProvider.Operations.Provision.ToString(),
+            "Provision");
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveOperationAsync(volume.EffectiveResourceId, action);
+
+        Assert.True(resolution.IsResolved);
+        Assert.False(resolution.HasErrors);
+        var operation = Assert.IsType<LocalVolumeProvisionOperation>(resolution.Operation);
+        Assert.Same(resolution.Resource, operation.Resource);
+        Assert.Equal(LocalVolumeResourceTypeProvider.Operations.Provision, resolution.OperationId);
+        Assert.True(await operation.CanExecuteAsync());
+        Assert.False((await operation.ExecuteAsync()).HasErrors);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphResourceResolver_ReturnsDiagnosticWhenOperationProjectionIsMissing()
     {
         var services = new ServiceCollection();
@@ -372,6 +398,37 @@ public sealed class ResourceManagerIntegrationTests
         var result = await provider.ExecuteActionAsync(procedure, ResourceAction.Start);
 
         Assert.Equal("Executed Start for api.", result.Message);
+    }
+
+    [Fact]
+    public async Task ResourceModelGraphProcedureProvider_ExecutesCustomOperationProjection()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph([CreateLocalVolumeState()]);
+        services.AddLocalVolumeResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var resource = Assert.Single(provider.GetResources());
+        var action = Assert.Single(resource.ResourceActions, action =>
+            action.Id == LocalVolumeResourceTypeProvider.Operations.Provision.ToString());
+        var procedure = new ResourceProcedureContext(
+            resource,
+            null,
+            null,
+            new EmptyResourceRegistrationStore());
+
+        Assert.Equal("Storage Volume Provision", action.DisplayName);
+        Assert.True(provider.CanEvaluateAction(resource, action));
+        Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, action));
+
+        var result = await provider.ExecuteActionAsync(procedure, action);
+
+        Assert.Equal("Executed Storage Volume Provision for data.", result.Message);
     }
 
     [Fact]
@@ -683,6 +740,8 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(LocalVolumeResourceTypeProvider.ProviderId, projectedVolume.Provider);
         Assert.Equal("volume", projectedVolume.ResourceAttributes["storage.kind"]);
         Assert.Equal("local", projectedVolume.ResourceAttributes["storage.medium"]);
+        Assert.Contains(projectedVolume.ResourceActions, action =>
+            action.Id == LocalVolumeResourceTypeProvider.Operations.Provision.ToString());
         Assert.Equal(ResourceManagerClass.Executable, projectedExecutable.ResourceClass);
         Assert.Equal([volume.EffectiveResourceId], projectedExecutable.DependsOn);
         Assert.Contains(projectedExecutable.ResourceCapabilities, capability =>

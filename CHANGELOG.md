@@ -135,6 +135,10 @@ on `git blame --follow`, and then by the broad type of change.
   graph dependencies, so capability-owned relationships such as volume mounts
   can appear in projected `DependsOn` without duplicating them in every
   resource definition.
+- The local volume reference provider now owns a custom
+  `storage.volume.provision` operation provider and typed projection wrapper,
+  proving that a second provider boundary can project and execute Resource
+  model operations through the Resource Manager bridge.
 - The resource definitions POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change

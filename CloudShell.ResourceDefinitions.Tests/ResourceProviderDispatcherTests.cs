@@ -141,6 +141,8 @@ public sealed class ResourceProviderDispatcherTests
             LocalVolumeResourceTypeProvider.Attributes.StorageKind));
         Assert.Equal("local", validation.Resource.Attributes.GetString(
             LocalVolumeResourceTypeProvider.Attributes.StorageMedium));
+        Assert.True(validation.Resource.Operations.Has(
+            LocalVolumeResourceTypeProvider.Operations.Provision));
 
         var applyPlan = await serviceProvider
             .GetRequiredService<ResourceDefinitionGraphApplyPlanner>()
@@ -155,6 +157,25 @@ public sealed class ResourceProviderDispatcherTests
         Assert.Contains(applyPlan.Steps, step =>
             step.ResourceId == "storage.volume:data" &&
             step.Kind == ResourceDefinitionApplyStepKind.MaterializeRuntime);
+
+        var projectedGraph = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphProjectionResolver>()
+            .ProjectAsync(
+                new ResourceDefinitionGraphValidationPipelineResult(
+                    new ResourceDefinitionGraph([definition]),
+                    [validation],
+                    []),
+                new ResourceProjectionContext("local", "developer"));
+        var projection = projectedGraph.Find<LocalVolumeResource>("storage.volume:data");
+
+        Assert.NotNull(projection);
+        Assert.Equal("volume", projection.StorageKind);
+        Assert.Equal("local", projection.StorageMedium);
+
+        var provision = await projection.GetProvisionOperationAsync();
+
+        Assert.NotNull(provision);
+        Assert.True(await provision.CanExecuteAsync());
     }
 
     [Fact]
