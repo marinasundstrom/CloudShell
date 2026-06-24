@@ -36,6 +36,9 @@ on `git blame --follow`, and then by the broad type of change.
 - ResourceDefinition filtering now uses effective class/type attribute
   metadata, so provider-managed read-only values are omitted even when the
   attribute has no default value in the resolved projection.
+- Resource graph references can now declare an expected resource type, and
+  graph resolution reports a diagnostic when a resource-ID reference resolves
+  to a resource with a different `ResourceTypeId`.
 
 ### 2026-06-24
 

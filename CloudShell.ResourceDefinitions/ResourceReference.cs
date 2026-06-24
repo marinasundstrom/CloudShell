@@ -21,14 +21,18 @@ public sealed record ResourceReference(
 {
     public static ResourceReference ResourceId(
         string resourceId,
-        ResourceReferenceRelationship? relationship = null)
+        ResourceReferenceRelationship? relationship = null,
+        ResourceTypeId? typeId = null,
+        string? providerId = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
 
         return new(
             resourceId.Trim(),
             relationship ?? ResourceReferenceRelationships.DependsOn,
-            ResourceReferenceAddressingModes.ResourceId);
+            ResourceReferenceAddressingModes.ResourceId,
+            typeId,
+            providerId);
     }
 
     public bool TryGetResourceId(out string resourceId)

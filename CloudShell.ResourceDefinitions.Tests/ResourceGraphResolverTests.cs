@@ -55,6 +55,27 @@ public sealed class ResourceGraphResolverTests
     }
 
     [Fact]
+    public void ResolveReference_ReportsDiagnosticForExpectedResourceTypeMismatch()
+    {
+        var resolver = new ResourceGraphResolver(CreateResourceResolver());
+        var worker = CreateExecutableState("worker");
+        var snapshot = new ResourceGraphSnapshot(ResourceGraphVersion.Initial, [worker]);
+
+        var result = resolver.ResolveReference(
+            snapshot,
+            ResourceReference.ResourceId(
+                worker.EffectiveResourceId,
+                typeId: SqlServerResourceTypeProvider.ResourceTypeId));
+
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.False(result.IsResolved);
+        Assert.True(result.HasErrors);
+        Assert.Equal(worker.EffectiveResourceId, result.Resource?.EffectiveResourceId);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.ResourceReferenceTypeMismatch, diagnostic.Code);
+        Assert.Equal(worker.EffectiveResourceId, diagnostic.Target);
+    }
+
+    [Fact]
     public void ResolveReference_ReturnsUnresolvedResultForUnsupportedAddressingMode()
     {
         var resolver = new ResourceGraphResolver(CreateResourceResolver());

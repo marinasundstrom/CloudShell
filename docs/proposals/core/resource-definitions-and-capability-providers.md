@@ -814,11 +814,13 @@ identity as a plain string. The POC currently keeps attributes string-backed,
 so this belongs with the broader typed/complex attribute-value work.
 References may also carry optional expectations, such as expected resource
 type or provider id, so validation can reject a reference that resolves to the
-wrong kind of target. A later proposal should define additional reference
-arguments for projected-resource and provider-native addressing modes, for
-example selector arguments, projection names, provider scopes, or other
-addressing hints. That should remain part of the reference model instead of
-being copied into unrelated resource attributes.
+wrong kind of target. The current POC resolves `resourceId` references with an
+expected resource type and emits a graph diagnostic when the target exists but
+has a different `ResourceTypeId`. A later proposal should define additional
+reference arguments for projected-resource and provider-native addressing
+modes, for example selector arguments, projection names, provider scopes, or
+other addressing hints. That should remain part of the reference model instead
+of being copied into unrelated resource attributes.
 
 A future `ResourceDefinition` attribute value for a graph reference can use a
 shape like:
@@ -843,7 +845,8 @@ optional expectation metadata: the attribute definition on the
 expected type, while the resource value may also declare an expected type when
 the definition leaves it unconstrained and the author knows the target shape.
 Validation can then diagnose a `ResourceReference` attribute that resolves to
-the wrong resource type.
+the wrong resource type. For graph-level `DependsOn` references, the POC
+already supports the same expected-type check through `ResourceReference.TypeId`.
 Resolving a `ResourceReference` is a first-class graph operation:
 when the reference can be resolved, the result carries the projected
 `Resource`; when it cannot, the result can stay unresolved or carry

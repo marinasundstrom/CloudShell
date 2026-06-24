@@ -12,7 +12,9 @@ public sealed class SqlDatabaseGraphDependencyProvider : IResourceGraphDependenc
         return SqlDatabaseResourceTypeProvider.TryGetServerResourceId(
             resource.State,
             out var serverResourceId)
-            ? [ResourceReference.ResourceId(serverResourceId)]
+            ? [ResourceReference.ResourceId(
+                serverResourceId,
+                typeId: SqlServerResourceTypeProvider.ResourceTypeId)]
             : [];
     }
 }

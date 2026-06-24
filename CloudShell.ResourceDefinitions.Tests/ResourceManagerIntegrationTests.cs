@@ -2458,7 +2458,12 @@ public sealed class ResourceManagerIntegrationTests
             "appdb",
             SqlDatabaseResourceTypeProvider.ResourceTypeId,
             ProviderId: SqlDatabaseResourceTypeProvider.ProviderId,
-            DependsOn: [ResourceReference.ResourceId(server.EffectiveResourceId)],
+            DependsOn:
+            [
+                ResourceReference.ResourceId(
+                    server.EffectiveResourceId,
+                    typeId: SqlServerResourceTypeProvider.ResourceTypeId)
+            ],
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
                 [SqlDatabaseResourceTypeProvider.Attributes.DatabaseName] = "appdb",

@@ -191,8 +191,23 @@ public sealed class ResourceGraphResolver(
         }
 
         var resourceResolution = ResolveResource(resourceId, statesById, context);
+        if (resourceResolution.Resource is null ||
+            reference.TypeId is not { } expectedType ||
+            resourceResolution.Resource.Type.TypeId == expectedType)
+        {
+            return new(reference, resourceResolution.Resource, resourceResolution.Diagnostics);
+        }
 
-        return new(reference, resourceResolution.Resource, resourceResolution.Diagnostics);
+        return new(
+            reference,
+            resourceResolution.Resource,
+            [
+                .. resourceResolution.Diagnostics,
+                ResourceDefinitionDiagnostic.Error(
+                    ResourceDefinitionDiagnosticCodes.ResourceReferenceTypeMismatch,
+                    $"Resource reference '{reference.Value}' resolved to resource type '{resourceResolution.Resource.Type.TypeId}', expected '{expectedType}'.",
+                    reference.Value)
+            ]);
     }
 
     private IReadOnlyList<ResourceReference> GetDependencyReferences(

@@ -135,7 +135,9 @@ public sealed class ResourceDefinitionDescriptorTests
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
             DependsOn:
             [
-                ResourceReference.ResourceId("storage.volume:data")
+                ResourceReference.ResourceId(
+                    "storage.volume:data",
+                    typeId: CloudShellVolumeResourceTypeProvider.ResourceTypeId)
             ]);
 
         var json = JsonSerializer.Serialize(definition, JsonSerializerOptions.Web);
@@ -145,5 +147,8 @@ public sealed class ResourceDefinitionDescriptorTests
         Assert.Equal("storage.volume:data", dependency.GetProperty("value").GetString());
         Assert.Equal("dependsOn", dependency.GetProperty("relationship").GetString());
         Assert.Equal("resourceId", dependency.GetProperty("addressingMode").GetString());
+        Assert.Equal(
+            CloudShellVolumeResourceTypeProvider.ResourceTypeId.ToString(),
+            dependency.GetProperty("typeId").GetString());
     }
 }

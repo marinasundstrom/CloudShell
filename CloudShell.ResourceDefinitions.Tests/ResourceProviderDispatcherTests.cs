@@ -1471,7 +1471,12 @@ public sealed class ResourceProviderDispatcherTests
         var definition = new ResourceDefinition(
             "appdb",
             SqlDatabaseResourceTypeProvider.ResourceTypeId,
-            DependsOn: [ResourceReference.ResourceId(server.EffectiveResourceId)],
+            DependsOn:
+            [
+                ResourceReference.ResourceId(
+                    server.EffectiveResourceId,
+                    typeId: SqlServerResourceTypeProvider.ResourceTypeId)
+            ],
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
                 [SqlDatabaseResourceTypeProvider.Attributes.DatabaseName] = "appdb",
