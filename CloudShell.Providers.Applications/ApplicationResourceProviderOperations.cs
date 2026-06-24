@@ -143,14 +143,6 @@ public interface IContainerApplicationUpdateOperations
 
 public interface IContainerApplicationOrchestrationOperations
 {
-    bool CanExecuteOrchestratorService(
-        Resource resource,
-        ResourceAction action);
-
-    Task<ResourceOrchestratorService> CreateOrchestratorServiceAsync(
-        ResourceProcedureContext context,
-        CancellationToken cancellationToken = default);
-
     Task PrepareOrchestratorServiceAsync(
         ResourceOrchestratorServiceProcedureContext context,
         ResourceAction action,
@@ -159,6 +151,17 @@ public interface IContainerApplicationOrchestrationOperations
     Task ExecuteOrchestratorServiceInstanceAsync(
         ResourceOrchestratorServiceInstanceContext context,
         ResourceAction action,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IContainerApplicationOrchestratorServiceDescriptionOperations
+{
+    bool CanExecuteOrchestratorService(
+        Resource resource,
+        ResourceAction action);
+
+    Task<ResourceOrchestratorService> CreateOrchestratorServiceAsync(
+        ResourceProcedureContext context,
         CancellationToken cancellationToken = default);
 }
 

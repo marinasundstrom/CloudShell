@@ -241,30 +241,6 @@ public sealed partial class ApplicationResourceRuntimeOperations(
         }
     }
 
-    public bool CanExecuteOrchestratorService(
-        Resource resource,
-        ResourceAction action) =>
-        ApplicationResourceTypes.IsContainerApp(resource.EffectiveTypeId) &&
-        store.GetApplication(resource.Id) is not null &&
-        action.Kind is ResourceActionKind.Start or ResourceActionKind.Stop or ResourceActionKind.Restart;
-
-    public Task<ResourceOrchestratorService> CreateOrchestratorServiceAsync(
-        ResourceProcedureContext context,
-        CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var application = store.GetApplication(context.Resource.Id)
-            ?? throw new InvalidOperationException(
-                $"Container app resource '{context.Resource.Id}' is not configured.");
-        if (!ApplicationResourceTypes.IsContainerApp(application.ResourceType))
-        {
-            throw new InvalidOperationException(
-                $"Resource '{context.Resource.Id}' is not a container app.");
-        }
-
-        return Task.FromResult(CreateDefaultContainerOrchestratorService(application));
-    }
-
     public async Task PrepareOrchestratorServiceAsync(
         ResourceOrchestratorServiceProcedureContext context,
         ResourceAction action,

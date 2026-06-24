@@ -135,6 +135,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Container app deployment description now lives in
   `ContainerApplicationDeploymentDescriptionOperations`, separating
   Resource Manager deployment shape projection from runtime service execution.
+- Container app orchestrator service description now lives in
+  `ContainerApplicationOrchestratorServiceDescriptionOperations`, separating
+  Resource Manager service capability and service shape creation from runtime
+  service instance execution.
 - Container app deployment outcome handling now lives in
   `ContainerApplicationDeploymentOutcomeOperations`, separating post-apply,
   failed-apply, and tear-down planning from runtime service execution.

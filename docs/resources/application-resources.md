@@ -218,20 +218,23 @@ templates, descriptors, projection, logging, monitoring, settings, cleanup,
 running-state checks, setting resolution, environment-variable resolution,
 action availability, container app history, container app image/replica
 updates, container app deployment descriptions, container app deployment
-outcomes, container app orchestration hooks, and SQL Server support. The remaining
+outcomes, container app orchestrator service descriptions, container app
+orchestration hooks, and SQL Server support. The remaining
 `ApplicationResourceRuntimeOperations` facade coordinates runtime procedure
 execution and container-app orchestration hooks while those concerns are
 separated further. Container app update intent now flows through
 `IContainerApplicationUpdateOperations`, deployment shape projection flows
-through `IContainerApplicationDeploymentDescriptionOperations`, and deployment
+through `IContainerApplicationDeploymentDescriptionOperations`, orchestrator
+service shape creation flows through
+`IContainerApplicationOrchestratorServiceDescriptionOperations`, and deployment
 apply/failure/tear-down outcomes flow through
 `IContainerApplicationDeploymentOutcomeOperations`, so image changes, replica
-changes, deployment description, and deployment bookkeeping do not require
-callers to depend on the lifecycle procedure coordinator. The direction is to
-keep provider-neutral primitives reusable so external resource authors can
-reuse common declaration, projection, process-definition, logging, monitoring,
-endpoint, volume, and container-host command infrastructure without depending
-on runtime facade internals.
+changes, service/deployment description, and deployment bookkeeping do not
+require callers to depend on the lifecycle procedure coordinator. The direction
+is to keep provider-neutral primitives reusable so external resource authors
+can reuse common declaration, projection, process-definition, logging,
+monitoring, endpoint, volume, and container-host command infrastructure
+without depending on runtime facade internals.
 
 Volume mount validation and materialization is one such provider-neutral
 primitive. `ApplicationResourceVolumeMounts` owns the common filesystem volume
