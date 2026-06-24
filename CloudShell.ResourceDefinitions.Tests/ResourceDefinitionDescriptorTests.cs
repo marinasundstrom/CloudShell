@@ -151,4 +151,23 @@ public sealed class ResourceDefinitionDescriptorTests
             CloudShellVolumeResourceTypeProvider.ResourceTypeId.ToString(),
             dependency.GetProperty("typeId").GetString());
     }
+
+    [Fact]
+    public void ResourceReference_RoundTripsExpectedTypeAndProviderAsJsonTarget()
+    {
+        var reference = ResourceReference.ResourceId(
+            "application.sql-server:server",
+            typeId: SqlServerResourceTypeProvider.ResourceTypeId,
+            providerId: SqlServerResourceTypeProvider.ProviderId);
+
+        var json = JsonSerializer.Serialize(reference, JsonSerializerOptions.Web);
+        var roundTrip = JsonSerializer.Deserialize<ResourceReference>(json, JsonSerializerOptions.Web);
+
+        Assert.NotNull(roundTrip);
+        Assert.Equal(reference.Value, roundTrip.Value);
+        Assert.Equal(reference.Relationship, roundTrip.Relationship);
+        Assert.Equal(reference.AddressingMode, roundTrip.AddressingMode);
+        Assert.Equal(reference.TypeId, roundTrip.TypeId);
+        Assert.Equal(reference.ProviderId, roundTrip.ProviderId);
+    }
 }

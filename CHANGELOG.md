@@ -60,6 +60,8 @@ on `git blame --follow`, and then by the broad type of change.
   default.
 - Resource graph records now have test coverage proving typed
   `ResourceReference` dependencies survive the record persistence projection.
+- `ResourceReference` now has JSON round-trip coverage for expected resource
+  type and provider metadata.
 - The resource definitions proposal now clarifies that resource type providers
   are integration points that may receive injected services, but should not own
   recurring runtime tasks, watchers, polling loops, or reconciliation schedulers
