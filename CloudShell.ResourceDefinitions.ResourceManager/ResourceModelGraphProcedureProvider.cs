@@ -61,6 +61,14 @@ public sealed class ResourceModelGraphProcedureProvider :
             context.Resource.Id,
             action,
             cancellationToken);
+        var blockingGraphDiagnostics = await ResolveBlockingGraphDiagnosticsAsync(
+            context.Resource.Id,
+            cancellationToken);
+
+        if (blockingGraphDiagnostics.Count > 0)
+        {
+            return FormatDiagnostics(blockingGraphDiagnostics);
+        }
 
         if (resolution.Diagnostics.Count > 0)
         {
@@ -89,6 +97,14 @@ public sealed class ResourceModelGraphProcedureProvider :
             context.Resource.Id,
             action,
             cancellationToken);
+        var blockingGraphDiagnostics = await ResolveBlockingGraphDiagnosticsAsync(
+            context.Resource.Id,
+            cancellationToken);
+
+        if (blockingGraphDiagnostics.Count > 0)
+        {
+            throw new InvalidOperationException(FormatDiagnostics(blockingGraphDiagnostics));
+        }
 
         if (resolution.Diagnostics.Count > 0)
         {
@@ -126,6 +142,21 @@ public sealed class ResourceModelGraphProcedureProvider :
             action,
             _resolutionContext,
             cancellationToken);
+
+    private async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ResolveBlockingGraphDiagnosticsAsync(
+        string resourceId,
+        CancellationToken cancellationToken)
+    {
+        var resolution = await _resourceResolver.ResolveWithDependenciesAsync(
+            resourceId,
+            _resolutionContext,
+            cancellationToken);
+
+        return resolution.Diagnostics
+            .Where(diagnostic =>
+                diagnostic.Code == ResourceDefinitionDiagnosticCodes.ResourceReferenceTypeMismatch)
+            .ToArray();
+    }
 
     private static string FormatDiagnostics(
         IReadOnlyList<ResourceDefinitionDiagnostic> diagnostics) =>

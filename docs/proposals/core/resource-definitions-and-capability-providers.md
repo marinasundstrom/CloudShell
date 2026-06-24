@@ -496,6 +496,12 @@ debugging when an expected-type check fails, but the bridge should bind
 capability and operation projections only for successfully resolved references.
 That keeps invalid targets inspectable without making their behavior available
 through the wrong relationship.
+The procedure-capable bridge may also use those typed-reference diagnostics as
+operation availability blockers. The current POC should keep that policy
+narrow: wrong-type existing dependency targets are unsafe for runtime
+execution, while broader dependency validation, missing staged resources, and
+cross-resource orchestration policy remain provider/Resource Manager concerns
+to refine as real providers are ported.
 
 The bridge project should own registration helpers for this integration seam.
 Hosts can register a graph-backed Resource model provider as an existing
@@ -861,7 +867,10 @@ already supports the same expected-type check through `ResourceReference.TypeId`
 Provider-produced dependencies should set this expectation when the provider
 knows the required target shape, so graph resolution can reject a dependency
 that points at an existing resource of the wrong type instead of silently
-following it.
+following it. When a provider-produced typed reference targets the same
+resource ID as an older untyped dependency declaration, the typed reference
+should refine the relationship for resolution so transition-era declarations
+do not bypass provider-owned validation.
 Resolving a `ResourceReference` is a first-class graph operation:
 when the reference can be resolved, the result carries the projected
 `Resource`; when it cannot, the result can stay unresolved or carry

@@ -50,6 +50,11 @@ on `git blame --follow`, and then by the broad type of change.
   returning wrong-type targets for diagnostics and debugging.
 - Resource Manager bridge dependency projection now derives dependency IDs and
   typed-reference diagnostics from the same graph-reference resolution pass.
+- Resource Manager bridge operation availability and execution now block on
+  typed graph-reference mismatches, without turning broader dependency
+  validation into procedure policy.
+- Graph dependency resolution now lets provider-produced typed references
+  refine older untyped dependency declarations for the same resource ID.
 - The resource definitions proposal now clarifies that resource type providers
   are integration points that may receive injected services, but should not own
   recurring runtime tasks, watchers, polling loops, or reconciliation schedulers

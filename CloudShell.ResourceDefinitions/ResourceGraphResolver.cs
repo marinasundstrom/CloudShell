@@ -235,12 +235,27 @@ public sealed class ResourceGraphResolver(
                     {
                         dependencies.Add(reference);
                     }
+                    else if (HasReferenceExpectations(reference))
+                    {
+                        dependencies.RemoveAll(existing =>
+                            existing.TryGetResourceId(out var existingDependency) &&
+                            string.Equals(
+                                existingDependency,
+                                dependency,
+                                StringComparison.OrdinalIgnoreCase) &&
+                            !HasReferenceExpectations(existing));
+                        dependencies.Add(reference);
+                    }
                 }
             }
         }
 
         return dependencies.ToArray();
     }
+
+    private static bool HasReferenceExpectations(ResourceReference reference) =>
+        reference.TypeId is not null ||
+        !string.IsNullOrWhiteSpace(reference.ProviderId);
 }
 
 public sealed record ResourceGraphResolutionResult(

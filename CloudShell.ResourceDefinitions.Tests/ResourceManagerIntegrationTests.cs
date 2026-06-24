@@ -459,6 +459,46 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphProcedureProvider_BlocksExecutionForInvalidTypedDependency()
+    {
+        var worker = CreateExecutableState(
+            "worker",
+            dependsOn: [],
+            includeVolumeConsumer: false);
+        var api = CreateExecutableState(
+            dependsOn: [worker.EffectiveResourceId],
+            mounts:
+            [
+                new(worker.EffectiveResourceId, "App_Data")
+            ]);
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph([api, worker]);
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var resource = provider.GetResources()
+            .Single(resource => resource.Id == api.EffectiveResourceId);
+        var procedure = new ResourceProcedureContext(
+            resource,
+            null,
+            null,
+            new EmptyResourceRegistrationStore());
+
+        var reason = await provider.GetActionUnavailableReasonAsync(procedure, ResourceAction.Start);
+
+        Assert.NotNull(reason);
+        Assert.Contains(worker.EffectiveResourceId, reason, StringComparison.Ordinal);
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await provider.ExecuteActionAsync(procedure, ResourceAction.Start));
+        Assert.Contains(worker.EffectiveResourceId, exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphProcedureProvider_ExecutesCustomOperationProjection()
     {
         var services = new ServiceCollection();

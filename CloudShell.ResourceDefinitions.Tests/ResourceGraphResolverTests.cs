@@ -156,6 +156,7 @@ public sealed class ResourceGraphResolverTests
         var worker = CreateExecutableState("worker");
         var api = CreateExecutableState(
             "api",
+            dependsOn: [worker.EffectiveResourceId],
             mounts:
             [
                 new(worker.EffectiveResourceId, "App_Data")
