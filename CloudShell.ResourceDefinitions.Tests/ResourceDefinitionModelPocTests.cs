@@ -47,9 +47,6 @@ public sealed class ResourceDefinitionModelPocTests
         Assert.Equal("volume:data", volume.Volume);
         var startOperation = await executable.GetStartOperationAsync();
         Assert.NotNull(startOperation);
-        Assert.NotNull(startOperation.Context.Graph);
-        Assert.NotNull(startOperation.Context.FindResourceState("application.executable:api"));
-        Assert.False(startOperation.Context.CanFlushChanges);
         Assert.True(await startOperation.CanExecuteAsync());
 
         var plan = await CreateApplyPlanner().PlanApplyAsync(

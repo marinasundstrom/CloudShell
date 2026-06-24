@@ -241,6 +241,8 @@ public sealed class ResourceGraphChangeTrackingTests
         var commit = await transaction.CommitAsync(new ResourceGraphCommitContext());
         var current = await model.GetSnapshotAsync();
 
+        Assert.Equal(ResourceGraphTransactionMode.Optimistic, transaction.Mode);
+        Assert.False(transaction.IsExclusive);
         Assert.Equal(ResourceGraphVersion.Initial, transaction.BaseVersion);
         Assert.True(changes.HasChanges);
         Assert.True(commit.IsCommitted);
@@ -278,6 +280,8 @@ public sealed class ResourceGraphChangeTrackingTests
         await transaction.DisposeAsync();
         var snapshot = await blockedSnapshot;
 
+        Assert.Equal(ResourceGraphTransactionMode.Exclusive, transaction.Mode);
+        Assert.True(transaction.IsExclusive);
         Assert.Equal(transaction.BaseVersion, snapshot.Version);
     }
 

@@ -1528,20 +1528,20 @@ the effective capability entry, resource attributes, operation declarations,
 type/class views, current environment, and provider observations needed for
 validation.
 
-Projected capabilities should receive an implicit resource graph scope from
-the resolver/projection pipeline. The caller should not have to manually create
-a graph scope each time it resolves a capability. The projected capability
-should know the target `Resource`, the graph snapshot it was projected from
-when available, and any active graph change boundary. Capability methods can
-then create resource change contexts through that scope instead of directly
-mutating the resource or accepting a raw `ResourceDefinition`.
+Projected capabilities should be resource-bound behavior, not graph transaction
+owners. The caller that resolves and executes a capability or operation should
+own the resource graph scope it is operating within, including any snapshot,
+transaction, lock, apply dispatcher, and commit boundary. This keeps graph
+stability and concurrency policy at the orchestration boundary instead of
+passing graph snapshots or lock handles into capability or operation execution
+contexts.
 
-Directly flushing graph changes from a projected capability should remain an
-explicit, scoped operation. A capability can stage changes freely through its
-execution context, but committing or flushing changes should only be available
-when the projection was resolved inside an active graph change boundary. That
-keeps capability methods ergonomic while preventing hidden writes from a
-capability projection that was created for inspection.
+Capability methods can stage changes through the target `Resource` and return
+`ResourceChangeSet` values. The caller can then validate or apply those changes
+through the relevant resource type provider and decide whether to track and
+commit them through a graph transaction. This keeps capability methods
+ergonomic while preventing hidden graph writes from a capability projection
+that was created for inspection.
 
 If a capability needs to reject raw authored document shape before resource
 resolution, that should be modeled as a resource-definition validator for the

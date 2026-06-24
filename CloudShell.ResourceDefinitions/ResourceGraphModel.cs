@@ -63,7 +63,10 @@ public sealed class ResourceGraphModel(IResourceStateProvider stateProvider)
 
         if (options.Mode == ResourceGraphTransactionMode.Optimistic)
         {
-            return new(this, await GetSnapshotAsync(cancellationToken));
+            return new(
+                this,
+                await GetSnapshotAsync(cancellationToken),
+                options.Mode);
         }
 
         await _sync.WaitAsync(cancellationToken);
@@ -72,6 +75,7 @@ public sealed class ResourceGraphModel(IResourceStateProvider stateProvider)
             return new(
                 this,
                 await GetSnapshotCoreAsync(cancellationToken),
+                options.Mode,
                 new ResourceGraphTransactionLock(_sync));
         }
         catch
@@ -207,6 +211,7 @@ public enum ResourceGraphTransactionMode
 public sealed class ResourceGraphTransaction(
     ResourceGraphModel model,
     ResourceGraphSnapshot snapshot,
+    ResourceGraphTransactionMode mode = ResourceGraphTransactionMode.Optimistic,
     IAsyncDisposable? lockHandle = null) : IAsyncDisposable
 {
     private readonly ResourceGraphChangeTracker _tracker = new(snapshot);
@@ -214,6 +219,10 @@ public sealed class ResourceGraphTransaction(
     private bool _isDisposed;
 
     public ResourceGraphSnapshot Snapshot { get; } = snapshot;
+
+    public ResourceGraphTransactionMode Mode { get; } = mode;
+
+    public bool IsExclusive => Mode == ResourceGraphTransactionMode.Exclusive;
 
     public ResourceGraphVersion BaseVersion => Snapshot.Version;
 

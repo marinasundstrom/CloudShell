@@ -40,12 +40,8 @@ public sealed class ResourceDefinitionValidationPipelineTests
         Assert.NotNull(startOperation);
         Assert.Same(result.Resource, volumeCapability.Resource);
         Assert.Same(result.Resource, volumeCapability.Context.Resource);
-        Assert.Null(volumeCapability.Context.Graph);
-        Assert.False(volumeCapability.Context.CanFlushChanges);
         Assert.Same(result.Resource, startOperation.Resource);
         Assert.Same(result.Resource, startOperation.Context.Resource);
-        Assert.Null(startOperation.Context.Graph);
-        Assert.False(startOperation.Context.CanFlushChanges);
         Assert.Equal(ResourceDefinitionValueSource.TypeDefinition, startOperation.Definition.Source);
         Assert.True(await startOperation.CanExecuteAsync());
 
@@ -95,9 +91,6 @@ public sealed class ResourceDefinitionValidationPipelineTests
         Assert.Same(result.Resource, volumeConsumer.Resource);
         Assert.Same(result.Resource, volumeConsumer.Context.Resource);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await volumeConsumer.Context.FlushChangesAsync(new ResourceGraphCommitContext()));
-
         var changes = volumeConsumer.AddMount(
             new VolumeMountDefinition("volume:logs", "Logs", ReadOnly: true));
         var updatedPayload = changes.ProposedState.GetCapability<VolumeConsumerDefinition>(
@@ -120,7 +113,7 @@ public sealed class ResourceDefinitionValidationPipelineTests
     }
 
     [Fact]
-    public async Task ProjectionCapability_CanFlushAcceptedChangesWhenResolvedInsideGraphBoundary()
+    public async Task ProjectionCapability_ReturnsChangesThatCallerCanCommitThroughGraphBoundary()
     {
         var definition = CreateExecutableDefinition(
             path: "dotnet",
@@ -151,15 +144,10 @@ public sealed class ResourceDefinitionValidationPipelineTests
             new ResourceCapabilityProjectionContext(
                 "local",
                 "developer",
-                new ResourceProjectionExecutionContext(
-                    resource,
-                    boundary.Snapshot,
-                    boundary)));
+                new ResourceProjectionExecutionContext(resource)));
         var volumeConsumer = resource.Capabilities.Get<VolumeConsumerCapability>();
 
         Assert.NotNull(volumeConsumer);
-        Assert.True(volumeConsumer.Context.CanFlushChanges);
-        Assert.NotNull(volumeConsumer.Context.Graph);
 
         var changes = volumeConsumer.AddMount(
             new VolumeMountDefinition("volume:logs", "Logs", ReadOnly: true));
@@ -167,9 +155,8 @@ public sealed class ResourceDefinitionValidationPipelineTests
             changes,
             new ResourceChangeApplyContext("local", "developer", Commit: true));
 
-        volumeConsumer.Context.TrackAcceptedChanges(accepted);
-        var commit = await volumeConsumer.Context.FlushChangesAsync(
-            new ResourceGraphCommitContext("local", "developer"));
+        boundary.Track(accepted);
+        var commit = await boundary.CommitAsync(new ResourceGraphCommitContext("local", "developer"));
 
         Assert.True(commit.IsCommitted);
         Assert.Equal(new ResourceGraphVersion(1), commit.Version);
