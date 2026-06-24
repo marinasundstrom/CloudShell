@@ -50,6 +50,37 @@ public sealed class ResourceModelResolverTests
     }
 
     [Fact]
+    public void ResourceDefinition_IncrementalApplyMergesResourceOwnedState()
+    {
+        var createdAt = new DateTimeOffset(2026, 6, 23, 12, 0, 0, TimeSpan.Zero);
+        var lastModifiedAt = new DateTimeOffset(2026, 6, 24, 12, 0, 0, TimeSpan.Zero);
+        var resolver = CreateResolver();
+        var state = CreateState("./api") with
+        {
+            Version = "7",
+            CreatedAt = createdAt,
+            LastModifiedAt = lastModifiedAt,
+            Attributes = new Dictionary<ResourceAttributeId, string>
+            {
+                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "./api",
+                ["container.replicas"] = "1"
+            }
+        };
+        var resource = resolver.Resolve(state);
+
+        resource.SetAttribute("container.replicas", 2);
+        var incremental = resource.ApplyChanges().ToIncrementalDefinition();
+        var updated = resolver.Resolve(resource.State.ApplyDefinition(incremental));
+
+        Assert.Equal("./api", updated.Attributes.GetString(ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath));
+        Assert.Equal("2", updated.Attributes.GetString("container.replicas"));
+        Assert.True(updated.Capabilities.Has(VolumeConsumerCapabilityProvider.CapabilityIdValue));
+        Assert.Equal("7", updated.Version);
+        Assert.Equal(createdAt, updated.CreatedAt);
+        Assert.Equal(lastModifiedAt, updated.LastModifiedAt);
+    }
+
+    [Fact]
     public void ApplyChanges_ReturnsProposedResourceStateWithoutMutatingProjection()
     {
         var resolver = CreateResolver();

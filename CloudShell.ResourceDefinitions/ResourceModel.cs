@@ -68,8 +68,28 @@ public sealed record ResourceState(
             definition.Metadata);
     }
 
-    public ResourceState ApplyDefinition(ResourceDefinition definition) =>
-        FromDefinition(definition);
+    public ResourceState ApplyDefinition(ResourceDefinition definition)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+
+        return this with
+        {
+            Name = definition.Name,
+            TypeId = definition.TypeId,
+            ResourceId = definition.ResourceId ?? ResourceId,
+            ProviderId = definition.ProviderId ?? ProviderId,
+            DisplayName = definition.DisplayName ?? DisplayName,
+            Version = definition.Version ?? Version,
+            DependsOn = definition.DependsOn ?? DependsOn,
+            Attributes = Merge(ResourceAttributes, definition.Attributes),
+            Configuration = MergePayloads(ConfigurationPayloads, definition.Configuration),
+            Capabilities = MergePayloads(CapabilityPayloads, definition.Capabilities),
+            Operations = MergePayloads(OperationPayloads, definition.Operations),
+            Metadata = Merge(Metadata, definition.Metadata),
+            CreatedAt = CreatedAt,
+            LastModifiedAt = LastModifiedAt
+        };
+    }
 
     public ResourceDefinition ToDefinition() =>
         new(
@@ -106,6 +126,50 @@ public sealed record ResourceState(
         OperationPayloads.TryGetValue(operationId, out var payload)
             ? payload.Deserialize<TOperation>(options)
             : default;
+
+    private static IReadOnlyDictionary<TKey, TValue>? Merge<TKey, TValue>(
+        IReadOnlyDictionary<TKey, TValue>? current,
+        IReadOnlyDictionary<TKey, TValue>? changes)
+        where TKey : notnull
+    {
+        if (changes is null)
+        {
+            return current;
+        }
+
+        var merged = current is null
+            ? new Dictionary<TKey, TValue>()
+            : new Dictionary<TKey, TValue>(current);
+        foreach (var (key, value) in changes)
+        {
+            merged[key] = value;
+        }
+
+        return merged;
+    }
+
+    private static IReadOnlyDictionary<TKey, JsonElement>? MergePayloads<TKey>(
+        IReadOnlyDictionary<TKey, JsonElement>? current,
+        IReadOnlyDictionary<TKey, JsonElement>? changes)
+        where TKey : notnull
+    {
+        if (changes is null)
+        {
+            return current;
+        }
+
+        var merged = current is null
+            ? new Dictionary<TKey, JsonElement>()
+            : current.ToDictionary(
+                payload => payload.Key,
+                payload => ResourceDefinitionJson.Clone(payload.Value));
+        foreach (var (key, value) in changes)
+        {
+            merged[key] = ResourceDefinitionJson.Clone(value);
+        }
+
+        return merged;
+    }
 }
 
 public readonly record struct ResourceRevision(long Value)

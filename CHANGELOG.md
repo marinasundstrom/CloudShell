@@ -94,6 +94,9 @@ on `git blame --follow`, and then by the broad type of change.
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change
   documents without implying graph-wide commit semantics.
+- Applying `ResourceDefinition` changes to existing resource state now merges
+  incremental interchange data into the current `ResourceState` while
+  preserving persisted revision and timestamp metadata until graph commit.
 - The resource definitions POC now routes staged `ResourceChangeSet` instances
   through provider-owned change apply providers, so a resource type can accept
   or reject proposed projection state before any future Resource Manager or

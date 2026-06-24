@@ -978,6 +978,16 @@ projected as a full or incremental `ResourceDefinition`. A provider or future
 resource manager commit pipeline owns the actual application of those changes
 to resource state and the surrounding resource graph.
 
+When an existing `ResourceState` applies a `ResourceDefinition`, the
+definition is treated as an interchange overlay, not as a replacement for the
+whole persisted state record. Attribute, configuration, capability, operation,
+and metadata entries merge into the current resource-owned state so
+incremental definitions do not drop unchanged values. Persistence metadata
+such as resource revision and creation/last-modified timestamps stays on the
+state object until the graph commit boundary accepts changes and assigns the
+next committed values. Fresh imports can still create a new `ResourceState`
+from a definition when there is no existing resource state to preserve.
+
 The current POC adds that first provider-owned boundary through
 `IResourceChangeApplyProvider` and `ResourceChangeApplyDispatcher`. The
 dispatcher resolves the provider for the resource type in the
