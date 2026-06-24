@@ -113,6 +113,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource graph dependency providers now contribute `ResourceReference`
   objects as well, keeping provider-owned graph relationships on the same
   reference model as explicit `DependsOn` entries.
+- The resource graph resolver can now resolve individual `ResourceReference`
+  values into projected `Resource` results and exposes followed reference
+  resolutions alongside dependency-closure resources.
 - The resource definitions POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change

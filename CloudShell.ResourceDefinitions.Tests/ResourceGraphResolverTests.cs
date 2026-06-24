@@ -6,6 +6,43 @@ namespace CloudShell.ResourceDefinitions.Tests;
 public sealed class ResourceGraphResolverTests
 {
     [Fact]
+    public void ResolveReference_ReturnsResourceForResourceIdReference()
+    {
+        var resolver = new ResourceGraphResolver(CreateResourceResolver());
+        var worker = CreateExecutableState("worker");
+        var snapshot = new ResourceGraphSnapshot(ResourceGraphVersion.Initial, [worker]);
+
+        var result = resolver.ResolveReference(
+            snapshot,
+            ResourceReference.ResourceId(worker.EffectiveResourceId));
+
+        Assert.True(result.IsResolved);
+        Assert.False(result.HasErrors);
+        Assert.Empty(result.Diagnostics);
+        Assert.Equal(worker.EffectiveResourceId, result.Resource?.EffectiveResourceId);
+    }
+
+    [Fact]
+    public void ResolveReference_ReturnsUnresolvedResultForUnsupportedAddressingMode()
+    {
+        var resolver = new ResourceGraphResolver(CreateResourceResolver());
+        var worker = CreateExecutableState("worker");
+        var snapshot = new ResourceGraphSnapshot(ResourceGraphVersion.Initial, [worker]);
+        var reference = new ResourceReference(
+            "provider-native-worker",
+            ResourceReferenceRelationships.DependsOn,
+            ResourceReferenceAddressingModes.ProviderNative);
+
+        var result = resolver.ResolveReference(snapshot, reference);
+
+        Assert.False(result.IsResolved);
+        Assert.False(result.HasErrors);
+        Assert.Empty(result.Diagnostics);
+        Assert.Same(reference, result.Reference);
+        Assert.Null(result.Resource);
+    }
+
+    [Fact]
     public void ResolveResourceAndDependencies_ReturnsTargetAndDependencyClosure()
     {
         var resolver = new ResourceGraphResolver(CreateResourceResolver());
@@ -21,6 +58,11 @@ public sealed class ResourceGraphResolverTests
         Assert.Equal(
             [api.EffectiveResourceId, worker.EffectiveResourceId],
             result.Resources.Select(resource => resource.EffectiveResourceId));
+
+        var reference = Assert.Single(result.ResolvedReferences);
+        Assert.True(reference.IsResolved);
+        Assert.Equal(worker.EffectiveResourceId, reference.Resource?.EffectiveResourceId);
+        Assert.Equal(worker.EffectiveResourceId, reference.Reference.Value);
     }
 
     [Fact]
@@ -45,6 +87,11 @@ public sealed class ResourceGraphResolverTests
         Assert.Equal(
             [api.EffectiveResourceId, volume.EffectiveResourceId],
             result.Resources.Select(resource => resource.EffectiveResourceId));
+
+        var reference = Assert.Single(result.ResolvedReferences);
+        Assert.True(reference.IsResolved);
+        Assert.Equal(volume.EffectiveResourceId, reference.Reference.Value);
+        Assert.Same(result.Resources[1], reference.Resource);
     }
 
     [Fact]
