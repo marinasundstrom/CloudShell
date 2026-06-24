@@ -33,9 +33,23 @@ public sealed class ResourceGraphChangeTrackingTests
 
         Assert.True(commit.IsCommitted);
         Assert.Equal(new ResourceGraphVersion(1), commit.Version);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, commit.Summary.Status);
+        Assert.Equal(ResourceGraphVersion.Initial, commit.Summary.BaseVersion);
+        Assert.Equal(new ResourceGraphVersion(1), commit.Summary.ResultVersion);
+        Assert.Equal(2, commit.Summary.AcceptedResourceCount);
+        Assert.Equal(2, commit.Summary.AttributeChangeCount);
+        Assert.Equal(0, commit.Summary.CapabilityChangeCount);
+        Assert.Equal(2, commit.Summary.Resources.Count);
         Assert.NotNull(commit.Snapshot);
         Assert.Equal("1", FindState(commit.Snapshot, "application.executable:api").Version);
         Assert.Equal("5", FindState(commit.Snapshot, "application.executable:worker").Version);
+        var workerSummary = commit.Summary.Resources.Single(resource =>
+            resource.ResourceId == "application.executable:worker");
+        Assert.Equal(new ResourceRevision(4), workerSummary.PreviousRevision);
+        Assert.Equal(new ResourceRevision(5), workerSummary.CommittedRevision);
+        Assert.Contains(
+            ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath,
+            workerSummary.AttributeChanges);
         Assert.Equal(committedAt, FindState(commit.Snapshot, "application.executable:api").CreatedAt);
         Assert.Equal(createdAt, FindState(commit.Snapshot, "application.executable:worker").CreatedAt);
         Assert.All(commit.Snapshot.Resources, resource =>
@@ -129,6 +143,9 @@ public sealed class ResourceGraphChangeTrackingTests
 
         var diagnostic = Assert.Single(staleCommit.Diagnostics);
         Assert.False(staleCommit.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.VersionConflict, staleCommit.Summary.Status);
+        Assert.Equal(ResourceGraphVersion.Initial, staleCommit.Summary.BaseVersion);
+        Assert.Equal(new ResourceGraphVersion(1), staleCommit.Summary.ResultVersion);
         Assert.Equal(ResourceDefinitionDiagnosticCodes.ResourceGraphVersionConflict, diagnostic.Code);
     }
 
@@ -153,6 +170,9 @@ public sealed class ResourceGraphChangeTrackingTests
 
         var diagnostic = Assert.Single(commit.Diagnostics);
         Assert.False(commit.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Rejected, commit.Summary.Status);
+        Assert.Equal(0, commit.Summary.AcceptedResourceCount);
+        Assert.Equal(0, commit.Summary.AttributeChangeCount);
         Assert.Equal("application.executable.pathRequired", diagnostic.Code);
         Assert.Equal(new ResourceGraphVersion(0), commit.Version);
     }
@@ -170,6 +190,9 @@ public sealed class ResourceGraphChangeTrackingTests
 
         Assert.True(commit.IsCommitted);
         Assert.Equal(ResourceGraphVersion.Initial, commit.Version);
+        Assert.Equal(ResourceGraphCommitStatus.NoChanges, commit.Summary.Status);
+        Assert.Equal(0, commit.Summary.AcceptedResourceCount);
+        Assert.Empty(commit.Summary.Resources);
     }
 
     [Fact]

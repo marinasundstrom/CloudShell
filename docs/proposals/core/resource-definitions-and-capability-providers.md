@@ -674,6 +674,15 @@ resource graph hot in memory when there is one primary graph consumer, while
 still preserving explicit commit boundaries, optimistic graph versions, and a
 clear synchronization point with the backing data store.
 
+Commit results should summarize the outcome in addition to returning
+diagnostics and the committed snapshot. `ResourceGraphCommitResult` carries a
+`ResourceGraphCommitSummary` with a status such as committed, no changes,
+rejected, or version conflict; the base and resulting graph versions; accepted
+resource count; attribute and capability change counts; and per-resource
+revision movement. This gives callers a stable way to decide whether to update
+UI state, append events, publish notifications, retry a stale change, or show
+validation errors without reinterpreting the full change set.
+
 ### Event History and Event Sourcing
 
 The graph commit boundary is also a natural place to produce a durable change
@@ -683,6 +692,8 @@ operation declaration changed, resource state committed, or provider operation
 executed. Those events can include graph version, resource ID, resource
 revision, timestamp, actor/context, incremental `ResourceDefinition` deltas,
 provider diagnostics, and provider-specific correlation data.
+`ResourceGraphCommitSummary` is the immediate result-object surface for those
+same facts, while a future event log would be the durable historical stream.
 
 The POC should not make pure event sourcing the only source of truth yet.
 Resource state is a resolved model over provider-owned reality, and providers
