@@ -270,7 +270,7 @@ public sealed record Resource(
     public ResourceDefinition ToDefinition(bool includePendingChanges = false) =>
         includePendingChanges
             ? GetPendingChanges().ToDefinition()
-            : State.ToDefinition();
+            : ToDefinition(State);
 
     public TConfiguration? GetConfiguration<TConfiguration>(
         string sectionName,
@@ -289,6 +289,25 @@ public sealed record Resource(
 
     private ResourceChangeContext PendingChanges =>
         _pendingChanges ??= CreateChangeContext();
+
+    private ResourceDefinition ToDefinition(ResourceState state) =>
+        state.ToDefinition() with
+        {
+            Attributes = FilterInterchangeAttributes(state.ResourceAttributes)
+        };
+
+    internal bool IsReadOnlyAttribute(ResourceAttributeId attributeId) =>
+        Attributes.Resolve(attributeId)?.ReadOnly == true;
+
+    internal IReadOnlyDictionary<ResourceAttributeId, string>? FilterInterchangeAttributes(
+        IReadOnlyDictionary<ResourceAttributeId, string> attributes)
+    {
+        var filtered = attributes
+            .Where(attribute => !IsReadOnlyAttribute(attribute.Key))
+            .ToDictionary(attribute => attribute.Key, attribute => attribute.Value);
+
+        return filtered.Count == 0 ? null : filtered;
+    }
 }
 
 public sealed class ResourceChangeContext(
@@ -394,11 +413,15 @@ public sealed record ResourceChangeSet(
     public bool HasErrors => Diagnostics.Any(diagnostic =>
         diagnostic.Severity == ResourceDefinitionDiagnosticSeverity.Error);
 
-    public ResourceDefinition ToDefinition() => ProposedState.ToDefinition();
+    public ResourceDefinition ToDefinition() =>
+        ProposedState.ToDefinition() with
+        {
+            Attributes = Resource.FilterInterchangeAttributes(ProposedState.ResourceAttributes)
+        };
 
     public ResourceDefinition ToIncrementalDefinition() =>
         IsNewResource
-            ? ProposedState.ToDefinition()
+            ? ToDefinition()
             : new(
                 Resource.State.Name,
                 Resource.State.TypeId,
@@ -408,7 +431,9 @@ public sealed record ResourceChangeSet(
                 Resource.State.Version,
                 Attributes: AttributeChanges.ToDictionary(
                     change => change.AttributeId,
-                    change => change.NewValue),
+                    change => change.NewValue)
+                    .Where(attribute => !Resource.IsReadOnlyAttribute(attribute.Key))
+                    .ToDictionary(attribute => attribute.Key, attribute => attribute.Value),
                 Capabilities: CapabilityChanges.ToDictionary(
                     change => change.CapabilityId,
                     change => ResourceDefinitionJson.Clone(change.NewPayload)));

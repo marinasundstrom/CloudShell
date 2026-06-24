@@ -153,6 +153,75 @@ public sealed class ResourceResolverTests
     }
 
     [Fact]
+    public void Resolve_ReportsReadOnlyAttributeDeclaredInResourceDefinition()
+    {
+        var resolver = new ResourceResolver(
+            [
+                new("container")
+            ],
+            [
+                new(
+                    "docker.container",
+                    "container",
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                    {
+                        ["endpoints.count"] = new(
+                            DefaultValue: 0,
+                            ValueShape: new(ResourceAttributeValueKind.Integer),
+                            ReadOnly: true)
+                    })
+            ]);
+        var definition = new ResourceDefinition(
+            "api",
+            "docker.container",
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                ["endpoints.count"] = "2"
+            });
+
+        var resolved = resolver.Resolve(definition);
+
+        var diagnostic = Assert.Single(resolved.Diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.ReadOnlyAttributeChange, diagnostic.Code);
+        Assert.Equal("endpoints.count", diagnostic.Target);
+    }
+
+    [Fact]
+    public void Resolve_AllowsReadOnlyAttributeInResourceState()
+    {
+        var resolver = new ResourceResolver(
+            [
+                new("container")
+            ],
+            [
+                new(
+                    "docker.container",
+                    "container",
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                    {
+                        ["endpoints.count"] = new(
+                            DefaultValue: 0,
+                            ValueShape: new(ResourceAttributeValueKind.Integer),
+                            ReadOnly: true)
+                    })
+            ]);
+        var state = new ResourceState(
+            "api",
+            "docker.container",
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                ["endpoints.count"] = "2"
+            });
+
+        var resolved = resolver.Resolve(state);
+
+        Assert.Empty(resolved.Diagnostics);
+        Assert.Equal("2", resolved.Attributes.GetString("endpoints.count"));
+        Assert.True(resolved.Attributes.Resolve("endpoints.count")?.ReadOnly);
+    }
+
+    [Fact]
     public void Resolve_ReportsInvalidAttributeDefinitionDefaultKind()
     {
         var resolver = new ResourceResolver(

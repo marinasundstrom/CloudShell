@@ -2531,8 +2531,9 @@ Suggested principles:
   capability, and configuration keys.
 - Use read-only attribute definitions for provider-projected state that should
   appear on the resolved Resource projection but should not be authored by
-  deployment ResourceDefinition documents, such as a Docker container endpoint
-  count before concrete endpoint objects exist in the graph model.
+  deployment ResourceDefinition documents or rendered back into ResourceDefinition
+  interchange output, such as a Docker container endpoint count before concrete
+  endpoint objects exist in the graph model.
 - Prefer value objects and typed IDs in .NET APIs for resource type IDs,
   attribute IDs, capability IDs, operation IDs, references, and source IDs.
   Those value objects should serialize as their stable string values through

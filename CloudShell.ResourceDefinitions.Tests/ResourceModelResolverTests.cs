@@ -50,6 +50,43 @@ public sealed class ResourceModelResolverTests
     }
 
     [Fact]
+    public void ResourceDefinition_RenderingOmitsReadOnlyResourceStateAttributes()
+    {
+        var resolver = new ResourceResolver(
+            [
+                new("container")
+            ],
+            [
+                new(
+                    "docker.container",
+                    "container",
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                    {
+                        ["container.image"] = new(ValueShape: new(ResourceAttributeValueKind.String)),
+                        ["endpoints.count"] = new(
+                            DefaultValue: 0,
+                            ValueShape: new(ResourceAttributeValueKind.Integer),
+                            ReadOnly: true)
+                    })
+            ]);
+        var resource = resolver.Resolve(new ResourceState(
+            "api",
+            "docker.container",
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                ["container.image"] = "example/api:1.0",
+                ["endpoints.count"] = "2"
+            }));
+
+        var rendered = resource.ToDefinition();
+
+        Assert.Equal("2", resource.Attributes.GetString("endpoints.count"));
+        Assert.True(resource.Attributes.Resolve("endpoints.count")?.ReadOnly);
+        Assert.Equal("example/api:1.0", rendered.ResourceAttributes["container.image"]);
+        Assert.DoesNotContain("endpoints.count", rendered.ResourceAttributes.Keys);
+    }
+
+    [Fact]
     public void ResourceDefinition_IncrementalApplyMergesResourceOwnedState()
     {
         var createdAt = new DateTimeOffset(2026, 6, 23, 12, 0, 0, TimeSpan.Zero);

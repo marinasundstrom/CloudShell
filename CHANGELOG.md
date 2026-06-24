@@ -20,6 +20,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Docker container reference resources now mark `endpoints.count` as read-only
   provider-projected state, so deployment definitions cannot author endpoint
   counts while resolved Resource projections still expose the default count.
+- ResourceDefinition rendering and validation now treat read-only attributes as
+  outside the interchange document surface: read-only Resource state can be
+  resolved, but authored and rendered ResourceDefinition attributes omit it.
 
 ### 2026-06-24
 

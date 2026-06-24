@@ -29,11 +29,21 @@ public sealed class ResourceResolver
 
         return Resolve(
             ResourceState.FromDefinition(definition),
+            validateReadOnlyDefinitionAttributes: true,
             context);
     }
 
     public Resource Resolve(
         ResourceState state,
+        ResourceDefinitionResolutionContext? context = null) =>
+        Resolve(
+            state,
+            validateReadOnlyDefinitionAttributes: false,
+            context);
+
+    private Resource Resolve(
+        ResourceState state,
+        bool validateReadOnlyDefinitionAttributes,
         ResourceDefinitionResolutionContext? context = null)
     {
         ArgumentNullException.ThrowIfNull(state);
@@ -57,6 +67,11 @@ public sealed class ResourceResolver
 
         ValidateRequiredAttributes(classDefinition, typeDefinition, attributes, diagnostics);
         ValidateRequiredCapabilities(capabilities, diagnostics);
+        if (validateReadOnlyDefinitionAttributes)
+        {
+            ValidateReadOnlyDefinitionAttributes(state, attributes, diagnostics);
+        }
+
         ValidateAttributes(
             state,
             classDefinition,
@@ -73,6 +88,23 @@ public sealed class ResourceResolver
             capabilities,
             operations,
             diagnostics);
+    }
+
+    private static void ValidateReadOnlyDefinitionAttributes(
+        ResourceState state,
+        ResourceAttributeSet attributes,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        foreach (var attributeId in state.ResourceAttributes.Keys)
+        {
+            if (attributes.Resolve(attributeId)?.ReadOnly == true)
+            {
+                diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                    ResourceDefinitionDiagnosticCodes.ReadOnlyAttributeChange,
+                    $"Attribute '{attributeId}' is read-only and cannot be declared in a resource definition.",
+                    attributeId));
+            }
+        }
     }
 
     private ResourceTypeDefinition ResolveTypeDefinition(
