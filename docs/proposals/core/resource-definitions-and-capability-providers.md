@@ -1410,6 +1410,16 @@ ResourceGraphCommitResult commit =
     await transaction.CommitAsync(commitContext, cancellationToken);
 ```
 
+The naming is still open. This boundary may end up being called a transaction,
+a graph change context, or something else. The important requirement is that
+CloudShell has a clear scope where graph changes are staged, validated,
+accepted, and flushed to the backing store as one unit. For workflows that need
+stronger coordination, that scope should be able to become exclusive so no
+other writer can modify or flush graph changes to the same store while the
+scope is active. The conservative POC shape is an in-process exclusive graph
+boundary; a distributed Control Plane would still need store-backed locking,
+leases, or transaction support above this model.
+
 For a hypothetical container type provider, changing `container.image` while
 the resource is stopped may only update accepted resource state. Changing it while the
 resource is running may plan a deployment operation. Changing it while the
@@ -1466,6 +1476,13 @@ exposes the pending `ResourceGraphChangeSet` for inspection, and can be
 committed once through the graph model. It prevents reusing a completed
 transaction, but it does not yet resolve resources, run capability providers,
 or apply merge policies itself.
+
+The POC also supports an opt-in exclusive mode for the in-memory
+`ResourceGraphModel`. Exclusive mode holds the model lock for the graph change
+boundary and blocks other in-process graph reads, commits, refreshes, and
+reloads until the boundary commits or is disposed. This proves the shape of an
+atomic change boundary without making the core Resource model responsible for
+the final distributed locking or transaction policy.
 
 ## Capability Providers
 

@@ -262,6 +262,58 @@ public sealed class ResourceGraphChangeTrackingTests
     }
 
     [Fact]
+    public async Task ResourceGraphTransaction_ExclusiveBlocksGraphAccessUntilDisposed()
+    {
+        var stateProvider = new InMemoryResourceStateProvider([CreateState("api", "./api")]);
+        var model = new ResourceGraphModel(stateProvider);
+
+        await using var transaction = await model.BeginTransactionAsync(
+            ResourceGraphTransactionOptions.Exclusive);
+        var blockedSnapshot = model.GetSnapshotAsync().AsTask();
+
+        await Task.Delay(50);
+
+        Assert.False(blockedSnapshot.IsCompleted);
+
+        await transaction.DisposeAsync();
+        var snapshot = await blockedSnapshot;
+
+        Assert.Equal(transaction.BaseVersion, snapshot.Version);
+    }
+
+    [Fact]
+    public async Task ResourceGraphTransaction_ExclusiveBlocksGraphCommitUntilDisposed()
+    {
+        var stateProvider = new InMemoryResourceStateProvider([CreateState("api", "./api")]);
+        var model = new ResourceGraphModel(stateProvider);
+        var applyDispatcher = new ResourceChangeApplyDispatcher(
+            [new ExecutableApplicationResourceTypeProvider()]);
+
+        await using var transaction = await model.BeginTransactionAsync(
+            ResourceGraphTransactionOptions.Exclusive);
+        var tracker = new ResourceGraphChangeTracker(transaction.Snapshot);
+        tracker.Track(await StageExecutablePathChangeAsync(
+            transaction.Snapshot,
+            "application.executable:api",
+            "./api-blocked",
+            applyDispatcher));
+        var blockedCommit = model
+            .CommitAsync(
+                tracker.GetChanges(),
+                new ResourceGraphCommitContext())
+            .AsTask();
+
+        await Task.Delay(50);
+
+        Assert.False(blockedCommit.IsCompleted);
+
+        await transaction.DisposeAsync();
+        var commit = await blockedCommit;
+
+        Assert.True(commit.IsCommitted);
+    }
+
+    [Fact]
     public async Task ResourceGraphModel_RejectsStaleTrackedChangesBeforeProviderCommit()
     {
         var stateProvider = new InMemoryResourceStateProvider([CreateState("api", "./api")]);

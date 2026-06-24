@@ -85,6 +85,10 @@ on `git blame --follow`, and then by the broad type of change.
 - The resource definitions POC now includes a small `ResourceGraphTransaction`
   facade that stages accepted resource changes against a graph snapshot and
   commits them once through `ResourceGraphModel`.
+- The resource definitions POC now supports an opt-in exclusive graph change
+  boundary that holds the in-process `ResourceGraphModel` lock until the
+  boundary commits or is disposed, while the proposal keeps the final
+  transaction/change-context terminology open.
 - The resource definitions POC now separates graph change tracking, graph
   commit results, graph model transactions, graph state snapshots, and
   persistence providers into focused infrastructure files, and the proposal
