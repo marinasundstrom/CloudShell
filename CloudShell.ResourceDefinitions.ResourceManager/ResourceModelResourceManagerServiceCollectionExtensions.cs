@@ -36,6 +36,26 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
         return services;
     }
 
+    public static IServiceCollection AddInMemoryResourceModelGraphRecords<TRecord>(
+        this IServiceCollection services,
+        IResourceGraphStoreProjector<TRecord> projector,
+        IEnumerable<TRecord>? records = null)
+        where TRecord : notnull
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(projector);
+
+        var initialRecords = (records ?? []).ToArray();
+
+        services.AddSingleton<IResourceStateProvider>(
+            _ => new InMemoryProjectedResourceStateProvider<TRecord>(
+                projector,
+                initialRecords));
+        services.AddSingleton<ResourceGraphModel>();
+
+        return services;
+    }
+
     public static IServiceCollection AddResourceModelGraphServices(
         this IServiceCollection services,
         IEnumerable<ResourceClassDefinition> classDefinitions)

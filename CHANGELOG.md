@@ -118,6 +118,10 @@ on `git blame --follow`, and then by the broad type of change.
   resolutions alongside dependency-closure resources.
 - The resource graph resolver also keeps direct resource-id lookup as a
   first-class path for consumers that already hold a graph resource address.
+- The Resource Manager bridge can now register an in-memory graph from custom
+  store records through `IResourceGraphStoreProjector<TRecord>`, proving that
+  Resource Manager-owned rows can keep operational fields while persisting the
+  Resource model graph payload.
 - The resource definitions POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change

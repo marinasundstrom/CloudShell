@@ -2118,7 +2118,10 @@ database schema does not need to expose every graph field as columns before
 the graph shape stabilizes.
 The first code proof is intentionally in-memory: a custom Resource Manager row
 can keep an operational-state field while the projector updates only its JSON
-graph payload from accepted `ResourceState`.
+graph payload from accepted `ResourceState`. The Resource Manager bridge
+exposes a generic in-memory graph registration overload for projected store
+records, so hosts can supply their own Resource Manager-owned row type plus an
+`IResourceGraphStoreProjector<TRecord>`.
 
 Layered definition, persistence, and projection model:
 

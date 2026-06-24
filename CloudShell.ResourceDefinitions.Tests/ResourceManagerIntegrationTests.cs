@@ -485,6 +485,53 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_CanCommitThroughCustomResourceManagerRecordProjector()
+    {
+        var services = new ServiceCollection();
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddInMemoryResourceModelGraphRecords(
+            new ResourceManagerResourceRowProjector(),
+            [
+                new(
+                    "application.executable:api",
+                    ResourceDefinitionJson.FromValue(
+                        ResourceRecord.FromState(CreateExecutableState(includeVolumeConsumer: false))),
+                    OperationalState: "Running")
+            ]);
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var stateProvider = Assert.IsType<InMemoryProjectedResourceStateProvider<ResourceManagerResourceRow>>(
+            serviceProvider.GetRequiredService<IResourceStateProvider>());
+
+        var result = await service.ApplyDefinitionsAsync(
+            [
+                new(
+                    "api",
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    Attributes: new Dictionary<ResourceAttributeId, string>
+                    {
+                        [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet-watch"
+                    })
+            ],
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 24, 18, 0, 0, TimeSpan.Zero)));
+
+        var row = Assert.Single(stateProvider.GetRecords());
+        var committedState = row.GraphData.Deserialize<ResourceRecord>()!.ToState();
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        Assert.Equal("Running", row.OperationalState);
+        Assert.Equal("dotnet-watch", committedState.ResourceAttributes[
+            ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
+        Assert.Equal(new ResourceRevision(1), committedState.Revision);
+        Assert.Equal(
+            new DateTimeOffset(2026, 6, 24, 18, 0, 0, TimeSpan.Zero),
+            committedState.LastModifiedAt);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesDeploymentAcrossProviderBoundaries()
     {
         var services = new ServiceCollection();
@@ -674,6 +721,34 @@ public sealed class ResourceManagerIntegrationTests
             Environment.NewLine,
             diagnostics.Select(diagnostic =>
                 $"{diagnostic.Severity}: {diagnostic.Code}: {diagnostic.Message} ({diagnostic.Target})"));
+
+    private sealed record ResourceManagerResourceRow(
+        string ResourceId,
+        JsonElement GraphData,
+        string OperationalState);
+
+    private sealed class ResourceManagerResourceRowProjector :
+        IResourceGraphStoreProjector<ResourceManagerResourceRow>
+    {
+        public string GetResourceId(ResourceManagerResourceRow record) =>
+            record.ResourceId;
+
+        public ResourceState ToState(ResourceManagerResourceRow record) =>
+            record.GraphData.Deserialize<ResourceRecord>()?.ToState() ??
+            throw new InvalidOperationException("Resource graph payload could not be read.");
+
+        public ResourceManagerResourceRow FromState(
+            ResourceState state,
+            ResourceManagerResourceRow? currentRecord = null) =>
+            (currentRecord ?? new(
+                state.EffectiveResourceId,
+                ResourceDefinitionJson.EmptyObject,
+                OperationalState: "Unknown")) with
+            {
+                ResourceId = state.EffectiveResourceId,
+                GraphData = ResourceDefinitionJson.FromValue(ResourceRecord.FromState(state))
+            };
+    }
 
     private sealed class EmptyResourceRegistrationStore : IResourceRegistrationStore
     {
