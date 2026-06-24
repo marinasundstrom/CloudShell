@@ -234,6 +234,20 @@ validated, accepted, changed, and projected from definition intent?" Some
 provider classes may implement both roles, but the names should keep the
 resource projection role distinct from the resource-definition ownership role.
 
+The exact `IResourceProvider` contract is intentionally open. It may be only a
+resource resolution/listing surface, or it may include richer resolution by ID,
+query, environment, graph, or projection context. It should be able to use
+accepted resource definitions, provider-observed state, generated wrappers,
+capability resolvers, and operation resolvers to project the resources it
+returns.
+
+Mutation is a separate question. Adding, updating, deleting, applying, or
+tearing down resources may belong in focused contracts such as resource type
+apply providers, definition stores, lifecycle providers, or operation
+providers instead of on `IResourceProvider` itself. The POC should avoid
+collapsing listing/resolution and mutation into one broad provider interface
+until there is evidence that a combined contract is the right boundary.
+
 ## Capabilities vs Operations
 
 Capabilities and operations both add behavior to the resource model, but they
