@@ -851,6 +851,98 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesSqlServerAcrossProviderBoundaries()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddLocalVolumeResourceType();
+        services.AddSqlServerResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var volume = new ResourceDefinition(
+            "sql-data",
+            LocalVolumeResourceTypeProvider.ResourceTypeId);
+        var sql = new ResourceDefinition(
+            "sql",
+            SqlServerResourceTypeProvider.ResourceTypeId,
+            ProviderId: SqlServerResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [SqlServerResourceTypeProvider.Attributes.Version] = "2022",
+                [SqlServerResourceTypeProvider.Attributes.Edition] = "Developer"
+            },
+            Configuration: new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
+            {
+                [SqlServerResourceTypeProvider.ConfigurationSection] =
+                    ResourceDefinitionJson.FromValue(new SqlServerConfiguration(
+                    [
+                        new("appdb", "Application DB", EnsureCreated: true)
+                    ]))
+            },
+            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
+            {
+                [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
+                    ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
+                    [
+                        new(volume.EffectiveResourceId, "/var/opt/mssql")
+                    ]))
+            });
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "sql-app",
+                [volume, sql],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 24, 20, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedSql = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == sql.EffectiveResourceId);
+
+        Assert.Equal(ResourceManagerClass.Service, projectedSql.ResourceClass);
+        Assert.Equal(SqlServerResourceTypeProvider.ProviderId, projectedSql.Provider);
+        Assert.Equal("2022", projectedSql.ResourceAttributes["sqlserver.version"]);
+        Assert.Equal([volume.EffectiveResourceId], projectedSql.DependsOn);
+        var reconcile = Assert.Single(projectedSql.ResourceActions, action =>
+            action.Id == SqlServerResourceTypeProvider.Operations.ReconcileAccess.ToString());
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveWithDependenciesAsync(sql.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors);
+        Assert.Equal(
+            [sql.EffectiveResourceId, volume.EffectiveResourceId],
+            resolution.Resources.Select(resource => resource.EffectiveResourceId));
+        var capability = Assert.IsType<VolumeConsumerCapability>(
+            resolution.Target!.Capabilities.Get<VolumeConsumerCapability>());
+        Assert.Equal(volume.EffectiveResourceId, Assert.Single(capability.Mounts).Volume);
+
+        var procedure = new ResourceProcedureContext(
+            projectedSql,
+            null,
+            null,
+            new EmptyResourceRegistrationStore());
+
+        Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, reconcile));
+
+        var procedureResult = await provider.ExecuteActionAsync(procedure, reconcile);
+
+        Assert.Equal("Executed Application Sql Server Reconcile Access for sql.", procedureResult.Message);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_RejectsInvalidCapabilityReference()
     {
         var services = new ServiceCollection();

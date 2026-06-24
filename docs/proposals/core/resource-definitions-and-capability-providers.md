@@ -560,6 +560,18 @@ declaration rather than maintaining a hard-coded list of compatible resource
 types; type compatibility can be expressed by which resource types declare or
 accept the capability and by graph-level validation.
 
+The working porting status for the reference POC is:
+
+| Provider or resource type | Status | New-model coverage | Remaining outside the POC |
+| --- | --- | --- | --- |
+| Executable application (`application.executable`) | Ported as a reference provider | Type and class defaults, executable path validation and configuration, shared volume-consumer capability, start operation, typed wrapper, Resource Manager bridge projection and execution | Real local-process runtime integration, logs, endpoints, templates, and UI registration/update flow |
+| Local volume (`storage.volume`) | Ported as a reference provider | Storage class and type defaults, medium validation, provision operation, typed wrapper, apply planning, Resource Manager bridge projection | Provider-backed storage materialization, usage tracking, health, and monitoring |
+| Container application (`application.container-app`) | Ported as a narrow reference provider | Image and replica attributes, shared volume-consumer capability, start/restart/image-update operations, typed wrapper, Resource Manager bridge projection and execution | Actual container host orchestration, endpoints, revisions, replica runtime state, monitoring, and UI operations |
+| SQL Server (`application.sql-server`) | Ported as a narrow reference provider | Service class and type defaults, version/edition attributes, declared database configuration, shared volume-consumer capability, reconcile-access operation, typed wrapper, Resource Manager bridge projection and execution | Real SQL runtime integration, credential/grant reconciliation, database child projections, endpoints, and UI tabs |
+| ASP.NET Core project (`application.aspnet-core-project`) | Not ported | None | Project path and launch settings, endpoints, local process or container build behavior, UI registration/update flow |
+| SQL database child (`application.sql-database`) | Not ported | None | Provider-managed child projection, database-specific attributes, and database operations |
+| Docker/container host providers | Not ported | None | Runtime host capability providers, container host resolution, placement behavior, and runtime diagnostics |
+
 Host infrastructure registration is a separate concern from provider
 registration. A host may compose the generic graph services once from whatever
 class definitions, type providers, validators, capability providers, operation

@@ -279,6 +279,90 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task AddSqlServerResourceType_RegistersCompleteResourceTypeBoundary()
+    {
+        var services = new ServiceCollection();
+        services.AddLocalVolumeResourceType();
+        services.AddSqlServerResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var volume = new ResourceDefinition(
+            "sql-data",
+            LocalVolumeResourceTypeProvider.ResourceTypeId);
+        var definition = new ResourceDefinition(
+            "sql",
+            SqlServerResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [SqlServerResourceTypeProvider.Attributes.Version] = "2022",
+                [SqlServerResourceTypeProvider.Attributes.Edition] = "Developer"
+            },
+            Configuration: new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
+            {
+                [SqlServerResourceTypeProvider.ConfigurationSection] =
+                    ResourceDefinitionJson.FromValue(new SqlServerConfiguration(
+                    [
+                        new("appdb", "Application DB", EnsureCreated: true)
+                    ]))
+            },
+            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
+            {
+                [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
+                    ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
+                    [
+                        new(volume.EffectiveResourceId, "/var/opt/mssql")
+                    ]))
+            });
+
+        var validation = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphValidationPipeline>()
+            .ValidateAsync(
+                new ResourceDefinitionGraph([volume, definition]),
+                new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.False(validation.HasErrors);
+        var sqlValidation = validation.Resources.Single(resource =>
+            resource.Resource.EffectiveResourceId == definition.EffectiveResourceId);
+        Assert.Equal(SqlServerResourceTypeProvider.ClassId, sqlValidation.Resource.Class.ClassId);
+        Assert.Equal("2022", sqlValidation.Resource.Attributes.GetString(
+            SqlServerResourceTypeProvider.Attributes.Version));
+        Assert.True(sqlValidation.Resource.Capabilities.Has(
+            VolumeConsumerCapabilityProvider.CapabilityIdValue));
+        Assert.True(sqlValidation.Resource.Operations.Has(
+            SqlServerResourceTypeProvider.Operations.ReconcileAccess));
+
+        var projectedGraph = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphProjectionResolver>()
+            .ProjectAsync(
+                validation,
+                new ResourceProjectionContext("local", "developer"));
+        var projection = projectedGraph.Find<SqlServerResource>(
+            definition.EffectiveResourceId);
+
+        Assert.NotNull(projection);
+        Assert.Equal("2022", projection.Version);
+        Assert.Equal("Developer", projection.Edition);
+        Assert.Equal("appdb", Assert.Single(projection.Databases).Name);
+
+        var reconcile = await projection.GetReconcileAccessOperationAsync();
+
+        Assert.NotNull(reconcile);
+        Assert.True(await reconcile.CanExecuteAsync());
+        Assert.Equal("appdb", Assert.Single(reconcile.PlanReconciliation().Databases).Name);
+
+        var applyPlan = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphApplyPlanner>()
+            .PlanApplyAsync(
+                validation,
+                new ResourceDefinitionApplyContext("local", "developer"));
+
+        Assert.False(applyPlan.HasErrors);
+        Assert.Contains(applyPlan.Steps, step =>
+            step.ResourceId == definition.EffectiveResourceId &&
+            step.Kind == ResourceDefinitionApplyStepKind.MaterializeRuntime);
+    }
+
+    [Fact]
     public async Task ValidateCapabilitiesAsync_UsesRegisteredCapabilityProvider()
     {
         var dispatcher = CreateDispatcher(

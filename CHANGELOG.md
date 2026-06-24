@@ -151,6 +151,10 @@ on `git blame --follow`, and then by the broad type of change.
   capability declarations instead of hard-coding the resource types that may
   consume volumes, keeping capability behavior independent from concrete
   application provider implementations.
+- The resource definitions reference providers now include a narrow SQL Server
+  resource type with version/edition attributes, declared database
+  configuration, shared volume-consumer support, a reconcile-access operation
+  provider, typed wrapper, and Resource Manager bridge coverage.
 - The resource definitions POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change
