@@ -28,6 +28,8 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(classDefinitions);
 
         services.AddResourceModelResolver(classDefinitions);
+        services.AddScoped<ResourceGraphResolver>();
+        services.AddScoped<ResourceModelGraphResourceResolver>();
         services.AddScoped<ResourceProviderDispatcher>();
         services.AddScoped<ResourceCapabilityResolver>();
         services.AddScoped<ResourceOperationResolver>();

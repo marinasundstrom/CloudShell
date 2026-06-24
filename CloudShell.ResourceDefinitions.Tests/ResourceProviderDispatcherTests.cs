@@ -30,9 +30,12 @@ public sealed class ResourceProviderDispatcherTests
     {
         var services = new ServiceCollection();
         services.AddExecutableApplicationResourceType();
+        services.AddInMemoryResourceModelGraph();
         services.AddResourceModelGraphServices(
             [new(ExecutableApplicationResourceTypeProvider.ClassId)]);
         using var serviceProvider = services.BuildServiceProvider();
+
+        Assert.NotNull(serviceProvider.GetRequiredService<ResourceModelGraphResourceResolver>());
 
         var definition = new ResourceDefinition(
             "api",

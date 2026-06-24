@@ -410,6 +410,16 @@ diagnostics inside the bridge provider. The initial POC maps
 with the Resource model diagnostic code and message preserved, while the
 diagnostic source identifies the Resource model bridge.
 
+The bridge should also provide a caller-owned graph access point for workflows
+that need Resource model behavior. Resource Manager or an orchestrator can
+resolve a graph resource by the shared resource ID, optionally include its
+dependency closure, and receive the graph snapshot version plus the resolved
+`Resource` projections with capability and operation work units bound. The
+caller still owns any graph transaction, locking, apply dispatcher, retry, and
+commit policy. This keeps capability and operation objects as integration
+work units while leaving graph stability decisions at the Control Plane or
+Resource Manager boundary.
+
 The bridge project should own registration helpers for this integration seam.
 Hosts can register a graph-backed Resource model provider as an existing
 Resource Manager `IResourceProvider` without making `CloudShell.ControlPlane`

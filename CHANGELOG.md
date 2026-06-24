@@ -49,6 +49,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource graph transactions now expose whether they are optimistic or
   exclusive, while projected capabilities and operations remain resource-local
   and leave graph scope, locking, apply, and commit decisions to the caller.
+- The Resource model Resource Manager bridge now includes a graph resource
+  resolver that resolves a resource by ID, optionally includes dependencies,
+  binds registered capability and operation projections, and returns the graph
+  snapshot version while leaving apply and commit policy to the caller.
 - The resource definitions POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change
