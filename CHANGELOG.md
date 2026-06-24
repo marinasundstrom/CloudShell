@@ -111,6 +111,10 @@ on `git blame --follow`, and then by the broad type of change.
   resolves `ResourceGraphSnapshot` state through `ResourceResolver` at the
   provider boundary before projecting resources into the existing Resource
   Manager shape.
+- The resource definitions POC now includes a graph resolver that resolves a
+  target resource and its declared dependency closure from a
+  `ResourceGraphSnapshot`, returning resolved resources and diagnostics for
+  missing graph nodes or dependency cycles.
 - The resource definitions proposal now clarifies that capabilities and
   operations are integration points whose implementations may be owned by
   Resource Manager, orchestrators, provider packages, or other Control Plane

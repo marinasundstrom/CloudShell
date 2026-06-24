@@ -421,6 +421,12 @@ provider behavior, and committing graph changes remain implementation details
 of the Resource Manager, orchestrator, or broader Control Plane coordination
 layer.
 
+The POC supports that lookup shape with a small Resource model graph resolver
+that can resolve a target resource and its declared dependency closure from a
+`ResourceGraphSnapshot`. The resolver returns resolved `Resource` projections
+plus diagnostics for missing graph nodes or dependency cycles; it does not
+decide lifecycle ordering, lock policy, or persistence behavior.
+
 The distinction should be kept explicit:
 
 | Concept | Describes | Owned by |
