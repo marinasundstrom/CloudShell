@@ -136,7 +136,9 @@ public sealed class ResourceDefinitionGraphChangeApplier(
             {
                 if (options.CreateMissingResources)
                 {
-                    var createdResource = resolver.Resolve(definition);
+                    var createdResource = resolver.Resolve(
+                        definition,
+                        ToResolutionContext(context));
                     var createdChanges = ResourceChangeSet.FromNewResource(createdResource);
                     var acceptedCreate = await applyDispatcher.ApplyChangesAsync(
                         createdChanges,
@@ -154,7 +156,9 @@ public sealed class ResourceDefinitionGraphChangeApplier(
                 continue;
             }
 
-            var resource = resolver.Resolve(state);
+            var resource = resolver.Resolve(
+                state,
+                ToResolutionContext(context));
             var changes = resource.ApplyDefinition(definition);
             var accepted = await applyDispatcher.ApplyChangesAsync(
                 changes,
@@ -210,6 +214,10 @@ public sealed class ResourceDefinitionGraphChangeApplier(
 
         return diagnostics;
     }
+
+    private static ResourceDefinitionResolutionContext ToResolutionContext(
+        ResourceChangeApplyContext context) =>
+        new(context.EnvironmentId, context.PrincipalId);
 }
 
 public sealed record ResourceDefinitionGraphChangeApplierOptions(

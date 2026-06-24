@@ -114,6 +114,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The resource definition graph change applier now preflights incoming
   definition batches and rejects duplicate resource IDs or missing dependency
   targets before type-owned apply providers stage resource-local changes.
+- The resource definition graph change applier now passes environment and
+  principal context into resource resolution, allowing attribute validators to
+  evaluate the same caller context used by type-owned apply providers.
 - The Resource Manager bridge now exposes a definition apply service that
   applies incoming `ResourceDefinition` overlays through the graph model and
   returns staged changes plus the graph commit result for integration callers.

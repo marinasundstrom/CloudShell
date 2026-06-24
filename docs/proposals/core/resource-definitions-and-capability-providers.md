@@ -1015,6 +1015,10 @@ resource IDs or dependencies that cannot be found in either the current graph
 or the incoming definitions. Those remain graph-level diagnostics because the
 individual resource type provider should not have to reason about whether the
 whole definition batch is structurally coherent.
+When it resolves existing resources or create-missing definitions, the graph
+applier also maps the apply context into `ResourceDefinitionResolutionContext`
+so attribute validators can use the same environment and principal as the
+type-owned apply provider.
 When the caller is applying a deployment document rather than a conservative
 overlay update, the applier can be explicitly told to create missing
 resources. In that mode the incoming definition is resolved as a new

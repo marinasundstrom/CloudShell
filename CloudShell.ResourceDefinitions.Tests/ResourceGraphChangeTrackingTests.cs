@@ -341,6 +341,24 @@ public sealed class ResourceGraphChangeTrackingTests
     }
 
     [Fact]
+    public async Task DefinitionGraphChangeApplier_PassesApplyContextToResourceResolution()
+    {
+        var stateProvider = new InMemoryResourceStateProvider();
+        var applier = CreateDefinitionGraphChangeApplier(
+            new PrincipalAttributeValidator("developer"));
+        var snapshot = await stateProvider.GetSnapshotAsync();
+
+        var changes = await applier.ApplyDefinitionsAsync(
+            snapshot,
+            [CreateDefinition("api", "./api")],
+            new ResourceChangeApplyContext("local", "developer", Commit: true),
+            ResourceDefinitionGraphChangeApplierOptions.CreateMissing);
+
+        Assert.False(changes.HasErrors);
+        Assert.True(Assert.Single(changes.AcceptedResources).IsAccepted);
+    }
+
+    [Fact]
     public async Task DefinitionGraphChangeApplier_RejectsDuplicateIncomingDefinitions()
     {
         var stateProvider = new InMemoryResourceStateProvider();
@@ -788,13 +806,15 @@ public sealed class ResourceGraphChangeTrackingTests
         return resolver.Resolve(state);
     }
 
-    private static ResourceDefinitionGraphChangeApplier CreateDefinitionGraphChangeApplier()
+    private static ResourceDefinitionGraphChangeApplier CreateDefinitionGraphChangeApplier(
+        params IResourceAttributeValidator[] attributeValidators)
     {
         var typeProvider = new ExecutableApplicationResourceTypeProvider();
         return new(
             new ResourceResolver(
                 [new ResourceClassDefinition(ExecutableApplicationResourceTypeProvider.ClassId)],
-                [typeProvider.TypeDefinition]),
+                [typeProvider.TypeDefinition],
+                attributeValidators),
             new ResourceChangeApplyDispatcher([typeProvider]));
     }
 
@@ -854,5 +874,30 @@ public sealed class ResourceGraphChangeTrackingTests
                 ResourceId = state.EffectiveResourceId,
                 GraphData = ResourceDefinitionJson.FromValue(ResourceRecord.FromState(state))
             };
+    }
+
+    private sealed class PrincipalAttributeValidator(
+        string expectedPrincipalId) : IResourceAttributeValidator
+    {
+        public bool CanValidate(
+            ResourceAttributeResolution attribute,
+            ResourceAttributeValidationContext context) =>
+            attribute.Name == ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath;
+
+        public ResourceDefinitionValidationResult Validate(
+            ResourceAttributeResolution attribute,
+            ResourceAttributeValidationContext context) =>
+            string.Equals(
+                context.ResolutionContext.PrincipalId,
+                expectedPrincipalId,
+                StringComparison.Ordinal)
+                    ? ResourceDefinitionValidationResult.Success
+                    : ResourceDefinitionValidationResult.FromDiagnostics(
+                        [
+                            ResourceDefinitionDiagnostic.Error(
+                                "test.principalMissing",
+                                "The expected principal was not passed to resource resolution.",
+                                attribute.Name)
+                        ]);
     }
 }
