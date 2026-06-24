@@ -424,6 +424,30 @@ bridge compose a resolver from those services. That keeps provider packages as
 the owners of their type definitions while Resource Manager consumes the
 resolved graph through the existing provider composition path.
 
+The expected migration path is to keep the bridge temporary and incremental.
+Once the graph model, provider registration, resolution, diagnostics, and
+Resource Manager projection path work well enough, existing resource providers
+can be ported to the new provider model one boundary at a time. After the
+ported providers cover the required Resource Manager behavior, the older
+resource provider infrastructure can be removed instead of maintained as a
+parallel long-term model.
+
+Porting a provider means implementing the complete Resource model support that
+the resource type needs to work, not only mapping an existing provider to a new
+list or projection interface. A ported resource type should own its
+`ResourceTypeDefinition`, attribute definitions and validation, supported
+capability declarations and capability provider implementations, supported
+operation declarations and operation provider implementations, plus any apply,
+update, or provider-owned behavior required for Resource Manager and other
+Control Plane consumers to use that type through the new model.
+
+This migration does not mean Resource Manager stops owning resources in its
+Control Plane domain. Resource Manager can continue to keep operational
+resource records and project from its own data, from the resolved Resource
+model graph, or from both when a workflow needs graph-aware information. The
+Resource model becomes the declaration and graph-behavior boundary; Resource
+Manager remains the operational entry point that composes the view it needs.
+
 Graph locking, graph update coordination, and transaction policy belong at
 the Resource Manager or Control Plane coordination layer. The Resource model
 can provide change sets, resolved projections, diagnostics, and commit-shaped

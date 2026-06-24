@@ -145,6 +145,10 @@ on `git blame --follow`, and then by the broad type of change.
 - The Resource Manager bridge for the resource definitions POC now includes a
   DI helper that builds `ResourceResolver` from registered class definitions,
   `IResourceTypeProvider` implementations, and attribute validators.
+- The resource definitions proposal now documents the expected provider
+  migration path: port each resource type boundary completely, including
+  definitions, validation, capabilities, operations, and provider behavior,
+  before removing the older resource provider infrastructure.
 - The resource definitions proposal now clarifies that capabilities and
   operations are integration points whose implementations may be owned by
   Resource Manager, orchestrators, provider packages, or other Control Plane
