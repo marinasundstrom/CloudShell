@@ -35,6 +35,14 @@ to blur together. It also tempts the platform to put complex resource
 configuration into projected attributes, even though attributes are currently
 documented as stable, non-secret projected facts.
 
+Resource definitions also need inherited expectations. A resource instance can
+inherit attributes, capabilities, and commands from its `ResourceTypeDefinition`,
+and that type definition can in turn inherit from a broader
+`ResourceClassDefinition`. Raw property bags such as `.Attributes`,
+`.Capabilities`, and projected command lists therefore cannot be treated as
+the effective model. They are authored or projected inputs that need resolution
+against class, type, preset, provider, and environment rules.
+
 Capabilities have a related issue. A resource type may support a capability,
 an individual resource definition may declare capability-owned intent, and a
 projected resource may advertise a capability that downstream systems can
@@ -67,6 +75,13 @@ language should distinguish commands from operations.
 - Treat resource operation providers as attached behavior registered through
   dependency injection, so each provider can own the provider-side operation
   behind one defined resource command.
+- Define `ResourceClassDefinition` and `ResourceTypeDefinition` inheritance so
+  attributes, capabilities, commands, defaults, presets, and requirements can
+  be resolved before validation or projection.
+- Define attribute validators for common rules and provider/type-specific
+  rules, including required attributes and broader value validation.
+- Provide resolver APIs that compute effective attributes, capabilities, and
+  commands instead of asking callers to trust raw property bags.
 - Separate resource-type validation from cross-cutting capability validation.
 - Preserve provider ownership over runtime behavior, apply/update/delete
   behavior, and provider-specific configuration.
@@ -86,6 +101,9 @@ language should distinguish commands from operations.
 - Do not replace provider-specific typed definitions immediately; the first
   step is an envelope and validation model that existing definitions can map
   into.
+- Do not require the first implementation to settle the final resolver API
+  shape. The durable requirement is that resolution exists and callers have a
+  supported path to ask for effective values and diagnostics.
 - Do not make capability providers UI actions. Capabilities may support UI
   workflows, but their model behavior belongs to the resource/domain layer.
 - Do not make resource commands UI actions. They are resource-domain commands
@@ -170,6 +188,100 @@ The distinction should be kept explicit:
 | projected attributes | Stable non-secret facts about the current projection | Owning provider or Control Plane overlay |
 | runtime state | Observed provider/runtime facts | Provider, orchestrator, or Control Plane operational store |
 
+## Class and Type Definitions
+
+Resource definitions should be resolved against two inherited definition
+layers:
+
+- `ResourceClassDefinition` describes broad expectations for a class such as
+  executable, container, storage, network, configuration, service, or
+  infrastructure.
+- `ResourceTypeDefinition` describes precise type expectations such as
+  `application.executable`, `application.container-app`, `cloudshell.volume`,
+  or `cloudshell.storage`.
+
+A resource definition instance then supplies concrete intent. Conceptually:
+
+```text
+ResourceClassDefinition
+    -> ResourceTypeDefinition
+        -> ResourceDefinition
+            -> ResolvedResourceDefinition
+```
+
+Class and type definitions can contribute:
+
+- default attributes
+- required attributes
+- attribute descriptors and validators
+- supported capabilities
+- required capabilities
+- default capability payloads
+- supported commands
+- command requirements
+- provider selection requirements
+- presets or named partial definition overlays
+- class/type-level diagnostics and compatibility rules
+
+The instance definition supplies values, selects presets where allowed, and can
+override values only within the constraints defined by the class and type. A
+type definition should not be a passive label; it should be the contract that
+explains what the definition must contain before the provider can accept it.
+
+Presets should be modeled as named overlays rather than hidden provider
+shortcuts. A preset can provide default configuration, attributes,
+capabilities, and command policy, but it still resolves through the same class
+and type validators. This keeps a preset reviewable and avoids a second path
+that bypasses the resource-definition model.
+
+## Resolution
+
+Callers should avoid reading raw `.Attributes`, `.Capabilities`, or projected
+command collections when they need the effective model. Those members can be
+missing inherited values, can contain invalid authored values, or can represent
+provider projection rather than accepted intent.
+
+The exact API is still open, but the model needs supported methods or services
+that can answer questions such as:
+
+```csharp
+ResolvedResourceDefinition resolved = resolver.Resolve(
+    definition,
+    new ResourceDefinitionResolutionContext(environmentId, principal));
+
+string? executablePath = resolved.Attributes.GetString(
+    ResourceAttributeNames.ExecutablePath);
+
+bool consumesVolumes = resolved.Capabilities.Has(
+    ResourceCapabilityIds.StorageVolumeConsumer);
+
+bool canStart = resolved.Commands.Has(ResourceCommandIds.Start);
+```
+
+A resolved definition should expose effective values and diagnostics:
+
+```csharp
+public sealed record ResolvedResourceDefinition(
+    ResourceDefinition Definition,
+    ResourceClassDefinition ClassDefinition,
+    ResourceTypeDefinition TypeDefinition,
+    ResourceAttributeSet Attributes,
+    ResourceCapabilitySet Capabilities,
+    ResourceCommandSet Commands,
+    IReadOnlyList<ResourceDefinitionDiagnostic> Diagnostics);
+```
+
+The important requirement is not this exact API shape. The requirement is that
+CloudShell has a deliberate resolution boundary that combines class
+definitions, type definitions, presets, provider defaults, and authored
+resource definitions before validation, projection, command availability,
+deployment projection, or UI rendering relies on those values.
+
+The same principle applies to projected resources. A `Resource` projection can
+be checked against its known class/type expectations, but callers should use a
+validation or resolution helper rather than assuming the projected attribute
+dictionary is complete and valid.
+
 ## Resource Type Providers
 
 A resource type provider should own the behavior for a precise resource type or
@@ -180,6 +292,8 @@ Responsibilities:
 - declare supported resource type IDs
 - declare the expected `ResourceClass`
 - describe supported capabilities for the resource type
+- describe supported commands for the resource type
+- contribute or reference the `ResourceTypeDefinition`
 - parse or adapt the provider-owned configuration payload
 - apply defaults and normalize definition intent
 - validate type-specific configuration
@@ -219,10 +333,12 @@ public sealed class ExecutableApplicationResourceTypeProvider(
         ResourceDefinition definition,
         ResourceDefinitionValidationContext context)
     {
+        var resolved = context.Resolve(definition);
         var executable = definition.GetConfiguration<ExecutableConfiguration>(
             "executable");
 
-        var diagnostics = new List<ResourceDefinitionDiagnostic>();
+        var diagnostics = new List<ResourceDefinitionDiagnostic>(
+            resolved.Diagnostics);
 
         if (string.IsNullOrWhiteSpace(executable.Path))
         {
@@ -363,6 +479,73 @@ public sealed class VolumeConsumerCapabilityProvider(IVolumeManager volumes)
 This keeps storage behavior reusable across executable apps, ASP.NET Core
 projects, container apps, SQL Server resources, or future provider-owned
 service resources without pushing volume semantics into each resource type.
+
+## Attribute Validators
+
+Attribute validation should be explicit and reusable. Attributes are useful
+only when callers can understand whether an attribute is required, inherited,
+defaulted, supplied by the instance definition, projected by the provider, or
+invalid for the resource's class/type.
+
+Attribute validators should cover common rules:
+
+- required value
+- string, number, boolean, enum-like token, URI, path, resource reference, and
+  structured payload validation
+- allowed values
+- range and length checks
+- pattern checks
+- case normalization
+- invariant formatting
+- secret-value rejection
+- provider compatibility
+- cross-attribute rules
+
+They should also allow type-specific and capability-specific rules without
+forcing every rule into a central switch. For example:
+
+```csharp
+public sealed class ExecutablePathAttributeValidator : IResourceAttributeValidator
+{
+    public string AttributeName => ResourceAttributeNames.ExecutablePath;
+
+    public bool CanValidate(ResourceAttributeValidationContext context) =>
+        context.TypeDefinition.TypeId == "application.executable";
+
+    public ResourceAttributeValidationResult Validate(
+        ResourceAttributeValue value,
+        ResourceAttributeValidationContext context)
+    {
+        if (value.IsMissing)
+        {
+            return ResourceAttributeValidationResult.Error(
+                AttributeName,
+                "Executable path is required.");
+        }
+
+        if (!value.IsString)
+        {
+            return ResourceAttributeValidationResult.Error(
+                AttributeName,
+                "Executable path must be a string.");
+        }
+
+        return ResourceAttributeValidationResult.Valid(AttributeName);
+    }
+}
+```
+
+Validation should happen at two related boundaries:
+
+- definition validation: does the authored `ResourceDefinition` satisfy its
+  class/type/capability/command requirements?
+- projection validation: does the projected `Resource` still satisfy the known
+  `ResourceClassDefinition` and `ResourceTypeDefinition` expectations?
+
+Projection validation matters because provider projections can drift, omit
+inherited values, or carry legacy attribute names. Resource Manager and API
+clients should be able to surface diagnostics or normalized views instead of
+silently trusting raw projected attributes.
 
 ## Resource Operation Providers
 
@@ -516,23 +699,28 @@ The Control Plane should eventually validate definitions through a predictable
 pipeline:
 
 1. Parse the definition envelope.
-2. Resolve the resource type provider.
-3. Validate platform-owned identity, names, grouping, persistence, ownership,
+2. Resolve the resource class definition and resource type definition.
+3. Apply selected presets and deterministic defaults.
+4. Resolve inherited attributes, capabilities, and commands into an effective
+   model.
+5. Resolve the resource type provider.
+6. Validate platform-owned identity, names, grouping, persistence, ownership,
    and references.
-4. Let the resource type provider normalize and validate type-specific
+7. Run common and type-specific attribute validators.
+8. Let the resource type provider normalize and validate type-specific
    configuration.
-5. Resolve capability providers for declared capability intent.
-6. Let capability providers validate capability-owned payloads and references.
-7. Resolve resource operation providers for declared and type-supported
+9. Resolve capability providers for declared capability intent.
+10. Let capability providers validate capability-owned payloads and references.
+11. Resolve resource operation providers for declared and type-supported
    commands.
-8. Let operation providers validate command configuration, operation
+12. Let operation providers validate command configuration, operation
    configuration, and availability policy that can be checked before projection
    or apply.
-9. Run cross-definition graph validation, including dependencies,
+13. Run cross-definition graph validation, including dependencies,
    authorization, compatibility, and host/provider policy.
-10. Return diagnostics and normalized accepted definitions without side
+14. Return diagnostics and normalized accepted definitions without side
     effects.
-11. Apply, update, persist, or project only after validation succeeds.
+15. Apply, update, persist, or project only after validation succeeds.
 
 Expected validation failures should be returned as diagnostics or result
 objects. Exceptions should remain for programmer errors or boundary adapters
@@ -571,25 +759,37 @@ Provider-created and runtime-managed resources may be projected as `Resource`
 instances without having user-authored definitions. If they later become
 authorable, their provider should introduce a definition shape deliberately.
 
+Projected resources should still be validated against known
+`ResourceClassDefinition` and `ResourceTypeDefinition` expectations when those
+definitions exist. Projection validation can produce diagnostics, normalize
+legacy provider output, or explain why generated details and command
+availability are incomplete.
+
 ## Recommended First Slices
 
 1. Document the terminology across the domain and resource model docs:
    `Resource` is instance projection; `ResourceDefinition` is intent.
 2. Introduce a public preview `ResourceDefinition` envelope in
    `CloudShell.Abstractions` without migrating every provider immediately.
-3. Add a resource-definition validation result and diagnostic model.
-4. Add a resource type provider validation/normalization path for one narrow
+3. Add preview `ResourceClassDefinition` and `ResourceTypeDefinition` records
+   with inherited attribute, capability, and command descriptors.
+4. Add a resource-definition resolver that computes effective attributes,
+   capabilities, commands, and diagnostics.
+5. Add a resource-definition validation result and diagnostic model.
+6. Add common attribute validators and one type-specific validator.
+7. Add a resource type provider validation/normalization path for one narrow
    type, preferably `cloudshell.volume` or `application.executable`.
-5. Add a capability-provider path for `storage.volumeConsumer` that validates
+8. Add a capability-provider path for `storage.volumeConsumer` that validates
    `ResourceVolumeMount` intent outside application-specific code.
-6. Add a resource-operation-provider path for one standard lifecycle command,
+9. Add a resource-operation-provider path for one standard lifecycle command,
    preferably executable `start` or container app `restart`.
-7. Map one existing programmatic builder into the definition envelope.
-8. Update resource template export/import for the same narrow type to use the
+10. Map one existing programmatic builder into the definition envelope.
+11. Update resource template export/import for the same narrow type to use the
    definition format.
-9. Add Control Plane tests for valid definitions, invalid capability payloads,
-   missing capability providers, missing operation providers, and diagnostics.
-10. Add API/client projection only after the in-process definition model is
+12. Add Control Plane tests for valid definitions, invalid attributes, invalid
+   capability payloads, missing capability providers, missing operation
+   providers, projection validation, and diagnostics.
+13. Add API/client projection only after the in-process definition model is
    stable enough to expose.
 
 ## Open Questions
@@ -601,8 +801,16 @@ authorable, their provider should introduce a definition shape deliberately.
   facades for ergonomics?
 - How much normalized state should be persisted versus recomputed from the
   authored definition and current provider defaults?
+- What is the precedence order between class defaults, type defaults, selected
+  presets, provider defaults, and explicit resource-definition values?
+- Should class/type definitions be public authoring artifacts, provider-only
+  descriptors, or both?
 - Should definition migrations be owned entirely by resource type providers, or
   should the Control Plane own a common migration registry?
+- Which attribute validators belong in common abstractions versus provider
+  packages?
+- Should projection validation normalize invalid provider output, return
+  diagnostics only, or support both modes?
 - How should capability providers declare compatibility with resource types:
   type-provider metadata, capability-provider metadata, or both?
 - Which validation belongs in capability providers versus graph-level Control
@@ -621,8 +829,13 @@ authorable, their provider should introduce a definition shape deliberately.
 ## Remaining Tasks
 
 - Define the `ResourceDefinition` envelope and serialized field names.
+- Define `ResourceClassDefinition` and `ResourceTypeDefinition`, including
+  inheritance, presets, requirements, and descriptor precedence.
+- Define resolver services or helper methods for effective attributes,
+  capabilities, and commands.
 - Define resource type provider contracts for definition parsing,
   normalization, validation, projection, apply, update, and tear down.
+- Define common and provider-owned attribute validator contracts.
 - Define capability provider contracts for capability-owned payload parsing,
   validation, diagnostics, and helper behavior.
 - Define resource operation provider contracts for command projection, command

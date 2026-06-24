@@ -22,6 +22,10 @@ on `git blame --follow`, and then by the broad type of change.
   persisted `ResourceDefinition` intent, including DI-backed capability and
   operation providers as attached behavior over definition payloads and
   resource commands.
+- The resource definitions proposal now tracks inherited
+  `ResourceClassDefinition` and `ResourceTypeDefinition` expectations,
+  effective attribute/capability/command resolution, and common plus
+  provider-owned attribute validators.
 - SQL Server declared database child-resource projection now lives in
   `SqlServerDatabaseResourceProjector`, moving another resource-type concern
   out of `ApplicationResourceService`.
