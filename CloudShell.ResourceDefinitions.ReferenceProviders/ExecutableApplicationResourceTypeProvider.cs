@@ -1,6 +1,8 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
-public sealed class ExecutableApplicationResourceTypeProvider : IResourceTypeProvider
+public sealed class ExecutableApplicationResourceTypeProvider :
+    IResourceTypeProvider,
+    IResourceDefinitionApplyProvider
 {
     public static readonly ResourceClassId ClassId = "executable";
     public static readonly ResourceTypeId ResourceTypeId = "application.executable";
@@ -55,6 +57,36 @@ public sealed class ExecutableApplicationResourceTypeProvider : IResourceTypePro
         }
 
         return ValueTask.FromResult(ResourceDefinitionValidationResult.Success);
+    }
+
+    public bool CanPlan(ResourceDefinitionProjection resource) =>
+        resource.Resource.TypeDefinition.TypeId == ResourceTypeId;
+
+    public ValueTask<ResourceDefinitionApplyPlan> PlanApplyAsync(
+        ResourceDefinitionProjection resource,
+        ResourceDefinitionApplyContext context,
+        CancellationToken cancellationToken = default)
+    {
+        var configuration = resource.Definition.GetConfiguration<ExecutableApplicationConfiguration>(
+            ConfigurationSection);
+        var resourceId = resource.Definition.EffectiveResourceId;
+
+        return ValueTask.FromResult(new ResourceDefinitionApplyPlan(
+            resource,
+            [
+                new(
+                    resourceId,
+                    ResourceTypeId,
+                    ResourceDefinitionApplyStepKind.AcceptDefinition,
+                    "Accept executable application definition.",
+                    resource.Definition),
+                new(
+                    resourceId,
+                    ResourceTypeId,
+                    ResourceDefinitionApplyStepKind.MaterializeRuntime,
+                    $"Materialize executable application runtime state for '{configuration?.Path}'.")
+            ],
+            []));
     }
 }
 

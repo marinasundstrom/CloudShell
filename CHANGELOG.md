@@ -20,6 +20,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The resource definitions POC now includes a resource definition graph and
   deployment definition shape so proposed deployments can carry desired
   resource state before providers validate and apply it.
+- The resource definitions POC now includes resource definition apply planning
+  so validated graphs can resolve resource type apply providers and return
+  explicit definition/runtime materialization steps before mutation.
 - The resource definitions POC now includes a capability resolver and
   `ResourceDefinitionProjection` wrapper so provider-owned capability behavior
   can be composed into type-specific resource projections without making the

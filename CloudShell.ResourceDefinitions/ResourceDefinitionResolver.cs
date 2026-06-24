@@ -316,6 +316,7 @@ public static class ResourceDefinitionDiagnosticCodes
     public const string ResourceTypeProviderMissing = "resourceDefinition.resourceTypeProviderMissing";
     public const string DuplicateResourceDefinition = "resourceDefinition.duplicateResourceDefinition";
     public const string ResourceDependencyMissing = "resourceDefinition.resourceDependencyMissing";
+    public const string ResourceDefinitionApplyProviderMissing = "resourceDefinition.applyProviderMissing";
 }
 
 public static class ResourceDefinitionClassIds
