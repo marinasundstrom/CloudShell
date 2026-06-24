@@ -9,11 +9,10 @@ public sealed class SqlDatabaseGraphDependencyProvider : IResourceGraphDependenc
     {
         ArgumentNullException.ThrowIfNull(resource);
 
-        var serverResourceId = resource.Attributes.GetString(
-            SqlDatabaseResourceTypeProvider.Attributes.ServerResourceId);
-
-        return string.IsNullOrWhiteSpace(serverResourceId)
-            ? []
-            : [ResourceReference.ResourceId(serverResourceId)];
+        return SqlDatabaseResourceTypeProvider.TryGetServerResourceId(
+            resource.State,
+            out var serverResourceId)
+            ? [ResourceReference.ResourceId(serverResourceId)]
+            : [];
     }
 }

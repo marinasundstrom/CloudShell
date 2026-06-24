@@ -10,8 +10,11 @@ public sealed class SqlDatabaseResource(
             SqlDatabaseResourceTypeProvider.Attributes.DatabaseName);
 
     public string? ServerResourceId =>
-        Resource.Attributes.GetString(
-            SqlDatabaseResourceTypeProvider.Attributes.ServerResourceId);
+        SqlDatabaseResourceTypeProvider.TryGetServerResourceId(
+            Resource.State,
+            out var serverResourceId)
+            ? serverResourceId
+            : null;
 
     public string? Source =>
         Resource.Attributes.GetString(

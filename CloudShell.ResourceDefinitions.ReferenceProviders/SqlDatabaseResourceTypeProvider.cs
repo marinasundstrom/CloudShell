@@ -14,7 +14,6 @@ public sealed class SqlDatabaseResourceTypeProvider :
     public static class Attributes
     {
         public static readonly ResourceAttributeId DatabaseName = "database.name";
-        public static readonly ResourceAttributeId ServerResourceId = "database.serverResourceId";
         public static readonly ResourceAttributeId Source = "database.source";
         public static readonly ResourceAttributeId EnsureCreated = "database.ensureCreated";
     }
@@ -37,10 +36,6 @@ public sealed class SqlDatabaseResourceTypeProvider :
                 Required: true,
                 RequiredMessage: "SQL database name is required.",
                 ValueShape: new(ResourceAttributeValueKind.String)),
-            [Attributes.ServerResourceId] = new(
-                Required: true,
-                RequiredMessage: "SQL database server resource id is required.",
-                ValueShape: new(ResourceAttributeValueKind.String)),
             [Attributes.Source] = new(
                 DefaultValue: "declared",
                 ValueShape: new(ResourceAttributeValueKind.String)),
@@ -62,6 +57,7 @@ public sealed class SqlDatabaseResourceTypeProvider :
         CancellationToken cancellationToken = default)
     {
         var diagnostics = ValidateResolvedResource(resource);
+        ValidateServerReference(resource.State, diagnostics);
 
         return ValueTask.FromResult(
             ResourceDefinitionValidationResult.FromDiagnostics(diagnostics));
@@ -77,6 +73,7 @@ public sealed class SqlDatabaseResourceTypeProvider :
     {
         var diagnostics = new List<ResourceDefinitionDiagnostic>(changes.Diagnostics);
         diagnostics.AddRange(ValidateExplicitState(changes.ProposedState));
+        ValidateServerReference(changes.ProposedState, diagnostics);
 
         return ValueTask.FromResult(diagnostics.Any(diagnostic =>
             diagnostic.Severity == ResourceDefinitionDiagnosticSeverity.Error)
@@ -108,15 +105,12 @@ public sealed class SqlDatabaseResourceTypeProvider :
             ],
             []));
 
-    private static IReadOnlyList<ResourceDefinitionDiagnostic> ValidateResolvedResource(
+    private static List<ResourceDefinitionDiagnostic> ValidateResolvedResource(
         Resource resource)
     {
         var diagnostics = new List<ResourceDefinitionDiagnostic>();
         ValidateDatabaseName(
             resource.Attributes.GetString(Attributes.DatabaseName),
-            diagnostics);
-        ValidateServerResourceId(
-            resource.Attributes.GetString(Attributes.ServerResourceId),
             diagnostics);
         ValidateEnsureCreated(
             resource.Attributes.GetString(Attributes.EnsureCreated),
@@ -132,11 +126,6 @@ public sealed class SqlDatabaseResourceTypeProvider :
         if (state.ResourceAttributes.TryGetValue(Attributes.DatabaseName, out var databaseName))
         {
             ValidateDatabaseName(databaseName, diagnostics);
-        }
-
-        if (state.ResourceAttributes.TryGetValue(Attributes.ServerResourceId, out var serverResourceId))
-        {
-            ValidateServerResourceId(serverResourceId, diagnostics);
         }
 
         if (state.ResourceAttributes.TryGetValue(Attributes.EnsureCreated, out var ensureCreated))
@@ -160,17 +149,35 @@ public sealed class SqlDatabaseResourceTypeProvider :
         }
     }
 
-    private static void ValidateServerResourceId(
-        string? serverResourceId,
+    private static void ValidateServerReference(
+        ResourceState state,
         List<ResourceDefinitionDiagnostic> diagnostics)
     {
-        if (string.IsNullOrWhiteSpace(serverResourceId))
+        if (TryGetServerResourceId(state, out _))
         {
-            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
-                "application.sqlDatabase.serverResourceIdRequired",
-                "SQL database server resource id is required.",
-                Attributes.ServerResourceId));
+            return;
         }
+
+        diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+            "application.sqlDatabase.serverReferenceRequired",
+            "SQL database server reference is required.",
+            "dependsOn"));
+    }
+
+    internal static bool TryGetServerResourceId(
+        ResourceState state,
+        out string serverResourceId)
+    {
+        foreach (var reference in state.ResourceDependencies)
+        {
+            if (reference.TryGetResourceId(out serverResourceId))
+            {
+                return true;
+            }
+        }
+
+        serverResourceId = string.Empty;
+        return false;
     }
 
     private static void ValidateEnsureCreated(

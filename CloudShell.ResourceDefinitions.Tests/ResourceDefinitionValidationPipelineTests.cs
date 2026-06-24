@@ -186,8 +186,6 @@ public sealed class ResourceDefinitionValidationPipelineTests
         Assert.Contains(result.Diagnostics, diagnostic =>
             diagnostic.Code == "application.executable.pathRequired");
         Assert.Contains(result.Diagnostics, diagnostic =>
-            diagnostic.Code == ResourceDefinitionDiagnosticCodes.CapabilityProviderMissing);
-        Assert.Contains(result.Diagnostics, diagnostic =>
             diagnostic.Code == ResourceDefinitionDiagnosticCodes.OperationProviderMissing);
     }
 

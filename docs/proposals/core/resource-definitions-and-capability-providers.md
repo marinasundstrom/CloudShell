@@ -586,7 +586,7 @@ The working porting status for the reference POC is:
 | Container application (`application.container-app`) | Ported as a narrow reference provider | Image and replica attributes, shared volume-consumer capability, start/restart/image-update operations, typed wrapper, Resource Manager bridge projection and execution | Actual container host orchestration, endpoints, revisions, replica runtime state, monitoring, and UI operations |
 | ASP.NET Core project (`application.aspnet-core-project`) | Ported as a narrow reference provider | Project path, arguments, hot reload, launch-settings attributes, shared volume-consumer capability, start/restart operations, typed wrapper, Resource Manager bridge projection and execution | Launch settings parsing, endpoints, local process or container build behavior, UI registration/update flow |
 | SQL Server (`application.sql-server`) | Ported as a narrow reference provider | Service class and type defaults, version/edition attributes, declared database configuration, shared volume-consumer capability, reconcile-access operation, typed wrapper, Resource Manager bridge projection and execution | Real SQL runtime integration, credential/grant reconciliation, database child projections, endpoints, and UI tabs |
-| SQL database child (`application.sql-database`) | Ported as a narrow reference provider | Database name, server resource id, source, ensure-created attributes, server graph validator, provider-derived dependency, ensure-created operation, typed wrapper, Resource Manager bridge projection and execution | Real SQL database materialization, credential/grant reconciliation, provider-managed child ownership metadata, and UI tabs |
+| SQL database child (`application.sql-database`) | Ported as a narrow reference provider | Database name/source/ensure-created attributes, server `ResourceReference` validation, ensure-created operation, typed wrapper, Resource Manager bridge projection and execution | Real SQL database materialization, credential/grant reconciliation, provider-managed child ownership metadata, and UI tabs |
 | Docker/container host providers | Not ported | None | Runtime host capability providers, container host resolution, placement behavior, and runtime diagnostics |
 
 Host infrastructure registration is a separate concern from provider
@@ -637,7 +637,9 @@ objects, not raw resource ID strings. A reference carries the target value, the
 relationship, and the addressing mode. The current resolver only resolves
 `dependsOn` references addressed by `resourceId`, but the document shape can
 later represent references to projected resources or provider-native
-addresses. Resolving a `ResourceReference` is a first-class graph operation:
+addresses. Resource-to-resource relationships should prefer `ResourceReference`
+declarations over duplicating relationship identity into resource attributes.
+Resolving a `ResourceReference` is a first-class graph operation:
 when the reference can be resolved, the result carries the projected
 `Resource`; when it cannot, the result can stay unresolved or carry
 diagnostics. Direct lookup by resource ID remains supported for consumers that

@@ -1053,10 +1053,10 @@ public sealed class ResourceManagerIntegrationTests
             "appdb",
             SqlDatabaseResourceTypeProvider.ResourceTypeId,
             ProviderId: SqlDatabaseResourceTypeProvider.ProviderId,
+            DependsOn: [ResourceReference.ResourceId(server.EffectiveResourceId)],
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
                 [SqlDatabaseResourceTypeProvider.Attributes.DatabaseName] = "appdb",
-                [SqlDatabaseResourceTypeProvider.Attributes.ServerResourceId] = server.EffectiveResourceId,
                 [SqlDatabaseResourceTypeProvider.Attributes.EnsureCreated] = bool.TrueString.ToLowerInvariant()
             });
 
@@ -1083,7 +1083,6 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(ResourceManagerClass.Service, projectedDatabase.ResourceClass);
         Assert.Equal(SqlDatabaseResourceTypeProvider.ProviderId, projectedDatabase.Provider);
         Assert.Equal("appdb", projectedDatabase.ResourceAttributes["database.name"]);
-        Assert.Equal(server.EffectiveResourceId, projectedDatabase.ResourceAttributes["database.serverResourceId"]);
         Assert.Equal(bool.TrueString.ToLowerInvariant(), projectedDatabase.ResourceAttributes["database.ensureCreated"]);
         Assert.Equal([server.EffectiveResourceId], projectedDatabase.DependsOn);
         var ensureCreated = Assert.Single(projectedDatabase.ResourceActions, action =>

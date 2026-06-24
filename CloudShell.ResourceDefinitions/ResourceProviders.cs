@@ -104,10 +104,6 @@ public sealed class ResourceProviderDispatcher(
 
             if (provider is null)
             {
-                diagnostics.Add(ResourceDefinitionDiagnostic.Error(
-                    ResourceDefinitionDiagnosticCodes.CapabilityProviderMissing,
-                    $"No capability provider is registered for capability '{capability.Id}'.",
-                    capability.Id));
                 continue;
             }
 

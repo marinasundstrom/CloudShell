@@ -151,6 +151,9 @@ on `git blame --follow`, and then by the broad type of change.
   capability declarations instead of hard-coding the resource types that may
   consume volumes, keeping capability behavior independent from concrete
   application provider implementations.
+- Capability declarations without a registered capability provider are now
+  accepted as passive capability markers; registered capability providers still
+  validate and attach behavior when present.
 - The resource definitions reference providers now include a narrow SQL Server
   resource type with version/edition attributes, declared database
   configuration, shared volume-consumer support, a reconcile-access operation
@@ -160,9 +163,9 @@ on `git blame --follow`, and then by the broad type of change.
   launch-settings attributes, shared volume-consumer support, start/restart
   operation providers, a typed wrapper, and Resource Manager bridge coverage.
 - The resource definitions reference providers now include a narrow SQL
-  database resource type with database/server attributes, server graph
-  validation, provider-derived server dependencies, an ensure-created
-  operation provider, typed wrapper, and Resource Manager bridge coverage.
+  database resource type with database attributes, server `ResourceReference`
+  graph validation, an ensure-created operation provider, typed wrapper, and
+  Resource Manager bridge coverage.
 - Reference provider implementations now keep provider-owned configuration
   records and operation provider services in separate files next to the owning
   resource type provider, keeping type providers focused on definition shape,

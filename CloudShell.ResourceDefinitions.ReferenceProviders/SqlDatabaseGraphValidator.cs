@@ -13,9 +13,9 @@ public sealed class SqlDatabaseGraphValidator : IResourceDefinitionGraphValidato
         foreach (var resource in context.Resources.Where(resource =>
             resource.Type.TypeId == SqlDatabaseResourceTypeProvider.ResourceTypeId))
         {
-            var serverResourceId = resource.Attributes.GetString(
-                SqlDatabaseResourceTypeProvider.Attributes.ServerResourceId);
-            if (string.IsNullOrWhiteSpace(serverResourceId))
+            if (!SqlDatabaseResourceTypeProvider.TryGetServerResourceId(
+                    resource.State,
+                    out var serverResourceId))
             {
                 continue;
             }

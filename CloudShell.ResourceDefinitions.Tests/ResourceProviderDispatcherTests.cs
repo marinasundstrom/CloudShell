@@ -458,10 +458,10 @@ public sealed class ResourceProviderDispatcherTests
         var definition = new ResourceDefinition(
             "appdb",
             SqlDatabaseResourceTypeProvider.ResourceTypeId,
+            DependsOn: [ResourceReference.ResourceId(server.EffectiveResourceId)],
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
                 [SqlDatabaseResourceTypeProvider.Attributes.DatabaseName] = "appdb",
-                [SqlDatabaseResourceTypeProvider.Attributes.ServerResourceId] = server.EffectiveResourceId,
                 [SqlDatabaseResourceTypeProvider.Attributes.EnsureCreated] = bool.TrueString.ToLowerInvariant()
             });
 
@@ -477,8 +477,6 @@ public sealed class ResourceProviderDispatcherTests
         Assert.Equal(SqlDatabaseResourceTypeProvider.ClassId, databaseValidation.Resource.Class.ClassId);
         Assert.Equal("appdb", databaseValidation.Resource.Attributes.GetString(
             SqlDatabaseResourceTypeProvider.Attributes.DatabaseName));
-        Assert.Equal(server.EffectiveResourceId, databaseValidation.Resource.Attributes.GetString(
-            SqlDatabaseResourceTypeProvider.Attributes.ServerResourceId));
         Assert.Equal("declared", databaseValidation.Resource.Attributes.GetString(
             SqlDatabaseResourceTypeProvider.Attributes.Source));
         Assert.True(databaseValidation.Resource.Operations.Has(
@@ -543,7 +541,7 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
-    public async Task ValidateCapabilitiesAsync_ReportsMissingCapabilityProvider()
+    public async Task ValidateCapabilitiesAsync_AllowsPassiveCapabilityDeclarations()
     {
         var dispatcher = CreateDispatcher(
             typeProviders: [new ExecutableApplicationResourceTypeProvider()],
@@ -559,9 +557,7 @@ public sealed class ResourceProviderDispatcherTests
             resolved,
             new ResourceProviderContext());
 
-        var diagnostic = Assert.Single(result.Diagnostics);
-        Assert.Equal(ResourceDefinitionDiagnosticCodes.CapabilityProviderMissing, diagnostic.Code);
-        Assert.Equal("storage.volumeConsumer", diagnostic.Target);
+        Assert.Empty(result.Diagnostics);
     }
 
     [Fact]
