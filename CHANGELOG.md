@@ -26,6 +26,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Configuration store, host configuration source, load balancer, and Secrets
   Vault reference providers now mark count attributes as read-only provider
   facts instead of ResourceDefinition-authored desired state.
+- Resource attributes now carry `ResourceAttributeMutability`, allowing the
+  POC to mark read-only count attributes as provider-managed while preserving
+  `ReadOnly` as the caller-write enforcement rule.
 
 ### 2026-06-24
 

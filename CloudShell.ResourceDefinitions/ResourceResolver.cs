@@ -226,6 +226,7 @@ public sealed class ResourceResolver
     {
         var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeResolution>();
         var readOnlyAttributes = ResolveReadOnlyAttributeIds(resourceType);
+        var attributeMutability = ResolveAttributeMutability(resourceType);
 
         foreach (var attribute in resourceType.Attributes)
         {
@@ -236,7 +237,8 @@ public sealed class ResourceResolver
             attributes,
             state.ResourceAttributes,
             ResourceDefinitionValueSource.ResourceState,
-            readOnlyAttributes);
+            readOnlyAttributes,
+            attributeMutability);
 
         return new(attributes.Values);
     }
@@ -254,7 +256,8 @@ public sealed class ResourceResolver
         Dictionary<ResourceAttributeId, ResourceAttributeResolution> target,
         IReadOnlyDictionary<ResourceAttributeId, string>? attributes,
         ResourceDefinitionValueSource source,
-        IReadOnlySet<ResourceAttributeId>? readOnlyAttributes = null)
+        IReadOnlySet<ResourceAttributeId>? readOnlyAttributes = null,
+        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeMutability>? attributeMutability = null)
     {
         if (attributes is null)
         {
@@ -266,8 +269,24 @@ public sealed class ResourceResolver
             var readOnly =
                 target.TryGetValue(name, out var inherited) && inherited.ReadOnly ||
                 readOnlyAttributes?.Contains(name) == true;
-            target[name] = new(name, value, source, readOnly);
+            var mutability =
+                target.TryGetValue(name, out inherited)
+                    ? inherited.Mutability
+                    : attributeMutability is not null &&
+                        attributeMutability.TryGetValue(name, out var configuredMutability)
+                            ? configuredMutability
+                            : ResourceAttributeMutability.CallerManaged;
+            target[name] = new(name, value, source, readOnly, mutability);
         }
+    }
+
+    private static IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeMutability> ResolveAttributeMutability(
+        ResourceType resourceType)
+    {
+        var attributeMutability = new Dictionary<ResourceAttributeId, ResourceAttributeMutability>();
+        MergeAttributeMutability(attributeMutability, resourceType.Class.Definition.Attributes);
+        MergeAttributeMutability(attributeMutability, resourceType.Definition.Attributes);
+        return attributeMutability;
     }
 
     private static void MergeReadOnlyAttributeDefinitions(
@@ -288,6 +307,24 @@ public sealed class ResourceResolver
             else if (attributeDefinition.ReadOnly == false)
             {
                 target.Remove(name);
+            }
+        }
+    }
+
+    private static void MergeAttributeMutability(
+        Dictionary<ResourceAttributeId, ResourceAttributeMutability> target,
+        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? attributeDefinitions)
+    {
+        if (attributeDefinitions is null)
+        {
+            return;
+        }
+
+        foreach (var (name, attributeDefinition) in attributeDefinitions)
+        {
+            if (attributeDefinition.Mutability.HasValue)
+            {
+                target[name] = attributeDefinition.Mutability.Value;
             }
         }
     }
@@ -314,7 +351,8 @@ public sealed class ResourceResolver
                 name,
                 value,
                 source,
-                attributeDefinition.ReadOnly == true);
+                attributeDefinition.ReadOnly == true,
+                attributeDefinition.Mutability ?? ResourceAttributeMutability.CallerManaged);
         }
     }
 

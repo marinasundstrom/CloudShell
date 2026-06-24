@@ -1101,7 +1101,7 @@ provider configuration schema.
 `ReadOnly` should describe whether callers may set or change an attribute
 through authored `ResourceDefinition` input or graph change application.
 `Mutability` should describe which boundary owns normal updates to the value.
-The preferred future shape is:
+The preferred shape is:
 
 ```csharp
 new ResourceAttributeDefinition(
@@ -1125,10 +1125,11 @@ database records, or any other serialization target.
 
 `ReadOnly` and `Mutability` are intentionally related but not identical:
 read-only is the caller access policy, while mutability is the ownership model
-for how values are produced. The POC may initially enforce only `ReadOnly`,
-then introduce `ResourceAttributeMutability` when provider-owned refresh or
-apply-result paths need to state why a value may be updated by a provider but
-not authored by a caller.
+for how values are produced. The POC currently records
+`ResourceAttributeMutability` on attribute definitions and resolved attribute
+values, while enforcement still flows through `ReadOnly`. Provider-owned
+refresh or apply-result paths can use the mutability metadata to state why a
+value may be updated by a provider but not authored by a caller.
 When inherited definitions are resolved, an unset read-only value should
 inherit the class-level policy. A type-level `false` should be treated as an
 explicit definition-level decision to clear inherited read-only behavior, not

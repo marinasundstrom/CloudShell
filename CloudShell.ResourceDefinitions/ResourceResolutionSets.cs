@@ -33,7 +33,8 @@ public sealed record ResourceAttributeResolution(
     ResourceAttributeId Name,
     string Value,
     ResourceDefinitionValueSource Source,
-    bool ReadOnly = false);
+    bool ReadOnly = false,
+    ResourceAttributeMutability Mutability = ResourceAttributeMutability.CallerManaged);
 
 public sealed class ResourceCapabilitySet : IReadOnlyCollection<ResourceCapabilityResolution>
 {

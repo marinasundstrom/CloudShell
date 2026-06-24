@@ -66,7 +66,8 @@ public sealed class ResourceModelResolverTests
                         ["endpoints.count"] = new(
                             DefaultValue: 0,
                             ValueShape: new(ResourceAttributeValueKind.Integer),
-                            ReadOnly: true)
+                            ReadOnly: true,
+                            Mutability: ResourceAttributeMutability.ProviderManaged)
                     })
             ]);
         var resource = resolver.Resolve(new ResourceState(
@@ -82,6 +83,9 @@ public sealed class ResourceModelResolverTests
 
         Assert.Equal("2", resource.Attributes.GetString("endpoints.count"));
         Assert.True(resource.Attributes.Resolve("endpoints.count")?.ReadOnly);
+        Assert.Equal(
+            ResourceAttributeMutability.ProviderManaged,
+            resource.Attributes.Resolve("endpoints.count")?.Mutability);
         Assert.Equal("example/api:1.0", rendered.ResourceAttributes["container.image"]);
         Assert.DoesNotContain("endpoints.count", rendered.ResourceAttributes.Keys);
     }

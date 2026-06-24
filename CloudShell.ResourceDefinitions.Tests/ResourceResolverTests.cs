@@ -168,7 +168,8 @@ public sealed class ResourceResolverTests
                         ["endpoints.count"] = new(
                             DefaultValue: 0,
                             ValueShape: new(ResourceAttributeValueKind.Integer),
-                            ReadOnly: true)
+                            ReadOnly: true,
+                            Mutability: ResourceAttributeMutability.ProviderManaged)
                     })
             ]);
         var definition = new ResourceDefinition(
@@ -203,7 +204,8 @@ public sealed class ResourceResolverTests
                         ["endpoints.count"] = new(
                             DefaultValue: 0,
                             ValueShape: new(ResourceAttributeValueKind.Integer),
-                            ReadOnly: true)
+                            ReadOnly: true,
+                            Mutability: ResourceAttributeMutability.ProviderManaged)
                     })
             ]);
         var state = new ResourceState(
@@ -219,6 +221,9 @@ public sealed class ResourceResolverTests
         Assert.Empty(resolved.Diagnostics);
         Assert.Equal("2", resolved.Attributes.GetString("endpoints.count"));
         Assert.True(resolved.Attributes.Resolve("endpoints.count")?.ReadOnly);
+        Assert.Equal(
+            ResourceAttributeMutability.ProviderManaged,
+            resolved.Attributes.Resolve("endpoints.count")?.Mutability);
     }
 
     [Fact]

@@ -24,7 +24,8 @@ public sealed record ResourceAttributeDefinition(
     string? RequiredMessage = null,
     string? Description = null,
     ResourceAttributeValueShape? ValueShape = null,
-    bool? ReadOnly = null);
+    bool? ReadOnly = null,
+    ResourceAttributeMutability? Mutability = null);
 
 public sealed record ResourceAttributeValueShape(
     ResourceAttributeValueKind Kind,
@@ -45,6 +46,12 @@ public enum ResourceAttributeValueKind
     Decimal,
     Object,
     Array
+}
+
+public enum ResourceAttributeMutability
+{
+    CallerManaged,
+    ProviderManaged
 }
 
 public sealed record ResourceAttributeRequirement(

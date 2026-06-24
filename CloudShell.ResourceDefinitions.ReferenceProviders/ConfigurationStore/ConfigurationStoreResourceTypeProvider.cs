@@ -39,7 +39,8 @@ public sealed class ConfigurationStoreResourceTypeProvider :
             [Attributes.EntryCount] = new(
                 DefaultValue: 0,
                 ValueShape: new(ResourceAttributeValueKind.Integer),
-                ReadOnly: true)
+                ReadOnly: true,
+                Mutability: ResourceAttributeMutability.ProviderManaged)
         },
         Operations:
         [
