@@ -314,6 +314,8 @@ public static class ResourceDefinitionDiagnosticCodes
     public const string CapabilityProviderMissing = "resourceDefinition.capabilityProviderMissing";
     public const string OperationProviderMissing = "resourceDefinition.operationProviderMissing";
     public const string ResourceTypeProviderMissing = "resourceDefinition.resourceTypeProviderMissing";
+    public const string DuplicateResourceDefinition = "resourceDefinition.duplicateResourceDefinition";
+    public const string ResourceDependencyMissing = "resourceDefinition.resourceDependencyMissing";
 }
 
 public static class ResourceDefinitionClassIds
