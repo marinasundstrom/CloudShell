@@ -227,6 +227,12 @@ on `git blame --follow`, and then by the broad type of change.
   `storage.volume.provision` operation provider, typed wrapper, apply
   planning, and Resource Manager bridge coverage while keeping runtime
   availability out of normal attributes.
+- The resource definitions reference providers now include a narrow service
+  resource type with service kind/routing-mode attributes, `ResourceReference`
+  target/network dependencies, a passive endpoint-source capability marker,
+  reconcile operation, typed wrapper, apply planning, and Resource Manager
+  bridge coverage while keeping port, endpoint, and target collections out of
+  normal count attributes.
 - The resource definitions reference providers now include a narrow Secrets
   Vault resource type with endpoint and secret-count attributes, an inspect
   operation provider, typed wrapper, and Resource Manager bridge coverage

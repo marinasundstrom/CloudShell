@@ -388,6 +388,67 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task AddServiceResourceType_RegistersCompleteResourceTypeBoundary()
+    {
+        var services = new ServiceCollection();
+        services.AddServiceResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var definition = new ResourceDefinition(
+            "api",
+            ServiceResourceTypeProvider.ResourceTypeId,
+            DependsOn:
+            [
+                ResourceReference.ResourceId("application.container-app:api"),
+                ResourceReference.ResourceId("cloudshell.network:default")
+            ],
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [ServiceResourceTypeProvider.Attributes.RoutingMode] = "logical"
+            });
+
+        var validation = await serviceProvider
+            .GetRequiredService<ResourceDefinitionValidationPipeline>()
+            .ValidateAsync(
+                definition,
+                new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.False(validation.HasErrors);
+        Assert.Equal(ServiceResourceTypeProvider.ClassId, validation.Resource.Class.ClassId);
+        Assert.Equal("service", validation.Resource.Attributes.GetString(
+            ServiceResourceTypeProvider.Attributes.ServiceKind));
+        Assert.Equal("logical", validation.Resource.Attributes.GetString(
+            ServiceResourceTypeProvider.Attributes.RoutingMode));
+        Assert.True(validation.Resource.Capabilities.Has(
+            ServiceResourceTypeProvider.Capabilities.EndpointSource));
+        Assert.True(validation.Resource.Operations.Has(
+            ServiceResourceTypeProvider.Operations.Reconcile));
+
+        var projectedGraph = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphProjectionResolver>()
+            .ProjectAsync(
+                new ResourceDefinitionGraphValidationPipelineResult(
+                    new ResourceDefinitionGraph([definition]),
+                    [validation],
+                    []),
+                new ResourceProjectionContext("local", "developer"));
+        var projection = projectedGraph.Find<ServiceResource>(
+            definition.EffectiveResourceId);
+
+        Assert.NotNull(projection);
+        Assert.Equal("logical", projection.RoutingMode);
+        Assert.True(projection.SupportsEndpointSource);
+        Assert.Equal(
+            ["application.container-app:api", "cloudshell.network:default"],
+            projection.References.Select(reference => reference.Value));
+        var reconcile = await projection.GetReconcileOperationAsync();
+
+        Assert.NotNull(reconcile);
+        Assert.True(await reconcile.CanExecuteAsync());
+        Assert.Equal("logical", reconcile.PlanReconcile().RoutingMode);
+    }
+
+    [Fact]
     public async Task AddContainerHostResourceType_RegistersCompleteResourceTypeBoundary()
     {
         var services = new ServiceCollection();

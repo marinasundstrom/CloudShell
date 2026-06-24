@@ -661,6 +661,14 @@ instead of the old raw `storage.volume.storageResourceId` attribute. Runtime
 availability remains an observed view for future capability members or
 operation plans.
 
+A narrow service reference provider covers the declarative `cloudshell.service`
+graph resource. It owns service kind and routing-mode attributes, the passive
+endpoint-source capability marker, a reconcile operation, a typed projection
+wrapper, apply planning, and Resource Manager bridge projection/execution.
+Service targets and network relationships are expressed as `ResourceReference`
+dependencies for the POC. Port, endpoint, and target collections remain future
+typed payloads or capability members instead of normal count attributes.
+
 A narrow Secrets Vault reference provider follows the same boundary while
 keeping secret material out of the Resource model. It owns `secrets.vault`,
 Secrets Vault class defaults, endpoint and secret-count attributes, an inspect
@@ -676,6 +684,7 @@ The working porting status for the reference POC is:
 | Local volume (`storage.volume`) | Ported as a reference provider | Storage class and type defaults, medium validation, provision operation, typed wrapper, apply planning, Resource Manager bridge projection | Provider-backed storage materialization, usage tracking, health, and monitoring |
 | Storage (`cloudshell.storage`) | Ported as a narrow reference provider | Storage class/type defaults, provider/medium/location attributes, passive storage-provider and mount-provider capability markers, inspect operation, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Volume collection payloads, runtime filesystem availability and volume counts as capability members or operation plans, provider-backed storage materialization, health, monitoring, and UI registration/update flow |
 | CloudShell volume (`cloudshell.volume`) | Ported as a narrow reference provider | Storage class/type defaults, provider/medium/location/subpath/access-mode/persistence attributes, passive storage-volume capability marker, `ResourceReference` storage dependencies, type-specific `storage.volume.provision` operation provider, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Storage-reference graph validation, runtime filesystem availability as capability members or operation plans, provider-backed volume materialization, health, monitoring, and UI registration/update flow |
+| Service (`cloudshell.service`) | Ported as a narrow reference provider | Service class/type defaults, service kind/routing-mode attributes, passive endpoint-source capability marker, `ResourceReference` target/network dependencies, reconcile operation, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Port, endpoint, target, and health-check payloads, endpoint projection through Resource Manager, target validation, orchestration integration, and UI registration/update flow |
 | Container application (`application.container-app`) | Ported as a narrow reference provider | Image and replica attributes, shared volume-consumer capability, start/restart/image-update operations, typed wrapper, Resource Manager bridge projection and execution | Actual container host orchestration, endpoints, revisions, replica runtime state, monitoring, and UI operations |
 | ASP.NET Core project (`application.aspnet-core-project`) | Ported as a narrow reference provider | Project path, arguments, hot reload, launch-settings attributes, shared volume-consumer capability, start/restart operations, typed wrapper, Resource Manager bridge projection and execution | Launch settings parsing, endpoints, local process or container build behavior, UI registration/update flow |
 | SQL Server (`application.sql-server`) | Ported as a narrow reference provider | Service class and type defaults, version/edition attributes, declared database configuration, shared volume-consumer capability, reconcile-access operation, typed wrapper, Resource Manager bridge projection and execution | Real SQL runtime integration, credential/grant reconciliation, database child projections, endpoints, and UI tabs |

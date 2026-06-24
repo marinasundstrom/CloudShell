@@ -1750,6 +1750,104 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesServiceAcrossProviderBoundaries()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddContainerApplicationResourceType();
+        services.AddNetworkResourceType();
+        services.AddServiceResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var target = new ResourceDefinition(
+            "api",
+            ContainerApplicationResourceTypeProvider.ResourceTypeId,
+            ProviderId: ContainerApplicationResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [ContainerApplicationResourceTypeProvider.Attributes.ContainerImage] = "example/api:1.0"
+            });
+        var network = new ResourceDefinition(
+            "default",
+            NetworkResourceTypeProvider.ResourceTypeId,
+            ProviderId: NetworkResourceTypeProvider.ProviderId);
+        var definition = new ResourceDefinition(
+            "api-service",
+            ServiceResourceTypeProvider.ResourceTypeId,
+            ProviderId: ServiceResourceTypeProvider.ProviderId,
+            DependsOn:
+            [
+                ResourceReference.ResourceId(target.EffectiveResourceId),
+                ResourceReference.ResourceId(network.EffectiveResourceId)
+            ],
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [ServiceResourceTypeProvider.Attributes.RoutingMode] = "logical"
+            });
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "service",
+                [target, network, definition],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 10, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedService = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == definition.EffectiveResourceId);
+
+        Assert.Equal(ResourceManagerClass.Service, projectedService.ResourceClass);
+        Assert.Equal(ServiceResourceTypeProvider.ProviderId, projectedService.Provider);
+        Assert.Equal("service", projectedService.ResourceAttributes["service.kind"]);
+        Assert.Equal("logical", projectedService.ResourceAttributes["service.routingMode"]);
+        Assert.DoesNotContain("service.targets", projectedService.ResourceAttributes.Keys);
+        Assert.DoesNotContain("service.ports", projectedService.ResourceAttributes.Keys);
+        Assert.DoesNotContain("endpoints.count", projectedService.ResourceAttributes.Keys);
+        Assert.Equal([target.EffectiveResourceId, network.EffectiveResourceId], projectedService.DependsOn);
+        Assert.Contains(projectedService.ResourceCapabilities, capability =>
+            capability.Id == ServiceResourceTypeProvider.Capabilities.EndpointSource.ToString());
+        var reconcile = Assert.Single(projectedService.ResourceActions, action =>
+            action.Id == ServiceResourceTypeProvider.Operations.Reconcile.ToString());
+        Assert.Equal("Service Reconcile", reconcile.DisplayName);
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveAsync(definition.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors);
+        var projection = Assert.IsType<ServiceResource>(
+            await serviceProvider
+                .GetRequiredService<ResourceProjectionResolver>()
+                .GetResourceProjectionAsync(
+                    resolution.Target!,
+                    new ResourceProjectionContext("local", "developer")));
+        Assert.Equal("logical", projection.RoutingMode);
+
+        var procedure = new ResourceProcedureContext(
+            projectedService,
+            null,
+            null,
+            new EmptyResourceRegistrationStore());
+
+        Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, reconcile));
+
+        var procedureResult = await provider.ExecuteActionAsync(procedure, reconcile);
+
+        Assert.Equal("Executed Service Reconcile for api-service.", procedureResult.Message);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesSecretsVaultAcrossProviderBoundaries()
     {
         var services = new ServiceCollection();
