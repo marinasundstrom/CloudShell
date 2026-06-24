@@ -195,6 +195,11 @@ public sealed class ResourceManagerIntegrationTests
         var operation = Assert.IsType<ExecutableStartOperation>(resolution.Operation);
         Assert.Same(resolution.Resource, operation.Resource);
         Assert.Equal(ExecutableApplicationResourceTypeProvider.Operations.Start, resolution.OperationId);
+
+        var executableOperation = Assert.IsAssignableFrom<IResourceOperationExecutorProjection>(
+            resolution.Operation);
+        Assert.True(await executableOperation.CanExecuteAsync());
+        Assert.False((await executableOperation.ExecuteAsync()).HasErrors);
     }
 
     [Fact]

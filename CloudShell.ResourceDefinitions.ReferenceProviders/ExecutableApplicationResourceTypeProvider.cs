@@ -167,7 +167,7 @@ public sealed class ExecutableStartOperationProvider :
 
 public sealed class ExecutableStartOperation(
     ResourceProjectionExecutionContext context,
-    ResourceOperationResolution operation) : IResourceOperationProjection
+    ResourceOperationResolution operation) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 

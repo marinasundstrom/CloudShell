@@ -122,6 +122,15 @@ public interface IResourceOperationProjection
     ResourceOperationId OperationId { get; }
 }
 
+public interface IResourceOperationExecutorProjection : IResourceOperationProjection
+{
+    ValueTask<bool> CanExecuteAsync(
+        CancellationToken cancellationToken = default);
+
+    ValueTask<ResourceOperationExecutionResult> ExecuteAsync(
+        CancellationToken cancellationToken = default);
+}
+
 public sealed record ResourceOperationExecutionResult(
     Resource Resource,
     ResourceOperationId OperationId,

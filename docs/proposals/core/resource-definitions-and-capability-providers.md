@@ -1724,6 +1724,13 @@ wrapper that consumes the operation should not pass a `ResourceDefinition`
 back into it; changes can be rendered to interchange only when the operation
 needs to return a proposed resource-state update.
 
+Operations that can be executed can opt into a generic executable operation
+projection contract. That gives Resource Manager, an orchestrator, or another
+Control Plane service a provider-neutral way to check execution availability
+and invoke the operation after resolving it from the graph, while still
+allowing provider-specific typed wrappers to expose richer methods when they
+need them.
+
 Like capabilities, operation projections should stay resource-bound. The
 caller that resolves and invokes the operation owns the graph snapshot,
 transaction, lock, apply dispatcher, and commit boundary. If an operation

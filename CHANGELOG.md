@@ -64,6 +64,9 @@ on `git blame --follow`, and then by the broad type of change.
   capability and operation work units may perform integration logic but should
   stage direct Resource model graph changes only for their attached resource
   until a future scoped graph isolation model is defined.
+- Resource model operation projections can now opt into a generic executable
+  operation contract, giving Resource Manager and orchestrator integrations a
+  provider-neutral way to check and invoke resolved operations.
 - The resource definitions POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change
