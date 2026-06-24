@@ -203,6 +203,11 @@ on `git blame --follow`, and then by the broad type of change.
   operation, typed wrapper, and Resource Manager bridge coverage, while the
   proposal clarifies that calculated or fetched views should live on resolved
   capability members or operation plans instead of normal attributes.
+- The resource definitions reference providers now include a narrow DNS Zone
+  resource type with zone/provider attributes, a passive DNS-zone capability
+  marker, a reconcile-name-mappings operation, typed wrapper, and Resource
+  Manager bridge coverage while keeping derived record/conflict/materialization
+  summaries out of normal attributes.
 - The resource definitions reference providers now include a narrow Secrets
   Vault resource type with endpoint and secret-count attributes, an inspect
   operation provider, typed wrapper, and Resource Manager bridge coverage

@@ -622,6 +622,62 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task AddDnsZoneResourceType_RegistersCompleteResourceTypeBoundary()
+    {
+        var services = new ServiceCollection();
+        services.AddDnsZoneResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var definition = new ResourceDefinition(
+            "local",
+            DnsZoneResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [DnsZoneResourceTypeProvider.Attributes.ZoneName] = "local",
+                [DnsZoneResourceTypeProvider.Attributes.Provider] = "hosts-file"
+            });
+
+        var validation = await serviceProvider
+            .GetRequiredService<ResourceDefinitionValidationPipeline>()
+            .ValidateAsync(
+                definition,
+                new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.False(validation.HasErrors);
+        Assert.Equal(DnsZoneResourceTypeProvider.ClassId, validation.Resource.Class.ClassId);
+        Assert.Equal("local", validation.Resource.Attributes.GetString(
+            DnsZoneResourceTypeProvider.Attributes.ZoneName));
+        Assert.Equal("hosts-file", validation.Resource.Attributes.GetString(
+            DnsZoneResourceTypeProvider.Attributes.Provider));
+        Assert.True(validation.Resource.Capabilities.Has(
+            DnsZoneResourceTypeProvider.Capabilities.NetworkingDnsZone));
+        Assert.True(validation.Resource.Operations.Has(
+            DnsZoneResourceTypeProvider.Operations.ReconcileNameMappings));
+
+        var projectedGraph = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphProjectionResolver>()
+            .ProjectAsync(
+                new ResourceDefinitionGraphValidationPipelineResult(
+                    new ResourceDefinitionGraph([definition]),
+                    [validation],
+                    []),
+                new ResourceProjectionContext("local", "developer"));
+        var projection = projectedGraph.Find<DnsZoneResource>(
+            definition.EffectiveResourceId);
+
+        Assert.NotNull(projection);
+        Assert.Equal("local", projection.ZoneName);
+        Assert.Equal("hosts-file", projection.Provider);
+        Assert.True(projection.SupportsNameMapping);
+        var reconcile = await projection.GetReconcileNameMappingsOperationAsync();
+
+        Assert.NotNull(reconcile);
+        Assert.True(await reconcile.CanExecuteAsync());
+        Assert.Equal("local", reconcile.PlanReconcile().ZoneName);
+        Assert.Equal("hosts-file", reconcile.PlanReconcile().Provider);
+    }
+
+    [Fact]
     public async Task AddSecretsVaultResourceType_RegistersCompleteResourceTypeBoundary()
     {
         var services = new ServiceCollection();

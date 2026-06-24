@@ -1406,6 +1406,82 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesDnsZoneAcrossProviderBoundaries()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddDnsZoneResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var zone = new ResourceDefinition(
+            "local",
+            DnsZoneResourceTypeProvider.ResourceTypeId,
+            ProviderId: DnsZoneResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [DnsZoneResourceTypeProvider.Attributes.ZoneName] = "local",
+                [DnsZoneResourceTypeProvider.Attributes.Provider] = "hosts-file"
+            });
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "dns",
+                [zone],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 6, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedZone = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == zone.EffectiveResourceId);
+
+        Assert.Equal(ResourceManagerClass.Network, projectedZone.ResourceClass);
+        Assert.Equal(DnsZoneResourceTypeProvider.ProviderId, projectedZone.Provider);
+        Assert.Equal("local", projectedZone.ResourceAttributes["dns.zone"]);
+        Assert.Equal("hosts-file", projectedZone.ResourceAttributes["dns.provider"]);
+        Assert.DoesNotContain("dns.records", projectedZone.ResourceAttributes.Keys);
+        Assert.Contains(projectedZone.ResourceCapabilities, capability =>
+            capability.Id == DnsZoneResourceTypeProvider.Capabilities.NetworkingDnsZone.ToString());
+        var reconcile = Assert.Single(projectedZone.ResourceActions, action =>
+            action.Id == DnsZoneResourceTypeProvider.Operations.ReconcileNameMappings.ToString());
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveAsync(zone.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors);
+        var projection = Assert.IsType<DnsZoneResource>(
+            await serviceProvider
+                .GetRequiredService<ResourceProjectionResolver>()
+                .GetResourceProjectionAsync(
+                    resolution.Target!,
+                    new ResourceProjectionContext("local", "developer")));
+        Assert.Equal("hosts-file", projection.Provider);
+
+        var procedure = new ResourceProcedureContext(
+            projectedZone,
+            null,
+            null,
+            new EmptyResourceRegistrationStore());
+
+        Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, reconcile));
+
+        var procedureResult = await provider.ExecuteActionAsync(procedure, reconcile);
+
+        Assert.Equal("Executed ReconcileNameMappings for local.", procedureResult.Message);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesSecretsVaultAcrossProviderBoundaries()
     {
         var services = new ServiceCollection();
