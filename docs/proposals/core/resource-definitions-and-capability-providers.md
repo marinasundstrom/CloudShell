@@ -386,12 +386,33 @@ operational data and behavior in its own model while still using Resource
 model capabilities and operations when it needs to validate, plan, update, or
 execute graph-aware behavior.
 
+The current integration POC starts with that projection seam. A small bridge
+adapter maps resolved Resource model `Resource` instances to the existing
+Resource Manager-facing `CloudShell.Abstractions.ResourceManager.Resource`
+shape and exposes them through `IResourceProvider`. This does not replace
+Resource Manager storage or orchestration. It tests whether the new Resource
+model can be consumed by the existing Resource Manager composition path before
+the project decides which existing declaration/provider paths it should
+replace.
+
 Graph locking, graph update coordination, and transaction policy belong at
 the Resource Manager or Control Plane coordination layer. The Resource model
 can provide change sets, resolved projections, diagnostics, and commit-shaped
 results, but it should not own the policy for whether Resource Manager locks
 the graph, uses optimistic transactions, retries, merges, or rejects
 concurrent updates.
+
+A future orchestrator or lifecycle service can follow the same boundary. It
+can start from the Control Plane's own Resource Manager resource record, use
+the shared resource ID to resolve the matching Resource model graph node and
+any dependencies it needs, then use the resolved graph knowledge,
+capabilities, and operations while operating the lifecycle. If that operation
+needs to update declared graph state, it should persist only the necessary
+Resource model changes. Any locks, transactions, retries, or conflict handling
+between reading the Control Plane resource, resolving the graph, executing
+provider behavior, and committing graph changes remain implementation details
+of the Resource Manager, orchestrator, or broader Control Plane coordination
+layer.
 
 The distinction should be kept explicit:
 

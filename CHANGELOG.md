@@ -98,6 +98,11 @@ on `git blame --follow`, and then by the broad type of change.
   the new Resource model, including cleaner provider boundaries, lazy graph
   resolution, deliberate interchange formats, typed wrapper support, better
   persistence choices, and a safer Resource Manager replacement path.
+- The resource definitions POC now includes a separate Resource Manager bridge
+  project that maps resolved Resource model resources to the existing
+  `CloudShell.Abstractions.ResourceManager.Resource` projection and exposes
+  them through `IResourceProvider`, proving the first integration seam without
+  replacing Resource Manager storage or orchestration.
 - The resource definitions POC now includes a capability resolver so
   provider-owned capability behavior can be composed into type-specific
   resource projections without making the definition stop being the persisted
