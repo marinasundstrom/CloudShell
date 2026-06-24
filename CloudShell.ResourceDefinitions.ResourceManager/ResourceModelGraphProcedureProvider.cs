@@ -42,7 +42,12 @@ public sealed class ResourceModelGraphProcedureProvider :
     public bool CanEvaluateAction(
         ResourceManagerResource resource,
         ResourceAction action) =>
-        resource.IsDeclaredResource && resource.HasAction(action.Id);
+        resource.IsDeclaredResource &&
+        resource.HasAction(action.Id) &&
+        resource.ResourceAttributes.TryGetValue(
+            ResourceModelResourceManagerAttributeNames.BridgeProviderId,
+            out var bridgeProviderId) &&
+        string.Equals(bridgeProviderId, Id, StringComparison.OrdinalIgnoreCase);
 
     public async Task<string?> GetActionUnavailableReasonAsync(
         ResourceProcedureContext context,

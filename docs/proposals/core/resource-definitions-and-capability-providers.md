@@ -458,6 +458,10 @@ The helper should wire the same scoped bridge instance into both the
 `IResourceProvider` and `IResourceActionAvailabilityProvider` collections so
 standard Control Plane composition can discover availability reasons without
 host-specific adapter code.
+Graph-backed Resource Manager projections should also carry bridge-provider
+metadata. The procedure-capable bridge must use that metadata when evaluating
+actions, rather than claiming every declared resource with a matching action
+ID, so it does not interfere with unrelated Resource Manager providers.
 
 The bridge project should own registration helpers for this integration seam.
 Hosts can register a graph-backed Resource model provider as an existing

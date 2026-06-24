@@ -4,6 +4,7 @@ using CloudShell.ResourceDefinitions.ReferenceProviders;
 using CloudShell.ResourceDefinitions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 using ResourceManagerClass = CloudShell.Abstractions.ResourceManager.ResourceClass;
+using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource;
 
 namespace CloudShell.ResourceDefinitions.Tests;
 
@@ -34,6 +35,9 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(["storage:data"], projected.DependsOn);
         Assert.Equal("dotnet", projected.ResourceAttributes["executable.path"]);
         Assert.Equal(ResourceGraphMembershipKinds.Declared, projected.ResourceGraphMembership);
+        Assert.Equal(
+            "resource-model",
+            projected.ResourceAttributes[ResourceModelResourceManagerAttributeNames.BridgeProviderId]);
         Assert.Contains(projected.ResourceCapabilities, capability =>
             capability.Id == VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString());
         Assert.Contains(projected.ResourceActions, action =>
@@ -60,6 +64,9 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(ResourceManagerClass.Executable, projected.ResourceClass);
         Assert.Equal(["storage:data"], projected.DependsOn);
         Assert.Equal("dotnet", projected.ResourceAttributes["executable.path"]);
+        Assert.Equal(
+            "resource-model",
+            projected.ResourceAttributes[ResourceModelResourceManagerAttributeNames.BridgeProviderId]);
         Assert.Contains(projected.ResourceCapabilities, capability =>
             capability.Id == VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString());
         Assert.Contains(projected.ResourceActions, action =>
@@ -250,6 +257,40 @@ public sealed class ResourceManagerIntegrationTests
         var result = await provider.ExecuteActionAsync(procedure, ResourceAction.Start);
 
         Assert.Equal("Executed Start for api.", result.Message);
+    }
+
+    [Fact]
+    public void ResourceModelGraphProcedureProvider_DoesNotEvaluateActionsForOtherProviderResources()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices(
+            [new(ExecutableApplicationResourceTypeProvider.ClassId)]);
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var resource = new ResourceManagerResource(
+            "other:api",
+            "api",
+            "other.kind",
+            "other-provider",
+            "local",
+            CloudShell.Abstractions.ResourceManager.ResourceState.Stopped,
+            [],
+            "1",
+            DateTimeOffset.UtcNow,
+            [],
+            Actions: [ResourceAction.Start],
+            Attributes: new Dictionary<string, string>
+            {
+                [ResourceAttributeNames.ResourceGraphMembership] = ResourceGraphMembershipKinds.Declared
+            });
+
+        Assert.False(provider.CanEvaluateAction(resource, ResourceAction.Start));
     }
 
     [Fact]

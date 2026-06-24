@@ -75,6 +75,10 @@ on `git blame --follow`, and then by the broad type of change.
   scoped bridge instance as both an `IResourceProvider` and an
   `IResourceActionAvailabilityProvider`, so normal Control Plane composition
   can surface operation availability reasons without host-specific plumbing.
+- Resource model bridge projections now carry bridge-provider metadata, and
+  the procedure-capable bridge uses that metadata when evaluating Resource
+  Manager actions so it does not claim unrelated provider resources with the
+  same action IDs.
 - The resource definitions POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change

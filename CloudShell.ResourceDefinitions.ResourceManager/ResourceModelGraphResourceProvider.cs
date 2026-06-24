@@ -30,7 +30,10 @@ public sealed class ResourceModelGraphResourceProvider :
         _resolveSnapshot = resolveSnapshot;
         _resolver = resolver;
         _resolutionContext = resolutionContext ?? ResourceDefinitionResolutionContext.Empty;
-        _projectionOptions = projectionOptions ?? new ResourceModelResourceManagerProjectionOptions();
+        _projectionOptions = (projectionOptions ?? new ResourceModelResourceManagerProjectionOptions()) with
+        {
+            BridgeProviderId = Id
+        };
     }
 
     public string Id { get; }

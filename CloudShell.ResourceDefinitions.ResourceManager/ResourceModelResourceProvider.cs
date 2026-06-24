@@ -27,7 +27,10 @@ public sealed class ResourceModelResourceProvider :
         Id = id.Trim();
         DisplayName = displayName.Trim();
         _resolveResources = resolveResources;
-        _options = options ?? new ResourceModelResourceManagerProjectionOptions();
+        _options = (options ?? new ResourceModelResourceManagerProjectionOptions()) with
+        {
+            BridgeProviderId = Id
+        };
     }
 
     public string Id { get; }

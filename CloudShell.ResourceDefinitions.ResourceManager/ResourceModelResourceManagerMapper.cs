@@ -8,7 +8,13 @@ namespace CloudShell.ResourceDefinitions.ResourceManager;
 public sealed record ResourceModelResourceManagerProjectionOptions(
     string DefaultProviderId = ResourceModelResourceProvider.DefaultProviderId,
     string DefaultRegion = ResourceModelResourceProvider.DefaultRegion,
-    DateTimeOffset? DefaultLastUpdated = null);
+    DateTimeOffset? DefaultLastUpdated = null,
+    string BridgeProviderId = ResourceModelResourceProvider.DefaultProviderId);
+
+public static class ResourceModelResourceManagerAttributeNames
+{
+    public const string BridgeProviderId = "resourceModel.bridgeProviderId";
+}
 
 public static class ResourceModelResourceManagerMapper
 {
@@ -20,6 +26,8 @@ public static class ResourceModelResourceManagerMapper
 
         options ??= new ResourceModelResourceManagerProjectionOptions();
         var attributes = ToResourceManagerAttributes(resource);
+        attributes[ResourceModelResourceManagerAttributeNames.BridgeProviderId] =
+            options.BridgeProviderId;
 
         return new ResourceManagerResource(
             resource.EffectiveResourceId,
@@ -64,7 +72,7 @@ public static class ResourceModelResourceManagerMapper
             .ToArray();
     }
 
-    private static IReadOnlyDictionary<string, string> ToResourceManagerAttributes(
+    private static Dictionary<string, string> ToResourceManagerAttributes(
         ResourceModelResource resource)
     {
         var attributes = resource.Attributes.ToDictionary(
