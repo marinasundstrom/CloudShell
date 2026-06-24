@@ -30,6 +30,9 @@ on `git blame --follow`, and then by the broad type of change.
   resource behavior resolved like attributes and capabilities, with operation
   providers implementing matching resolved operations and optional source
   generators as a future facade/builder aid.
+- The resource definitions proposal now distinguishes capabilities from
+  operations and sketches resource type provider change planning for
+  definition updates using resolved diffs and runtime state.
 - SQL Server declared database child-resource projection now lives in
   `SqlServerDatabaseResourceProjector`, moving another resource-type concern
   out of `ApplicationResourceService`.

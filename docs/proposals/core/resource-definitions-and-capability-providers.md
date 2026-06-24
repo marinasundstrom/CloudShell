@@ -197,6 +197,56 @@ The distinction should be kept explicit:
 | projected attributes | Stable non-secret facts about the current projection | Owning provider or Control Plane overlay |
 | runtime state | Observed provider/runtime facts | Provider, orchestrator, or Control Plane operational store |
 
+## Capabilities vs Operations
+
+Capabilities and operations both add behavior to the resource model, but they
+serve different purposes.
+
+A capability describes functionality, role, or semantics attached to a
+resource. Capabilities are commonly used by Resource Manager, Control Plane
+services, providers, API projection, deployment projection, validation, and
+selector logic. A capability may expose typed helper behavior, projected data,
+requirements, or compatibility rules. It is not necessarily something a caller
+invokes. Capability intent is declared under `.Capabilities` and is resolved
+through the same inheritance path as attributes and operations.
+
+Examples:
+
+- `storage.volumeConsumer`: the resource can consume mounted volumes.
+- `logs.sources`: the resource contributes log sources.
+- `monitoring`: the resource contributes monitoring data.
+- `networking.namePublisher`: the resource can publish names.
+
+An operation is explicitly declared behavior on a resource class, resource
+type, or individual resource definition. It describes work that can be
+invoked, applied, reconciled, or otherwise carried out for a resource. When an
+operation is exposed to a caller, Resource Manager or the API can project a
+command affordance for that operation. The operation itself remains the
+domain-level behavior declaration. Operation intent is declared under
+`.Operations`; the provider implementation for that declaration may vary by
+resource class, resource type, provider, or resource definition.
+
+Examples:
+
+- `start`: start the resource using the appropriate provider behavior.
+- `restart`: restart or reconcile the running resource.
+- `deployImage`: apply a new container image to a container application.
+- `reconcileDatabaseAccess`: reconcile declared database grants.
+
+The same operation ID can have different implementations for different
+resource types or providers. A `start` operation for a local executable may run
+a local process; a `start` operation for a container app may apply deployment
+state and materialize containers; a provider-backed service may call an
+external platform. This is why operation declarations and operation providers
+should stay separate.
+
+Capability providers usually answer "what functionality does this resource
+have, require, or project?" Operation providers usually answer "how is this
+declared behavior validated, projected, invoked, or applied for this
+resource?" Both should receive a resolved resource context so they can see
+inherited attributes, capabilities, operations, presets, provider defaults,
+and diagnostics.
+
 ## Class and Type Definitions
 
 Resource definitions should be resolved against two inherited definition
@@ -363,6 +413,7 @@ Responsibilities:
 - parse or adapt the provider-owned configuration payload
 - apply defaults and normalize definition intent
 - validate type-specific configuration
+- plan and apply resource definition changes
 - apply changes, update persisted state, and tear down resource state
 - project accepted definitions and observed provider state as `Resource`
   instances
@@ -472,7 +523,7 @@ public sealed class ExecutableApplicationResourceTypeProvider(
                 [ResourceAttributeNames.WorkingDirectory] =
                     executable.WorkingDirectory ?? "."
             },
-            Capabilities: context.ProjectCapabilities(definition));
+            Capabilities: context.ProjectCapabilities(resource));
     }
 
     public Task<ResourceApplyResult> ApplyAsync(
@@ -493,6 +544,64 @@ It does not need to know every cross-cutting capability or every executable
 operation implementation in detail. Capability and operation providers can be added
 by capability packages through DI as long as they use stable resource type,
 capability, and operation identifiers.
+
+## Definition Change Application
+
+Resource type providers should be able to respond before an update to a
+resource definition is applied. The provider needs the current accepted
+definition, the proposed definition, the resolved diff, and the current
+resource/runtime context so it can choose the correct behavior.
+
+The exact API is open, but the shape should make these inputs available:
+
+```csharp
+public sealed record ResourceDefinitionChange(
+    ResolvedResourceDefinition Current,
+    ResolvedResourceDefinition Proposed,
+    ResourceDefinitionDiff Diff,
+    ResourceChangeRuntimeContext Runtime);
+
+public sealed record ResourceDefinitionDiff(
+    ResourceAttributeDiff Attributes,
+    ResourceCapabilityDiff Capabilities,
+    ResourceOperationDiff Operations,
+    ResourceConfigurationDiff Configuration);
+
+public sealed record ResourceChangeRuntimeContext(
+    Resource? CurrentProjection,
+    ResourceState? State,
+    bool IsTransitioning,
+    string? TransitionName = null);
+```
+
+A resource type provider can then validate and apply the change deliberately:
+
+```csharp
+public interface IResourceTypeProvider
+{
+    Task<ResourceDefinitionChangePlan> PlanChangeAsync(
+        ResourceDefinitionChange change,
+        CancellationToken cancellationToken);
+
+    Task<ResourceApplyResult> ApplyChangeAsync(
+        ResourceDefinitionChange change,
+        ResourceDefinitionChangePlan plan,
+        CancellationToken cancellationToken);
+}
+```
+
+For a hypothetical container type provider, changing `container.image` while
+the resource is stopped may only update accepted intent. Changing it while the
+resource is running may plan a deployment operation. Changing it while the
+resource is already transitioning may be rejected, deferred, or folded into
+the current transition depending on provider policy. The provider needs both
+the changed attributes and the actual current status to make that decision.
+
+Change planning should return diagnostics and an explicit plan rather than
+forcing the caller to infer behavior from changed fields alone. The plan can
+describe whether the change is persist-only, requires restart, can reconcile
+in-place, starts a deployment operation, is blocked by current state, or needs
+manual intervention.
 
 ## Capability Providers
 
@@ -821,11 +930,16 @@ pipeline:
 12. Let operation providers validate operation configuration and command
    projection policy, including availability policy that can be checked before
    projection or apply.
-13. Run cross-definition graph validation, including dependencies,
+13. Compute the definition diff when an existing resource definition is being
+   updated.
+14. Let the resource type provider plan the definition change using the
+   resolved old/new definitions, changed attributes/capabilities/operations,
+   and current runtime state.
+15. Run cross-definition graph validation, including dependencies,
    authorization, compatibility, and host/provider policy.
-14. Return diagnostics and normalized accepted definitions without side
+16. Return diagnostics and normalized accepted definitions without side
     effects.
-15. Apply, update, persist, or project only after validation succeeds.
+17. Apply, update, persist, or project only after validation succeeds.
 
 Expected validation failures should be returned as diagnostics or result
 objects. Exceptions should remain for programmer errors or boundary adapters
@@ -926,11 +1040,16 @@ availability are incomplete.
 - How should operation providers declare compatibility with resource types:
   operation-provider metadata, type-provider metadata, capability requirements,
   or all of those?
+- What is the exact boundary between capability-driven functionality and
+  operation-driven behavior when a concept has both, such as storage mounts or
+  deployment?
 - Should resource definitions be able to override inherited operations, and
   which class/type/resource-level operation declarations may be disabled or
   refined?
 - Should command affordances always be projected from resolved operations, or
   should any command affordances be declared independently?
+- What runtime state should be available to resource type providers when they
+  plan a definition update, and how should transitioning resources be handled?
 - How should persisted definitions represent provider selection when several
   providers can handle the same resource type?
 - What is the minimal API surface for remote clients to create, validate, and
@@ -948,11 +1067,13 @@ availability are incomplete.
   generators.
 - Define resource type provider contracts for definition parsing,
   normalization, validation, projection, apply, update, and tear down.
+- Define resource definition diff and change-planning contracts for resource
+  type providers.
 - Define common and provider-owned attribute validator contracts.
 - Define capability provider contracts for capability-owned payload parsing,
   validation, diagnostics, and helper behavior.
 - Define resource operation provider contracts for command projection, command
-  availability, backing operation execution, diagnostics, and procedure
+  availability, backing operation execution, diagnostics, and operation
   results.
 - Decide how existing provider-specific definitions map to the envelope.
 - Decide how resource templates, persisted declarations, imports, and create
