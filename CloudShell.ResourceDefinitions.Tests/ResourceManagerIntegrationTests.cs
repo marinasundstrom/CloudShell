@@ -1035,6 +1035,83 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesSqlDatabaseAcrossProviderBoundaries()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddSqlServerResourceType();
+        services.AddSqlDatabaseResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var server = new ResourceDefinition(
+            "sql",
+            SqlServerResourceTypeProvider.ResourceTypeId,
+            ProviderId: SqlServerResourceTypeProvider.ProviderId);
+        var database = new ResourceDefinition(
+            "appdb",
+            SqlDatabaseResourceTypeProvider.ResourceTypeId,
+            ProviderId: SqlDatabaseResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [SqlDatabaseResourceTypeProvider.Attributes.DatabaseName] = "appdb",
+                [SqlDatabaseResourceTypeProvider.Attributes.ServerResourceId] = server.EffectiveResourceId,
+                [SqlDatabaseResourceTypeProvider.Attributes.EnsureCreated] = bool.TrueString.ToLowerInvariant()
+            });
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "sql-database-app",
+                [server, database],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 24, 22, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedDatabase = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == database.EffectiveResourceId);
+
+        Assert.Equal(ResourceManagerClass.Service, projectedDatabase.ResourceClass);
+        Assert.Equal(SqlDatabaseResourceTypeProvider.ProviderId, projectedDatabase.Provider);
+        Assert.Equal("appdb", projectedDatabase.ResourceAttributes["database.name"]);
+        Assert.Equal(server.EffectiveResourceId, projectedDatabase.ResourceAttributes["database.serverResourceId"]);
+        Assert.Equal(bool.TrueString.ToLowerInvariant(), projectedDatabase.ResourceAttributes["database.ensureCreated"]);
+        Assert.Equal([server.EffectiveResourceId], projectedDatabase.DependsOn);
+        var ensureCreated = Assert.Single(projectedDatabase.ResourceActions, action =>
+            action.Id == SqlDatabaseResourceTypeProvider.Operations.EnsureCreated.ToString());
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveWithDependenciesAsync(database.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors);
+        Assert.Equal(
+            [database.EffectiveResourceId, server.EffectiveResourceId],
+            resolution.Resources.Select(resource => resource.EffectiveResourceId));
+
+        var procedure = new ResourceProcedureContext(
+            projectedDatabase,
+            null,
+            null,
+            new EmptyResourceRegistrationStore());
+
+        Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, ensureCreated));
+
+        var procedureResult = await provider.ExecuteActionAsync(procedure, ensureCreated);
+
+        Assert.Equal("Executed Application Sql Database Ensure Created for appdb.", procedureResult.Message);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_RejectsInvalidCapabilityReference()
     {
         var services = new ServiceCollection();

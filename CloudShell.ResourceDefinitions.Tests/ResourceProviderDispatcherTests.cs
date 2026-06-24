@@ -445,6 +445,78 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task AddSqlDatabaseResourceType_RegistersCompleteResourceTypeBoundary()
+    {
+        var services = new ServiceCollection();
+        services.AddSqlServerResourceType();
+        services.AddSqlDatabaseResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var server = new ResourceDefinition(
+            "sql",
+            SqlServerResourceTypeProvider.ResourceTypeId);
+        var definition = new ResourceDefinition(
+            "appdb",
+            SqlDatabaseResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [SqlDatabaseResourceTypeProvider.Attributes.DatabaseName] = "appdb",
+                [SqlDatabaseResourceTypeProvider.Attributes.ServerResourceId] = server.EffectiveResourceId,
+                [SqlDatabaseResourceTypeProvider.Attributes.EnsureCreated] = bool.TrueString.ToLowerInvariant()
+            });
+
+        var validation = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphValidationPipeline>()
+            .ValidateAsync(
+                new ResourceDefinitionGraph([server, definition]),
+                new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.False(validation.HasErrors);
+        var databaseValidation = validation.Resources.Single(resource =>
+            resource.Resource.EffectiveResourceId == definition.EffectiveResourceId);
+        Assert.Equal(SqlDatabaseResourceTypeProvider.ClassId, databaseValidation.Resource.Class.ClassId);
+        Assert.Equal("appdb", databaseValidation.Resource.Attributes.GetString(
+            SqlDatabaseResourceTypeProvider.Attributes.DatabaseName));
+        Assert.Equal(server.EffectiveResourceId, databaseValidation.Resource.Attributes.GetString(
+            SqlDatabaseResourceTypeProvider.Attributes.ServerResourceId));
+        Assert.Equal("declared", databaseValidation.Resource.Attributes.GetString(
+            SqlDatabaseResourceTypeProvider.Attributes.Source));
+        Assert.True(databaseValidation.Resource.Operations.Has(
+            SqlDatabaseResourceTypeProvider.Operations.EnsureCreated));
+
+        var projectedGraph = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphProjectionResolver>()
+            .ProjectAsync(
+                validation,
+                new ResourceProjectionContext("local", "developer"));
+        var projection = projectedGraph.Find<SqlDatabaseResource>(
+            definition.EffectiveResourceId);
+
+        Assert.NotNull(projection);
+        Assert.Equal("appdb", projection.DatabaseName);
+        Assert.Equal(server.EffectiveResourceId, projection.ServerResourceId);
+        Assert.True(projection.EnsureCreated);
+        Assert.Equal("declared", projection.Source);
+
+        var ensureCreated = await projection.GetEnsureCreatedOperationAsync();
+
+        Assert.NotNull(ensureCreated);
+        Assert.True(await ensureCreated.CanExecuteAsync());
+        Assert.Equal(definition.EffectiveResourceId, ensureCreated.PlanEnsureCreated().ResourceId);
+
+        var applyPlan = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphApplyPlanner>()
+            .PlanApplyAsync(
+                validation,
+                new ResourceDefinitionApplyContext("local", "developer"));
+
+        Assert.False(applyPlan.HasErrors);
+        Assert.Contains(applyPlan.Steps, step =>
+            step.ResourceId == definition.EffectiveResourceId &&
+            step.Kind == ResourceDefinitionApplyStepKind.MaterializeRuntime);
+    }
+
+    [Fact]
     public async Task ValidateCapabilitiesAsync_UsesRegisteredCapabilityProvider()
     {
         var dispatcher = CreateDispatcher(

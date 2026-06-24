@@ -159,6 +159,10 @@ on `git blame --follow`, and then by the broad type of change.
   Core project resource type with project path, arguments, hot reload, and
   launch-settings attributes, shared volume-consumer support, start/restart
   operation providers, a typed wrapper, and Resource Manager bridge coverage.
+- The resource definitions reference providers now include a narrow SQL
+  database resource type with database/server attributes, server graph
+  validation, provider-derived server dependencies, an ensure-created
+  operation provider, typed wrapper, and Resource Manager bridge coverage.
 - Reference provider implementations now keep provider-owned configuration
   records and operation provider services in separate files next to the owning
   resource type provider, keeping type providers focused on definition shape,
