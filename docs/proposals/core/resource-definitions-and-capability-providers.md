@@ -452,6 +452,36 @@ Resource type providers may expose typed facades such as
 `VolumeResourceDefinition`. Those facades should map to and from the common
 definition envelope instead of replacing it as the platform model.
 
+Resource type providers should live behind their own resource-type or
+capability-package boundary. Avoid rebuilding the application-provider tangle
+where unrelated resource types share a broad service because they all happen
+to use local processes, containers, lifecycle actions, or Resource Manager
+projection. Shared code is appropriate only when it represents a provider-
+neutral platform mechanism or a deliberately shared capability contract. Code
+that knows a concrete resource type, provider configuration shape, lifecycle
+quirk, projection attribute, or runtime materialization rule should stay next
+to the provider that owns that behavior.
+
+Identifier constants should follow the same ownership rule:
+
+- Platform-wide default attribute IDs can live in a shared constants class.
+- Resource type IDs belong with the resource type provider or its package.
+- Attribute IDs that are unique to one resource type belong beside that
+  resource type provider.
+- Capability IDs can initially live as constants on the concrete capability
+  provider implementation that owns the capability.
+- Operation IDs should be declared by the operation definition owner at the
+  class, type, or resource-definition level, the same way attributes are
+  declared by the layer that owns them. CloudShell-standard lifecycle
+  operation IDs can live in a shared class. Type-specific operation IDs belong
+  beside the resource type definition/provider that declares them.
+
+This keeps a resource type provider's public surface reviewable: a reader
+should be able to find the type ID, type-specific attributes, supported
+capabilities, supported operations, validation rules, and projection behavior
+inside the owning boundary instead of following references through a generic
+application-resource service.
+
 Typed facades and builders can remain hand-written while the model is small or
 still changing. If resource type definitions become structured enough that
 facades, builders, descriptor constants, validation stubs, or JSON mapping code
@@ -691,6 +721,9 @@ public sealed class VolumeConsumerCapabilityProvider(IVolumeManager volumes)
 This keeps storage behavior reusable across executable apps, ASP.NET Core
 projects, container apps, SQL Server resources, or future provider-owned
 service resources without pushing volume semantics into each resource type.
+That reuse should happen through the capability provider contract and its
+owned constants/payload shape, not by making one resource-type provider depend
+on another resource-type provider's implementation internals.
 
 ## Attribute Validators
 
@@ -777,6 +810,13 @@ type-specific, provider-specific, host-specific, or capability-specific. For
 example, a `start` operation can be declared broadly for executable resources,
 while local processes, container apps, and provider-backed services use
 different providers to execute the resulting start command.
+
+Operation IDs should not be tangled into capability builders or capability
+payload helpers. A capability can require, enable, or constrain an operation,
+but the operation ID itself belongs to the class/type/resource-definition
+operation declaration. This leaves room for the same operation ID to have
+different implementations for different target artifacts without making a
+capability provider the accidental owner of that operation.
 
 Responsibilities:
 
@@ -910,16 +950,31 @@ mounts; validation accepts the mounts; the projected resource advertises
 `storage.volumeConsumer`; and runtime materialization later reports whether the
 mounts are active.
 
-## Persistence and Plain Format
+## Persistence, Debugging, and Plain Format
 
-Persisted resource definitions should be plain enough to inspect and review.
-The format should avoid making C# builder types, generated DTO names, or
-provider-native files the durable source of truth.
+Persisted and diagnostic resource-model artifacts should be plain enough to
+inspect and review. `Resource`, `ResourceDefinition`,
+`ResourceTypeDefinition`, `ResourceClassDefinition`, and related definition
+artifacts should all have deliberate serialized projections for persistence,
+exchange, diagnostics, and tests. `ResolvedResourceDefinition` should also be
+serializable as a debug or diagnostic snapshot so callers can inspect which
+attributes, capabilities, operations, defaults, sources, and diagnostics were
+effective after resolution.
+
+The durable formats should avoid making C# builder types, generated DTO names,
+or provider-native files the source of truth.
 
 Suggested principles:
 
 - Use stable, lower-camel or dotted identifiers for resource type,
   capability, and configuration keys.
+- Prefer value objects and typed IDs in .NET APIs for resource type IDs,
+  attribute IDs, capability IDs, operation IDs, references, and source IDs.
+  Those value objects should serialize as their stable string values through
+  explicit converters or serializer-supported mappings so JSON, YAML, XML, and
+  other projections remain plain, reviewable, and portable. A serializer should
+  be able to round-trip the artifact without leaking implementation-only type
+  details into the document.
 - Include a definition version so providers can migrate payloads.
 - Keep provider-owned configuration under `configuration`.
 - Keep cross-cutting capability intent under `capabilities`.
