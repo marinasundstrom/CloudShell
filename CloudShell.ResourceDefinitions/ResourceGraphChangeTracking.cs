@@ -24,6 +24,14 @@ public sealed record ResourceGraphSnapshot(
     ResourceGraphVersion Version,
     IReadOnlyList<ResourceState> Resources);
 
+public sealed record ResourceGraphRefreshContext(
+    IReadOnlyList<string>? ResourceIds = null)
+{
+    public static ResourceGraphRefreshContext Full { get; } = new();
+
+    public bool IsFullGraph => ResourceIds is not { Count: > 0 };
+}
+
 public sealed record ResourceGraphChangeSet(
     ResourceGraphVersion BaseVersion,
     IReadOnlyList<ResourceChangeApplyResult> Resources,
@@ -208,12 +216,23 @@ public sealed class ResourceGraphModel(IResourceStateProvider stateProvider)
     }
 
     public async ValueTask<ResourceGraphSnapshot> ReloadAsync(
+        CancellationToken cancellationToken = default) =>
+        await RefreshAsync(ResourceGraphRefreshContext.Full, cancellationToken);
+
+    public async ValueTask<ResourceGraphSnapshot> RefreshAsync(
+        ResourceGraphRefreshContext context,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(context);
+
         await _sync.WaitAsync(cancellationToken);
         try
         {
-            _snapshot = await stateProvider.GetSnapshotAsync(cancellationToken);
+            var storedSnapshot = await stateProvider.GetSnapshotAsync(cancellationToken);
+            _snapshot = context.IsFullGraph || _snapshot is null
+                ? storedSnapshot
+                : RefreshSelectedResources(_snapshot, storedSnapshot, context.ResourceIds!);
+
             return _snapshot;
         }
         finally
@@ -276,6 +295,34 @@ public sealed class ResourceGraphModel(IResourceStateProvider stateProvider)
     {
         _snapshot ??= await stateProvider.GetSnapshotAsync(cancellationToken);
         return _snapshot;
+    }
+
+    private static ResourceGraphSnapshot RefreshSelectedResources(
+        ResourceGraphSnapshot currentSnapshot,
+        ResourceGraphSnapshot storedSnapshot,
+        IReadOnlyList<string> resourceIds)
+    {
+        var selectedIds = new HashSet<string>(resourceIds, StringComparer.OrdinalIgnoreCase);
+        var resources = currentSnapshot.Resources.ToDictionary(
+            resource => resource.EffectiveResourceId,
+            resource => resource,
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var resourceId in selectedIds)
+        {
+            resources.Remove(resourceId);
+        }
+
+        foreach (var resource in storedSnapshot.Resources.Where(resource =>
+            selectedIds.Contains(resource.EffectiveResourceId)))
+        {
+            resources[resource.EffectiveResourceId] = resource;
+        }
+
+        return currentSnapshot with
+        {
+            Resources = resources.Values.ToArray()
+        };
     }
 
     private static ResourceDefinitionDiagnostic CreateVersionConflict(

@@ -681,9 +681,13 @@ Before a server-hosted `ResourceGraphModel` commits changes, it should refresh
 the current snapshot from `IResourceStateProvider` and compare the change
 set's base graph version with the stored graph version. If the store has moved
 forward, the model updates its cache and returns a version-conflict result
-instead of attempting to write stale changes. The state provider must still
-perform its own optimistic version check during the actual commit because a
-second consumer can update the store after the preflight read.
+instead of attempting to write stale changes. A stored graph version higher
+than the change set's base version is therefore a direct indication that the
+commit cannot be applied as-is; the caller needs to refresh the graph, or a
+relevant part of it, and create a new change set against the newer version.
+The state provider must still perform its own optimistic version check during
+the actual commit because a second consumer can update the store after the
+preflight read.
 
 Commit results should summarize the outcome in addition to returning
 diagnostics and the committed snapshot. `ResourceGraphCommitResult` carries a
