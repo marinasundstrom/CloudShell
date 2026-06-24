@@ -226,6 +226,8 @@ public sealed class ResourceProviderDispatcherTests
             ContainerApplicationResourceTypeProvider.Operations.Start));
         Assert.True(containerValidation.Resource.Operations.Has(
             ContainerApplicationResourceTypeProvider.Operations.Restart));
+        Assert.True(containerValidation.Resource.Operations.Has(
+            ContainerApplicationResourceTypeProvider.Operations.UpdateImage));
 
         var projectedGraph = await serviceProvider
             .GetRequiredService<ResourceDefinitionGraphProjectionResolver>()
@@ -241,6 +243,28 @@ public sealed class ResourceProviderDispatcherTests
         Assert.Equal(volume.EffectiveResourceId, Assert.Single(await projection.GetVolumesAsync()).Volume);
         Assert.True(await (await projection.GetStartOperationAsync())!.CanExecuteAsync());
         Assert.True(await (await projection.GetRestartOperationAsync())!.CanExecuteAsync());
+        var imageUpdate = await projection.GetImageUpdateOperationAsync();
+
+        Assert.NotNull(imageUpdate);
+        Assert.True(await imageUpdate.CanExecuteAsync());
+
+        var changes = imageUpdate.UpdateImage("ghcr.io/example/api:v2", replicas: 3);
+
+        Assert.Equal(2, changes.AttributeChanges.Count);
+        Assert.Equal("ghcr.io/example/api:v2", changes.ProposedState.ResourceAttributes[
+            ContainerApplicationResourceTypeProvider.Attributes.ContainerImage]);
+        Assert.Equal("3", changes.ProposedState.ResourceAttributes[
+            ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas]);
+
+        var applied = await serviceProvider
+            .GetRequiredService<ResourceChangeApplyDispatcher>()
+            .ApplyChangesAsync(
+                changes,
+                new ResourceChangeApplyContext("local", "developer"));
+
+        Assert.True(applied.IsAccepted);
+        Assert.Equal("ghcr.io/example/api:v2", applied.AcceptedState!.ResourceAttributes[
+            ContainerApplicationResourceTypeProvider.Attributes.ContainerImage]);
 
         var applyPlan = await serviceProvider
             .GetRequiredService<ResourceDefinitionGraphApplyPlanner>()

@@ -548,10 +548,14 @@ Resource model operation through the bridge.
 A narrow container application reference provider extends the same proof
 without porting the full legacy container app provider. It owns
 `application.container-app`, container image and replica attributes,
-start/restart operation providers, and a typed projection wrapper. The shared
-`storage.volumeConsumer` capability can attach to both executable and
-container application resources through the capability provider boundary, so
-volume behavior is not folded into either application provider implementation.
+start/restart operation providers, a typed image-update operation provider,
+and a typed projection wrapper. The image-update operation stages resource-local
+attribute changes on the attached `Resource`; the container application type
+provider then accepts or rejects those proposed changes through the normal
+apply hook. The shared `storage.volumeConsumer` capability can attach to both
+executable and container application resources through the capability provider
+boundary, so volume behavior is not folded into either application provider
+implementation.
 
 Host infrastructure registration is a separate concern from provider
 registration. A host may compose the generic graph services once from whatever

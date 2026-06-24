@@ -143,6 +143,10 @@ on `git blame --follow`, and then by the broad type of change.
   application resource type with image and replica attributes, start/restart
   operation providers, a typed wrapper, and shared volume-consumer capability
   support across executable and container application providers.
+- The container application reference provider now owns a typed
+  `container.image.update` operation projection that stages image and replica
+  attribute changes on its attached resource before the provider apply hook
+  accepts or rejects the proposed state.
 - The resource definitions POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change
