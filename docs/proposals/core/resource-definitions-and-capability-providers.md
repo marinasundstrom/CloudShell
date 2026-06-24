@@ -613,6 +613,15 @@ projection wrapper, and Resource Manager bridge coverage. The POC records
 summary counts only; route and entrypoint collections can move into typed
 complex values or provider-owned configuration payloads in a later slice.
 
+A narrow network reference provider covers the declarative `cloudshell.network`
+graph resource. It owns network kind, host-readiness, and mapping-provider
+attributes, passive networking capability markers, a reconcile-endpoint-
+mapping operation, a typed projection wrapper, and Resource Manager bridge
+coverage. The POC treats those attributes as resource-owned state or
+configuration. Fetched or calculated network views, such as observed endpoint
+or mapping summaries, should be exposed through resolved capability members or
+operation plans rather than stored as normal resource attributes.
+
 A narrow Secrets Vault reference provider follows the same boundary while
 keeping secret material out of the Resource model. It owns `secrets.vault`,
 Secrets Vault class defaults, endpoint and secret-count attributes, an inspect
@@ -633,6 +642,7 @@ The working porting status for the reference POC is:
 | Container host (`cloudshell.container-host`) | Ported as a narrow reference provider | Infrastructure class/type defaults, host kind/endpoint/registry/default attributes, passive container image/build/filesystem-mount capability markers, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real Docker/container host runtime integration, host resolution, placement behavior, credentials, and runtime diagnostics |
 | Docker host (`docker.host`) | Ported as a narrow reference provider | Infrastructure class/type defaults, Docker host kind/endpoint/registry/default attributes, passive container image/build/filesystem-mount capability markers, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real Docker runtime integration, discovery, health, logs, container child projections, credentials, and UI registration/update flow |
 | Load balancer (`cloudshell.loadBalancer`) | Ported as a narrow reference provider | Network class/type defaults, provider/host/count attributes, passive networking capability markers, apply-configuration operation, typed wrapper, Resource Manager bridge projection and execution | Route and entrypoint payloads, target `ResourceReference` graph validation, Traefik/materialization runtime integration, endpoint mappings, and UI registration/update flow |
+| Network (`cloudshell.network`) | Ported as a narrow reference provider | Network class/type defaults, kind/readiness/provider attributes, passive networking capability markers, reconcile-endpoint-mappings operation, typed wrapper, Resource Manager bridge projection and execution | Endpoint and mapping payloads, observed mapping state as capability members, host/virtual network specialization, provisioner integration, and UI registration/update flow |
 | Configuration store (`configuration.store`) | Ported as a narrow reference provider | Configuration class/type defaults, endpoint and entry-count attributes, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real configuration service runtime integration, entry collection payloads, authorization, logs, templates, and UI registration/update flow |
 | Host configuration source (`configuration.host`) | Ported as a narrow reference provider | Configuration class/type defaults, source and entry-count attributes, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Runtime host configuration lookup, entry-name payloads, authorization, templates, and UI registration/update flow |
 | Secrets Vault (`secrets.vault`) | Ported as a narrow reference provider | Secrets Vault class/type defaults, endpoint and secret-count attributes, inspect operation, typed wrapper, Resource Manager bridge projection and execution without storing secret values | Real Secrets Vault runtime integration, secret collection payloads, authorization, logs, templates, and UI registration/update flow |

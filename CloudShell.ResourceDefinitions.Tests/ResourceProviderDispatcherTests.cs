@@ -565,6 +565,63 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task AddNetworkResourceType_RegistersCompleteResourceTypeBoundary()
+    {
+        var services = new ServiceCollection();
+        services.AddNetworkResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var definition = new ResourceDefinition(
+            "edge-network",
+            NetworkResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [NetworkResourceTypeProvider.Attributes.NetworkKind] = "Virtual",
+                [NetworkResourceTypeProvider.Attributes.HostReadiness] = "providerRequired",
+                [NetworkResourceTypeProvider.Attributes.MappingProviders] = "traefik"
+            });
+
+        var validation = await serviceProvider
+            .GetRequiredService<ResourceDefinitionValidationPipeline>()
+            .ValidateAsync(
+                definition,
+                new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.False(validation.HasErrors);
+        Assert.Equal(NetworkResourceTypeProvider.ClassId, validation.Resource.Class.ClassId);
+        Assert.Equal("Virtual", validation.Resource.Attributes.GetString(
+            NetworkResourceTypeProvider.Attributes.NetworkKind));
+        Assert.Equal("providerRequired", validation.Resource.Attributes.GetString(
+            NetworkResourceTypeProvider.Attributes.HostReadiness));
+        Assert.True(validation.Resource.Capabilities.Has(
+            NetworkResourceTypeProvider.Capabilities.NetworkingEndpointMapper));
+        Assert.True(validation.Resource.Operations.Has(
+            NetworkResourceTypeProvider.Operations.ReconcileEndpointMappings));
+
+        var projectedGraph = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphProjectionResolver>()
+            .ProjectAsync(
+                new ResourceDefinitionGraphValidationPipelineResult(
+                    new ResourceDefinitionGraph([definition]),
+                    [validation],
+                    []),
+                new ResourceProjectionContext("local", "developer"));
+        var projection = projectedGraph.Find<NetworkResource>(
+            definition.EffectiveResourceId);
+
+        Assert.NotNull(projection);
+        Assert.Equal("Virtual", projection.NetworkKind);
+        Assert.Equal("providerRequired", projection.HostReadiness);
+        Assert.Equal("traefik", projection.MappingProviders);
+        Assert.True(projection.SupportsEndpointMapping);
+        var reconcile = await projection.GetReconcileEndpointMappingsOperationAsync();
+
+        Assert.NotNull(reconcile);
+        Assert.True(await reconcile.CanExecuteAsync());
+        Assert.Equal("traefik", reconcile.PlanReconcile().MappingProviders);
+    }
+
+    [Fact]
     public async Task AddSecretsVaultResourceType_RegistersCompleteResourceTypeBoundary()
     {
         var services = new ServiceCollection();

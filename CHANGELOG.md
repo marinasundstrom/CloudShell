@@ -197,6 +197,12 @@ on `git blame --follow`, and then by the broad type of change.
   count attributes, passive networking capability markers, an
   apply-configuration operation, typed wrapper, and Resource Manager bridge
   coverage.
+- The resource definitions reference providers now include a narrow network
+  resource type with kind, host-readiness, and mapping-provider attributes,
+  passive networking capability markers, a reconcile-endpoint-mappings
+  operation, typed wrapper, and Resource Manager bridge coverage, while the
+  proposal clarifies that calculated or fetched views should live on resolved
+  capability members or operation plans instead of normal attributes.
 - The resource definitions reference providers now include a narrow Secrets
   Vault resource type with endpoint and secret-count attributes, an inspect
   operation provider, typed wrapper, and Resource Manager bridge coverage

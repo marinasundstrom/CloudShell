@@ -1329,6 +1329,83 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesNetworkAcrossProviderBoundaries()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddNetworkResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var network = new ResourceDefinition(
+            "edge-network",
+            NetworkResourceTypeProvider.ResourceTypeId,
+            ProviderId: NetworkResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [NetworkResourceTypeProvider.Attributes.NetworkKind] = "Virtual",
+                [NetworkResourceTypeProvider.Attributes.HostReadiness] = "providerRequired",
+                [NetworkResourceTypeProvider.Attributes.MappingProviders] = "traefik"
+            });
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "network",
+                [network],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 5, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedNetwork = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == network.EffectiveResourceId);
+
+        Assert.Equal(ResourceManagerClass.Network, projectedNetwork.ResourceClass);
+        Assert.Equal(NetworkResourceTypeProvider.ProviderId, projectedNetwork.Provider);
+        Assert.Equal("Virtual", projectedNetwork.ResourceAttributes["network.kind"]);
+        Assert.Equal("providerRequired", projectedNetwork.ResourceAttributes["network.hostReadiness"]);
+        Assert.Equal("traefik", projectedNetwork.ResourceAttributes["network.mappingProviders"]);
+        Assert.Contains(projectedNetwork.ResourceCapabilities, capability =>
+            capability.Id == NetworkResourceTypeProvider.Capabilities.NetworkingEndpointMapper.ToString());
+        var reconcile = Assert.Single(projectedNetwork.ResourceActions, action =>
+            action.Id == NetworkResourceTypeProvider.Operations.ReconcileEndpointMappings.ToString());
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveAsync(network.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors);
+        var projection = Assert.IsType<NetworkResource>(
+            await serviceProvider
+                .GetRequiredService<ResourceProjectionResolver>()
+                .GetResourceProjectionAsync(
+                    resolution.Target!,
+                    new ResourceProjectionContext("local", "developer")));
+        Assert.Equal("traefik", projection.MappingProviders);
+
+        var procedure = new ResourceProcedureContext(
+            projectedNetwork,
+            null,
+            null,
+            new EmptyResourceRegistrationStore());
+
+        Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, reconcile));
+
+        var procedureResult = await provider.ExecuteActionAsync(procedure, reconcile);
+
+        Assert.Equal("Executed ReconcileEndpointMappings for edge-network.", procedureResult.Message);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesSecretsVaultAcrossProviderBoundaries()
     {
         var services = new ServiceCollection();
