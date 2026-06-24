@@ -410,6 +410,21 @@ public sealed record ResourceChangeSet(
         ArgumentNullException.ThrowIfNull(resource);
         ArgumentNullException.ThrowIfNull(definition);
 
+        if (!IsDefinitionTarget(resource, definition))
+        {
+            return new(
+                resource,
+                resource.State,
+                [],
+                [],
+                [
+                    ResourceDefinitionDiagnostic.Error(
+                        ResourceDefinitionDiagnosticCodes.ResourceDefinitionTargetMismatch,
+                        $"Resource definition '{definition.EffectiveResourceId}' cannot be applied to resource '{resource.EffectiveResourceId}'.",
+                        definition.EffectiveResourceId)
+                ]);
+        }
+
         var proposedState = resource.State.ApplyDefinition(definition);
         var attributeChanges = definition.Attributes is null
             ? Array.Empty<ResourceAttributeChange>()
@@ -459,6 +474,12 @@ public sealed record ResourceChangeSet(
         JsonElement left,
         JsonElement right) =>
         string.Equals(left.GetRawText(), right.GetRawText(), StringComparison.Ordinal);
+
+    private static bool IsDefinitionTarget(
+        Resource resource,
+        ResourceDefinition definition) =>
+        string.Equals(resource.EffectiveResourceId, definition.EffectiveResourceId, StringComparison.OrdinalIgnoreCase) &&
+        resource.Type.TypeId == definition.TypeId;
 }
 
 public sealed record ResourceAttributeChange(

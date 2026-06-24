@@ -592,6 +592,7 @@ public static class ResourceDefinitionDiagnosticCodes
     public const string ResourceCapabilityProjectionMissing = "resourceDefinition.capabilityProjectionMissing";
     public const string ResourceOperationProjectionMissing = "resourceDefinition.operationProjectionMissing";
     public const string AttributeDefinitionDefaultInvalid = "resourceDefinition.attributeDefinitionDefaultInvalid";
+    public const string ResourceDefinitionTargetMismatch = "resourceDefinition.targetMismatch";
 }
 
 public static class ResourceDefinitionClassIds

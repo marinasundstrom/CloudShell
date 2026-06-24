@@ -108,6 +108,29 @@ public sealed class ResourceModelResolverTests
     }
 
     [Fact]
+    public void ResourceDefinition_ApplyDefinitionRejectsDifferentTarget()
+    {
+        var resolver = CreateResolver();
+        var resource = resolver.Resolve(CreateState("./api"));
+        var incoming = new ResourceDefinition(
+            "worker",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "./worker"
+            });
+
+        var changes = resource.ApplyDefinition(incoming);
+
+        var diagnostic = Assert.Single(changes.Diagnostics);
+        Assert.True(changes.HasErrors);
+        Assert.False(changes.HasChanges);
+        Assert.Same(resource.State, changes.ProposedState);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.ResourceDefinitionTargetMismatch, diagnostic.Code);
+        Assert.Equal("application.executable:worker", diagnostic.Target);
+    }
+
+    [Fact]
     public void ApplyChanges_ReturnsProposedResourceStateWithoutMutatingProjection()
     {
         var resolver = CreateResolver();

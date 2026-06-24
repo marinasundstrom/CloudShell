@@ -991,6 +991,9 @@ The projected `Resource` can also turn an incoming `ResourceDefinition` overlay
 into a `ResourceChangeSet`; that change set carries the proposed state plus the
 attribute and capability diffs that provider apply hooks and graph commit
 summaries need.
+If the interchange definition targets a different resource identity or type,
+the projected resource returns diagnostics instead of producing a change set
+that would silently move state to another graph node.
 
 The current POC adds that first provider-owned boundary through
 `IResourceChangeApplyProvider` and `ResourceChangeApplyDispatcher`. The
