@@ -421,6 +421,22 @@ resources. The important rule is that capability providers, operation
 providers, attribute validators, and resource type providers receive the
 resolved context they need instead of manually combining raw properties.
 
+The current POC treats `ResourceDefinition` as the persisted data container and
+adds a runtime projection wrapper over the resolved definition. That projection
+can expose effective attributes, capabilities, and operations while delegating
+behavior to DI-resolved providers. In this shape, capability behavior is not
+stored on the definition itself. A `ResourceCapabilityResolver` resolves a
+matching capability provider for the projected resource, and the provider can
+return typed behavior that reads effective definition state, resolves other
+dependencies, projects additional information, or returns an updated
+`ResourceDefinition` when the capability changes accepted intent.
+
+This keeps persistence and runtime behavior separate. Serializers persist
+definitions and resolved debug views as data, while provider projects attach
+methods through the projection layer at runtime. The same pattern can later be
+applied to operation projections so operation implementations can consume
+capability projections instead of duplicating capability-specific resolution.
+
 The same principle applies to projected resources. A `Resource` projection can
 be checked against its known class/type expectations, but callers should use a
 validation or resolution helper rather than assuming the projected attribute
@@ -678,6 +694,8 @@ Responsibilities:
 - report diagnostics for invalid, unsupported, unsafe, or unresolved intent
 - provide typed helper behavior to resource type providers, orchestrators, or
   projection services where appropriate
+- project typed runtime behavior through a capability resolver over a resolved
+  resource projection
 - optionally contribute projected capabilities, dependencies, attributes, or
   diagnostics after the definition has been accepted
 

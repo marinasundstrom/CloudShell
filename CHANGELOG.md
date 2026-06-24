@@ -17,6 +17,10 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- The resource definitions POC now includes a capability resolver and
+  `ResourceDefinitionProjection` wrapper so provider-owned capability behavior
+  can project runtime methods over a resolved definition without making the
+  definition stop being the persisted data container.
 - The resource definitions POC now includes a validation pipeline that resolves
   definitions from registered resource type providers and then runs
   type-provider, capability-provider, and operation-provider validation with

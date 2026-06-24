@@ -10,19 +10,17 @@ public sealed class ResourceDefinitionValidationPipelineTests
     {
         var pipeline = CreatePipeline(
             capabilityProviders: [new VolumeConsumerCapabilityProvider()],
+            capabilityProjectors: [new VolumeConsumerCapabilityProvider()],
             operationProviders: [new ExecutableStartOperationProvider()]);
         var definition = CreateExecutableDefinition(
             path: "dotnet",
             capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
             {
                 [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
-                    ResourceDefinitionJson.FromValue(new
-                    {
-                        mounts = new[]
-                        {
-                            new { volume = "volume:data", targetPath = "App_Data" }
-                        }
-                    })
+                    ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
+                    [
+                        new("volume:data", "App_Data")
+                    ]))
             });
 
         var result = await pipeline.ValidateAsync(
@@ -36,6 +34,53 @@ public sealed class ResourceDefinitionValidationPipelineTests
             result.Resource.TypeDefinition.TypeId);
         Assert.True(result.Resource.Capabilities.Has(VolumeConsumerCapabilityProvider.CapabilityIdValue));
         Assert.True(result.Resource.Operations.Has(ExecutableApplicationResourceTypeProvider.Operations.Start));
+
+        var volumeConsumer = await result.Projection.GetCapabilityAsync<VolumeConsumerCapability>(
+            VolumeConsumerCapabilityProvider.CapabilityIdValue);
+
+        Assert.NotNull(volumeConsumer);
+        Assert.Single(volumeConsumer.Mounts);
+        Assert.Equal("App_Data", volumeConsumer.Mounts[0].TargetPath);
+    }
+
+    [Fact]
+    public async Task ProjectionCapability_CanUpdateDefinitionIntent()
+    {
+        var pipeline = CreatePipeline(
+            capabilityProviders: [new VolumeConsumerCapabilityProvider()],
+            capabilityProjectors: [new VolumeConsumerCapabilityProvider()],
+            operationProviders: [new ExecutableStartOperationProvider()]);
+        var definition = CreateExecutableDefinition(
+            path: "dotnet",
+            capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
+            {
+                [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
+                    ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
+                    [
+                        new("volume:data", "App_Data")
+                    ]))
+            });
+
+        var result = await pipeline.ValidateAsync(
+            definition,
+            new ResourceDefinitionValidationContext("local", "developer"));
+        var volumeConsumer = await result.Projection.GetCapabilityAsync<VolumeConsumerCapability>(
+            VolumeConsumerCapabilityProvider.CapabilityIdValue);
+
+        Assert.NotNull(volumeConsumer);
+
+        var updated = volumeConsumer.AddMount(
+            result.Projection.Definition,
+            new VolumeMountDefinition("volume:logs", "Logs", ReadOnly: true));
+        var updatedPayload = updated.GetCapability<VolumeConsumerDefinition>(
+            VolumeConsumerCapabilityProvider.CapabilityIdValue);
+
+        Assert.NotNull(updatedPayload);
+        Assert.Equal(2, updatedPayload.Mounts.Count);
+        Assert.Contains(updatedPayload.Mounts, mount =>
+            mount.Volume == "volume:logs" &&
+            mount.TargetPath == "Logs" &&
+            mount.ReadOnly);
     }
 
     [Fact]
@@ -68,12 +113,14 @@ public sealed class ResourceDefinitionValidationPipelineTests
 
     private static ResourceDefinitionValidationPipeline CreatePipeline(
         IReadOnlyList<IResourceDefinitionCapabilityProvider> capabilityProviders,
-        IReadOnlyList<IResourceOperationProvider> operationProviders) =>
+        IReadOnlyList<IResourceOperationProvider> operationProviders,
+        IReadOnlyList<IResourceDefinitionCapabilityProjector>? capabilityProjectors = null) =>
         new(
             [new(ExecutableApplicationResourceTypeProvider.ClassId)],
             [new ExecutableApplicationResourceTypeProvider()],
             capabilityProviders,
-            operationProviders);
+            operationProviders,
+            capabilityProjectors: capabilityProjectors);
 
     private static ResourceDefinition CreateExecutableDefinition(
         string path,
@@ -93,40 +140,6 @@ public sealed class ResourceDefinitionValidationPipelineTests
                     ResourceDefinitionJson.FromValue(new ExecutableApplicationConfiguration(path, "run"))
             },
             Capabilities: capabilities);
-
-    private sealed class VolumeConsumerCapabilityProvider : IResourceDefinitionCapabilityProvider
-    {
-        public static readonly ResourceCapabilityId CapabilityIdValue = "storage.volumeConsumer";
-
-        public ResourceCapabilityId CapabilityId => CapabilityIdValue;
-
-        public bool CanValidate(
-            ResolvedResourceDefinition resource,
-            ResourceCapabilityResolution capability) =>
-            resource.TypeDefinition.TypeId == ExecutableApplicationResourceTypeProvider.ResourceTypeId;
-
-        public ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
-            ResolvedResourceDefinition resource,
-            ResourceCapabilityResolution capability,
-            ResourceDefinitionValidationContext context,
-            CancellationToken cancellationToken = default)
-        {
-            using var document = JsonDocument.Parse(capability.Payload.GetRawText());
-            var hasMounts = document.RootElement.TryGetProperty("mounts", out var mounts) &&
-                mounts.ValueKind == JsonValueKind.Array &&
-                mounts.GetArrayLength() > 0;
-
-            return ValueTask.FromResult(hasMounts
-                ? ResourceDefinitionValidationResult.Success
-                : ResourceDefinitionValidationResult.FromDiagnostics(
-                    [
-                        ResourceDefinitionDiagnostic.Error(
-                            "storage.volumeConsumer.mountsRequired",
-                            "At least one volume mount is required.",
-                            capability.Id)
-                    ]));
-        }
-    }
 
     private sealed class ExecutableStartOperationProvider : IResourceOperationProvider
     {
