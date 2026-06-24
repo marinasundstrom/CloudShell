@@ -11,6 +11,39 @@ public interface IResourceStateProvider
         CancellationToken cancellationToken = default);
 }
 
+public interface IResourceGraphStoreProjector<TRecord>
+{
+    string GetResourceId(TRecord record);
+
+    ResourceState ToState(TRecord record);
+
+    TRecord FromState(
+        ResourceState state,
+        TRecord? currentRecord = default);
+}
+
+public sealed class ResourceRecordGraphStoreProjector : IResourceGraphStoreProjector<ResourceRecord>
+{
+    public string GetResourceId(ResourceRecord record)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+
+        return record.ResourceId;
+    }
+
+    public ResourceState ToState(ResourceRecord record)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+
+        return record.ToState();
+    }
+
+    public ResourceRecord FromState(
+        ResourceState state,
+        ResourceRecord? currentRecord = null) =>
+        ResourceRecord.FromState(state);
+}
+
 public sealed class InMemoryResourceStateProvider(
     IEnumerable<ResourceState>? resources = null) : IResourceStateProvider
 {
@@ -95,17 +128,26 @@ public sealed class InMemoryResourceStateProvider(
         new(_version, _resources.Values.ToArray());
 }
 
-public sealed class InMemoryResourceRecordStateProvider(
-    IEnumerable<ResourceRecord>? records = null) : IResourceStateProvider
+public class InMemoryProjectedResourceStateProvider<TRecord> : IResourceStateProvider
+    where TRecord : notnull
 {
-    private readonly Dictionary<string, ResourceRecord> _records = (records ?? [])
-        .ToDictionary(
-            record => record.ResourceId,
-            record => record,
-            StringComparer.OrdinalIgnoreCase);
+    private readonly IResourceGraphStoreProjector<TRecord> _projector;
+    private readonly Dictionary<string, TRecord> _records;
     private ResourceGraphVersion _version = ResourceGraphVersion.Initial;
 
-    public IReadOnlyList<ResourceRecord> GetRecords() =>
+    public InMemoryProjectedResourceStateProvider(
+        IResourceGraphStoreProjector<TRecord> projector,
+        IEnumerable<TRecord>? records = null)
+    {
+        _projector = projector ?? throw new ArgumentNullException(nameof(projector));
+        _records = (records ?? [])
+            .ToDictionary(
+                projector.GetResourceId,
+                record => record,
+                StringComparer.OrdinalIgnoreCase);
+    }
+
+    public IReadOnlyList<TRecord> GetRecords() =>
         _records.Values.ToArray();
 
     public ValueTask<ResourceGraphSnapshot> GetSnapshotAsync(
@@ -158,7 +200,9 @@ public sealed class InMemoryResourceRecordStateProvider(
         {
             var acceptedState = accepted.AcceptedState!;
             _records.TryGetValue(acceptedState.EffectiveResourceId, out var currentRecord);
-            var currentState = currentRecord?.ToState();
+            var currentState = currentRecord is null
+                ? null
+                : _projector.ToState(currentRecord);
             var committedState = acceptedState
                 .WithRevision(acceptedState.Revision.Next()) with
                 {
@@ -166,7 +210,9 @@ public sealed class InMemoryResourceRecordStateProvider(
                     LastModifiedAt = timestamp
                 };
 
-            _records[committedState.EffectiveResourceId] = ResourceRecord.FromState(committedState);
+            _records[committedState.EffectiveResourceId] = _projector.FromState(
+                committedState,
+                currentRecord);
         }
 
         _version = nextVersion;
@@ -181,5 +227,11 @@ public sealed class InMemoryResourceRecordStateProvider(
     }
 
     private ResourceGraphSnapshot CreateSnapshot() =>
-        new(_version, _records.Values.Select(record => record.ToState()).ToArray());
+        new(_version, _records.Values.Select(_projector.ToState).ToArray());
 }
+
+public sealed class InMemoryResourceRecordStateProvider(
+    IEnumerable<ResourceRecord>? records = null)
+    : InMemoryProjectedResourceStateProvider<ResourceRecord>(
+        new ResourceRecordGraphStoreProjector(),
+        records);

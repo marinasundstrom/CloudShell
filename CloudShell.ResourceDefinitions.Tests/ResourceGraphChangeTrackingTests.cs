@@ -1,3 +1,4 @@
+using System.Text.Json;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 
 namespace CloudShell.ResourceDefinitions.Tests;
@@ -123,6 +124,44 @@ public sealed class ResourceGraphChangeTrackingTests
         Assert.Equal("4", committed.Version);
         Assert.Equal(createdAt, record.CreatedAt);
         Assert.Equal(committedAt, record.LastModifiedAt);
+        Assert.Equal("./api-v2", committed.ResourceAttributes[
+            ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
+    }
+
+    [Fact]
+    public async Task ProjectedStateProvider_CommitsGraphPayloadWithoutDroppingStoreOwnedFields()
+    {
+        var committedAt = new DateTimeOffset(2026, 6, 24, 13, 30, 0, TimeSpan.Zero);
+        var stateProvider = new InMemoryProjectedResourceStateProvider<ResourceManagerResourceRow>(
+            new ResourceManagerResourceRowProjector(),
+            [
+                new(
+                    "application.executable:api",
+                    ResourceDefinitionJson.FromValue(
+                        ResourceRecord.FromState(CreateState("api", "./api", version: "3"))),
+                    OperationalState: "Running")
+            ]);
+        var snapshot = await stateProvider.GetSnapshotAsync();
+        var tracker = new ResourceGraphChangeTracker(snapshot);
+        var applyDispatcher = new ResourceChangeApplyDispatcher(
+            [new ExecutableApplicationResourceTypeProvider()]);
+
+        tracker.Track(await StageExecutablePathChangeAsync(
+            snapshot,
+            "application.executable:api",
+            "./api-v2",
+            applyDispatcher));
+
+        var commit = await stateProvider.CommitAsync(
+            tracker.GetChanges(),
+            new ResourceGraphCommitContext(Timestamp: committedAt));
+
+        var row = Assert.Single(stateProvider.GetRecords());
+        var committed = row.GraphData.Deserialize<ResourceRecord>()!.ToState();
+        Assert.True(commit.IsCommitted);
+        Assert.Equal("Running", row.OperationalState);
+        Assert.Equal(new ResourceRevision(4), committed.Revision);
+        Assert.Equal(committedAt, committed.LastModifiedAt);
         Assert.Equal("./api-v2", committed.ResourceAttributes[
             ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
     }
@@ -725,4 +764,32 @@ public sealed class ResourceGraphChangeTrackingTests
             {
                 [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = executablePath
             });
+
+    private sealed record ResourceManagerResourceRow(
+        string ResourceId,
+        JsonElement GraphData,
+        string OperationalState);
+
+    private sealed class ResourceManagerResourceRowProjector :
+        IResourceGraphStoreProjector<ResourceManagerResourceRow>
+    {
+        public string GetResourceId(ResourceManagerResourceRow record) =>
+            record.ResourceId;
+
+        public ResourceState ToState(ResourceManagerResourceRow record) =>
+            record.GraphData.Deserialize<ResourceRecord>()?.ToState() ??
+            throw new InvalidOperationException("Resource graph payload could not be read.");
+
+        public ResourceManagerResourceRow FromState(
+            ResourceState state,
+            ResourceManagerResourceRow? currentRecord = null) =>
+            (currentRecord ?? new(
+                state.EffectiveResourceId,
+                ResourceDefinitionJson.EmptyObject,
+                OperationalState: "Unknown")) with
+            {
+                ResourceId = state.EffectiveResourceId,
+                GraphData = ResourceDefinitionJson.FromValue(ResourceRecord.FromState(state))
+            };
+    }
 }

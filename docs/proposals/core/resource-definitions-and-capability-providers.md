@@ -1049,6 +1049,10 @@ store-optimized `ResourceRecord` data: records are rehydrated into
 records. A database provider would use the same boundary, but materialize
 resources from database records and persist the accepted state or
 provider-specific delta format in a transaction.
+The POC now extracts that record mapping into `IResourceGraphStoreProjector<TRecord>`
+and `InMemoryProjectedResourceStateProvider<TRecord>` so a store-owned record
+shape can hydrate graph state and write accepted graph payloads back without
+making the Resource model own the whole store record.
 
 The graph version is the batch/concurrency token for the whole resource graph.
 Each persisted resource state also carries its own resource revision through
@@ -2050,12 +2054,16 @@ Plane operational concern through the low-level resource definition model.
 One possible midway integration is a store-backed graph projector that can
 load graph resources from any Resource Manager-owned store shape. For example,
 the Resource Manager database could keep its own resource row for operational
-state while storing the Resource model graph payload in a column or companion
-record on that same resource row. A projector would hydrate those records into
-`ResourceState` values for graph resolution and then persist accepted graph
-changes back into the same uniform Resource Manager store. This keeps the POC
-flexible: the graph does not need a separate database too early, but the
-Resource model still gets a clean load/apply/commit boundary.
+state while storing the Resource model graph payload as JSON in a column on
+that same resource row. A projector would hydrate that JSON graph record into
+`ResourceState` for graph resolution and then persist accepted graph changes
+back into the same uniform Resource Manager store. This keeps the POC
+flexible: the graph does not need a separate database too early, and the
+database schema does not need to expose every graph field as columns before
+the graph shape stabilizes.
+The first code proof is intentionally in-memory: a custom Resource Manager row
+can keep an operational-state field while the projector updates only its JSON
+graph payload from accepted `ResourceState`.
 
 Layered definition, persistence, and projection model:
 

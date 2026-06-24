@@ -121,6 +121,10 @@ on `git blame --follow`, and then by the broad type of change.
 - The resource definitions proposal now documents a store-backed graph
   projector option where Resource Manager-owned resource records can carry the
   Resource model graph payload and hydrate it through the same graph boundary.
+- The resource definitions POC now includes a generic graph store projector
+  and in-memory projected state provider, proving that Resource Manager-owned
+  records can preserve operational fields while JSON graph payloads are loaded
+  and committed through the Resource model boundary.
 - The resource definitions POC now groups accepted resource changes into a
   versioned resource graph change set and proves persistence through an
   in-memory state provider that commits all accepted resource states under one
