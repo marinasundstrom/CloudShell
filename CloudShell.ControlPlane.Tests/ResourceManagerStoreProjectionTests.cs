@@ -659,6 +659,9 @@ public sealed class ResourceManagerStoreProjectionTests
         var providers = serviceProvider
             .GetServices<IResourceProvider>()
             .ToArray();
+        var actionAvailabilityProviders = serviceProvider
+            .GetServices<IResourceActionAvailabilityProvider>()
+            .ToArray();
         var registrations = new TestResourceRegistrationStore(
         [
             new(
@@ -683,8 +686,12 @@ public sealed class ResourceManagerStoreProjectionTests
             registrations,
             new ResourceDeclarationStore(),
             CreateSelectionStore(),
-            actionAvailabilityProviders: providers.OfType<IResourceActionAvailabilityProvider>());
+            actionAvailabilityProviders: actionAvailabilityProviders);
         var resource = Assert.Single(store.GetResources());
+
+        Assert.Contains(
+            actionAvailabilityProviders,
+            provider => provider is ResourceModelGraphProcedureProvider);
 
         var result = await orchestration.ExecuteActionAsync(
             resource,

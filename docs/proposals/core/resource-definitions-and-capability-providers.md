@@ -454,6 +454,10 @@ Manager action availability and procedure execution by resolving the matching
 Resource model operation projection. It only executes operations that opt into
 the generic executable operation projection contract. This keeps the read-only
 graph provider and the procedure-capable provider as separate host choices.
+The helper should wire the same scoped bridge instance into both the
+`IResourceProvider` and `IResourceActionAvailabilityProvider` collections so
+standard Control Plane composition can discover availability reasons without
+host-specific adapter code.
 
 The bridge project should own registration helpers for this integration seam.
 Hosts can register a graph-backed Resource model provider as an existing

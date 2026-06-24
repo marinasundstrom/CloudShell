@@ -71,6 +71,10 @@ on `git blame --follow`, and then by the broad type of change.
   procedure-capable graph provider that can evaluate and execute Resource
   Manager actions by resolving executable Resource model operation projections,
   while keeping the read-only graph provider available separately.
+- The procedure-capable Resource model bridge registration now wires the same
+  scoped bridge instance as both an `IResourceProvider` and an
+  `IResourceActionAvailabilityProvider`, so normal Control Plane composition
+  can surface operation availability reasons without host-specific plumbing.
 - The resource definitions POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change

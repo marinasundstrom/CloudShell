@@ -152,7 +152,7 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
         ArgumentNullException.ThrowIfNull(resolveSnapshot);
 
-        services.AddScoped<IResourceProvider>(serviceProvider =>
+        services.AddScoped(serviceProvider =>
             new ResourceModelGraphProcedureProvider(
                 new ResourceModelGraphResourceProvider(
                     id,
@@ -163,6 +163,10 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
                     projectionOptions),
                 serviceProvider.GetRequiredService<ResourceModelGraphResourceResolver>(),
                 resolutionContext));
+        services.AddScoped<IResourceProvider>(
+            serviceProvider => serviceProvider.GetRequiredService<ResourceModelGraphProcedureProvider>());
+        services.AddScoped<IResourceActionAvailabilityProvider>(
+            serviceProvider => serviceProvider.GetRequiredService<ResourceModelGraphProcedureProvider>());
 
         return services;
     }
