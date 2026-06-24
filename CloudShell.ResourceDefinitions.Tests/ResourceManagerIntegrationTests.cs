@@ -1095,6 +1095,80 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesSecretsVaultAcrossProviderBoundaries()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddSecretsVaultResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var vault = new ResourceDefinition(
+            "vault",
+            SecretsVaultResourceTypeProvider.ResourceTypeId,
+            ProviderId: SecretsVaultResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [SecretsVaultResourceTypeProvider.Attributes.Endpoint] = "http://localhost:6138",
+                [SecretsVaultResourceTypeProvider.Attributes.SecretCount] = "2"
+            });
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "secrets-vault",
+                [vault],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 1, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedVault = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == vault.EffectiveResourceId);
+
+        Assert.Equal(ResourceManagerClass.SecretsVault, projectedVault.ResourceClass);
+        Assert.Equal(SecretsVaultResourceTypeProvider.ProviderId, projectedVault.Provider);
+        Assert.Equal("vault", projectedVault.ResourceAttributes["secrets.kind"]);
+        Assert.Equal("http://localhost:6138", projectedVault.ResourceAttributes["secrets.endpoint"]);
+        Assert.Equal("2", projectedVault.ResourceAttributes["secrets.count"]);
+        var inspect = Assert.Single(projectedVault.ResourceActions, action =>
+            action.Id == SecretsVaultResourceTypeProvider.Operations.Inspect.ToString());
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveAsync(vault.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors);
+        var projection = Assert.IsType<SecretsVaultResource>(
+            await serviceProvider
+                .GetRequiredService<ResourceProjectionResolver>()
+                .GetResourceProjectionAsync(
+                    resolution.Target!,
+                    new ResourceProjectionContext("local", "developer")));
+        Assert.Equal(2, projection.SecretCount);
+
+        var procedure = new ResourceProcedureContext(
+            projectedVault,
+            null,
+            null,
+            new EmptyResourceRegistrationStore());
+
+        Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, inspect));
+
+        var procedureResult = await provider.ExecuteActionAsync(procedure, inspect);
+
+        Assert.Equal("Executed Secrets Vault Inspect for vault.", procedureResult.Message);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesSqlServerAcrossProviderBoundaries()
     {
         var services = new ServiceCollection();

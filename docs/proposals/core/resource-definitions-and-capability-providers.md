@@ -590,6 +590,13 @@ now; later typed/complex attribute values can represent the entry collection
 or a provider-owned configuration payload without changing the provider
 boundary.
 
+A narrow Secrets Vault reference provider follows the same boundary while
+keeping secret material out of the Resource model. It owns `secrets.vault`,
+Secrets Vault class defaults, endpoint and secret-count attributes, an inspect
+operation, a typed projection wrapper, and Resource Manager bridge coverage.
+The POC intentionally stores only non-secret projected facts; secret values
+and secret-value lifecycle behavior remain provider-owned runtime concerns.
+
 The working porting status for the reference POC is:
 
 | Provider or resource type | Status | New-model coverage | Remaining outside the POC |
@@ -602,6 +609,7 @@ The working porting status for the reference POC is:
 | SQL database child (`application.sql-database`) | Ported as a narrow reference provider | Database name/source/ensure-created attributes, server `ResourceReference` validation, ensure-created operation, typed wrapper, Resource Manager bridge projection and execution | Real SQL database materialization, credential/grant reconciliation, provider-managed child ownership metadata, and UI tabs |
 | Container host (`cloudshell.container-host`) | Ported as a narrow reference provider | Infrastructure class/type defaults, host kind/endpoint/registry/default attributes, passive container image/build/filesystem-mount capability markers, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real Docker/container host runtime integration, host resolution, placement behavior, credentials, and runtime diagnostics |
 | Configuration store (`configuration.store`) | Ported as a narrow reference provider | Configuration class/type defaults, endpoint and entry-count attributes, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real configuration service runtime integration, entry collection payloads, authorization, logs, templates, and UI registration/update flow |
+| Secrets Vault (`secrets.vault`) | Ported as a narrow reference provider | Secrets Vault class/type defaults, endpoint and secret-count attributes, inspect operation, typed wrapper, Resource Manager bridge projection and execution without storing secret values | Real Secrets Vault runtime integration, secret collection payloads, authorization, logs, templates, and UI registration/update flow |
 
 Host infrastructure registration is a separate concern from provider
 registration. A host may compose the generic graph services once from whatever

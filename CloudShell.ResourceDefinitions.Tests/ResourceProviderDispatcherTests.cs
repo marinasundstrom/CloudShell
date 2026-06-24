@@ -382,6 +382,61 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task AddSecretsVaultResourceType_RegistersCompleteResourceTypeBoundary()
+    {
+        var services = new ServiceCollection();
+        services.AddSecretsVaultResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var definition = new ResourceDefinition(
+            "vault",
+            SecretsVaultResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [SecretsVaultResourceTypeProvider.Attributes.Endpoint] = "http://localhost:6138",
+                [SecretsVaultResourceTypeProvider.Attributes.SecretCount] = "2"
+            });
+
+        var validation = await serviceProvider
+            .GetRequiredService<ResourceDefinitionValidationPipeline>()
+            .ValidateAsync(
+                definition,
+                new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.False(validation.HasErrors);
+        Assert.Equal(SecretsVaultResourceTypeProvider.ClassId, validation.Resource.Class.ClassId);
+        Assert.Equal("vault", validation.Resource.Attributes.GetString(
+            SecretsVaultResourceTypeProvider.Attributes.SecretsKind));
+        Assert.Equal("http://localhost:6138", validation.Resource.Attributes.GetString(
+            SecretsVaultResourceTypeProvider.Attributes.Endpoint));
+        Assert.Equal("2", validation.Resource.Attributes.GetString(
+            SecretsVaultResourceTypeProvider.Attributes.SecretCount));
+        Assert.True(validation.Resource.Operations.Has(
+            SecretsVaultResourceTypeProvider.Operations.Inspect));
+
+        var projectedGraph = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphProjectionResolver>()
+            .ProjectAsync(
+                new ResourceDefinitionGraphValidationPipelineResult(
+                    new ResourceDefinitionGraph([definition]),
+                    [validation],
+                    []),
+                new ResourceProjectionContext("local", "developer"));
+        var projection = projectedGraph.Find<SecretsVaultResource>(
+            definition.EffectiveResourceId);
+
+        Assert.NotNull(projection);
+        Assert.Equal("vault", projection.SecretsKind);
+        Assert.Equal("http://localhost:6138", projection.Endpoint);
+        Assert.Equal(2, projection.SecretCount);
+        var inspect = await projection.GetInspectOperationAsync();
+
+        Assert.NotNull(inspect);
+        Assert.True(await inspect.CanExecuteAsync());
+        Assert.Equal(2, inspect.PlanInspection().SecretCount);
+    }
+
+    [Fact]
     public async Task AddContainerApplicationResourceType_RegistersCompleteResourceTypeBoundary()
     {
         var services = new ServiceCollection();
