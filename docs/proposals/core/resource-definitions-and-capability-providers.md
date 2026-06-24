@@ -1068,7 +1068,8 @@ class and type definitions carry attributes as a map keyed by
   "attributes": {
     "container:replicas": {
       "defaultValue": 1,
-      "required": false
+      "required": false,
+      "readOnly": false
     }
   }
 }
@@ -1086,13 +1087,37 @@ resource-owned state or interchange value map, keyed by attribute ID directly:
 ```
 
 The attribute definition carries an optional default value,
-required-attribute intent, an optional required message, a description, and an
-optional serializer-neutral `ResourceAttributeValueShape`. Those definitions
-participate in normal resource resolution: class defaults are applied first,
-type defaults refine them, and resource-owned state still wins. Custom
-validation rules remain provider or platform validator hooks over the resolved
-`Resource`; the attribute definition is not intended to become a full provider
-configuration schema.
+required-attribute intent, optional read-only intent, an optional required
+message, a description, and an optional serializer-neutral
+`ResourceAttributeValueShape`. Those definitions participate in normal
+resource resolution: class defaults are applied first, type defaults refine
+them, and resource-owned state still wins when the attribute is writable.
+Custom validation rules remain provider or platform validator hooks over the
+resolved `Resource`; the attribute definition is not intended to become a full
+provider configuration schema.
+
+`ReadOnly` should describe whether callers may set or change an attribute
+through authored `ResourceDefinition` input or graph change application. It is
+useful for provider-projected facts such as observed endpoint counts, runtime
+state summaries, generated identities, provider-native addresses, or other
+values that should be visible on the resolved resource but not accepted as
+user-owned desired state. A read-only attribute can still have a default or be
+projected by a provider; the important rule is that apply/change validation
+should reject explicit caller attempts to create or update it unless the
+operation runs in a trusted provider-owned projection path. This keeps
+read-only state as model metadata without tying the definition contract to
+JSON, YAML, XML, database records, or any other serialization target.
+
+Attribute definition overrides are a future model extension, not an immediate
+POC priority. A later version may let `ResourceTypeDefinition` explicitly
+override or refine an attribute declaration inherited from
+`ResourceClassDefinition`, for example to replace a default value, narrow
+validation, or bind a read-only class attribute to a concrete type-specific
+value. That should be marked intentionally, such as with an override flag or
+override policy, so accidental shadowing is rejected by validation. Read-only
+would still apply to caller-authored resource state; class/type definition
+overrides would be definition-level model composition, not normal resource
+state mutation.
 
 When a class or type definition declares both `defaultValue` and
 `valueShape`, the resolver should validate that the default value matches the
@@ -2083,6 +2108,7 @@ Attribute validators should cover common rules:
 - pattern checks
 - case normalization
 - invariant formatting
+- read-only attribute enforcement for authored or applied changes
 - secret-value rejection
 - provider compatibility
 - cross-attribute rules
@@ -2534,28 +2560,31 @@ pipeline:
 5. Resolve the resource type provider.
 6. Validate platform-owned identity, names, grouping, persistence, ownership,
    and references.
-7. Run common and type-specific attribute validators.
-8. Let the resource type provider normalize and validate type-specific
+7. Reject caller-authored values or changes for attributes whose effective
+   `ResourceAttributeDefinition` is read-only, except for trusted
+   provider-owned projection paths.
+8. Run common and type-specific attribute validators.
+9. Let the resource type provider normalize and validate type-specific
    configuration.
-9. Resolve capability providers for declared capability intent.
-10. Let capability providers validate capability-owned payload shape and
+10. Resolve capability providers for declared capability intent.
+11. Let capability providers validate capability-owned payload shape and
     resource-local semantics.
-11. Resolve resource operation providers for declared and type-supported
+12. Resolve resource operation providers for declared and type-supported
    operations.
-12. Let operation providers validate operation configuration and command
+13. Let operation providers validate operation configuration and command
    projection policy, including availability policy that can be checked before
    projection or apply.
-13. Compute the definition diff when a `ResourceDefinition` update is being
+14. Compute the definition diff when a `ResourceDefinition` update is being
    applied to an existing resource.
-14. Let the resource type provider plan the definition change using the
+15. Let the resource type provider plan the definition change using the
    current resource, proposed resource state, changed
    attributes/capabilities/operations, and current runtime state.
-15. Run cross-definition graph validation, including dependencies,
+16. Run cross-definition graph validation, including dependencies,
    capability references, authorization, compatibility, and host/provider
    policy.
-16. Return diagnostics and normalized accepted resource state without side
+17. Return diagnostics and normalized accepted resource state without side
     effects.
-17. Apply, update, persist, or project only after validation succeeds.
+18. Apply, update, persist, or project only after validation succeeds.
 
 Expected validation failures should be returned as diagnostics or result
 objects. Exceptions should remain for programmer errors or boundary adapters
