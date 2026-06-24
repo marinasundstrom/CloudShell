@@ -1069,7 +1069,8 @@ class and type definitions carry attributes as a map keyed by
     "container:replicas": {
       "defaultValue": 1,
       "required": false,
-      "readOnly": false
+      "readOnly": false,
+      "mutability": "callerManaged"
     }
   }
 }
@@ -1087,8 +1088,9 @@ resource-owned state or interchange value map, keyed by attribute ID directly:
 ```
 
 The attribute definition carries an optional default value,
-required-attribute intent, optional read-only intent, an optional required
-message, a description, and an optional serializer-neutral
+required-attribute intent, optional read-only intent, optional mutability
+intent, an optional required message, a description, and an optional
+serializer-neutral
 `ResourceAttributeValueShape`. Those definitions participate in normal
 resource resolution: class defaults are applied first, type defaults refine
 them, and resource-owned state still wins when the attribute is writable.
@@ -1097,16 +1099,36 @@ resolved `Resource`; the attribute definition is not intended to become a full
 provider configuration schema.
 
 `ReadOnly` should describe whether callers may set or change an attribute
-through authored `ResourceDefinition` input or graph change application. It is
-useful for provider-projected facts such as observed endpoint counts, runtime
-state summaries, generated identities, provider-native addresses, or other
-values that should be visible on the resolved resource but not accepted as
-user-owned desired state. A read-only attribute can still have a default or be
-projected by a provider; the important rule is that apply/change validation
-should reject explicit caller attempts to create or update it unless the
-operation runs in a trusted provider-owned projection path. This keeps
-read-only state as model metadata without tying the definition contract to
-JSON, YAML, XML, database records, or any other serialization target.
+through authored `ResourceDefinition` input or graph change application.
+`Mutability` should describe which boundary owns normal updates to the value.
+The preferred future shape is:
+
+```csharp
+new ResourceAttributeDefinition(
+    ReadOnly: true,
+    Mutability: ResourceAttributeMutability.ProviderManaged)
+```
+
+`ResourceAttributeMutability.ProviderManaged` is useful for
+provider-projected facts such as observed endpoint counts, runtime state
+summaries, generated identities, provider-native addresses, or other values
+that should be visible on the resolved resource but not accepted as user-owned
+desired state. A provider-managed read-only attribute can still have a default
+or be projected by a provider into `ResourceState`; the important rule is that
+apply/change validation should reject explicit caller attempts to create or
+update it unless the operation runs in a trusted provider-owned projection
+path. `ResourceDefinition` rendering should omit provider-managed read-only
+attributes because the definition is an interchange and authoring surface, not
+the provider state persistence surface. This keeps provider-managed state as
+model metadata without tying the definition contract to JSON, YAML, XML,
+database records, or any other serialization target.
+
+`ReadOnly` and `Mutability` are intentionally related but not identical:
+read-only is the caller access policy, while mutability is the ownership model
+for how values are produced. The POC may initially enforce only `ReadOnly`,
+then introduce `ResourceAttributeMutability` when provider-owned refresh or
+apply-result paths need to state why a value may be updated by a provider but
+not authored by a caller.
 When inherited definitions are resolved, an unset read-only value should
 inherit the class-level policy. A type-level `false` should be treated as an
 explicit definition-level decision to clear inherited read-only behavior, not
