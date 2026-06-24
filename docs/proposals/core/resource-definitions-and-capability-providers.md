@@ -674,6 +674,41 @@ resource graph hot in memory when there is one primary graph consumer, while
 still preserving explicit commit boundaries, optimistic graph versions, and a
 clear synchronization point with the backing data store.
 
+### Event History and Event Sourcing
+
+The graph commit boundary is also a natural place to produce a durable change
+history. A committed `ResourceGraphChangeSet` has the information needed to
+append events such as resource attributes changed, capability payload changed,
+operation declaration changed, resource state committed, or provider operation
+executed. Those events can include graph version, resource ID, resource
+revision, timestamp, actor/context, incremental `ResourceDefinition` deltas,
+provider diagnostics, and provider-specific correlation data.
+
+The POC should not make pure event sourcing the only source of truth yet.
+Resource state is a resolved model over provider-owned reality, and providers
+may reconcile against external systems, reject changes, or project runtime
+facts that are not clean CloudShell-owned domain events. Full replay also
+creates extra questions around provider behavior, schema evolution, graph-wide
+cascading, and the boundary between desired state and observed runtime state.
+
+The pragmatic direction is a hybrid model:
+
+- `ResourceState` and `ResourceGraphSnapshot` remain the current persisted
+  read model and fast server-hydration source.
+- Successful graph commits may append a durable event/change record beside the
+  snapshot.
+- The event log can power audit history, a user-facing resource changelog,
+  debugging, rebuilds, and future replay experiments.
+- `ResourceGraphModel` can hydrate from the latest snapshot first and later
+  replay committed events after that snapshot if a persistence provider
+  supports it.
+- Provider acceptance and external reconciliation remain explicit at the
+  commit/provider boundary instead of being hidden inside event replay.
+
+This keeps event-sourcing concepts available where they fit while avoiding an
+early requirement that every provider-owned resource fact be reconstructable
+from CloudShell events alone.
+
 Typed projections can use the same boundary through a change context:
 
 ```csharp

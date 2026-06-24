@@ -62,6 +62,10 @@ on `git blame --follow`, and then by the broad type of change.
   serialized resource `Version` field and advanced only for committed changed
   resources; committed resources also expose creation and last-modified
   timestamps through the resource projection and persistence record.
+- The resource definitions proposal now documents a hybrid event-history
+  direction where graph commits can append durable events for audit,
+  changelog, debugging, and future replay without making pure event sourcing
+  the POC source of truth.
 - The resource definitions POC now includes a capability resolver so
   provider-owned capability behavior can be composed into type-specific
   resource projections without making the definition stop being the persisted
