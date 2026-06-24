@@ -90,6 +90,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource definition validation now applies the same class-definition
   override rule as graph service composition, so duplicate class ids are
   resolved consistently before provider validation runs.
+- The resource definitions reference providers now include a separate local
+  volume resource type provider, proving a second provider boundary with its
+  own class defaults, type defaults, validation, change apply handling, and
+  apply planning.
 - The resource definitions POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change

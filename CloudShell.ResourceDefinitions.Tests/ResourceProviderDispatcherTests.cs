@@ -114,6 +114,45 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task AddLocalVolumeResourceType_RegistersCompleteResourceTypeBoundary()
+    {
+        var services = new ServiceCollection();
+        services.AddLocalVolumeResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var definition = new ResourceDefinition(
+            "data",
+            LocalVolumeResourceTypeProvider.ResourceTypeId);
+
+        var validation = await serviceProvider
+            .GetRequiredService<ResourceDefinitionValidationPipeline>()
+            .ValidateAsync(
+                definition,
+                new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.False(validation.HasErrors);
+        Assert.Equal(LocalVolumeResourceTypeProvider.ClassId, validation.Resource.Class.ClassId);
+        Assert.Equal("volume", validation.Resource.Attributes.GetString(
+            LocalVolumeResourceTypeProvider.Attributes.StorageKind));
+        Assert.Equal("local", validation.Resource.Attributes.GetString(
+            LocalVolumeResourceTypeProvider.Attributes.StorageMedium));
+
+        var applyPlan = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphApplyPlanner>()
+            .PlanApplyAsync(
+                new ResourceDefinitionGraphValidationPipelineResult(
+                    new ResourceDefinitionGraph([definition]),
+                    [validation],
+                    []),
+                new ResourceDefinitionApplyContext("local", "developer"));
+
+        Assert.False(applyPlan.HasErrors);
+        Assert.Contains(applyPlan.Steps, step =>
+            step.ResourceId == "storage.volume:data" &&
+            step.Kind == ResourceDefinitionApplyStepKind.MaterializeRuntime);
+    }
+
+    [Fact]
     public async Task ValidateCapabilitiesAsync_UsesRegisteredCapabilityProvider()
     {
         var dispatcher = CreateDispatcher(

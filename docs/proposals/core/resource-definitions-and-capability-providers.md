@@ -525,6 +525,15 @@ and apply/change handlers needed by that type. It should not grow into a broad
 application-provider aggregate that registers unrelated executable, project,
 container, and database resource types behind one provider identity.
 
+The POC should also include at least one second resource type from another
+boundary. A local volume resource type is a useful test because it lets the
+model prove that storage class/type defaults, apply validation, and Resource
+Manager projection compose with executable application capabilities without
+folding storage behavior into an application provider aggregate. Later, when
+an existing provider is ported, the verification path should be to register the
+ported provider through the new model, turn off the old registration, and prove
+the Resource Manager and orchestration paths still work through the graph.
+
 Host infrastructure registration is a separate concern from provider
 registration. A host may compose the generic graph services once from whatever
 class definitions, type providers, validators, capability providers, operation
