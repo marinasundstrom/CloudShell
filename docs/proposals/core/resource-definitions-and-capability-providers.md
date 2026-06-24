@@ -204,6 +204,27 @@ The distinction should be kept explicit:
 | projected attributes | Stable non-secret facts about the current projection | Owning provider or Control Plane overlay |
 | runtime state | Observed provider/runtime facts | Provider, orchestrator, or Control Plane operational store |
 
+## Resource Providers
+
+CloudShell can use `ResourceProvider` as the general term for classes that
+provide or list projected `Resource` instances from any source. A resource
+provider may project accepted resource definitions, list provider-observed
+runtime artifacts, surface diagnostics or child resources, or combine several
+source records into the current resource graph.
+
+For example:
+
+```csharp
+IReadOnlyList<Resource> resources =
+    await containerProvider.GetResourcesAsync(cancellationToken);
+```
+
+In this terminology, a `ResourceProvider` answers "what resources are visible
+now?" A resource type provider answers "how is this precise resource type
+validated, accepted, changed, and projected from definition intent?" Some
+provider classes may implement both roles, but the names should keep the
+resource projection role distinct from the resource-definition ownership role.
+
 ## Capabilities vs Operations
 
 Capabilities and operations both add behavior to the resource model, but they
