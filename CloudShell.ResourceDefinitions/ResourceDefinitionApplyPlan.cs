@@ -77,15 +77,15 @@ public sealed class ResourceDefinitionGraphApplyPlanner(
         foreach (var resource in validationResult.Resources)
         {
             var provider = _applyProviders.FirstOrDefault(provider =>
-                provider.TypeId == resource.Resource.TypeDefinition.TypeId &&
+                provider.TypeId == resource.Resource.Type.TypeId &&
                 provider.CanPlan(resource.Projection));
 
             if (provider is null)
             {
                 diagnostics.Add(ResourceDefinitionDiagnostic.Error(
                     ResourceDefinitionDiagnosticCodes.ResourceDefinitionApplyProviderMissing,
-                    $"No apply provider is registered for resource type '{resource.Resource.TypeDefinition.TypeId}'.",
-                    resource.Resource.Definition.EffectiveResourceId));
+                    $"No apply provider is registered for resource type '{resource.Resource.Type.TypeId}'.",
+                    resource.Resource.EffectiveResourceId));
                 continue;
             }
 

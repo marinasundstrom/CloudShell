@@ -100,7 +100,7 @@ public sealed record ResourceDefinitionGraphValidationPipelineResult(
     public ResourceDefinitionValidationPipelineResult? FindResource(string resourceId) =>
         Resources.FirstOrDefault(resource =>
             string.Equals(
-                resource.Resource.Definition.EffectiveResourceId,
+                resource.Resource.EffectiveResourceId,
                 resourceId,
                 StringComparison.OrdinalIgnoreCase));
 }

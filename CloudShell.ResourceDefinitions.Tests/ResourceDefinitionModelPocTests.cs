@@ -19,7 +19,7 @@ public sealed class ResourceDefinitionModelPocTests
         Assert.NotNull(fromDocument);
 
         var records = fromDocument.Resources
-            .Select(ResourceDefinitionRecord.FromDefinition)
+            .Select(ResourceRecord.FromDefinition)
             .ToArray();
         var deploymentFromPersistence = new ResourceDeploymentDefinition(
             fromDocument.Name,
@@ -106,13 +106,13 @@ public sealed class ResourceDefinitionModelPocTests
             ResourceDefinitionValueSource.TypeDefinition;
 
         public bool CanHandle(
-            ResolvedResourceDefinition resource,
+            Resource resource,
             ResourceOperationResolution operation) =>
-            resource.TypeDefinition.TypeId == ExecutableApplicationResourceTypeProvider.ResourceTypeId &&
+            resource.Type.TypeId == ExecutableApplicationResourceTypeProvider.ResourceTypeId &&
             operation.IsAvailable;
 
         public ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
-            ResolvedResourceDefinition resource,
+            Resource resource,
             ResourceOperationResolution operation,
             ResourceDefinitionValidationContext context,
             CancellationToken cancellationToken = default) =>

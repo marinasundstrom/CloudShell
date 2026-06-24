@@ -3,20 +3,20 @@ using System.Text.Json;
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
 public sealed class VolumeConsumerCapabilityProvider :
-    IResourceDefinitionCapabilityProvider,
-    IResourceDefinitionCapabilityProjector
+    IResourceCapabilityProvider,
+    IResourceCapabilityProjector
 {
     public static readonly ResourceCapabilityId CapabilityIdValue = "storage.volumeConsumer";
 
     public ResourceCapabilityId CapabilityId => CapabilityIdValue;
 
     public bool CanValidate(
-        ResolvedResourceDefinition resource,
+        Resource resource,
         ResourceCapabilityResolution capability) =>
-        resource.TypeDefinition.TypeId == ExecutableApplicationResourceTypeProvider.ResourceTypeId;
+        resource.Type.TypeId == ExecutableApplicationResourceTypeProvider.ResourceTypeId;
 
     public ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
-        ResolvedResourceDefinition resource,
+        Resource resource,
         ResourceCapabilityResolution capability,
         ResourceDefinitionValidationContext context,
         CancellationToken cancellationToken = default)
@@ -37,7 +37,7 @@ public sealed class VolumeConsumerCapabilityProvider :
     }
 
     public bool CanProject(
-        ResolvedResourceDefinition resource,
+        Resource resource,
         ResourceCapabilityResolution capability) =>
         CanValidate(resource, capability);
 

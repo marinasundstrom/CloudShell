@@ -114,12 +114,12 @@ public sealed class ResourceDefinitionProviderDispatcherTests
         Assert.Equal(ExecutableApplicationResourceTypeProvider.ConfigurationSection, diagnostic.Target);
     }
 
-    private static ResolvedResourceDefinition ResolveExecutable(
+    private static Resource ResolveExecutable(
         IReadOnlyDictionary<string, JsonElement>? configuration = null,
         IReadOnlyDictionary<ResourceCapabilityId, JsonElement>? capabilities = null)
     {
         var typeProvider = new ExecutableApplicationResourceTypeProvider();
-        var resolver = new ResourceDefinitionResolver(
+        var resolver = new ResourceResolver(
             [
                 new(ExecutableApplicationResourceTypeProvider.ClassId)
             ],
@@ -127,7 +127,7 @@ public sealed class ResourceDefinitionProviderDispatcherTests
                 typeProvider.TypeDefinition
             ]);
 
-        return resolver.Resolve(new(
+        return resolver.Resolve(new ResourceDefinition(
             "api",
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
             Configuration: configuration,
@@ -136,7 +136,7 @@ public sealed class ResourceDefinitionProviderDispatcherTests
 
     private static ResourceDefinitionProviderDispatcher CreateDispatcher(
         IReadOnlyList<IResourceTypeProvider> typeProviders,
-        IReadOnlyList<IResourceDefinitionCapabilityProvider> capabilityProviders,
+        IReadOnlyList<IResourceCapabilityProvider> capabilityProviders,
         IReadOnlyList<IResourceOperationProvider> operationProviders)
     {
         var services = new ServiceCollection();
@@ -148,7 +148,7 @@ public sealed class ResourceDefinitionProviderDispatcherTests
 
         foreach (var provider in capabilityProviders)
         {
-            services.AddSingleton<IResourceDefinitionCapabilityProvider>(provider);
+            services.AddSingleton<IResourceCapabilityProvider>(provider);
         }
 
         foreach (var provider in operationProviders)
@@ -163,19 +163,19 @@ public sealed class ResourceDefinitionProviderDispatcherTests
             .GetRequiredService<ResourceDefinitionProviderDispatcher>();
     }
 
-    private sealed class VolumeConsumerCapabilityProvider : IResourceDefinitionCapabilityProvider
+    private sealed class VolumeConsumerCapabilityProvider : IResourceCapabilityProvider
     {
         public static readonly ResourceCapabilityId CapabilityIdValue = "storage.volumeConsumer";
 
         public ResourceCapabilityId CapabilityId => CapabilityIdValue;
 
         public bool CanValidate(
-            ResolvedResourceDefinition resource,
+            Resource resource,
             ResourceCapabilityResolution capability) =>
-            resource.TypeDefinition.TypeId == ExecutableApplicationResourceTypeProvider.ResourceTypeId;
+            resource.Type.TypeId == ExecutableApplicationResourceTypeProvider.ResourceTypeId;
 
         public ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
-            ResolvedResourceDefinition resource,
+            Resource resource,
             ResourceCapabilityResolution capability,
             ResourceDefinitionValidationContext context,
             CancellationToken cancellationToken = default)
@@ -210,13 +210,13 @@ public sealed class ResourceDefinitionProviderDispatcherTests
             ResourceDefinitionValueSource.TypeDefinition;
 
         public bool CanHandle(
-            ResolvedResourceDefinition resource,
+            Resource resource,
             ResourceOperationResolution operation) =>
-            resource.TypeDefinition.TypeId == ExecutableApplicationResourceTypeProvider.ResourceTypeId &&
+            resource.Type.TypeId == ExecutableApplicationResourceTypeProvider.ResourceTypeId &&
             operation.IsAvailable;
 
         public ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
-            ResolvedResourceDefinition resource,
+            Resource resource,
             ResourceOperationResolution operation,
             ResourceDefinitionValidationContext context,
             CancellationToken cancellationToken = default) =>

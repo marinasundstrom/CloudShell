@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace CloudShell.ResourceDefinitions;
 
-public sealed record ResourceDefinitionRecord(
+public sealed record ResourceRecord(
     string ResourceId,
     string Name,
     string TypeId,
@@ -16,32 +16,35 @@ public sealed record ResourceDefinitionRecord(
     IReadOnlyDictionary<string, JsonElement>? Operations = null,
     IReadOnlyDictionary<string, string>? Metadata = null)
 {
-    public static ResourceDefinitionRecord FromDefinition(ResourceDefinition definition)
+    public static ResourceRecord FromState(ResourceState state)
     {
-        ArgumentNullException.ThrowIfNull(definition);
+        ArgumentNullException.ThrowIfNull(state);
 
         return new(
-            definition.EffectiveResourceId,
-            definition.Name,
-            definition.TypeId.ToString(),
-            definition.ProviderId,
-            definition.DisplayName,
-            definition.Version,
-            definition.ResourceDependencies.ToArray(),
-            definition.ResourceAttributes.ToDictionary(
+            state.EffectiveResourceId,
+            state.Name,
+            state.TypeId.ToString(),
+            state.ProviderId,
+            state.DisplayName,
+            state.Version,
+            state.ResourceDependencies.ToArray(),
+            state.ResourceAttributes.ToDictionary(
                 attribute => attribute.Key.ToString(),
                 attribute => attribute.Value,
                 StringComparer.OrdinalIgnoreCase),
-            ClonePayloads(definition.ConfigurationPayloads),
-            ClonePayloads(definition.CapabilityPayloads),
-            ClonePayloads(definition.OperationPayloads),
-            definition.Metadata?.ToDictionary(
+            ClonePayloads(state.ConfigurationPayloads),
+            ClonePayloads(state.CapabilityPayloads),
+            ClonePayloads(state.OperationPayloads),
+            state.Metadata?.ToDictionary(
                 item => item.Key,
                 item => item.Value,
                 StringComparer.OrdinalIgnoreCase));
     }
 
-    public ResourceDefinition ToDefinition() =>
+    public static ResourceRecord FromDefinition(ResourceDefinition definition) =>
+        FromState(ResourceState.FromDefinition(definition));
+
+    public ResourceState ToState() =>
         new(
             Name,
             ResourceTypeId.Create(TypeId),
@@ -67,6 +70,8 @@ public sealed record ResourceDefinitionRecord(
                 payload => ResourceOperationId.Create(payload.Key),
                 payload => ResourceDefinitionJson.Clone(payload.Value)),
             Metadata);
+
+    public ResourceDefinition ToDefinition() => ToState().ToDefinition();
 
     private static IReadOnlyDictionary<string, JsonElement> ClonePayloads<TKey>(
         IReadOnlyDictionary<TKey, JsonElement> payloads)

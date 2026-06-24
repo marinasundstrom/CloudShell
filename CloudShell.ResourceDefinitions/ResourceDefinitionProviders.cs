@@ -6,24 +6,24 @@ public interface IResourceTypeProvider
 
     ResourceTypeDefinition TypeDefinition { get; }
 
-    bool CanValidate(ResolvedResourceDefinition resource);
+    bool CanValidate(Resource resource);
 
     ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
-        ResolvedResourceDefinition resource,
+        Resource resource,
         ResourceDefinitionValidationContext context,
         CancellationToken cancellationToken = default);
 }
 
-public interface IResourceDefinitionCapabilityProvider
+public interface IResourceCapabilityProvider
 {
     ResourceCapabilityId CapabilityId { get; }
 
     bool CanValidate(
-        ResolvedResourceDefinition resource,
+        Resource resource,
         ResourceCapabilityResolution capability);
 
     ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
-        ResolvedResourceDefinition resource,
+        Resource resource,
         ResourceCapabilityResolution capability,
         ResourceDefinitionValidationContext context,
         CancellationToken cancellationToken = default);
@@ -36,11 +36,11 @@ public interface IResourceOperationProvider
     ResourceDefinitionValueSource ResolutionLevel { get; }
 
     bool CanHandle(
-        ResolvedResourceDefinition resource,
+        Resource resource,
         ResourceOperationResolution operation);
 
     ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
-        ResolvedResourceDefinition resource,
+        Resource resource,
         ResourceOperationResolution operation,
         ResourceDefinitionValidationContext context,
         CancellationToken cancellationToken = default);
@@ -52,23 +52,23 @@ public sealed record ResourceDefinitionValidationContext(
 
 public sealed class ResourceDefinitionProviderDispatcher(
     IEnumerable<IResourceTypeProvider> typeProviders,
-    IEnumerable<IResourceDefinitionCapabilityProvider> capabilityProviders,
+    IEnumerable<IResourceCapabilityProvider> capabilityProviders,
     IEnumerable<IResourceOperationProvider> operationProviders)
 {
     private readonly IReadOnlyList<IResourceTypeProvider> _typeProviders =
         typeProviders.ToArray();
-    private readonly IReadOnlyList<IResourceDefinitionCapabilityProvider> _capabilityProviders =
+    private readonly IReadOnlyList<IResourceCapabilityProvider> _capabilityProviders =
         capabilityProviders.ToArray();
     private readonly IReadOnlyList<IResourceOperationProvider> _operationProviders =
         operationProviders.ToArray();
 
     public async ValueTask<ResourceDefinitionValidationResult> ValidateResourceTypeAsync(
-        ResolvedResourceDefinition resource,
+        Resource resource,
         ResourceDefinitionValidationContext context,
         CancellationToken cancellationToken = default)
     {
         var provider = _typeProviders.FirstOrDefault(provider =>
-            provider.TypeId == resource.TypeDefinition.TypeId &&
+            provider.TypeId == resource.Type.TypeId &&
             provider.CanValidate(resource));
 
         if (provider is null)
@@ -77,8 +77,8 @@ public sealed class ResourceDefinitionProviderDispatcher(
                 [
                     ResourceDefinitionDiagnostic.Error(
                         ResourceDefinitionDiagnosticCodes.ResourceTypeProviderMissing,
-                        $"No resource type provider is registered for resource type '{resource.TypeDefinition.TypeId}'.",
-                        resource.TypeDefinition.TypeId)
+                        $"No resource type provider is registered for resource type '{resource.Type.TypeId}'.",
+                        resource.Type.TypeId)
                 ]);
         }
 
@@ -86,7 +86,7 @@ public sealed class ResourceDefinitionProviderDispatcher(
     }
 
     public async ValueTask<ResourceDefinitionValidationResult> ValidateCapabilitiesAsync(
-        ResolvedResourceDefinition resource,
+        Resource resource,
         ResourceDefinitionValidationContext context,
         CancellationToken cancellationToken = default)
     {
@@ -115,7 +115,7 @@ public sealed class ResourceDefinitionProviderDispatcher(
     }
 
     public async ValueTask<ResourceDefinitionValidationResult> ValidateOperationsAsync(
-        ResolvedResourceDefinition resource,
+        Resource resource,
         ResourceDefinitionValidationContext context,
         CancellationToken cancellationToken = default)
     {

@@ -5,12 +5,12 @@ public interface IResourceCapabilityProjection
     ResourceCapabilityId CapabilityId { get; }
 }
 
-public interface IResourceDefinitionCapabilityProjector
+public interface IResourceCapabilityProjector
 {
     ResourceCapabilityId CapabilityId { get; }
 
     bool CanProject(
-        ResolvedResourceDefinition resource,
+        Resource resource,
         ResourceCapabilityResolution capability);
 
     ValueTask<IResourceCapabilityProjection> ProjectAsync(
@@ -25,9 +25,9 @@ public sealed record ResourceCapabilityProjectionContext(
     string? PrincipalId = null);
 
 public sealed class ResourceCapabilityResolver(
-    IEnumerable<IResourceDefinitionCapabilityProjector> capabilityProjectors)
+    IEnumerable<IResourceCapabilityProjector> capabilityProjectors)
 {
-    private readonly IReadOnlyList<IResourceDefinitionCapabilityProjector> _capabilityProjectors =
+    private readonly IReadOnlyList<IResourceCapabilityProjector> _capabilityProjectors =
         capabilityProjectors.ToArray();
 
     public async ValueTask<IResourceCapabilityProjection?> ResolveAsync(
@@ -71,13 +71,13 @@ public sealed class ResourceCapabilityResolver(
 }
 
 public sealed class ResourceDefinitionProjection(
-    ResolvedResourceDefinition resource,
+    Resource resource,
     ResourceCapabilityResolver capabilityResolver,
     ResourceCapabilityProjectionContext context)
 {
-    public ResolvedResourceDefinition Resource { get; } = resource;
+    public Resource Resource { get; } = resource;
 
-    public ResourceDefinition Definition => Resource.Definition;
+    public ResourceDefinition Definition => Resource.ToDefinition();
 
     public ResourceAttributeSet Attributes => Resource.Attributes;
 
@@ -132,7 +132,7 @@ public sealed class ResourceProjectionResolver(
         ArgumentNullException.ThrowIfNull(context);
 
         var provider = _projectionProviders.FirstOrDefault(provider =>
-            provider.TypeId == resource.Definition.TypeId &&
+            provider.TypeId == resource.Resource.Type.TypeId &&
             provider.CanProject(resource));
 
         if (provider is null)

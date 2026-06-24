@@ -31,7 +31,7 @@ public sealed class ResourceDefinitionValidationPipelineTests
         Assert.Empty(result.Diagnostics);
         Assert.Equal(
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
-            result.Resource.TypeDefinition.TypeId);
+            result.Resource.Type.TypeId);
         Assert.True(result.Resource.Capabilities.Has(VolumeConsumerCapabilityProvider.CapabilityIdValue));
         Assert.True(result.Resource.Operations.Has(ExecutableApplicationResourceTypeProvider.Operations.Start));
 
@@ -118,9 +118,9 @@ public sealed class ResourceDefinitionValidationPipelineTests
     }
 
     private static ResourceDefinitionValidationPipeline CreatePipeline(
-        IReadOnlyList<IResourceDefinitionCapabilityProvider> capabilityProviders,
+        IReadOnlyList<IResourceCapabilityProvider> capabilityProviders,
         IReadOnlyList<IResourceOperationProvider> operationProviders,
-        IReadOnlyList<IResourceDefinitionCapabilityProjector>? capabilityProjectors = null) =>
+        IReadOnlyList<IResourceCapabilityProjector>? capabilityProjectors = null) =>
         new(
             [new(ExecutableApplicationResourceTypeProvider.ClassId)],
             [new ExecutableApplicationResourceTypeProvider()],
@@ -156,13 +156,13 @@ public sealed class ResourceDefinitionValidationPipelineTests
             ResourceDefinitionValueSource.TypeDefinition;
 
         public bool CanHandle(
-            ResolvedResourceDefinition resource,
+            Resource resource,
             ResourceOperationResolution operation) =>
-            resource.TypeDefinition.TypeId == ExecutableApplicationResourceTypeProvider.ResourceTypeId &&
+            resource.Type.TypeId == ExecutableApplicationResourceTypeProvider.ResourceTypeId &&
             operation.IsAvailable;
 
         public ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
-            ResolvedResourceDefinition resource,
+            Resource resource,
             ResourceOperationResolution operation,
             ResourceDefinitionValidationContext context,
             CancellationToken cancellationToken = default) =>

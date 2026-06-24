@@ -13,7 +13,7 @@ public sealed record ResourceDefinitionGraphProjectionResult(
             .OfType<TProjection>()
             .FirstOrDefault(resource =>
                 string.Equals(
-                    resource.Resource.Definition.EffectiveResourceId,
+                    resource.Resource.Resource.EffectiveResourceId,
                     resourceId,
                     StringComparison.OrdinalIgnoreCase));
 }
@@ -48,8 +48,8 @@ public sealed class ResourceDefinitionGraphProjectionResolver(
             {
                 diagnostics.Add(ResourceDefinitionDiagnostic.Error(
                     ResourceDefinitionDiagnosticCodes.ResourceProjectionProviderMissing,
-                    $"No resource projection provider is registered for resource type '{resource.Resource.TypeDefinition.TypeId}'.",
-                    resource.Resource.Definition.EffectiveResourceId));
+                    $"No resource projection provider is registered for resource type '{resource.Resource.Type.TypeId}'.",
+                    resource.Resource.EffectiveResourceId));
                 continue;
             }
 

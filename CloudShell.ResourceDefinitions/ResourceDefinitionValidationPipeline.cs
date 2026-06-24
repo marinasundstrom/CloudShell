@@ -2,17 +2,17 @@ namespace CloudShell.ResourceDefinitions;
 
 public sealed class ResourceDefinitionValidationPipeline
 {
-    private readonly ResourceDefinitionResolver _resolver;
+    private readonly ResourceResolver _resolver;
     private readonly ResourceDefinitionProviderDispatcher _dispatcher;
     private readonly ResourceCapabilityResolver _capabilityResolver;
 
     public ResourceDefinitionValidationPipeline(
         IEnumerable<ResourceClassDefinition> classDefinitions,
         IEnumerable<IResourceTypeProvider> typeProviders,
-        IEnumerable<IResourceDefinitionCapabilityProvider>? capabilityProviders = null,
+        IEnumerable<IResourceCapabilityProvider>? capabilityProviders = null,
         IEnumerable<IResourceOperationProvider>? operationProviders = null,
         IEnumerable<IResourceAttributeValidator>? attributeValidators = null,
-        IEnumerable<IResourceDefinitionCapabilityProjector>? capabilityProjectors = null)
+        IEnumerable<IResourceCapabilityProjector>? capabilityProjectors = null)
     {
         ArgumentNullException.ThrowIfNull(classDefinitions);
         ArgumentNullException.ThrowIfNull(typeProviders);
@@ -74,7 +74,7 @@ public sealed class ResourceDefinitionValidationPipeline
 }
 
 public sealed record ResourceDefinitionValidationPipelineResult(
-    ResolvedResourceDefinition Resource,
+    Resource Resource,
     ResourceDefinitionProjection Projection,
     IReadOnlyList<ResourceDefinitionDiagnostic> Diagnostics)
 {

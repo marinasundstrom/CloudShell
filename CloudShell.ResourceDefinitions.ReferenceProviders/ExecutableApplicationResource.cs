@@ -25,7 +25,7 @@ public sealed class ExecutableApplicationResourceProjectionProvider : IResourceP
     public ResourceTypeId TypeId => ExecutableApplicationResourceTypeProvider.ResourceTypeId;
 
     public bool CanProject(ResourceDefinitionProjection resource) =>
-        resource.Resource.TypeDefinition.TypeId == ExecutableApplicationResourceTypeProvider.ResourceTypeId;
+        resource.Resource.Type.TypeId == ExecutableApplicationResourceTypeProvider.ResourceTypeId;
 
     public ValueTask<IResourceProjection> ProjectAsync(
         ResourceDefinitionProjection resource,

@@ -3,14 +3,14 @@ using CloudShell.ResourceDefinitions.ReferenceProviders;
 
 namespace CloudShell.ResourceDefinitions.Tests;
 
-public sealed class ResourceDefinitionRecordTests
+public sealed class ResourceRecordTests
 {
     [Fact]
     public void FromDefinition_StoresStringKeyedPersistenceProjection()
     {
         var definition = CreateDefinition();
 
-        var record = ResourceDefinitionRecord.FromDefinition(definition);
+        var record = ResourceRecord.FromDefinition(definition);
 
         Assert.Equal(definition.EffectiveResourceId, record.ResourceId);
         Assert.Equal("application.executable", record.TypeId);
@@ -19,12 +19,12 @@ public sealed class ResourceDefinitionRecordTests
     }
 
     [Fact]
-    public void ToDefinition_RehydratesDomainDefinitionBeforeResolution()
+    public void ToState_RehydratesResourceOwnedStateBeforeResolution()
     {
         var definition = CreateDefinition();
-        var record = ResourceDefinitionRecord.FromDefinition(definition);
+        var record = ResourceRecord.FromDefinition(definition);
 
-        var roundTrip = record.ToDefinition();
+        var roundTrip = record.ToState();
 
         Assert.Equal(definition.EffectiveResourceId, roundTrip.EffectiveResourceId);
         Assert.Equal(definition.Name, roundTrip.Name);
@@ -44,7 +44,7 @@ public sealed class ResourceDefinitionRecordTests
     public void ResourceDefinitionAndRecord_AreDifferentSerializedShapes()
     {
         var definition = CreateDefinition();
-        var record = ResourceDefinitionRecord.FromDefinition(definition);
+        var record = ResourceRecord.FromDefinition(definition);
 
         var definitionJson = JsonSerializer.SerializeToElement(definition);
         var recordJson = JsonSerializer.SerializeToElement(record);

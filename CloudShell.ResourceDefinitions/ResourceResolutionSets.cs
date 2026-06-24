@@ -2,15 +2,6 @@ using System.Text.Json;
 
 namespace CloudShell.ResourceDefinitions;
 
-public sealed record ResolvedResourceDefinition(
-    ResourceDefinition Definition,
-    ResourceClassDefinition ClassDefinition,
-    ResourceTypeDefinition TypeDefinition,
-    ResourceAttributeSet Attributes,
-    ResourceCapabilitySet Capabilities,
-    ResourceOperationSet Operations,
-    IReadOnlyList<ResourceDefinitionDiagnostic> Diagnostics);
-
 public sealed class ResourceAttributeSet : IReadOnlyCollection<ResourceAttributeResolution>
 {
     private readonly IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeResolution> _attributes;

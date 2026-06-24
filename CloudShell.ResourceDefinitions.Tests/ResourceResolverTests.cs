@@ -3,12 +3,12 @@ using CloudShell.ResourceDefinitions.ReferenceProviders;
 
 namespace CloudShell.ResourceDefinitions.Tests;
 
-public sealed class ResourceDefinitionResolverTests
+public sealed class ResourceResolverTests
 {
     [Fact]
     public void Resolve_MergesClassTypeAndResourceDefinitionValues()
     {
-        var resolver = new ResourceDefinitionResolver(
+        var resolver = new ResourceResolver(
             [
                 new(
                     ExecutableApplicationResourceTypeProvider.ClassId,
@@ -64,8 +64,8 @@ public sealed class ResourceDefinitionResolverTests
         var resolved = resolver.Resolve(definition);
 
         Assert.Empty(resolved.Diagnostics);
-        Assert.Equal(ExecutableApplicationResourceTypeProvider.ClassId, resolved.ClassDefinition.ClassId);
-        Assert.Equal(ExecutableApplicationResourceTypeProvider.ResourceTypeId, resolved.TypeDefinition.TypeId);
+        Assert.Equal(ExecutableApplicationResourceTypeProvider.ClassId, resolved.Class.ClassId);
+        Assert.Equal(ExecutableApplicationResourceTypeProvider.ResourceTypeId, resolved.Type.TypeId);
         Assert.Equal("executable", resolved.Attributes.GetString("workload.kind"));
         Assert.Equal(
             "./api",
@@ -83,7 +83,7 @@ public sealed class ResourceDefinitionResolverTests
     [Fact]
     public void Resolve_ReportsRequiredAttributeDiagnostics()
     {
-        var resolver = new ResourceDefinitionResolver(
+        var resolver = new ResourceResolver(
             [
                 new(
                     ExecutableApplicationResourceTypeProvider.ClassId,
@@ -114,7 +114,7 @@ public sealed class ResourceDefinitionResolverTests
     [Fact]
     public void Resolve_BlocksOperationOverrideWhenInheritedOperationDisallowsOverride()
     {
-        var resolver = new ResourceDefinitionResolver(
+        var resolver = new ResourceResolver(
             [
                 new(
                     ExecutableApplicationResourceTypeProvider.ClassId,
@@ -133,7 +133,7 @@ public sealed class ResourceDefinitionResolverTests
                     ])
             ]);
 
-        var resolved = resolver.Resolve(new(
+        var resolved = resolver.Resolve(new ResourceDefinition(
             "api",
             ExecutableApplicationResourceTypeProvider.ResourceTypeId));
 

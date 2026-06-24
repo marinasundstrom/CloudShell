@@ -472,35 +472,36 @@ inherited values, can contain invalid authored values, or can represent
 provider projection rather than accepted intent.
 
 Operations should follow the same resolution path as attributes and
-capabilities. The raw collection records what was declared or projected at one
+capabilities. The raw collection records what was declared or observed at one
 layer. The resolved collection is the effective view after class definitions,
-type definitions, resource definitions, presets, provider defaults, overrides,
+type definitions, resource-owned state, presets, provider defaults, overrides,
 and validators have been applied.
 
 The exact API is still open, but the model needs supported methods or services
 that can answer questions such as:
 
 ```csharp
-ResolvedResourceDefinition resolved = resolver.Resolve(
-    definition,
+Resource resource = resolver.Resolve(
+    state,
     new ResourceDefinitionResolutionContext(environmentId, principal));
 
-string? executablePath = resolved.Attributes.GetString(
+string? executablePath = resource.Attributes.GetString(
     ResourceAttributeNames.ExecutablePath);
 
-bool consumesVolumes = resolved.Capabilities.Has(
+bool consumesVolumes = resource.Capabilities.Has(
     ResourceCapabilityIds.StorageVolumeConsumer);
 
-bool hasStartOperation = resolved.Operations.Has(ResourceOperationIds.Start);
+bool hasStartOperation = resource.Operations.Has(ResourceOperationIds.Start);
 ```
 
-A resolved definition should expose effective values and diagnostics:
+A resolved resource should expose effective values, type/class views, and
+diagnostics:
 
 ```csharp
-public sealed record ResolvedResourceDefinition(
-    ResourceDefinition Definition,
-    ResourceClassDefinition ClassDefinition,
-    ResourceTypeDefinition TypeDefinition,
+public sealed record Resource(
+    ResourceState State,
+    ResourceClass Class,
+    ResourceType Type,
     ResourceAttributeSet Attributes,
     ResourceCapabilitySet Capabilities,
     ResourceOperationSet Operations,
@@ -509,44 +510,44 @@ public sealed record ResolvedResourceDefinition(
 
 Effective values should carry source information. A resolved operation should
 know whether it came from the class definition, type definition, resource
-definition, or a preset overlay, and it should record whether a lower level
+state, or a preset overlay, and it should record whether a lower level
 overrode or disabled an inherited operation. That lets operation providers make
 deliberate decisions about which operation declaration they are handling.
 
 For example:
 
 ```csharp
-ResourceOperationResolution startOperation = resolved.Operations.Resolve(
+ResourceOperationResolution startOperation = resource.Operations.Resolve(
     ResourceOperationIds.Start,
     ResourceOperationResolutionLevel.Type);
 
 if (startOperation.IsAvailable)
 {
-    await operationProvider.ExecuteAsync(resolved, startOperation, context);
+    await operationProvider.ExecuteAsync(resource, startOperation, context);
 }
 ```
 
 The exact names are speculative, but the provider should be able to resolve a
-matching declared operation at a specified level for the matching resolved resource
-definition. It should not have to rediscover inheritance, presets, or override
+matching declared operation at a specified level for the matching resolved
+resource. It should not have to rediscover inheritance, presets, or override
 rules locally.
 
 The important requirement is not this exact API shape. The requirement is that
 CloudShell has a deliberate resolution boundary that combines class
-definitions, type definitions, presets, provider defaults, and authored
-resource definitions before validation, projection, operation availability,
-deployment projection, or UI rendering relies on those values.
+definitions, type definitions, resource-owned state, presets, provider
+defaults, and provider observations before validation, projection, operation
+availability, deployment projection, or UI rendering relies on those values.
 
 Provider-facing contracts should act on `Resource`, not on
-`ResourceDefinition`. `ResolvedResourceDefinition` is useful as a POC name for
-the computed value set after definition inheritance and presets, but the
-target model is a resolved `Resource` projection. The low-level `Resource`
-combines that resolved value set with accepted or observed resource state,
-resolved capabilities, resolved operations, and resolver access. The
-important rule is that capability providers, operation providers, attribute
-validators, and resource type providers receive the resolved `Resource`
-context they need instead of manually combining raw properties or re-reading
-the interchange format.
+`ResourceDefinition`. The current POC now resolves directly to `Resource`
+from `ResourceState`, `ResourceType`, and `ResourceClass`; it no longer needs
+a separate `ResolvedResourceDefinition` model. The low-level `Resource`
+combines persisted or accepted resource state, resolved type/class values,
+resolved capabilities, resolved operations, and resolver access. The important
+rule is that capability providers, operation providers, attribute validators,
+and resource type providers receive the resolved `Resource` context they need
+instead of manually combining raw properties or re-reading the interchange
+format.
 
 The current POC treats `ResourceDefinition` as the interchange model/format
 and adds runtime projection on top of the resolved values. The first
@@ -762,8 +763,8 @@ flowchart TD
         definitionFacade["ExecutableApplicationDefinition<br/>optional typed authoring facade"]
 
         subgraph capabilities [Provider-owned or referenced capabilities]
-            volumeCapability["VolumeConsumerCapabilityProvider<br/>IResourceDefinitionCapabilityProvider"]
-            identityCapability["IdentityCapabilityProvider<br/>IResourceDefinitionCapabilityProvider"]
+            volumeCapability["VolumeConsumerCapabilityProvider<br/>IResourceCapabilityProvider"]
+            identityCapability["IdentityCapabilityProvider<br/>IResourceCapabilityProvider"]
         end
 
         subgraph operations [Provider-owned operations]
@@ -802,7 +803,7 @@ flowchart TD
 ```csharp
 public sealed class ExecutableApplicationResourceTypeProvider(
     IExecutableApplicationDefinitionStore definitions,
-    IEnumerable<IResourceDefinitionCapabilityProvider> capabilityProviders,
+    IEnumerable<IResourceCapabilityProvider> capabilityProviders,
     IEnumerable<IResourceOperationProvider> operationProviders)
     : IResourceTypeProvider
 {
@@ -818,10 +819,10 @@ public sealed class ExecutableApplicationResourceTypeProvider(
     ];
 
     public ResourceDefinitionValidationResult Validate(
-        ResolvedResourceDefinition resource,
+        Resource resource,
         ResourceDefinitionValidationContext context)
     {
-        var executable = resource.Definition.GetConfiguration<ExecutableConfiguration>(
+        var executable = resource.GetConfiguration<ExecutableConfiguration>(
             "executable");
 
         var diagnostics = new List<ResourceDefinitionDiagnostic>(
@@ -830,7 +831,7 @@ public sealed class ExecutableApplicationResourceTypeProvider(
         if (string.IsNullOrWhiteSpace(executable.Path))
         {
             diagnostics.Add(ResourceDefinitionDiagnostic.Error(
-                resource.Definition.Name,
+                resource.Name,
                 "Executable path is required."));
         }
 
@@ -842,7 +843,7 @@ public sealed class ExecutableApplicationResourceTypeProvider(
             if (provider is null)
             {
                 diagnostics.Add(ResourceDefinitionDiagnostic.Error(
-                    resource.Definition.Name,
+                    resource.Name,
                     $"No provider is registered for capability '{capability.Id}'."));
                 continue;
             }
@@ -854,10 +855,10 @@ public sealed class ExecutableApplicationResourceTypeProvider(
     }
 
     public Resource Project(
-        ResolvedResourceDefinition resource,
+        Resource resource,
         ResourceProjectionContext context)
     {
-        var executable = resource.Definition.GetConfiguration<ExecutableConfiguration>(
+        var executable = resource.GetConfiguration<ExecutableConfiguration>(
             "executable");
 
         var operations = operationProviders
@@ -866,16 +867,16 @@ public sealed class ExecutableApplicationResourceTypeProvider(
             .ToArray();
 
         return new Resource(
-            Id: resource.Definition.ResourceId,
-            Name: resource.Definition.Name,
+            Id: resource.EffectiveResourceId,
+            Name: resource.Name,
             Kind: TypeId,
             Provider: "applications.executable",
             Region: "local",
-            State: context.GetLifecycleState(resource.Definition.ResourceId),
-            Endpoints: context.GetEndpoints(resource.Definition.ResourceId),
-            Version: resource.Definition.Version,
+            State: context.GetLifecycleState(resource.EffectiveResourceId),
+            Endpoints: context.GetEndpoints(resource.EffectiveResourceId),
+            Version: resource.State.Version,
             LastUpdated: context.Now,
-            DependsOn: resource.Definition.DependsOn,
+            DependsOn: resource.State.DependsOn,
             TypeId: TypeId,
             Operations: operations,
             ResourceClass: ResourceClass,
@@ -889,14 +890,14 @@ public sealed class ExecutableApplicationResourceTypeProvider(
     }
 
     public Task<ResourceApplyResult> ApplyAsync(
-        ResolvedResourceDefinition resource,
+        Resource resource,
         ResourceApplyContext context,
         CancellationToken cancellationToken)
     {
-        var executable = resource.Definition.ToTyped<ExecutableApplicationResourceDefinition>();
+        var executable = resource.GetConfiguration<ExecutableApplicationResourceDefinition>("executable");
         definitions.Save(executable);
 
-        return Task.FromResult(ResourceApplyResult.Accepted(resource.Definition.ResourceId));
+        return Task.FromResult(ResourceApplyResult.Accepted(resource.EffectiveResourceId));
     }
 }
 ```
@@ -918,8 +919,8 @@ The exact API is open, but the shape should make these inputs available:
 
 ```csharp
 public sealed record ResourceDefinitionChange(
-    ResolvedResourceDefinition Current,
-    ResolvedResourceDefinition Proposed,
+    Resource Current,
+    Resource Proposed,
     ResourceDefinitionDiff Diff,
     ResourceChangeRuntimeContext Runtime);
 
@@ -999,12 +1000,12 @@ For example, a storage volume consumer provider can own the
 
 ```csharp
 public sealed class VolumeConsumerCapabilityProvider(IVolumeManager volumes)
-    : IResourceDefinitionCapabilityProvider
+    : IResourceCapabilityProvider
 {
     public string CapabilityId => "storage.volumeConsumer";
 
     public ResourceDefinitionValidationResult Validate(
-        ResolvedResourceDefinition resource,
+        Resource resource,
         ResourceDefinitionValidationContext context)
     {
         var volumeConsumer = resource.GetCapability<VolumeConsumerDefinition>(
@@ -1015,7 +1016,7 @@ public sealed class VolumeConsumerCapabilityProvider(IVolumeManager volumes)
     }
 
     public IEnumerable<Volume> GetVolumes(
-        ResolvedResourceDefinition resource)
+        Resource resource)
     {
         var volumeConsumer = resource.GetCapability<VolumeConsumerDefinition>(
             CapabilityId);
@@ -1063,7 +1064,7 @@ public sealed class ExecutablePathAttributeValidator : IResourceAttributeValidat
     public string AttributeName => ResourceAttributeNames.ExecutablePath;
 
     public bool CanValidate(ResourceAttributeValidationContext context) =>
-        context.TypeDefinition.TypeId == "application.executable";
+        context.Type.TypeId == "application.executable";
 
     public ResourceAttributeValidationResult Validate(
         ResourceAttributeValue value,
@@ -1152,7 +1153,7 @@ standard `start` operation for executable application resources:
 public sealed class ExecutableStartOperationProvider(
     IExecutableApplicationDefinitionStore definitions,
     ILocalProcessRunner processes,
-    IResourceDefinitionCapabilityProvider<VolumeConsumerDefinition> volumes)
+    IResourceCapabilityProvider<VolumeConsumerDefinition> volumes)
     : IResourceOperationProvider
 {
     public string OperationId => ResourceOperationIds.Start;
@@ -1160,12 +1161,12 @@ public sealed class ExecutableStartOperationProvider(
     public ResourceOperationResolutionLevel ResolutionLevel =>
         ResourceOperationResolutionLevel.Type;
 
-    public bool CanHandle(ResolvedResourceDefinition resource) =>
-        resource.TypeDefinition.TypeId == "application.executable" &&
+    public bool CanHandle(Resource resource) =>
+        resource.Type.TypeId == "application.executable" &&
         resource.Operations.Resolve(OperationId, ResolutionLevel).IsAvailable;
 
     public ResourceOperation ProjectOperation(
-        ResolvedResourceDefinition resource,
+        Resource resource,
         ResourceProjectionContext context) =>
         new(
             Id: ResourceOperationIds.Start,
@@ -1174,7 +1175,7 @@ public sealed class ExecutableStartOperationProvider(
             RequiresConfirmation: false);
 
     public async Task<ResourceCommandAvailability> GetAvailabilityAsync(
-        ResolvedResourceDefinition resource,
+        Resource resource,
         ResourceCommandAvailabilityContext context,
         CancellationToken cancellationToken)
     {
@@ -1209,7 +1210,7 @@ public sealed class ExecutableStartOperationProvider(
     }
 
     public async Task<ResourceProcedureResult> ExecuteAsync(
-        ResolvedResourceDefinition resource,
+        Resource resource,
         ResourceCommandExecutionContext context,
         CancellationToken cancellationToken)
     {
@@ -1220,17 +1221,17 @@ public sealed class ExecutableStartOperationProvider(
                 operation.UnavailableReason ?? "The start operation is not available.");
         }
 
-        var executable = definitions.Get(resource.Definition.ResourceId);
+        var executable = definitions.Get(resource.EffectiveResourceId);
         if (executable is null)
         {
             return ResourceProcedureResult.Failed(
-                $"Resource definition '{resource.Definition.ResourceId}' was not found.");
+                $"Resource '{resource.EffectiveResourceId}' was not found.");
         }
 
         await processes.StartAsync(executable, cancellationToken);
 
         return ResourceProcedureResult.Completed(
-            $"Started executable application '{resource.Definition.Name}'.");
+            $"Started executable application '{resource.Name}'.");
     }
 }
 ```
@@ -1285,7 +1286,7 @@ planning, projection, provider behavior, or deployment apply runs.
 `ResourceDefinition` remains the interchange projection of that resource
 state, not the required internal persistence shape.
 
-`ResolvedResourceDefinition` should also be serializable as a debug or
+`Resource` should also be serializable as a debug or
 diagnostic snapshot so callers can inspect which attributes, capabilities,
 operations, defaults, sources, and diagnostics were effective after
 resolution. It is a computed view of resolved values, not the primary state
@@ -1331,8 +1332,8 @@ flowchart TD
     end
 
     subgraph resolvedData [Computed resolved values]
-        resolver["ResourceDefinitionResolver"]
-        resolved["ResolvedResourceDefinition<br/>complete value set"]
+        resolver["ResourceResolver"]
+        resolved["Resource<br/>complete value set"]
     end
 
     subgraph resourceInputs [Resource state inputs]
@@ -1533,10 +1534,10 @@ availability are incomplete.
 - Should capability payloads live only under `capabilities`, or can a resource
   type provider promote common capability payloads into typed configuration
   facades for ergonomics?
-- How much normalized state should be persisted versus recomputed from the
-  authored definition and current provider defaults?
+- How much normalized resource state should be persisted versus recomputed
+  from type/class definitions and current provider defaults?
 - What is the precedence order between class defaults, type defaults, selected
-  presets, provider defaults, and explicit resource-definition values?
+  presets, provider defaults, and explicit resource-owned values?
 - Should class/type definitions be public authoring artifacts, provider-only
   descriptors, or both?
 - Should typed resource facades, builders, descriptor constants, or mapping

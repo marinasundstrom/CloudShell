@@ -1,12 +1,12 @@
 namespace CloudShell.ResourceDefinitions;
 
-public sealed class ResourceDefinitionResolver
+public sealed class ResourceResolver
 {
     private readonly IReadOnlyDictionary<ResourceClassId, ResourceClassDefinition> _classDefinitions;
     private readonly IReadOnlyDictionary<ResourceTypeId, ResourceTypeDefinition> _typeDefinitions;
     private readonly IReadOnlyList<IResourceAttributeValidator> _attributeValidators;
 
-    public ResourceDefinitionResolver(
+    public ResourceResolver(
         IEnumerable<ResourceClassDefinition> classDefinitions,
         IEnumerable<ResourceTypeDefinition> typeDefinitions,
         IEnumerable<IResourceAttributeValidator>? attributeValidators = null)
@@ -21,23 +21,36 @@ public sealed class ResourceDefinitionResolver
         _attributeValidators = attributeValidators?.ToArray() ?? [];
     }
 
-    public ResolvedResourceDefinition Resolve(
+    public Resource Resolve(
         ResourceDefinition definition,
         ResourceDefinitionResolutionContext? context = null)
     {
         ArgumentNullException.ThrowIfNull(definition);
 
+        return Resolve(
+            ResourceState.FromDefinition(definition),
+            context);
+    }
+
+    public Resource Resolve(
+        ResourceState state,
+        ResourceDefinitionResolutionContext? context = null)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+
         var diagnostics = new List<ResourceDefinitionDiagnostic>();
-        var typeDefinition = ResolveTypeDefinition(definition, diagnostics);
+        var typeDefinition = ResolveTypeDefinition(state, diagnostics);
         var classDefinition = ResolveClassDefinition(typeDefinition, diagnostics);
-        var attributes = ResolveAttributes(classDefinition, typeDefinition, definition);
-        var capabilities = ResolveCapabilities(classDefinition, typeDefinition, definition);
-        var operations = ResolveOperations(classDefinition, typeDefinition, definition, diagnostics);
+        var resourceClass = ResolveResourceClass(classDefinition);
+        var resourceType = ResolveResourceType(resourceClass, typeDefinition, diagnostics);
+        var attributes = ResolveAttributes(resourceType, state);
+        var capabilities = ResolveCapabilities(resourceType, state);
+        var operations = ResolveOperations(resourceType, state, diagnostics);
 
         ValidateRequiredAttributes(classDefinition, typeDefinition, attributes, diagnostics);
         ValidateRequiredCapabilities(capabilities, diagnostics);
         ValidateAttributes(
-            definition,
+            state,
             classDefinition,
             typeDefinition,
             attributes,
@@ -45,9 +58,9 @@ public sealed class ResourceDefinitionResolver
             diagnostics);
 
         return new(
-            definition,
-            classDefinition,
-            typeDefinition,
+            state,
+            resourceClass,
+            resourceType,
             attributes,
             capabilities,
             operations,
@@ -55,20 +68,20 @@ public sealed class ResourceDefinitionResolver
     }
 
     private ResourceTypeDefinition ResolveTypeDefinition(
-        ResourceDefinition definition,
+        ResourceState state,
         List<ResourceDefinitionDiagnostic> diagnostics)
     {
-        if (_typeDefinitions.TryGetValue(definition.TypeId, out var typeDefinition))
+        if (_typeDefinitions.TryGetValue(state.TypeId, out var typeDefinition))
         {
             return typeDefinition;
         }
 
         diagnostics.Add(ResourceDefinitionDiagnostic.Error(
             ResourceDefinitionDiagnosticCodes.UnknownResourceType,
-            $"Resource type '{definition.TypeId}' is not registered.",
-            definition.TypeId));
+            $"Resource type '{state.TypeId}' is not registered.",
+            state.TypeId));
 
-        return new(definition.TypeId, ResourceDefinitionClassIds.Generic);
+        return new(state.TypeId, ResourceDefinitionClassIds.Generic);
     }
 
     private ResourceClassDefinition ResolveClassDefinition(
@@ -88,16 +101,88 @@ public sealed class ResourceDefinitionResolver
         return new(typeDefinition.ClassId);
     }
 
-    private static ResourceAttributeSet ResolveAttributes(
+    private static ResourceClass ResolveResourceClass(ResourceClassDefinition classDefinition) =>
+        new(
+            classDefinition,
+            ResolveClassAttributes(classDefinition),
+            ResolveClassCapabilities(classDefinition),
+            ResolveClassOperations(classDefinition));
+
+    private static ResourceType ResolveResourceType(
+        ResourceClass resourceClass,
+        ResourceTypeDefinition typeDefinition,
+        List<ResourceDefinitionDiagnostic> diagnostics) =>
+        new(
+            typeDefinition,
+            resourceClass,
+            ResolveTypeAttributes(resourceClass.Definition, typeDefinition),
+            ResolveTypeCapabilities(resourceClass.Definition, typeDefinition),
+            ResolveTypeOperations(resourceClass.Definition, typeDefinition, diagnostics));
+
+    private static ResourceAttributeSet ResolveClassAttributes(ResourceClassDefinition classDefinition)
+    {
+        var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeResolution>();
+        MergeAttributes(attributes, classDefinition.Attributes, ResourceDefinitionValueSource.ClassDefinition);
+        return new(attributes.Values);
+    }
+
+    private static ResourceCapabilitySet ResolveClassCapabilities(ResourceClassDefinition classDefinition)
+    {
+        var capabilities = new Dictionary<ResourceCapabilityId, ResourceCapabilityResolution>();
+        MergeCapabilities(capabilities, classDefinition.Capabilities, ResourceDefinitionValueSource.ClassDefinition);
+        return new(capabilities.Values);
+    }
+
+    private static ResourceOperationSet ResolveClassOperations(ResourceClassDefinition classDefinition)
+    {
+        var operations = new Dictionary<ResourceOperationId, ResourceOperationResolution>();
+        MergeOperations(operations, classDefinition.Operations, ResourceDefinitionValueSource.ClassDefinition, []);
+        return new(operations.Values);
+    }
+
+    private static ResourceAttributeSet ResolveTypeAttributes(
+        ResourceClassDefinition classDefinition,
+        ResourceTypeDefinition typeDefinition)
+    {
+        var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeResolution>();
+        MergeAttributes(attributes, classDefinition.Attributes, ResourceDefinitionValueSource.ClassDefinition);
+        MergeAttributes(attributes, typeDefinition.Attributes, ResourceDefinitionValueSource.TypeDefinition);
+        return new(attributes.Values);
+    }
+
+    private static ResourceCapabilitySet ResolveTypeCapabilities(
+        ResourceClassDefinition classDefinition,
+        ResourceTypeDefinition typeDefinition)
+    {
+        var capabilities = new Dictionary<ResourceCapabilityId, ResourceCapabilityResolution>();
+        MergeCapabilities(capabilities, classDefinition.Capabilities, ResourceDefinitionValueSource.ClassDefinition);
+        MergeCapabilities(capabilities, typeDefinition.Capabilities, ResourceDefinitionValueSource.TypeDefinition);
+        return new(capabilities.Values);
+    }
+
+    private static ResourceOperationSet ResolveTypeOperations(
         ResourceClassDefinition classDefinition,
         ResourceTypeDefinition typeDefinition,
-        ResourceDefinition definition)
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        var operations = new Dictionary<ResourceOperationId, ResourceOperationResolution>();
+        MergeOperations(operations, classDefinition.Operations, ResourceDefinitionValueSource.ClassDefinition, diagnostics);
+        MergeOperations(operations, typeDefinition.Operations, ResourceDefinitionValueSource.TypeDefinition, diagnostics);
+        return new(operations.Values);
+    }
+
+    private static ResourceAttributeSet ResolveAttributes(
+        ResourceType resourceType,
+        ResourceState state)
     {
         var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeResolution>();
 
-        MergeAttributes(attributes, classDefinition.Attributes, ResourceDefinitionValueSource.ClassDefinition);
-        MergeAttributes(attributes, typeDefinition.Attributes, ResourceDefinitionValueSource.TypeDefinition);
-        MergeAttributes(attributes, definition.ResourceAttributes, ResourceDefinitionValueSource.ResourceDefinition);
+        foreach (var attribute in resourceType.Attributes)
+        {
+            attributes[attribute.Name] = attribute;
+        }
+
+        MergeAttributes(attributes, state.ResourceAttributes, ResourceDefinitionValueSource.ResourceDefinition);
 
         return new(attributes.Values);
     }
@@ -119,15 +204,17 @@ public sealed class ResourceDefinitionResolver
     }
 
     private static ResourceCapabilitySet ResolveCapabilities(
-        ResourceClassDefinition classDefinition,
-        ResourceTypeDefinition typeDefinition,
-        ResourceDefinition definition)
+        ResourceType resourceType,
+        ResourceState state)
     {
         var capabilities = new Dictionary<ResourceCapabilityId, ResourceCapabilityResolution>();
 
-        MergeCapabilities(capabilities, classDefinition.Capabilities, ResourceDefinitionValueSource.ClassDefinition);
-        MergeCapabilities(capabilities, typeDefinition.Capabilities, ResourceDefinitionValueSource.TypeDefinition);
-        foreach (var (id, payload) in definition.CapabilityPayloads)
+        foreach (var capability in resourceType.Capabilities)
+        {
+            capabilities[capability.Id] = capability;
+        }
+
+        foreach (var (id, payload) in state.CapabilityPayloads)
         {
             capabilities[id] = new(
                 id,
@@ -159,23 +246,24 @@ public sealed class ResourceDefinitionResolver
     }
 
     private static ResourceOperationSet ResolveOperations(
-        ResourceClassDefinition classDefinition,
-        ResourceTypeDefinition typeDefinition,
-        ResourceDefinition definition,
+        ResourceType resourceType,
+        ResourceState state,
         List<ResourceDefinitionDiagnostic> diagnostics)
     {
         var operations = new Dictionary<ResourceOperationId, ResourceOperationResolution>();
 
-        MergeOperations(operations, classDefinition.Operations, ResourceDefinitionValueSource.ClassDefinition, diagnostics);
-        MergeOperations(operations, typeDefinition.Operations, ResourceDefinitionValueSource.TypeDefinition, diagnostics);
+        foreach (var operation in resourceType.Operations)
+        {
+            operations[operation.Id] = operation;
+        }
 
-        foreach (var (id, payload) in definition.OperationPayloads)
+        foreach (var (id, payload) in state.OperationPayloads)
         {
             if (operations.TryGetValue(id, out var inherited) && !inherited.AllowOverride)
             {
                 diagnostics.Add(ResourceDefinitionDiagnostic.Error(
                     ResourceDefinitionDiagnosticCodes.OperationOverrideNotAllowed,
-                    $"Operation '{id}' cannot be overridden by resource definition '{definition.Name}'.",
+                    $"Operation '{id}' cannot be overridden by resource '{state.Name}'.",
                     id));
                 continue;
             }
@@ -274,7 +362,7 @@ public sealed class ResourceDefinitionResolver
     }
 
     private void ValidateAttributes(
-        ResourceDefinition definition,
+        ResourceState state,
         ResourceClassDefinition classDefinition,
         ResourceTypeDefinition typeDefinition,
         ResourceAttributeSet attributes,
@@ -282,7 +370,7 @@ public sealed class ResourceDefinitionResolver
         List<ResourceDefinitionDiagnostic> diagnostics)
     {
         var validationContext = new ResourceAttributeValidationContext(
-            definition,
+            state.ToDefinition(),
             classDefinition,
             typeDefinition,
             context);

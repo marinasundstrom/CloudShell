@@ -34,15 +34,15 @@ public sealed class ExecutableApplicationResourceTypeProvider :
             new(Operations.Start)
         ]);
 
-    public bool CanValidate(ResolvedResourceDefinition resource) =>
-        resource.TypeDefinition.TypeId == ResourceTypeId;
+    public bool CanValidate(Resource resource) =>
+        resource.Type.TypeId == ResourceTypeId;
 
     public ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
-        ResolvedResourceDefinition resource,
+        Resource resource,
         ResourceDefinitionValidationContext context,
         CancellationToken cancellationToken = default)
     {
-        var configuration = resource.Definition.GetConfiguration<ExecutableApplicationConfiguration>(
+        var configuration = resource.GetConfiguration<ExecutableApplicationConfiguration>(
             ConfigurationSection);
 
         if (string.IsNullOrWhiteSpace(configuration?.Path))
@@ -60,16 +60,16 @@ public sealed class ExecutableApplicationResourceTypeProvider :
     }
 
     public bool CanPlan(ResourceDefinitionProjection resource) =>
-        resource.Resource.TypeDefinition.TypeId == ResourceTypeId;
+        resource.Resource.Type.TypeId == ResourceTypeId;
 
     public ValueTask<ResourceDefinitionApplyPlan> PlanApplyAsync(
         ResourceDefinitionProjection resource,
         ResourceDefinitionApplyContext context,
         CancellationToken cancellationToken = default)
     {
-        var configuration = resource.Definition.GetConfiguration<ExecutableApplicationConfiguration>(
+        var configuration = resource.Resource.GetConfiguration<ExecutableApplicationConfiguration>(
             ConfigurationSection);
-        var resourceId = resource.Definition.EffectiveResourceId;
+        var resourceId = resource.Resource.EffectiveResourceId;
 
         return ValueTask.FromResult(new ResourceDefinitionApplyPlan(
             resource,
@@ -79,7 +79,7 @@ public sealed class ExecutableApplicationResourceTypeProvider :
                     ResourceTypeId,
                     ResourceDefinitionApplyStepKind.AcceptDefinition,
                     "Accept executable application definition.",
-                    resource.Definition),
+                    resource.Resource.ToDefinition()),
                 new(
                     resourceId,
                     ResourceTypeId,

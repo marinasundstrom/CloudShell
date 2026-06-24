@@ -160,13 +160,13 @@ public sealed class ResourceDefinitionGraphValidationPipelineTests
             ResourceDefinitionValueSource.TypeDefinition;
 
         public bool CanHandle(
-            ResolvedResourceDefinition resource,
+            Resource resource,
             ResourceOperationResolution operation) =>
-            resource.TypeDefinition.TypeId == ExecutableApplicationResourceTypeProvider.ResourceTypeId &&
+            resource.Type.TypeId == ExecutableApplicationResourceTypeProvider.ResourceTypeId &&
             operation.IsAvailable;
 
         public ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
-            ResolvedResourceDefinition resource,
+            Resource resource,
             ResourceOperationResolution operation,
             ResourceDefinitionValidationContext context,
             CancellationToken cancellationToken = default) =>
