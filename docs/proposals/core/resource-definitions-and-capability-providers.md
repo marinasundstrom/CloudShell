@@ -634,6 +634,23 @@ The apply context can request commit behavior, but committing accepted state to
 durable persistence or cascading changes through the graph remains a Resource
 Manager/persistence concern outside this low-level projection model.
 
+Several accepted resource changes should also be committed as one graph
+version. The POC models that with `ResourceGraphChangeTracker`,
+`ResourceGraphChangeSet`, `ResourceGraphVersion`, and `IResourceStateProvider`.
+The tracker groups accepted `ResourceChangeApplyResult` instances against a
+base graph snapshot, and the state provider commits the batch or rejects it as
+a unit. This is deliberately similar to an EF Core-style change graph: callers
+can inspect the pending graph changes, persist full state, or persist only the
+incremental definitions depending on the chosen persistence provider.
+
+The first persistence proof is `InMemoryResourceStateProvider`. It
+materializes `ResourceState` objects from an in-memory store, accepts a
+`ResourceGraphChangeSet`, checks the base graph version, applies all accepted
+states, and increments the graph version once for the whole commit. A database
+provider would use the same boundary, but materialize resources from database
+records and persist the accepted state or provider-specific delta format in a
+transaction.
+
 Typed projections can use the same boundary through a change context:
 
 ```csharp
@@ -1032,6 +1049,12 @@ resource.SetAttribute(NamedAttributeIds.ContainerReplicasAttributeId, 2);
 ResourceChangeSet staged = changeContext.ApplyChanges();
 ResourceChangeApplyResult accepted =
     await changeApplyDispatcher.ApplyChangesAsync(staged, context, cancellationToken);
+
+var graphChanges = new ResourceGraphChangeTracker(snapshot);
+graphChanges.Track(accepted);
+
+ResourceGraphCommitResult commit =
+    await stateProvider.CommitAsync(graphChanges.GetChanges(), commitContext, cancellationToken);
 ```
 
 For a hypothetical container type provider, changing `container.image` while
@@ -1047,7 +1070,8 @@ describe whether the change is persist-only, requires restart, can reconcile
 in-place, starts a deployment operation, is blocked by current state, or needs
 manual intervention. That richer planning belongs in a later Resource Manager
 or provider orchestration layer; the POC only proves the low-level resource
-projection can stage changes and route them to the owning type provider.
+projection can stage changes, route them to the owning type provider, and
+commit accepted changes together as a versioned resource graph.
 
 ## Capability Providers
 

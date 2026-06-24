@@ -50,6 +50,10 @@ on `git blame --follow`, and then by the broad type of change.
   through provider-owned change apply providers, so a resource type can accept
   or reject proposed projection state before any future Resource Manager or
   persistence layer treats it as committed state.
+- The resource definitions POC now groups accepted resource changes into a
+  versioned resource graph change set and proves persistence through an
+  in-memory state provider that commits all accepted resource states under one
+  graph version.
 - The resource definitions POC now includes a capability resolver so
   provider-owned capability behavior can be composed into type-specific
   resource projections without making the definition stop being the persisted

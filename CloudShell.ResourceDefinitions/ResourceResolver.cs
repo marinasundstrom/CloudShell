@@ -407,6 +407,7 @@ public static class ResourceDefinitionDiagnosticCodes
     public const string ResourceDefinitionApplyProviderMissing = "resourceDefinition.applyProviderMissing";
     public const string ResourceProjectionProviderMissing = "resourceDefinition.projectionProviderMissing";
     public const string ResourceChangeApplyProviderMissing = "resourceDefinition.changeApplyProviderMissing";
+    public const string ResourceGraphVersionConflict = "resourceDefinition.graphVersionConflict";
 }
 
 public static class ResourceDefinitionClassIds
