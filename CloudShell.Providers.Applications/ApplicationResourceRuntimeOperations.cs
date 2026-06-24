@@ -3,10 +3,8 @@ using CloudShell.Abstractions.Logging;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Client.Authentication;
-using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.DependencyInjection;
@@ -46,8 +44,6 @@ public sealed partial class ApplicationResourceRuntimeOperations(
     private const string DefaultContainerNetworkName = "cloudshell";
     public const string HiddenResourceEnvironmentVariable = "CloudShell__ResourceManager__Hidden";
 
-    private readonly ConcurrentDictionary<string, Lazy<Task<ApplicationResourceDefinition>>> _containerImageMaterializations =
-        new(StringComparer.OrdinalIgnoreCase);
     private readonly ILogger dockerHostLogger =
         loggerFactory?.CreateLogger(CloudShellLogCategories.DockerHostLifecycle) ??
         NullLogger.Instance;
@@ -104,6 +100,16 @@ public sealed partial class ApplicationResourceRuntimeOperations(
             runtimeStates,
             options,
             environment,
+            loggerFactory);
+    private readonly ApplicationContainerImageMaterializer _containerImageMaterializer =
+        serviceProvider.GetService<ApplicationContainerImageMaterializer>() ??
+        new ApplicationContainerImageMaterializer(
+            containerHosts ?? new ApplicationContainerHostResolver(serviceProvider),
+            serviceProvider.GetService<ApplicationContainerProcessTracker>() ?? new ApplicationContainerProcessTracker(
+                runtimeStates,
+                options,
+                environment,
+                loggerFactory),
             loggerFactory);
     private readonly ApplicationResourceProjectionSource _projectionSource =
         serviceProvider.GetService<ApplicationResourceProjectionSource>() ?? new ApplicationResourceProjectionSource(
@@ -263,7 +269,6 @@ public sealed partial class ApplicationResourceRuntimeOperations(
         switch (action.Kind)
         {
             case ResourceActionKind.Start:
-                var materializationKey = CreateContainerImageMaterializationKey(application);
                 application = await MaterializeContainerImageAsync(
                     application,
                     context.ResourceContext.ResourceManager,
@@ -286,14 +291,14 @@ public sealed partial class ApplicationResourceRuntimeOperations(
                 }
                 catch
                 {
-                    RemoveContainerImageMaterialization(materializationKey);
+                    _containerImageMaterializer.RemoveMaterialization(application);
                     throw;
                 }
                 finally
                 {
                     if (context.Instance.ReplicaOrdinal >= context.Instance.ReplicaCount)
                     {
-                        RemoveContainerImageMaterialization(materializationKey);
+                        _containerImageMaterializer.RemoveMaterialization(application);
                     }
                 }
                 return;
@@ -560,149 +565,20 @@ public sealed partial class ApplicationResourceRuntimeOperations(
                 procedureContext,
                 cancellationToken);
 
-    private async Task<ApplicationResourceDefinition> MaterializeContainerImageAsync(
+    private Task<ApplicationResourceDefinition> MaterializeContainerImageAsync(
         ApplicationResourceDefinition definition,
         IResourceManagerStore? resourceManager,
         string? preferredContainerHostId,
         CancellationToken cancellationToken,
         ResourceProcedureContext? procedureContext = null,
-        bool cacheMaterialization = false)
-    {
-        if (!string.IsNullOrWhiteSpace(definition.ContainerImage))
-        {
-            return definition;
-        }
-
-        if (!definition.ProjectContainerBuild &&
-            string.IsNullOrWhiteSpace(definition.ContainerBuildContext))
-        {
-            return definition;
-        }
-
-        if (resourceManager is null)
-        {
-            throw new InvalidOperationException(
-                $"Container resource '{definition.Name}' requires resource manager context to resolve a container host.");
-        }
-
-        if (!cacheMaterialization)
-        {
-            return await MaterializeContainerImageCoreAsync(
-                definition,
-                resourceManager,
-                preferredContainerHostId,
-                cancellationToken,
-                procedureContext);
-        }
-
-        var key = CreateContainerImageMaterializationKey(definition);
-        var materialization = _containerImageMaterializations.GetOrAdd(
-            key,
-            _ => new Lazy<Task<ApplicationResourceDefinition>>(
-                () => MaterializeContainerImageCoreAsync(
-                    definition,
-                    resourceManager,
-                    preferredContainerHostId,
-                    cancellationToken,
-                    procedureContext),
-                LazyThreadSafetyMode.ExecutionAndPublication));
-
-        try
-        {
-            return await materialization.Value;
-        }
-        catch
-        {
-            RemoveContainerImageMaterialization(key);
-            throw;
-        }
-    }
-
-    private async Task<ApplicationResourceDefinition> MaterializeContainerImageCoreAsync(
-        ApplicationResourceDefinition definition,
-        IResourceManagerStore resourceManager,
-        string? preferredContainerHostId,
-        CancellationToken cancellationToken,
-        ResourceProcedureContext? procedureContext = null)
-    {
-        if (string.IsNullOrWhiteSpace(definition.ProjectPath) &&
-            string.IsNullOrWhiteSpace(definition.ContainerDockerfile))
-        {
-            throw new InvalidOperationException(
-                $"Container resource '{definition.Name}' cannot be built because it does not specify a project path or Dockerfile.");
-        }
-
-        var engine = await ResolveRequiredContainerHostAsync(
+        bool cacheMaterialization = false) =>
+        _containerImageMaterializer.MaterializeAsync(
             definition,
             resourceManager,
             preferredContainerHostId,
-            ContainerHostCapabilityIds.ContainerBuild,
-            cancellationToken);
-        var log = _containerProcesses.GetProcessLog(definition.Id);
-        var imageReference = CreateProjectContainerImageReference(definition);
-
-        procedureContext?.AppendProviderEvent(
-            Id,
-            "application.container.image.building",
-            $"Application provider is building project container image '{imageReference.Reference}' for '{definition.Name}' using '{engine.Name}'.");
-        if (string.IsNullOrWhiteSpace(definition.ContainerDockerfile))
-        {
-            if (string.IsNullOrWhiteSpace(definition.ProjectPath))
-            {
-                throw new InvalidOperationException(
-                    $"Container resource '{definition.Name}' cannot be published as a project container because it does not specify a project path.");
-            }
-
-            await PublishProjectContainerImageAsync(
-                definition,
-                imageReference.Repository,
-                imageReference.Tag,
-                log,
-                cancellationToken);
-        }
-        else
-        {
-            var buildContext = NormalizeNullable(definition.ContainerBuildContext) ??
-                Path.GetDirectoryName(definition.ProjectPath) ??
-                ".";
-            await BuildDockerfileContainerImageAsync(
-                engine,
-                imageReference.Reference,
-                buildContext,
-                definition.ContainerDockerfile,
-                log,
-                cancellationToken,
-                dockerHostLogger);
-        }
-
-        procedureContext?.AppendProviderEvent(
-            Id,
-            "application.container.image.built",
-            $"Application provider built project container image '{imageReference.Reference}' for '{definition.Name}'.");
-        return definition with
-        {
-            ContainerImage = imageReference.Reference
-        };
-    }
-
-    private static string CreateContainerImageMaterializationKey(ApplicationResourceDefinition definition) =>
-        string.Join(
-            '|',
-            definition.Id,
-            definition.ContainerRevision,
-            definition.ContainerRegistry,
-            definition.ContainerHostId,
-            definition.ProjectPath,
-            definition.ContainerBuildContext,
-            definition.ContainerDockerfile);
-
-    private void RemoveContainerImageMaterialization(string key)
-    {
-        if (!string.IsNullOrWhiteSpace(key))
-        {
-            _containerImageMaterializations.TryRemove(key, out _);
-        }
-    }
+            cancellationToken,
+            procedureContext,
+            cacheMaterialization);
 
     private async Task StartContainerApplicationInstanceAsync(
         ApplicationResourceDefinition definition,
@@ -1399,93 +1275,6 @@ public sealed partial class ApplicationResourceRuntimeOperations(
         return builder.ToString();
     }
 
-    private async Task PublishProjectContainerImageAsync(
-        ApplicationResourceDefinition definition,
-        string repository,
-        string tag,
-        ApplicationProcessLog log,
-        CancellationToken cancellationToken)
-    {
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = "dotnet",
-            WorkingDirectory = Environment.CurrentDirectory,
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true
-        };
-        startInfo.ArgumentList.Add("publish");
-        startInfo.ArgumentList.Add(definition.ProjectPath!);
-        startInfo.ArgumentList.Add("--os");
-        startInfo.ArgumentList.Add("linux");
-        startInfo.ArgumentList.Add("--arch");
-        startInfo.ArgumentList.Add("x64");
-        startInfo.ArgumentList.Add("/t:PublishContainer");
-        startInfo.ArgumentList.Add($"-p:ContainerRepository={repository}");
-        startInfo.ArgumentList.Add($"-p:ContainerImageTag={tag}");
-
-        var registry = GetImageRegistryAddress(GetEffectiveContainerRegistry(definition));
-        if (!IsDockerHubRegistry(registry))
-        {
-            startInfo.ArgumentList.Add($"-p:ContainerRegistry={registry}");
-        }
-
-        log.Append(
-            $"Publishing project '{definition.ProjectPath}' as container image '{CreateProjectContainerImageReference(definition).Reference}'.",
-            "process",
-            "Information");
-
-        using var process = Process.Start(startInfo)
-            ?? throw new InvalidOperationException("Project container publish could not be started.");
-        var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
-        var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
-        await WaitForProcessExitOrKillAsync(process, cancellationToken);
-        var output = await outputTask;
-        var error = await errorTask;
-
-        if (!string.IsNullOrWhiteSpace(output))
-        {
-            log.Append(output.Trim(), "process", process.ExitCode == 0 ? "Information" : "Warning");
-        }
-
-        if (!string.IsNullOrWhiteSpace(error))
-        {
-            log.Append(error.Trim(), "process", process.ExitCode == 0 ? "Information" : "Warning");
-        }
-
-        if (process.ExitCode != 0)
-        {
-            throw new InvalidOperationException(
-                $"Project container publish failed for '{definition.Name}' with exit code {process.ExitCode.ToString(CultureInfo.InvariantCulture)}.");
-        }
-    }
-
-    private static async Task BuildDockerfileContainerImageAsync(
-        ContainerHostDescriptor engine,
-        string imageReference,
-        string buildContext,
-        string dockerfile,
-        ApplicationProcessLog log,
-        CancellationToken cancellationToken,
-        ILogger? logger = null)
-    {
-        log.Append(
-            $"Building Dockerfile '{dockerfile}' as container image '{imageReference}'.",
-            "process",
-            "Information");
-        var exitCode = await ApplicationContainerHostCommands.RunAsync(
-            engine,
-            ["build", "-t", imageReference, "-f", dockerfile, buildContext],
-            log,
-            cancellationToken,
-            logger);
-        if (exitCode != 0)
-        {
-            throw new InvalidOperationException(
-                $"Dockerfile build failed with exit code {exitCode.ToString(CultureInfo.InvariantCulture)}.");
-        }
-    }
-
     private static void AddIfNotEmpty(
         IDictionary<string, string> attributes,
         string name,
@@ -2134,18 +1923,6 @@ public sealed partial class ApplicationResourceRuntimeOperations(
     private static string NormalizeContainerRegistry(string? registry) =>
         NormalizeNullable(registry) ?? ContainerRegistryDefaults.Default;
 
-    private static ProjectContainerImageReference CreateProjectContainerImageReference(
-        ApplicationResourceDefinition definition)
-    {
-        var repository = GetContainerServiceName(definition.Id);
-        var tag = GetEffectiveContainerRevision(definition);
-        var registry = GetImageRegistryAddress(GetEffectiveContainerRegistry(definition));
-        var reference = IsDockerHubRegistry(registry)
-            ? $"{repository}:{tag}"
-            : $"{registry}/{repository}:{tag}";
-        return new ProjectContainerImageReference(reference, repository, tag);
-    }
-
     private static string CreateRegistryImageReference(string registry, string image)
     {
         var imageRegistry = GetImageRegistryAddress(registry);
@@ -2213,31 +1990,6 @@ public sealed partial class ApplicationResourceRuntimeOperations(
         string.Equals(registry, ContainerRegistryDefaults.DockerHub, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(registry, "index.docker.io", StringComparison.OrdinalIgnoreCase);
 
-    private static async Task WaitForProcessExitOrKillAsync(
-        Process process,
-        CancellationToken cancellationToken,
-        ILogger? logger = null,
-        string? command = null)
-    {
-        try
-        {
-            await process.WaitForExitAsync(cancellationToken);
-        }
-        catch (OperationCanceledException)
-        {
-            logger?.LogDebug(
-                "Killing canceled process {ProcessId} for command {ProcessCommandLine}.",
-                process.Id,
-                command ?? "unknown");
-            ProcessShutdown.KillProcessTreeAndWait(process);
-            logger?.LogDebug(
-                "Killed canceled process {ProcessId} for command {ProcessCommandLine}.",
-                process.Id,
-                command ?? "unknown");
-            throw;
-        }
-    }
-
     internal static string FormatContainerHostCommandLine(IReadOnlyList<string> arguments) =>
         ApplicationContainerHostCommands.FormatCommandLine(arguments);
 
@@ -2282,8 +2034,4 @@ public sealed partial class ApplicationResourceRuntimeOperations(
     [GeneratedRegex("[^a-z0-9]+")]
     private static partial Regex SlugPattern();
 
-    private sealed record ProjectContainerImageReference(
-        string Reference,
-        string Repository,
-        string Tag);
 }

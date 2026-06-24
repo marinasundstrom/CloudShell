@@ -263,6 +263,10 @@ without forcing provider-specific logic into shared helpers.
   `ApplicationContainerOrchestratorServicePreparationOperations`, separating
   registry login, network preparation, and replicated-app ingress stop
   preparation from runtime service instance execution.
+- [x] Move container image materialization into
+  `ApplicationContainerImageMaterializer`, separating project container
+  publish, Dockerfile build, and shared replica build caching from runtime
+  procedure coordination.
 - [x] Move container app deployment outcome handling into
   `ContainerApplicationDeploymentOutcomeOperations`, separating post-apply,
   failed-apply, and tear-down planning from runtime service execution.
@@ -303,6 +307,8 @@ without forcing provider-specific logic into shared helpers.
   `IContainerApplicationOrchestratorServiceDescriptionOperations`.
 - [x] Split container-backed application service preparation behind
   `IApplicationContainerOrchestratorServicePreparationOperations`.
+- [x] Extract container image materialization and shared replica build caching
+  from the runtime/procedure coordinator.
 - [x] Split container app deployment outcome handling behind
   `IContainerApplicationDeploymentOutcomeOperations`.
 - [x] Extract the container app orchestrator deployment factory from the shared

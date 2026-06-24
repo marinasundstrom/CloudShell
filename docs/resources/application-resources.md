@@ -219,8 +219,8 @@ running-state checks, setting resolution, environment-variable resolution,
 action availability, container app history, container app image/replica
 updates, container app deployment descriptions, container app deployment
 outcomes, container app orchestrator service descriptions, container app
-orchestration hooks, shared container-backed service preparation, and SQL
-Server support. The remaining
+orchestration hooks, shared container-backed service preparation, container
+image materialization, and SQL Server support. The remaining
 `ApplicationResourceRuntimeOperations` facade coordinates runtime procedure
 execution and container-app orchestration hooks while those concerns are
 separated further. Container app update intent now flows through
@@ -238,6 +238,13 @@ coordinator. The direction is to keep provider-neutral primitives reusable so
 external resource authors can reuse common declaration, projection,
 process-definition, logging, monitoring, endpoint, volume, and container-host
 command infrastructure without depending on runtime facade internals.
+
+Container image materialization is now one of those provider-neutral
+primitives. `ApplicationContainerImageMaterializer` owns project container
+publish, Dockerfile build, and shared build caching when several replicas need
+the same image during one orchestration operation. Runtime execution asks for a
+materialized image and then starts the resource instance; it no longer owns
+image-build policy directly.
 
 Volume mount validation and materialization is one such provider-neutral
 primitive. `ApplicationResourceVolumeMounts` owns the common filesystem volume

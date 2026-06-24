@@ -146,6 +146,10 @@ on `git blame --follow`, and then by the broad type of change.
   `ApplicationContainerOrchestratorServicePreparationOperations`, separating
   registry login, container network preparation, and replicated-app ingress
   stop preparation from runtime service instance execution.
+- Container image materialization now lives in
+  `ApplicationContainerImageMaterializer`, separating project container
+  publish, Dockerfile build, and shared replica build caching from runtime
+  procedure coordination.
 - Container app deployment outcome handling now lives in
   `ContainerApplicationDeploymentOutcomeOperations`, separating post-apply,
   failed-apply, and tear-down planning from runtime service execution.

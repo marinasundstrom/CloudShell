@@ -9234,9 +9234,6 @@ public sealed class ResourceDeclarationTests
         string? registry,
         string expectedReference)
     {
-        var method = typeof(ApplicationResourceRuntimeOperations).GetMethod(
-            "CreateProjectContainerImageReference",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
         var application = new ApplicationResourceDefinition(
             "application:api",
             "API",
@@ -9247,14 +9244,9 @@ public sealed class ResourceDeclarationTests
             containerRevision: "rev-test",
             projectContainerBuild: true);
 
-        Assert.NotNull(method);
-        var imageReference = method.Invoke(null, [application]);
-        var reference = imageReference
-            ?.GetType()
-            .GetProperty("Reference")
-            ?.GetValue(imageReference);
+        var imageReference = ApplicationContainerImageMaterializer.CreateProjectContainerImageReference(application);
 
-        Assert.Equal(expectedReference, reference);
+        Assert.Equal(expectedReference, imageReference.Reference);
     }
 
     [Fact]
