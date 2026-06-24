@@ -1,35 +1,34 @@
 using System.Text.Json;
-using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.ResourceDefinitions;
 
 public sealed record ResourceClassDefinition(
-    ResourceClass ResourceClass,
-    IReadOnlyDictionary<string, string>? Attributes = null,
+    ResourceClassId ClassId,
+    IReadOnlyDictionary<ResourceAttributeId, string>? Attributes = null,
     IReadOnlyList<ResourceAttributeRequirement>? RequiredAttributes = null,
     IReadOnlyList<ResourceCapabilityDeclaration>? Capabilities = null,
     IReadOnlyList<ResourceOperationDeclaration>? Operations = null);
 
 public sealed record ResourceTypeDefinition(
-    string TypeId,
-    ResourceClass ResourceClass,
+    ResourceTypeId TypeId,
+    ResourceClassId ClassId,
     string? DefaultProviderId = null,
-    IReadOnlyDictionary<string, string>? Attributes = null,
+    IReadOnlyDictionary<ResourceAttributeId, string>? Attributes = null,
     IReadOnlyList<ResourceAttributeRequirement>? RequiredAttributes = null,
     IReadOnlyList<ResourceCapabilityDeclaration>? Capabilities = null,
     IReadOnlyList<ResourceOperationDeclaration>? Operations = null);
 
 public sealed record ResourceAttributeRequirement(
-    string Name,
+    ResourceAttributeId Name,
     string? Message = null);
 
 public sealed record ResourceCapabilityDeclaration(
-    string Id,
+    ResourceCapabilityId Id,
     JsonElement? Payload = null,
     bool IsRequired = false);
 
 public sealed record ResourceOperationDeclaration(
-    string Id,
+    ResourceOperationId Id,
     JsonElement? Payload = null,
     bool IsEnabled = true,
     bool AllowOverride = true,

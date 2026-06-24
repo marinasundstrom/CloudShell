@@ -1,5 +1,5 @@
 using System.Text.Json;
-using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ResourceDefinitions.ReferenceProviders;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CloudShell.ResourceDefinitions.Tests;
@@ -10,12 +10,13 @@ public sealed class ResourceDefinitionProviderDispatcherTests
     public async Task ValidateCapabilitiesAsync_UsesRegisteredCapabilityProvider()
     {
         var dispatcher = CreateDispatcher(
+            typeProviders: [new ExecutableApplicationResourceTypeProvider()],
             capabilityProviders: [new VolumeConsumerCapabilityProvider()],
             operationProviders: []);
         var resolved = ResolveExecutable(
-            capabilities: new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
+            capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
             {
-                ["storage.volumeConsumer"] = ResourceDefinitionJson.FromValue(new
+                [VolumeConsumerCapabilityProvider.CapabilityIdValue] = ResourceDefinitionJson.FromValue(new
                 {
                     mounts = new[]
                     {
@@ -35,12 +36,13 @@ public sealed class ResourceDefinitionProviderDispatcherTests
     public async Task ValidateCapabilitiesAsync_ReportsMissingCapabilityProvider()
     {
         var dispatcher = CreateDispatcher(
+            typeProviders: [new ExecutableApplicationResourceTypeProvider()],
             capabilityProviders: [],
             operationProviders: []);
         var resolved = ResolveExecutable(
-            capabilities: new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
+            capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
             {
-                ["storage.volumeConsumer"] = ResourceDefinitionJson.EmptyObject
+                [VolumeConsumerCapabilityProvider.CapabilityIdValue] = ResourceDefinitionJson.EmptyObject
             });
 
         var result = await dispatcher.ValidateCapabilitiesAsync(
@@ -56,6 +58,7 @@ public sealed class ResourceDefinitionProviderDispatcherTests
     public async Task ValidateOperationsAsync_UsesMatchingOperationProviderAndResolutionLevel()
     {
         var dispatcher = CreateDispatcher(
+            typeProviders: [new ExecutableApplicationResourceTypeProvider()],
             capabilityProviders: [],
             operationProviders: [new ExecutableStartOperationProvider()]);
         var resolved = ResolveExecutable();
@@ -67,34 +70,81 @@ public sealed class ResourceDefinitionProviderDispatcherTests
         Assert.Empty(result.Diagnostics);
     }
 
-    private static ResolvedResourceDefinition ResolveExecutable(
-        IReadOnlyDictionary<string, JsonElement>? capabilities = null)
+    [Fact]
+    public async Task ValidateResourceTypeAsync_UsesRegisteredTypeProvider()
     {
+        var dispatcher = CreateDispatcher(
+            typeProviders: [new ExecutableApplicationResourceTypeProvider()],
+            capabilityProviders: [],
+            operationProviders: []);
+        var resolved = ResolveExecutable(
+            configuration: new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ExecutableApplicationResourceTypeProvider.ConfigurationSection] =
+                    ResourceDefinitionJson.FromValue(new ExecutableApplicationConfiguration("dotnet", "run"))
+            });
+
+        var result = await dispatcher.ValidateResourceTypeAsync(
+            resolved,
+            new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.Empty(result.Diagnostics);
+    }
+
+    [Fact]
+    public async Task ValidateResourceTypeAsync_ReportsTypeOwnedConfigurationDiagnostics()
+    {
+        var dispatcher = CreateDispatcher(
+            typeProviders: [new ExecutableApplicationResourceTypeProvider()],
+            capabilityProviders: [],
+            operationProviders: []);
+        var resolved = ResolveExecutable(
+            configuration: new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ExecutableApplicationResourceTypeProvider.ConfigurationSection] =
+                    ResourceDefinitionJson.FromValue(new ExecutableApplicationConfiguration("", "run"))
+            });
+
+        var result = await dispatcher.ValidateResourceTypeAsync(
+            resolved,
+            new ResourceDefinitionValidationContext());
+
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("application.executable.pathRequired", diagnostic.Code);
+        Assert.Equal(ExecutableApplicationResourceTypeProvider.ConfigurationSection, diagnostic.Target);
+    }
+
+    private static ResolvedResourceDefinition ResolveExecutable(
+        IReadOnlyDictionary<string, JsonElement>? configuration = null,
+        IReadOnlyDictionary<ResourceCapabilityId, JsonElement>? capabilities = null)
+    {
+        var typeProvider = new ExecutableApplicationResourceTypeProvider();
         var resolver = new ResourceDefinitionResolver(
             [
-                new(ResourceClass.Executable)
+                new(ExecutableApplicationResourceTypeProvider.ClassId)
             ],
             [
-                new(
-                    "application.executable",
-                    ResourceClass.Executable,
-                    Operations:
-                    [
-                        new("start")
-                    ])
+                typeProvider.TypeDefinition
             ]);
 
         return resolver.Resolve(new(
             "api",
-            "application.executable",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+            Configuration: configuration,
             Capabilities: capabilities));
     }
 
     private static ResourceDefinitionProviderDispatcher CreateDispatcher(
+        IReadOnlyList<IResourceTypeProvider> typeProviders,
         IReadOnlyList<IResourceDefinitionCapabilityProvider> capabilityProviders,
         IReadOnlyList<IResourceOperationProvider> operationProviders)
     {
         var services = new ServiceCollection();
+
+        foreach (var provider in typeProviders)
+        {
+            services.AddSingleton<IResourceTypeProvider>(provider);
+        }
 
         foreach (var provider in capabilityProviders)
         {
@@ -115,12 +165,14 @@ public sealed class ResourceDefinitionProviderDispatcherTests
 
     private sealed class VolumeConsumerCapabilityProvider : IResourceDefinitionCapabilityProvider
     {
-        public string CapabilityId => "storage.volumeConsumer";
+        public static readonly ResourceCapabilityId CapabilityIdValue = "storage.volumeConsumer";
+
+        public ResourceCapabilityId CapabilityId => CapabilityIdValue;
 
         public bool CanValidate(
             ResolvedResourceDefinition resource,
             ResourceCapabilityResolution capability) =>
-            resource.TypeDefinition.TypeId == "application.executable";
+            resource.TypeDefinition.TypeId == ExecutableApplicationResourceTypeProvider.ResourceTypeId;
 
         public ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
             ResolvedResourceDefinition resource,
@@ -149,7 +201,10 @@ public sealed class ResourceDefinitionProviderDispatcherTests
 
     private sealed class ExecutableStartOperationProvider : IResourceOperationProvider
     {
-        public string OperationId => "start";
+        public static readonly ResourceOperationId OperationIdValue =
+            ExecutableApplicationResourceTypeProvider.Operations.Start;
+
+        public ResourceOperationId OperationId => OperationIdValue;
 
         public ResourceDefinitionValueSource ResolutionLevel =>
             ResourceDefinitionValueSource.TypeDefinition;
@@ -157,7 +212,7 @@ public sealed class ResourceDefinitionProviderDispatcherTests
         public bool CanHandle(
             ResolvedResourceDefinition resource,
             ResourceOperationResolution operation) =>
-            resource.TypeDefinition.TypeId == "application.executable" &&
+            resource.TypeDefinition.TypeId == ExecutableApplicationResourceTypeProvider.ResourceTypeId &&
             operation.IsAvailable;
 
         public ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
@@ -167,4 +222,5 @@ public sealed class ResourceDefinitionProviderDispatcherTests
             CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(ResourceDefinitionValidationResult.Success);
     }
+
 }

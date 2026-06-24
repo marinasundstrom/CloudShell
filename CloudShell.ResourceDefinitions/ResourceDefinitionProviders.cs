@@ -1,8 +1,22 @@
 namespace CloudShell.ResourceDefinitions;
 
+public interface IResourceTypeProvider
+{
+    ResourceTypeId TypeId { get; }
+
+    ResourceTypeDefinition TypeDefinition { get; }
+
+    bool CanValidate(ResolvedResourceDefinition resource);
+
+    ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
+        ResolvedResourceDefinition resource,
+        ResourceDefinitionValidationContext context,
+        CancellationToken cancellationToken = default);
+}
+
 public interface IResourceDefinitionCapabilityProvider
 {
-    string CapabilityId { get; }
+    ResourceCapabilityId CapabilityId { get; }
 
     bool CanValidate(
         ResolvedResourceDefinition resource,
@@ -17,7 +31,7 @@ public interface IResourceDefinitionCapabilityProvider
 
 public interface IResourceOperationProvider
 {
-    string OperationId { get; }
+    ResourceOperationId OperationId { get; }
 
     ResourceDefinitionValueSource ResolutionLevel { get; }
 
@@ -37,13 +51,39 @@ public sealed record ResourceDefinitionValidationContext(
     string? PrincipalId = null);
 
 public sealed class ResourceDefinitionProviderDispatcher(
+    IEnumerable<IResourceTypeProvider> typeProviders,
     IEnumerable<IResourceDefinitionCapabilityProvider> capabilityProviders,
     IEnumerable<IResourceOperationProvider> operationProviders)
 {
+    private readonly IReadOnlyList<IResourceTypeProvider> _typeProviders =
+        typeProviders.ToArray();
     private readonly IReadOnlyList<IResourceDefinitionCapabilityProvider> _capabilityProviders =
         capabilityProviders.ToArray();
     private readonly IReadOnlyList<IResourceOperationProvider> _operationProviders =
         operationProviders.ToArray();
+
+    public async ValueTask<ResourceDefinitionValidationResult> ValidateResourceTypeAsync(
+        ResolvedResourceDefinition resource,
+        ResourceDefinitionValidationContext context,
+        CancellationToken cancellationToken = default)
+    {
+        var provider = _typeProviders.FirstOrDefault(provider =>
+            provider.TypeId == resource.TypeDefinition.TypeId &&
+            provider.CanValidate(resource));
+
+        if (provider is null)
+        {
+            return ResourceDefinitionValidationResult.FromDiagnostics(
+                [
+                    ResourceDefinitionDiagnostic.Error(
+                        ResourceDefinitionDiagnosticCodes.ResourceTypeProviderMissing,
+                        $"No resource type provider is registered for resource type '{resource.TypeDefinition.TypeId}'.",
+                        resource.TypeDefinition.TypeId)
+                ]);
+        }
+
+        return await provider.ValidateAsync(resource, context, cancellationToken);
+    }
 
     public async ValueTask<ResourceDefinitionValidationResult> ValidateCapabilitiesAsync(
         ResolvedResourceDefinition resource,
@@ -55,7 +95,7 @@ public sealed class ResourceDefinitionProviderDispatcher(
         foreach (var capability in resource.Capabilities)
         {
             var provider = _capabilityProviders.FirstOrDefault(provider =>
-                string.Equals(provider.CapabilityId, capability.Id, StringComparison.OrdinalIgnoreCase) &&
+                provider.CapabilityId == capability.Id &&
                 provider.CanValidate(resource, capability));
 
             if (provider is null)
@@ -84,7 +124,7 @@ public sealed class ResourceDefinitionProviderDispatcher(
         foreach (var operation in resource.Operations)
         {
             var provider = _operationProviders.FirstOrDefault(provider =>
-                string.Equals(provider.OperationId, operation.Id, StringComparison.OrdinalIgnoreCase) &&
+                provider.OperationId == operation.Id &&
                 provider.ResolutionLevel == operation.Source &&
                 provider.CanHandle(resource, operation));
 

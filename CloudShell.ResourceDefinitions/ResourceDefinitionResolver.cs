@@ -1,11 +1,9 @@
-using CloudShell.Abstractions.ResourceManager;
-
 namespace CloudShell.ResourceDefinitions;
 
 public sealed class ResourceDefinitionResolver
 {
-    private readonly IReadOnlyDictionary<ResourceClass, ResourceClassDefinition> _classDefinitions;
-    private readonly IReadOnlyDictionary<string, ResourceTypeDefinition> _typeDefinitions;
+    private readonly IReadOnlyDictionary<ResourceClassId, ResourceClassDefinition> _classDefinitions;
+    private readonly IReadOnlyDictionary<ResourceTypeId, ResourceTypeDefinition> _typeDefinitions;
     private readonly IReadOnlyList<IResourceAttributeValidator> _attributeValidators;
 
     public ResourceDefinitionResolver(
@@ -17,10 +15,9 @@ public sealed class ResourceDefinitionResolver
         ArgumentNullException.ThrowIfNull(typeDefinitions);
 
         _classDefinitions = classDefinitions.ToDictionary(
-            definition => definition.ResourceClass);
+            definition => definition.ClassId);
         _typeDefinitions = typeDefinitions.ToDictionary(
-            definition => definition.TypeId,
-            StringComparer.OrdinalIgnoreCase);
+            definition => definition.TypeId);
         _attributeValidators = attributeValidators?.ToArray() ?? [];
     }
 
@@ -71,24 +68,24 @@ public sealed class ResourceDefinitionResolver
             $"Resource type '{definition.TypeId}' is not registered.",
             definition.TypeId));
 
-        return new(definition.TypeId, ResourceClass.Generic);
+        return new(definition.TypeId, ResourceDefinitionClassIds.Generic);
     }
 
     private ResourceClassDefinition ResolveClassDefinition(
         ResourceTypeDefinition typeDefinition,
         List<ResourceDefinitionDiagnostic> diagnostics)
     {
-        if (_classDefinitions.TryGetValue(typeDefinition.ResourceClass, out var classDefinition))
+        if (_classDefinitions.TryGetValue(typeDefinition.ClassId, out var classDefinition))
         {
             return classDefinition;
         }
 
         diagnostics.Add(ResourceDefinitionDiagnostic.Error(
             ResourceDefinitionDiagnosticCodes.UnknownResourceClass,
-            $"Resource class '{typeDefinition.ResourceClass}' is not registered.",
-            typeDefinition.ResourceClass.ToString()));
+            $"Resource class '{typeDefinition.ClassId}' is not registered.",
+            typeDefinition.ClassId));
 
-        return new(typeDefinition.ResourceClass);
+        return new(typeDefinition.ClassId);
     }
 
     private static ResourceAttributeSet ResolveAttributes(
@@ -96,7 +93,7 @@ public sealed class ResourceDefinitionResolver
         ResourceTypeDefinition typeDefinition,
         ResourceDefinition definition)
     {
-        var attributes = new Dictionary<string, ResourceAttributeResolution>(StringComparer.OrdinalIgnoreCase);
+        var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeResolution>();
 
         MergeAttributes(attributes, classDefinition.Attributes, ResourceDefinitionValueSource.ClassDefinition);
         MergeAttributes(attributes, typeDefinition.Attributes, ResourceDefinitionValueSource.TypeDefinition);
@@ -106,8 +103,8 @@ public sealed class ResourceDefinitionResolver
     }
 
     private static void MergeAttributes(
-        Dictionary<string, ResourceAttributeResolution> target,
-        IReadOnlyDictionary<string, string>? attributes,
+        Dictionary<ResourceAttributeId, ResourceAttributeResolution> target,
+        IReadOnlyDictionary<ResourceAttributeId, string>? attributes,
         ResourceDefinitionValueSource source)
     {
         if (attributes is null)
@@ -126,7 +123,7 @@ public sealed class ResourceDefinitionResolver
         ResourceTypeDefinition typeDefinition,
         ResourceDefinition definition)
     {
-        var capabilities = new Dictionary<string, ResourceCapabilityResolution>(StringComparer.OrdinalIgnoreCase);
+        var capabilities = new Dictionary<ResourceCapabilityId, ResourceCapabilityResolution>();
 
         MergeCapabilities(capabilities, classDefinition.Capabilities, ResourceDefinitionValueSource.ClassDefinition);
         MergeCapabilities(capabilities, typeDefinition.Capabilities, ResourceDefinitionValueSource.TypeDefinition);
@@ -142,7 +139,7 @@ public sealed class ResourceDefinitionResolver
     }
 
     private static void MergeCapabilities(
-        Dictionary<string, ResourceCapabilityResolution> target,
+        Dictionary<ResourceCapabilityId, ResourceCapabilityResolution> target,
         IReadOnlyList<ResourceCapabilityDeclaration>? capabilities,
         ResourceDefinitionValueSource source)
     {
@@ -167,7 +164,7 @@ public sealed class ResourceDefinitionResolver
         ResourceDefinition definition,
         List<ResourceDefinitionDiagnostic> diagnostics)
     {
-        var operations = new Dictionary<string, ResourceOperationResolution>(StringComparer.OrdinalIgnoreCase);
+        var operations = new Dictionary<ResourceOperationId, ResourceOperationResolution>();
 
         MergeOperations(operations, classDefinition.Operations, ResourceDefinitionValueSource.ClassDefinition, diagnostics);
         MergeOperations(operations, typeDefinition.Operations, ResourceDefinitionValueSource.TypeDefinition, diagnostics);
@@ -195,7 +192,7 @@ public sealed class ResourceDefinitionResolver
     }
 
     private static void MergeOperations(
-        Dictionary<string, ResourceOperationResolution> target,
+        Dictionary<ResourceOperationId, ResourceOperationResolution> target,
         IReadOnlyList<ResourceOperationDeclaration>? operations,
         ResourceDefinitionValueSource source,
         List<ResourceDefinitionDiagnostic> diagnostics)
@@ -316,4 +313,10 @@ public static class ResourceDefinitionDiagnosticCodes
     public const string OperationOverrideNotAllowed = "resourceDefinition.operationOverrideNotAllowed";
     public const string CapabilityProviderMissing = "resourceDefinition.capabilityProviderMissing";
     public const string OperationProviderMissing = "resourceDefinition.operationProviderMissing";
+    public const string ResourceTypeProviderMissing = "resourceDefinition.resourceTypeProviderMissing";
+}
+
+public static class ResourceDefinitionClassIds
+{
+    public static readonly ResourceClassId Generic = ResourceClassId.Create("generic");
 }

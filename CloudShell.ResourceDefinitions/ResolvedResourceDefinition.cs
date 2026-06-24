@@ -13,23 +13,22 @@ public sealed record ResolvedResourceDefinition(
 
 public sealed class ResourceAttributeSet : IReadOnlyCollection<ResourceAttributeResolution>
 {
-    private readonly IReadOnlyDictionary<string, ResourceAttributeResolution> _attributes;
+    private readonly IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeResolution> _attributes;
 
     public ResourceAttributeSet(IEnumerable<ResourceAttributeResolution> attributes)
     {
         _attributes = attributes.ToDictionary(
-            attribute => attribute.Name,
-            StringComparer.OrdinalIgnoreCase);
+            attribute => attribute.Name);
     }
 
     public int Count => _attributes.Count;
 
-    public bool Has(string name) => _attributes.ContainsKey(name);
+    public bool Has(ResourceAttributeId name) => _attributes.ContainsKey(name);
 
-    public string? GetString(string name) =>
+    public string? GetString(ResourceAttributeId name) =>
         _attributes.TryGetValue(name, out var attribute) ? attribute.Value : null;
 
-    public ResourceAttributeResolution? Resolve(string name) =>
+    public ResourceAttributeResolution? Resolve(ResourceAttributeId name) =>
         _attributes.GetValueOrDefault(name);
 
     public IEnumerator<ResourceAttributeResolution> GetEnumerator() =>
@@ -40,30 +39,29 @@ public sealed class ResourceAttributeSet : IReadOnlyCollection<ResourceAttribute
 }
 
 public sealed record ResourceAttributeResolution(
-    string Name,
+    ResourceAttributeId Name,
     string Value,
     ResourceDefinitionValueSource Source);
 
 public sealed class ResourceCapabilitySet : IReadOnlyCollection<ResourceCapabilityResolution>
 {
-    private readonly IReadOnlyDictionary<string, ResourceCapabilityResolution> _capabilities;
+    private readonly IReadOnlyDictionary<ResourceCapabilityId, ResourceCapabilityResolution> _capabilities;
 
     public ResourceCapabilitySet(IEnumerable<ResourceCapabilityResolution> capabilities)
     {
         _capabilities = capabilities.ToDictionary(
-            capability => capability.Id,
-            StringComparer.OrdinalIgnoreCase);
+            capability => capability.Id);
     }
 
     public int Count => _capabilities.Count;
 
-    public bool Has(string capabilityId) => _capabilities.ContainsKey(capabilityId);
+    public bool Has(ResourceCapabilityId capabilityId) => _capabilities.ContainsKey(capabilityId);
 
-    public ResourceCapabilityResolution? Resolve(string capabilityId) =>
+    public ResourceCapabilityResolution? Resolve(ResourceCapabilityId capabilityId) =>
         _capabilities.GetValueOrDefault(capabilityId);
 
     public TCapability? Get<TCapability>(
-        string capabilityId,
+        ResourceCapabilityId capabilityId,
         JsonSerializerOptions? options = null) =>
         Resolve(capabilityId) is { } capability
             ? capability.Payload.Deserialize<TCapability>(options)
@@ -77,28 +75,27 @@ public sealed class ResourceCapabilitySet : IReadOnlyCollection<ResourceCapabili
 }
 
 public sealed record ResourceCapabilityResolution(
-    string Id,
+    ResourceCapabilityId Id,
     JsonElement Payload,
     ResourceDefinitionValueSource Source,
     bool IsRequired = false);
 
 public sealed class ResourceOperationSet : IReadOnlyCollection<ResourceOperationResolution>
 {
-    private readonly IReadOnlyDictionary<string, ResourceOperationResolution> _operations;
+    private readonly IReadOnlyDictionary<ResourceOperationId, ResourceOperationResolution> _operations;
 
     public ResourceOperationSet(IEnumerable<ResourceOperationResolution> operations)
     {
         _operations = operations.ToDictionary(
-            operation => operation.Id,
-            StringComparer.OrdinalIgnoreCase);
+            operation => operation.Id);
     }
 
     public int Count => _operations.Count;
 
-    public bool Has(string operationId) => _operations.ContainsKey(operationId);
+    public bool Has(ResourceOperationId operationId) => _operations.ContainsKey(operationId);
 
     public ResourceOperationResolution Resolve(
-        string operationId,
+        ResourceOperationId operationId,
         ResourceDefinitionValueSource? source = null)
     {
         if (_operations.TryGetValue(operationId, out var operation) &&
@@ -121,7 +118,7 @@ public sealed class ResourceOperationSet : IReadOnlyCollection<ResourceOperation
 }
 
 public sealed record ResourceOperationResolution(
-    string Id,
+    ResourceOperationId Id,
     JsonElement Payload,
     ResourceDefinitionValueSource Source,
     bool IsEnabled,
@@ -131,7 +128,7 @@ public sealed record ResourceOperationResolution(
     public bool IsAvailable => IsEnabled && string.IsNullOrWhiteSpace(UnavailableReason);
 
     public static ResourceOperationResolution Unavailable(
-        string operationId,
+        ResourceOperationId operationId,
         ResourceDefinitionValueSource source,
         string reason) =>
         new(

@@ -1,5 +1,5 @@
 using System.Text.Json;
-using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ResourceDefinitions.ReferenceProviders;
 
 namespace CloudShell.ResourceDefinitions.Tests;
 
@@ -11,8 +11,8 @@ public sealed class ResourceDefinitionResolverTests
         var resolver = new ResourceDefinitionResolver(
             [
                 new(
-                    ResourceClass.Executable,
-                    Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    ExecutableApplicationResourceTypeProvider.ClassId,
+                    Attributes: new Dictionary<ResourceAttributeId, string>
                     {
                         ["workload.kind"] = "executable"
                     },
@@ -27,12 +27,12 @@ public sealed class ResourceDefinitionResolverTests
             ],
             [
                 new(
-                    "application.executable",
-                    ResourceClass.Executable,
-                    DefaultProviderId: "applications.executable",
-                    Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    ExecutableApplicationResourceTypeProvider.ClassId,
+                    DefaultProviderId: ExecutableApplicationResourceTypeProvider.ProviderId,
+                    Attributes: new Dictionary<ResourceAttributeId, string>
                     {
-                        [ResourceAttributeNames.ExecutablePath] = "dotnet"
+                        [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
                     },
                     Capabilities:
                     [
@@ -45,14 +45,14 @@ public sealed class ResourceDefinitionResolverTests
             ]);
         var definition = new ResourceDefinition(
             "api",
-            "application.executable",
-            Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
             {
-                [ResourceAttributeNames.ExecutablePath] = "./api"
+                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "./api"
             },
-            Capabilities: new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
+            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
             {
-                ["storage.volumeConsumer"] = ResourceDefinitionJson.FromValue(new
+                [VolumeConsumerCapabilityProvider.CapabilityId] = ResourceDefinitionJson.FromValue(new
                 {
                     mounts = new[]
                     {
@@ -64,16 +64,18 @@ public sealed class ResourceDefinitionResolverTests
         var resolved = resolver.Resolve(definition);
 
         Assert.Empty(resolved.Diagnostics);
-        Assert.Equal(ResourceClass.Executable, resolved.ClassDefinition.ResourceClass);
-        Assert.Equal("application.executable", resolved.TypeDefinition.TypeId);
+        Assert.Equal(ExecutableApplicationResourceTypeProvider.ClassId, resolved.ClassDefinition.ClassId);
+        Assert.Equal(ExecutableApplicationResourceTypeProvider.ResourceTypeId, resolved.TypeDefinition.TypeId);
         Assert.Equal("executable", resolved.Attributes.GetString("workload.kind"));
-        Assert.Equal("./api", resolved.Attributes.GetString(ResourceAttributeNames.ExecutablePath));
+        Assert.Equal(
+            "./api",
+            resolved.Attributes.GetString(ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath));
         Assert.Equal(
             ResourceDefinitionValueSource.ResourceDefinition,
-            resolved.Attributes.Resolve(ResourceAttributeNames.ExecutablePath)?.Source);
+            resolved.Attributes.Resolve(ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath)?.Source);
         Assert.True(resolved.Capabilities.Has("logs.sources"));
         Assert.True(resolved.Capabilities.Has("monitoring"));
-        Assert.True(resolved.Capabilities.Has("storage.volumeConsumer"));
+        Assert.True(resolved.Capabilities.Has(VolumeConsumerCapabilityProvider.CapabilityId));
         Assert.True(resolved.Operations.Has("start"));
         Assert.True(resolved.Operations.Has("restart"));
     }
@@ -84,23 +86,29 @@ public sealed class ResourceDefinitionResolverTests
         var resolver = new ResourceDefinitionResolver(
             [
                 new(
-                    ResourceClass.Executable,
+                    ExecutableApplicationResourceTypeProvider.ClassId,
                     RequiredAttributes:
                     [
-                        new(ResourceAttributeNames.ExecutablePath, "Executable path is required.")
+                        new(
+                            ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath,
+                            "Executable path is required.")
                     ])
             ],
             [
-                new("application.executable", ResourceClass.Executable)
+                new(
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    ExecutableApplicationResourceTypeProvider.ClassId)
             ]);
-        var definition = new ResourceDefinition("api", "application.executable");
+        var definition = new ResourceDefinition(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId);
 
         var resolved = resolver.Resolve(definition);
 
         var diagnostic = Assert.Single(resolved.Diagnostics);
         Assert.Equal(ResourceDefinitionDiagnosticSeverity.Error, diagnostic.Severity);
         Assert.Equal(ResourceDefinitionDiagnosticCodes.RequiredAttributeMissing, diagnostic.Code);
-        Assert.Equal(ResourceAttributeNames.ExecutablePath, diagnostic.Target);
+        Assert.Equal(ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath, diagnostic.Target);
     }
 
     [Fact]
@@ -109,7 +117,7 @@ public sealed class ResourceDefinitionResolverTests
         var resolver = new ResourceDefinitionResolver(
             [
                 new(
-                    ResourceClass.Executable,
+                    ExecutableApplicationResourceTypeProvider.ClassId,
                     Operations:
                     [
                         new("start", AllowOverride: false)
@@ -117,15 +125,17 @@ public sealed class ResourceDefinitionResolverTests
             ],
             [
                 new(
-                    "application.executable",
-                    ResourceClass.Executable,
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    ExecutableApplicationResourceTypeProvider.ClassId,
                     Operations:
                     [
                         new("start", ResourceDefinitionJson.FromValue(new { policy = "type" }))
                     ])
             ]);
 
-        var resolved = resolver.Resolve(new("api", "application.executable"));
+        var resolved = resolver.Resolve(new(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId));
 
         var diagnostic = Assert.Single(resolved.Diagnostics);
         Assert.Equal(ResourceDefinitionDiagnosticCodes.OperationOverrideNotAllowed, diagnostic.Code);
@@ -137,19 +147,20 @@ public sealed class ResourceDefinitionResolverTests
     {
         var definition = new ResourceDefinition(
             "api",
-            "application.executable",
-            ProviderId: "applications.executable",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+            ProviderId: ExecutableApplicationResourceTypeProvider.ProviderId,
             DisplayName: "API",
             Configuration: new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
             {
-                ["executable"] = ResourceDefinitionJson.FromValue(new ExecutableConfiguration(
+                [ExecutableApplicationResourceTypeProvider.ConfigurationSection] =
+                    ResourceDefinitionJson.FromValue(new ExecutableApplicationConfiguration(
                     "dotnet",
                     "run",
                     "./src/Api"))
             },
-            Capabilities: new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
+            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
             {
-                ["storage.volumeConsumer"] = ResourceDefinitionJson.FromValue(new VolumeConsumerCapability(
+                [VolumeConsumerCapabilityProvider.CapabilityId] = ResourceDefinitionJson.FromValue(new VolumeConsumerCapability(
                     [new("volume:data", "App_Data", ReadOnly: false)]))
             });
 
@@ -158,10 +169,11 @@ public sealed class ResourceDefinitionResolverTests
 
         Assert.NotNull(roundTrip);
         Assert.Equal("api", roundTrip.Name);
-        Assert.Equal("application.executable", roundTrip.TypeId);
-        Assert.Equal("applications.executable", roundTrip.ProviderId);
+        Assert.Equal(ExecutableApplicationResourceTypeProvider.ResourceTypeId, roundTrip.TypeId);
+        Assert.Equal(ExecutableApplicationResourceTypeProvider.ProviderId, roundTrip.ProviderId);
 
-        var executable = roundTrip.GetConfiguration<ExecutableConfiguration>("executable");
+        var executable = roundTrip.GetConfiguration<ExecutableApplicationConfiguration>(
+            ExecutableApplicationResourceTypeProvider.ConfigurationSection);
         Assert.NotNull(executable);
         Assert.Equal("dotnet", executable.Path);
         Assert.Equal("./src/Api", executable.WorkingDirectory);
@@ -174,11 +186,6 @@ public sealed class ResourceDefinitionResolverTests
         Assert.False(mount.ReadOnly);
     }
 
-    private sealed record ExecutableConfiguration(
-        string Path,
-        string? Arguments,
-        string? WorkingDirectory);
-
     private sealed record VolumeConsumerCapability(
         IReadOnlyList<VolumeMountDefinition> Mounts);
 
@@ -186,4 +193,9 @@ public sealed class ResourceDefinitionResolverTests
         string Volume,
         string TargetPath,
         bool ReadOnly);
+
+    private static class VolumeConsumerCapabilityProvider
+    {
+        public static readonly ResourceCapabilityId CapabilityId = "storage.volumeConsumer";
+    }
 }

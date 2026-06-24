@@ -4,36 +4,42 @@ namespace CloudShell.ResourceDefinitions;
 
 public sealed record ResourceDefinition(
     string Name,
-    string TypeId,
+    ResourceTypeId TypeId,
     string? ResourceId = null,
     string? ProviderId = null,
     string? DisplayName = null,
     string? Version = null,
     IReadOnlyList<string>? DependsOn = null,
-    IReadOnlyDictionary<string, string>? Attributes = null,
+    IReadOnlyDictionary<ResourceAttributeId, string>? Attributes = null,
     IReadOnlyDictionary<string, JsonElement>? Configuration = null,
-    IReadOnlyDictionary<string, JsonElement>? Capabilities = null,
-    IReadOnlyDictionary<string, JsonElement>? Operations = null,
+    IReadOnlyDictionary<ResourceCapabilityId, JsonElement>? Capabilities = null,
+    IReadOnlyDictionary<ResourceOperationId, JsonElement>? Operations = null,
     IReadOnlyDictionary<string, string>? Metadata = null)
 {
     private static readonly IReadOnlyList<string> EmptyList = [];
-    private static readonly IReadOnlyDictionary<string, string> EmptyAttributes =
-        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-    private static readonly IReadOnlyDictionary<string, JsonElement> EmptyPayloads =
+    private static readonly IReadOnlyDictionary<ResourceAttributeId, string> EmptyAttributes =
+        new Dictionary<ResourceAttributeId, string>();
+    private static readonly IReadOnlyDictionary<string, JsonElement> EmptyConfigurationPayloads =
         new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+    private static readonly IReadOnlyDictionary<ResourceCapabilityId, JsonElement> EmptyCapabilityPayloads =
+        new Dictionary<ResourceCapabilityId, JsonElement>();
+    private static readonly IReadOnlyDictionary<ResourceOperationId, JsonElement> EmptyOperationPayloads =
+        new Dictionary<ResourceOperationId, JsonElement>();
 
     public string EffectiveResourceId =>
         string.IsNullOrWhiteSpace(ResourceId) ? $"{TypeId}:{Name}" : ResourceId;
 
     public IReadOnlyList<string> ResourceDependencies => DependsOn ?? EmptyList;
 
-    public IReadOnlyDictionary<string, string> ResourceAttributes => Attributes ?? EmptyAttributes;
+    public IReadOnlyDictionary<ResourceAttributeId, string> ResourceAttributes => Attributes ?? EmptyAttributes;
 
-    public IReadOnlyDictionary<string, JsonElement> ConfigurationPayloads => Configuration ?? EmptyPayloads;
+    public IReadOnlyDictionary<string, JsonElement> ConfigurationPayloads => Configuration ?? EmptyConfigurationPayloads;
 
-    public IReadOnlyDictionary<string, JsonElement> CapabilityPayloads => Capabilities ?? EmptyPayloads;
+    public IReadOnlyDictionary<ResourceCapabilityId, JsonElement> CapabilityPayloads =>
+        Capabilities ?? EmptyCapabilityPayloads;
 
-    public IReadOnlyDictionary<string, JsonElement> OperationPayloads => Operations ?? EmptyPayloads;
+    public IReadOnlyDictionary<ResourceOperationId, JsonElement> OperationPayloads =>
+        Operations ?? EmptyOperationPayloads;
 
     public TConfiguration? GetConfiguration<TConfiguration>(
         string sectionName,
@@ -43,14 +49,14 @@ public sealed record ResourceDefinition(
             : default;
 
     public TCapability? GetCapability<TCapability>(
-        string capabilityId,
+        ResourceCapabilityId capabilityId,
         JsonSerializerOptions? options = null) =>
         CapabilityPayloads.TryGetValue(capabilityId, out var payload)
             ? payload.Deserialize<TCapability>(options)
             : default;
 
     public TOperation? GetOperation<TOperation>(
-        string operationId,
+        ResourceOperationId operationId,
         JsonSerializerOptions? options = null) =>
         OperationPayloads.TryGetValue(operationId, out var payload)
             ? payload.Deserialize<TOperation>(options)

@@ -17,6 +17,14 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- The resource definitions POC now uses strongly typed class, type,
+  attribute, capability, and operation IDs, adds an isolated resource type
+  provider validation path, and introduces a separate
+  `CloudShell.ResourceDefinitions.ReferenceProviders` project for the
+  executable reference provider. The infrastructure project no longer
+  references the broad `CloudShell.Abstractions` project just to borrow
+  resource classes or attribute constants, keeping the experiment aligned with
+  provider-boundary detangling.
 - Added the experimental `CloudShell.ResourceDefinitions` infrastructure
   project and `CloudShell.ResourceDefinitions.Tests` POC test project for
   resource-definition envelopes, class/type inheritance, effective

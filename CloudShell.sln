@@ -143,6 +143,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.ResourceDefiniti
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.ResourceDefinitions.Tests", "CloudShell.ResourceDefinitions.Tests\CloudShell.ResourceDefinitions.Tests.csproj", "{01356035-636F-4DA6-A632-83299460DE30}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.ResourceDefinitions.ReferenceProviders", "CloudShell.ResourceDefinitions.ReferenceProviders\CloudShell.ResourceDefinitions.ReferenceProviders.csproj", "{9676260E-825E-409A-843F-651A6A777D31}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -729,6 +731,18 @@ Global
 		{01356035-636F-4DA6-A632-83299460DE30}.Release|x64.Build.0 = Release|Any CPU
 		{01356035-636F-4DA6-A632-83299460DE30}.Release|x86.ActiveCfg = Release|Any CPU
 		{01356035-636F-4DA6-A632-83299460DE30}.Release|x86.Build.0 = Release|Any CPU
+		{9676260E-825E-409A-843F-651A6A777D31}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9676260E-825E-409A-843F-651A6A777D31}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9676260E-825E-409A-843F-651A6A777D31}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{9676260E-825E-409A-843F-651A6A777D31}.Debug|x64.Build.0 = Debug|Any CPU
+		{9676260E-825E-409A-843F-651A6A777D31}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{9676260E-825E-409A-843F-651A6A777D31}.Debug|x86.Build.0 = Debug|Any CPU
+		{9676260E-825E-409A-843F-651A6A777D31}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9676260E-825E-409A-843F-651A6A777D31}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9676260E-825E-409A-843F-651A6A777D31}.Release|x64.ActiveCfg = Release|Any CPU
+		{9676260E-825E-409A-843F-651A6A777D31}.Release|x64.Build.0 = Release|Any CPU
+		{9676260E-825E-409A-843F-651A6A777D31}.Release|x86.ActiveCfg = Release|Any CPU
+		{9676260E-825E-409A-843F-651A6A777D31}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
