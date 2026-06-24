@@ -94,6 +94,10 @@ on `git blame --follow`, and then by the broad type of change.
   volume resource type provider, proving a second provider boundary with its
   own class defaults, type defaults, validation, change apply handling, and
   apply planning.
+- The Resource Manager bridge tests now apply a deployment with a local volume
+  and executable application across separate provider boundaries, then project
+  both resources through the Resource Manager bridge and resolve the executable
+  dependency closure from the graph.
 - The resource definitions POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change

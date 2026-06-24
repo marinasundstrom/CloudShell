@@ -533,6 +533,10 @@ folding storage behavior into an application provider aggregate. Later, when
 an existing provider is ported, the verification path should be to register the
 ported provider through the new model, turn off the old registration, and prove
 the Resource Manager and orchestration paths still work through the graph.
+The first acceptance test for that path should apply a deployment containing
+both resource types, project the committed graph through the Resource Manager
+bridge, and resolve the executable resource with its storage dependency from
+the graph.
 
 Host infrastructure registration is a separate concern from provider
 registration. A host may compose the generic graph services once from whatever

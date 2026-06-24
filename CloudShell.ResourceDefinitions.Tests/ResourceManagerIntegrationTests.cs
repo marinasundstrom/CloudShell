@@ -451,6 +451,85 @@ public sealed class ResourceManagerIntegrationTests
             ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
     }
 
+    [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesDeploymentAcrossProviderBoundaries()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddLocalVolumeResourceType();
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphResourceProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var volume = new ResourceDefinition(
+            "data",
+            LocalVolumeResourceTypeProvider.ResourceTypeId);
+        var executable = new ResourceDefinition(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+            ProviderId: ExecutableApplicationResourceTypeProvider.ProviderId,
+            DependsOn: [volume.EffectiveResourceId],
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
+            },
+            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
+            {
+                [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
+                    ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
+                    [
+                        new(volume.EffectiveResourceId, "App_Data")
+                    ]))
+            });
+        var deployment = new ResourceDeploymentDefinition(
+            "local-app",
+            [volume, executable],
+            EnvironmentId: "local");
+
+        var result = await service.ApplyDeploymentAsync(
+            deployment,
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 24, 17, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors);
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+        Assert.Equal(2, result.Commit.Summary.AcceptedResourceCount);
+        Assert.Equal(2, result.Commit.Snapshot!.Resources.Count);
+        Assert.All(result.Changes.AcceptedResources, resource =>
+            Assert.True(resource.ChangeSet.IsNewResource));
+
+        var provider = Assert.Single(serviceProvider.GetServices<IResourceProvider>());
+        var projectedResources = provider.GetResources();
+        var projectedVolume = Assert.Single(projectedResources, resource =>
+            resource.Id == volume.EffectiveResourceId);
+        var projectedExecutable = Assert.Single(projectedResources, resource =>
+            resource.Id == executable.EffectiveResourceId);
+
+        Assert.Equal(ResourceManagerClass.Storage, projectedVolume.ResourceClass);
+        Assert.Equal(LocalVolumeResourceTypeProvider.ProviderId, projectedVolume.Provider);
+        Assert.Equal("volume", projectedVolume.ResourceAttributes["storage.kind"]);
+        Assert.Equal("local", projectedVolume.ResourceAttributes["storage.medium"]);
+        Assert.Equal(ResourceManagerClass.Executable, projectedExecutable.ResourceClass);
+        Assert.Equal([volume.EffectiveResourceId], projectedExecutable.DependsOn);
+        Assert.Contains(projectedExecutable.ResourceCapabilities, capability =>
+            capability.Id == VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString());
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveWithDependenciesAsync(executable.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors);
+        Assert.Equal(
+            [executable.EffectiveResourceId, volume.EffectiveResourceId],
+            resolution.Resources.Select(resource => resource.EffectiveResourceId));
+        var volumeCapability = Assert.IsType<VolumeConsumerCapability>(
+            resolution.Target!.Capabilities.Get<VolumeConsumerCapability>());
+        Assert.Equal(volume.EffectiveResourceId, Assert.Single(volumeCapability.Mounts).Volume);
+    }
+
     private static ResourceState CreateExecutableState(
         string name = "api",
         IReadOnlyList<string>? dependsOn = null) =>
