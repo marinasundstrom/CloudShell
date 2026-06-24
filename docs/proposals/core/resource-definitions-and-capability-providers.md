@@ -1130,14 +1130,38 @@ mounts are active.
 
 ## Persistence, Debugging, and Plain Format
 
-Persisted and diagnostic resource-model artifacts should be plain enough to
-inspect and review. `Resource`, `ResourceDefinition`,
-`ResourceTypeDefinition`, `ResourceClassDefinition`, and related definition
-artifacts should all have deliberate serialized projections for persistence,
-exchange, diagnostics, and tests. `ResolvedResourceDefinition` should also be
-serializable as a debug or diagnostic snapshot so callers can inspect which
-attributes, capabilities, operations, defaults, sources, and diagnostics were
-effective after resolution.
+Resource-model artifacts should be plain enough to inspect and review, but
+CloudShell should distinguish the domain definition model, serialized
+document/interchange projections, and internal persistence records.
+`ResourceDefinition`, `ResourceTypeDefinition`, `ResourceClassDefinition`, and
+related definition artifacts should be serializable as deliberate
+document/interchange projections for JSON, YAML, XML, templates, imports,
+exports, diagnostics, tests, and review. That serialized projection is a
+portable representation of the definition model, not a requirement that
+CloudShell persist the exact same shape internally.
+
+CloudShell persistence can use a store-optimized representation, such as a
+`ResourceDefinitionRecord`, normalized tables, or provider-owned persistence
+records. That persistence shape may split out identity fields, dependencies,
+attributes, capability declarations, operation declarations, provider payloads,
+ownership, grouping, indexes, and migration metadata. The persistence record
+should remain an implementation detail and must rehydrate into the same
+`ResourceDefinition` semantics before validation, resolution, planning,
+projection, provider behavior, or deployment apply runs.
+
+`ResolvedResourceDefinition` should also be serializable as a debug or
+diagnostic snapshot so callers can inspect which attributes, capabilities,
+operations, defaults, sources, and diagnostics were effective after
+resolution. It is a computed view, not the primary persisted source of truth.
+
+Projections and generated wrappers sit above those data shapes as the upper
+domain-model API. A `ResourceDefinitionProjection` exposes resolved definition
+state and resolver access. A generated resource-type wrapper, such as an
+`ExecutableApplicationResource`, can expose typed properties and methods over
+that projection while internally resolving capability and operation providers.
+Those wrappers are how domain code should consume behavior-rich resource
+views; they are not the persistence record and they are not the portable
+serialized document format.
 
 The durable formats should avoid making C# builder types, generated DTO names,
 or provider-native files the source of truth.
