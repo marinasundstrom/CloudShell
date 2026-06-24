@@ -79,6 +79,10 @@ on `git blame --follow`, and then by the broad type of change.
   the procedure-capable bridge uses that metadata when evaluating Resource
   Manager actions so it does not claim unrelated provider resources with the
   same action IDs.
+- Resource model graph service registration can now compose from
+  provider-registered `ResourceClassDefinition` and `IResourceTypeProvider`
+  services, while still allowing explicit host class-definition registrations
+  to override provider defaults by class id.
 - The resource definitions POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change

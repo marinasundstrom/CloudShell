@@ -476,6 +476,11 @@ registered Resource model providers. A host can register class definitions,
 bridge compose a resolver from those services. That keeps provider packages as
 the owners of their type definitions while Resource Manager consumes the
 resolved graph through the existing provider composition path.
+Provider packages may register their own `ResourceClassDefinition` defaults
+when they own the class boundary. Hosts can still register explicit class
+definitions for shared or host-owned classes; when the same class id is
+registered more than once, later registrations override earlier defaults for
+resolver composition.
 
 The expected migration path is to keep the bridge temporary and incremental.
 Once the graph model, provider registration, resolution, diagnostics, and

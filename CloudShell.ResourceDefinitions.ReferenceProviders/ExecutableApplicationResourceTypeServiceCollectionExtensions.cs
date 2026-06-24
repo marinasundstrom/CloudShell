@@ -10,6 +10,14 @@ public static class ExecutableApplicationResourceTypeServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        if (!services.Any(descriptor =>
+                descriptor.ServiceType == typeof(ResourceClassDefinition) &&
+                descriptor.ImplementationInstance is ResourceClassDefinition classDefinition &&
+                classDefinition.ClassId == ExecutableApplicationResourceTypeProvider.ClassId))
+        {
+            services.AddSingleton(ExecutableApplicationResourceTypeProvider.ClassDefinition);
+        }
+
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceTypeProvider, ExecutableApplicationResourceTypeProvider>());
         services.TryAddEnumerable(

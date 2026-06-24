@@ -11,6 +11,23 @@ public sealed class ResourceProviderDispatcherTests
     public void AddResourceModelResolver_BuildsResolverFromRegisteredTypeProviders()
     {
         var services = new ServiceCollection();
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelResolver();
+        using var serviceProvider = services.BuildServiceProvider();
+
+        var resolver = serviceProvider.GetRequiredService<ResourceResolver>();
+        var resolved = resolver.Resolve(new ResourceDefinition(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId));
+
+        Assert.Equal(ExecutableApplicationResourceTypeProvider.ResourceTypeId, resolved.Type.TypeId);
+        Assert.Equal(ExecutableApplicationResourceTypeProvider.ClassId, resolved.Class.ClassId);
+    }
+
+    [Fact]
+    public void AddResourceModelResolver_AcceptsExplicitClassDefinitions()
+    {
+        var services = new ServiceCollection();
         services.AddSingleton<IResourceTypeProvider>(new ExecutableApplicationResourceTypeProvider());
         services.AddResourceModelResolver(
             [new(ExecutableApplicationResourceTypeProvider.ClassId)]);
@@ -31,8 +48,7 @@ public sealed class ResourceProviderDispatcherTests
         var services = new ServiceCollection();
         services.AddExecutableApplicationResourceType();
         services.AddInMemoryResourceModelGraph();
-        services.AddResourceModelGraphServices(
-            [new(ExecutableApplicationResourceTypeProvider.ClassId)]);
+        services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
 
         Assert.NotNull(serviceProvider.GetRequiredService<ResourceModelGraphResourceResolver>());

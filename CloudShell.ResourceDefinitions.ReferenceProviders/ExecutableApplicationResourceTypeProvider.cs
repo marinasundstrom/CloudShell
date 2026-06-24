@@ -10,6 +10,8 @@ public sealed class ExecutableApplicationResourceTypeProvider :
     public const string ProviderId = "applications.executable";
     public const string ConfigurationSection = "executable";
 
+    public static ResourceClassDefinition ClassDefinition { get; } = new(ClassId);
+
     public static class Attributes
     {
         public static readonly ResourceAttributeId ExecutablePath = "executable.path";

@@ -1,5 +1,6 @@
 using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace CloudShell.ResourceDefinitions.ResourceManager;
 
@@ -28,17 +29,18 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(classDefinitions);
 
         services.AddResourceModelResolver(classDefinitions);
-        services.AddScoped<ResourceGraphResolver>();
-        services.AddScoped<ResourceModelGraphResourceResolver>();
-        services.AddScoped<ResourceProviderDispatcher>();
-        services.AddScoped<ResourceCapabilityResolver>();
-        services.AddScoped<ResourceOperationResolver>();
-        services.AddScoped<ResourceProjectionResolver>();
-        services.AddScoped<ResourceDefinitionValidationPipeline>();
-        services.AddScoped<ResourceDefinitionGraphValidationPipeline>();
-        services.AddScoped<ResourceDefinitionGraphProjectionResolver>();
-        services.AddScoped<ResourceDefinitionGraphApplyPlanner>();
-        services.AddScoped<ResourceChangeApplyDispatcher>();
+        services.AddResourceModelGraphInfrastructure();
+
+        return services;
+    }
+
+    public static IServiceCollection AddResourceModelGraphServices(
+        this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.AddResourceModelResolver();
+        services.AddResourceModelGraphInfrastructure();
 
         return services;
     }
@@ -55,17 +57,48 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
             services.AddSingleton(classDefinition);
         }
 
-        services.AddScoped(serviceProvider =>
+        services.AddResourceModelResolver();
+
+        return services;
+    }
+
+    public static IServiceCollection AddResourceModelResolver(
+        this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.TryAddScoped<ResourceResolver>(serviceProvider =>
         {
             var typeProviders = serviceProvider
                 .GetServices<IResourceTypeProvider>()
                 .ToArray();
 
             return new ResourceResolver(
-                serviceProvider.GetServices<ResourceClassDefinition>(),
+                serviceProvider
+                    .GetServices<ResourceClassDefinition>()
+                    .GroupBy(classDefinition => classDefinition.ClassId)
+                    .Select(group => group.Last()),
                 typeProviders.Select(provider => provider.TypeDefinition),
                 serviceProvider.GetServices<IResourceAttributeValidator>());
         });
+
+        return services;
+    }
+
+    private static IServiceCollection AddResourceModelGraphInfrastructure(
+        this IServiceCollection services)
+    {
+        services.TryAddScoped<ResourceGraphResolver>();
+        services.TryAddScoped<ResourceModelGraphResourceResolver>();
+        services.TryAddScoped<ResourceProviderDispatcher>();
+        services.TryAddScoped<ResourceCapabilityResolver>();
+        services.TryAddScoped<ResourceOperationResolver>();
+        services.TryAddScoped<ResourceProjectionResolver>();
+        services.TryAddScoped<ResourceDefinitionValidationPipeline>();
+        services.TryAddScoped<ResourceDefinitionGraphValidationPipeline>();
+        services.TryAddScoped<ResourceDefinitionGraphProjectionResolver>();
+        services.TryAddScoped<ResourceDefinitionGraphApplyPlanner>();
+        services.TryAddScoped<ResourceChangeApplyDispatcher>();
 
         return services;
     }
