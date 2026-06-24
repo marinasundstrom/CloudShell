@@ -58,6 +58,8 @@ on `git blame --follow`, and then by the broad type of change.
 - The executable application start operation now delegates runtime-facing start
   behavior to an injected provider-owned runtime controller with a no-op POC
   default.
+- Resource graph records now have test coverage proving typed
+  `ResourceReference` dependencies survive the record persistence projection.
 - The resource definitions proposal now clarifies that resource type providers
   are integration points that may receive injected services, but should not own
   recurring runtime tasks, watchers, polling loops, or reconciliation schedulers

@@ -81,6 +81,37 @@ public sealed class ResourceRecordTests
         Assert.Equal(lastModifiedAt, roundTrip.LastModifiedAt);
     }
 
+    [Fact]
+    public void ResourceRecord_RoundTripsTypedResourceReferences()
+    {
+        var state = ResourceState.FromDefinition(new ResourceDefinition(
+            "appdb",
+            SqlDatabaseResourceTypeProvider.ResourceTypeId,
+            DependsOn:
+            [
+                ResourceReference.ResourceId(
+                    "application.sql-server:server",
+                    typeId: SqlServerResourceTypeProvider.ResourceTypeId,
+                    providerId: SqlServerResourceTypeProvider.ProviderId)
+            ],
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [SqlDatabaseResourceTypeProvider.Attributes.DatabaseName] = "appdb"
+            }));
+
+        var record = ResourceRecord.FromState(state);
+        var roundTrip = record.ToState();
+
+        Assert.NotNull(record.Dependencies);
+        var dependency = Assert.Single(record.Dependencies);
+        Assert.Equal("application.sql-server:server", dependency.Value);
+        Assert.Equal(SqlServerResourceTypeProvider.ResourceTypeId, dependency.TypeId);
+        Assert.Equal(SqlServerResourceTypeProvider.ProviderId, dependency.ProviderId);
+
+        var roundTripDependency = Assert.Single(roundTrip.ResourceDependencies);
+        Assert.Equal(dependency, roundTripDependency);
+    }
+
     private static ResourceDefinition CreateDefinition() =>
         new(
             "api",
