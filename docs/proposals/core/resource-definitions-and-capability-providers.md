@@ -569,11 +569,22 @@ executable resource projection, but it internally asks a
 
 In this shape, capability behavior is not stored on the definition itself and
 is not directly projected as generated wrapper methods. Capability providers
-return typed behavior that the low-level `Resource` projection and generated
-wrappers can compose into their public surface. Those behaviors can read
-effective resource values, resolve other dependencies, project additional
-information, or return a change that can be rendered as or applied from a
-`ResourceDefinition` when the capability changes accepted state.
+return projected capability work units bound to the resolved `Resource`.
+Generated wrappers can compose those work units into their public surface.
+Those behaviors can read effective resource values, resolve other
+dependencies, project additional information, or return a change that can be
+rendered as or applied from a `ResourceDefinition` when the capability changes
+accepted state. Callers should not need to pass the resource definition back
+into a projected capability; the capability already knows which `Resource` it
+belongs to.
+
+Operations should use the same structure. A `ResourceOperationResolver`
+resolves an operation projection for a resolved `Resource` and operation ID.
+The projected operation is a work unit bound to the resource and exposes the
+operation's methods, properties, availability, and diagnostics. Generated
+wrappers can expose operation methods such as `GetStartOperationAsync()` or a
+future source-generated convenience method while keeping the resolved
+`Resource` as the state source.
 
 The POC can keep these resource-type projection wrappers hand-written, but the
 expected mature implementation is source-generated wrappers from the resource
@@ -649,7 +660,7 @@ flowchart TD
         resourceClass["ResourceClass<br/>resolved class view"]
         resourceType["ResourceType<br/>resolved type view"]
         capabilityResolver["ResourceCapabilityResolver<br/>resolves capability providers"]
-        operationResolver["ResourceOperationResolver<br/>future operation provider resolver"]
+        operationResolver["ResourceOperationResolver<br/>resolves operation providers"]
     end
 
     subgraph wrapperLayer [Generated wrappers]
@@ -991,8 +1002,8 @@ Responsibilities:
 - report diagnostics for invalid, unsupported, unsafe, or unresolved state
 - provide typed helper behavior to resource type providers, orchestrators, or
   projection services where appropriate
-- project typed runtime behavior through a capability resolver over a resolved
-  resource projection
+- project typed runtime behavior as a resource-bound capability work unit
+  through a capability resolver
 - optionally contribute resolved capabilities, dependencies, attributes, or
   diagnostics after the resource state has been accepted
 
@@ -1124,6 +1135,14 @@ provider-owned behavior. Operation providers should resolve the operation
 declaration they handle from the resolved resource context at the level they
 explicitly support: class, type, resource state, or a combination of those
 levels.
+
+Operation projections follow the same pattern as capability projections: they
+are resource-bound work units resolved from a `Resource`, an operation ID, and
+an optional resolution level. The projection can expose methods and
+properties for that operation while the provider owns the implementation. The
+wrapper that consumes the operation should not pass a `ResourceDefinition`
+back into it; changes can be rendered to interchange only when the operation
+needs to return a proposed resource-state update.
 
 The operation declaration is the resource model contract. The provider is the
 implementation. Two resource types can declare the same operation ID while

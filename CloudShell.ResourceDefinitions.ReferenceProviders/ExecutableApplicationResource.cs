@@ -3,7 +3,9 @@ namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 public sealed class ExecutableApplicationResource(
     Resource resource,
     ResourceCapabilityResolver capabilityResolver,
-    ResourceCapabilityProjectionContext capabilityContext) : IResourceProjection
+    ResourceCapabilityProjectionContext capabilityContext,
+    ResourceOperationResolver operationResolver,
+    ResourceOperationProjectionContext operationContext) : IResourceProjection
 {
     public Resource Resource { get; } = resource;
 
@@ -22,6 +24,15 @@ public sealed class ExecutableApplicationResource(
 
         return volumeConsumer?.Mounts ?? [];
     }
+
+    public ValueTask<ExecutableStartOperation?> GetStartOperationAsync(
+        CancellationToken cancellationToken = default) =>
+        operationResolver.ResolveAsync<ExecutableStartOperation>(
+            Resource,
+            ExecutableApplicationResourceTypeProvider.Operations.Start,
+            operationContext,
+            ResourceDefinitionValueSource.TypeDefinition,
+            cancellationToken);
 }
 
 public sealed class ExecutableApplicationResourceProjectionProvider : IResourceProjectionProvider
@@ -40,6 +51,10 @@ public sealed class ExecutableApplicationResourceProjectionProvider : IResourceP
                 resource,
                 context.CapabilityResolver ?? new ResourceCapabilityResolver([]),
                 new ResourceCapabilityProjectionContext(
+                    context.EnvironmentId,
+                    context.PrincipalId),
+                context.OperationResolver ?? new ResourceOperationResolver([]),
+                new ResourceOperationProjectionContext(
                     context.EnvironmentId,
                     context.PrincipalId)));
 }

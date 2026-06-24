@@ -37,6 +37,11 @@ on `git blame --follow`, and then by the broad type of change.
   providers, apply planning, and typed resource wrappers operate on resolved
   `Resource` projections, while `ResourceDefinition` remains the interchange
   document applied to or rendered from resource state.
+- The resource definitions POC now binds projected capability and operation
+  work units to their owning `Resource`, adds a `ResourceOperationResolver`,
+  and updates the executable reference wrapper to resolve both volume
+  capability behavior and the start operation from the same resource
+  projection.
 - The resource definitions POC now includes a capability resolver so
   provider-owned capability behavior can be composed into type-specific
   resource projections without making the definition stop being the persisted

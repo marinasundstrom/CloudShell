@@ -36,17 +36,22 @@ public sealed class ResourceDefinitionValidationPipelineTests
 
         var projectionResolver = new ResourceProjectionResolver(
             [new ExecutableApplicationResourceProjectionProvider()],
-            new ResourceCapabilityResolver([new VolumeConsumerCapabilityProvider()]));
+            new ResourceCapabilityResolver([new VolumeConsumerCapabilityProvider()]),
+            new ResourceOperationResolver([new ExecutableStartOperationProvider()]));
         var executable = await projectionResolver.GetResourceProjectionAsync<ExecutableApplicationResource>(
             result.Resource,
             new ResourceProjectionContext("local", "developer"));
 
         Assert.NotNull(executable);
         var volumes = await executable.GetVolumesAsync();
+        var startOperation = await executable.GetStartOperationAsync();
 
         Assert.Equal("dotnet", executable.ExecutablePath);
         Assert.Single(volumes);
         Assert.Equal("App_Data", volumes[0].TargetPath);
+        Assert.NotNull(startOperation);
+        Assert.Same(result.Resource, startOperation.Resource);
+        Assert.True(startOperation.IsAvailable);
     }
 
     [Fact]
@@ -77,8 +82,9 @@ public sealed class ResourceDefinitionValidationPipelineTests
 
         Assert.NotNull(volumeConsumer);
 
+        Assert.Same(result.Resource, volumeConsumer.Resource);
+
         var updated = volumeConsumer.AddMount(
-            result.Resource.ToDefinition(),
             new VolumeMountDefinition("volume:logs", "Logs", ReadOnly: true));
         var updatedPayload = updated.GetCapability<VolumeConsumerDefinition>(
             VolumeConsumerCapabilityProvider.CapabilityIdValue);
@@ -147,25 +153,4 @@ public sealed class ResourceDefinitionValidationPipelineTests
             },
             Capabilities: capabilities);
 
-    private sealed class ExecutableStartOperationProvider : IResourceOperationProvider
-    {
-        public ResourceOperationId OperationId =>
-            ExecutableApplicationResourceTypeProvider.Operations.Start;
-
-        public ResourceDefinitionValueSource ResolutionLevel =>
-            ResourceDefinitionValueSource.TypeDefinition;
-
-        public bool CanHandle(
-            Resource resource,
-            ResourceOperationResolution operation) =>
-            resource.Type.TypeId == ExecutableApplicationResourceTypeProvider.ResourceTypeId &&
-            operation.IsAvailable;
-
-        public ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
-            Resource resource,
-            ResourceOperationResolution operation,
-            ResourceProviderContext context,
-            CancellationToken cancellationToken = default) =>
-            ValueTask.FromResult(ResourceDefinitionValidationResult.Success);
-    }
 }

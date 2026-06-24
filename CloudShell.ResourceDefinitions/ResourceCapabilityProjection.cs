@@ -2,6 +2,8 @@ namespace CloudShell.ResourceDefinitions;
 
 public interface IResourceCapabilityProjection
 {
+    Resource Resource { get; }
+
     ResourceCapabilityId CapabilityId { get; }
 }
 
@@ -70,6 +72,88 @@ public sealed class ResourceCapabilityResolver(
         await ResolveAsync(resource, capabilityId, context, cancellationToken) as TCapability;
 }
 
+public interface IResourceOperationProjection
+{
+    Resource Resource { get; }
+
+    ResourceOperationId OperationId { get; }
+}
+
+public interface IResourceOperationProjector
+{
+    ResourceOperationId OperationId { get; }
+
+    ResourceDefinitionValueSource ResolutionLevel { get; }
+
+    bool CanProject(
+        Resource resource,
+        ResourceOperationResolution operation);
+
+    ValueTask<IResourceOperationProjection> ProjectAsync(
+        Resource resource,
+        ResourceOperationResolution operation,
+        ResourceOperationProjectionContext context,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed record ResourceOperationProjectionContext(
+    string? EnvironmentId = null,
+    string? PrincipalId = null);
+
+public sealed class ResourceOperationResolver(
+    IEnumerable<IResourceOperationProjector> operationProjectors)
+{
+    private readonly IReadOnlyList<IResourceOperationProjector> _operationProjectors =
+        operationProjectors.ToArray();
+
+    public async ValueTask<IResourceOperationProjection?> ResolveAsync(
+        Resource resource,
+        ResourceOperationId operationId,
+        ResourceOperationProjectionContext context,
+        ResourceDefinitionValueSource? source = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentNullException.ThrowIfNull(context);
+
+        if (!resource.Operations.Has(operationId))
+        {
+            return null;
+        }
+
+        var operation = resource.Operations.Resolve(operationId, source);
+        var projector = _operationProjectors.FirstOrDefault(projector =>
+            projector.OperationId == operation.Id &&
+            projector.ResolutionLevel == operation.Source &&
+            projector.CanProject(resource, operation));
+
+        if (projector is null)
+        {
+            return null;
+        }
+
+        return await projector.ProjectAsync(
+            resource,
+            operation,
+            context,
+            cancellationToken);
+    }
+
+    public async ValueTask<TOperation?> ResolveAsync<TOperation>(
+        Resource resource,
+        ResourceOperationId operationId,
+        ResourceOperationProjectionContext context,
+        ResourceDefinitionValueSource? source = null,
+        CancellationToken cancellationToken = default)
+        where TOperation : class, IResourceOperationProjection =>
+        await ResolveAsync(
+            resource,
+            operationId,
+            context,
+            source,
+            cancellationToken) as TOperation;
+}
+
 public interface IResourceProjection
 {
     Resource Resource { get; }
@@ -90,11 +174,13 @@ public interface IResourceProjectionProvider
 public sealed record ResourceProjectionContext(
     string? EnvironmentId = null,
     string? PrincipalId = null,
-    ResourceCapabilityResolver? CapabilityResolver = null);
+    ResourceCapabilityResolver? CapabilityResolver = null,
+    ResourceOperationResolver? OperationResolver = null);
 
 public sealed class ResourceProjectionResolver(
     IEnumerable<IResourceProjectionProvider> projectionProviders,
-    ResourceCapabilityResolver? capabilityResolver = null)
+    ResourceCapabilityResolver? capabilityResolver = null,
+    ResourceOperationResolver? operationResolver = null)
 {
     private readonly IReadOnlyList<IResourceProjectionProvider> _projectionProviders =
         projectionProviders.ToArray();
@@ -116,9 +202,11 @@ public sealed class ResourceProjectionResolver(
             return null;
         }
 
-        var resolvedContext = context.CapabilityResolver is null && capabilityResolver is not null
-            ? context with { CapabilityResolver = capabilityResolver }
-            : context;
+        var resolvedContext = context with
+        {
+            CapabilityResolver = context.CapabilityResolver ?? capabilityResolver,
+            OperationResolver = context.OperationResolver ?? operationResolver
+        };
 
         return await provider.ProjectAsync(resource, resolvedContext, cancellationToken);
     }

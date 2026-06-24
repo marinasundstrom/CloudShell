@@ -94,3 +94,60 @@ public sealed record ExecutableApplicationConfiguration(
     string Path,
     string? Arguments,
     string? WorkingDirectory = null);
+
+public sealed class ExecutableStartOperationProvider :
+    IResourceOperationProvider,
+    IResourceOperationProjector
+{
+    public ResourceOperationId OperationId =>
+        ExecutableApplicationResourceTypeProvider.Operations.Start;
+
+    public ResourceDefinitionValueSource ResolutionLevel =>
+        ResourceDefinitionValueSource.TypeDefinition;
+
+    public bool CanHandle(
+        Resource resource,
+        ResourceOperationResolution operation) =>
+        resource.Type.TypeId == ExecutableApplicationResourceTypeProvider.ResourceTypeId &&
+        operation.IsAvailable;
+
+    public ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
+        Resource resource,
+        ResourceOperationResolution operation,
+        ResourceProviderContext context,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult(ResourceDefinitionValidationResult.Success);
+
+    public bool CanProject(
+        Resource resource,
+        ResourceOperationResolution operation) =>
+        CanHandle(resource, operation);
+
+    public ValueTask<IResourceOperationProjection> ProjectAsync(
+        Resource resource,
+        ResourceOperationResolution operation,
+        ResourceOperationProjectionContext context,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<IResourceOperationProjection>(
+            new ExecutableStartOperation(resource, operation));
+}
+
+public sealed class ExecutableStartOperation(
+    Resource resource,
+    ResourceOperationResolution operation) : IResourceOperationProjection
+{
+    public Resource Resource { get; } = resource;
+
+    public ResourceOperationId OperationId => ExecutableApplicationResourceTypeProvider.Operations.Start;
+
+    public bool IsAvailable => operation.IsAvailable;
+
+    public string? UnavailableReason => operation.UnavailableReason;
+
+    public ResourceDefinitionApplyStep PlanStart() =>
+        new(
+            Resource.EffectiveResourceId,
+            Resource.Type.TypeId,
+            ResourceDefinitionApplyStepKind.MaterializeRuntime,
+            $"Start executable application resource '{Resource.Name}'.");
+}
