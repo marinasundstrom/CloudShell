@@ -8,15 +8,17 @@ CloudShell already distinguishes projected resources from declared resources in
 the resource model documentation, and several providers already carry typed
 definition records such as application, storage, volume, network, service, DNS,
 and load-balancer definitions. This proposal tracks the next model step:
-formalizing `ResourceDefinition` as resource intent and formalizing capability
-providers and operation providers as attached behavior over that intent.
+formalizing `Resource` as the resolved core projection, formalizing
+`ResourceDefinition` as its interchange model/format, and formalizing
+capability providers and operation providers as attached behavior over the
+resolved resource.
 
 The first implementation slice is isolated in `CloudShell.ResourceDefinitions`
-with tests in `CloudShell.ResourceDefinitions.Tests`. It proves the definition
-envelope, class/type inheritance, effective attribute/capability/operation
-resolution, diagnostics, and provider-dispatch contracts without changing the
-Control Plane pipeline, persistence, API projection, or existing provider
-definition stores.
+with tests in `CloudShell.ResourceDefinitions.Tests`. It proves the
+interchange envelope, class/type inheritance, effective
+attribute/capability/operation resolution, diagnostics, and provider-dispatch
+contracts without changing the Control Plane pipeline, persistence, API
+projection, or existing provider definition stores.
 
 ## Problem
 
@@ -25,9 +27,10 @@ Resource Manager, the Control Plane API, providers, and remote clients can
 inspect after provider behavior has accepted, normalized, or observed resource
 state.
 
-Resource declarations, templates, persisted state, imports, and create flows
-need a different artifact. They describe desired resource intent before the
-provider projects it as a `Resource`. Today that intent exists in several
+Resource declarations, templates, persistence flows, imports, and create flows
+need an interchange artifact. They describe a resource state snapshot or
+change that can be applied to a `Resource`, but they are not the source from
+which a `Resource` is projected. Today that structure exists in several
 partly overlapping forms:
 
 - programmatic `ResourceDeclaration`
@@ -47,19 +50,19 @@ inherit attributes, capabilities, and operations from its
 `ResourceTypeDefinition`, and that type definition can in turn inherit from a
 broader `ResourceClassDefinition`. Raw property bags such as `.Attributes`,
 `.Capabilities`, and `.Operations` therefore cannot be treated as the
-effective model. They are authored or projected inputs that need resolution
+effective model. They are declared or observed inputs that need resolution
 against class, type, preset, provider, and environment rules.
 
 Capabilities have a related issue. A resource type may support a capability,
-an individual resource definition may declare capability-owned intent, and a
-projected resource may advertise a capability that downstream systems can
-discover. Those are related, but they are not the same lifecycle phase.
+an individual resource may define capability-owned state, and the resolved
+resource may advertise a capability that downstream systems can discover.
+Those are related, but they are not the same lifecycle phase.
 
 Resource commands and operations have the same boundary concern. A projected
 resource can expose commands such as start, stop, restart, reconcile,
 update-image, or a provider-specific command. A command is the thing a caller
-performs. Operations are declared on class, type, or resource definitions and
-add behavior to a resource. Some operations can be exposed as caller-facing
+performs. Operations are declared on class definitions, type definitions, or
+resource-owned state and add behavior to a resource. Some operations can be exposed as caller-facing
 commands; other operations may exist mainly to drive validation, projection,
 automation, reconciliation, or provider behavior. The behavior that validates
 operation availability and executes or applies the backing behavior should not
@@ -76,21 +79,21 @@ implementation for that behavior in the current environment.
 
 ## Goals
 
-- Distinguish `Resource` instances from `ResourceDefinition` intent in public
-  domain language, docs, APIs, persistence, templates, imports, and provider
-  contracts.
-- Keep `Resource` as a passive projection of current resource state.
-- Define a plain serialized resource-definition format that can be stored,
+- Distinguish `Resource` projections from the `ResourceDefinition`
+  interchange model/format in public domain language, docs, APIs,
+  persistence, templates, imports, and provider contracts.
+- Keep `Resource` as the resolved core projection of resource state.
+- Define a plain serialized resource-definition interchange format that can be
   exchanged, reviewed, imported, and projected through templates without
-  becoming provider-native configuration.
+  becoming provider-native configuration or the required persistence shape.
 - Let resource types expose typed facades over definition payloads without
   requiring every consumer to understand every provider-specific type.
 - Treat capability providers as attached behavior registered through
   dependency injection, so they can resolve provider or platform services while
-  validating and interpreting capability-owned intent.
+  validating and interpreting resolved capabilities on `Resource`.
 - Treat resource operation providers as attached behavior registered through
-  dependency injection, so each provider can own the provider-side operation
-  behind one declared resource operation.
+  dependency injection, so each provider can own the provider-side behavior
+  behind one resolved resource operation.
 - Define `ResourceClassDefinition` and `ResourceTypeDefinition` inheritance so
   attributes, capabilities, operations, defaults, presets, and requirements can
   be resolved before validation or projection.
@@ -128,19 +131,71 @@ implementation for that behavior in the current environment.
 
 ## Proposed Model
 
-At the highest level, resource definitions describe the state of the resource
-graph, while capabilities and operations describe behavior over that graph.
-`ResourceDefinition`, `ResourceTypeDefinition`, and
-`ResourceClassDefinition` define and store desired graph state as attributes,
-capability declarations, operation declarations, and provider-owned payloads.
-Capability providers and operation providers interpret that state as behavior:
-they can validate it, project helper data or command affordances from it,
-resolve related resources, and produce changes that update the resource graph.
+At the highest level, the core runtime model should center on three
+concepts: `Resource`, `ResourceTypeDefinition`, and
+`ResourceClassDefinition`.
+`Resource` represents the low-level projected state of a resource:
+identity, type, attributes, capability declarations, operation declarations,
+dependencies, provider-owned payloads, and actual resource state observed or
+accepted by providers. `ResourceTypeDefinition` and
+`ResourceClassDefinition` define shapes, presets, and expectations for
+valid `Resource` instances.
 
-CloudShell should use `ResourceDefinition` for authored or persisted resource
-intent.
+The composition of a `Resource` is based on its `ResourceTypeDefinition`,
+which is based on its `ResourceClassDefinition`, plus the resource's declared
+attribute values, capabilities, and operations. Those inputs are merged by the
+resource resolution rules. That is why `Resource` is a projection: callers see
+the resolved `.Type`, `.Attributes`, `.Capabilities`, and `.Operations`, not
+only the raw declarations. Some resolved values may still be lazy or queried
+through resolvers when they depend on provider state, related resources, or
+runtime observations.
 
-A definition should include:
+CloudShell may also need `ResourceType` and `ResourceClass` views.
+`ResourceTypeDefinition` resolves to `ResourceType`, and
+`ResourceClassDefinition` resolves to `ResourceClass`. The definitions are
+static declarations; they do not change and do not carry modifiable resource
+state. `ResourceType` would include inherited class values, effective
+attributes, supported capabilities, supported operations, presets, and
+provider requirements. `ResourceClass` would be the resolved view of a
+`ResourceClassDefinition`. A `Resource` can then expose or query its resolved
+`.Type` and `.Class` views instead of forcing callers to inspect raw
+definition objects.
+
+The reason for having the `*Definition` classes is that they are the
+declaration classes for interchange. `ResourceDefinition`,
+`ResourceTypeDefinition`, and `ResourceClassDefinition` can be rendered to and
+loaded from JSON, YAML, XML, templates, imports, or provider package
+manifests, while `Resource`, `ResourceType`, and `ResourceClass` remain the
+resolved runtime views used by normal domain code.
+
+`ResourceDefinition` is still part of the model, but with a specific purpose:
+it is the interchange model/format for a `Resource`, not another runtime
+state container. The direction is explicit: take a `Resource` projection and
+render it as a `ResourceDefinition` for interchange, review, deployment input,
+import, or export; take a `ResourceDefinition` and apply it to a `Resource`
+through provider-owned validation, planning, and behavior. Applying a
+`ResourceDefinition` changes resource-owned state, not
+`ResourceTypeDefinition` or `ResourceClassDefinition`. Capability providers
+and operation providers interpret the resolved resource projection as
+behavior: they can validate it, project helper data or command affordances
+from it, resolve related resources, and produce changes.
+
+This proposal should distinguish the capability or operation from its
+provider. A resolved `Capability` or `Operation` can live in the `Resource`
+collections as model data with IDs, source information, availability, and
+effective configuration. A `CapabilityProvider` or `OperationProvider` is the
+behavior implementation for that resolved model entry in the current
+environment.
+
+Typed resource wrappers are a higher-level API over this low-level
+projection. They may eventually be source generated from type definitions,
+attribute IDs, capability IDs, and operation IDs, but they are not the
+projection itself and must not become another state container.
+
+CloudShell should use `ResourceDefinition` as the authored or exchanged
+resource interchange model/format.
+
+A resource definition interchange format should include:
 
 - stable resource name or ID
 - resource type
@@ -187,37 +242,67 @@ A serialized projection might look like:
 }
 ```
 
-The serialized form is only one projection of the definition. Code-first
-builders, Resource Manager create flows, resource templates, imports, and
-future API clients can all produce the same definition model.
+The serialized form is one rendering of a `Resource`. Code-first builders,
+Resource Manager create flows, resource templates, imports, and future API
+clients can all produce a `ResourceDefinition` interchange model that applies
+to the same core resource model. `ResourceTypeDefinition` and
+`ResourceClassDefinition` should also be renderable as plain JSON when they
+need to be inspected, exchanged, or loaded from provider packages.
 
-## Resource vs ResourceDefinition
+## Resource and ResourceDefinition
 
-`ResourceDefinition` describes intended resource shape. It is the input to
-validation, persistence, apply/update/delete planning, import, template export,
-and deployment projection.
+`Resource` is the concrete runtime concept in this model. It describes the
+resolved projected state and combines `ResourceClassDefinition` and
+`ResourceTypeDefinition` presets with resource-specific state, resolved
+attributes, resolved capabilities, resolved operations, provider
+observations, and current operation state. It is the low-level object that
+typed wrappers can be built on, not the generated typed wrapper itself.
+Most consumers should normally see this `Resource` projection rather than a
+`ResourceDefinition`.
 
-`Resource` describes the current known resource instance. It is the output of
-provider projection, provider observation, Control Plane overlays, current
-operations, health, lifecycle state, endpoints, materialization facts,
-attributes, visibility, ownership, and authorization-filtered views.
+`ResourceDefinition` is the interchange model/format for a `Resource`. It is
+used for rendering, validation at import boundaries, apply/update/delete
+planning, template export, interchange, and deployment input. It should be
+plain and serializable, but it should not be treated as the runtime state
+container inside the model. The two primary operations are:
 
-The definition model should stay separate from the Resource Manager resource
-model. A Resource Manager resource may share identity with a
-`ResourceDefinition` and may reference the same accepted state, but it is not
-the same artifact. Resource Manager resources carry operational
-responsibilities such as liveness signal realization, lifecycle state,
-materialization status, authorization-filtered projection, endpoints,
+- render `Resource` as `ResourceDefinition`
+- apply `ResourceDefinition` to `Resource`
+
+The core resource model should stay separate from the Resource Manager resource
+model. A Resource Manager resource may share identity with a low-level
+`Resource`, may use that projection model, and may reference the same accepted
+state, but it is a separate artifact. Resource Manager resources carry
+operational responsibilities such as liveness signal realization, lifecycle
+state, materialization status, authorization-filtered projection, endpoints,
 procedures, logs, traces, and provider-observed runtime facts. Those concerns
-belong to the Resource Manager model and projection pipeline, not to the
-definition envelope that stores desired graph state.
+belong to the actual Resource Manager model and projection pipeline, not to
+the core resource model or its interchange format.
+
+For the POC, the resource graph should be resolved far enough to prove the
+core model: type/class inheritance, resolved attributes, resolved
+capabilities, resolved operations, provider lookup, and rendering/applying
+`ResourceDefinition`. It should not try to become the Resource Manager model.
+Resource Manager concerns such as liveness realization, lifecycle execution,
+authorization-specific views, operational history, endpoint materialization,
+logs, and traces should remain above this model.
 
 The distinction should be kept explicit:
 
 | Concept | Describes | Owned by |
 | --- | --- | --- |
-| `ResourceDefinition` | Desired resource intent before projection | Control Plane plus owning resource type provider |
-| `Resource` | Current projected resource instance | Control Plane projection over provider state |
+| `Resource` | Low-level resolved resource projection from attributes, capabilities, operations, presets, and actual state | Control Plane projection over provider state |
+| `ResourceType` | Resolved view of a static `ResourceTypeDefinition` | Resource type resolver/provider boundary |
+| `ResourceClass` | Resolved view of a static `ResourceClassDefinition` | Resource class resolver/provider boundary |
+| `ResourceDefinition` | Interchange model/format rendering of a `Resource` and input format for applying changes | Control Plane plus owning resource type provider |
+| `ResourceTypeDefinition` | Static type-level declaration for shape, presets, capability support, operation support, and validation expectations | Owning resource type provider |
+| `ResourceClassDefinition` | Static class-level declaration for shape, presets, shared expectations, and cross-type contracts | Platform or class-owning provider package |
+| `Capability` | Resolved capability entry on a `Resource` | Capability contract owner |
+| `Operation` | Resolved operation entry on a `Resource` | Operation contract owner |
+| capability provider | Behavior implementation that acts on a `Resource` for a resolved capability | Capability provider package |
+| operation provider | Behavior implementation that acts on a `Resource` for a resolved operation | Operation provider package |
+| typed resource wrapper | Higher-level source-generated facade over the low-level `Resource` projection | Resource definition tooling and provider contracts |
+| Resource Manager resource | Managed operational resource with lifecycle, liveness, authorization, and runtime responsibilities that consumes the low-level projection | Resource Manager |
 | definition configuration | Provider-owned desired configuration | Owning resource type provider |
 | capability intent | Cross-cutting desired behavior attached to a definition | Capability provider |
 | projected attributes | Stable non-secret facts about the current projection | Owning provider or Control Plane overlay |
@@ -227,9 +312,10 @@ The distinction should be kept explicit:
 
 CloudShell can use `ResourceProvider` as the general term for classes that
 provide or list projected `Resource` instances from any source. A resource
-provider may project accepted resource definitions, list provider-observed
-runtime artifacts, surface diagnostics or child resources, or combine several
-source records into the current resource graph.
+provider may project persisted resource state, apply a `ResourceDefinition`
+interchange input, list provider-observed runtime artifacts, surface
+diagnostics or child resources, or combine several source records into the
+current resource graph.
 
 For example:
 
@@ -240,9 +326,9 @@ IReadOnlyList<Resource> resources =
 
 In this terminology, a `ResourceProvider` answers "what resources are visible
 now?" A resource type provider answers "how is this precise resource type
-validated, accepted, changed, and projected from definition intent?" Some
-provider classes may implement both roles, but the names should keep the
-resource projection role distinct from the resource-definition ownership role.
+validated, accepted, changed, and projected?" Some provider classes may
+implement both roles, but the names should keep the resource projection role
+distinct from interchange rendering and apply behavior.
 
 The exact `IResourceProvider` contract is intentionally open. It may be only a
 resource resolution/listing surface, or it may include richer resolution by ID,
@@ -263,19 +349,20 @@ until there is evidence that a combined contract is the right boundary.
 Capabilities and operations both add behavior to the resource model, but they
 serve different purposes.
 
-They should not be treated as the persisted state container. The definition
-layers store the graph state that declares which capabilities and operations
-exist for a resource. Providers attach behavior to that declared state and may
-return diagnostics, projections, operations, or definition updates that modify
-the graph.
+They should not be treated as the persisted state container. Resource,
+resource type, and resource class declarations say which capabilities and
+operations exist for a resource. Resolution merges those declarations into
+the effective `Resource.Capabilities` and `Resource.Operations` collections.
+Providers attach behavior to those resolved entries and may return
+diagnostics, projections, operations, or changes that modify the graph.
 
 A capability describes functionality, role, or semantics attached to a
 resource. Capabilities are commonly used by Resource Manager, Control Plane
 services, providers, API projection, deployment projection, validation, and
 selector logic. A capability may expose typed helper behavior, projected data,
 requirements, or compatibility rules. It is not necessarily something a caller
-invokes. Capability intent is declared under `.Capabilities` and is resolved
-through the same inheritance path as attributes and operations.
+invokes. Capability declarations are resolved into `.Capabilities` through
+the same inheritance path as attributes and operations.
 
 Examples:
 
@@ -289,9 +376,9 @@ type, or individual resource definition. It describes work that can be
 invoked, applied, reconciled, or otherwise carried out for a resource. When an
 operation is exposed to a caller, Resource Manager or the API can project a
 command affordance for that operation. The operation itself remains the
-domain-level behavior declaration. Operation intent is declared under
+domain-level behavior declaration. Operation declarations are resolved into
 `.Operations`; the provider implementation for that declaration may vary by
-resource class, resource type, provider, or resource definition.
+resource class, resource type, provider, or resource instance.
 
 Examples:
 
@@ -316,8 +403,7 @@ and diagnostics.
 
 ## Class and Type Definitions
 
-Resource definitions should be resolved against two inherited definition
-layers:
+Resources should be resolved against two inherited definition layers:
 
 - `ResourceClassDefinition` describes broad expectations for a class such as
   executable, container, storage, network, configuration, service, or
@@ -326,13 +412,13 @@ layers:
   `application.executable`, `application.container-app`, `cloudshell.volume`,
   or `cloudshell.storage`.
 
-A resource definition instance then supplies concrete intent. Conceptually:
+A resource instance then supplies concrete declared values. Conceptually:
 
 ```text
 ResourceClassDefinition
     -> ResourceTypeDefinition
-        -> ResourceDefinition
-            -> ResolvedResourceDefinition
+        -> Resource
+            -> resolved Resource projection
 ```
 
 Class and type definitions can contribute:
@@ -350,14 +436,14 @@ Class and type definitions can contribute:
 - presets or named partial definition overlays
 - class/type-level diagnostics and compatibility rules
 
-The instance definition supplies values, selects presets where allowed, and can
+The resource instance supplies values, selects presets where allowed, and can
 override values only within the constraints defined by the class and type. A
 type definition should not be a passive label; it should be the contract that
-explains what the definition must contain before the provider can accept it.
+explains what the resource must contain before the provider can accept it.
 Operations can be declared at any of the three levels: class, type, or
-resource definition. For example, `start` can be a class-level executable
+resource instance. For example, `start` can be a class-level executable
 operation, `deployImage` can be a type-level container-app operation, and
-`reconcileDatabaseAccess` can be a resource-definition-level operation exposed
+`reconcileDatabaseAccess` can be a resource-level operation exposed
 only when a definition declares the relevant database capability or provider
 configuration. A caller-facing command can then be projected from the resolved
 operation declaration.
@@ -451,37 +537,41 @@ definitions, type definitions, presets, provider defaults, and authored
 resource definitions before validation, projection, operation availability,
 deployment projection, or UI rendering relies on those values.
 
-Provider-facing contracts should receive a resolved resource context rather
-than a raw definition. The concrete name is open: `ResolvedResourceDefinition`
-may be enough for definition-time validation and projection, while a shared
-`IResolvedResource` or `ResolvedResource` base abstraction may be better if the
-same provider contracts need to work over accepted definitions and projected
-resources. The important rule is that capability providers, operation
-providers, attribute validators, and resource type providers receive the
-resolved context they need instead of manually combining raw properties.
+Provider-facing contracts should act on `Resource`, not on
+`ResourceDefinition`. `ResolvedResourceDefinition` is useful as a POC name for
+the computed value set after definition inheritance and presets, but the
+target model is a resolved `Resource` projection. The low-level `Resource`
+combines that resolved value set with accepted or observed resource state,
+resolved capabilities, resolved operations, and resolver access. The
+important rule is that capability providers, operation providers, attribute
+validators, and resource type providers receive the resolved `Resource`
+context they need instead of manually combining raw properties or re-reading
+the interchange format.
 
-The current POC treats `ResourceDefinition` as the persisted data container and
-adds runtime projection wrappers over the resolved definition. The first
-projection layer is a shared context exposing effective attributes,
-capabilities, and operations. A second, resource-type-specific projection can
-then provide an object-oriented surface such as
+The current POC treats `ResourceDefinition` as the interchange model/format
+and adds runtime projection on top of the resolved values. The first
+projection layer is a low-level `Resource` exposing effective attributes,
+capabilities, operations, type definition, class definition, and resolver
+access. A second, resource-type-specific wrapper can then provide an
+object-oriented surface such as
 `ExecutableApplicationResource.GetVolumesAsync()`. That method is owned by the
 executable resource projection, but it internally asks a
 `ResourceCapabilityResolver` for the matching volume capability behavior.
 
 In this shape, capability behavior is not stored on the definition itself and
-is not directly projected as the main resource object. Capability providers
-return typed behavior that resource projections can compose into their public
-surface. Those behaviors can read effective definition state, resolve other
-dependencies, project additional information, or return an updated
-`ResourceDefinition` when the capability changes accepted intent.
+is not directly projected as generated wrapper methods. Capability providers
+return typed behavior that the low-level `Resource` projection and generated
+wrappers can compose into their public surface. Those behaviors can read
+effective resource values, resolve other dependencies, project additional
+information, or return a change that can be rendered as or applied from a
+`ResourceDefinition` when the capability changes accepted state.
 
 The POC can keep these resource-type projection wrappers hand-written, but the
 expected mature implementation is source-generated wrappers from the resource
 class/type definitions, attribute IDs, capability IDs, and operation IDs. The
-generated wrapper should be a convenience facade over the same resolved
-definition and resolver services, not a second source of truth for the
-resource model.
+generated wrapper should be a convenience facade over the low-level
+`Resource`, resolved values, and resolver services, not a second
+source of truth for the resource model.
 
 It is intentionally still open whether generated resource-type wrappers should
 also implement capability-specific interfaces to advertise supported
@@ -491,26 +581,30 @@ capability interfaces could make static use sites cleaner, but it also risks
 making capability membership look like compile-time inheritance rather than
 resolved provider-backed behavior.
 
-This keeps persistence and runtime behavior separate. Serializers persist
-definitions and resolved debug views as data, while provider projects attach
-methods through the projection layer at runtime. The same pattern can later be
-applied to operation projections so operation implementations can consume
-capability projections instead of duplicating capability-specific resolution.
+This keeps interchange formats, persistence, low-level resource projection,
+and runtime behavior separate. Serializers project definitions and resolved
+debug views as data, while providers attach methods through the projection
+layer at runtime. The same pattern can later be applied to operation
+projections so operation implementations can consume capability projections
+instead of duplicating capability-specific resolution.
 
-Persistable definition model:
+Core and interchange structure:
 
 ```mermaid
 flowchart TD
     resourceClassDefinition["ResourceClassDefinition<br/>shared class contract"]
     typeDef["ResourceTypeDefinition<br/>type contract within a class"]
-    resourceDef["ResourceDefinition<br/>persisted resource intent"]
+    resourceClass["ResourceClass<br/>resolved class view"]
+    resourceType["ResourceType<br/>resolved type view"]
+    resourceDef["ResourceDefinition<br/>interchange model/format"]
 
     classValues["Attributes, capabilities, operations<br/>class defaults and requirements"]
     typeValues["Attributes, capabilities, operations<br/>type defaults and requirements"]
-    resourceValues["Attributes, capabilities, operations<br/>resource-owned values and payloads"]
+    resourceValues["Attributes, capabilities, operations<br/>rendered resource values and payloads"]
 
-    resourceClassDefinition --> typeDef
-    typeDef --> resourceDef
+    resourceClassDefinition --> resourceClass --> resourceType
+    typeDef --> resourceType
+    resourceType --> resourceDef
 
     resourceClassDefinition --> classValues
     typeDef --> typeValues
@@ -521,28 +615,32 @@ Runtime resolution, providers, and generated wrappers:
 
 ```mermaid
 flowchart TD
-    subgraph definitions [Persistable definition inputs]
+    subgraph definitions [Core and interchange inputs]
         deploymentDefinition["Deployment definition<br/>desired graph to apply"]
         resourceClassDefinition["ResourceClassDefinition"]
         typeDef["ResourceTypeDefinition"]
         resourceDef["ResourceDefinition"]
+        resourceState["Resource-owned state<br/>persisted attributes, capabilities, operations"]
     end
 
-    subgraph resolvedLayer [Resolved definition state]
-        resolver["ResourceDefinitionResolver"]
-        resolved["ResolvedResourceDefinition<br/>complete value set after inheritance"]
+    subgraph resolvedLayer [Resolved resource values]
+        resolver["ResourceResolver"]
+        resolved["Resolved attributes, capabilities, operations"]
+        applyDefinition["Apply ResourceDefinition<br/>updates resource-owned state"]
     end
 
     subgraph behaviorLayer [Provider behavior]
         capabilityProviders["Capability providers<br/>capability-owned behavior"]
         operationProviders["Operation providers<br/>operation-owned behavior"]
+        resourceChanges["Resource state changes"]
     end
 
-    subgraph resourceViewLayer [Resolved resource view]
-        resourceView["ResourceDefinitionProjection<br/>view over resolved data"]
+    subgraph resourceViewLayer [Low-level resource projection]
+        resource["Resource<br/>resolved projected state"]
+        resourceClass["ResourceClass<br/>resolved class view"]
+        resourceType["ResourceType<br/>resolved type view"]
         capabilityResolver["ResourceCapabilityResolver<br/>resolves capability providers"]
         operationResolver["ResourceOperationResolver<br/>future operation provider resolver"]
-        resource["Resource<br/>capabilities and operations resolved for callers"]
     end
 
     subgraph wrapperLayer [Generated wrappers]
@@ -551,23 +649,29 @@ flowchart TD
         method["GetVolumesAsync()<br/>wrapper method"]
     end
 
-    deploymentDefinition --> resourceDef
-    resourceClassDefinition --> resolver
-    typeDef --> resolver
-    resourceDef --> resolver
-    resolver --> resolved --> resourceView
+    deploymentDefinition --> resourceDef --> applyDefinition --> resourceState
+    resourceClassDefinition --> resourceClass
+    typeDef --> resourceType
+    resourceClass --> resourceType
+    resourceClass --> resolver
+    resourceType --> resolver
+    resourceState --> resolver
+    resolver --> resolved --> resource
+    resourceClass --> resource
+    resourceType --> resource
+    resourceState --> resource
 
-    resourceView --> capabilityResolver
-    resourceView --> operationResolver
+    resource --> capabilityResolver
+    resource --> operationResolver
     capabilityResolver --> capabilityProviders
     operationResolver --> operationProviders
-    capabilityProviders --> resource
-    operationProviders --> resource
+    capabilityProviders --> resourceChanges
+    operationProviders --> resourceChanges
+    resourceChanges --> resourceState
 
-    resourceView --> projectionResolver --> wrapper --> method
+    resource --> projectionResolver --> wrapper --> method
     method --> capabilityResolver
     operationProviders --> capabilityResolver
-    capabilityProviders -.-> resourceDef
 ```
 
 The same principle applies to projected resources. A `Resource` projection can
@@ -588,11 +692,11 @@ Responsibilities:
 - describe supported operations for the resource type
 - contribute or reference the `ResourceTypeDefinition`
 - parse or adapt the provider-owned configuration payload
-- apply defaults and normalize definition intent
+- apply defaults and normalize resource-owned state
 - validate type-specific configuration
 - plan and apply resource definition changes
 - apply changes, update persisted state, and tear down resource state
-- project accepted definitions and observed provider state as `Resource`
+- project persisted resource state and observed provider state as `Resource`
   instances
 - expose resource operations and operation availability where applicable
 
@@ -849,7 +953,7 @@ public interface IResourceTypeProvider
 ```
 
 For a hypothetical container type provider, changing `container.image` while
-the resource is stopped may only update accepted intent. Changing it while the
+the resource is stopped may only update accepted resource state. Changing it while the
 resource is running may plan a deployment operation. Changing it while the
 resource is already transitioning may be rejected, deferred, or folded into
 the current transition depending on provider policy. The provider needs both
@@ -863,7 +967,7 @@ manual intervention.
 
 ## Capability Providers
 
-Capability providers are attached behavior for capability-owned intent. They
+Capability providers are attached behavior for resolved capabilities. They
 should be registered with dependency injection and resolved by the Control
 Plane validation/apply pipeline, so a provider can depend on platform or
 provider services such as volume managers, identity managers, networking
@@ -873,20 +977,22 @@ Responsibilities:
 
 - declare the capability ID they handle
 - parse or adapt the capability payload for that capability
-- validate capability-owned intent against the definition and current
+- validate capability-owned state against the resolved resource and current
   environment
-- report diagnostics for invalid, unsupported, unsafe, or unresolved intent
+- report diagnostics for invalid, unsupported, unsafe, or unresolved state
 - provide typed helper behavior to resource type providers, orchestrators, or
   projection services where appropriate
 - project typed runtime behavior through a capability resolver over a resolved
   resource projection
-- optionally contribute projected capabilities, dependencies, attributes, or
-  diagnostics after the definition has been accepted
+- optionally contribute resolved capabilities, dependencies, attributes, or
+  diagnostics after the resource state has been accepted
 
-Capability providers should validate resolved definitions, not raw definitions
-or projected `Resource` instances. Raw definitions are missing inherited
-class/type/preset values; projected resources mix accepted intent, runtime
-state, provider observations, and Control Plane overlays.
+Capability providers should validate resolved `Resource` projections, not raw
+`ResourceDefinition` interchange inputs. Raw interchange inputs are missing
+inherited class/type/preset values. The resolved `Resource` gives the provider
+the effective capability entry, resource attributes, operation declarations,
+type/class views, current environment, and provider observations needed for
+validation.
 
 For example, a storage volume consumer provider can own the
 `storage.volumeConsumer` capability:
@@ -1140,64 +1246,77 @@ CloudShell should distinguish these phases:
 
 | Phase | Meaning |
 | --- | --- |
-| Resource type capability support | The type can accept definitions that use the capability. |
-| Definition capability intent | This resource definition declares capability-owned desired behavior. |
-| Accepted capability | Validation and normalization accepted the capability intent. |
-| Projected resource capability | The current `Resource` advertises the capability for discovery. |
+| Resource type capability support | The type can accept resources that use the capability. |
+| Resource capability declaration | The resource-owned state declares capability-owned data. |
+| Resolved capability | Resolution and validation accepted the capability into `Resource.Capabilities`. |
+| Projected resource capability | The current `Resource` advertises the resolved capability for discovery. |
 | Runtime materialization | A provider, orchestrator, or runtime has applied or observed the capability in the environment. |
 
 For example, `application.container-app` may support
-`storage.volumeConsumer`; a specific container app definition declares two
-mounts; validation accepts the mounts; the projected resource advertises
+`storage.volumeConsumer`; a specific container app resource declares two
+mounts; validation accepts the mounts; the resolved resource advertises
 `storage.volumeConsumer`; and runtime materialization later reports whether the
 mounts are active.
 
 ## Persistence, Debugging, and Plain Format
 
 Resource-model artifacts should be plain enough to inspect and review, but
-CloudShell should distinguish the domain definition model, serialized
-document/interchange projections, and internal persistence records.
+CloudShell should distinguish the domain model, serialized interchange
+formats, and internal persistence records.
 `ResourceDefinition`, `ResourceTypeDefinition`, `ResourceClassDefinition`, and
 related definition artifacts should be serializable as deliberate
-document/interchange projections for JSON, YAML, XML, templates, imports,
+interchange formats for JSON, YAML, XML, templates, imports,
 exports, diagnostics, tests, and review. That serialized projection is a
-portable representation of the definition model, not a requirement that
+portable representation of the model, not a requirement that
 CloudShell persist the exact same shape internally.
 
-CloudShell persistence can use a store-optimized representation, such as a
-`ResourceDefinitionRecord`, normalized tables, or provider-owned persistence
-records. That persistence shape may split out identity fields, dependencies,
-attributes, capability declarations, operation declarations, provider payloads,
-ownership, grouping, indexes, and migration metadata. The persistence record
-should remain an implementation detail and must rehydrate into the same
-`ResourceDefinition` semantics before validation, resolution, planning,
-projection, provider behavior, or deployment apply runs.
+CloudShell persistence should store the resource-owned state on `Resource`:
+identity, type, dependencies, provider-owned payloads, and the attributes,
+capabilities, and operations defined on that resource instance. The
+persistence model can use a store-optimized representation, such as a
+`ResourceRecord`, normalized tables, provider-owned persistence records, or a
+compact JSON file. That persistence shape may split out identity fields,
+dependencies, attributes, capability declarations, operation declarations,
+provider payloads, ownership, grouping, indexes, and migration metadata.
+
+The persistence record should remain an implementation detail and must
+rehydrate into the same core resource model before validation, resolution,
+planning, projection, provider behavior, or deployment apply runs.
+`ResourceDefinition` remains the interchange projection of that resource
+state, not the required internal persistence shape.
 
 `ResolvedResourceDefinition` should also be serializable as a debug or
 diagnostic snapshot so callers can inspect which attributes, capabilities,
 operations, defaults, sources, and diagnostics were effective after
-resolution. It is a computed view, not the primary persisted source of truth.
+resolution. It is a computed view of resolved values, not the primary state
+container.
 
-Projections and generated wrappers sit above those data shapes as the upper
-domain-model API. A `ResourceDefinitionProjection` exposes resolved definition
-state and resolver access. A generated resource-type wrapper, such as an
+The low-level `Resource` projection sits above those data shapes as the
+resolved state object in this model. It combines persisted resource-owned
+state, resolved type/class values, actual accepted or observed state, and
+resolved capability and operation behavior. Generated wrappers sit above that
+projection as the upper domain-model API. A generated resource-type wrapper,
+such as an
 `ExecutableApplicationResource`, can expose typed properties and methods over
-that projection while internally resolving capability and operation providers.
-Those wrappers are how domain code should consume behavior-rich resource
-views; they are not the persistence record and they are not the portable
-serialized document format.
+the low-level `Resource` while internally resolving capability and operation
+providers. Those wrappers are how domain code should consume behavior-rich
+resource views; they are not the persistence record and they are not the
+portable serialized interchange format.
 
 Layered definition, persistence, and projection model:
 
 ```mermaid
 flowchart TD
-    subgraph domainData [Domain definition data]
+    subgraph domainData [Core resource model]
+        resource["Resource<br/>resolved projected state"]
+        resourceType["ResourceType<br/>resolved type view"]
+        resourceClass["ResourceClass<br/>resolved class view"]
         classDefinition["ResourceClassDefinition"]
         typeDefinition["ResourceTypeDefinition"]
-        definition["ResourceDefinition<br/>desired graph state"]
     end
 
-    subgraph documentProjection [Document/interchange projection]
+    subgraph documentProjection [Interchange model and formats]
+        definition["ResourceDefinition<br/>interchange model/format"]
         json["JSON"]
         yaml["YAML"]
         xml["XML"]
@@ -1205,43 +1324,58 @@ flowchart TD
     end
 
     subgraph persistenceProjection [CloudShell persistence projection]
-        record["ResourceDefinitionRecord"]
+        record["ResourceRecord<br/>store-optimized shape"]
         tables["Normalized tables"]
+        compactJson["Compact resource JSON"]
         indexes["Indexes and metadata"]
     end
 
-    subgraph resolvedData [Computed resolved data]
+    subgraph resolvedData [Computed resolved values]
         resolver["ResourceDefinitionResolver"]
         resolved["ResolvedResourceDefinition<br/>complete value set"]
     end
 
-    subgraph resourceManagerModel [Resource Manager model]
-        resource["Resource<br/>managed resource projection"]
-        liveness["Liveness, lifecycle, endpoints,<br/>authorization, logs, traces"]
+    subgraph resourceInputs [Resource state inputs]
+        actualState["Accepted or observed state"]
+        capabilityOperationBehavior["Resolved capabilities and operations"]
     end
 
     subgraph upperApi [Upper domain-model API]
-        projection["ResourceDefinitionProjection"]
         wrapper["Generated resource wrapper"]
         behavior["Capability and operation methods"]
     end
 
-    classDefinition --> resolver
-    typeDefinition --> resolver
-    definition --> resolver
+    subgraph resourceManagerModel [Resource Manager model]
+        managedResource["Resource Manager resource<br/>operational model"]
+        liveness["Liveness, lifecycle, endpoints,<br/>authorization, logs, traces"]
+    end
+
+    resource -->|render| definition
+    definition -->|apply changes| resource
+
+    classDefinition --> resourceClass --> resourceType
+    typeDefinition --> resourceType
+    resourceType --> resource
+    resourceClass --> resolver
+    resourceType --> resolver
+    resource --> resolver
 
     definition --> json
     definition --> yaml
     definition --> xml
     definition --> templates
 
-    definition --> record
+    resource --> record
     record --> tables
+    record --> compactJson
     record --> indexes
-    record --> definition
+    record --> resource
 
-    resolver --> resolved --> projection --> wrapper --> behavior
-    resolved --> resource --> liveness
+    resolver --> resolved --> resource
+    actualState --> resource
+    capabilityOperationBehavior --> resource
+    resource --> wrapper --> behavior
+    resource --> managedResource --> liveness
 ```
 
 The durable formats should avoid making C# builder types, generated DTO names,
@@ -1335,23 +1469,23 @@ not native CloudShell definition formats.
 ### Deployment projection
 
 Deployment definitions should be able to contain `ResourceDefinition` entries
-as desired resource state. In that flow, a deployment definition tells
-CloudShell what an actor wants materialized, while each resource type provider
-validates, plans, and applies the definition for the resource type it owns.
+as interchange inputs for resource state. In that flow, a deployment
+definition tells CloudShell which resource state changes an actor wants
+applied, while each resource type provider validates, plans, and applies the
+definition to the resource type it owns.
 
 This makes resource definitions useful before a resource has been persisted as
-accepted inventory. The same definition envelope can describe a new runtime
-resource to create, a changed desired state for an existing resource, or a
-candidate graph that must be validated before apply. The resource type
-provider remains the boundary that maps that desired state to an executable,
-container, orchestrator service, database, load balancer, or other managed
-target.
+accepted inventory. The same interchange envelope can describe a new resource
+to create, changes for an existing resource, or a candidate graph that must be
+validated before apply. The resource type provider remains the boundary that
+maps accepted resource state to an executable, container, orchestrator
+service, database, load balancer, or other managed target.
 
-Deployment projection should consume accepted or proposed resource definitions
-and current graph context. It should not infer desired intent solely from
-projected `Resource.Attributes` when the original definition is available.
-Projected `Resource` instances are inspection views; `ResourceDefinition` is
-the intent that providers can validate, apply, and reconcile.
+Deployment projection should consume proposed `ResourceDefinition`
+interchange inputs, resolved `Resource` projections, and current graph
+context. It should not infer resource state solely from projected
+`Resource.Attributes` when a full `Resource` projection or apply input is
+available.
 
 ### Projected resources
 
