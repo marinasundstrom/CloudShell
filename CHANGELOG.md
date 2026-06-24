@@ -188,6 +188,10 @@ on `git blame --follow`, and then by the broad type of change.
   configuration source resource type with source and entry-count attributes,
   an inspect operation provider, typed wrapper, and Resource Manager bridge
   coverage without storing host configuration values in Resource model state.
+- The resource definitions reference providers now include a narrow identity
+  provisioning resource type with provider attributes, a passive
+  identity-provisioning capability marker, a setup operation provider, typed
+  wrapper, apply planning, and Resource Manager bridge coverage.
 - The resource definitions reference providers now include a narrow Docker
   host resource type with Docker host kind, endpoint, registry, default-host
   attributes, passive container capability markers, an inspect operation,

@@ -1038,6 +1038,61 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task AddIdentityProvisioningResourceType_RegistersCompleteResourceTypeBoundary()
+    {
+        var services = new ServiceCollection();
+        services.AddIdentityProvisioningResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var definition = new ResourceDefinition(
+            "built-in",
+            IdentityProvisioningResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [IdentityProvisioningResourceTypeProvider.Attributes.IdentityProvider] = "Built-in Identity",
+                [IdentityProvisioningResourceTypeProvider.Attributes.ProviderKind] = "built-in"
+            });
+
+        var validation = await serviceProvider
+            .GetRequiredService<ResourceDefinitionValidationPipeline>()
+            .ValidateAsync(
+                definition,
+                new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.False(validation.HasErrors);
+        Assert.Equal(IdentityProvisioningResourceTypeProvider.ClassId, validation.Resource.Class.ClassId);
+        Assert.Equal("identity-provisioning", validation.Resource.Attributes.GetString(
+            IdentityProvisioningResourceTypeProvider.Attributes.InfrastructureKind));
+        Assert.Equal("Built-in Identity", validation.Resource.Attributes.GetString(
+            IdentityProvisioningResourceTypeProvider.Attributes.IdentityProvider));
+        Assert.True(validation.Resource.Capabilities.Has(
+            IdentityProvisioningResourceTypeProvider.Capabilities.IdentityProvisioning));
+        Assert.True(validation.Resource.Operations.Has(
+            IdentityProvisioningResourceTypeProvider.Operations.Setup));
+
+        var projectedGraph = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphProjectionResolver>()
+            .ProjectAsync(
+                new ResourceDefinitionGraphValidationPipelineResult(
+                    new ResourceDefinitionGraph([definition]),
+                    [validation],
+                    []),
+                new ResourceProjectionContext("local", "developer"));
+        var projection = projectedGraph.Find<IdentityProvisioningResource>(
+            definition.EffectiveResourceId);
+
+        Assert.NotNull(projection);
+        Assert.Equal("Built-in Identity", projection.IdentityProvider);
+        Assert.Equal("built-in", projection.ProviderKind);
+        Assert.True(projection.SupportsIdentityProvisioning);
+        var setup = await projection.GetSetupOperationAsync();
+
+        Assert.NotNull(setup);
+        Assert.True(await setup.CanExecuteAsync());
+        Assert.Equal("Built-in Identity", setup.PlanSetup().IdentityProvider);
+    }
+
+    [Fact]
     public async Task AddContainerApplicationResourceType_RegistersCompleteResourceTypeBoundary()
     {
         var services = new ServiceCollection();

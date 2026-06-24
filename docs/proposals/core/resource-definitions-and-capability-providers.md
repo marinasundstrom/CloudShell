@@ -685,6 +685,17 @@ operation, a typed projection wrapper, and Resource Manager bridge coverage.
 The POC intentionally stores only non-secret projected facts; secret values
 and secret-value lifecycle behavior remain provider-owned runtime concerns.
 
+A narrow identity provisioning reference provider covers
+`cloudshell.identity-provisioning` as infrastructure that declares identity
+provider setup intent without making identity runtime realization inherent to
+the Resource model. It owns the `infrastructure.kind`, `identity.provider`,
+and `identity.providerKind` attributes, a passive identity-provisioning
+capability marker, a setup operation, a typed projection wrapper, apply
+planning, and Resource Manager bridge projection/execution. Provider-native
+clients, directory records, credential issuance, and grant reconciliation
+remain provider-owned operational concerns for Resource Manager or Control
+Plane integrations.
+
 The working porting status for the reference POC is:
 
 | Provider or resource type | Status | New-model coverage | Remaining outside the POC |
@@ -708,6 +719,7 @@ The working porting status for the reference POC is:
 | Configuration store (`configuration.store`) | Ported as a narrow reference provider | Configuration class/type defaults, endpoint and entry-count attributes, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real configuration service runtime integration, entry collection payloads, authorization, logs, templates, and UI registration/update flow |
 | Host configuration source (`configuration.host`) | Ported as a narrow reference provider | Configuration class/type defaults, source and entry-count attributes, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Runtime host configuration lookup, entry-name payloads, authorization, templates, and UI registration/update flow |
 | Secrets Vault (`secrets.vault`) | Ported as a narrow reference provider | Secrets Vault class/type defaults, endpoint and secret-count attributes, inspect operation, typed wrapper, Resource Manager bridge projection and execution without storing secret values | Real Secrets Vault runtime integration, secret collection payloads, authorization, logs, templates, and UI registration/update flow |
+| Identity provisioning (`cloudshell.identity-provisioning`) | Ported as a narrow reference provider | Infrastructure class/type defaults, provider/provider-kind attributes, passive identity-provisioning capability marker, setup operation, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Real identity provider setup, directory/client materialization, credential issuance, grant reconciliation, authorization, diagnostics, and UI registration/update flow |
 
 Host infrastructure registration is a separate concern from provider
 registration. A host may compose the generic graph services once from whatever

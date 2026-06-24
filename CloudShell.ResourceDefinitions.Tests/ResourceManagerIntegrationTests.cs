@@ -2004,6 +2004,84 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesIdentityProvisioningAcrossProviderBoundaries()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddIdentityProvisioningResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var identity = new ResourceDefinition(
+            "built-in",
+            IdentityProvisioningResourceTypeProvider.ResourceTypeId,
+            ProviderId: IdentityProvisioningResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [IdentityProvisioningResourceTypeProvider.Attributes.IdentityProvider] = "Built-in Identity",
+                [IdentityProvisioningResourceTypeProvider.Attributes.ProviderKind] = "built-in"
+            });
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "identity-provisioning",
+                [identity],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 2, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedIdentity = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == identity.EffectiveResourceId);
+
+        Assert.Equal(ResourceManagerClass.Infrastructure, projectedIdentity.ResourceClass);
+        Assert.Equal(IdentityProvisioningResourceTypeProvider.ProviderId, projectedIdentity.Provider);
+        Assert.Equal("identity-provisioning", projectedIdentity.ResourceAttributes["infrastructure.kind"]);
+        Assert.Equal("Built-in Identity", projectedIdentity.ResourceAttributes["identity.provider"]);
+        Assert.Equal("built-in", projectedIdentity.ResourceAttributes["identity.providerKind"]);
+        Assert.Contains(projectedIdentity.ResourceCapabilities, capability =>
+            capability.Id == IdentityProvisioningResourceTypeProvider.Capabilities.IdentityProvisioning.ToString());
+        var setup = Assert.Single(projectedIdentity.ResourceActions, action =>
+            action.Id == IdentityProvisioningResourceTypeProvider.Operations.Setup.ToString());
+        Assert.Equal("Identity Provisioning Setup", setup.DisplayName);
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveAsync(identity.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors);
+        var projection = Assert.IsType<IdentityProvisioningResource>(
+            await serviceProvider
+                .GetRequiredService<ResourceProjectionResolver>()
+                .GetResourceProjectionAsync(
+                    resolution.Target!,
+                    new ResourceProjectionContext("local", "developer")));
+        Assert.Equal("Built-in Identity", projection.IdentityProvider);
+        Assert.True(projection.SupportsIdentityProvisioning);
+
+        var procedure = new ResourceProcedureContext(
+            projectedIdentity,
+            null,
+            null,
+            new EmptyResourceRegistrationStore());
+
+        Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, setup));
+
+        var procedureResult = await provider.ExecuteActionAsync(procedure, setup);
+
+        Assert.Equal("Executed Identity Provisioning Setup for built-in.", procedureResult.Message);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesSqlServerAcrossProviderBoundaries()
     {
         var services = new ServiceCollection();
