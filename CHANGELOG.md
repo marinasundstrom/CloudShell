@@ -62,6 +62,9 @@ on `git blame --follow`, and then by the broad type of change.
   `ResourceReference` dependencies survive the record persistence projection.
 - `ResourceReference` now has JSON round-trip coverage for expected resource
   type and provider metadata.
+- The resource definitions proposal now records the near-term POC path:
+  stabilize the current model enough to port real provider behavior, and
+  propose new abstractions only when provider ports expose concrete gaps.
 - The resource definitions proposal now clarifies that resource type providers
   are integration points that may receive injected services, but should not own
   recurring runtime tasks, watchers, polling loops, or reconciliation schedulers

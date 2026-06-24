@@ -537,6 +537,15 @@ ported providers cover the required Resource Manager behavior, the older
 resource provider infrastructure can be removed instead of maintained as a
 parallel long-term model.
 
+The near-term POC path should now favor provider implementation over adding
+new model concepts. The model should stay sufficiently stable and consistent
+for porting real provider behavior, especially operation execution, provider
+owned services, apply diagnostics, persistence projection, and Resource Manager
+composition. New abstractions should be proposed only when a provider port
+demonstrates a concrete gap that cannot be handled by the existing Resource,
+ResourceTypeDefinition, ResourceClassDefinition, ResourceReference, capability,
+operation, apply, and bridge contracts.
+
 Porting a provider means implementing the complete Resource model support that
 the resource type needs to work, not only mapping an existing provider to a new
 list or projection interface. A ported resource type should own its
@@ -752,7 +761,7 @@ The working porting status for the reference POC is:
 
 | Provider or resource type | Status | New-model coverage | Remaining outside the POC |
 | --- | --- | --- | --- |
-| Executable application (`application.executable`) | Ported as a reference provider | Type and class defaults, executable path validation and configuration, shared volume-consumer capability, start operation, typed wrapper, Resource Manager bridge projection and execution | Real local-process runtime integration, logs, endpoints, templates, and UI registration/update flow |
+| Executable application (`application.executable`) | Ported as a reference provider | Type and class defaults, executable path validation and configuration, shared volume-consumer capability, start operation with an injected runtime-controller seam, typed wrapper, Resource Manager bridge projection and execution | Real local-process runtime integration, logs, endpoints, templates, and UI registration/update flow |
 | Local volume (`storage.volume`) | Ported as a reference provider | Storage class and type defaults, medium validation, provision operation, typed wrapper, apply planning, Resource Manager bridge projection | Provider-backed storage materialization, usage tracking, health, and monitoring |
 | Storage (`cloudshell.storage`) | Ported as a narrow reference provider | Storage class/type defaults, provider/medium/location attributes, passive storage-provider and mount-provider capability markers, inspect operation, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Volume collection payloads, runtime filesystem availability and volume counts as capability members or operation plans, provider-backed storage materialization, health, monitoring, and UI registration/update flow |
 | CloudShell volume (`cloudshell.volume`) | Ported as a narrow reference provider | Storage class/type defaults, provider/medium/location/subpath/access-mode/persistence attributes, passive storage-volume capability marker, `ResourceReference` storage dependencies, type-specific `storage.volume.provision` operation provider, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Storage-reference graph validation, runtime filesystem availability as capability members or operation plans, provider-backed volume materialization, health, monitoring, and UI registration/update flow |
