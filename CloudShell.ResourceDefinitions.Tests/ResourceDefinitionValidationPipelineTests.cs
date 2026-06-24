@@ -35,12 +35,18 @@ public sealed class ResourceDefinitionValidationPipelineTests
         Assert.True(result.Resource.Capabilities.Has(VolumeConsumerCapabilityProvider.CapabilityIdValue));
         Assert.True(result.Resource.Operations.Has(ExecutableApplicationResourceTypeProvider.Operations.Start));
 
-        var volumeConsumer = await result.Projection.GetCapabilityAsync<VolumeConsumerCapability>(
-            VolumeConsumerCapabilityProvider.CapabilityIdValue);
+        var projectionResolver = new ResourceProjectionResolver(
+            [new ExecutableApplicationResourceProjectionProvider()]);
+        var executable = await projectionResolver.GetResourceProjectionAsync<ExecutableApplicationResource>(
+            result.Projection,
+            new ResourceProjectionContext("local", "developer"));
 
-        Assert.NotNull(volumeConsumer);
-        Assert.Single(volumeConsumer.Mounts);
-        Assert.Equal("App_Data", volumeConsumer.Mounts[0].TargetPath);
+        Assert.NotNull(executable);
+        var volumes = await executable.GetVolumesAsync();
+
+        Assert.Equal("dotnet", executable.ExecutablePath);
+        Assert.Single(volumes);
+        Assert.Equal("App_Data", volumes[0].TargetPath);
     }
 
     [Fact]

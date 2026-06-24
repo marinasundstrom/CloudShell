@@ -95,3 +95,58 @@ public sealed class ResourceDefinitionProjection(
             context,
             cancellationToken);
 }
+
+public interface IResourceProjection
+{
+    ResourceDefinitionProjection Resource { get; }
+}
+
+public interface IResourceProjectionProvider
+{
+    ResourceTypeId TypeId { get; }
+
+    bool CanProject(ResourceDefinitionProjection resource);
+
+    ValueTask<IResourceProjection> ProjectAsync(
+        ResourceDefinitionProjection resource,
+        ResourceProjectionContext context,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed record ResourceProjectionContext(
+    string? EnvironmentId = null,
+    string? PrincipalId = null);
+
+public sealed class ResourceProjectionResolver(
+    IEnumerable<IResourceProjectionProvider> projectionProviders)
+{
+    private readonly IReadOnlyList<IResourceProjectionProvider> _projectionProviders =
+        projectionProviders.ToArray();
+
+    public async ValueTask<IResourceProjection?> GetResourceProjectionAsync(
+        ResourceDefinitionProjection resource,
+        ResourceProjectionContext context,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentNullException.ThrowIfNull(context);
+
+        var provider = _projectionProviders.FirstOrDefault(provider =>
+            provider.TypeId == resource.Definition.TypeId &&
+            provider.CanProject(resource));
+
+        if (provider is null)
+        {
+            return null;
+        }
+
+        return await provider.ProjectAsync(resource, context, cancellationToken);
+    }
+
+    public async ValueTask<TProjection?> GetResourceProjectionAsync<TProjection>(
+        ResourceDefinitionProjection resource,
+        ResourceProjectionContext context,
+        CancellationToken cancellationToken = default)
+        where TProjection : class, IResourceProjection =>
+        await GetResourceProjectionAsync(resource, context, cancellationToken) as TProjection;
+}

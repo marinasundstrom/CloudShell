@@ -422,14 +422,35 @@ providers, attribute validators, and resource type providers receive the
 resolved context they need instead of manually combining raw properties.
 
 The current POC treats `ResourceDefinition` as the persisted data container and
-adds a runtime projection wrapper over the resolved definition. That projection
-can expose effective attributes, capabilities, and operations while delegating
-behavior to DI-resolved providers. In this shape, capability behavior is not
-stored on the definition itself. A `ResourceCapabilityResolver` resolves a
-matching capability provider for the projected resource, and the provider can
-return typed behavior that reads effective definition state, resolves other
-dependencies, projects additional information, or returns an updated
+adds runtime projection wrappers over the resolved definition. The first
+projection layer is a shared context exposing effective attributes,
+capabilities, and operations. A second, resource-type-specific projection can
+then provide an object-oriented surface such as
+`ExecutableApplicationResource.GetVolumesAsync()`. That method is owned by the
+executable resource projection, but it internally asks a
+`ResourceCapabilityResolver` for the matching volume capability behavior.
+
+In this shape, capability behavior is not stored on the definition itself and
+is not directly projected as the main resource object. Capability providers
+return typed behavior that resource projections can compose into their public
+surface. Those behaviors can read effective definition state, resolve other
+dependencies, project additional information, or return an updated
 `ResourceDefinition` when the capability changes accepted intent.
+
+The POC can keep these resource-type projection wrappers hand-written, but the
+expected mature implementation is source-generated wrappers from the resource
+class/type definitions, attribute IDs, capability IDs, and operation IDs. The
+generated wrapper should be a convenience facade over the same resolved
+definition and resolver services, not a second source of truth for the
+resource model.
+
+It is intentionally still open whether generated resource-type wrappers should
+also implement capability-specific interfaces to advertise supported
+capabilities, or whether capability support should remain discoverable only
+through resolved capability declarations and resolver calls. Implementing
+capability interfaces could make static use sites cleaner, but it also risks
+making capability membership look like compile-time inheritance rather than
+resolved provider-backed behavior.
 
 This keeps persistence and runtime behavior separate. Serializers persist
 definitions and resolved debug views as data, while provider projects attach
