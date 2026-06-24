@@ -191,6 +191,24 @@ public sealed class ResourceModelResolverTests
     }
 
     [Fact]
+    public void ResourceChangeSet_NewResourceRendersFullIncrementalDefinition()
+    {
+        var resolver = CreateResolver();
+        var resource = resolver.Resolve(CreateState("./api"));
+
+        var changes = ResourceChangeSet.FromNewResource(resource);
+        var incrementalDefinition = changes.ToIncrementalDefinition();
+
+        Assert.True(changes.IsNewResource);
+        Assert.True(changes.HasChanges);
+        Assert.Equal("./api", incrementalDefinition.ResourceAttributes[
+            ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
+        Assert.Contains(
+            VolumeConsumerCapabilityProvider.CapabilityIdValue,
+            incrementalDefinition.CapabilityPayloads.Keys);
+    }
+
+    [Fact]
     public void ResourceRecord_RoundTripsResourceOwnedState()
     {
         var state = CreateState("./api");

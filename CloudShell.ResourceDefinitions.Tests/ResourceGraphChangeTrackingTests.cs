@@ -267,6 +267,41 @@ public sealed class ResourceGraphChangeTrackingTests
     }
 
     [Fact]
+    public async Task DefinitionGraphChangeApplier_StagesNewResourceWhenAllowed()
+    {
+        var stateProvider = new InMemoryResourceStateProvider();
+        var applier = CreateDefinitionGraphChangeApplier();
+        var snapshot = await stateProvider.GetSnapshotAsync();
+
+        var changes = await applier.ApplyDefinitionsAsync(
+            snapshot,
+            [
+                new(
+                    "api",
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    Attributes: new Dictionary<ResourceAttributeId, string>
+                    {
+                        [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "./api"
+                    })
+            ],
+            new ResourceChangeApplyContext(Commit: true),
+            ResourceDefinitionGraphChangeApplierOptions.CreateMissing);
+
+        var commit = await stateProvider.CommitAsync(
+            changes,
+            new ResourceGraphCommitContext(Timestamp: new DateTimeOffset(2026, 6, 24, 15, 30, 0, TimeSpan.Zero)));
+
+        var created = Assert.Single(commit.Snapshot!.Resources);
+        Assert.False(changes.HasErrors);
+        Assert.True(changes.HasChanges);
+        Assert.True(Assert.Single(changes.AcceptedResources).ChangeSet.IsNewResource);
+        Assert.True(commit.IsCommitted);
+        Assert.Equal(new ResourceRevision(1), created.Revision);
+        Assert.Equal("./api", created.ResourceAttributes[
+            ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
+    }
+
+    [Fact]
     public async Task CommitAsync_RejectsStaleGraphVersion()
     {
         var stateProvider = new InMemoryResourceStateProvider([CreateState("api", "./api")]);

@@ -411,6 +411,46 @@ public sealed class ResourceManagerIntegrationTests
             state.ResourceAttributes[ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
     }
 
+    [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesDeploymentAndCreatesMissingResource()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var deployment = new ResourceDeploymentDefinition(
+            "local-app",
+            [
+                new(
+                    "api",
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    ProviderId: ExecutableApplicationResourceTypeProvider.ProviderId,
+                    Attributes: new Dictionary<ResourceAttributeId, string>
+                    {
+                        [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
+                    })
+            ],
+            EnvironmentId: "local");
+
+        var result = await service.ApplyDeploymentAsync(
+            deployment,
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 24, 16, 30, 0, TimeSpan.Zero)));
+
+        var created = Assert.Single(result.Commit.Snapshot!.Resources);
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphVersion.Initial, result.BaseVersion);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+        Assert.True(Assert.Single(result.Changes.AcceptedResources).ChangeSet.IsNewResource);
+        Assert.Equal("application.executable:api", created.EffectiveResourceId);
+        Assert.Equal(new ResourceRevision(1), created.Revision);
+        Assert.Equal("dotnet", created.ResourceAttributes[
+            ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
+    }
+
     private static ResourceState CreateExecutableState(
         string name = "api",
         IReadOnlyList<string>? dependsOn = null) =>

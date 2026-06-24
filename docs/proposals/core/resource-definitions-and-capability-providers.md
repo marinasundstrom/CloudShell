@@ -1009,6 +1009,11 @@ current `ResourceState`, builds resource-local changes, runs the type-owned
 apply providers, and returns one `ResourceGraphChangeSet` for the caller to
 commit or reject. Missing target resources remain graph-level diagnostics
 instead of being hidden inside a resource-local provider result.
+When the caller is applying a deployment document rather than a conservative
+overlay update, the applier can be explicitly told to create missing
+resources. In that mode the incoming definition is resolved as a new
+`Resource`, represented as a new-resource `ResourceChangeSet`, passed through
+the same type-owned apply providers, and committed through the graph boundary.
 
 `ResourceModelGraphDefinitionApplyService` is the current Resource
 Manager-facing bridge for that flow: it loads the latest graph snapshot,
@@ -1017,6 +1022,10 @@ commits the resulting change set through `ResourceGraphModel`. The service
 returns both the staged changes and commit result so Control Plane code can
 inspect provider diagnostics, commit summaries, and version conflicts without
 making the low-level resource model own Resource Manager policy.
+Applying a `ResourceDeploymentDefinition` through the bridge opts into
+creating missing resources because deployment documents describe desired graph
+state, while direct definition-overlay application keeps creation disabled
+unless the caller requests it.
 
 Several accepted resource changes should also be committed as one graph
 version. The POC models that with `ResourceGraphChangeTracker`,
@@ -2037,6 +2046,16 @@ server-side state around the resource graph. They may share identity with this
 POC's `Resource` projection and may materialize or consume it, but they are
 not required to use the same persistence shape or to expose every Control
 Plane operational concern through the low-level resource definition model.
+
+One possible midway integration is a store-backed graph projector that can
+load graph resources from any Resource Manager-owned store shape. For example,
+the Resource Manager database could keep its own resource row for operational
+state while storing the Resource model graph payload in a column or companion
+record on that same resource row. A projector would hydrate those records into
+`ResourceState` values for graph resolution and then persist accepted graph
+changes back into the same uniform Resource Manager store. This keeps the POC
+flexible: the graph does not need a separate database too early, but the
+Resource model still gets a clean load/apply/commit boundary.
 
 Layered definition, persistence, and projection model:
 

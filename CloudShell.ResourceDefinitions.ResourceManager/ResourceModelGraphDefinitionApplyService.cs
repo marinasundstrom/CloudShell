@@ -7,10 +7,22 @@ public sealed class ResourceModelGraphDefinitionApplyService(
     public async ValueTask<ResourceModelGraphDefinitionApplyResult> ApplyDefinitionsAsync(
         IEnumerable<ResourceDefinition> definitions,
         ResourceGraphCommitContext commitContext,
+        CancellationToken cancellationToken = default) =>
+        await ApplyDefinitionsAsync(
+            definitions,
+            commitContext,
+            ResourceModelGraphDefinitionApplyOptions.Default,
+            cancellationToken);
+
+    public async ValueTask<ResourceModelGraphDefinitionApplyResult> ApplyDefinitionsAsync(
+        IEnumerable<ResourceDefinition> definitions,
+        ResourceGraphCommitContext commitContext,
+        ResourceModelGraphDefinitionApplyOptions options,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(definitions);
         ArgumentNullException.ThrowIfNull(commitContext);
+        ArgumentNullException.ThrowIfNull(options);
 
         var snapshot = await graphModel.GetSnapshotAsync(cancellationToken);
         var changes = await changeApplier.ApplyDefinitionsAsync(
@@ -20,6 +32,7 @@ public sealed class ResourceModelGraphDefinitionApplyService(
                 commitContext.EnvironmentId,
                 commitContext.PrincipalId,
                 Commit: true),
+            new ResourceDefinitionGraphChangeApplierOptions(options.CreateMissingResources),
             cancellationToken);
         var commit = await graphModel.CommitAsync(
             changes,
@@ -28,6 +41,47 @@ public sealed class ResourceModelGraphDefinitionApplyService(
 
         return new(snapshot, changes, commit);
     }
+
+    public async ValueTask<ResourceModelGraphDefinitionApplyResult> ApplyDeploymentAsync(
+        ResourceDeploymentDefinition deployment,
+        ResourceGraphCommitContext commitContext,
+        CancellationToken cancellationToken = default) =>
+        await ApplyDeploymentAsync(
+            deployment,
+            commitContext,
+            ResourceModelGraphDefinitionApplyOptions.CreateMissing,
+            cancellationToken);
+
+    public async ValueTask<ResourceModelGraphDefinitionApplyResult> ApplyDeploymentAsync(
+        ResourceDeploymentDefinition deployment,
+        ResourceGraphCommitContext commitContext,
+        ResourceModelGraphDefinitionApplyOptions options,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(deployment);
+        ArgumentNullException.ThrowIfNull(commitContext);
+        ArgumentNullException.ThrowIfNull(options);
+
+        var effectiveCommitContext = string.IsNullOrWhiteSpace(commitContext.EnvironmentId) &&
+            !string.IsNullOrWhiteSpace(deployment.EnvironmentId)
+                ? commitContext with { EnvironmentId = deployment.EnvironmentId }
+                : commitContext;
+
+        return await ApplyDefinitionsAsync(
+            deployment.Resources,
+            effectiveCommitContext,
+            options,
+            cancellationToken);
+    }
+}
+
+public sealed record ResourceModelGraphDefinitionApplyOptions(
+    bool CreateMissingResources = false)
+{
+    public static ResourceModelGraphDefinitionApplyOptions Default { get; } = new();
+
+    public static ResourceModelGraphDefinitionApplyOptions CreateMissing { get; } =
+        new(CreateMissingResources: true);
 }
 
 public sealed record ResourceModelGraphDefinitionApplyResult(

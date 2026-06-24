@@ -91,11 +91,25 @@ public sealed class ResourceDefinitionGraphChangeApplier(
         ResourceGraphSnapshot snapshot,
         IEnumerable<ResourceDefinition> definitions,
         ResourceChangeApplyContext context,
+        CancellationToken cancellationToken = default) =>
+        await ApplyDefinitionsAsync(
+            snapshot,
+            definitions,
+            context,
+            ResourceDefinitionGraphChangeApplierOptions.Default,
+            cancellationToken);
+
+    public async ValueTask<ResourceGraphChangeSet> ApplyDefinitionsAsync(
+        ResourceGraphSnapshot snapshot,
+        IEnumerable<ResourceDefinition> definitions,
+        ResourceChangeApplyContext context,
+        ResourceDefinitionGraphChangeApplierOptions options,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(definitions);
         ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(options);
 
         var tracker = new ResourceGraphChangeTracker(snapshot);
         var statesById = snapshot.Resources.ToDictionary(
@@ -107,6 +121,19 @@ public sealed class ResourceDefinitionGraphChangeApplier(
         {
             if (!statesById.TryGetValue(definition.EffectiveResourceId, out var state))
             {
+                if (options.CreateMissingResources)
+                {
+                    var createdResource = resolver.Resolve(definition);
+                    var createdChanges = ResourceChangeSet.FromNewResource(createdResource);
+                    var acceptedCreate = await applyDispatcher.ApplyChangesAsync(
+                        createdChanges,
+                        context,
+                        cancellationToken);
+
+                    tracker.Track(acceptedCreate);
+                    continue;
+                }
+
                 tracker.TrackDiagnostic(ResourceDefinitionDiagnostic.Error(
                     ResourceDefinitionDiagnosticCodes.ResourceGraphResourceMissing,
                     $"Resource '{definition.EffectiveResourceId}' does not exist in the resource graph.",
@@ -126,4 +153,13 @@ public sealed class ResourceDefinitionGraphChangeApplier(
 
         return tracker.GetChanges();
     }
+}
+
+public sealed record ResourceDefinitionGraphChangeApplierOptions(
+    bool CreateMissingResources = false)
+{
+    public static ResourceDefinitionGraphChangeApplierOptions Default { get; } = new();
+
+    public static ResourceDefinitionGraphChangeApplierOptions CreateMissing { get; } =
+        new(CreateMissingResources: true);
 }

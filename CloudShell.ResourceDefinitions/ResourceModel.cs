@@ -378,7 +378,9 @@ public sealed record ResourceChangeSet(
     IReadOnlyList<ResourceCapabilityChange> CapabilityChanges,
     IReadOnlyList<ResourceDefinitionDiagnostic> Diagnostics)
 {
-    public bool HasChanges => AttributeChanges.Count > 0 || CapabilityChanges.Count > 0;
+    public bool IsNewResource { get; init; }
+
+    public bool HasChanges => IsNewResource || AttributeChanges.Count > 0 || CapabilityChanges.Count > 0;
 
     public bool HasErrors => Diagnostics.Any(diagnostic =>
         diagnostic.Severity == ResourceDefinitionDiagnosticSeverity.Error);
@@ -386,22 +388,49 @@ public sealed record ResourceChangeSet(
     public ResourceDefinition ToDefinition() => ProposedState.ToDefinition();
 
     public ResourceDefinition ToIncrementalDefinition() =>
-        new(
-            Resource.State.Name,
-            Resource.State.TypeId,
-            Resource.State.ResourceId,
-            Resource.State.ProviderId,
-            Resource.State.DisplayName,
-            Resource.State.Version,
-            Attributes: AttributeChanges.ToDictionary(
-                change => change.AttributeId,
-                change => change.NewValue),
-            Capabilities: CapabilityChanges.ToDictionary(
-                change => change.CapabilityId,
-                change => ResourceDefinitionJson.Clone(change.NewPayload)));
+        IsNewResource
+            ? ProposedState.ToDefinition()
+            : new(
+                Resource.State.Name,
+                Resource.State.TypeId,
+                Resource.State.ResourceId,
+                Resource.State.ProviderId,
+                Resource.State.DisplayName,
+                Resource.State.Version,
+                Attributes: AttributeChanges.ToDictionary(
+                    change => change.AttributeId,
+                    change => change.NewValue),
+                Capabilities: CapabilityChanges.ToDictionary(
+                    change => change.CapabilityId,
+                    change => ResourceDefinitionJson.Clone(change.NewPayload)));
 
     public static ResourceChangeSet Empty(Resource resource) =>
         new(resource, resource.State, [], [], []);
+
+    public static ResourceChangeSet FromNewResource(Resource resource)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+
+        return new(
+            resource,
+            resource.State,
+            resource.State.ResourceAttributes
+                .Select(change => new ResourceAttributeChange(
+                    change.Key,
+                    PreviousValue: null,
+                    change.Value))
+                .ToArray(),
+            resource.State.CapabilityPayloads
+                .Select(change => new ResourceCapabilityChange(
+                    change.Key,
+                    PreviousPayload: null,
+                    ResourceDefinitionJson.Clone(change.Value)))
+                .ToArray(),
+            resource.Diagnostics)
+        {
+            IsNewResource = true
+        };
+    }
 
     public static ResourceChangeSet FromDefinition(
         Resource resource,

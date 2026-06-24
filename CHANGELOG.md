@@ -114,6 +114,13 @@ on `git blame --follow`, and then by the broad type of change.
 - The Resource Manager bridge now exposes a definition apply service that
   applies incoming `ResourceDefinition` overlays through the graph model and
   returns staged changes plus the graph commit result for integration callers.
+- The resource definitions POC now supports explicit create-missing behavior
+  for deployment-definition apply flows, representing new resources as graph
+  change sets and routing their initial state through type-owned apply
+  providers before commit.
+- The resource definitions proposal now documents a store-backed graph
+  projector option where Resource Manager-owned resource records can carry the
+  Resource model graph payload and hydrate it through the same graph boundary.
 - The resource definitions POC now groups accepted resource changes into a
   versioned resource graph change set and proves persistence through an
   in-memory state provider that commits all accepted resource states under one
