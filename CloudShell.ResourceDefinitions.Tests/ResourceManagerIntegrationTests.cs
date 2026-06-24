@@ -761,6 +761,96 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesContainerApplicationAcrossProviderBoundaries()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddLocalVolumeResourceType();
+        services.AddContainerApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var volume = new ResourceDefinition(
+            "data",
+            LocalVolumeResourceTypeProvider.ResourceTypeId);
+        var container = new ResourceDefinition(
+            "api",
+            ContainerApplicationResourceTypeProvider.ResourceTypeId,
+            ProviderId: ContainerApplicationResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [ContainerApplicationResourceTypeProvider.Attributes.ContainerImage] = "ghcr.io/example/api:latest",
+                [ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas] = "2"
+            },
+            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
+            {
+                [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
+                    ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
+                    [
+                        new(volume.EffectiveResourceId, "/data")
+                    ]))
+            });
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "container-app",
+                [volume, container],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 24, 19, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedResources = provider.GetResources();
+        var projectedContainer = Assert.Single(projectedResources, resource =>
+            resource.Id == container.EffectiveResourceId);
+
+        Assert.Equal(ResourceManagerClass.Container, projectedContainer.ResourceClass);
+        Assert.Equal(ContainerApplicationResourceTypeProvider.ProviderId, projectedContainer.Provider);
+        Assert.Equal("ghcr.io/example/api:latest", projectedContainer.ResourceAttributes["container.image"]);
+        Assert.Equal("2", projectedContainer.ResourceAttributes["container.replicas"]);
+        Assert.Equal([volume.EffectiveResourceId], projectedContainer.DependsOn);
+        Assert.Contains(projectedContainer.ResourceCapabilities, capability =>
+            capability.Id == VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString());
+        Assert.Contains(projectedContainer.ResourceActions, action =>
+            action.Id == ContainerApplicationResourceTypeProvider.Operations.Start.ToString());
+        var restart = Assert.Single(projectedContainer.ResourceActions, action =>
+            action.Id == ContainerApplicationResourceTypeProvider.Operations.Restart.ToString());
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveWithDependenciesAsync(container.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors);
+        Assert.Equal(
+            [container.EffectiveResourceId, volume.EffectiveResourceId],
+            resolution.Resources.Select(resource => resource.EffectiveResourceId));
+        var volumeCapability = Assert.IsType<VolumeConsumerCapability>(
+            resolution.Target!.Capabilities.Get<VolumeConsumerCapability>());
+        Assert.Equal(volume.EffectiveResourceId, Assert.Single(volumeCapability.Mounts).Volume);
+
+        var procedure = new ResourceProcedureContext(
+            projectedContainer,
+            null,
+            null,
+            new EmptyResourceRegistrationStore());
+
+        Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, restart));
+
+        var procedureResult = await provider.ExecuteActionAsync(procedure, restart);
+
+        Assert.Equal("Executed Restart for api.", procedureResult.Message);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_RejectsInvalidCapabilityReference()
     {
         var services = new ServiceCollection();

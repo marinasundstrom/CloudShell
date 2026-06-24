@@ -179,6 +179,82 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task AddContainerApplicationResourceType_RegistersCompleteResourceTypeBoundary()
+    {
+        var services = new ServiceCollection();
+        services.AddLocalVolumeResourceType();
+        services.AddContainerApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var volume = new ResourceDefinition(
+            "data",
+            LocalVolumeResourceTypeProvider.ResourceTypeId);
+        var definition = new ResourceDefinition(
+            "api",
+            ContainerApplicationResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [ContainerApplicationResourceTypeProvider.Attributes.ContainerImage] = "ghcr.io/example/api:latest",
+                [ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas] = "2"
+            },
+            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
+            {
+                [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
+                    ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
+                    [
+                        new(volume.EffectiveResourceId, "/data")
+                    ]))
+            });
+
+        var validation = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphValidationPipeline>()
+            .ValidateAsync(
+                new ResourceDefinitionGraph([volume, definition]),
+                new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.False(validation.HasErrors);
+        var containerValidation = validation.Resources.Single(resource =>
+            resource.Resource.EffectiveResourceId == definition.EffectiveResourceId);
+        Assert.Equal(ContainerApplicationResourceTypeProvider.ClassId, containerValidation.Resource.Class.ClassId);
+        Assert.Equal("ghcr.io/example/api:latest", containerValidation.Resource.Attributes.GetString(
+            ContainerApplicationResourceTypeProvider.Attributes.ContainerImage));
+        Assert.Equal("2", containerValidation.Resource.Attributes.GetString(
+            ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas));
+        Assert.True(containerValidation.Resource.Capabilities.Has(
+            VolumeConsumerCapabilityProvider.CapabilityIdValue));
+        Assert.True(containerValidation.Resource.Operations.Has(
+            ContainerApplicationResourceTypeProvider.Operations.Start));
+        Assert.True(containerValidation.Resource.Operations.Has(
+            ContainerApplicationResourceTypeProvider.Operations.Restart));
+
+        var projectedGraph = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphProjectionResolver>()
+            .ProjectAsync(
+                validation,
+                new ResourceProjectionContext("local", "developer"));
+        var projection = projectedGraph.Find<ContainerApplicationResource>(
+            definition.EffectiveResourceId);
+
+        Assert.NotNull(projection);
+        Assert.Equal("ghcr.io/example/api:latest", projection.Image);
+        Assert.Equal(2, projection.Replicas);
+        Assert.Equal(volume.EffectiveResourceId, Assert.Single(await projection.GetVolumesAsync()).Volume);
+        Assert.True(await (await projection.GetStartOperationAsync())!.CanExecuteAsync());
+        Assert.True(await (await projection.GetRestartOperationAsync())!.CanExecuteAsync());
+
+        var applyPlan = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphApplyPlanner>()
+            .PlanApplyAsync(
+                validation,
+                new ResourceDefinitionApplyContext("local", "developer"));
+
+        Assert.False(applyPlan.HasErrors);
+        Assert.Contains(applyPlan.Steps, step =>
+            step.ResourceId == definition.EffectiveResourceId &&
+            step.Kind == ResourceDefinitionApplyStepKind.MaterializeRuntime);
+    }
+
+    [Fact]
     public async Task ValidateCapabilitiesAsync_UsesRegisteredCapabilityProvider()
     {
         var dispatcher = CreateDispatcher(

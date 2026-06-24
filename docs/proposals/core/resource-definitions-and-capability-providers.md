@@ -545,6 +545,14 @@ project the committed graph through the Resource Manager bridge, resolve the
 executable resource with its storage dependency from the graph, and execute a
 Resource model operation through the bridge.
 
+A narrow container application reference provider extends the same proof
+without porting the full legacy container app provider. It owns
+`application.container-app`, container image and replica attributes,
+start/restart operation providers, and a typed projection wrapper. The shared
+`storage.volumeConsumer` capability can attach to both executable and
+container application resources through the capability provider boundary, so
+volume behavior is not folded into either application provider implementation.
+
 Host infrastructure registration is a separate concern from provider
 registration. A host may compose the generic graph services once from whatever
 class definitions, type providers, validators, capability providers, operation

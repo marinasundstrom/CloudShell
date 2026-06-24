@@ -13,7 +13,7 @@ public sealed class VolumeConsumerCapabilityProvider :
     public bool CanValidate(
         Resource resource,
         ResourceCapabilityResolution capability) =>
-        resource.Type.TypeId == ExecutableApplicationResourceTypeProvider.ResourceTypeId;
+        CanAttachTo(resource);
 
     public ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
         Resource resource,
@@ -54,6 +54,10 @@ public sealed class VolumeConsumerCapabilityProvider :
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 definition?.Mounts ?? []));
     }
+
+    internal static bool CanAttachTo(Resource resource) =>
+        resource.Type.TypeId == ExecutableApplicationResourceTypeProvider.ResourceTypeId ||
+        resource.Type.TypeId == ContainerApplicationResourceTypeProvider.ResourceTypeId;
 }
 
 public sealed class VolumeConsumerCapability(

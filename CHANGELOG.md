@@ -139,6 +139,10 @@ on `git blame --follow`, and then by the broad type of change.
   `storage.volume.provision` operation provider and typed projection wrapper,
   proving that a second provider boundary can project and execute Resource
   model operations through the Resource Manager bridge.
+- The resource definitions reference providers now include a narrow container
+  application resource type with image and replica attributes, start/restart
+  operation providers, a typed wrapper, and shared volume-consumer capability
+  support across executable and container application providers.
 - The resource definitions POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change
