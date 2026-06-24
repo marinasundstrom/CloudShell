@@ -410,6 +410,13 @@ diagnostics inside the bridge provider. The initial POC maps
 with the Resource model diagnostic code and message preserved, while the
 diagnostic source identifies the Resource model bridge.
 
+The bridge project should own registration helpers for this integration seam.
+Hosts can register a graph-backed Resource model provider as an existing
+Resource Manager `IResourceProvider` without making `CloudShell.ControlPlane`
+reference the experimental Resource model infrastructure directly. The host
+still owns which `ResourceResolver`, graph snapshot source, and graph model
+services it registers.
+
 Graph locking, graph update coordination, and transaction policy belong at
 the Resource Manager or Control Plane coordination layer. The Resource model
 can provide change sets, resolved projections, diagnostics, and commit-shaped

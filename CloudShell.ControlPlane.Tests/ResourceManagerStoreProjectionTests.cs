@@ -602,6 +602,47 @@ public sealed class ResourceManagerStoreProjectionTests
     }
 
     [Fact]
+    public void GetResources_ComposesDiRegisteredResourceModelBridgeProvider()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton(CreateResourceModelResolver());
+        services.AddResourceModelGraphResourceProvider(
+            "resource-model",
+            "Resource model",
+            _ => new DefinitionGraphSnapshot(
+                DefinitionGraphVersion.Initial,
+                [CreateResourceModelExecutableState()]),
+            projectionOptions: new ResourceModelResourceManagerProjectionOptions(
+                DefaultLastUpdated: new DateTimeOffset(2026, 6, 24, 0, 0, 0, TimeSpan.Zero)));
+        using var serviceProvider = services.BuildServiceProvider();
+        var providers = serviceProvider
+            .GetServices<IResourceProvider>()
+            .ToArray();
+        var store = new ResourceManagerStore(
+            providers,
+            new TestResourceGroupStore([]),
+            new TestResourceRegistrationStore(
+            [
+                new(
+                    "application.executable:api",
+                    ExecutableApplicationResourceTypeProvider.ProviderId,
+                    null,
+                    DateTimeOffset.UtcNow,
+                    [])
+            ]),
+            new ResourceDeclarationStore(),
+            new ResourceIdentityProviderCatalog(),
+            new CloudShellExtensionRegistry(),
+            new InMemoryCloudShellExtensionActivationStore());
+
+        var resource = Assert.Single(store.GetResources());
+
+        Assert.Equal("application.executable:api", resource.Id);
+        Assert.Equal("dotnet", resource.ResourceAttributes[ResourceAttributeNames.ExecutablePath]);
+        Assert.True(resource.IsDeclaredResource);
+    }
+
+    [Fact]
     public void GetGroupForResource_InheritsGroupFromRegisteredParent()
     {
         var group = new ResourceGroup("group-one", "Group One", "Test group", []);

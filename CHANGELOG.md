@@ -138,6 +138,10 @@ on `git blame --follow`, and then by the broad type of change.
 - The Resource Manager bridge for the resource definitions POC now exposes
   resolved Resource model diagnostics through the existing
   `GetResourceModelDiagnostics()` Control Plane store surface.
+- The Resource Manager bridge for the resource definitions POC now includes
+  `IServiceCollection` registration helpers so hosts can register a graph
+  backed Resource model provider through the existing `IResourceProvider`
+  composition path.
 - The resource definitions proposal now clarifies that capabilities and
   operations are integration points whose implementations may be owned by
   Resource Manager, orchestrators, provider packages, or other Control Plane
