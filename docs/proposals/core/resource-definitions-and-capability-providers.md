@@ -624,6 +624,13 @@ validation rules remain provider or platform validator hooks over the resolved
 `Resource`; the attribute definition is not intended to become a full provider
 configuration schema.
 
+When a class or type definition declares both `defaultValue` and
+`valueShape`, the resolver should validate that the default value matches the
+shape before treating the resolved resource as valid. This includes checking
+scalar kinds, object fields, required object fields, and array element shape.
+That validation proves the definition contract is internally coherent; it does
+not replace provider-owned validation of resource state or behavior.
+
 The current POC still keeps resolved attribute values and defaults
 string-based to avoid prematurely building the full value system. The intended
 model should support scalar and complex attribute values, including structured

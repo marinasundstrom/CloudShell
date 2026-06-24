@@ -153,6 +153,75 @@ public sealed class ResourceResolverTests
     }
 
     [Fact]
+    public void Resolve_ReportsInvalidAttributeDefinitionDefaultKind()
+    {
+        var resolver = new ResourceResolver(
+            [
+                new(ExecutableApplicationResourceTypeProvider.ClassId)
+            ],
+            [
+                new(
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    ExecutableApplicationResourceTypeProvider.ClassId,
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                    {
+                        ["container:replicas"] = new(
+                            DefaultValue: "one",
+                            ValueShape: new(ResourceAttributeValueKind.Integer))
+                    })
+            ]);
+        var definition = new ResourceDefinition(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId);
+
+        var resolved = resolver.Resolve(definition);
+
+        var diagnostic = Assert.Single(resolved.Diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.AttributeDefinitionDefaultInvalid, diagnostic.Code);
+        Assert.Equal("container:replicas", diagnostic.Target);
+    }
+
+    [Fact]
+    public void Resolve_ReportsInvalidAttributeDefinitionDefaultMissingRequiredField()
+    {
+        var resolver = new ResourceResolver(
+            [
+                new(ExecutableApplicationResourceTypeProvider.ClassId)
+            ],
+            [
+                new(
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    ExecutableApplicationResourceTypeProvider.ClassId,
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                    {
+                        ["identity:principal"] = new(
+                            DefaultValue: ResourceAttributeValue.Object(
+                                new Dictionary<string, ResourceAttributeValue>()),
+                            ValueShape: new(
+                                ResourceAttributeValueKind.Object,
+                                Fields:
+                                [
+                                    new(
+                                        "subject",
+                                        new(ResourceAttributeValueKind.String),
+                                        Required: true)
+                                ]))
+                    })
+            ]);
+        var definition = new ResourceDefinition(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId);
+
+        var resolved = resolver.Resolve(definition);
+
+        var diagnostic = Assert.Single(resolved.Diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.AttributeDefinitionDefaultInvalid, diagnostic.Code);
+        Assert.Equal("identity:principal.subject", diagnostic.Target);
+    }
+
+    [Fact]
     public void Resolve_ReportsRequiredAttributeDiagnostics()
     {
         var resolver = new ResourceResolver(

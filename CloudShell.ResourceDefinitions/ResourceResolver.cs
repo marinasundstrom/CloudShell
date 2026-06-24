@@ -41,6 +41,14 @@ public sealed class ResourceResolver
         var diagnostics = new List<ResourceDefinitionDiagnostic>();
         var typeDefinition = ResolveTypeDefinition(state, diagnostics);
         var classDefinition = ResolveClassDefinition(typeDefinition, diagnostics);
+        ValidateAttributeDefinitionDefaults(
+            classDefinition.Attributes,
+            ResourceDefinitionValueSource.ClassDefinition,
+            diagnostics);
+        ValidateAttributeDefinitionDefaults(
+            typeDefinition.Attributes,
+            ResourceDefinitionValueSource.TypeDefinition,
+            diagnostics);
         var resourceClass = ResolveResourceClass(classDefinition);
         var resourceType = ResolveResourceType(resourceClass, typeDefinition, diagnostics);
         var attributes = ResolveAttributes(resourceType, state);
@@ -412,6 +420,110 @@ public sealed class ResourceResolver
         }
     }
 
+    private static void ValidateAttributeDefinitionDefaults(
+        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? attributeDefinitions,
+        ResourceDefinitionValueSource source,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        if (attributeDefinitions is null)
+        {
+            return;
+        }
+
+        foreach (var (name, attributeDefinition) in attributeDefinitions)
+        {
+            if (attributeDefinition.DefaultValue is null ||
+                attributeDefinition.ValueShape is null)
+            {
+                continue;
+            }
+
+            ValidateAttributeDefinitionDefault(
+                name.ToString(),
+                name,
+                attributeDefinition.DefaultValue,
+                attributeDefinition.ValueShape,
+                source,
+                diagnostics);
+        }
+    }
+
+    private static void ValidateAttributeDefinitionDefault(
+        string path,
+        ResourceAttributeId target,
+        ResourceAttributeValue value,
+        ResourceAttributeValueShape shape,
+        ResourceDefinitionValueSource source,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        if (!AttributeValueMatchesShape(value, shape))
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                ResourceDefinitionDiagnosticCodes.AttributeDefinitionDefaultInvalid,
+                $"Attribute default '{path}' from {source} has value kind '{value.Kind}' but declares shape '{shape.Kind}'.",
+                target));
+            return;
+        }
+
+        if (shape.Kind == ResourceAttributeValueKind.Object &&
+            shape.Fields is not null)
+        {
+            var objectValue = value.ObjectValue ?? new Dictionary<string, ResourceAttributeValue>();
+
+            foreach (var field in shape.Fields)
+            {
+                if (!objectValue.TryGetValue(field.Name, out var fieldValue))
+                {
+                    if (field.Required)
+                    {
+                        diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                            ResourceDefinitionDiagnosticCodes.AttributeDefinitionDefaultInvalid,
+                            $"Attribute default '{path}' from {source} is missing required field '{field.Name}'.",
+                            $"{target}.{field.Name}"));
+                    }
+
+                    continue;
+                }
+
+                ValidateAttributeDefinitionDefault(
+                    $"{path}.{field.Name}",
+                    target,
+                    fieldValue,
+                    field.ValueShape,
+                    source,
+                    diagnostics);
+            }
+        }
+
+        if (shape.Kind == ResourceAttributeValueKind.Array &&
+            shape.ElementShape is not null)
+        {
+            var index = 0;
+
+            foreach (var element in value.ArrayValue ?? [])
+            {
+                ValidateAttributeDefinitionDefault(
+                    $"{path}[{index}]",
+                    target,
+                    element,
+                    shape.ElementShape,
+                    source,
+                    diagnostics);
+                index++;
+            }
+        }
+    }
+
+    private static bool AttributeValueMatchesShape(
+        ResourceAttributeValue value,
+        ResourceAttributeValueShape shape) =>
+        shape.Kind switch
+        {
+            ResourceAttributeValueKind.Decimal => value.Kind is
+                ResourceAttributeValueKind.Decimal or ResourceAttributeValueKind.Integer,
+            _ => value.Kind == shape.Kind
+        };
+
     private static void ValidateRequiredCapabilities(
         ResourceCapabilitySet capabilities,
         List<ResourceDefinitionDiagnostic> diagnostics)
@@ -477,6 +589,7 @@ public static class ResourceDefinitionDiagnosticCodes
     public const string ResourceGraphVersionConflict = "resourceDefinition.graphVersionConflict";
     public const string ResourceGraphResourceMissing = "resourceDefinition.graphResourceMissing";
     public const string ResourceDependencyCycle = "resourceDefinition.dependencyCycle";
+    public const string AttributeDefinitionDefaultInvalid = "resourceDefinition.attributeDefinitionDefaultInvalid";
 }
 
 public static class ResourceDefinitionClassIds
