@@ -24,8 +24,12 @@ on `git blame --follow`, and then by the broad type of change.
   resource commands.
 - The resource definitions proposal now tracks inherited
   `ResourceClassDefinition` and `ResourceTypeDefinition` expectations,
-  effective attribute/capability/command resolution, and common plus
+  effective attribute/capability/operation resolution, and common plus
   provider-owned attribute validators.
+- The resource definitions proposal now clarifies that operations are declared
+  resource behavior resolved like attributes and capabilities, with operation
+  providers implementing matching resolved operations and optional source
+  generators as a future facade/builder aid.
 - SQL Server declared database child-resource projection now lives in
   `SqlServerDatabaseResourceProjector`, moving another resource-type concern
   out of `ApplicationResourceService`.
@@ -128,6 +132,9 @@ on `git blame --follow`, and then by the broad type of change.
   `ContainerApplicationUpdateOperations` behind
   `IContainerApplicationUpdateOperations`; the runtime/procedure coordinator
   keeps lifecycle execution and container-app orchestration hooks.
+- Container app deployment description now lives in
+  `ContainerApplicationDeploymentDescriptionOperations`, separating
+  Resource Manager deployment shape projection from runtime service execution.
 - Container app deployment outcome handling now lives in
   `ContainerApplicationDeploymentOutcomeOperations`, separating post-apply,
   failed-apply, and tear-down planning from runtime service execution.

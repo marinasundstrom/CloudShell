@@ -151,12 +151,6 @@ public interface IContainerApplicationOrchestrationOperations
         ResourceProcedureContext context,
         CancellationToken cancellationToken = default);
 
-    bool CanDescribeDeployment(Resource resource);
-
-    Task<ResourceOrchestratorDeployment?> DescribeDeploymentAsync(
-        ResourceProcedureContext context,
-        CancellationToken cancellationToken = default);
-
     Task PrepareOrchestratorServiceAsync(
         ResourceOrchestratorServiceProcedureContext context,
         ResourceAction action,
@@ -165,6 +159,15 @@ public interface IContainerApplicationOrchestrationOperations
     Task ExecuteOrchestratorServiceInstanceAsync(
         ResourceOrchestratorServiceInstanceContext context,
         ResourceAction action,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IContainerApplicationDeploymentDescriptionOperations
+{
+    bool CanDescribeDeployment(Resource resource);
+
+    Task<ResourceOrchestratorDeployment?> DescribeDeploymentAsync(
+        ResourceProcedureContext context,
         CancellationToken cancellationToken = default);
 }
 

@@ -12,6 +12,7 @@ internal sealed class ContainerApplicationResourceProvider(
     IApplicationResourceActionAvailabilityOperations actions,
     IContainerApplicationUpdateOperations containerApplicationUpdates,
     IContainerApplicationOrchestrationOperations containerApplicationOrchestration,
+    IContainerApplicationDeploymentDescriptionOperations containerApplicationDeploymentDescriptions,
     IContainerApplicationDeploymentOutcomeOperations containerApplicationDeploymentOutcomes)
     : ApplicationResourceTypeProvider(
         projections,
@@ -80,12 +81,12 @@ internal sealed class ContainerApplicationResourceProvider(
         containerApplicationOrchestration.CreateOrchestratorServiceAsync(context, cancellationToken);
 
     public bool CanDescribeDeployment(Resource resource) =>
-        containerApplicationOrchestration.CanDescribeDeployment(resource);
+        containerApplicationDeploymentDescriptions.CanDescribeDeployment(resource);
 
     public Task<ResourceOrchestratorDeployment?> DescribeDeploymentAsync(
         ResourceProcedureContext context,
         CancellationToken cancellationToken = default) =>
-        containerApplicationOrchestration.DescribeDeploymentAsync(context, cancellationToken);
+        containerApplicationDeploymentDescriptions.DescribeDeploymentAsync(context, cancellationToken);
 
     public Task PrepareOrchestratorServiceAsync(
         ResourceOrchestratorServiceProcedureContext context,

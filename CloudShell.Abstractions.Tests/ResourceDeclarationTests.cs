@@ -11038,6 +11038,7 @@ public sealed class ResourceDeclarationTests
             var registrations = new DeclarationRegistrationStore(declarationStore);
             var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
             var updates = serviceProvider.GetRequiredService<IContainerApplicationUpdateOperations>();
+            var deploymentDescriptions = serviceProvider.GetRequiredService<IContainerApplicationDeploymentDescriptionOperations>();
             var deploymentOutcomes = serviceProvider.GetRequiredService<IContainerApplicationDeploymentOutcomeOperations>();
             var providers = serviceProvider.GetServices<IResourceProvider>().ToArray();
             var resources = providers
@@ -11060,7 +11061,7 @@ public sealed class ResourceDeclarationTests
                 requestedReplicas: 2);
             var updatedResource = Assert.Single(provider.GetResources(), resource =>
                 resource.Id == "application:api");
-            var deployment = await provider.DescribeDeploymentAsync(
+            var deployment = await deploymentDescriptions.DescribeDeploymentAsync(
                 new ResourceProcedureContext(
                     updatedResource,
                     registrations.GetRegistration(updatedResource.Id),
@@ -11151,12 +11152,13 @@ public sealed class ResourceDeclarationTests
             persist: false);
 
         var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
+        var deploymentDescriptions = serviceProvider.GetRequiredService<IContainerApplicationDeploymentDescriptionOperations>();
         var deploymentOutcomes = serviceProvider.GetRequiredService<IContainerApplicationDeploymentOutcomeOperations>();
         var registrations = new DeclarationRegistrationStore(
             serviceProvider.GetRequiredService<ResourceDeclarationStore>());
         var resource = Assert.Single(provider.GetResources(), resource =>
             resource.Id == "application:api");
-        var deployment = await provider.DescribeDeploymentAsync(
+        var deployment = await deploymentDescriptions.DescribeDeploymentAsync(
             new ResourceProcedureContext(
                 resource,
                 registrations.GetRegistration(resource.Id),
@@ -11240,13 +11242,14 @@ public sealed class ResourceDeclarationTests
             persist: false);
 
         var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
+        var deploymentDescriptions = serviceProvider.GetRequiredService<IContainerApplicationDeploymentDescriptionOperations>();
         var deploymentOutcomes = serviceProvider.GetRequiredService<IContainerApplicationDeploymentOutcomeOperations>();
         var registrations = new DeclarationRegistrationStore(
             serviceProvider.GetRequiredService<ResourceDeclarationStore>());
         var resource = Assert.Single(provider.GetResources(), resource =>
             resource.Id == "application:api");
         var resourceManager = new StaticResourceManagerStore([resource]);
-        var deployment = await provider.DescribeDeploymentAsync(
+        var deployment = await deploymentDescriptions.DescribeDeploymentAsync(
             new ResourceProcedureContext(
                 resource,
                 registrations.GetRegistration(resource.Id),

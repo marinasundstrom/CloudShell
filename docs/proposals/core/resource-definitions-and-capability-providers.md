@@ -36,11 +36,11 @@ configuration into projected attributes, even though attributes are currently
 documented as stable, non-secret projected facts.
 
 Resource definitions also need inherited expectations. A resource instance can
-inherit attributes, capabilities, and commands from its `ResourceTypeDefinition`,
-and that type definition can in turn inherit from a broader
-`ResourceClassDefinition`. Raw property bags such as `.Attributes`,
-`.Capabilities`, and projected command lists therefore cannot be treated as
-the effective model. They are authored or projected inputs that need resolution
+inherit attributes, capabilities, and operations from its
+`ResourceTypeDefinition`, and that type definition can in turn inherit from a
+broader `ResourceClassDefinition`. Raw property bags such as `.Attributes`,
+`.Capabilities`, and `.Operations` therefore cannot be treated as the
+effective model. They are authored or projected inputs that need resolution
 against class, type, preset, provider, and environment rules.
 
 Capabilities have a related issue. A resource type may support a capability,
@@ -49,14 +49,23 @@ projected resource may advertise a capability that downstream systems can
 discover. Those are related, but they are not the same lifecycle phase.
 
 Resource commands and operations have the same boundary concern. A projected
-resource can advertise commands such as start, stop, restart, reconcile,
+resource can expose commands such as start, stop, restart, reconcile,
 update-image, or a provider-specific command. A command is the thing a caller
-performs. The operation is the provider-side work that happens behind that
-command. The behavior that validates command availability and executes the
-backing operation should not have to live in a single monolithic resource type
-provider. The current implementation may continue mapping commands onto the
-existing action-shaped API fields during migration, but the durable domain
-language should distinguish commands from operations.
+performs. Operations are declared on class, type, or resource definitions and
+add behavior to a resource. Some operations can be exposed as caller-facing
+commands; other operations may exist mainly to drive validation, projection,
+automation, reconciliation, or provider behavior. The behavior that validates
+operation availability and executes or applies the backing behavior should not
+have to live in a single monolithic resource type provider. The current
+implementation may continue mapping command affordances onto the existing
+action-shaped API fields during migration, but the durable domain language
+should distinguish caller-facing commands from declared operations.
+
+Other possible names for this concept are action, command, or procedure.
+`Operation` is the most neutral term because it does not imply that the
+behavior is always directly invoked by a user. The important point is that an
+operation declaration adds behavior to a resource, and a provider supplies the
+implementation for that behavior in the current environment.
 
 ## Goals
 
@@ -74,14 +83,14 @@ language should distinguish commands from operations.
   validating and interpreting capability-owned intent.
 - Treat resource operation providers as attached behavior registered through
   dependency injection, so each provider can own the provider-side operation
-  behind one defined resource command.
+  behind one declared resource operation.
 - Define `ResourceClassDefinition` and `ResourceTypeDefinition` inheritance so
-  attributes, capabilities, commands, defaults, presets, and requirements can
+  attributes, capabilities, operations, defaults, presets, and requirements can
   be resolved before validation or projection.
 - Define attribute validators for common rules and provider/type-specific
   rules, including required attributes and broader value validation.
 - Provide resolver APIs that compute effective attributes, capabilities, and
-  commands instead of asking callers to trust raw property bags.
+  operations instead of asking callers to trust raw property bags.
 - Separate resource-type validation from cross-cutting capability validation.
 - Preserve provider ownership over runtime behavior, apply/update/delete
   behavior, and provider-specific configuration.
@@ -125,8 +134,8 @@ A definition should include:
 - optional definition version
 - provider-owned configuration payload
 - capability-owned intent payloads
-- optional command declarations or operation configuration when a resource type
-  allows authored command or operation policy
+- optional operation declarations or operation configuration when a resource
+  type allows authored operation policy
 - non-secret platform metadata needed for registration, ownership, visibility,
   persistence, or grouping
 
@@ -174,7 +183,7 @@ and deployment projection.
 
 `Resource` describes the current known resource instance. It is the output of
 provider projection, provider observation, Control Plane overlays, current
-commands, health, lifecycle state, endpoints, materialization facts,
+operations, health, lifecycle state, endpoints, materialization facts,
 attributes, visibility, ownership, and authorization-filtered views.
 
 The distinction should be kept explicit:
@@ -217,8 +226,9 @@ Class and type definitions can contribute:
 - supported capabilities
 - required capabilities
 - default capability payloads
-- supported commands
-- command requirements
+- supported operations
+- operation requirements
+- operation override policy
 - provider selection requirements
 - presets or named partial definition overlays
 - class/type-level diagnostics and compatibility rules
@@ -227,19 +237,42 @@ The instance definition supplies values, selects presets where allowed, and can
 override values only within the constraints defined by the class and type. A
 type definition should not be a passive label; it should be the contract that
 explains what the definition must contain before the provider can accept it.
+Operations can be declared at any of the three levels: class, type, or
+resource definition. For example, `start` can be a class-level executable
+operation, `deployImage` can be a type-level container-app operation, and
+`reconcileDatabaseAccess` can be a resource-definition-level operation exposed
+only when a definition declares the relevant database capability or provider
+configuration. A caller-facing command can then be projected from the resolved
+operation declaration.
+
+Those are the operation declaration sites. Operation providers do not declare
+operations on their own; they advertise which resolved operation declarations
+they can handle for matching resources.
+
+Operation overrides should be explicit. A type definition can refine or hide a
+class-level operation, and a resource definition can refine or disable a
+type-level operation only when the inherited definition allows that override.
+This avoids accidental replacement of lifecycle behavior while still allowing
+resource-specific provider operations.
 
 Presets should be modeled as named overlays rather than hidden provider
 shortcuts. A preset can provide default configuration, attributes,
-capabilities, and command policy, but it still resolves through the same class
-and type validators. This keeps a preset reviewable and avoids a second path
-that bypasses the resource-definition model.
+capabilities, and operation policy, but it still resolves through the same
+class and type validators. This keeps a preset reviewable and avoids a second
+path that bypasses the resource-definition model.
 
 ## Resolution
 
-Callers should avoid reading raw `.Attributes`, `.Capabilities`, or projected
-command collections when they need the effective model. Those members can be
-missing inherited values, can contain invalid authored values, or can represent
+Callers should avoid reading raw `.Attributes`, `.Capabilities`, or
+`.Operations` when they need the effective model. Those members can be missing
+inherited values, can contain invalid authored values, or can represent
 provider projection rather than accepted intent.
+
+Operations should follow the same resolution path as attributes and
+capabilities. The raw collection records what was declared or projected at one
+layer. The resolved collection is the effective view after class definitions,
+type definitions, resource definitions, presets, provider defaults, overrides,
+and validators have been applied.
 
 The exact API is still open, but the model needs supported methods or services
 that can answer questions such as:
@@ -255,7 +288,7 @@ string? executablePath = resolved.Attributes.GetString(
 bool consumesVolumes = resolved.Capabilities.Has(
     ResourceCapabilityIds.StorageVolumeConsumer);
 
-bool canStart = resolved.Commands.Has(ResourceCommandIds.Start);
+bool hasStartOperation = resolved.Operations.Has(ResourceOperationIds.Start);
 ```
 
 A resolved definition should expose effective values and diagnostics:
@@ -267,15 +300,48 @@ public sealed record ResolvedResourceDefinition(
     ResourceTypeDefinition TypeDefinition,
     ResourceAttributeSet Attributes,
     ResourceCapabilitySet Capabilities,
-    ResourceCommandSet Commands,
+    ResourceOperationSet Operations,
     IReadOnlyList<ResourceDefinitionDiagnostic> Diagnostics);
 ```
+
+Effective values should carry source information. A resolved operation should
+know whether it came from the class definition, type definition, resource
+definition, or a preset overlay, and it should record whether a lower level
+overrode or disabled an inherited operation. That lets operation providers make
+deliberate decisions about which operation declaration they are handling.
+
+For example:
+
+```csharp
+ResourceOperationResolution startOperation = resolved.Operations.Resolve(
+    ResourceOperationIds.Start,
+    ResourceOperationResolutionLevel.Type);
+
+if (startOperation.IsAvailable)
+{
+    await operationProvider.ExecuteAsync(resolved, startOperation, context);
+}
+```
+
+The exact names are speculative, but the provider should be able to resolve a
+matching declared operation at a specified level for the matching resolved resource
+definition. It should not have to rediscover inheritance, presets, or override
+rules locally.
 
 The important requirement is not this exact API shape. The requirement is that
 CloudShell has a deliberate resolution boundary that combines class
 definitions, type definitions, presets, provider defaults, and authored
-resource definitions before validation, projection, command availability,
+resource definitions before validation, projection, operation availability,
 deployment projection, or UI rendering relies on those values.
+
+Provider-facing contracts should receive a resolved resource context rather
+than a raw definition. The concrete name is open: `ResolvedResourceDefinition`
+may be enough for definition-time validation and projection, while a shared
+`IResolvedResource` or `ResolvedResource` base abstraction may be better if the
+same provider contracts need to work over accepted definitions and projected
+resources. The important rule is that capability providers, operation
+providers, attribute validators, and resource type providers receive the
+resolved context they need instead of manually combining raw properties.
 
 The same principle applies to projected resources. A `Resource` projection can
 be checked against its known class/type expectations, but callers should use a
@@ -292,7 +358,7 @@ Responsibilities:
 - declare supported resource type IDs
 - declare the expected `ResourceClass`
 - describe supported capabilities for the resource type
-- describe supported commands for the resource type
+- describe supported operations for the resource type
 - contribute or reference the `ResourceTypeDefinition`
 - parse or adapt the provider-owned configuration payload
 - apply defaults and normalize definition intent
@@ -300,12 +366,21 @@ Responsibilities:
 - apply changes, update persisted state, and tear down resource state
 - project accepted definitions and observed provider state as `Resource`
   instances
-- expose resource commands and command availability where applicable
+- expose resource operations and operation availability where applicable
 
 Resource type providers may expose typed facades such as
 `ExecutableApplicationResourceDefinition`, `ContainerApplicationDefinition`, or
 `VolumeResourceDefinition`. Those facades should map to and from the common
 definition envelope instead of replacing it as the platform model.
+
+Typed facades and builders can remain hand-written while the model is small or
+still changing. If resource type definitions become structured enough that
+facades, builders, descriptor constants, validation stubs, or JSON mapping code
+become repetitive, CloudShell should consider C# source generators. Source
+generation should be treated as an implementation aid over the definition
+model, not as the source of truth. The durable contract remains the
+`ResourceClassDefinition`, `ResourceTypeDefinition`, `ResourceDefinition`, and
+resolved-resource model.
 
 For example, an executable application resource type provider could own the
 `application.executable` type while delegating storage mounts and start/stop
@@ -330,67 +405,66 @@ public sealed class ExecutableApplicationResourceTypeProvider(
     ];
 
     public ResourceDefinitionValidationResult Validate(
-        ResourceDefinition definition,
+        ResolvedResourceDefinition resource,
         ResourceDefinitionValidationContext context)
     {
-        var resolved = context.Resolve(definition);
-        var executable = definition.GetConfiguration<ExecutableConfiguration>(
+        var executable = resource.Definition.GetConfiguration<ExecutableConfiguration>(
             "executable");
 
         var diagnostics = new List<ResourceDefinitionDiagnostic>(
-            resolved.Diagnostics);
+            resource.Diagnostics);
 
         if (string.IsNullOrWhiteSpace(executable.Path))
         {
             diagnostics.Add(ResourceDefinitionDiagnostic.Error(
-                definition.Name,
+                resource.Definition.Name,
                 "Executable path is required."));
         }
 
-        foreach (var capability in definition.Capabilities)
+        foreach (var capability in resource.Capabilities)
         {
             var provider = capabilityProviders.FirstOrDefault(provider =>
-                provider.CanValidate(definition, capability.Key));
+                provider.CanValidate(resource, capability.Id));
 
             if (provider is null)
             {
                 diagnostics.Add(ResourceDefinitionDiagnostic.Error(
-                    definition.Name,
-                    $"No provider is registered for capability '{capability.Key}'."));
+                    resource.Definition.Name,
+                    $"No provider is registered for capability '{capability.Id}'."));
                 continue;
             }
 
-            diagnostics.AddRange(provider.Validate(definition, context).Diagnostics);
+            diagnostics.AddRange(provider.Validate(resource, context).Diagnostics);
         }
 
         return ResourceDefinitionValidationResult.FromDiagnostics(diagnostics);
     }
 
     public Resource Project(
-        ResourceDefinition definition,
+        ResolvedResourceDefinition resource,
         ResourceProjectionContext context)
     {
-        var executable = definition.GetConfiguration<ExecutableConfiguration>(
+        var executable = resource.Definition.GetConfiguration<ExecutableConfiguration>(
             "executable");
 
-        var commands = operationProviders
-            .Where(provider => provider.CanHandle(definition))
-            .Select(provider => provider.ProjectCommand(definition, context))
+        var operations = operationProviders
+            .Where(provider => provider.CanHandle(resource))
+            .Select(provider => provider.ProjectOperation(resource, context))
             .ToArray();
 
         return new Resource(
-            Id: definition.ResourceId,
-            Name: definition.Name,
+            Id: resource.Definition.ResourceId,
+            Name: resource.Definition.Name,
             Kind: TypeId,
             Provider: "applications.executable",
             Region: "local",
-            State: context.GetLifecycleState(definition.ResourceId),
-            Endpoints: context.GetEndpoints(definition.ResourceId),
-            Version: definition.Version,
+            State: context.GetLifecycleState(resource.Definition.ResourceId),
+            Endpoints: context.GetEndpoints(resource.Definition.ResourceId),
+            Version: resource.Definition.Version,
             LastUpdated: context.Now,
-            DependsOn: definition.DependsOn,
+            DependsOn: resource.Definition.DependsOn,
             TypeId: TypeId,
-            Commands: commands,
+            Operations: operations,
             ResourceClass: ResourceClass,
             Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
@@ -402,14 +476,14 @@ public sealed class ExecutableApplicationResourceTypeProvider(
     }
 
     public Task<ResourceApplyResult> ApplyAsync(
-        ResourceDefinition definition,
+        ResolvedResourceDefinition resource,
         ResourceApplyContext context,
         CancellationToken cancellationToken)
     {
-        var executable = definition.ToTyped<ExecutableApplicationResourceDefinition>();
+        var executable = resource.Definition.ToTyped<ExecutableApplicationResourceDefinition>();
         definitions.Save(executable);
 
-        return Task.FromResult(ResourceApplyResult.Accepted(definition.ResourceId));
+        return Task.FromResult(ResourceApplyResult.Accepted(resource.Definition.ResourceId));
     }
 }
 ```
@@ -440,8 +514,9 @@ Responsibilities:
 - optionally contribute projected capabilities, dependencies, attributes, or
   diagnostics after the definition has been accepted
 
-Capability providers should validate `ResourceDefinition`, not projected
-`Resource`, because projected resources already mix accepted intent, runtime
+Capability providers should validate resolved definitions, not raw definitions
+or projected `Resource` instances. Raw definitions are missing inherited
+class/type/preset values; projected resources mix accepted intent, runtime
 state, provider observations, and Control Plane overlays.
 
 For example, a storage volume consumer provider can own the
@@ -454,10 +529,10 @@ public sealed class VolumeConsumerCapabilityProvider(IVolumeManager volumes)
     public string CapabilityId => "storage.volumeConsumer";
 
     public ResourceDefinitionValidationResult Validate(
-        ResourceDefinition definition,
+        ResolvedResourceDefinition resource,
         ResourceDefinitionValidationContext context)
     {
-        var volumeConsumer = definition.GetCapability<VolumeConsumerDefinition>(
+        var volumeConsumer = resource.GetCapability<VolumeConsumerDefinition>(
             CapabilityId);
 
         // Validate mount shape, referenced volume resources, access mode,
@@ -465,9 +540,9 @@ public sealed class VolumeConsumerCapabilityProvider(IVolumeManager volumes)
     }
 
     public IEnumerable<Volume> GetVolumes(
-        ResourceDefinition definition)
+        ResolvedResourceDefinition resource)
     {
-        var volumeConsumer = definition.GetCapability<VolumeConsumerDefinition>(
+        var volumeConsumer = resource.GetCapability<VolumeConsumerDefinition>(
             CapabilityId);
 
         return volumeConsumer.Mounts
@@ -538,7 +613,7 @@ public sealed class ExecutablePathAttributeValidator : IResourceAttributeValidat
 Validation should happen at two related boundaries:
 
 - definition validation: does the authored `ResourceDefinition` satisfy its
-  class/type/capability/command requirements?
+  class/type/capability/operation requirements?
 - projection validation: does the projected `Resource` still satisfy the known
   `ResourceClassDefinition` and `ResourceTypeDefinition` expectations?
 
@@ -549,20 +624,34 @@ silently trusting raw projected attributes.
 
 ## Resource Operation Providers
 
-Resource operation providers are attached behavior for the provider-side work
-behind a defined resource command. They should be registered with dependency
-injection and resolved by the Control Plane when it projects resource commands,
-computes command availability, or executes a requested command.
+Resource operation providers are attached behavior for a declared resource
+operation. They should be registered with dependency injection and resolved by
+the Control Plane when it projects resource commands, computes command
+availability, executes a requested command, reconciles state, or applies other
+provider-owned behavior. Operation providers should resolve the operation
+declaration they handle from the resolved resource context at the level they
+explicitly support: class, type, resource definition, or a combination of those
+levels.
+
+The operation declaration is the resource model contract. The provider is the
+implementation. Two resource types can declare the same operation ID while
+using different operation providers because the concrete implementation may be
+type-specific, provider-specific, host-specific, or capability-specific. For
+example, a `start` operation can be declared broadly for executable resources,
+while local processes, container apps, and provider-backed services use
+different providers to execute the resulting start command.
 
 Responsibilities:
 
-- declare the command ID they handle
+- advertise the operation ID they handle
 - declare the resource types, resource classes, or capabilities they can
   handle
-- project the command affordance when the command applies to a resource
+- declare which operation resolution levels they handle
+- project the resource operation and any caller-facing command affordance when
+  the operation applies to a resource
 - compute current command availability and user-displayable unavailable
   reasons
-- execute the backing operation after Control Plane authorization and
+- execute or apply the backing operation after Control Plane authorization and
   validation
 - return resource procedure results, diagnostics, activity events, or
   reconciliation signals
@@ -571,8 +660,8 @@ Resource commands are not UI commands. A Resource Manager button, menu item, or
 API route can invoke a resource command, but the operation provider owns the
 domain behavior behind that command.
 
-For example, an executable start operation provider can own the standard
-`start` command for executable application resources:
+For example, an executable start operation provider can handle the resolved
+standard `start` operation for executable application resources:
 
 ```csharp
 public sealed class ExecutableStartOperationProvider(
@@ -581,28 +670,37 @@ public sealed class ExecutableStartOperationProvider(
     IResourceDefinitionCapabilityProvider<VolumeConsumerDefinition> volumes)
     : IResourceOperationProvider
 {
-    public string CommandId => ResourceCommandIds.Start;
+    public string OperationId => ResourceOperationIds.Start;
 
-    public bool CanHandle(ResourceDefinition definition) =>
-        string.Equals(
-            definition.Type,
-            "application.executable",
-            StringComparison.OrdinalIgnoreCase);
+    public ResourceOperationResolutionLevel ResolutionLevel =>
+        ResourceOperationResolutionLevel.Type;
 
-    public ResourceCommand ProjectCommand(
-        ResourceDefinition definition,
+    public bool CanHandle(ResolvedResourceDefinition resource) =>
+        resource.TypeDefinition.TypeId == "application.executable" &&
+        resource.Operations.Resolve(OperationId, ResolutionLevel).IsAvailable;
+
+    public ResourceOperation ProjectOperation(
+        ResolvedResourceDefinition resource,
         ResourceProjectionContext context) =>
         new(
-            Id: ResourceCommandIds.Start,
+            Id: ResourceOperationIds.Start,
             Label: "Start",
             Description: "Start the executable application.",
             RequiresConfirmation: false);
 
     public async Task<ResourceCommandAvailability> GetAvailabilityAsync(
-        ResourceDefinition definition,
+        ResolvedResourceDefinition resource,
         ResourceCommandAvailabilityContext context,
         CancellationToken cancellationToken)
     {
+        var operation = resource.Operations.Resolve(OperationId, ResolutionLevel);
+        if (!operation.IsAvailable)
+        {
+            return ResourceCommandAvailability.Unavailable(
+                ResourceCommandIds.Start,
+                operation.UnavailableReason ?? "The start operation is not available.");
+        }
+
         if (context.State is ResourceState.Running or ResourceState.Starting)
         {
             return ResourceCommandAvailability.Unavailable(
@@ -611,7 +709,7 @@ public sealed class ExecutableStartOperationProvider(
         }
 
         var volumeDiagnostics = await volumes.ValidateAsync(
-            definition,
+            resource,
             context.ToDefinitionValidationContext(),
             cancellationToken);
 
@@ -626,21 +724,28 @@ public sealed class ExecutableStartOperationProvider(
     }
 
     public async Task<ResourceProcedureResult> ExecuteAsync(
-        ResourceDefinition definition,
+        ResolvedResourceDefinition resource,
         ResourceCommandExecutionContext context,
         CancellationToken cancellationToken)
     {
-        var executable = definitions.Get(definition.ResourceId);
+        var operation = resource.Operations.Resolve(OperationId, ResolutionLevel);
+        if (!operation.IsAvailable)
+        {
+            return ResourceProcedureResult.Failed(
+                operation.UnavailableReason ?? "The start operation is not available.");
+        }
+
+        var executable = definitions.Get(resource.Definition.ResourceId);
         if (executable is null)
         {
             return ResourceProcedureResult.Failed(
-                $"Resource definition '{definition.ResourceId}' was not found.");
+                $"Resource definition '{resource.Definition.ResourceId}' was not found.");
         }
 
         await processes.StartAsync(executable, cancellationToken);
 
         return ResourceProcedureResult.Completed(
-            $"Started executable application '{definition.Name}'.");
+            $"Started executable application '{resource.Definition.Name}'.");
     }
 }
 ```
@@ -701,7 +806,7 @@ pipeline:
 1. Parse the definition envelope.
 2. Resolve the resource class definition and resource type definition.
 3. Apply selected presets and deterministic defaults.
-4. Resolve inherited attributes, capabilities, and commands into an effective
+4. Resolve inherited attributes, capabilities, and operations into an effective
    model.
 5. Resolve the resource type provider.
 6. Validate platform-owned identity, names, grouping, persistence, ownership,
@@ -712,10 +817,10 @@ pipeline:
 9. Resolve capability providers for declared capability intent.
 10. Let capability providers validate capability-owned payloads and references.
 11. Resolve resource operation providers for declared and type-supported
-   commands.
-12. Let operation providers validate command configuration, operation
-   configuration, and availability policy that can be checked before projection
-   or apply.
+   operations.
+12. Let operation providers validate operation configuration and command
+   projection policy, including availability policy that can be checked before
+   projection or apply.
 13. Run cross-definition graph validation, including dependencies,
    authorization, compatibility, and host/provider policy.
 14. Return diagnostics and normalized accepted definitions without side
@@ -772,16 +877,16 @@ availability are incomplete.
 2. Introduce a public preview `ResourceDefinition` envelope in
    `CloudShell.Abstractions` without migrating every provider immediately.
 3. Add preview `ResourceClassDefinition` and `ResourceTypeDefinition` records
-   with inherited attribute, capability, and command descriptors.
+   with inherited attribute, capability, and operation descriptors.
 4. Add a resource-definition resolver that computes effective attributes,
-   capabilities, commands, and diagnostics.
+   capabilities, operations, and diagnostics.
 5. Add a resource-definition validation result and diagnostic model.
 6. Add common attribute validators and one type-specific validator.
 7. Add a resource type provider validation/normalization path for one narrow
    type, preferably `cloudshell.volume` or `application.executable`.
 8. Add a capability-provider path for `storage.volumeConsumer` that validates
    `ResourceVolumeMount` intent outside application-specific code.
-9. Add a resource-operation-provider path for one standard lifecycle command,
+9. Add a resource-operation-provider path for one standard lifecycle operation,
    preferably executable `start` or container app `restart`.
 10. Map one existing programmatic builder into the definition envelope.
 11. Update resource template export/import for the same narrow type to use the
@@ -805,6 +910,9 @@ availability are incomplete.
   presets, provider defaults, and explicit resource-definition values?
 - Should class/type definitions be public authoring artifacts, provider-only
   descriptors, or both?
+- Should typed resource facades, builders, descriptor constants, or mapping
+  helpers be generated from resource type definitions with C# source
+  generators when the repetition becomes material?
 - Should definition migrations be owned entirely by resource type providers, or
   should the Control Plane own a common migration registry?
 - Which attribute validators belong in common abstractions versus provider
@@ -818,9 +926,11 @@ availability are incomplete.
 - How should operation providers declare compatibility with resource types:
   operation-provider metadata, type-provider metadata, capability requirements,
   or all of those?
-- Should resource definitions be able to declare command or operation policy,
-  or should commands always be inferred from type, provider, lifecycle state,
-  and capability support?
+- Should resource definitions be able to override inherited operations, and
+  which class/type/resource-level operation declarations may be disabled or
+  refined?
+- Should command affordances always be projected from resolved operations, or
+  should any command affordances be declared independently?
 - How should persisted definitions represent provider selection when several
   providers can handle the same resource type?
 - What is the minimal API surface for remote clients to create, validate, and
@@ -832,7 +942,10 @@ availability are incomplete.
 - Define `ResourceClassDefinition` and `ResourceTypeDefinition`, including
   inheritance, presets, requirements, and descriptor precedence.
 - Define resolver services or helper methods for effective attributes,
-  capabilities, and commands.
+  capabilities, and operations.
+- Decide whether any typed resource facades or builders should be hand-written
+  first or generated from resource type definitions later with C# source
+  generators.
 - Define resource type provider contracts for definition parsing,
   normalization, validation, projection, apply, update, and tear down.
 - Define common and provider-owned attribute validator contracts.
