@@ -382,6 +382,60 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task AddHostConfigurationSourceResourceType_RegistersCompleteResourceTypeBoundary()
+    {
+        var services = new ServiceCollection();
+        services.AddHostConfigurationSourceResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var definition = new ResourceDefinition(
+            "host-settings",
+            HostConfigurationSourceResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [HostConfigurationSourceResourceTypeProvider.Attributes.EntryCount] = "4"
+            });
+
+        var validation = await serviceProvider
+            .GetRequiredService<ResourceDefinitionValidationPipeline>()
+            .ValidateAsync(
+                definition,
+                new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.False(validation.HasErrors);
+        Assert.Equal(HostConfigurationSourceResourceTypeProvider.ClassId, validation.Resource.Class.ClassId);
+        Assert.Equal("host", validation.Resource.Attributes.GetString(
+            HostConfigurationSourceResourceTypeProvider.Attributes.ConfigurationKind));
+        Assert.Equal("host", validation.Resource.Attributes.GetString(
+            HostConfigurationSourceResourceTypeProvider.Attributes.Source));
+        Assert.Equal("4", validation.Resource.Attributes.GetString(
+            HostConfigurationSourceResourceTypeProvider.Attributes.EntryCount));
+        Assert.True(validation.Resource.Operations.Has(
+            HostConfigurationSourceResourceTypeProvider.Operations.Inspect));
+
+        var projectedGraph = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphProjectionResolver>()
+            .ProjectAsync(
+                new ResourceDefinitionGraphValidationPipelineResult(
+                    new ResourceDefinitionGraph([definition]),
+                    [validation],
+                    []),
+                new ResourceProjectionContext("local", "developer"));
+        var projection = projectedGraph.Find<HostConfigurationSourceResource>(
+            definition.EffectiveResourceId);
+
+        Assert.NotNull(projection);
+        Assert.Equal("host", projection.ConfigurationKind);
+        Assert.Equal("host", projection.Source);
+        Assert.Equal(4, projection.EntryCount);
+        var inspect = await projection.GetInspectOperationAsync();
+
+        Assert.NotNull(inspect);
+        Assert.True(await inspect.CanExecuteAsync());
+        Assert.Equal(4, inspect.PlanInspection().EntryCount);
+    }
+
+    [Fact]
     public async Task AddSecretsVaultResourceType_RegistersCompleteResourceTypeBoundary()
     {
         var services = new ServiceCollection();

@@ -1095,6 +1095,79 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesHostConfigurationSourceAcrossProviderBoundaries()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddHostConfigurationSourceResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var hostConfiguration = new ResourceDefinition(
+            "host-settings",
+            HostConfigurationSourceResourceTypeProvider.ResourceTypeId,
+            ProviderId: HostConfigurationSourceResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [HostConfigurationSourceResourceTypeProvider.Attributes.EntryCount] = "4"
+            });
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "host-configuration",
+                [hostConfiguration],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 2, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedSource = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == hostConfiguration.EffectiveResourceId);
+
+        Assert.Equal(ResourceManagerClass.Configuration, projectedSource.ResourceClass);
+        Assert.Equal(HostConfigurationSourceResourceTypeProvider.ProviderId, projectedSource.Provider);
+        Assert.Equal("host", projectedSource.ResourceAttributes["configuration.kind"]);
+        Assert.Equal("host", projectedSource.ResourceAttributes["configuration.source"]);
+        Assert.Equal("4", projectedSource.ResourceAttributes["configuration.entries"]);
+        var inspect = Assert.Single(projectedSource.ResourceActions, action =>
+            action.Id == HostConfigurationSourceResourceTypeProvider.Operations.Inspect.ToString());
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveAsync(hostConfiguration.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors);
+        var projection = Assert.IsType<HostConfigurationSourceResource>(
+            await serviceProvider
+                .GetRequiredService<ResourceProjectionResolver>()
+                .GetResourceProjectionAsync(
+                    resolution.Target!,
+                    new ResourceProjectionContext("local", "developer")));
+        Assert.Equal(4, projection.EntryCount);
+
+        var procedure = new ResourceProcedureContext(
+            projectedSource,
+            null,
+            null,
+            new EmptyResourceRegistrationStore());
+
+        Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, inspect));
+
+        var procedureResult = await provider.ExecuteActionAsync(procedure, inspect);
+
+        Assert.Equal("Executed Configuration Host Inspect for host-settings.", procedureResult.Message);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesSecretsVaultAcrossProviderBoundaries()
     {
         var services = new ServiceCollection();

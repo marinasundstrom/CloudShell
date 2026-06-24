@@ -590,6 +590,13 @@ now; later typed/complex attribute values can represent the entry collection
 or a provider-owned configuration payload without changing the provider
 boundary.
 
+A narrow host configuration source reference provider covers the companion
+`configuration.host` type. It owns host-source defaults, source and
+entry-count attributes, an inspect operation, a typed projection wrapper, and
+Resource Manager bridge coverage. The POC records only the exposed-entry count
+as Resource model state; actual host configuration values are read and
+authorized by the provider/runtime layer.
+
 A narrow Secrets Vault reference provider follows the same boundary while
 keeping secret material out of the Resource model. It owns `secrets.vault`,
 Secrets Vault class defaults, endpoint and secret-count attributes, an inspect
@@ -609,6 +616,7 @@ The working porting status for the reference POC is:
 | SQL database child (`application.sql-database`) | Ported as a narrow reference provider | Database name/source/ensure-created attributes, server `ResourceReference` validation, ensure-created operation, typed wrapper, Resource Manager bridge projection and execution | Real SQL database materialization, credential/grant reconciliation, provider-managed child ownership metadata, and UI tabs |
 | Container host (`cloudshell.container-host`) | Ported as a narrow reference provider | Infrastructure class/type defaults, host kind/endpoint/registry/default attributes, passive container image/build/filesystem-mount capability markers, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real Docker/container host runtime integration, host resolution, placement behavior, credentials, and runtime diagnostics |
 | Configuration store (`configuration.store`) | Ported as a narrow reference provider | Configuration class/type defaults, endpoint and entry-count attributes, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real configuration service runtime integration, entry collection payloads, authorization, logs, templates, and UI registration/update flow |
+| Host configuration source (`configuration.host`) | Ported as a narrow reference provider | Configuration class/type defaults, source and entry-count attributes, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Runtime host configuration lookup, entry-name payloads, authorization, templates, and UI registration/update flow |
 | Secrets Vault (`secrets.vault`) | Ported as a narrow reference provider | Secrets Vault class/type defaults, endpoint and secret-count attributes, inspect operation, typed wrapper, Resource Manager bridge projection and execution without storing secret values | Real Secrets Vault runtime integration, secret collection payloads, authorization, logs, templates, and UI registration/update flow |
 
 Host infrastructure registration is a separate concern from provider

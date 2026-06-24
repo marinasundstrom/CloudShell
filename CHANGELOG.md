@@ -184,6 +184,10 @@ on `git blame --follow`, and then by the broad type of change.
   configuration store resource type with endpoint and entry-count attributes,
   an inspect operation provider, typed wrapper, and Resource Manager bridge
   coverage, proving a non-application provider boundary in the POC.
+- The resource definitions reference providers now include a narrow host
+  configuration source resource type with source and entry-count attributes,
+  an inspect operation provider, typed wrapper, and Resource Manager bridge
+  coverage without storing host configuration values in Resource model state.
 - The resource definitions reference providers now include a narrow Secrets
   Vault resource type with endpoint and secret-count attributes, an inspect
   operation provider, typed wrapper, and Resource Manager bridge coverage
