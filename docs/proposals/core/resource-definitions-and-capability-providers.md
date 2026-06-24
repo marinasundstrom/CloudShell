@@ -1151,6 +1151,10 @@ Plane/ResourceManager/provider infrastructure, such as refresh, reconcile,
 operation execution, or capability behavior. A type provider may declare that
 an attribute is provider-managed and may delegate to those integration
 services, but it should not become the long-running runtime monitor itself.
+The provider boundary can still receive injected services when it is the
+right integration point; the important POC constraint is that recurring tasks,
+watchers, polling loops, and runtime reconciliation processes stay outside the
+type provider contract until we have a concrete execution model for them.
 When inherited definitions are resolved, an unset read-only value should
 inherit the class-level policy. A type-level `false` should be treated as an
 explicit definition-level decision to clear inherited read-only behavior, not
@@ -1737,6 +1741,16 @@ should be able to find the type ID, type-specific attributes, supported
 capabilities, supported operations, validation rules, and projection behavior
 inside the owning boundary instead of following references through a generic
 application-resource service.
+
+Resource type providers are integration points, so they may be constructed
+with provider-owned or Control Plane services when validation, projection,
+apply planning, or operation/capability resolution needs them. That does not
+make them owners of background execution. For the POC, a type provider should
+describe and validate graph state, project resource views, and delegate to
+explicit integrations; runtime task loops, continuous health checks, and
+reconciliation schedulers belong in Resource Manager, Control Plane services,
+or provider-owned runtime services that call into the graph model at defined
+boundaries.
 
 Typed facades and builders can remain hand-written while the model is small or
 still changing. If resource type definitions become structured enough that
