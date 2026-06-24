@@ -160,14 +160,18 @@ public sealed class ExecutableStartOperationProvider :
         ResourceOperationProjectionContext context,
         CancellationToken cancellationToken = default) =>
         ValueTask.FromResult<IResourceOperationProjection>(
-            new ExecutableStartOperation(resource, operation));
+            new ExecutableStartOperation(
+                context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
+                operation));
 }
 
 public sealed class ExecutableStartOperation(
-    Resource resource,
+    ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation) : IResourceOperationProjection
 {
-    public Resource Resource { get; } = resource;
+    public ResourceProjectionExecutionContext Context { get; } = context;
+
+    public Resource Resource => Context.Resource;
 
     public ResourceOperationResolution Definition { get; } = operation;
 

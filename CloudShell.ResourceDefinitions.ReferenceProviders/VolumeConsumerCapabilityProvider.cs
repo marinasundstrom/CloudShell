@@ -50,15 +50,19 @@ public sealed class VolumeConsumerCapabilityProvider :
         var definition = capability.Payload.Deserialize<VolumeConsumerDefinition>();
 
         return ValueTask.FromResult<IResourceCapabilityProjection>(
-            new VolumeConsumerCapability(resource, definition?.Mounts ?? []));
+            new VolumeConsumerCapability(
+                context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
+                definition?.Mounts ?? []));
     }
 }
 
 public sealed class VolumeConsumerCapability(
-    Resource resource,
+    ResourceProjectionExecutionContext context,
     IReadOnlyList<VolumeMountDefinition> mounts) : IResourceCapabilityProjection
 {
-    public Resource Resource { get; } = resource;
+    public ResourceProjectionExecutionContext Context { get; } = context;
+
+    public Resource Resource => Context.Resource;
 
     public ResourceCapabilityId CapabilityId => VolumeConsumerCapabilityProvider.CapabilityIdValue;
 
@@ -70,7 +74,7 @@ public sealed class VolumeConsumerCapability(
             .Concat([mount])
             .ToArray();
 
-        using var changes = Resource.CreateChangeContext();
+        using var changes = Context.CreateChangeContext();
         changes.SetCapability(
             CapabilityId,
             ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(updatedMounts)));

@@ -47,6 +47,9 @@ public sealed class ResourceDefinitionModelPocTests
         Assert.Equal("volume:data", volume.Volume);
         var startOperation = await executable.GetStartOperationAsync();
         Assert.NotNull(startOperation);
+        Assert.NotNull(startOperation.Context.Graph);
+        Assert.NotNull(startOperation.Context.FindResourceState("application.executable:api"));
+        Assert.False(startOperation.Context.CanFlushChanges);
         Assert.True(await startOperation.CanExecuteAsync());
 
         var plan = await CreateApplyPlanner().PlanApplyAsync(
@@ -97,7 +100,9 @@ public sealed class ResourceDefinitionModelPocTests
 
     private static ResourceDefinitionGraphProjectionResolver CreateGraphProjectionResolver() =>
         new(new ResourceProjectionResolver(
-            [new ExecutableApplicationResourceProjectionProvider()]));
+            [new ExecutableApplicationResourceProjectionProvider()],
+            new ResourceCapabilityResolver([new VolumeConsumerCapabilityProvider()]),
+            new ResourceOperationResolver([new ExecutableStartOperationProvider()])));
 
     private static ResourceDefinitionGraphApplyPlanner CreateApplyPlanner() =>
         new([new ExecutableApplicationResourceTypeProvider()]);

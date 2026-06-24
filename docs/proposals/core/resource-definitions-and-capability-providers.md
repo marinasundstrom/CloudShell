@@ -1521,6 +1521,21 @@ the effective capability entry, resource attributes, operation declarations,
 type/class views, current environment, and provider observations needed for
 validation.
 
+Projected capabilities should receive an implicit resource graph scope from
+the resolver/projection pipeline. The caller should not have to manually create
+a graph scope each time it resolves a capability. The projected capability
+should know the target `Resource`, the graph snapshot it was projected from
+when available, and any active graph change boundary. Capability methods can
+then create resource change contexts through that scope instead of directly
+mutating the resource or accepting a raw `ResourceDefinition`.
+
+Directly flushing graph changes from a projected capability should remain an
+explicit, scoped operation. A capability can stage changes freely through its
+execution context, but committing or flushing changes should only be available
+when the projection was resolved inside an active graph change boundary. That
+keeps capability methods ergonomic while preventing hidden writes from a
+capability projection that was created for inspection.
+
 If a capability needs to reject raw authored document shape before resource
 resolution, that should be modeled as a resource-definition validator for the
 interchange layer. It may use the same capability ID, but it is not the
@@ -1657,6 +1672,15 @@ properties for that operation while the provider owns the implementation. The
 wrapper that consumes the operation should not pass a `ResourceDefinition`
 back into it; changes can be rendered to interchange only when the operation
 needs to return a proposed resource-state update.
+
+Like capabilities, operation projections should be created with an implicit
+resource graph scope. The operation should know the target resource and the
+graph context it is operating in. If the operation needs to stage model
+changes, it should use that scope to create a resource change context and
+route accepted changes into the active graph boundary. Direct commit/flush
+from the operation should be treated as a higher-risk explicit operation and
+should only be available when the operation was resolved inside a change
+boundary that allows it.
 
 The operation declaration is the resource model contract. The provider is the
 implementation. Two resource types can declare the same operation ID while

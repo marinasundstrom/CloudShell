@@ -34,6 +34,16 @@ public sealed class ResourceDefinitionGraphProjectionResolver(
             return new([], FlattenDiagnostics(validationResult));
         }
 
+        var graphContext = context.Graph is null && context.ChangeBoundary is null
+            ? context with
+            {
+                Graph = new ResourceGraphSnapshot(
+                    ResourceGraphVersion.Initial,
+                    validationResult.Resources
+                        .Select(resource => resource.Resource.State)
+                        .ToArray())
+            }
+            : context;
         var resources = new List<IResourceProjection>();
         var diagnostics = new List<ResourceDefinitionDiagnostic>();
 
@@ -41,7 +51,7 @@ public sealed class ResourceDefinitionGraphProjectionResolver(
         {
             var projection = await projectionResolver.GetResourceProjectionAsync(
                 resource.Resource,
-                context,
+                graphContext,
                 cancellationToken);
 
             if (projection is null)

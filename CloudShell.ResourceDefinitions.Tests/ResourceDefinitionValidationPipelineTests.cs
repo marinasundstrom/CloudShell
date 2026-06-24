@@ -39,7 +39,13 @@ public sealed class ResourceDefinitionValidationPipelineTests
         Assert.NotNull(volumeCapability);
         Assert.NotNull(startOperation);
         Assert.Same(result.Resource, volumeCapability.Resource);
+        Assert.Same(result.Resource, volumeCapability.Context.Resource);
+        Assert.Null(volumeCapability.Context.Graph);
+        Assert.False(volumeCapability.Context.CanFlushChanges);
         Assert.Same(result.Resource, startOperation.Resource);
+        Assert.Same(result.Resource, startOperation.Context.Resource);
+        Assert.Null(startOperation.Context.Graph);
+        Assert.False(startOperation.Context.CanFlushChanges);
         Assert.Equal(ResourceDefinitionValueSource.TypeDefinition, startOperation.Definition.Source);
         Assert.True(await startOperation.CanExecuteAsync());
 
@@ -87,6 +93,10 @@ public sealed class ResourceDefinitionValidationPipelineTests
         Assert.NotNull(volumeConsumer);
 
         Assert.Same(result.Resource, volumeConsumer.Resource);
+        Assert.Same(result.Resource, volumeConsumer.Context.Resource);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await volumeConsumer.Context.FlushChangesAsync(new ResourceGraphCommitContext()));
 
         var changes = volumeConsumer.AddMount(
             new VolumeMountDefinition("volume:logs", "Logs", ReadOnly: true));
@@ -107,6 +117,63 @@ public sealed class ResourceDefinitionValidationPipelineTests
             mount.Volume == "volume:logs" &&
             mount.TargetPath == "Logs" &&
             mount.ReadOnly);
+    }
+
+    [Fact]
+    public async Task ProjectionCapability_CanFlushAcceptedChangesWhenResolvedInsideGraphBoundary()
+    {
+        var definition = CreateExecutableDefinition(
+            path: "dotnet",
+            capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
+            {
+                [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
+                    ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
+                    [
+                        new("volume:data", "App_Data")
+                    ]))
+            });
+        var stateProvider = new InMemoryResourceStateProvider(
+            [ResourceState.FromDefinition(definition)]);
+        var graphModel = new ResourceGraphModel(stateProvider);
+        var typeProvider = new ExecutableApplicationResourceTypeProvider();
+        var resolver = new ResourceResolver(
+            [new(ExecutableApplicationResourceTypeProvider.ClassId)],
+            [typeProvider.TypeDefinition]);
+        var capabilityResolver = new ResourceCapabilityResolver(
+            [new VolumeConsumerCapabilityProvider()]);
+        var applyDispatcher = new ResourceChangeApplyDispatcher([typeProvider]);
+
+        await using var boundary = await graphModel.BeginTransactionAsync(
+            ResourceGraphTransactionOptions.Exclusive);
+        var resource = resolver.Resolve(boundary.Snapshot.Resources.Single());
+        await capabilityResolver.BindAsync(
+            resource,
+            new ResourceCapabilityProjectionContext(
+                "local",
+                "developer",
+                new ResourceProjectionExecutionContext(
+                    resource,
+                    boundary.Snapshot,
+                    boundary)));
+        var volumeConsumer = resource.Capabilities.Get<VolumeConsumerCapability>();
+
+        Assert.NotNull(volumeConsumer);
+        Assert.True(volumeConsumer.Context.CanFlushChanges);
+        Assert.NotNull(volumeConsumer.Context.Graph);
+
+        var changes = volumeConsumer.AddMount(
+            new VolumeMountDefinition("volume:logs", "Logs", ReadOnly: true));
+        var accepted = await applyDispatcher.ApplyChangesAsync(
+            changes,
+            new ResourceChangeApplyContext("local", "developer", Commit: true));
+
+        volumeConsumer.Context.TrackAcceptedChanges(accepted);
+        var commit = await volumeConsumer.Context.FlushChangesAsync(
+            new ResourceGraphCommitContext("local", "developer"));
+
+        Assert.True(commit.IsCommitted);
+        Assert.Equal(new ResourceGraphVersion(1), commit.Version);
+        Assert.Equal(1, commit.Summary.CapabilityChangeCount);
     }
 
     [Fact]

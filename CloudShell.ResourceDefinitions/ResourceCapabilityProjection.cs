@@ -4,6 +4,8 @@ public interface IResourceCapabilityProjection
 {
     Resource Resource { get; }
 
+    ResourceProjectionExecutionContext Context { get; }
+
     ResourceCapabilityId CapabilityId { get; }
 }
 
@@ -24,7 +26,16 @@ public interface IResourceCapabilityProjector
 
 public sealed record ResourceCapabilityProjectionContext(
     string? EnvironmentId = null,
-    string? PrincipalId = null);
+    string? PrincipalId = null,
+    ResourceProjectionExecutionContext? ExecutionContext = null)
+{
+    public ResourceCapabilityProjectionContext ForResource(Resource resource) =>
+        this with
+        {
+            ExecutionContext = ExecutionContext?.ForResource(resource) ??
+                new ResourceProjectionExecutionContext(resource)
+        };
+}
 
 public sealed class ResourceCapabilityResolver(
     IEnumerable<IResourceCapabilityProjector> capabilityProjectors)
@@ -59,7 +70,7 @@ public sealed class ResourceCapabilityResolver(
         return await projector.ProjectAsync(
             resource,
             capability,
-            context,
+            context.ForResource(resource),
             cancellationToken);
     }
 
@@ -104,6 +115,8 @@ public interface IResourceOperationProjection
 {
     Resource Resource { get; }
 
+    ResourceProjectionExecutionContext Context { get; }
+
     ResourceOperationResolution Definition { get; }
 
     ResourceOperationId OperationId { get; }
@@ -137,7 +150,16 @@ public interface IResourceOperationProjector
 
 public sealed record ResourceOperationProjectionContext(
     string? EnvironmentId = null,
-    string? PrincipalId = null);
+    string? PrincipalId = null,
+    ResourceProjectionExecutionContext? ExecutionContext = null)
+{
+    public ResourceOperationProjectionContext ForResource(Resource resource) =>
+        this with
+        {
+            ExecutionContext = ExecutionContext?.ForResource(resource) ??
+                new ResourceProjectionExecutionContext(resource)
+        };
+}
 
 public sealed class ResourceOperationResolver(
     IEnumerable<IResourceOperationProjector> operationProjectors)
@@ -174,7 +196,7 @@ public sealed class ResourceOperationResolver(
         return await projector.ProjectAsync(
             resource,
             operation,
-            context,
+            context.ForResource(resource),
             cancellationToken);
     }
 
@@ -243,7 +265,86 @@ public sealed record ResourceProjectionContext(
     string? EnvironmentId = null,
     string? PrincipalId = null,
     ResourceCapabilityResolver? CapabilityResolver = null,
-    ResourceOperationResolver? OperationResolver = null);
+    ResourceOperationResolver? OperationResolver = null,
+    ResourceGraphSnapshot? Graph = null,
+    ResourceGraphTransaction? ChangeBoundary = null)
+{
+    public ResourceProjectionExecutionContext CreateExecutionContext(Resource resource) =>
+        new(
+            resource,
+            ChangeBoundary?.Snapshot ?? Graph,
+            ChangeBoundary);
+}
+
+public sealed class ResourceProjectionExecutionContext(
+    Resource resource,
+    ResourceGraphSnapshot? graph = null,
+    ResourceGraphTransaction? changeBoundary = null)
+{
+    public Resource Resource { get; } = resource;
+
+    public ResourceGraphSnapshot? Graph { get; } = graph;
+
+    public ResourceGraphTransaction? ChangeBoundary { get; } = changeBoundary;
+
+    public bool CanFlushChanges => ChangeBoundary is not null;
+
+    public ResourceProjectionExecutionContext ForResource(Resource targetResource) =>
+        ReferenceEquals(Resource, targetResource)
+            ? this
+            : new ResourceProjectionExecutionContext(targetResource, Graph, ChangeBoundary);
+
+    public ResourceState? FindResourceState(string resourceId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
+
+        return Graph?.Resources.FirstOrDefault(resource =>
+            string.Equals(
+                resource.EffectiveResourceId,
+                resourceId,
+                StringComparison.OrdinalIgnoreCase));
+    }
+
+    public ResourceChangeContext CreateChangeContext() =>
+        Resource.CreateChangeContext();
+
+    public void TrackAcceptedChanges(ResourceChangeApplyResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        if (ChangeBoundary is null)
+        {
+            throw new InvalidOperationException(
+                "The resource projection context is not attached to a graph change boundary.");
+        }
+
+        if (!string.Equals(
+            result.ChangeSet.Resource.EffectiveResourceId,
+            Resource.EffectiveResourceId,
+            StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "The accepted resource change does not belong to the projection context target resource.");
+        }
+
+        ChangeBoundary.Track(result);
+    }
+
+    public ValueTask<ResourceGraphCommitResult> FlushChangesAsync(
+        ResourceGraphCommitContext context,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        if (ChangeBoundary is null)
+        {
+            throw new InvalidOperationException(
+                "The resource projection context is not attached to a graph change boundary.");
+        }
+
+        return ChangeBoundary.CommitAsync(context, cancellationToken);
+    }
+}
 
 public sealed class ResourceProjectionResolver(
     IEnumerable<IResourceProjectionProvider> projectionProviders,
@@ -278,21 +379,25 @@ public sealed class ResourceProjectionResolver(
 
         if (resolvedContext.CapabilityResolver is not null)
         {
+            var executionContext = resolvedContext.CreateExecutionContext(resource);
             await resolvedContext.CapabilityResolver.BindAsync(
                 resource,
                 new ResourceCapabilityProjectionContext(
                     resolvedContext.EnvironmentId,
-                    resolvedContext.PrincipalId),
+                    resolvedContext.PrincipalId,
+                    executionContext),
                 cancellationToken);
         }
 
         if (resolvedContext.OperationResolver is not null)
         {
+            var executionContext = resolvedContext.CreateExecutionContext(resource);
             await resolvedContext.OperationResolver.BindAsync(
                 resource,
                 new ResourceOperationProjectionContext(
                     resolvedContext.EnvironmentId,
-                    resolvedContext.PrincipalId),
+                    resolvedContext.PrincipalId,
+                    executionContext),
                 cancellationToken);
         }
 
