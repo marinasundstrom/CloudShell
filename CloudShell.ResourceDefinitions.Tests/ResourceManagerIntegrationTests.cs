@@ -2044,6 +2044,129 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesApplicationExposureGraphAcrossProviderBoundaries()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddContainerApplicationResourceType();
+        services.AddNetworkResourceType();
+        services.AddServiceResourceType();
+        services.AddDnsZoneResourceType();
+        services.AddNameMappingResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var api = new ResourceDefinition(
+            "application-topology-api",
+            ContainerApplicationResourceTypeProvider.ResourceTypeId,
+            ProviderId: ContainerApplicationResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [ContainerApplicationResourceTypeProvider.Attributes.ContainerImage] = "example/application-topology-api:1.0"
+            });
+        var network = new ResourceDefinition(
+            "application-topology-local",
+            NetworkResourceTypeProvider.ResourceTypeId,
+            ProviderId: NetworkResourceTypeProvider.ProviderId);
+        var apiService = new ResourceDefinition(
+            "application-topology-api-service",
+            ServiceResourceTypeProvider.ResourceTypeId,
+            ProviderId: ServiceResourceTypeProvider.ProviderId,
+            DependsOn:
+            [
+                ResourceReference.ResourceId(
+                    api.EffectiveResourceId,
+                    typeId: ContainerApplicationResourceTypeProvider.ResourceTypeId),
+                ResourceReference.ResourceId(
+                    network.EffectiveResourceId,
+                    typeId: NetworkResourceTypeProvider.ResourceTypeId)
+            ],
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [ServiceResourceTypeProvider.Attributes.RoutingMode] = "logical"
+            });
+        var zone = new ResourceDefinition(
+            "application-topology-local",
+            DnsZoneResourceTypeProvider.ResourceTypeId,
+            ProviderId: DnsZoneResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [DnsZoneResourceTypeProvider.Attributes.ZoneName] = "application-topology.cloudshell.local",
+                [DnsZoneResourceTypeProvider.Attributes.Provider] = "hosts-file"
+            });
+        var mapping = new ResourceDefinition(
+            "application-topology-api-local",
+            NameMappingResourceTypeProvider.ResourceTypeId,
+            ProviderId: NameMappingResourceTypeProvider.ProviderId,
+            DependsOn:
+            [
+                ResourceReference.ResourceId(
+                    zone.EffectiveResourceId,
+                    typeId: DnsZoneResourceTypeProvider.ResourceTypeId),
+                ResourceReference.ResourceId(
+                    apiService.EffectiveResourceId,
+                    typeId: ServiceResourceTypeProvider.ResourceTypeId)
+            ],
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [NameMappingResourceTypeProvider.Attributes.HostName] =
+                    "api.application-topology.cloudshell.local",
+                [NameMappingResourceTypeProvider.Attributes.TargetEndpointName] = "http",
+                [NameMappingResourceTypeProvider.Attributes.Exposure] = "Public"
+            });
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "application-exposure",
+                [api, network, apiService, zone, mapping],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 14, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedResources = provider.GetResources().ToArray();
+        var projectedService = Assert.Single(projectedResources, resource =>
+            resource.Id == apiService.EffectiveResourceId);
+        var projectedMapping = Assert.Single(projectedResources, resource =>
+            resource.Id == mapping.EffectiveResourceId);
+        var projectedZone = Assert.Single(projectedResources, resource =>
+            resource.Id == zone.EffectiveResourceId);
+
+        Assert.Equal([api.EffectiveResourceId, network.EffectiveResourceId], projectedService.DependsOn);
+        Assert.Equal([zone.EffectiveResourceId, apiService.EffectiveResourceId], projectedMapping.DependsOn);
+        Assert.Equal("api.application-topology.cloudshell.local", projectedMapping.ResourceAttributes[
+            NameMappingResourceTypeProvider.Attributes.HostName]);
+        Assert.Contains(projectedService.ResourceActions, action =>
+            action.Id == ServiceResourceTypeProvider.Operations.Reconcile.ToString());
+        Assert.Contains(projectedZone.ResourceActions, action =>
+            action.Id == DnsZoneResourceTypeProvider.Operations.ReconcileNameMappings.ToString());
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveWithDependenciesAsync(mapping.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors, FormatDiagnostics(resolution.Diagnostics));
+        var resolvedResourceIds = resolution.Resources
+            .Select(resource => resource.EffectiveResourceId)
+            .ToArray();
+        Assert.Equal(5, resolvedResourceIds.Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.Contains(mapping.EffectiveResourceId, resolvedResourceIds);
+        Assert.Contains(zone.EffectiveResourceId, resolvedResourceIds);
+        Assert.Contains(apiService.EffectiveResourceId, resolvedResourceIds);
+        Assert.Contains(api.EffectiveResourceId, resolvedResourceIds);
+        Assert.Contains(network.EffectiveResourceId, resolvedResourceIds);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesStorageAcrossProviderBoundaries()
     {
         var services = new ServiceCollection();

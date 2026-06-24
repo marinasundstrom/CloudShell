@@ -66,6 +66,9 @@ on `git blame --follow`, and then by the broad type of change.
   ApplicationTopology-inspired graph that composes local volume, SQL Server,
   SQL database, configuration store, Secrets Vault, and executable application
   resources through the Resource Manager bridge.
+- Resource model provider integration tests now also cover an
+  ApplicationTopology-inspired exposure graph across container application,
+  network, service, DNS zone, and name-mapping reference providers.
 - The resource definitions proposal now records the near-term POC path:
   stabilize the current model enough to port real provider behavior, and
   propose new abstractions only when provider ports expose concrete gaps.

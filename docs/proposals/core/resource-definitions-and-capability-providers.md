@@ -550,10 +550,12 @@ Integration tests for the POC should use sample-shaped resource graphs as soon
 as several narrow providers exist. The Application Topology sample is a useful
 source of scenarios: SQL Server with a mounted volume, a declared SQL database,
 configuration and secrets resources, and an application resource depending on
-those graph nodes. The tests should prove provider composition, typed
-`ResourceReference` resolution, capability-produced dependencies, Resource
-Manager bridge projection, and operation projection without reintroducing the
-old aggregate application provider.
+those graph nodes. It also gives an exposure scenario where a service depends
+on a workload and network, while a name mapping depends on the service and DNS
+zone. The tests should prove provider composition, typed `ResourceReference`
+resolution, capability-produced dependencies, Resource Manager bridge
+projection, and operation projection without reintroducing the old aggregate
+application provider.
 
 Porting a provider means implementing the complete Resource model support that
 the resource type needs to work, not only mapping an existing provider to a new
