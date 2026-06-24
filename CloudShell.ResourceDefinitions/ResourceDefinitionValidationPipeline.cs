@@ -19,9 +19,13 @@ public sealed class ResourceDefinitionValidationPipeline
         ArgumentNullException.ThrowIfNull(classDefinitions);
         ArgumentNullException.ThrowIfNull(typeProviders);
 
+        var resolvedClassDefinitions = classDefinitions
+            .GroupBy(classDefinition => classDefinition.ClassId)
+            .Select(group => group.Last())
+            .ToArray();
         var materializedTypeProviders = typeProviders.ToArray();
         _resolver = new(
-            classDefinitions,
+            resolvedClassDefinitions,
             materializedTypeProviders.Select(provider => provider.TypeDefinition),
             attributeValidators);
         _dispatcher = new(

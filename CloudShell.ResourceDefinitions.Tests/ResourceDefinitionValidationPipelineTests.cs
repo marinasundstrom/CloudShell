@@ -191,6 +191,34 @@ public sealed class ResourceDefinitionValidationPipelineTests
             diagnostic.Code == ResourceDefinitionDiagnosticCodes.OperationProviderMissing);
     }
 
+    [Fact]
+    public async Task ValidateAsync_UsesLastRegisteredClassDefinitionForDuplicateClassId()
+    {
+        var startProvider = new ExecutableStartOperationProvider();
+        var pipeline = new ResourceDefinitionValidationPipeline(
+            [
+                new ResourceClassDefinition(
+                    ExecutableApplicationResourceTypeProvider.ClassId,
+                    RequiredAttributes:
+                    [
+                        new("class.required", "Class required attribute is missing.")
+                    ]),
+                ExecutableApplicationResourceTypeProvider.ClassDefinition
+            ],
+            [new ExecutableApplicationResourceTypeProvider()],
+            operationProviders: [startProvider],
+            operationProjectors: [startProvider]);
+
+        var result = await pipeline.ValidateAsync(
+            CreateExecutableDefinition("dotnet"),
+            new ResourceDefinitionValidationContext());
+
+        Assert.False(result.HasErrors);
+        Assert.DoesNotContain(result.Diagnostics, diagnostic =>
+            diagnostic.Code == ResourceDefinitionDiagnosticCodes.RequiredAttributeMissing &&
+            diagnostic.Target == "class.required");
+    }
+
     private static ResourceDefinitionValidationPipeline CreatePipeline(
         IReadOnlyList<IResourceCapabilityProvider> capabilityProviders,
         IReadOnlyList<IResourceOperationProvider> operationProviders) =>

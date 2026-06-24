@@ -83,6 +83,9 @@ on `git blame --follow`, and then by the broad type of change.
   provider-registered `ResourceClassDefinition` and `IResourceTypeProvider`
   services, while still allowing explicit host class-definition registrations
   to override provider defaults by class id.
+- Resource definition validation now applies the same class-definition
+  override rule as graph service composition, so duplicate class ids are
+  resolved consistently before provider validation runs.
 - The resource definitions POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change
