@@ -10924,6 +10924,7 @@ public sealed class ResourceDeclarationTests
         var registrations = new DeclarationRegistrationStore(declarationStore);
         var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
         var updates = serviceProvider.GetRequiredService<IContainerApplicationUpdateOperations>();
+        var deploymentOutcomes = serviceProvider.GetRequiredService<IContainerApplicationDeploymentOutcomeOperations>();
         var resource = Assert.Single(provider.GetResources(), resource =>
             resource.Id == "application:api");
         var originalRevision = resource.ResourceAttributes[ResourceAttributeNames.ContainerRevision];
@@ -10942,7 +10943,7 @@ public sealed class ResourceDeclarationTests
         var containerHistory = serviceProvider.GetRequiredService<IContainerApplicationHistoryOperations>();
         var deployment = Assert.Single(containerHistory.GetContainerDeployments("application:api"));
 
-        await provider.HandleDeploymentApplyFailedAsync(
+        await deploymentOutcomes.HandleDeploymentApplyFailedAsync(
             new ResourceProcedureContext(resource, registrations.GetRegistration(resource.Id), null, registrations),
             new ResourceOrchestratorDeployment(
                 deployment.OrchestratorDeploymentId!,
@@ -11037,6 +11038,7 @@ public sealed class ResourceDeclarationTests
             var registrations = new DeclarationRegistrationStore(declarationStore);
             var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
             var updates = serviceProvider.GetRequiredService<IContainerApplicationUpdateOperations>();
+            var deploymentOutcomes = serviceProvider.GetRequiredService<IContainerApplicationDeploymentOutcomeOperations>();
             var providers = serviceProvider.GetServices<IResourceProvider>().ToArray();
             var resources = providers
                 .SelectMany(provider => provider.GetResources())
@@ -11068,7 +11070,7 @@ public sealed class ResourceDeclarationTests
 
             Assert.NotNull(deployment);
 
-            var tearDowns = await provider.DescribeDeploymentTearDownAsync(
+            var tearDowns = await deploymentOutcomes.DescribeDeploymentTearDownAsync(
                 new ResourceProcedureContext(
                     updatedResource,
                     registrations.GetRegistration(updatedResource.Id),
@@ -11149,6 +11151,7 @@ public sealed class ResourceDeclarationTests
             persist: false);
 
         var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
+        var deploymentOutcomes = serviceProvider.GetRequiredService<IContainerApplicationDeploymentOutcomeOperations>();
         var registrations = new DeclarationRegistrationStore(
             serviceProvider.GetRequiredService<ResourceDeclarationStore>());
         var resource = Assert.Single(provider.GetResources(), resource =>
@@ -11164,7 +11167,7 @@ public sealed class ResourceDeclarationTests
 
         var appliedService = deployment.Spec.Service with { RuntimeRevisionId = deployment.RevisionId };
         var appliedReplicaGroup = ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(appliedService);
-        var tearDowns = await provider.DescribeDeploymentTearDownAsync(
+        var tearDowns = await deploymentOutcomes.DescribeDeploymentTearDownAsync(
             new ResourceProcedureContext(
                 resource,
                 registrations.GetRegistration(resource.Id),
@@ -11237,6 +11240,7 @@ public sealed class ResourceDeclarationTests
             persist: false);
 
         var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
+        var deploymentOutcomes = serviceProvider.GetRequiredService<IContainerApplicationDeploymentOutcomeOperations>();
         var registrations = new DeclarationRegistrationStore(
             serviceProvider.GetRequiredService<ResourceDeclarationStore>());
         var resource = Assert.Single(provider.GetResources(), resource =>
@@ -11254,7 +11258,7 @@ public sealed class ResourceDeclarationTests
 
         var appliedService = deployment.Spec.Service with { RuntimeRevisionId = deployment.RevisionId };
         var appliedReplicaGroup = ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(appliedService);
-        var tearDowns = await provider.DescribeDeploymentTearDownAsync(
+        var tearDowns = await deploymentOutcomes.DescribeDeploymentTearDownAsync(
             new ResourceProcedureContext(
                 resource,
                 registrations.GetRegistration(resource.Id),

@@ -252,6 +252,9 @@ without forcing provider-specific logic into shared helpers.
 - [x] Move container app image and replica update intent operations into
   `ContainerApplicationUpdateOperations`, leaving lifecycle execution and
   orchestration hooks in the runtime/procedure coordinator for this slice.
+- [x] Move container app deployment outcome handling into
+  `ContainerApplicationDeploymentOutcomeOperations`, separating post-apply,
+  failed-apply, and tear-down planning from runtime service execution.
 
 ## Next Slices
 
@@ -283,6 +286,8 @@ without forcing provider-specific logic into shared helpers.
   the shared application service facade.
 - [x] Split container app image and replica update operations behind
   `IContainerApplicationUpdateOperations`.
+- [x] Split container app deployment outcome handling behind
+  `IContainerApplicationDeploymentOutcomeOperations`.
 - [x] Extract the container app orchestrator deployment factory from the shared
   service so deployment description is independently testable.
 - [ ] Revisit post-apply teardown ownership. Prefer Resource Manager

@@ -28,7 +28,6 @@ public sealed partial class ApplicationResourceRuntimeOperations(
     IEnumerable<IResourceEnvironmentVariableProvider> environmentVariableProviders,
     ResourceDeclarationStore declarations,
     ApplicationContainerHostResolver? containerHosts = null,
-    IResourceEventSink? resourceEvents = null,
     ILoggerFactory? loggerFactory = null,
     ApplicationResourceDefinitionNormalizer? definitionNormalizer = null,
     ApplicationResourceDefinitionRegistrationService? applicationDefinitionRegistrations = null,

@@ -11,7 +11,8 @@ internal sealed class ContainerApplicationResourceProvider(
     IApplicationResourceDescriptorOperations descriptors,
     IApplicationResourceActionAvailabilityOperations actions,
     IContainerApplicationUpdateOperations containerApplicationUpdates,
-    IContainerApplicationOrchestrationOperations containerApplicationOrchestration)
+    IContainerApplicationOrchestrationOperations containerApplicationOrchestration,
+    IContainerApplicationDeploymentOutcomeOperations containerApplicationDeploymentOutcomes)
     : ApplicationResourceTypeProvider(
         projections,
         definitions,
@@ -99,30 +100,30 @@ internal sealed class ContainerApplicationResourceProvider(
         containerApplicationOrchestration.ExecuteOrchestratorServiceInstanceAsync(context, action, cancellationToken);
 
     public bool CanDescribeDeploymentTearDown(Resource resource) =>
-        containerApplicationOrchestration.CanDescribeDeployment(resource);
+        containerApplicationDeploymentOutcomes.CanDescribeDeploymentTearDown(resource);
 
     public Task<IReadOnlyList<ResourceOrchestratorReplicaGroupTearDownRequest>> DescribeDeploymentTearDownAsync(
         ResourceProcedureContext context,
         ResourceOrchestratorDeploymentApplyResult applyResult,
         CancellationToken cancellationToken = default) =>
-        containerApplicationOrchestration.DescribeDeploymentTearDownAsync(context, applyResult, cancellationToken);
+        containerApplicationDeploymentOutcomes.DescribeDeploymentTearDownAsync(context, applyResult, cancellationToken);
 
     public bool CanHandleDeploymentApplied(Resource resource) =>
-        containerApplicationOrchestration.CanDescribeDeployment(resource);
+        containerApplicationDeploymentOutcomes.CanHandleDeploymentApplied(resource);
 
     public Task HandleDeploymentAppliedAsync(
         ResourceProcedureContext context,
         ResourceOrchestratorDeploymentApplyResult applyResult,
         CancellationToken cancellationToken = default) =>
-        containerApplicationOrchestration.HandleDeploymentAppliedAsync(context, applyResult, cancellationToken);
+        containerApplicationDeploymentOutcomes.HandleDeploymentAppliedAsync(context, applyResult, cancellationToken);
 
     public bool CanHandleDeploymentApplyFailed(Resource resource) =>
-        containerApplicationOrchestration.CanDescribeDeployment(resource);
+        containerApplicationDeploymentOutcomes.CanHandleDeploymentApplyFailed(resource);
 
     public Task HandleDeploymentApplyFailedAsync(
         ResourceProcedureContext context,
         ResourceOrchestratorDeployment deployment,
         Exception exception,
         CancellationToken cancellationToken = default) =>
-        containerApplicationOrchestration.HandleDeploymentApplyFailedAsync(context, deployment, exception, cancellationToken);
+        containerApplicationDeploymentOutcomes.HandleDeploymentApplyFailedAsync(context, deployment, exception, cancellationToken);
 }

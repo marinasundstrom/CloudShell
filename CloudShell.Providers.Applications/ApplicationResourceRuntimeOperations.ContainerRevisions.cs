@@ -3,9 +3,6 @@ namespace CloudShell.Providers.Applications;
 public sealed partial class ApplicationResourceRuntimeOperations
 {
     private static readonly ApplicationContainerRevisionService ContainerRevisionService = new();
-    private static readonly ContainerApplicationDeploymentAppliedPlanner ContainerDeploymentAppliedPlanner = new();
-    private static readonly ContainerApplicationDeploymentFailurePlanner ContainerDeploymentFailurePlanner = new();
-    private static readonly ContainerApplicationDeploymentTearDownPlanner ContainerDeploymentTearDownPlanner = new();
     private static readonly ContainerApplicationRuntimeRevisionPolicy ContainerRuntimeRevisionPolicy = new();
 
     private static IReadOnlyList<ApplicationContainerRevisionHistoryEntry> CreateContainerRevisionHistoryEntries(

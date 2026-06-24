@@ -128,6 +128,9 @@ on `git blame --follow`, and then by the broad type of change.
   `ContainerApplicationUpdateOperations` behind
   `IContainerApplicationUpdateOperations`; the runtime/procedure coordinator
   keeps lifecycle execution and container-app orchestration hooks.
+- Container app deployment outcome handling now lives in
+  `ContainerApplicationDeploymentOutcomeOperations`, separating post-apply,
+  failed-apply, and tear-down planning from runtime service execution.
 
 ### 2026-06-23
 

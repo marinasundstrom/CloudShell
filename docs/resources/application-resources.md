@@ -217,16 +217,19 @@ operations for definitions, registration, configuration, declarations,
 templates, descriptors, projection, logging, monitoring, settings, cleanup,
 running-state checks, setting resolution, environment-variable resolution,
 action availability, container app history, container app image/replica
-updates, container app orchestration hooks, and SQL Server support. The
-remaining `ApplicationResourceRuntimeOperations` facade coordinates runtime
-procedure execution and container-app orchestration hooks while those concerns
-are separated further. Container app update intent now flows through
-`IContainerApplicationUpdateOperations`, so image and replica changes do not
-require callers to depend on the lifecycle procedure coordinator. The
-direction is to keep provider-neutral primitives reusable so external resource
-authors can reuse common declaration, projection, process-definition, logging,
-monitoring, endpoint, volume, and container-host command infrastructure
-without depending on runtime facade internals.
+updates, container app deployment outcomes, container app orchestration hooks,
+and SQL Server support. The remaining
+`ApplicationResourceRuntimeOperations` facade coordinates runtime procedure
+execution and container-app orchestration hooks while those concerns are
+separated further. Container app update intent now flows through
+`IContainerApplicationUpdateOperations`, and deployment apply/failure/tear-down
+outcomes flow through `IContainerApplicationDeploymentOutcomeOperations`, so
+image changes, replica changes, and deployment bookkeeping do not require
+callers to depend on the lifecycle procedure coordinator. The direction is to
+keep provider-neutral primitives reusable so external resource authors can
+reuse common declaration, projection, process-definition, logging, monitoring,
+endpoint, volume, and container-host command infrastructure without depending
+on runtime facade internals.
 
 Volume mount validation and materialization is one such provider-neutral
 primitive. `ApplicationResourceVolumeMounts` owns the common filesystem volume

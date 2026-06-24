@@ -166,16 +166,25 @@ public interface IContainerApplicationOrchestrationOperations
         ResourceOrchestratorServiceInstanceContext context,
         ResourceAction action,
         CancellationToken cancellationToken = default);
+}
+
+public interface IContainerApplicationDeploymentOutcomeOperations
+{
+    bool CanDescribeDeploymentTearDown(Resource resource);
 
     Task<IReadOnlyList<ResourceOrchestratorReplicaGroupTearDownRequest>> DescribeDeploymentTearDownAsync(
         ResourceProcedureContext context,
         ResourceOrchestratorDeploymentApplyResult applyResult,
         CancellationToken cancellationToken = default);
 
+    bool CanHandleDeploymentApplied(Resource resource);
+
     Task HandleDeploymentAppliedAsync(
         ResourceProcedureContext context,
         ResourceOrchestratorDeploymentApplyResult applyResult,
         CancellationToken cancellationToken = default);
+
+    bool CanHandleDeploymentApplyFailed(Resource resource);
 
     Task HandleDeploymentApplyFailedAsync(
         ResourceProcedureContext context,
