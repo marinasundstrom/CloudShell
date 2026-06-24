@@ -1021,6 +1021,80 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesConfigurationStoreAcrossProviderBoundaries()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddConfigurationStoreResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var configurationStore = new ResourceDefinition(
+            "settings",
+            ConfigurationStoreResourceTypeProvider.ResourceTypeId,
+            ProviderId: ConfigurationStoreResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [ConfigurationStoreResourceTypeProvider.Attributes.Endpoint] = "http://localhost:5138",
+                [ConfigurationStoreResourceTypeProvider.Attributes.EntryCount] = "3"
+            });
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "configuration-store",
+                [configurationStore],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 0, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedStore = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == configurationStore.EffectiveResourceId);
+
+        Assert.Equal(ResourceManagerClass.Configuration, projectedStore.ResourceClass);
+        Assert.Equal(ConfigurationStoreResourceTypeProvider.ProviderId, projectedStore.Provider);
+        Assert.Equal("store", projectedStore.ResourceAttributes["configuration.kind"]);
+        Assert.Equal("http://localhost:5138", projectedStore.ResourceAttributes["configuration.endpoint"]);
+        Assert.Equal("3", projectedStore.ResourceAttributes["configuration.entries"]);
+        var inspect = Assert.Single(projectedStore.ResourceActions, action =>
+            action.Id == ConfigurationStoreResourceTypeProvider.Operations.Inspect.ToString());
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveAsync(configurationStore.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors);
+        var projection = Assert.IsType<ConfigurationStoreResource>(
+            await serviceProvider
+                .GetRequiredService<ResourceProjectionResolver>()
+                .GetResourceProjectionAsync(
+                    resolution.Target!,
+                    new ResourceProjectionContext("local", "developer")));
+        Assert.Equal(3, projection.EntryCount);
+
+        var procedure = new ResourceProcedureContext(
+            projectedStore,
+            null,
+            null,
+            new EmptyResourceRegistrationStore());
+
+        Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, inspect));
+
+        var procedureResult = await provider.ExecuteActionAsync(procedure, inspect);
+
+        Assert.Equal("Executed Configuration Store Inspect for settings.", procedureResult.Message);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesSqlServerAcrossProviderBoundaries()
     {
         var services = new ServiceCollection();

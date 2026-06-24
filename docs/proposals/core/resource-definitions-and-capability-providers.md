@@ -575,7 +575,20 @@ needed by the first provider that exercises a scenario. The reference POC
 applies this by keeping provider-owned configuration records and operation
 provider services in separate files next to the owning resource type provider,
 while the type provider stays focused on definition shape, validation, and
-apply planning.
+apply planning. Each reference resource provider should live in its own
+folder, with shared capability implementations placed in a dedicated shared
+capability folder. That keeps type-specific constants, validators,
+operations, projections, and service registration close to the provider
+boundary that owns them.
+
+A narrow configuration store reference provider extends the proof outside the
+old application-provider group. It owns `configuration.store`, configuration
+class defaults, endpoint and entry-count attributes, an inspect operation, a
+typed projection wrapper, and Resource Manager bridge coverage. The POC keeps
+the actual configuration entries out of the string-backed attribute state for
+now; later typed/complex attribute values can represent the entry collection
+or a provider-owned configuration payload without changing the provider
+boundary.
 
 The working porting status for the reference POC is:
 
@@ -588,6 +601,7 @@ The working porting status for the reference POC is:
 | SQL Server (`application.sql-server`) | Ported as a narrow reference provider | Service class and type defaults, version/edition attributes, declared database configuration, shared volume-consumer capability, reconcile-access operation, typed wrapper, Resource Manager bridge projection and execution | Real SQL runtime integration, credential/grant reconciliation, database child projections, endpoints, and UI tabs |
 | SQL database child (`application.sql-database`) | Ported as a narrow reference provider | Database name/source/ensure-created attributes, server `ResourceReference` validation, ensure-created operation, typed wrapper, Resource Manager bridge projection and execution | Real SQL database materialization, credential/grant reconciliation, provider-managed child ownership metadata, and UI tabs |
 | Container host (`cloudshell.container-host`) | Ported as a narrow reference provider | Infrastructure class/type defaults, host kind/endpoint/registry/default attributes, passive container image/build/filesystem-mount capability markers, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real Docker/container host runtime integration, host resolution, placement behavior, credentials, and runtime diagnostics |
+| Configuration store (`configuration.store`) | Ported as a narrow reference provider | Configuration class/type defaults, endpoint and entry-count attributes, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real configuration service runtime integration, entry collection payloads, authorization, logs, templates, and UI registration/update flow |
 
 Host infrastructure registration is a separate concern from provider
 registration. A host may compose the generic graph services once from whatever

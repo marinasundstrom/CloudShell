@@ -180,6 +180,14 @@ on `git blame --follow`, and then by the broad type of change.
   dependencies, and the proposal records `database.server` as the future
   complex `ResourceReference` attribute shape replacing
   `database.serverResourceId`.
+- The resource definitions reference providers now include a narrow
+  configuration store resource type with endpoint and entry-count attributes,
+  an inspect operation provider, typed wrapper, and Resource Manager bridge
+  coverage, proving a non-application provider boundary in the POC.
+- Reference resource provider files are now grouped into provider-specific
+  folders, with shared capability behavior in a dedicated capability folder,
+  so provider-owned constants, validators, operations, projections, and
+  registration stay inside clear management boundaries.
 - The resource definitions POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change

@@ -327,6 +327,61 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task AddConfigurationStoreResourceType_RegistersCompleteResourceTypeBoundary()
+    {
+        var services = new ServiceCollection();
+        services.AddConfigurationStoreResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var definition = new ResourceDefinition(
+            "settings",
+            ConfigurationStoreResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [ConfigurationStoreResourceTypeProvider.Attributes.Endpoint] = "http://localhost:5138",
+                [ConfigurationStoreResourceTypeProvider.Attributes.EntryCount] = "3"
+            });
+
+        var validation = await serviceProvider
+            .GetRequiredService<ResourceDefinitionValidationPipeline>()
+            .ValidateAsync(
+                definition,
+                new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.False(validation.HasErrors);
+        Assert.Equal(ConfigurationStoreResourceTypeProvider.ClassId, validation.Resource.Class.ClassId);
+        Assert.Equal("store", validation.Resource.Attributes.GetString(
+            ConfigurationStoreResourceTypeProvider.Attributes.ConfigurationKind));
+        Assert.Equal("http://localhost:5138", validation.Resource.Attributes.GetString(
+            ConfigurationStoreResourceTypeProvider.Attributes.Endpoint));
+        Assert.Equal("3", validation.Resource.Attributes.GetString(
+            ConfigurationStoreResourceTypeProvider.Attributes.EntryCount));
+        Assert.True(validation.Resource.Operations.Has(
+            ConfigurationStoreResourceTypeProvider.Operations.Inspect));
+
+        var projectedGraph = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphProjectionResolver>()
+            .ProjectAsync(
+                new ResourceDefinitionGraphValidationPipelineResult(
+                    new ResourceDefinitionGraph([definition]),
+                    [validation],
+                    []),
+                new ResourceProjectionContext("local", "developer"));
+        var projection = projectedGraph.Find<ConfigurationStoreResource>(
+            definition.EffectiveResourceId);
+
+        Assert.NotNull(projection);
+        Assert.Equal("store", projection.ConfigurationKind);
+        Assert.Equal("http://localhost:5138", projection.Endpoint);
+        Assert.Equal(3, projection.EntryCount);
+        var inspect = await projection.GetInspectOperationAsync();
+
+        Assert.NotNull(inspect);
+        Assert.True(await inspect.CanExecuteAsync());
+        Assert.Equal(3, inspect.PlanInspection().EntryCount);
+    }
+
+    [Fact]
     public async Task AddContainerApplicationResourceType_RegistersCompleteResourceTypeBoundary()
     {
         var services = new ServiceCollection();
