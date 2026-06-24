@@ -79,6 +79,15 @@ standalone runtime scope. The orchestrator service unit is the runtime boundary
 that can contain service routing or loader materialization plus a replica
 group with requested slots for a specific workload version and replicated
 configuration.
+
+As the resource-definition model matures, deployment definitions should be
+able to carry `ResourceDefinition` entries as desired resource state. Resource
+Manager can validate the graph and then call the owning resource type
+providers to plan and apply those definitions. The orchestrator deployment
+remains the runtime materialization record; the resource definitions describe
+the desired state that providers translate into executable, container,
+database, network, storage, or other provider-owned targets.
+
 The Control Plane also records internal orchestrator deployment history for
 apply attempts, successful orchestrator revisions, and failed apply results.
 When the default orchestrator applies a deployment, it now materializes service

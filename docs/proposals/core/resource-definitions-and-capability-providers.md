@@ -483,6 +483,7 @@ Runtime resolution, providers, and generated wrappers:
 ```mermaid
 flowchart TD
     subgraph definitions [Persistable definition inputs]
+        deploymentDefinition["Deployment definition<br/>desired graph to apply"]
         resourceClassDefinition["ResourceClassDefinition"]
         typeDef["ResourceTypeDefinition"]
         resourceDef["ResourceDefinition"]
@@ -511,6 +512,7 @@ flowchart TD
         method["GetVolumesAsync()<br/>wrapper method"]
     end
 
+    deploymentDefinition --> resourceDef
     resourceClassDefinition --> resolver
     typeDef --> resolver
     resourceDef --> resolver
@@ -1212,9 +1214,24 @@ not native CloudShell definition formats.
 
 ### Deployment projection
 
-Deployment projection should consume accepted resource definitions and current
-graph context. It should not infer desired intent solely from projected
-`Resource.Attributes` when the original definition is available.
+Deployment definitions should be able to contain `ResourceDefinition` entries
+as desired resource state. In that flow, a deployment definition tells
+CloudShell what an actor wants materialized, while each resource type provider
+validates, plans, and applies the definition for the resource type it owns.
+
+This makes resource definitions useful before a resource has been persisted as
+accepted inventory. The same definition envelope can describe a new runtime
+resource to create, a changed desired state for an existing resource, or a
+candidate graph that must be validated before apply. The resource type
+provider remains the boundary that maps that desired state to an executable,
+container, orchestrator service, database, load balancer, or other managed
+target.
+
+Deployment projection should consume accepted or proposed resource definitions
+and current graph context. It should not infer desired intent solely from
+projected `Resource.Attributes` when the original definition is available.
+Projected `Resource` instances are inspection views; `ResourceDefinition` is
+the intent that providers can validate, apply, and reconcile.
 
 ### Projected resources
 
