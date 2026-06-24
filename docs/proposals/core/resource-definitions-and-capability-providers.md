@@ -107,6 +107,43 @@ implementation for that behavior in the current environment.
 - Prevent secrets from being serialized into resource definitions, projected
   attributes, diagnostics, logs, templates, or generated code.
 
+## Why This Model
+
+The main advantage of this model is that it separates graph structure from
+Control Plane operations. The Resource model owns declared resources,
+relationships, resource-owned attributes, capability declarations, operation
+declarations, and resolution rules. Resource Manager owns operational records,
+liveness, lifecycle procedures, authorization-filtered views, logs, traces,
+and provider runtime state. That lets each side evolve without forcing one
+model to carry every concern.
+
+The expected benefits are:
+
+- Cleaner provider boundaries: provider packages can define resource types,
+  attributes, capabilities, and operations without mixing those declarations
+  with Resource Manager UI or operational state.
+- A real declaration graph: declared resources and relationships can be
+  resolved, validated, rendered, diffed, and applied instead of being inferred
+  from ad hoc provider projections.
+- Lazy resolution: Resource Manager can serve ordinary inspection from its own
+  model and resolve the Resource model graph only when relationships,
+  capabilities, operations, validation, planning, or graph changes require it.
+- Behavior as model concepts: capabilities and operations become resolvable
+  resource behavior with provider-owned implementations, not scattered helper
+  methods or UI-shaped actions.
+- Deliberate interchange: `ResourceDefinition` becomes an import, export,
+  deployment, template, and debug format instead of the required internal
+  runtime state container.
+- Typed upper-domain APIs: future generated wrappers can expose typed
+  properties and methods over the low-level `Resource` projection without
+  duplicating state or introducing resource subclasses.
+- Better persistence choices: CloudShell can persist resource-owned state,
+  snapshots, or incremental changes without making the interchange document
+  the database schema or choosing a backing store too early.
+- Safer replacement path: the model can first integrate through adapters into
+  the existing Resource Manager surface, then replace older provider and
+  declaration paths only after the integration proves value.
+
 ## Non-Goals
 
 - Do not subclass projected `Resource` for executable apps, container apps,

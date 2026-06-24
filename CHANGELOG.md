@@ -94,6 +94,10 @@ on `git blame --follow`, and then by the broad type of change.
   graph structure and resolvable behavior declarations, while Resource Manager
   owns the Control Plane operational model and composes API projections from
   both models when graph-aware behavior is needed.
+- The resource definitions proposal now documents the expected advantages of
+  the new Resource model, including cleaner provider boundaries, lazy graph
+  resolution, deliberate interchange formats, typed wrapper support, better
+  persistence choices, and a safer Resource Manager replacement path.
 - The resource definitions POC now includes a capability resolver so
   provider-owned capability behavior can be composed into type-specific
   resource projections without making the definition stop being the persisted
