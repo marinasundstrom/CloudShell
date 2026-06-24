@@ -7566,7 +7566,7 @@ public sealed class ResourceDeclarationTests
     [Fact]
     public void LocalContainerVolumeArguments_PreserveUnmanagedVolumeReference()
     {
-        var arguments = ApplicationResourceRuntimeOperations.CreateLocalContainerVolumeArguments(
+        var arguments = ApplicationResourceVolumeMounts.CreateLocalContainerVolumeArguments(
             [new ResourceVolumeMount("docker-sql-data", "/var/opt/mssql", true)],
             null,
             Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")));
@@ -7608,7 +7608,7 @@ public sealed class ResourceDeclarationTests
 
         try
         {
-            var materializations = ApplicationResourceRuntimeOperations.CreateLocalProcessVolumeMaterializations(
+            var materializations = ApplicationResourceVolumeMounts.CreateLocalProcessVolumeMaterializations(
                 [new ResourceVolumeMount("volume:data", "App_Data", ReadOnly: true)],
                 resourceManager,
                 contentRoot,
@@ -7653,7 +7653,7 @@ public sealed class ResourceDeclarationTests
 
         try
         {
-            var materialization = Assert.Single(ApplicationResourceRuntimeOperations.CreateLocalProcessVolumeMaterializations(
+            var materialization = Assert.Single(ApplicationResourceVolumeMounts.CreateLocalProcessVolumeMaterializations(
                 [new ResourceVolumeMount("Data/unmanaged", "data")],
                 null,
                 contentRoot,
@@ -7719,7 +7719,7 @@ public sealed class ResourceDeclarationTests
             Capabilities: [new(ResourceCapabilityIds.StorageVolume)]);
         var resourceManager = new StaticResourceManagerStore([storage, volume]);
 
-        var arguments = ApplicationResourceRuntimeOperations.CreateLocalContainerVolumeArguments(
+        var arguments = ApplicationResourceVolumeMounts.CreateLocalContainerVolumeArguments(
             [new ResourceVolumeMount("volume:sql-data", "/var/opt/mssql", false, "data")],
             resourceManager,
             contentRoot);
@@ -8176,7 +8176,7 @@ public sealed class ResourceDeclarationTests
             Capabilities: [new(ResourceCapabilityIds.StorageVolume)]);
         var resourceManager = new StaticResourceManagerStore([storage, volume]);
 
-        var reason = ApplicationResourceRuntimeOperations.GetVolumeMountUnavailableReason(
+        var reason = ApplicationResourceVolumeMounts.GetVolumeMountUnavailableReason(
             [new ResourceVolumeMount("volume:data", "/data")],
             resourceManager,
             contentRoot);

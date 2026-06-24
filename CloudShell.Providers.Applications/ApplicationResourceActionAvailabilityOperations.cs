@@ -114,7 +114,7 @@ public sealed class ApplicationResourceActionAvailabilityOperations(
             }
         }
 
-        var volumeReason = ApplicationResourceRuntimeOperations.GetVolumeMountUnavailableReason(
+        var volumeReason = ApplicationResourceVolumeMounts.GetVolumeMountUnavailableReason(
             application.VolumeMounts,
             context.ResourceManager,
             environment.ContentRootPath,

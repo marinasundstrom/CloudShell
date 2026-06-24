@@ -225,6 +225,12 @@ projection, process-definition, logging, monitoring, endpoint, volume, and
 container-host command infrastructure without depending on runtime facade
 internals.
 
+Volume mount validation and materialization is one such provider-neutral
+primitive. `ApplicationResourceVolumeMounts` owns the common filesystem volume
+resolution used by action availability, local process startup, and local
+container startup, while each resource provider still decides when volume
+mount policy applies to its resource type.
+
 `ApplicationResourceDefinitionNormalizer` owns the shared hygiene pass for
 application-backed definitions, such as identity, dependencies, endpoints, log
 sources, health declarations, storage mounts, and configuration references.

@@ -2,22 +2,8 @@ using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.Providers.Applications;
 
-public sealed partial class ApplicationResourceRuntimeOperations
+internal static class ApplicationResourceVolumeMounts
 {
-    private static IReadOnlyList<ResourceVolumeMount> NormalizeVolumeMounts(
-        IReadOnlyList<ResourceVolumeMount> volumeMounts) =>
-        volumeMounts
-            .Where(mount =>
-                !string.IsNullOrWhiteSpace(mount.VolumeReference) &&
-                !string.IsNullOrWhiteSpace(mount.TargetPath))
-            .Select(mount => mount with
-            {
-                VolumeReference = mount.NormalizedVolumeReference,
-                TargetPath = mount.NormalizedTargetPath,
-                Name = mount.NormalizedName
-            })
-            .ToArray();
-
     internal static IReadOnlyList<string> CreateLocalContainerVolumeArguments(
         IReadOnlyList<ResourceVolumeMount> mounts,
         IResourceManagerStore? resourceManager,
@@ -42,7 +28,7 @@ public sealed partial class ApplicationResourceRuntimeOperations
                 workingDirectory))
             .ToArray();
 
-    private static IReadOnlyList<LocalContainerVolumeMaterialization> CreateLocalContainerVolumeMaterializations(
+    internal static IReadOnlyList<LocalContainerVolumeMaterialization> CreateLocalContainerVolumeMaterializations(
         IReadOnlyList<ResourceVolumeMount> mounts,
         IResourceManagerStore? resourceManager,
         string contentRootPath) =>
@@ -179,7 +165,7 @@ public sealed partial class ApplicationResourceRuntimeOperations
                 contentRootPath,
                 "Data",
                 "storage",
-                CreateStableIdentifier(storage.Id));
+                ApplicationResourceNames.CreateStableIdentifier(storage.Id));
         }
 
         var fullStorageRoot = ResolveContentRootPath(storageRoot, contentRootPath);
@@ -205,17 +191,6 @@ public sealed partial class ApplicationResourceRuntimeOperations
 
         return $"Container host '{containerHost.Id}' does not advertise required storage capability '{ContainerHostCapabilityIds.StorageMountFileSystem}' for {sourceDescription}.";
     }
-
-    private static IReadOnlyList<ResourceVolumeMountMaterialization> MarkVolumeMountsNotActive(
-        IEnumerable<ResourceVolumeMountMaterialization> mounts,
-        DateTimeOffset observedAt) =>
-        mounts
-            .Select(mount => mount with
-            {
-                Status = ResourceVolumeMountMaterializationStatus.NotActive,
-                ObservedAt = observedAt
-            })
-            .ToArray();
 
     private static LocalContainerVolumeMaterialization CreateLocalContainerVolumeMaterialization(
         ResourceVolumeMount mount,
@@ -341,7 +316,7 @@ public sealed partial class ApplicationResourceRuntimeOperations
                 contentRootPath,
                 "Data",
                 "storage",
-                CreateStableIdentifier(volume.Id));
+                ApplicationResourceNames.CreateStableIdentifier(volume.Id));
         }
 
         var fullPath = ResolveContentRootPath(path, contentRootPath);
@@ -381,13 +356,13 @@ public sealed partial class ApplicationResourceRuntimeOperations
                 contentRootPath,
                 "Data",
                 "storage",
-                CreateStableIdentifier(storage.Id));
+                ApplicationResourceNames.CreateStableIdentifier(storage.Id));
         }
 
         var fullStorageRoot = ResolveContentRootPath(storageRoot, contentRootPath);
         if (string.IsNullOrWhiteSpace(subPath))
         {
-            return Path.Combine(fullStorageRoot, CreateStableIdentifier(volume.Id));
+            return Path.Combine(fullStorageRoot, ApplicationResourceNames.CreateStableIdentifier(volume.Id));
         }
 
         if (Path.IsPathRooted(subPath))
@@ -481,7 +456,10 @@ public sealed partial class ApplicationResourceRuntimeOperations
         string.Equals(resource.EffectiveTypeId, "cloudshell.volume", StringComparison.OrdinalIgnoreCase) ||
         resource.HasCapability(ResourceCapabilityIds.StorageVolume);
 
-    private sealed record LocalContainerVolumeMaterialization(
+    private static string GetAttribute(Resource resource, string name) =>
+        resource.ResourceAttributes.TryGetValue(name, out var value) ? value : string.Empty;
+
+    internal sealed record LocalContainerVolumeMaterialization(
         string Argument,
         ResourceVolumeMountMaterialization RuntimeState);
 }

@@ -759,7 +759,7 @@ public sealed partial class ApplicationResourceRuntimeOperations(
         }
 
         var workingDirectory = ResolveConfiguredWorkingDirectory(definition);
-        var volumeMaterializations = CreateLocalProcessVolumeMaterializations(
+        var volumeMaterializations = ApplicationResourceVolumeMounts.CreateLocalProcessVolumeMaterializations(
             definition.VolumeMounts,
             resourceManager,
             environment.ContentRootPath,
@@ -1170,7 +1170,7 @@ public sealed partial class ApplicationResourceRuntimeOperations(
         startInfo.ArgumentList.Add($"CLOUDSHELL_RESOURCE_ID={definition.Id}");
         startInfo.ArgumentList.Add("-e");
         startInfo.ArgumentList.Add($"CLOUDSHELL_REPLICA_ORDINAL={instance.ReplicaOrdinal.ToString(CultureInfo.InvariantCulture)}");
-        var volumeMaterializations = CreateLocalContainerVolumeMaterializations(
+        var volumeMaterializations = ApplicationResourceVolumeMounts.CreateLocalContainerVolumeMaterializations(
             service.ServiceVolumeMounts,
             resourceManager,
             environment.ContentRootPath);

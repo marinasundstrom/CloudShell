@@ -246,6 +246,9 @@ without forcing provider-specific logic into shared helpers.
   into `ApplicationResourceEnvironmentVariableResolver` so workload
   descriptors and process/container startup share one provider-neutral
   resolver.
+- [x] Move application volume mount materialization and validation helpers into
+  `ApplicationResourceVolumeMounts` so action availability and runtime startup
+  do not depend on runtime coordinator static helpers.
 
 ## Next Slices
 

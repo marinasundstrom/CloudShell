@@ -117,6 +117,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Application workload and runtime environment-variable composition now lives
   in `ApplicationResourceEnvironmentVariableResolver`, shared by workload
   descriptors and process/container startup.
+- Application volume mount materialization and validation helpers now live in
+  `ApplicationResourceVolumeMounts` instead of the runtime/procedure
+  coordinator.
 
 ### 2026-06-23
 
