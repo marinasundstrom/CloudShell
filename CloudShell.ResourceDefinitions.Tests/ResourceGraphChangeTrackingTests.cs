@@ -152,6 +152,51 @@ public sealed class ResourceGraphChangeTrackingTests
     }
 
     [Fact]
+    public async Task CommitAsync_CanPersistAcceptedResourceDefinitionOverlay()
+    {
+        var committedAt = new DateTimeOffset(2026, 6, 24, 14, 0, 0, TimeSpan.Zero);
+        var stateProvider = new InMemoryResourceStateProvider(
+        [
+            CreateState("api", "./api", version: "2") with
+            {
+                Attributes = new Dictionary<ResourceAttributeId, string>
+                {
+                    [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "./api",
+                    ["container.replicas"] = "1"
+                }
+            }
+        ]);
+        var snapshot = await stateProvider.GetSnapshotAsync();
+        var tracker = new ResourceGraphChangeTracker(snapshot);
+        var resource = Resolve(FindState(snapshot, "application.executable:api"));
+        var incoming = new ResourceDefinition(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "./api-v2"
+            });
+        var applyDispatcher = new ResourceChangeApplyDispatcher(
+            [new ExecutableApplicationResourceTypeProvider()]);
+
+        tracker.Track(await applyDispatcher.ApplyChangesAsync(
+            resource.ApplyDefinition(incoming),
+            new ResourceChangeApplyContext(Commit: true)));
+        var commit = await stateProvider.CommitAsync(
+            tracker.GetChanges(),
+            new ResourceGraphCommitContext(Timestamp: committedAt));
+
+        var committed = FindState(commit.Snapshot!, "application.executable:api");
+        Assert.True(commit.IsCommitted);
+        Assert.Equal(new ResourceGraphVersion(1), commit.Version);
+        Assert.Equal(new ResourceRevision(3), committed.Revision);
+        Assert.Equal("./api-v2", committed.ResourceAttributes[
+            ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
+        Assert.Equal("1", committed.ResourceAttributes["container.replicas"]);
+        Assert.Equal(committedAt, committed.LastModifiedAt);
+    }
+
+    [Fact]
     public async Task CommitAsync_RejectsStaleGraphVersion()
     {
         var stateProvider = new InMemoryResourceStateProvider([CreateState("api", "./api")]);

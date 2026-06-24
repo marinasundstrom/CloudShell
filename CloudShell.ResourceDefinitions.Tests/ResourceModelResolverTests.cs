@@ -81,6 +81,33 @@ public sealed class ResourceModelResolverTests
     }
 
     [Fact]
+    public void ResourceDefinition_ApplyDefinitionCreatesChangeSetFromInterchangeOverlay()
+    {
+        var resolver = CreateResolver();
+        var resource = resolver.Resolve(CreateState("./api"));
+        var incoming = new ResourceDefinition(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "./worker"
+            });
+
+        var changes = resource.ApplyDefinition(incoming);
+
+        var attributeChange = Assert.Single(changes.AttributeChanges);
+        Assert.True(changes.HasChanges);
+        Assert.Equal(ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath, attributeChange.AttributeId);
+        Assert.Equal("./api", attributeChange.PreviousValue);
+        Assert.Equal("./worker", attributeChange.NewValue);
+        Assert.Equal("./worker", changes.ProposedState.ResourceAttributes[
+            ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
+        Assert.True(changes.ProposedState.CapabilityPayloads.ContainsKey(
+            VolumeConsumerCapabilityProvider.CapabilityIdValue));
+        Assert.False(resource.HasPendingChanges);
+    }
+
+    [Fact]
     public void ApplyChanges_ReturnsProposedResourceStateWithoutMutatingProjection()
     {
         var resolver = CreateResolver();

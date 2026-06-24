@@ -255,6 +255,9 @@ public sealed record Resource(
         return changes;
     }
 
+    public ResourceChangeSet ApplyDefinition(ResourceDefinition definition) =>
+        ResourceChangeSet.FromDefinition(this, definition);
+
     public ResourceDefinition ToDefinition(bool includePendingChanges = false) =>
         includePendingChanges
             ? GetPendingChanges().ToDefinition()
@@ -399,6 +402,63 @@ public sealed record ResourceChangeSet(
 
     public static ResourceChangeSet Empty(Resource resource) =>
         new(resource, resource.State, [], [], []);
+
+    public static ResourceChangeSet FromDefinition(
+        Resource resource,
+        ResourceDefinition definition)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentNullException.ThrowIfNull(definition);
+
+        var proposedState = resource.State.ApplyDefinition(definition);
+        var attributeChanges = definition.Attributes is null
+            ? Array.Empty<ResourceAttributeChange>()
+            : definition.Attributes
+                .Where(change =>
+                    !resource.State.ResourceAttributes.TryGetValue(change.Key, out var currentValue) ||
+                    !string.Equals(currentValue, change.Value, StringComparison.Ordinal))
+                .Select(change =>
+                {
+                    resource.State.ResourceAttributes.TryGetValue(change.Key, out var previousValue);
+                    return new ResourceAttributeChange(
+                        change.Key,
+                        previousValue,
+                        change.Value);
+                })
+                .ToArray();
+        var capabilityChanges = definition.Capabilities is null
+            ? Array.Empty<ResourceCapabilityChange>()
+            : definition.Capabilities
+                .Where(change =>
+                    !resource.State.CapabilityPayloads.TryGetValue(change.Key, out var currentPayload) ||
+                    !JsonPayloadEquals(currentPayload, change.Value))
+                .Select(change =>
+                {
+                    var previousPayload = resource.State.CapabilityPayloads.TryGetValue(
+                        change.Key,
+                        out var currentPayload)
+                            ? ResourceDefinitionJson.Clone(currentPayload)
+                            : (JsonElement?)null;
+
+                    return new ResourceCapabilityChange(
+                        change.Key,
+                        previousPayload,
+                        ResourceDefinitionJson.Clone(change.Value));
+                })
+                .ToArray();
+
+        return new(
+            resource,
+            proposedState,
+            attributeChanges,
+            capabilityChanges,
+            []);
+    }
+
+    private static bool JsonPayloadEquals(
+        JsonElement left,
+        JsonElement right) =>
+        string.Equals(left.GetRawText(), right.GetRawText(), StringComparison.Ordinal);
 }
 
 public sealed record ResourceAttributeChange(

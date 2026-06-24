@@ -97,6 +97,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Applying `ResourceDefinition` changes to existing resource state now merges
   incremental interchange data into the current `ResourceState` while
   preserving persisted revision and timestamp metadata until graph commit.
+- `Resource` projections can now turn incoming `ResourceDefinition` overlays
+  into `ResourceChangeSet` instances so provider apply hooks and graph commits
+  can validate and persist interchange-driven updates.
 - The resource definitions POC now routes staged `ResourceChangeSet` instances
   through provider-owned change apply providers, so a resource type can accept
   or reject proposed projection state before any future Resource Manager or

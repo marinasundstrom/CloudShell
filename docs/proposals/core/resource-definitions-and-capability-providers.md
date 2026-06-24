@@ -987,6 +987,10 @@ such as resource revision and creation/last-modified timestamps stays on the
 state object until the graph commit boundary accepts changes and assigns the
 next committed values. Fresh imports can still create a new `ResourceState`
 from a definition when there is no existing resource state to preserve.
+The projected `Resource` can also turn an incoming `ResourceDefinition` overlay
+into a `ResourceChangeSet`; that change set carries the proposed state plus the
+attribute and capability diffs that provider apply hooks and graph commit
+summaries need.
 
 The current POC adds that first provider-owned boundary through
 `IResourceChangeApplyProvider` and `ResourceChangeApplyDispatcher`. The
