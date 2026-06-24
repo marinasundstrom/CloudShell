@@ -1010,6 +1010,14 @@ apply providers, and returns one `ResourceGraphChangeSet` for the caller to
 commit or reject. Missing target resources remain graph-level diagnostics
 instead of being hidden inside a resource-local provider result.
 
+`ResourceModelGraphDefinitionApplyService` is the current Resource
+Manager-facing bridge for that flow: it loads the latest graph snapshot,
+applies incoming interchange definitions through the graph applier, and
+commits the resulting change set through `ResourceGraphModel`. The service
+returns both the staged changes and commit result so Control Plane code can
+inspect provider diagnostics, commit summaries, and version conflicts without
+making the low-level resource model own Resource Manager policy.
+
 Several accepted resource changes should also be committed as one graph
 version. The POC models that with `ResourceGraphChangeTracker`,
 `ResourceGraphChangeSet`, `ResourceGraphVersion`, and `IResourceStateProvider`.

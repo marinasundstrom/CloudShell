@@ -111,6 +111,9 @@ on `git blame --follow`, and then by the broad type of change.
   applier that stages incoming `ResourceDefinition` overlays against a graph
   snapshot, runs type-owned apply providers, and returns one commit-ready
   `ResourceGraphChangeSet`.
+- The Resource Manager bridge now exposes a definition apply service that
+  applies incoming `ResourceDefinition` overlays through the graph model and
+  returns staged changes plus the graph commit result for integration callers.
 - The resource definitions POC now groups accepted resource changes into a
   versioned resource graph change set and proves persistence through an
   in-memory state provider that commits all accepted resource states under one

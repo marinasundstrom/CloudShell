@@ -115,6 +115,7 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
         services.TryAddScoped<ResourceDefinitionGraphApplyPlanner>();
         services.TryAddScoped<ResourceChangeApplyDispatcher>();
         services.TryAddScoped<ResourceDefinitionGraphChangeApplier>();
+        services.TryAddScoped<ResourceModelGraphDefinitionApplyService>();
 
         return services;
     }

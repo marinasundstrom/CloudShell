@@ -334,6 +334,83 @@ public sealed class ResourceManagerIntegrationTests
             await provider.ExecuteActionAsync(procedure, ResourceAction.Start));
     }
 
+    [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_CommitsDefinitionOverlay()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+
+        var result = await service.ApplyDefinitionsAsync(
+            [
+                new(
+                    "api",
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    Attributes: new Dictionary<ResourceAttributeId, string>
+                    {
+                        [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet-watch"
+                    })
+            ],
+            new ResourceGraphCommitContext(
+                EnvironmentId: "local",
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 24, 16, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors);
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphVersion.Initial, result.BaseVersion);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+        Assert.Single(result.Changes.AcceptedResources);
+
+        var committed = Assert.Single(result.Commit.Snapshot!.Resources);
+        Assert.Equal(new ResourceRevision(1), committed.Revision);
+        Assert.Equal(
+            "dotnet-watch",
+            committed.ResourceAttributes[ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
+    }
+
+    [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_RejectsProviderDiagnostics()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+
+        var result = await service.ApplyDefinitionsAsync(
+            [
+                new(
+                    "api",
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    Attributes: new Dictionary<ResourceAttributeId, string>
+                    {
+                        [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = ""
+                    })
+            ],
+            new ResourceGraphCommitContext(
+                EnvironmentId: "local",
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 24, 16, 0, 0, TimeSpan.Zero)));
+
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.True(result.HasErrors);
+        Assert.False(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Rejected, result.Commit.Summary.Status);
+        Assert.Equal("application.executable.pathRequired", diagnostic.Code);
+
+        var graphModel = serviceProvider.GetRequiredService<ResourceGraphModel>();
+        var snapshot = await graphModel.GetSnapshotAsync();
+        var state = Assert.Single(snapshot.Resources);
+        Assert.Equal(
+            "dotnet",
+            state.ResourceAttributes[ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
+    }
+
     private static ResourceState CreateExecutableState(
         string name = "api",
         IReadOnlyList<string>? dependsOn = null) =>
