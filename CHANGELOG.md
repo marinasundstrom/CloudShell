@@ -69,6 +69,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource model provider integration tests now also cover an
   ApplicationTopology-inspired exposure graph across container application,
   network, service, DNS zone, and name-mapping reference providers.
+- Resource model provider integration tests now cover the ApplicationTopology
+  ASP.NET Core project workload shape with typed references to SQL database,
+  configuration store, and Secrets Vault resources.
 - The resource definitions proposal now records the near-term POC path:
   stabilize the current model enough to port real provider behavior, and
   propose new abstractions only when provider ports expose concrete gaps.

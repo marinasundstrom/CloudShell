@@ -2929,6 +2929,136 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesApplicationTopologyProjectGraphAcrossProviderBoundaries()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddLocalVolumeResourceType();
+        services.AddSqlServerResourceType();
+        services.AddSqlDatabaseResourceType();
+        services.AddConfigurationStoreResourceType();
+        services.AddSecretsVaultResourceType();
+        services.AddAspNetCoreProjectResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var volume = new ResourceDefinition(
+            "application-topology-sql-data",
+            LocalVolumeResourceTypeProvider.ResourceTypeId);
+        var sqlServer = new ResourceDefinition(
+            "application-topology-sql-server",
+            SqlServerResourceTypeProvider.ResourceTypeId,
+            ProviderId: SqlServerResourceTypeProvider.ProviderId,
+            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
+            {
+                [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
+                    ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
+                    [
+                        new(volume.EffectiveResourceId, "/var/opt/mssql")
+                    ]))
+            });
+        var database = new ResourceDefinition(
+            "application-topology-db",
+            SqlDatabaseResourceTypeProvider.ResourceTypeId,
+            ProviderId: SqlDatabaseResourceTypeProvider.ProviderId,
+            DependsOn:
+            [
+                ResourceReference.ResourceId(
+                    sqlServer.EffectiveResourceId,
+                    typeId: SqlServerResourceTypeProvider.ResourceTypeId)
+            ],
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [SqlDatabaseResourceTypeProvider.Attributes.DatabaseName] = "application_topology",
+                [SqlDatabaseResourceTypeProvider.Attributes.EnsureCreated] = bool.TrueString.ToLowerInvariant()
+            });
+        var settings = new ResourceDefinition(
+            "application-topology-settings",
+            ConfigurationStoreResourceTypeProvider.ResourceTypeId,
+            ProviderId: ConfigurationStoreResourceTypeProvider.ProviderId);
+        var secrets = new ResourceDefinition(
+            "application-topology-secrets",
+            SecretsVaultResourceTypeProvider.ResourceTypeId,
+            ProviderId: SecretsVaultResourceTypeProvider.ProviderId);
+        var api = new ResourceDefinition(
+            "application-topology-api",
+            AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
+            ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
+            DependsOn:
+            [
+                ResourceReference.ResourceId(
+                    database.EffectiveResourceId,
+                    typeId: SqlDatabaseResourceTypeProvider.ResourceTypeId),
+                ResourceReference.ResourceId(
+                    settings.EffectiveResourceId,
+                    typeId: ConfigurationStoreResourceTypeProvider.ResourceTypeId),
+                ResourceReference.ResourceId(
+                    secrets.EffectiveResourceId,
+                    typeId: SecretsVaultResourceTypeProvider.ResourceTypeId)
+            ],
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] =
+                    "../Api/CloudShell.ApplicationTopologyApi.csproj",
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectArguments] =
+                    "--urls http://localhost:21422",
+                [AspNetCoreProjectResourceTypeProvider.Attributes.HotReload] =
+                    bool.TrueString.ToLowerInvariant(),
+                [AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings] =
+                    bool.FalseString.ToLowerInvariant()
+            });
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "application-topology-project",
+                [volume, sqlServer, database, settings, secrets, api],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 15, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedApi = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == api.EffectiveResourceId);
+
+        Assert.Equal(ResourceManagerClass.Project, projectedApi.ResourceClass);
+        Assert.Equal(AspNetCoreProjectResourceTypeProvider.ProviderId, projectedApi.Provider);
+        Assert.Equal("../Api/CloudShell.ApplicationTopologyApi.csproj", projectedApi.ResourceAttributes[
+            AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath]);
+        Assert.Equal(
+            [database.EffectiveResourceId, settings.EffectiveResourceId, secrets.EffectiveResourceId],
+            projectedApi.DependsOn);
+        Assert.Contains(projectedApi.ResourceActions, action =>
+            action.Id == AspNetCoreProjectResourceTypeProvider.Operations.Start.ToString());
+        Assert.Contains(projectedApi.ResourceActions, action =>
+            action.Id == AspNetCoreProjectResourceTypeProvider.Operations.Restart.ToString());
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveWithDependenciesAsync(api.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors, FormatDiagnostics(resolution.Diagnostics));
+        var resolvedResourceIds = resolution.Resources
+            .Select(resource => resource.EffectiveResourceId)
+            .ToArray();
+        Assert.Equal(6, resolvedResourceIds.Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.Contains(api.EffectiveResourceId, resolvedResourceIds);
+        Assert.Contains(database.EffectiveResourceId, resolvedResourceIds);
+        Assert.Contains(sqlServer.EffectiveResourceId, resolvedResourceIds);
+        Assert.Contains(volume.EffectiveResourceId, resolvedResourceIds);
+        Assert.Contains(settings.EffectiveResourceId, resolvedResourceIds);
+        Assert.Contains(secrets.EffectiveResourceId, resolvedResourceIds);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_RejectsInvalidCapabilityReference()
     {
         var services = new ServiceCollection();
