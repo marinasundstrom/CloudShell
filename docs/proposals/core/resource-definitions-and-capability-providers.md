@@ -427,6 +427,18 @@ that can resolve a target resource and its declared dependency closure from a
 plus diagnostics for missing graph nodes or dependency cycles; it does not
 decide lifecycle ordering, lock policy, or persistence behavior.
 
+Identity and authorization hooks are Resource model and graph concerns, but
+identity should not automatically become an inherent property of the core
+`Resource` type. The graph can declare principal or identity-related data as a
+dedicated interchange field, such as `principal`, or as a resource-owned
+attribute, such as `attributes.principal`. If attributes need to carry that
+kind of data, the attribute model may need to support scalar values and
+structured object values. An identity capability can then expose attached
+methods and properties that interpret those declared values. The realization
+of the identity, credential materialization, policy enforcement, and runtime
+authorization checks can remain part of the operational model owned by
+Resource Manager or the broader Control Plane.
+
 The distinction should be kept explicit:
 
 | Concept | Describes | Owned by |

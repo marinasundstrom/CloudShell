@@ -115,6 +115,11 @@ on `git blame --follow`, and then by the broad type of change.
   target resource and its declared dependency closure from a
   `ResourceGraphSnapshot`, returning resolved resources and diagnostics for
   missing graph nodes or dependency cycles.
+- The resource definitions proposal now documents identity and authorization
+  hooks as Resource model graph data, such as a `principal` field or a
+  structured `attributes.principal` value that identity capabilities can
+  interpret while operational realization stays in Resource Manager or the
+  broader Control Plane.
 - The resource definitions proposal now clarifies that capabilities and
   operations are integration points whose implementations may be owned by
   Resource Manager, orchestrators, provider packages, or other Control Plane
