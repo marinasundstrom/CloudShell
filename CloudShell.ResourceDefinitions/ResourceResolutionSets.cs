@@ -56,6 +56,9 @@ public sealed class ResourceCapabilitySet : IReadOnlyCollection<ResourceCapabili
         where TCapability : class, IResourceCapabilityProjection =>
         _projections.OfType<TCapability>().FirstOrDefault();
 
+    public IResourceCapabilityProjection? GetProjection(ResourceCapabilityId capabilityId) =>
+        _projections.FirstOrDefault(projection => projection.CapabilityId == capabilityId);
+
     public TCapability? Get<TCapability>(
         ResourceCapabilityId capabilityId,
         JsonSerializerOptions? options = null) =>

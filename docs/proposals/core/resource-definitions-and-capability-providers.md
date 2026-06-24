@@ -420,6 +420,14 @@ commit policy. This keeps capability and operation objects as integration
 work units while leaving graph stability decisions at the Control Plane or
 Resource Manager boundary.
 
+The same bridge can resolve a declared capability by capability ID and return
+the capability projection registered by the consuming boundary. This gives
+Resource Manager, Control Plane services, or an orchestrator a typed
+capability work unit without making the bridge own the capability behavior.
+If the capability is declared but no capability projection has been registered,
+the bridge returns diagnostics so the caller can expose the capability as
+unavailable, route to another implementation, or keep the workflow read-only.
+
 The bridge can also translate a Resource Manager action request into the
 matching Resource model operation projection by using the action ID as the
 operation ID. That gives Resource Manager or an orchestrator a typed operation

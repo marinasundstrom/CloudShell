@@ -122,6 +122,54 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphResourceResolver_ResolvesCapabilityProjection()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices(
+            [new(ExecutableApplicationResourceTypeProvider.ClassId)]);
+        using var serviceProvider = services.BuildServiceProvider();
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveCapabilityAsync(
+                "application.executable:api",
+                VolumeConsumerCapabilityProvider.CapabilityIdValue);
+
+        Assert.True(resolution.IsResolved);
+        Assert.False(resolution.HasErrors);
+        Assert.Equal(ResourceGraphVersion.Initial, resolution.Version);
+        var capability = Assert.IsType<VolumeConsumerCapability>(resolution.Capability);
+        Assert.Same(resolution.Resource, capability.Resource);
+        Assert.Equal(VolumeConsumerCapabilityProvider.CapabilityIdValue, resolution.CapabilityId);
+        Assert.Equal("storage:data", Assert.Single(capability.Mounts).Volume);
+    }
+
+    [Fact]
+    public async Task ResourceModelGraphResourceResolver_ReturnsDiagnosticWhenCapabilityProjectionIsMissing()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
+        services.AddSingleton<IResourceTypeProvider>(new ExecutableApplicationResourceTypeProvider());
+        services.AddResourceModelGraphServices(
+            [new(ExecutableApplicationResourceTypeProvider.ClassId)]);
+        using var serviceProvider = services.BuildServiceProvider();
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveCapabilityAsync(
+                "application.executable:api",
+                VolumeConsumerCapabilityProvider.CapabilityIdValue);
+
+        Assert.False(resolution.IsResolved);
+        Assert.True(resolution.HasErrors);
+        var diagnostic = Assert.Single(resolution.Diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.ResourceCapabilityProjectionMissing, diagnostic.Code);
+        Assert.Equal("application.executable:api", diagnostic.Target);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphResourceResolver_ResolvesResourceManagerActionToOperationProjection()
     {
         var services = new ServiceCollection();

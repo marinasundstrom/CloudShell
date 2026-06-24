@@ -57,6 +57,9 @@ on `git blame --follow`, and then by the broad type of change.
   Manager action ID to the matching Resource model operation projection,
   returning diagnostics when the operation projection is not registered instead
   of executing or owning the operation boundary.
+- The Resource model Resource Manager bridge can now resolve declared
+  capability IDs to registered capability projections and report diagnostics
+  when the consuming boundary has not registered a capability implementation.
 - The resource definitions POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change

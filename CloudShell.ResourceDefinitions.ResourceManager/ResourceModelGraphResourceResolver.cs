@@ -40,6 +40,39 @@ public sealed class ResourceModelGraphResourceResolver(
             context,
             cancellationToken);
 
+    public async ValueTask<ResourceModelGraphCapabilityResolution> ResolveCapabilityAsync(
+        string resourceId,
+        ResourceCapabilityId capabilityId,
+        ResourceDefinitionResolutionContext? context = null,
+        CancellationToken cancellationToken = default)
+    {
+        var resourceResolution = await ResolveAsync(
+            resourceId,
+            context,
+            cancellationToken);
+        var diagnostics = new List<ResourceDefinitionDiagnostic>(
+            resourceResolution.Diagnostics);
+        var resource = resourceResolution.Target;
+        var capability = resource?.Capabilities.GetProjection(capabilityId);
+
+        if (resource is not null && capability is null)
+        {
+            var capabilityResolution = resource.Capabilities.Resolve(capabilityId);
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                ResourceDefinitionDiagnosticCodes.ResourceCapabilityProjectionMissing,
+                capabilityResolution is null
+                    ? $"Capability '{capabilityId}' is not available."
+                    : $"Capability '{capabilityId}' is declared but no capability projection is available.",
+                resource.EffectiveResourceId));
+        }
+
+        return new(
+            resourceResolution,
+            capabilityId,
+            capability,
+            diagnostics);
+    }
+
     public async ValueTask<ResourceModelGraphOperationResolution> ResolveOperationAsync(
         string resourceId,
         ResourceManagerAction action,
@@ -179,6 +212,24 @@ public sealed record ResourceModelGraphResourceResolution(
     public ResourceGraphVersion Version => Snapshot.Version;
 
     public Resource? Target => Resources.FirstOrDefault();
+
+    public bool HasErrors => Diagnostics.Any(diagnostic =>
+        diagnostic.Severity == ResourceDefinitionDiagnosticSeverity.Error);
+}
+
+public sealed record ResourceModelGraphCapabilityResolution(
+    ResourceModelGraphResourceResolution ResourceResolution,
+    ResourceCapabilityId CapabilityId,
+    IResourceCapabilityProjection? Capability,
+    IReadOnlyList<ResourceDefinitionDiagnostic> Diagnostics)
+{
+    public ResourceGraphSnapshot Snapshot => ResourceResolution.Snapshot;
+
+    public ResourceGraphVersion Version => ResourceResolution.Version;
+
+    public Resource? Resource => ResourceResolution.Target;
+
+    public bool IsResolved => Capability is not null && !HasErrors;
 
     public bool HasErrors => Diagnostics.Any(diagnostic =>
         diagnostic.Severity == ResourceDefinitionDiagnosticSeverity.Error);

@@ -589,6 +589,7 @@ public static class ResourceDefinitionDiagnosticCodes
     public const string ResourceGraphVersionConflict = "resourceDefinition.graphVersionConflict";
     public const string ResourceGraphResourceMissing = "resourceDefinition.graphResourceMissing";
     public const string ResourceDependencyCycle = "resourceDefinition.dependencyCycle";
+    public const string ResourceCapabilityProjectionMissing = "resourceDefinition.capabilityProjectionMissing";
     public const string ResourceOperationProjectionMissing = "resourceDefinition.operationProjectionMissing";
     public const string AttributeDefinitionDefaultInvalid = "resourceDefinition.attributeDefinitionDefaultInvalid";
 }
