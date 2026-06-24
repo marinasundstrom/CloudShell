@@ -137,7 +137,8 @@ public sealed class ResourceChangeApplyDispatcher(
         out bool? readOnly)
     {
         if (attributeDefinitions is not null &&
-            attributeDefinitions.TryGetValue(attributeId, out var attributeDefinition))
+            attributeDefinitions.TryGetValue(attributeId, out var attributeDefinition) &&
+            attributeDefinition.ReadOnly.HasValue)
         {
             readOnly = attributeDefinition.ReadOnly;
             return true;

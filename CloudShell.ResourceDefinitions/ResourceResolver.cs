@@ -249,11 +249,11 @@ public sealed class ResourceResolver
 
         foreach (var (name, attributeDefinition) in attributeDefinitions)
         {
-            if (attributeDefinition.ReadOnly)
+            if (attributeDefinition.ReadOnly == true)
             {
                 target.Add(name);
             }
-            else
+            else if (attributeDefinition.ReadOnly == false)
             {
                 target.Remove(name);
             }
@@ -282,7 +282,7 @@ public sealed class ResourceResolver
                 name,
                 value,
                 source,
-                attributeDefinition.ReadOnly);
+                attributeDefinition.ReadOnly == true);
         }
     }
 

@@ -101,6 +101,50 @@ public sealed class ResourceChangeApplyDispatcherTests
     }
 
     [Fact]
+    public async Task ApplyChangesAsync_InheritsReadOnlyAttributeMetadataFromClassDefinitions()
+    {
+        var resource = CreateReadOnlyResource(
+            "generated",
+            classReadOnly: true,
+            includeTypeAttributeDefinition: true,
+            typeReadOnly: null);
+        resource.SetAttribute("system.generated", "changed");
+        var changes = resource.ApplyChanges();
+        var dispatcher = new ResourceChangeApplyDispatcher([]);
+
+        var result = await dispatcher.ApplyChangesAsync(
+            changes,
+            new ResourceChangeApplyContext());
+
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.False(result.IsAccepted);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.ReadOnlyAttributeChange, diagnostic.Code);
+        Assert.Equal("system.generated", diagnostic.Target);
+    }
+
+    [Fact]
+    public async Task ApplyChangesAsync_AllowsTypeDefinitionToExplicitlyClearClassReadOnlyMetadata()
+    {
+        var resource = CreateReadOnlyResource(
+            "generated",
+            classReadOnly: true,
+            includeTypeAttributeDefinition: true,
+            typeReadOnly: false);
+        resource.SetAttribute("system.generated", "changed");
+        var changes = resource.ApplyChanges();
+        var dispatcher = new ResourceChangeApplyDispatcher([]);
+
+        var result = await dispatcher.ApplyChangesAsync(
+            changes,
+            new ResourceChangeApplyContext());
+
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.False(result.IsAccepted);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.ResourceChangeApplyProviderMissing, diagnostic.Code);
+        Assert.Equal(resource.EffectiveResourceId, diagnostic.Target);
+    }
+
+    [Fact]
     public async Task ApplyChangesAsync_AcceptsNoOpChangeSetWithoutProviderDispatch()
     {
         var resource = CreateResource("./api");
@@ -132,20 +176,35 @@ public sealed class ResourceChangeApplyDispatcherTests
             }));
     }
 
-    private static Resource CreateReadOnlyResource(string value = "generated")
+    private static Resource CreateReadOnlyResource(
+        string value = "generated",
+        bool? classReadOnly = null,
+        bool includeTypeAttributeDefinition = true,
+        bool? typeReadOnly = true)
     {
         ResourceClassId classId = "test";
         ResourceTypeId typeId = "test.read-only";
         var resolver = new ResourceResolver(
-            [new ResourceClassDefinition(classId)],
+            [
+                new ResourceClassDefinition(
+                    classId,
+                    Attributes: classReadOnly.HasValue
+                        ? new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                        {
+                            ["system.generated"] = new(ReadOnly: classReadOnly)
+                        }
+                        : null)
+            ],
             [
                 new(
                     typeId,
                     classId,
-                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
-                    {
-                        ["system.generated"] = new(ReadOnly: true)
-                    })
+                    Attributes: includeTypeAttributeDefinition
+                        ? new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                        {
+                            ["system.generated"] = new(ReadOnly: typeReadOnly)
+                        }
+                        : null)
             ]);
 
         return resolver.Resolve(new ResourceState(

@@ -1107,6 +1107,10 @@ should reject explicit caller attempts to create or update it unless the
 operation runs in a trusted provider-owned projection path. This keeps
 read-only state as model metadata without tying the definition contract to
 JSON, YAML, XML, database records, or any other serialization target.
+When inherited definitions are resolved, an unset read-only value should
+inherit the class-level policy. A type-level `false` should be treated as an
+explicit definition-level decision to clear inherited read-only behavior, not
+as the default behavior of every type attribute declaration.
 
 Attribute definition overrides are a future model extension, not an immediate
 POC priority. A later version may let `ResourceTypeDefinition` explicitly
