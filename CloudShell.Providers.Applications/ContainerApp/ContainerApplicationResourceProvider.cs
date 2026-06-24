@@ -12,6 +12,7 @@ internal sealed class ContainerApplicationResourceProvider(
     IApplicationResourceActionAvailabilityOperations actions,
     IContainerApplicationUpdateOperations containerApplicationUpdates,
     IContainerApplicationOrchestratorServiceDescriptionOperations containerApplicationServiceDescriptions,
+    IApplicationContainerOrchestratorServicePreparationOperations containerApplicationServicePreparation,
     IContainerApplicationOrchestrationOperations containerApplicationOrchestration,
     IContainerApplicationDeploymentDescriptionOperations containerApplicationDeploymentDescriptions,
     IContainerApplicationDeploymentOutcomeOperations containerApplicationDeploymentOutcomes)
@@ -93,7 +94,7 @@ internal sealed class ContainerApplicationResourceProvider(
         ResourceOrchestratorServiceProcedureContext context,
         ResourceAction action,
         CancellationToken cancellationToken = default) =>
-        containerApplicationOrchestration.PrepareOrchestratorServiceAsync(context, action, cancellationToken);
+        containerApplicationServicePreparation.PrepareOrchestratorServiceAsync(context, action, cancellationToken);
 
     public Task ExecuteOrchestratorServiceInstanceAsync(
         ResourceOrchestratorServiceInstanceContext context,

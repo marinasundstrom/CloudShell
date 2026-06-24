@@ -143,13 +143,16 @@ public interface IContainerApplicationUpdateOperations
 
 public interface IContainerApplicationOrchestrationOperations
 {
-    Task PrepareOrchestratorServiceAsync(
-        ResourceOrchestratorServiceProcedureContext context,
-        ResourceAction action,
-        CancellationToken cancellationToken = default);
-
     Task ExecuteOrchestratorServiceInstanceAsync(
         ResourceOrchestratorServiceInstanceContext context,
+        ResourceAction action,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IApplicationContainerOrchestratorServicePreparationOperations
+{
+    Task PrepareOrchestratorServiceAsync(
+        ResourceOrchestratorServiceProcedureContext context,
         ResourceAction action,
         CancellationToken cancellationToken = default);
 }

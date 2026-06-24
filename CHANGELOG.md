@@ -139,6 +139,10 @@ on `git blame --follow`, and then by the broad type of change.
   `ContainerApplicationOrchestratorServiceDescriptionOperations`, separating
   Resource Manager service capability and service shape creation from runtime
   service instance execution.
+- Container-backed application service preparation now lives in
+  `ApplicationContainerOrchestratorServicePreparationOperations`, separating
+  registry login, container network preparation, and replicated-app ingress
+  stop preparation from runtime service instance execution.
 - Container app deployment outcome handling now lives in
   `ContainerApplicationDeploymentOutcomeOperations`, separating post-apply,
   failed-apply, and tear-down planning from runtime service execution.

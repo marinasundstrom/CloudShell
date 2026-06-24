@@ -73,6 +73,7 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
         builder.Services.TryAddSingleton<ApplicationResourceProjectionSource>();
         builder.Services.TryAddSingleton<ContainerApplicationUpdateOperations>();
         builder.Services.TryAddSingleton<ContainerApplicationOrchestratorServiceDescriptionOperations>();
+        builder.Services.TryAddSingleton<ApplicationContainerOrchestratorServicePreparationOperations>();
         builder.Services.TryAddSingleton<ContainerApplicationDeploymentDescriptionOperations>();
         builder.Services.TryAddSingleton<ContainerApplicationDeploymentOutcomeOperations>();
         builder.Services.TryAddSingleton<ApplicationContainerHistoryService>();
@@ -109,6 +110,8 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
             serviceProvider => serviceProvider.GetRequiredService<ContainerApplicationUpdateOperations>());
         builder.Services.TryAddSingleton<IContainerApplicationOrchestrationOperations>(
             serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>());
+        builder.Services.TryAddSingleton<IApplicationContainerOrchestratorServicePreparationOperations>(
+            serviceProvider => serviceProvider.GetRequiredService<ApplicationContainerOrchestratorServicePreparationOperations>());
         builder.Services.TryAddSingleton<IContainerApplicationOrchestratorServiceDescriptionOperations>(
             serviceProvider => serviceProvider.GetRequiredService<ContainerApplicationOrchestratorServiceDescriptionOperations>());
         builder.Services.TryAddSingleton<IContainerApplicationDeploymentDescriptionOperations>(

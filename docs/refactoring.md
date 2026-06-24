@@ -259,6 +259,10 @@ without forcing provider-specific logic into shared helpers.
   `ContainerApplicationOrchestratorServiceDescriptionOperations`, separating
   Resource Manager service capability and service shape creation from runtime
   service instance execution.
+- [x] Move container-backed application service preparation into
+  `ApplicationContainerOrchestratorServicePreparationOperations`, separating
+  registry login, network preparation, and replicated-app ingress stop
+  preparation from runtime service instance execution.
 - [x] Move container app deployment outcome handling into
   `ContainerApplicationDeploymentOutcomeOperations`, separating post-apply,
   failed-apply, and tear-down planning from runtime service execution.
@@ -297,6 +301,8 @@ without forcing provider-specific logic into shared helpers.
   `IContainerApplicationDeploymentDescriptionOperations`.
 - [x] Split container app orchestrator service description behind
   `IContainerApplicationOrchestratorServiceDescriptionOperations`.
+- [x] Split container-backed application service preparation behind
+  `IApplicationContainerOrchestratorServicePreparationOperations`.
 - [x] Split container app deployment outcome handling behind
   `IContainerApplicationDeploymentOutcomeOperations`.
 - [x] Extract the container app orchestrator deployment factory from the shared

@@ -33,7 +33,8 @@ public sealed partial class ApplicationResourceRuntimeOperations(
     ApplicationResourceDefinitionRegistrationService? applicationDefinitionRegistrations = null,
     ApplicationWorkloadConfigurationProvider? workloadConfigurations = null,
     ApplicationResourceSettingResolver? settingResolver = null,
-    ApplicationResourceEnvironmentVariableResolver? environmentVariables = null) :
+    ApplicationResourceEnvironmentVariableResolver? environmentVariables = null,
+    IApplicationContainerOrchestratorServicePreparationOperations? containerServicePreparation = null) :
     IApplicationResourceProcedureOperations,
     IContainerApplicationOrchestrationOperations,
     IDisposable
@@ -86,6 +87,18 @@ public sealed partial class ApplicationResourceRuntimeOperations(
                     serviceProvider.GetServices<ISecretReferenceResolver>()),
                 identityCredentialEnvironmentProviders,
                 environmentVariableProviders));
+    private readonly IApplicationContainerOrchestratorServicePreparationOperations _containerServicePreparation =
+        containerServicePreparation ?? serviceProvider.GetService<IApplicationContainerOrchestratorServicePreparationOperations>() ??
+        new ApplicationContainerOrchestratorServicePreparationOperations(
+            store,
+            containerHosts ?? new ApplicationContainerHostResolver(serviceProvider),
+            serviceProvider.GetService<ApplicationContainerProcessTracker>() ?? new ApplicationContainerProcessTracker(
+                runtimeStates,
+                options,
+                environment,
+                loggerFactory),
+            options,
+            loggerFactory);
     private readonly ApplicationContainerProcessTracker _containerProcesses =
         serviceProvider.GetService<ApplicationContainerProcessTracker>() ?? new ApplicationContainerProcessTracker(
             runtimeStates,
@@ -238,63 +251,6 @@ public sealed partial class ApplicationResourceRuntimeOperations(
             default:
                 throw new NotSupportedException(
                     $"Applications do not support action '{action.DisplayName}'.");
-        }
-    }
-
-    public async Task PrepareOrchestratorServiceAsync(
-        ResourceOrchestratorServiceProcedureContext context,
-        ResourceAction action,
-        CancellationToken cancellationToken = default)
-    {
-        var application = GetContainerApplication(context.ResourceContext.Resource.Id);
-
-        if (action.Kind is ResourceActionKind.Stop && ShouldUseContainerAppIngress(context.Service))
-        {
-            var stopEngine = await ResolveRequiredContainerHostAsync(
-                application,
-                context.ResourceContext.ResourceManager,
-                context.ResourceContext.PreferredContainerHostId,
-                ContainerHostCapabilityIds.ContainerImage,
-                cancellationToken);
-            await StopContainerAppIngressAsync(
-                application,
-                stopEngine,
-                _containerProcesses.GetProcessLog(application.Id),
-                cancellationToken);
-            return;
-        }
-
-        if (action.Kind != ResourceActionKind.Start)
-        {
-            return;
-        }
-
-        var engine = await ResolveRequiredContainerHostAsync(
-            application,
-            context.ResourceContext.ResourceManager,
-            context.ResourceContext.PreferredContainerHostId,
-            ContainerHostCapabilityIds.ContainerImage,
-            cancellationToken);
-        var processLog = _containerProcesses.GetProcessLog(application.Id);
-
-        await LoginToContainerRegistryAsync(
-            engine,
-            GetEffectiveContainerRegistry(application),
-            application.ContainerRegistryCredentials,
-            processLog,
-            cancellationToken,
-            dockerHostLogger);
-
-        foreach (var network in context.Service.ServiceNetworks
-                     .Where(network => !string.IsNullOrWhiteSpace(network))
-                     .Distinct(StringComparer.OrdinalIgnoreCase))
-        {
-            await EnsureContainerNetworkAsync(
-                engine,
-                network,
-                processLog,
-                cancellationToken,
-                dockerHostLogger);
         }
     }
 
@@ -551,7 +507,7 @@ public sealed partial class ApplicationResourceRuntimeOperations(
             Id,
             "application.container.service.preparing",
             $"Application provider is preparing container service '{service.Name}' for '{runtimeDefinition.Name}'.");
-        await PrepareOrchestratorServiceAsync(
+        await _containerServicePreparation.PrepareOrchestratorServiceAsync(
             new ResourceOrchestratorServiceProcedureContext(
                 new ResourceProcedureContext(
                     CreateApplicationResourceProjector().CreateResource(
@@ -1443,21 +1399,6 @@ public sealed partial class ApplicationResourceRuntimeOperations(
         return builder.ToString();
     }
 
-    private static async Task EnsureContainerNetworkAsync(
-        ContainerHostDescriptor engine,
-        string network,
-        ApplicationProcessLog log,
-        CancellationToken cancellationToken,
-        ILogger? logger = null)
-    {
-        await ApplicationContainerHostCommands.RunAsync(
-            engine,
-            ["network", "create", network],
-            log,
-            cancellationToken,
-            logger);
-    }
-
     private async Task PublishProjectContainerImageAsync(
         ApplicationResourceDefinition definition,
         string repository,
@@ -2271,84 +2212,6 @@ public sealed partial class ApplicationResourceRuntimeOperations(
     private static bool IsDockerHubRegistry(string registry) =>
         string.Equals(registry, ContainerRegistryDefaults.DockerHub, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(registry, "index.docker.io", StringComparison.OrdinalIgnoreCase);
-
-    private static async Task LoginToContainerRegistryAsync(
-        ContainerHostDescriptor engine,
-        string registry,
-        ContainerRegistryCredentials? credentials,
-        ApplicationProcessLog log,
-        CancellationToken cancellationToken,
-        ILogger? logger = null)
-    {
-        logger ??= NullLogger.Instance;
-        credentials = ContainerRegistryCredentials.Normalize(credentials);
-        if (credentials is null)
-        {
-            return;
-        }
-
-        var registryAddress = GetImageRegistryAddress(registry);
-        var password = credentials.ResolvePassword();
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = ApplicationContainerHostCommands.GetExecutable(engine),
-            UseShellExecute = false,
-            RedirectStandardInput = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true
-        };
-        ApplicationContainerHostCommands.ConfigureEnvironment(startInfo, engine);
-        startInfo.ArgumentList.Add("login");
-        startInfo.ArgumentList.Add(registryAddress);
-        startInfo.ArgumentList.Add("--username");
-        startInfo.ArgumentList.Add(credentials.Username);
-        startInfo.ArgumentList.Add("--password-stdin");
-        var command = "login";
-        var commandLine = ApplicationContainerHostCommands.FormatCommandLine(
-            startInfo.ArgumentList.Select(argument => argument).ToArray());
-
-        Process? process = Process.Start(startInfo)
-            ?? throw new InvalidOperationException("Container registry login could not be started.");
-        try
-        {
-            ApplicationContainerHostCommands.LogStarted(logger, process, engine, command, commandLine);
-            await process.StandardInput.WriteLineAsync(password.AsMemory(), cancellationToken);
-            process.StandardInput.Close();
-
-            var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
-            var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
-            await ApplicationContainerHostCommands.WaitForExitOrKillAsync(process, engine, cancellationToken, logger, command, commandLine);
-            ApplicationContainerHostCommands.LogExited(logger, process, engine, command, commandLine);
-            var output = await outputTask;
-            var error = await errorTask;
-
-            if (!string.IsNullOrWhiteSpace(output))
-            {
-                log.Append(output.Trim(), "process", process.ExitCode == 0 ? "Information" : "Warning");
-            }
-
-            if (!string.IsNullOrWhiteSpace(error))
-            {
-                log.Append(error.Trim(), "process", process.ExitCode == 0 ? "Information" : "Warning");
-            }
-
-            if (process.ExitCode != 0)
-            {
-                throw new InvalidOperationException(
-                    $"Container registry login failed for '{registryAddress}'.");
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            ApplicationContainerHostCommands.KillIfRunning(logger, process, engine, command, commandLine);
-            throw;
-        }
-        finally
-        {
-            ApplicationContainerHostCommands.LogReleased(logger, process, engine, command, commandLine);
-            process.Dispose();
-        }
-    }
 
     private static async Task WaitForProcessExitOrKillAsync(
         Process process,
