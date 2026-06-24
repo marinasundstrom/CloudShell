@@ -202,6 +202,16 @@ provider projection, provider observation, Control Plane overlays, current
 operations, health, lifecycle state, endpoints, materialization facts,
 attributes, visibility, ownership, and authorization-filtered views.
 
+The definition model should stay separate from the Resource Manager resource
+model. A Resource Manager resource may share identity with a
+`ResourceDefinition` and may reference the same accepted state, but it is not
+the same artifact. Resource Manager resources carry operational
+responsibilities such as liveness signal realization, lifecycle state,
+materialization status, authorization-filtered projection, endpoints,
+procedures, logs, traces, and provider-observed runtime facts. Those concerns
+belong to the Resource Manager model and projection pipeline, not to the
+definition envelope that stores desired graph state.
+
 The distinction should be kept explicit:
 
 | Concept | Describes | Owned by |
@@ -1205,6 +1215,11 @@ flowchart TD
         resolved["ResolvedResourceDefinition<br/>complete value set"]
     end
 
+    subgraph resourceManagerModel [Resource Manager model]
+        resource["Resource<br/>managed resource projection"]
+        liveness["Liveness, lifecycle, endpoints,<br/>authorization, logs, traces"]
+    end
+
     subgraph upperApi [Upper domain-model API]
         projection["ResourceDefinitionProjection"]
         wrapper["Generated resource wrapper"]
@@ -1226,6 +1241,7 @@ flowchart TD
     record --> definition
 
     resolver --> resolved --> projection --> wrapper --> behavior
+    resolved --> resource --> liveness
 ```
 
 The durable formats should avoid making C# builder types, generated DTO names,
