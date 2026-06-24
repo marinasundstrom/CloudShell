@@ -131,6 +131,10 @@ on `git blame --follow`, and then by the broad type of change.
 - The Resource Manager graph resolver now routes direct graph resource lookup
   through the core `ResourceGraphResolver`, keeping missing-resource
   diagnostics and graph lookup behavior in one place.
+- Resource Manager graph resource projection now includes provider-derived
+  graph dependencies, so capability-owned relationships such as volume mounts
+  can appear in projected `DependsOn` without duplicating them in every
+  resource definition.
 - The resource definitions POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change

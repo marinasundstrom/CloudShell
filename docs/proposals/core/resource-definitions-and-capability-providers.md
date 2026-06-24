@@ -611,9 +611,12 @@ return `ResourceReference` objects too, and the current resolver applies the
 same `dependsOn` plus `resourceId` filter before following them. This lets
 capability-owned relationships, such as mounted volumes, participate in graph
 traversal without forcing every authoring path to duplicate those references
-into `DependsOn`. The resolver returns resolved `Resource` projections plus
-diagnostics for missing graph nodes or dependency cycles; it does not decide
-lifecycle ordering, lock policy, or persistence behavior.
+into `DependsOn`. Resource Manager graph resource projection also includes
+those provider-derived dependency references in the projected `DependsOn` list
+when they resolve through the current resource-id addressing mode. The resolver
+returns resolved `Resource` projections plus diagnostics for missing graph
+nodes or dependency cycles; it does not decide lifecycle ordering, lock policy,
+or persistence behavior.
 
 Identity and authorization hooks are Resource model and graph concerns, but
 identity should not automatically become an inherent property of the core

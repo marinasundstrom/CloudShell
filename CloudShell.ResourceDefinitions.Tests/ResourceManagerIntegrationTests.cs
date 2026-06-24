@@ -74,6 +74,22 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public void ResourceModelGraphResourceProvider_ProjectsCapabilityProvidedDependencies()
+    {
+        var api = CreateExecutableState(dependsOn: []);
+        var provider = new ResourceModelGraphResourceProvider(
+            "resource-model",
+            "Resource model",
+            () => new ResourceGraphSnapshot(ResourceGraphVersion.Initial, [api]),
+            CreateResolver(),
+            [new VolumeConsumerGraphDependencyProvider()]);
+
+        var projected = Assert.Single(provider.GetResources());
+
+        Assert.Equal(["storage.volume:data"], projected.DependsOn);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphResourceResolver_ResolvesBoundResourceFromGraph()
     {
         var services = new ServiceCollection();

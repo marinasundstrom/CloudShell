@@ -20,7 +20,8 @@ public static class ResourceModelResourceManagerMapper
 {
     public static ResourceManagerResource ToResourceManagerResource(
         ResourceModelResource resource,
-        ResourceModelResourceManagerProjectionOptions? options = null)
+        ResourceModelResourceManagerProjectionOptions? options = null,
+        IReadOnlyList<string>? dependencyIds = null)
     {
         ArgumentNullException.ThrowIfNull(resource);
 
@@ -39,7 +40,7 @@ public static class ResourceModelResourceManagerMapper
             Endpoints: [],
             resource.Version ?? resource.Revision.ToString(),
             resource.LastModifiedAt ?? resource.CreatedAt ?? options.DefaultLastUpdated ?? DateTimeOffset.UnixEpoch,
-            resource.State.ResourceDependencyIds,
+            dependencyIds ?? resource.State.ResourceDependencyIds,
             TypeId: resource.Type.TypeId.ToString(),
             Actions: resource.Operations
                 .Where(operation => operation.IsAvailable)

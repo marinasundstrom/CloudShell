@@ -181,6 +181,7 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
                 displayName,
                 () => resolveSnapshot(serviceProvider),
                 serviceProvider.GetRequiredService<ResourceResolver>(),
+                serviceProvider.GetServices<IResourceGraphDependencyProvider>(),
                 resolutionContext,
                 projectionOptions));
 
@@ -229,6 +230,7 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
                     displayName,
                     () => resolveSnapshot(serviceProvider),
                     serviceProvider.GetRequiredService<ResourceResolver>(),
+                    serviceProvider.GetServices<IResourceGraphDependencyProvider>(),
                     resolutionContext,
                     projectionOptions),
                 serviceProvider.GetRequiredService<ResourceModelGraphResourceResolver>(),
