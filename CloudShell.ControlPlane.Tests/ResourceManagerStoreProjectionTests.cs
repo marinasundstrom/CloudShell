@@ -19,6 +19,7 @@ using DefinitionDiagnosticCodes = CloudShell.ResourceDefinitions.ResourceDefinit
 using DefinitionCapabilityId = CloudShell.ResourceDefinitions.ResourceCapabilityId;
 using DefinitionGraphSnapshot = CloudShell.ResourceDefinitions.ResourceGraphSnapshot;
 using DefinitionGraphVersion = CloudShell.ResourceDefinitions.ResourceGraphVersion;
+using DefinitionResourceRecord = CloudShell.ResourceDefinitions.ResourceRecord;
 using DefinitionResourceTypeProvider = CloudShell.ResourceDefinitions.IResourceTypeProvider;
 using DefinitionResourceResolver = CloudShell.ResourceDefinitions.ResourceResolver;
 using DefinitionResourceState = CloudShell.ResourceDefinitions.ResourceState;
@@ -684,6 +685,44 @@ public sealed class ResourceManagerStoreProjectionTests
         Assert.Equal("api-service", resource.IdentityBinding.Name);
         Assert.Equal(group.Id, store.GetGroupForResource(resource.Id)?.Id);
         Assert.Empty(store.GetResourceModelDiagnostics());
+    }
+
+    [Fact]
+    public void GetResources_ProjectsPersistedResourceRecordsThroughResourceModelBridge()
+    {
+        var services = new ServiceCollection();
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddInMemoryResourceModelGraphRecords(
+            [DefinitionResourceRecord.FromState(CreateResourceModelExecutableState())]);
+        services.AddResourceModelGraphResourceProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var store = new ResourceManagerStore(
+            serviceProvider.GetServices<IResourceProvider>().ToArray(),
+            new TestResourceGroupStore([]),
+            new TestResourceRegistrationStore(
+            [
+                new(
+                    "application.executable:api",
+                    "resource-model",
+                    null,
+                    DateTimeOffset.UtcNow,
+                    [])
+            ]),
+            new ResourceDeclarationStore(),
+            new ResourceIdentityProviderCatalog(),
+            new CloudShellExtensionRegistry(),
+            new InMemoryCloudShellExtensionActivationStore());
+
+        var resource = Assert.Single(store.GetResources());
+
+        Assert.Equal("application.executable:api", resource.Id);
+        Assert.Equal(ExecutableApplicationResourceTypeProvider.ProviderId, resource.Provider);
+        Assert.Equal("dotnet", resource.ResourceAttributes[ResourceAttributeNames.ExecutablePath]);
+        Assert.Contains(resource.ResourceCapabilities, capability =>
+            capability.Id == VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString());
+        Assert.Contains(resource.ResourceActions, action =>
+            action.Id == ResourceActionIds.Start && action.Kind == ResourceActionKind.Start);
     }
 
     [Fact]

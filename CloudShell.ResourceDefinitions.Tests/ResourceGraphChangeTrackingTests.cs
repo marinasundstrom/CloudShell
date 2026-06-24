@@ -94,6 +94,40 @@ public sealed class ResourceGraphChangeTrackingTests
     }
 
     [Fact]
+    public async Task RecordStateProvider_RehydratesRecordsAndCommitsBackToRecords()
+    {
+        var createdAt = new DateTimeOffset(2026, 6, 23, 12, 0, 0, TimeSpan.Zero);
+        var committedAt = new DateTimeOffset(2026, 6, 24, 13, 0, 0, TimeSpan.Zero);
+        var stateProvider = new InMemoryResourceRecordStateProvider(
+            [ResourceRecord.FromState(CreateState("api", "./api", version: "3", createdAt: createdAt))]);
+        var snapshot = await stateProvider.GetSnapshotAsync();
+        var tracker = new ResourceGraphChangeTracker(snapshot);
+        var applyDispatcher = new ResourceChangeApplyDispatcher(
+            [new ExecutableApplicationResourceTypeProvider()]);
+
+        tracker.Track(await StageExecutablePathChangeAsync(
+            snapshot,
+            "application.executable:api",
+            "./api-v2",
+            applyDispatcher));
+
+        var commit = await stateProvider.CommitAsync(
+            tracker.GetChanges(),
+            new ResourceGraphCommitContext(Timestamp: committedAt));
+
+        var record = Assert.Single(stateProvider.GetRecords());
+        var committed = record.ToState();
+        Assert.True(commit.IsCommitted);
+        Assert.Equal(new ResourceGraphVersion(1), commit.Version);
+        Assert.Equal("4", record.Version);
+        Assert.Equal("4", committed.Version);
+        Assert.Equal(createdAt, record.CreatedAt);
+        Assert.Equal(committedAt, record.LastModifiedAt);
+        Assert.Equal("./api-v2", committed.ResourceAttributes[
+            ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
+    }
+
+    [Fact]
     public async Task CommitAsync_CanPersistOnlyIncrementalDefinitionsFromChangeSet()
     {
         var stateProvider = new InMemoryResourceStateProvider([CreateState("api", "./api")]);

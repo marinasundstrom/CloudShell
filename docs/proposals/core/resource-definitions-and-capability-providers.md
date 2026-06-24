@@ -415,6 +415,9 @@ and the active resolution context. Resource Manager can add liveness,
 authorization, grouping, procedures, logs, traces, runtime metadata, and other
 operational facts on top without turning those responsibilities into Resource
 model persistence concerns.
+When the backing store wants a more compact or store-optimized shape, it can
+persist `ResourceRecord` rows/documents and rehydrate them into `ResourceState`
+at the graph boundary before resolution.
 
 The bridge should also project Resource model diagnostics into Resource
 Manager diagnostics. That makes invalid graph definitions visible through the
@@ -999,10 +1002,13 @@ to the backing store.
 The first persistence proof is `InMemoryResourceStateProvider`. It
 materializes `ResourceState` objects from an in-memory store, accepts a
 `ResourceGraphChangeSet`, checks the base graph version, applies all accepted
-states, and increments the graph version once for the whole commit. A database
-provider would use the same boundary, but materialize resources from database
-records and persist the accepted state or provider-specific delta format in a
-transaction.
+states, and increments the graph version once for the whole commit.
+`InMemoryResourceRecordStateProvider` proves the same boundary with
+store-optimized `ResourceRecord` data: records are rehydrated into
+`ResourceState` for graph resolution and committed changes are stored back as
+records. A database provider would use the same boundary, but materialize
+resources from database records and persist the accepted state or
+provider-specific delta format in a transaction.
 
 The graph version is the batch/concurrency token for the whole resource graph.
 Each persisted resource state also carries its own resource revision through

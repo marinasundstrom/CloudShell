@@ -21,6 +21,21 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
         return services;
     }
 
+    public static IServiceCollection AddInMemoryResourceModelGraphRecords(
+        this IServiceCollection services,
+        IEnumerable<ResourceRecord>? records = null)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        var initialRecords = (records ?? []).ToArray();
+
+        services.AddSingleton<IResourceStateProvider>(
+            _ => new InMemoryResourceRecordStateProvider(initialRecords));
+        services.AddSingleton<ResourceGraphModel>();
+
+        return services;
+    }
+
     public static IServiceCollection AddResourceModelGraphServices(
         this IServiceCollection services,
         IEnumerable<ResourceClassDefinition> classDefinitions)

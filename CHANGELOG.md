@@ -26,6 +26,10 @@ on `git blame --follow`, and then by the broad type of change.
 - The resource definitions POC now includes a string-keyed
   `ResourceDefinitionRecord` persistence projection that rehydrates into the
   domain `ResourceDefinition` before validation and provider behavior.
+- The resource definitions POC now includes a record-backed in-memory resource
+  state provider, proving that Resource Manager bridge projections can resolve
+  from stripped `ResourceRecord` persistence data instead of storing resolved
+  Resource model projections.
 - The resource definitions POC now has an end-to-end model flow test covering
   document serialization, persistence projection, graph validation,
   type-specific projection, capability resolution, and apply planning.
