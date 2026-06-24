@@ -718,9 +718,13 @@ A narrow Docker container reference provider covers `docker.container` as a
 provider-projected container artifact. It owns stable workload, image,
 registry, replica, and endpoint-count attributes, passive monitoring and log
 source capability markers, lifecycle operation projections, a typed wrapper,
-apply planning, and Resource Manager bridge projection/execution. Actual
-Docker API calls, log streaming, runtime discovery, and state-sensitive action
-availability remain operational provider concerns.
+apply planning, and Resource Manager bridge projection/execution. Provider
+managed endpoint count updates remain outside the type provider itself; a
+future provider integration boundary may delegate refresh/reconcile work that
+updates this value in `ResourceState` while keeping it out of rendered
+`ResourceDefinition` output. Actual Docker API calls, log streaming, runtime
+discovery, and state-sensitive action availability remain operational provider
+concerns.
 
 The working porting status for the reference POC is:
 
@@ -1135,6 +1139,15 @@ only if the effective attribute mutability is `ProviderManaged`; otherwise the
 apply result should be rejected as a provider boundary violation. Accepted
 provider-managed state must still be omitted when rendered back to
 `ResourceDefinition`.
+
+The Resource model graph should stay focused on declarative shape, declared
+state, resolution, and commit boundaries. It should not own continuous runtime
+processes that poll or watch external systems. Provider-managed attributes may
+be updated later through explicit integration points owned by Control
+Plane/ResourceManager/provider infrastructure, such as refresh, reconcile,
+operation execution, or capability behavior. A type provider may declare that
+an attribute is provider-managed and may delegate to those integration
+services, but it should not become the long-running runtime monitor itself.
 When inherited definitions are resolved, an unset read-only value should
 inherit the class-level policy. A type-level `false` should be treated as an
 explicit definition-level decision to clear inherited read-only behavior, not
