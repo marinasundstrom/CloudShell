@@ -139,6 +139,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.UI.Composition.T
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.SqlServer.Client", "CloudShell.SqlServer.Client\CloudShell.SqlServer.Client.csproj", "{2ABC6C75-FCCB-47B6-B2BB-8013AC96C10A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.ResourceDefinitions", "CloudShell.ResourceDefinitions\CloudShell.ResourceDefinitions.csproj", "{2808BD7C-4EFF-4604-B50C-997F4B39420A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.ResourceDefinitions.Tests", "CloudShell.ResourceDefinitions.Tests\CloudShell.ResourceDefinitions.Tests.csproj", "{01356035-636F-4DA6-A632-83299460DE30}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -701,6 +705,30 @@ Global
 		{2ABC6C75-FCCB-47B6-B2BB-8013AC96C10A}.Release|x64.Build.0 = Release|Any CPU
 		{2ABC6C75-FCCB-47B6-B2BB-8013AC96C10A}.Release|x86.ActiveCfg = Release|Any CPU
 		{2ABC6C75-FCCB-47B6-B2BB-8013AC96C10A}.Release|x86.Build.0 = Release|Any CPU
+		{2808BD7C-4EFF-4604-B50C-997F4B39420A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2808BD7C-4EFF-4604-B50C-997F4B39420A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2808BD7C-4EFF-4604-B50C-997F4B39420A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{2808BD7C-4EFF-4604-B50C-997F4B39420A}.Debug|x64.Build.0 = Debug|Any CPU
+		{2808BD7C-4EFF-4604-B50C-997F4B39420A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{2808BD7C-4EFF-4604-B50C-997F4B39420A}.Debug|x86.Build.0 = Debug|Any CPU
+		{2808BD7C-4EFF-4604-B50C-997F4B39420A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2808BD7C-4EFF-4604-B50C-997F4B39420A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2808BD7C-4EFF-4604-B50C-997F4B39420A}.Release|x64.ActiveCfg = Release|Any CPU
+		{2808BD7C-4EFF-4604-B50C-997F4B39420A}.Release|x64.Build.0 = Release|Any CPU
+		{2808BD7C-4EFF-4604-B50C-997F4B39420A}.Release|x86.ActiveCfg = Release|Any CPU
+		{2808BD7C-4EFF-4604-B50C-997F4B39420A}.Release|x86.Build.0 = Release|Any CPU
+		{01356035-636F-4DA6-A632-83299460DE30}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{01356035-636F-4DA6-A632-83299460DE30}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{01356035-636F-4DA6-A632-83299460DE30}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{01356035-636F-4DA6-A632-83299460DE30}.Debug|x64.Build.0 = Debug|Any CPU
+		{01356035-636F-4DA6-A632-83299460DE30}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{01356035-636F-4DA6-A632-83299460DE30}.Debug|x86.Build.0 = Debug|Any CPU
+		{01356035-636F-4DA6-A632-83299460DE30}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{01356035-636F-4DA6-A632-83299460DE30}.Release|Any CPU.Build.0 = Release|Any CPU
+		{01356035-636F-4DA6-A632-83299460DE30}.Release|x64.ActiveCfg = Release|Any CPU
+		{01356035-636F-4DA6-A632-83299460DE30}.Release|x64.Build.0 = Release|Any CPU
+		{01356035-636F-4DA6-A632-83299460DE30}.Release|x86.ActiveCfg = Release|Any CPU
+		{01356035-636F-4DA6-A632-83299460DE30}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -650,9 +650,13 @@ listed here before pulling in broader proposal work.
 15. Advanced app and environment concepts: defer autoscaling, backend pools,
    traffic splitting, provider-backed network-level service discovery,
    provider-backed DNS propagation, external deployment projection,
-   external-format resource graph import and code generation, IoT device
-   provisioning, edge/device resource management, container application
-   environments, and the initial on-premise hosting scenario.
+   formal resource definition pipeline integration, external-format resource
+   graph import and code generation, IoT device provisioning, edge/device
+   resource management, container application environments, and the initial
+   on-premise hosting scenario. The isolated `CloudShell.ResourceDefinitions`
+   POC can continue proving the model, but it should not displace MVP
+   convergence or imply that Control Plane persistence, API, or provider
+   migration work has started.
 
 ### Now: MVP Convergence and Resource Manager Reliability
 

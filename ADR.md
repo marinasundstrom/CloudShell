@@ -9,6 +9,29 @@ Decision IDs are stable enough to reference from changelog entries and related
 docs. When an implementation change follows a decision, the changelog should
 link to the decision so the dependency is visible.
 
+## 2026-06-24
+
+### ADR-20260624-001: Prove resource definitions in an isolated experimental project
+
+CloudShell should prove the formal resource-definition model in a separate
+`CloudShell.ResourceDefinitions` project before moving the contracts into the
+public `CloudShell.Abstractions` surface or integrating them into the Control
+Plane pipeline.
+
+The project is an experimental implementation boundary for
+`ResourceDefinition`, `ResourceClassDefinition`, `ResourceTypeDefinition`,
+resolved attributes, resolved capabilities, resolved operations, diagnostics,
+attribute validators, and attached capability/operation provider contracts.
+This lets the proposal's API shape be exercised by focused tests while the
+model is still allowed to change.
+
+The POC does not change current resource declarations, provider-specific
+definition stores, Resource Manager persistence, Control Plane API contracts,
+remote clients, or provider lifecycle behavior. Those integrations remain
+future slices once the model proves useful and stable enough to graduate.
+
+Related changes: [Changelog](CHANGELOG.md).
+
 ## 2026-06-21
 
 ### ADR-20260621-001: Design Control Plane scale-out around a primary controller and workers

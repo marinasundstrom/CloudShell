@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed.
+POC in progress.
 
 CloudShell already distinguishes projected resources from declared resources in
 the resource model documentation, and several providers already carry typed
@@ -10,6 +10,13 @@ definition records such as application, storage, volume, network, service, DNS,
 and load-balancer definitions. This proposal tracks the next model step:
 formalizing `ResourceDefinition` as resource intent and formalizing capability
 providers and operation providers as attached behavior over that intent.
+
+The first implementation slice is isolated in `CloudShell.ResourceDefinitions`
+with tests in `CloudShell.ResourceDefinitions.Tests`. It proves the definition
+envelope, class/type inheritance, effective attribute/capability/operation
+resolution, diagnostics, and provider-dispatch contracts without changing the
+Control Plane pipeline, persistence, API projection, or existing provider
+definition stores.
 
 ## Problem
 

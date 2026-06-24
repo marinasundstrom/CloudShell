@@ -17,6 +17,12 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Added the experimental `CloudShell.ResourceDefinitions` infrastructure
+  project and `CloudShell.ResourceDefinitions.Tests` POC test project for
+  resource-definition envelopes, class/type inheritance, effective
+  attribute/capability/operation resolution, diagnostics, and attached
+  capability/operation provider dispatch. This follows
+  [ADR-20260624-001](ADR.md#adr-20260624-001-prove-resource-definitions-in-an-isolated-experimental-project).
 - Added a resource definitions, capability providers, and operation providers
   proposal to track the distinction between projected `Resource` instances and
   persisted `ResourceDefinition` intent, including DI-backed capability and
