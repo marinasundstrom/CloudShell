@@ -923,6 +923,60 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task AddMacOSHostNetworkResourceType_RegistersCompleteResourceTypeBoundary()
+    {
+        var services = new ServiceCollection();
+        services.AddMacOSHostNetworkResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var definition = new ResourceDefinition(
+            "host-macos",
+            MacOSHostNetworkResourceTypeProvider.ResourceTypeId);
+
+        var validation = await serviceProvider
+            .GetRequiredService<ResourceDefinitionValidationPipeline>()
+            .ValidateAsync(
+                definition,
+                new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.False(validation.HasErrors);
+        Assert.Equal(MacOSHostNetworkResourceTypeProvider.ClassId, validation.Resource.Class.ClassId);
+        Assert.Equal("hostNetworking", validation.Resource.Attributes.GetString(
+            MacOSHostNetworkResourceTypeProvider.Attributes.InfrastructureKind));
+        Assert.Equal("ready", validation.Resource.Attributes.GetString(
+            MacOSHostNetworkResourceTypeProvider.Attributes.HostReadiness));
+        Assert.Equal("macos", validation.Resource.Attributes.GetString(
+            MacOSHostNetworkResourceTypeProvider.Attributes.HostOperatingSystem));
+        Assert.Equal("localProxy", validation.Resource.Attributes.GetString(
+            MacOSHostNetworkResourceTypeProvider.Attributes.NetworkingMode));
+        Assert.True(validation.Resource.Capabilities.Has(
+            MacOSHostNetworkResourceTypeProvider.Capabilities.NetworkingHostNetwork));
+        Assert.True(validation.Resource.Operations.Has(
+            MacOSHostNetworkResourceTypeProvider.Operations.ReconcileEndpointMappings));
+
+        var projectedGraph = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphProjectionResolver>()
+            .ProjectAsync(
+                new ResourceDefinitionGraphValidationPipelineResult(
+                    new ResourceDefinitionGraph([definition]),
+                    [validation],
+                    []),
+                new ResourceProjectionContext("local", "developer"));
+        var projection = projectedGraph.Find<MacOSHostNetworkResource>(
+            definition.EffectiveResourceId);
+
+        Assert.NotNull(projection);
+        Assert.True(projection.SupportsEndpointMapping);
+        Assert.True(projection.SupportsHostNetwork);
+        Assert.Equal("macos", projection.HostOperatingSystem);
+        var reconcile = await projection.GetReconcileEndpointMappingsOperationAsync();
+
+        Assert.NotNull(reconcile);
+        Assert.True(await reconcile.CanExecuteAsync());
+        Assert.Equal("macos", reconcile.PlanReconcile().HostOperatingSystem);
+    }
+
+    [Fact]
     public async Task AddDnsZoneResourceType_RegistersCompleteResourceTypeBoundary()
     {
         var services = new ServiceCollection();
