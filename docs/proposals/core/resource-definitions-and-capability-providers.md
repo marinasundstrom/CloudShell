@@ -441,6 +441,13 @@ operation declarations and operation provider implementations, plus any apply,
 update, or provider-owned behavior required for Resource Manager and other
 Control Plane consumers to use that type through the new model.
 
+Provider registration should follow the same boundary. The reference POC uses
+a singular executable application resource-type registration that wires the
+type provider, capability providers, operation providers, projection provider,
+and apply/change handlers needed by that type. It should not grow into a broad
+application-provider aggregate that registers unrelated executable, project,
+container, and database resource types behind one provider identity.
+
 This migration does not mean Resource Manager stops owning resources in its
 Control Plane domain. Resource Manager can continue to keep operational
 resource records and project from its own data, from the resolved Resource

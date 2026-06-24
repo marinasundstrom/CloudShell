@@ -26,6 +26,99 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task AddExecutableApplicationResourceType_RegistersCompleteResourceTypeBoundary()
+    {
+        var services = new ServiceCollection();
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelResolver(
+            [new(ExecutableApplicationResourceTypeProvider.ClassId)]);
+        services.AddSingleton<ResourceProviderDispatcher>();
+        services.AddSingleton<ResourceCapabilityResolver>();
+        services.AddSingleton<ResourceOperationResolver>();
+        services.AddSingleton<ResourceProjectionResolver>();
+        services.AddSingleton<ResourceDefinitionGraphApplyPlanner>();
+        using var serviceProvider = services.BuildServiceProvider();
+
+        var definition = new ResourceDefinition(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
+            },
+            Configuration: new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ExecutableApplicationResourceTypeProvider.ConfigurationSection] =
+                    ResourceDefinitionJson.FromValue(new ExecutableApplicationConfiguration("dotnet", "run"))
+            },
+            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
+            {
+                [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
+                    ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
+                    [
+                        new("volume:data", "App_Data")
+                    ]))
+            });
+        var resource = serviceProvider
+            .GetRequiredService<ResourceResolver>()
+            .Resolve(definition);
+        var dispatcher = serviceProvider.GetRequiredService<ResourceProviderDispatcher>();
+
+        var typeResult = await dispatcher.ValidateResourceTypeAsync(
+            resource,
+            new ResourceProviderContext("local", "developer"));
+        var capabilityResult = await dispatcher.ValidateCapabilitiesAsync(
+            resource,
+            new ResourceProviderContext("local", "developer"));
+        var operationResult = await dispatcher.ValidateOperationsAsync(
+            resource,
+            new ResourceProviderContext("local", "developer"));
+
+        Assert.Empty(typeResult.Diagnostics);
+        Assert.Empty(capabilityResult.Diagnostics);
+        Assert.Empty(operationResult.Diagnostics);
+
+        await serviceProvider
+            .GetRequiredService<ResourceCapabilityResolver>()
+            .BindAsync(resource, new ResourceCapabilityProjectionContext("local", "developer"));
+        await serviceProvider
+            .GetRequiredService<ResourceOperationResolver>()
+            .BindAsync(resource, new ResourceOperationProjectionContext("local", "developer"));
+
+        var volumes = resource.Capabilities.Get<VolumeConsumerCapability>();
+        var start = resource.Operations.Get<ExecutableStartOperation>();
+
+        Assert.NotNull(volumes);
+        Assert.NotNull(start);
+        Assert.Equal("volume:data", Assert.Single(volumes.Mounts).Volume);
+        Assert.True(await start.CanExecuteAsync());
+
+        var projection = await serviceProvider
+            .GetRequiredService<ResourceProjectionResolver>()
+            .GetResourceProjectionAsync<ExecutableApplicationResource>(
+                resource,
+                new ResourceProjectionContext("local", "developer"));
+
+        Assert.NotNull(projection);
+        Assert.Equal("dotnet", projection.ExecutablePath);
+
+        var applyPlan = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphApplyPlanner>()
+            .PlanApplyAsync(
+                new ResourceDefinitionGraphValidationPipelineResult(
+                    new ResourceDefinitionGraph([definition]),
+                    [new(resource, [])],
+                    []),
+                new ResourceDefinitionApplyContext("local", "developer"));
+
+        Assert.False(applyPlan.HasErrors);
+        Assert.Contains(applyPlan.Steps, step =>
+            step.Kind == ResourceDefinitionApplyStepKind.AcceptDefinition);
+        Assert.Contains(applyPlan.Steps, step =>
+            step.Kind == ResourceDefinitionApplyStepKind.MaterializeRuntime);
+    }
+
+    [Fact]
     public async Task ValidateCapabilitiesAsync_UsesRegisteredCapabilityProvider()
     {
         var dispatcher = CreateDispatcher(
