@@ -120,6 +120,10 @@ on `git blame --follow`, and then by the broad type of change.
   structured `attributes.principal` value that identity capabilities can
   interpret while operational realization stays in Resource Manager or the
   broader Control Plane.
+- The resource definitions POC now lets `ResourceClassDefinition` and
+  `ResourceTypeDefinition` carry `ResourceAttributeDefinition` declarations
+  for scalar default values and required-attribute rules, while keeping custom
+  validation in provider or platform validator hooks.
 - The resource definitions proposal now clarifies that capabilities and
   operations are integration points whose implementations may be owned by
   Resource Manager, orchestrators, provider packages, or other Control Plane

@@ -81,6 +81,79 @@ public sealed class ResourceResolverTests
     }
 
     [Fact]
+    public void Resolve_UsesAttributeDefinitionsForDefaultsAndRequirements()
+    {
+        var resolver = new ResourceResolver(
+            [
+                new(
+                    ExecutableApplicationResourceTypeProvider.ClassId,
+                    AttributeDefinitions:
+                    [
+                        new("workload.kind", DefaultValue: "executable")
+                    ])
+            ],
+            [
+                new(
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    ExecutableApplicationResourceTypeProvider.ClassId,
+                    AttributeDefinitions:
+                    [
+                        new(
+                            ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath,
+                            DefaultValue: "dotnet",
+                            IsRequired: true,
+                            RequiredMessage: "Executable path is required.")
+                    ])
+            ]);
+        var definition = new ResourceDefinition(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId);
+
+        var resolved = resolver.Resolve(definition);
+
+        Assert.Empty(resolved.Diagnostics);
+        Assert.Equal("executable", resolved.Attributes.GetString("workload.kind"));
+        Assert.Equal(
+            "dotnet",
+            resolved.Attributes.GetString(ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath));
+        Assert.Equal(
+            ResourceDefinitionValueSource.TypeDefinition,
+            resolved.Attributes.Resolve(ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath)?.Source);
+    }
+
+    [Fact]
+    public void Resolve_ReportsRequiredAttributeDefinitionDiagnostics()
+    {
+        var resolver = new ResourceResolver(
+            [
+                new(ExecutableApplicationResourceTypeProvider.ClassId)
+            ],
+            [
+                new(
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    ExecutableApplicationResourceTypeProvider.ClassId,
+                    AttributeDefinitions:
+                    [
+                        new(
+                            ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath,
+                            IsRequired: true,
+                            RequiredMessage: "Executable path is required.")
+                    ])
+            ]);
+        var definition = new ResourceDefinition(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId);
+
+        var resolved = resolver.Resolve(definition);
+
+        var diagnostic = Assert.Single(resolved.Diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.RequiredAttributeMissing, diagnostic.Code);
+        Assert.Equal("Executable path is required.", diagnostic.Message);
+        Assert.Equal(ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath, diagnostic.Target);
+    }
+
+    [Fact]
     public void Resolve_ReportsRequiredAttributeDiagnostics()
     {
         var resolver = new ResourceResolver(

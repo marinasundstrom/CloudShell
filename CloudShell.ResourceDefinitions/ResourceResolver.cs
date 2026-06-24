@@ -123,6 +123,10 @@ public sealed class ResourceResolver
     {
         var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeResolution>();
         MergeAttributes(attributes, classDefinition.Attributes, ResourceDefinitionValueSource.ClassDefinition);
+        MergeAttributeDefinitions(
+            attributes,
+            classDefinition.AttributeDefinitions,
+            ResourceDefinitionValueSource.ClassDefinition);
         return new(attributes.Values);
     }
 
@@ -146,7 +150,15 @@ public sealed class ResourceResolver
     {
         var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeResolution>();
         MergeAttributes(attributes, classDefinition.Attributes, ResourceDefinitionValueSource.ClassDefinition);
+        MergeAttributeDefinitions(
+            attributes,
+            classDefinition.AttributeDefinitions,
+            ResourceDefinitionValueSource.ClassDefinition);
         MergeAttributes(attributes, typeDefinition.Attributes, ResourceDefinitionValueSource.TypeDefinition);
+        MergeAttributeDefinitions(
+            attributes,
+            typeDefinition.AttributeDefinitions,
+            ResourceDefinitionValueSource.TypeDefinition);
         return new(attributes.Values);
     }
 
@@ -200,6 +212,30 @@ public sealed class ResourceResolver
         foreach (var (name, value) in attributes)
         {
             target[name] = new(name, value, source);
+        }
+    }
+
+    private static void MergeAttributeDefinitions(
+        Dictionary<ResourceAttributeId, ResourceAttributeResolution> target,
+        IReadOnlyList<ResourceAttributeDefinition>? attributeDefinitions,
+        ResourceDefinitionValueSource source)
+    {
+        if (attributeDefinitions is null)
+        {
+            return;
+        }
+
+        foreach (var attributeDefinition in attributeDefinitions)
+        {
+            if (attributeDefinition.DefaultValue is null)
+            {
+                continue;
+            }
+
+            target[attributeDefinition.Name] = new(
+                attributeDefinition.Name,
+                attributeDefinition.DefaultValue,
+                source);
         }
     }
 
@@ -334,12 +370,39 @@ public sealed class ResourceResolver
         ResourceClassDefinition classDefinition,
         ResourceTypeDefinition typeDefinition)
     {
+        var requirements = new Dictionary<ResourceAttributeId, ResourceAttributeRequirement>();
+
         foreach (var requirement in classDefinition.RequiredAttributes ?? [])
         {
-            yield return requirement;
+            requirements[requirement.Name] = requirement;
+        }
+
+        foreach (var attributeDefinition in classDefinition.AttributeDefinitions ?? [])
+        {
+            if (attributeDefinition.IsRequired)
+            {
+                requirements[attributeDefinition.Name] = new(
+                    attributeDefinition.Name,
+                    attributeDefinition.RequiredMessage);
+            }
         }
 
         foreach (var requirement in typeDefinition.RequiredAttributes ?? [])
+        {
+            requirements[requirement.Name] = requirement;
+        }
+
+        foreach (var attributeDefinition in typeDefinition.AttributeDefinitions ?? [])
+        {
+            if (attributeDefinition.IsRequired)
+            {
+                requirements[attributeDefinition.Name] = new(
+                    attributeDefinition.Name,
+                    attributeDefinition.RequiredMessage);
+            }
+        }
+
+        foreach (var requirement in requirements.Values)
         {
             yield return requirement;
         }

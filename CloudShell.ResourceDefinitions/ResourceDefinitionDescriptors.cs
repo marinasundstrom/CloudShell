@@ -7,7 +7,8 @@ public sealed record ResourceClassDefinition(
     IReadOnlyDictionary<ResourceAttributeId, string>? Attributes = null,
     IReadOnlyList<ResourceAttributeRequirement>? RequiredAttributes = null,
     IReadOnlyList<ResourceCapabilityDeclaration>? Capabilities = null,
-    IReadOnlyList<ResourceOperationDeclaration>? Operations = null);
+    IReadOnlyList<ResourceOperationDeclaration>? Operations = null,
+    IReadOnlyList<ResourceAttributeDefinition>? AttributeDefinitions = null);
 
 public sealed record ResourceTypeDefinition(
     ResourceTypeId TypeId,
@@ -16,7 +17,15 @@ public sealed record ResourceTypeDefinition(
     IReadOnlyDictionary<ResourceAttributeId, string>? Attributes = null,
     IReadOnlyList<ResourceAttributeRequirement>? RequiredAttributes = null,
     IReadOnlyList<ResourceCapabilityDeclaration>? Capabilities = null,
-    IReadOnlyList<ResourceOperationDeclaration>? Operations = null);
+    IReadOnlyList<ResourceOperationDeclaration>? Operations = null,
+    IReadOnlyList<ResourceAttributeDefinition>? AttributeDefinitions = null);
+
+public sealed record ResourceAttributeDefinition(
+    ResourceAttributeId Name,
+    string? DefaultValue = null,
+    bool IsRequired = false,
+    string? RequiredMessage = null,
+    string? Description = null);
 
 public sealed record ResourceAttributeRequirement(
     ResourceAttributeId Name,

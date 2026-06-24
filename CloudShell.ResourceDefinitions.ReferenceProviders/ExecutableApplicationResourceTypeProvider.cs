@@ -26,9 +26,12 @@ public sealed class ExecutableApplicationResourceTypeProvider :
         ResourceTypeId,
         ClassId,
         DefaultProviderId: ProviderId,
-        RequiredAttributes:
+        AttributeDefinitions:
         [
-            new(Attributes.ExecutablePath, "Executable path is required.")
+            new(
+                Attributes.ExecutablePath,
+                IsRequired: true,
+                RequiredMessage: "Executable path is required.")
         ],
         Operations:
         [

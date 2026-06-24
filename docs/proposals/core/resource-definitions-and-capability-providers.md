@@ -577,7 +577,7 @@ Class and type definitions can contribute:
 
 - default attributes
 - required attributes
-- attribute descriptors and validators
+- attribute definitions and validators
 - supported capabilities
 - required capabilities
 - default capability payloads
@@ -587,6 +587,16 @@ Class and type definitions can contribute:
 - provider selection requirements
 - presets or named partial definition overlays
 - class/type-level diagnostics and compatibility rules
+
+`ResourceAttributeDefinition` is the contract-level place for simple
+attribute shape metadata on `ResourceClassDefinition` and
+`ResourceTypeDefinition`. In the POC it carries the attribute ID, an optional
+scalar default value, required-attribute intent, an optional required message,
+and a description. Those definitions participate in normal resource
+resolution: class defaults are applied first, type defaults refine them, and
+resource-owned state still wins. Custom validation rules remain provider or
+platform validator hooks over the resolved `Resource`; the attribute
+definition is not intended to become a full provider configuration schema.
 
 The resource instance supplies values, selects presets where allowed, and can
 override values only within the constraints defined by the class and type. A
