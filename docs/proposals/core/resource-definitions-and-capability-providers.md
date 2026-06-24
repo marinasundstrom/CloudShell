@@ -588,15 +588,28 @@ Class and type definitions can contribute:
 - presets or named partial definition overlays
 - class/type-level diagnostics and compatibility rules
 
-`ResourceAttributeDefinition` is the contract-level place for simple
-attribute shape metadata on `ResourceClassDefinition` and
-`ResourceTypeDefinition`. In the POC it carries the attribute ID, an optional
-scalar default value, required-attribute intent, an optional required message,
-and a description. Those definitions participate in normal resource
-resolution: class defaults are applied first, type defaults refine them, and
-resource-owned state still wins. Custom validation rules remain provider or
-platform validator hooks over the resolved `Resource`; the attribute
-definition is not intended to become a full provider configuration schema.
+`ResourceAttributeDefinition` is the contract-level place for attribute shape
+metadata on `ResourceClassDefinition` and `ResourceTypeDefinition`. In the POC
+it carries the attribute ID, an optional scalar default value,
+required-attribute intent, an optional required message, a description, and an
+optional serializer-neutral `ResourceAttributeValueShape`. Those definitions
+participate in normal resource resolution: class defaults are applied first,
+type defaults refine them, and resource-owned state still wins. Custom
+validation rules remain provider or platform validator hooks over the resolved
+`Resource`; the attribute definition is not intended to become a full provider
+configuration schema.
+
+The current POC still keeps resolved attribute values and defaults
+string-based to avoid prematurely building the full value system. The intended
+model should support scalar and complex attribute values, including structured
+object and collection values that can be rendered as JSON objects, YAML
+mappings, XML elements, or other document targets. `ResourceClassDefinition`
+and `ResourceTypeDefinition` should therefore describe attribute value shape in
+serializer-neutral CloudShell terms such as value kind, object fields, and
+array element shape, not by embedding `JsonElement` or another format-specific
+DOM as the definition contract. Format adapters can map the value object and
+shape descriptors to JSON, YAML, XML, database records, or compact persistence
+records at the boundary.
 
 The resource instance supplies values, selects presets where allowed, and can
 override values only within the constraints defined by the class and type. A

@@ -124,6 +124,10 @@ on `git blame --follow`, and then by the broad type of change.
   `ResourceTypeDefinition` carry `ResourceAttributeDefinition` declarations
   for scalar default values and required-attribute rules, while keeping custom
   validation in provider or platform validator hooks.
+- The resource definitions POC now adds serializer-neutral
+  `ResourceAttributeValueShape` metadata so attribute definitions can describe
+  scalar values, object fields, and array element shapes without making JSON
+  the core definition contract.
 - The resource definitions proposal now clarifies that capabilities and
   operations are integration points whose implementations may be owned by
   Resource Manager, orchestrators, provider packages, or other Control Plane

@@ -31,7 +31,8 @@ public sealed class ExecutableApplicationResourceTypeProvider :
             new(
                 Attributes.ExecutablePath,
                 IsRequired: true,
-                RequiredMessage: "Executable path is required.")
+                RequiredMessage: "Executable path is required.",
+                ValueShape: new(ResourceAttributeValueKind.String))
         ],
         Operations:
         [

@@ -25,7 +25,29 @@ public sealed record ResourceAttributeDefinition(
     string? DefaultValue = null,
     bool IsRequired = false,
     string? RequiredMessage = null,
+    string? Description = null,
+    ResourceAttributeValueShape? ValueShape = null);
+
+public sealed record ResourceAttributeValueShape(
+    ResourceAttributeValueKind Kind,
+    IReadOnlyList<ResourceAttributeFieldDefinition>? Fields = null,
+    ResourceAttributeValueShape? ElementShape = null);
+
+public sealed record ResourceAttributeFieldDefinition(
+    string Name,
+    ResourceAttributeValueShape ValueShape,
+    bool IsRequired = false,
     string? Description = null);
+
+public enum ResourceAttributeValueKind
+{
+    String,
+    Boolean,
+    Integer,
+    Decimal,
+    Object,
+    Array
+}
 
 public sealed record ResourceAttributeRequirement(
     ResourceAttributeId Name,
