@@ -3,16 +3,14 @@ namespace CloudShell.ResourceDefinitions;
 public sealed class ResourceDefinitionValidationPipeline
 {
     private readonly ResourceResolver _resolver;
-    private readonly ResourceDefinitionProviderDispatcher _dispatcher;
-    private readonly ResourceCapabilityResolver _capabilityResolver;
+    private readonly ResourceProviderDispatcher _dispatcher;
 
     public ResourceDefinitionValidationPipeline(
         IEnumerable<ResourceClassDefinition> classDefinitions,
         IEnumerable<IResourceTypeProvider> typeProviders,
         IEnumerable<IResourceCapabilityProvider>? capabilityProviders = null,
         IEnumerable<IResourceOperationProvider>? operationProviders = null,
-        IEnumerable<IResourceAttributeValidator>? attributeValidators = null,
-        IEnumerable<IResourceCapabilityProjector>? capabilityProjectors = null)
+        IEnumerable<IResourceAttributeValidator>? attributeValidators = null)
     {
         ArgumentNullException.ThrowIfNull(classDefinitions);
         ArgumentNullException.ThrowIfNull(typeProviders);
@@ -26,7 +24,6 @@ public sealed class ResourceDefinitionValidationPipeline
             materializedTypeProviders,
             capabilityProviders ?? [],
             operationProviders ?? []);
-        _capabilityResolver = new(capabilityProjectors ?? []);
     }
 
     public async ValueTask<ResourceDefinitionValidationPipelineResult> ValidateAsync(
@@ -43,39 +40,34 @@ public sealed class ResourceDefinitionValidationPipeline
                 context.EnvironmentId,
                 context.PrincipalId));
         var diagnostics = new List<ResourceDefinitionDiagnostic>(resolved.Diagnostics);
+        var providerContext = new ResourceProviderContext(
+            context.EnvironmentId,
+            context.PrincipalId);
 
         var typeResult = await _dispatcher.ValidateResourceTypeAsync(
             resolved,
-            context,
+            providerContext,
             cancellationToken);
         diagnostics.AddRange(typeResult.Diagnostics);
 
         var capabilityResult = await _dispatcher.ValidateCapabilitiesAsync(
             resolved,
-            context,
+            providerContext,
             cancellationToken);
         diagnostics.AddRange(capabilityResult.Diagnostics);
 
         var operationResult = await _dispatcher.ValidateOperationsAsync(
             resolved,
-            context,
+            providerContext,
             cancellationToken);
         diagnostics.AddRange(operationResult.Diagnostics);
 
-        var projection = new ResourceDefinitionProjection(
-            resolved,
-            _capabilityResolver,
-            new ResourceCapabilityProjectionContext(
-                context.EnvironmentId,
-                context.PrincipalId));
-
-        return new(resolved, projection, diagnostics);
+        return new(resolved, diagnostics);
     }
 }
 
 public sealed record ResourceDefinitionValidationPipelineResult(
     Resource Resource,
-    ResourceDefinitionProjection Projection,
     IReadOnlyList<ResourceDefinitionDiagnostic> Diagnostics)
 {
     public bool HasErrors => Diagnostics.Any(diagnostic =>

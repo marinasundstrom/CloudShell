@@ -71,7 +71,7 @@ public sealed class ResourceResolverTests
             "./api",
             resolved.Attributes.GetString(ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath));
         Assert.Equal(
-            ResourceDefinitionValueSource.ResourceDefinition,
+            ResourceDefinitionValueSource.ResourceState,
             resolved.Attributes.Resolve(ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath)?.Source);
         Assert.True(resolved.Capabilities.Has("logs.sources"));
         Assert.True(resolved.Capabilities.Has("monitoring"));

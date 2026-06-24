@@ -10,7 +10,6 @@ public sealed class ResourceDefinitionValidationPipelineTests
     {
         var pipeline = CreatePipeline(
             capabilityProviders: [new VolumeConsumerCapabilityProvider()],
-            capabilityProjectors: [new VolumeConsumerCapabilityProvider()],
             operationProviders: [new ExecutableStartOperationProvider()]);
         var definition = CreateExecutableDefinition(
             path: "dotnet",
@@ -36,9 +35,10 @@ public sealed class ResourceDefinitionValidationPipelineTests
         Assert.True(result.Resource.Operations.Has(ExecutableApplicationResourceTypeProvider.Operations.Start));
 
         var projectionResolver = new ResourceProjectionResolver(
-            [new ExecutableApplicationResourceProjectionProvider()]);
+            [new ExecutableApplicationResourceProjectionProvider()],
+            new ResourceCapabilityResolver([new VolumeConsumerCapabilityProvider()]));
         var executable = await projectionResolver.GetResourceProjectionAsync<ExecutableApplicationResource>(
-            result.Projection,
+            result.Resource,
             new ResourceProjectionContext("local", "developer"));
 
         Assert.NotNull(executable);
@@ -54,7 +54,6 @@ public sealed class ResourceDefinitionValidationPipelineTests
     {
         var pipeline = CreatePipeline(
             capabilityProviders: [new VolumeConsumerCapabilityProvider()],
-            capabilityProjectors: [new VolumeConsumerCapabilityProvider()],
             operationProviders: [new ExecutableStartOperationProvider()]);
         var definition = CreateExecutableDefinition(
             path: "dotnet",
@@ -70,13 +69,16 @@ public sealed class ResourceDefinitionValidationPipelineTests
         var result = await pipeline.ValidateAsync(
             definition,
             new ResourceDefinitionValidationContext("local", "developer"));
-        var volumeConsumer = await result.Projection.GetCapabilityAsync<VolumeConsumerCapability>(
-            VolumeConsumerCapabilityProvider.CapabilityIdValue);
+        var capabilityResolver = new ResourceCapabilityResolver([new VolumeConsumerCapabilityProvider()]);
+        var volumeConsumer = await capabilityResolver.ResolveAsync<VolumeConsumerCapability>(
+            result.Resource,
+            VolumeConsumerCapabilityProvider.CapabilityIdValue,
+            new ResourceCapabilityProjectionContext("local", "developer"));
 
         Assert.NotNull(volumeConsumer);
 
         var updated = volumeConsumer.AddMount(
-            result.Projection.Definition,
+            result.Resource.ToDefinition(),
             new VolumeMountDefinition("volume:logs", "Logs", ReadOnly: true));
         var updatedPayload = updated.GetCapability<VolumeConsumerDefinition>(
             VolumeConsumerCapabilityProvider.CapabilityIdValue);
@@ -119,14 +121,12 @@ public sealed class ResourceDefinitionValidationPipelineTests
 
     private static ResourceDefinitionValidationPipeline CreatePipeline(
         IReadOnlyList<IResourceCapabilityProvider> capabilityProviders,
-        IReadOnlyList<IResourceOperationProvider> operationProviders,
-        IReadOnlyList<IResourceCapabilityProjector>? capabilityProjectors = null) =>
+        IReadOnlyList<IResourceOperationProvider> operationProviders) =>
         new(
             [new(ExecutableApplicationResourceTypeProvider.ClassId)],
             [new ExecutableApplicationResourceTypeProvider()],
             capabilityProviders,
-            operationProviders,
-            capabilityProjectors: capabilityProjectors);
+            operationProviders);
 
     private static ResourceDefinition CreateExecutableDefinition(
         string path,
@@ -164,7 +164,7 @@ public sealed class ResourceDefinitionValidationPipelineTests
         public ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
             Resource resource,
             ResourceOperationResolution operation,
-            ResourceDefinitionValidationContext context,
+            ResourceProviderContext context,
             CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(ResourceDefinitionValidationResult.Success);
     }

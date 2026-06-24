@@ -18,7 +18,7 @@ public sealed class VolumeConsumerCapabilityProvider :
     public ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
         Resource resource,
         ResourceCapabilityResolution capability,
-        ResourceDefinitionValidationContext context,
+        ResourceProviderContext context,
         CancellationToken cancellationToken = default)
     {
         var definition = capability.Payload.Deserialize<VolumeConsumerDefinition>();
@@ -42,7 +42,7 @@ public sealed class VolumeConsumerCapabilityProvider :
         CanValidate(resource, capability);
 
     public ValueTask<IResourceCapabilityProjection> ProjectAsync(
-        ResourceDefinitionProjection resource,
+        Resource resource,
         ResourceCapabilityResolution capability,
         ResourceCapabilityProjectionContext context,
         CancellationToken cancellationToken = default)

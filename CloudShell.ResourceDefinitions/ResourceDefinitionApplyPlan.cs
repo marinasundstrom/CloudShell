@@ -4,10 +4,10 @@ public interface IResourceDefinitionApplyProvider
 {
     ResourceTypeId TypeId { get; }
 
-    bool CanPlan(ResourceDefinitionProjection resource);
+    bool CanPlan(Resource resource);
 
     ValueTask<ResourceDefinitionApplyPlan> PlanApplyAsync(
-        ResourceDefinitionProjection resource,
+        Resource resource,
         ResourceDefinitionApplyContext context,
         CancellationToken cancellationToken = default);
 }
@@ -32,7 +32,7 @@ public sealed record ResourceDefinitionApplyStep(
     ResourceDefinition? Definition = null);
 
 public sealed record ResourceDefinitionApplyPlan(
-    ResourceDefinitionProjection Resource,
+    Resource Resource,
     IReadOnlyList<ResourceDefinitionApplyStep> Steps,
     IReadOnlyList<ResourceDefinitionDiagnostic> Diagnostics)
 {
@@ -78,7 +78,7 @@ public sealed class ResourceDefinitionGraphApplyPlanner(
         {
             var provider = _applyProviders.FirstOrDefault(provider =>
                 provider.TypeId == resource.Resource.Type.TypeId &&
-                provider.CanPlan(resource.Projection));
+                provider.CanPlan(resource.Resource));
 
             if (provider is null)
             {
@@ -90,7 +90,7 @@ public sealed class ResourceDefinitionGraphApplyPlanner(
             }
 
             resourcePlans.Add(await provider.PlanApplyAsync(
-                resource.Projection,
+                resource.Resource,
                 context,
                 cancellationToken));
         }

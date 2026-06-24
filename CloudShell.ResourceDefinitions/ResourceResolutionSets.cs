@@ -97,7 +97,7 @@ public sealed class ResourceOperationSet : IReadOnlyCollection<ResourceOperation
 
         return ResourceOperationResolution.Unavailable(
             operationId,
-            source ?? ResourceDefinitionValueSource.ResourceDefinition,
+            source ?? ResourceDefinitionValueSource.ResourceState,
             $"Operation '{operationId}' is not available.");
     }
 

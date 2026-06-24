@@ -38,6 +38,6 @@ public enum ResourceDefinitionValueSource
 {
     ClassDefinition,
     TypeDefinition,
-    ResourceDefinition,
+    ResourceState,
     Preset
 }

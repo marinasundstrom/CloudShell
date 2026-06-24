@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace CloudShell.ResourceDefinitions.Tests;
 
-public sealed class ResourceDefinitionProviderDispatcherTests
+public sealed class ResourceProviderDispatcherTests
 {
     [Fact]
     public async Task ValidateCapabilitiesAsync_UsesRegisteredCapabilityProvider()
@@ -27,7 +27,7 @@ public sealed class ResourceDefinitionProviderDispatcherTests
 
         var result = await dispatcher.ValidateCapabilitiesAsync(
             resolved,
-            new ResourceDefinitionValidationContext("local", "developer"));
+            new ResourceProviderContext("local", "developer"));
 
         Assert.Empty(result.Diagnostics);
     }
@@ -47,7 +47,7 @@ public sealed class ResourceDefinitionProviderDispatcherTests
 
         var result = await dispatcher.ValidateCapabilitiesAsync(
             resolved,
-            new ResourceDefinitionValidationContext());
+            new ResourceProviderContext());
 
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(ResourceDefinitionDiagnosticCodes.CapabilityProviderMissing, diagnostic.Code);
@@ -65,7 +65,7 @@ public sealed class ResourceDefinitionProviderDispatcherTests
 
         var result = await dispatcher.ValidateOperationsAsync(
             resolved,
-            new ResourceDefinitionValidationContext("local", "developer"));
+            new ResourceProviderContext("local", "developer"));
 
         Assert.Empty(result.Diagnostics);
     }
@@ -86,7 +86,7 @@ public sealed class ResourceDefinitionProviderDispatcherTests
 
         var result = await dispatcher.ValidateResourceTypeAsync(
             resolved,
-            new ResourceDefinitionValidationContext("local", "developer"));
+            new ResourceProviderContext("local", "developer"));
 
         Assert.Empty(result.Diagnostics);
     }
@@ -107,7 +107,7 @@ public sealed class ResourceDefinitionProviderDispatcherTests
 
         var result = await dispatcher.ValidateResourceTypeAsync(
             resolved,
-            new ResourceDefinitionValidationContext());
+            new ResourceProviderContext());
 
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal("application.executable.pathRequired", diagnostic.Code);
@@ -134,7 +134,7 @@ public sealed class ResourceDefinitionProviderDispatcherTests
             Capabilities: capabilities));
     }
 
-    private static ResourceDefinitionProviderDispatcher CreateDispatcher(
+    private static ResourceProviderDispatcher CreateDispatcher(
         IReadOnlyList<IResourceTypeProvider> typeProviders,
         IReadOnlyList<IResourceCapabilityProvider> capabilityProviders,
         IReadOnlyList<IResourceOperationProvider> operationProviders)
@@ -156,11 +156,11 @@ public sealed class ResourceDefinitionProviderDispatcherTests
             services.AddSingleton<IResourceOperationProvider>(provider);
         }
 
-        services.AddSingleton<ResourceDefinitionProviderDispatcher>();
+        services.AddSingleton<ResourceProviderDispatcher>();
 
         return services
             .BuildServiceProvider()
-            .GetRequiredService<ResourceDefinitionProviderDispatcher>();
+            .GetRequiredService<ResourceProviderDispatcher>();
     }
 
     private sealed class VolumeConsumerCapabilityProvider : IResourceCapabilityProvider
@@ -177,7 +177,7 @@ public sealed class ResourceDefinitionProviderDispatcherTests
         public ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
             Resource resource,
             ResourceCapabilityResolution capability,
-            ResourceDefinitionValidationContext context,
+            ResourceProviderContext context,
             CancellationToken cancellationToken = default)
         {
             using var document = JsonDocument.Parse(capability.Payload.GetRawText());
@@ -218,7 +218,7 @@ public sealed class ResourceDefinitionProviderDispatcherTests
         public ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
             Resource resource,
             ResourceOperationResolution operation,
-            ResourceDefinitionValidationContext context,
+            ResourceProviderContext context,
             CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(ResourceDefinitionValidationResult.Success);
     }

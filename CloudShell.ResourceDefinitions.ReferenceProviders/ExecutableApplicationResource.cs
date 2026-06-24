@@ -1,9 +1,11 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
 public sealed class ExecutableApplicationResource(
-    ResourceDefinitionProjection resource) : IResourceProjection
+    Resource resource,
+    ResourceCapabilityResolver capabilityResolver,
+    ResourceCapabilityProjectionContext capabilityContext) : IResourceProjection
 {
-    public ResourceDefinitionProjection Resource { get; } = resource;
+    public Resource Resource { get; } = resource;
 
     public string? ExecutablePath =>
         Resource.Attributes.GetString(
@@ -12,8 +14,10 @@ public sealed class ExecutableApplicationResource(
     public async ValueTask<IReadOnlyList<VolumeMountDefinition>> GetVolumesAsync(
         CancellationToken cancellationToken = default)
     {
-        var volumeConsumer = await Resource.GetCapabilityAsync<VolumeConsumerCapability>(
+        var volumeConsumer = await capabilityResolver.ResolveAsync<VolumeConsumerCapability>(
+            Resource,
             VolumeConsumerCapabilityProvider.CapabilityIdValue,
+            capabilityContext,
             cancellationToken);
 
         return volumeConsumer?.Mounts ?? [];
@@ -24,13 +28,18 @@ public sealed class ExecutableApplicationResourceProjectionProvider : IResourceP
 {
     public ResourceTypeId TypeId => ExecutableApplicationResourceTypeProvider.ResourceTypeId;
 
-    public bool CanProject(ResourceDefinitionProjection resource) =>
-        resource.Resource.Type.TypeId == ExecutableApplicationResourceTypeProvider.ResourceTypeId;
+    public bool CanProject(Resource resource) =>
+        resource.Type.TypeId == ExecutableApplicationResourceTypeProvider.ResourceTypeId;
 
     public ValueTask<IResourceProjection> ProjectAsync(
-        ResourceDefinitionProjection resource,
+        Resource resource,
         ResourceProjectionContext context,
         CancellationToken cancellationToken = default) =>
         ValueTask.FromResult<IResourceProjection>(
-            new ExecutableApplicationResource(resource));
+            new ExecutableApplicationResource(
+                resource,
+                context.CapabilityResolver ?? new ResourceCapabilityResolver([]),
+                new ResourceCapabilityProjectionContext(
+                    context.EnvironmentId,
+                    context.PrincipalId)));
 }

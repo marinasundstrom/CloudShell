@@ -12,7 +12,7 @@ public interface IResourceAttributeValidator
 }
 
 public sealed record ResourceAttributeValidationContext(
-    ResourceDefinition Definition,
+    ResourceState State,
     ResourceClassDefinition ClassDefinition,
     ResourceTypeDefinition TypeDefinition,
     ResourceDefinitionResolutionContext ResolutionContext);

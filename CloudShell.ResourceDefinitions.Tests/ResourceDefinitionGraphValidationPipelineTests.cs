@@ -168,7 +168,7 @@ public sealed class ResourceDefinitionGraphValidationPipelineTests
         public ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
             Resource resource,
             ResourceOperationResolution operation,
-            ResourceDefinitionValidationContext context,
+            ResourceProviderContext context,
             CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(ResourceDefinitionValidationResult.Success);
     }

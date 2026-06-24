@@ -88,11 +88,12 @@ public sealed class ResourceDefinitionModelPocTests
                 [new(ExecutableApplicationResourceTypeProvider.ClassId)],
                 [new ExecutableApplicationResourceTypeProvider()],
                 capabilityProviders: [new VolumeConsumerCapabilityProvider()],
-                operationProviders: [new ExecutableStartOperationProvider()],
-                capabilityProjectors: [new VolumeConsumerCapabilityProvider()]));
+                operationProviders: [new ExecutableStartOperationProvider()]));
 
     private static ResourceDefinitionGraphProjectionResolver CreateGraphProjectionResolver() =>
-        new(new ResourceProjectionResolver([new ExecutableApplicationResourceProjectionProvider()]));
+        new(new ResourceProjectionResolver(
+            [new ExecutableApplicationResourceProjectionProvider()],
+            new ResourceCapabilityResolver([new VolumeConsumerCapabilityProvider()])));
 
     private static ResourceDefinitionGraphApplyPlanner CreateApplyPlanner() =>
         new([new ExecutableApplicationResourceTypeProvider()]);
@@ -114,7 +115,7 @@ public sealed class ResourceDefinitionModelPocTests
         public ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
             Resource resource,
             ResourceOperationResolution operation,
-            ResourceDefinitionValidationContext context,
+            ResourceProviderContext context,
             CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(ResourceDefinitionValidationResult.Success);
     }

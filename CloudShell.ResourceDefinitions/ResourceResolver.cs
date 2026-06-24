@@ -182,7 +182,7 @@ public sealed class ResourceResolver
             attributes[attribute.Name] = attribute;
         }
 
-        MergeAttributes(attributes, state.ResourceAttributes, ResourceDefinitionValueSource.ResourceDefinition);
+        MergeAttributes(attributes, state.ResourceAttributes, ResourceDefinitionValueSource.ResourceState);
 
         return new(attributes.Values);
     }
@@ -219,7 +219,7 @@ public sealed class ResourceResolver
             capabilities[id] = new(
                 id,
                 ResourceDefinitionJson.Clone(payload),
-                ResourceDefinitionValueSource.ResourceDefinition);
+                ResourceDefinitionValueSource.ResourceState);
         }
 
         return new(capabilities.Values);
@@ -271,7 +271,7 @@ public sealed class ResourceResolver
             operations[id] = new(
                 id,
                 ResourceDefinitionJson.Clone(payload),
-                ResourceDefinitionValueSource.ResourceDefinition,
+                ResourceDefinitionValueSource.ResourceState,
                 IsEnabled: true,
                 AllowOverride: true);
         }
@@ -370,7 +370,7 @@ public sealed class ResourceResolver
         List<ResourceDefinitionDiagnostic> diagnostics)
     {
         var validationContext = new ResourceAttributeValidationContext(
-            state.ToDefinition(),
+            state,
             classDefinition,
             typeDefinition,
             context);

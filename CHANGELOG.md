@@ -32,10 +32,15 @@ on `git blame --follow`, and then by the broad type of change.
 - The resource definitions POC now includes graph-to-resource projection
   resolution so validated definitions can be listed as generated-style upper
   domain wrappers without deciding the final `IResourceProvider` contract.
-- The resource definitions POC now includes a capability resolver and
-  `ResourceDefinitionProjection` wrapper so provider-owned capability behavior
-  can be composed into type-specific resource projections without making the
-  definition stop being the persisted data container.
+- The resource definitions POC now removes the redundant
+  `ResourceDefinitionProjection` wrapper so capability providers, operation
+  providers, apply planning, and typed resource wrappers operate on resolved
+  `Resource` projections, while `ResourceDefinition` remains the interchange
+  document applied to or rendered from resource state.
+- The resource definitions POC now includes a capability resolver so
+  provider-owned capability behavior can be composed into type-specific
+  resource projections without making the definition stop being the persisted
+  data container.
 - The resource definitions POC now includes a validation pipeline that resolves
   definitions from registered resource type providers and then runs
   type-provider, capability-provider, and operation-provider validation with

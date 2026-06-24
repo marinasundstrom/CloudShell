@@ -10,7 +10,7 @@ public interface IResourceTypeProvider
 
     ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
         Resource resource,
-        ResourceDefinitionValidationContext context,
+        ResourceProviderContext context,
         CancellationToken cancellationToken = default);
 }
 
@@ -25,7 +25,7 @@ public interface IResourceCapabilityProvider
     ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
         Resource resource,
         ResourceCapabilityResolution capability,
-        ResourceDefinitionValidationContext context,
+        ResourceProviderContext context,
         CancellationToken cancellationToken = default);
 }
 
@@ -42,7 +42,7 @@ public interface IResourceOperationProvider
     ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
         Resource resource,
         ResourceOperationResolution operation,
-        ResourceDefinitionValidationContext context,
+        ResourceProviderContext context,
         CancellationToken cancellationToken = default);
 }
 
@@ -50,7 +50,11 @@ public sealed record ResourceDefinitionValidationContext(
     string? EnvironmentId = null,
     string? PrincipalId = null);
 
-public sealed class ResourceDefinitionProviderDispatcher(
+public sealed record ResourceProviderContext(
+    string? EnvironmentId = null,
+    string? PrincipalId = null);
+
+public sealed class ResourceProviderDispatcher(
     IEnumerable<IResourceTypeProvider> typeProviders,
     IEnumerable<IResourceCapabilityProvider> capabilityProviders,
     IEnumerable<IResourceOperationProvider> operationProviders)
@@ -64,7 +68,7 @@ public sealed class ResourceDefinitionProviderDispatcher(
 
     public async ValueTask<ResourceDefinitionValidationResult> ValidateResourceTypeAsync(
         Resource resource,
-        ResourceDefinitionValidationContext context,
+        ResourceProviderContext context,
         CancellationToken cancellationToken = default)
     {
         var provider = _typeProviders.FirstOrDefault(provider =>
@@ -87,7 +91,7 @@ public sealed class ResourceDefinitionProviderDispatcher(
 
     public async ValueTask<ResourceDefinitionValidationResult> ValidateCapabilitiesAsync(
         Resource resource,
-        ResourceDefinitionValidationContext context,
+        ResourceProviderContext context,
         CancellationToken cancellationToken = default)
     {
         var diagnostics = new List<ResourceDefinitionDiagnostic>();
@@ -116,7 +120,7 @@ public sealed class ResourceDefinitionProviderDispatcher(
 
     public async ValueTask<ResourceDefinitionValidationResult> ValidateOperationsAsync(
         Resource resource,
-        ResourceDefinitionValidationContext context,
+        ResourceProviderContext context,
         CancellationToken cancellationToken = default)
     {
         var diagnostics = new List<ResourceDefinitionDiagnostic>();

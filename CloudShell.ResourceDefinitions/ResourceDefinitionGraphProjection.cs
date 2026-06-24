@@ -13,7 +13,7 @@ public sealed record ResourceDefinitionGraphProjectionResult(
             .OfType<TProjection>()
             .FirstOrDefault(resource =>
                 string.Equals(
-                    resource.Resource.Resource.EffectiveResourceId,
+                    resource.Resource.EffectiveResourceId,
                     resourceId,
                     StringComparison.OrdinalIgnoreCase));
 }
@@ -40,7 +40,7 @@ public sealed class ResourceDefinitionGraphProjectionResolver(
         foreach (var resource in validationResult.Resources)
         {
             var projection = await projectionResolver.GetResourceProjectionAsync(
-                resource.Projection,
+                resource.Resource,
                 context,
                 cancellationToken);
 

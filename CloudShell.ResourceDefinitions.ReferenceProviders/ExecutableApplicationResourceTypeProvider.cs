@@ -39,7 +39,7 @@ public sealed class ExecutableApplicationResourceTypeProvider :
 
     public ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
         Resource resource,
-        ResourceDefinitionValidationContext context,
+        ResourceProviderContext context,
         CancellationToken cancellationToken = default)
     {
         var configuration = resource.GetConfiguration<ExecutableApplicationConfiguration>(
@@ -59,17 +59,17 @@ public sealed class ExecutableApplicationResourceTypeProvider :
         return ValueTask.FromResult(ResourceDefinitionValidationResult.Success);
     }
 
-    public bool CanPlan(ResourceDefinitionProjection resource) =>
-        resource.Resource.Type.TypeId == ResourceTypeId;
+    public bool CanPlan(Resource resource) =>
+        resource.Type.TypeId == ResourceTypeId;
 
     public ValueTask<ResourceDefinitionApplyPlan> PlanApplyAsync(
-        ResourceDefinitionProjection resource,
+        Resource resource,
         ResourceDefinitionApplyContext context,
         CancellationToken cancellationToken = default)
     {
-        var configuration = resource.Resource.GetConfiguration<ExecutableApplicationConfiguration>(
+        var configuration = resource.GetConfiguration<ExecutableApplicationConfiguration>(
             ConfigurationSection);
-        var resourceId = resource.Resource.EffectiveResourceId;
+        var resourceId = resource.EffectiveResourceId;
 
         return ValueTask.FromResult(new ResourceDefinitionApplyPlan(
             resource,
@@ -79,7 +79,7 @@ public sealed class ExecutableApplicationResourceTypeProvider :
                     ResourceTypeId,
                     ResourceDefinitionApplyStepKind.AcceptDefinition,
                     "Accept executable application definition.",
-                    resource.Resource.ToDefinition()),
+                    resource.ToDefinition()),
                 new(
                     resourceId,
                     ResourceTypeId,

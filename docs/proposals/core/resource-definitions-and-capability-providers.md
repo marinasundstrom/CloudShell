@@ -180,6 +180,15 @@ and operation providers interpret the resolved resource projection as
 behavior: they can validate it, project helper data or command affordances
 from it, resolve related resources, and produce changes.
 
+Raw `ResourceDefinition` validation is a separate interchange/document
+concern. It can check whether an authored document is well formed, references
+known IDs, uses allowed fields, or contains capability/operation declarations
+that are valid before a `Resource` exists. Capability providers and operation
+providers are the runtime/domain behavior layer and should act on the
+resolved `Resource`. If CloudShell supports both, the contracts should remain
+separate so document validation does not become resource behavior and
+resource behavior does not depend on raw interchange shape.
+
 This proposal should distinguish the capability or operation from its
 provider. A resolved `Capability` or `Operation` can live in the `Resource`
 collections as model data with IDs, source information, availability, and
@@ -372,7 +381,7 @@ Examples:
 - `networking.namePublisher`: the resource can publish names.
 
 An operation is explicitly declared behavior on a resource class, resource
-type, or individual resource definition. It describes work that can be
+type, or individual resource state. It describes work that can be
 invoked, applied, reconciled, or otherwise carried out for a resource. When an
 operation is exposed to a caller, Resource Manager or the API can project a
 command affordance for that operation. The operation itself remains the
@@ -453,7 +462,7 @@ operations on their own; they advertise which resolved operation declarations
 they can handle for matching resources.
 
 Operation overrides should be explicit. A type definition can refine or hide a
-class-level operation, and a resource definition can refine or disable a
+class-level operation, and resource-owned state can refine or disable a
 type-level operation only when the inherited definition allows that override.
 This avoids accidental replacement of lifecycle behavior while still allowing
 resource-specific provider operations.
@@ -538,22 +547,21 @@ definitions, type definitions, resource-owned state, presets, provider
 defaults, and provider observations before validation, projection, operation
 availability, deployment projection, or UI rendering relies on those values.
 
-Provider-facing contracts should act on `Resource`, not on
+Provider-facing resource contracts should act on `Resource`, not on
 `ResourceDefinition`. The current POC now resolves directly to `Resource`
 from `ResourceState`, `ResourceType`, and `ResourceClass`; it no longer needs
 a separate `ResolvedResourceDefinition` model. The low-level `Resource`
 combines persisted or accepted resource state, resolved type/class values,
-resolved capabilities, resolved operations, and resolver access. The important
-rule is that capability providers, operation providers, attribute validators,
-and resource type providers receive the resolved `Resource` context they need
-instead of manually combining raw properties or re-reading the interchange
-format.
+resolved capabilities, and resolved operations. The important rule is that
+capability providers, operation providers, attribute validators, and resource
+type providers receive the resolved `Resource` context they need instead of
+manually combining raw properties or re-reading the interchange format.
 
 The current POC treats `ResourceDefinition` as the interchange model/format
 and adds runtime projection on top of the resolved values. The first
 projection layer is a low-level `Resource` exposing effective attributes,
-capabilities, operations, type definition, class definition, and resolver
-access. A second, resource-type-specific wrapper can then provide an
+capabilities, operations, type definition, and class definition. A second,
+resource-type-specific wrapper can then provide an
 object-oriented surface such as
 `ExecutableApplicationResource.GetVolumesAsync()`. That method is owned by the
 executable resource projection, but it internally asks a
@@ -571,7 +579,7 @@ The POC can keep these resource-type projection wrappers hand-written, but the
 expected mature implementation is source-generated wrappers from the resource
 class/type definitions, attribute IDs, capability IDs, and operation IDs. The
 generated wrapper should be a convenience facade over the low-level
-`Resource`, resolved values, and resolver services, not a second
+`Resource`, resolved values, and injected resolver services, not a second
 source of truth for the resource model.
 
 It is intentionally still open whether generated resource-type wrappers should
@@ -820,7 +828,7 @@ public sealed class ExecutableApplicationResourceTypeProvider(
 
     public ResourceDefinitionValidationResult Validate(
         Resource resource,
-        ResourceDefinitionValidationContext context)
+        ResourceProviderContext context)
     {
         var executable = resource.GetConfiguration<ExecutableConfiguration>(
             "executable");
@@ -910,10 +918,10 @@ capability, and operation identifiers.
 
 ## Definition Change Application
 
-Resource type providers should be able to respond before an update to a
-resource definition is applied. The provider needs the current accepted
-definition, the proposed definition, the resolved diff, and the current
-resource/runtime context so it can choose the correct behavior.
+Resource type providers should be able to respond before a
+`ResourceDefinition` interchange update is applied to a resource. The provider
+needs the current `Resource`, the proposed definition, the resolved diff, and
+the current resource/runtime context so it can choose the correct behavior.
 
 The exact API is open, but the shape should make these inputs available:
 
@@ -995,6 +1003,11 @@ the effective capability entry, resource attributes, operation declarations,
 type/class views, current environment, and provider observations needed for
 validation.
 
+If a capability needs to reject raw authored document shape before resource
+resolution, that should be modeled as a resource-definition validator for the
+interchange layer. It may use the same capability ID, but it is not the
+capability provider that attaches behavior to the resolved resource.
+
 For example, a storage volume consumer provider can own the
 `storage.volumeConsumer` capability:
 
@@ -1006,7 +1019,7 @@ public sealed class VolumeConsumerCapabilityProvider(IVolumeManager volumes)
 
     public ResourceDefinitionValidationResult Validate(
         Resource resource,
-        ResourceDefinitionValidationContext context)
+        ResourceProviderContext context)
     {
         var volumeConsumer = resource.GetCapability<VolumeConsumerDefinition>(
             CapabilityId);
@@ -1109,7 +1122,7 @@ the Control Plane when it projects resource commands, computes command
 availability, executes a requested command, reconciles state, or applies other
 provider-owned behavior. Operation providers should resolve the operation
 declaration they handle from the resolved resource context at the level they
-explicitly support: class, type, resource definition, or a combination of those
+explicitly support: class, type, resource state, or a combination of those
 levels.
 
 The operation declaration is the resource model contract. The provider is the
@@ -1431,14 +1444,14 @@ pipeline:
 12. Let operation providers validate operation configuration and command
    projection policy, including availability policy that can be checked before
    projection or apply.
-13. Compute the definition diff when an existing resource definition is being
-   updated.
+13. Compute the definition diff when a `ResourceDefinition` update is being
+   applied to an existing resource.
 14. Let the resource type provider plan the definition change using the
-   resolved old/new definitions, changed attributes/capabilities/operations,
-   and current runtime state.
+   current resource, proposed resource state, changed
+   attributes/capabilities/operations, and current runtime state.
 15. Run cross-definition graph validation, including dependencies,
    authorization, compatibility, and host/provider policy.
-16. Return diagnostics and normalized accepted definitions without side
+16. Return diagnostics and normalized accepted resource state without side
     effects.
 17. Apply, update, persist, or project only after validation succeeds.
 
@@ -1559,8 +1572,8 @@ availability are incomplete.
 - What is the exact boundary between capability-driven functionality and
   operation-driven behavior when a concept has both, such as storage mounts or
   deployment?
-- Should resource definitions be able to override inherited operations, and
-  which class/type/resource-level operation declarations may be disabled or
+- Should resource state be able to override inherited operations, and which
+  class/type/resource-level operation declarations may be disabled or
   refined?
 - Should command affordances always be projected from resolved operations, or
   should any command affordances be declared independently?
