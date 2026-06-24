@@ -641,6 +641,15 @@ attributes. Runtime status, conflict status, and DNS publishing observations
 remain derived or observed views for future capability members or operation
 plans.
 
+A narrow storage reference provider covers the declarative `cloudshell.storage`
+graph resource. It owns storage kind, provider, medium, and location
+attributes, passive storage-provider and mount-provider capability markers, an
+inspect operation, a typed projection wrapper, apply planning, and Resource
+Manager bridge projection/execution. The POC keeps storage volume counts,
+filesystem availability, and runtime status out of normal attributes because
+those are calculated or observed views that should be exposed through
+capability members or operation plans.
+
 A narrow Secrets Vault reference provider follows the same boundary while
 keeping secret material out of the Resource model. It owns `secrets.vault`,
 Secrets Vault class defaults, endpoint and secret-count attributes, an inspect
@@ -654,6 +663,7 @@ The working porting status for the reference POC is:
 | --- | --- | --- | --- |
 | Executable application (`application.executable`) | Ported as a reference provider | Type and class defaults, executable path validation and configuration, shared volume-consumer capability, start operation, typed wrapper, Resource Manager bridge projection and execution | Real local-process runtime integration, logs, endpoints, templates, and UI registration/update flow |
 | Local volume (`storage.volume`) | Ported as a reference provider | Storage class and type defaults, medium validation, provision operation, typed wrapper, apply planning, Resource Manager bridge projection | Provider-backed storage materialization, usage tracking, health, and monitoring |
+| Storage (`cloudshell.storage`) | Ported as a narrow reference provider | Storage class/type defaults, provider/medium/location attributes, passive storage-provider and mount-provider capability markers, inspect operation, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Volume collection payloads, runtime filesystem availability and volume counts as capability members or operation plans, provider-backed storage materialization, health, monitoring, and UI registration/update flow |
 | Container application (`application.container-app`) | Ported as a narrow reference provider | Image and replica attributes, shared volume-consumer capability, start/restart/image-update operations, typed wrapper, Resource Manager bridge projection and execution | Actual container host orchestration, endpoints, revisions, replica runtime state, monitoring, and UI operations |
 | ASP.NET Core project (`application.aspnet-core-project`) | Ported as a narrow reference provider | Project path, arguments, hot reload, launch-settings attributes, shared volume-consumer capability, start/restart operations, typed wrapper, Resource Manager bridge projection and execution | Launch settings parsing, endpoints, local process or container build behavior, UI registration/update flow |
 | SQL Server (`application.sql-server`) | Ported as a narrow reference provider | Service class and type defaults, version/edition attributes, declared database configuration, shared volume-consumer capability, reconcile-access operation, typed wrapper, Resource Manager bridge projection and execution | Real SQL runtime integration, credential/grant reconciliation, database child projections, endpoints, and UI tabs |

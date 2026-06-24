@@ -261,6 +261,70 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task AddStorageResourceType_RegistersCompleteResourceTypeBoundary()
+    {
+        var services = new ServiceCollection();
+        services.AddStorageResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var definition = new ResourceDefinition(
+            "local",
+            StorageResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [StorageResourceTypeProvider.Attributes.Provider] = "Local Storage",
+                [StorageResourceTypeProvider.Attributes.Medium] = "FileSystem",
+                [StorageResourceTypeProvider.Attributes.Location] = "Data/storage/local"
+            });
+
+        var validation = await serviceProvider
+            .GetRequiredService<ResourceDefinitionValidationPipeline>()
+            .ValidateAsync(
+                definition,
+                new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.False(validation.HasErrors);
+        Assert.Equal(StorageResourceTypeProvider.ClassId, validation.Resource.Class.ClassId);
+        Assert.Equal("provider", validation.Resource.Attributes.GetString(
+            StorageResourceTypeProvider.Attributes.StorageKind));
+        Assert.Equal("Local Storage", validation.Resource.Attributes.GetString(
+            StorageResourceTypeProvider.Attributes.Provider));
+        Assert.Equal("FileSystem", validation.Resource.Attributes.GetString(
+            StorageResourceTypeProvider.Attributes.Medium));
+        Assert.Equal("Data/storage/local", validation.Resource.Attributes.GetString(
+            StorageResourceTypeProvider.Attributes.Location));
+        Assert.True(validation.Resource.Capabilities.Has(
+            StorageResourceTypeProvider.Capabilities.StorageProvider));
+        Assert.True(validation.Resource.Capabilities.Has(
+            StorageResourceTypeProvider.Capabilities.StorageMountProvider));
+        Assert.True(validation.Resource.Operations.Has(
+            StorageResourceTypeProvider.Operations.Inspect));
+
+        var projectedGraph = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphProjectionResolver>()
+            .ProjectAsync(
+                new ResourceDefinitionGraphValidationPipelineResult(
+                    new ResourceDefinitionGraph([definition]),
+                    [validation],
+                    []),
+                new ResourceProjectionContext("local", "developer"));
+        var projection = projectedGraph.Find<StorageResource>(
+            definition.EffectiveResourceId);
+
+        Assert.NotNull(projection);
+        Assert.Equal("provider", projection.StorageKind);
+        Assert.Equal("Local Storage", projection.Provider);
+        Assert.Equal("FileSystem", projection.Medium);
+        Assert.True(projection.SupportsStorage);
+        Assert.True(projection.SupportsMounts);
+        var inspect = await projection.GetInspectOperationAsync();
+
+        Assert.NotNull(inspect);
+        Assert.True(await inspect.CanExecuteAsync());
+        Assert.Equal("FileSystem", inspect.PlanInspection().Medium);
+    }
+
+    [Fact]
     public async Task AddContainerHostResourceType_RegistersCompleteResourceTypeBoundary()
     {
         var services = new ServiceCollection();

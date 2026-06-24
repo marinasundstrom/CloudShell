@@ -1569,6 +1569,89 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesStorageAcrossProviderBoundaries()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddStorageResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var storage = new ResourceDefinition(
+            "local",
+            StorageResourceTypeProvider.ResourceTypeId,
+            ProviderId: StorageResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [StorageResourceTypeProvider.Attributes.Provider] = "Local Storage",
+                [StorageResourceTypeProvider.Attributes.Medium] = "FileSystem",
+                [StorageResourceTypeProvider.Attributes.Location] = "Data/storage/local"
+            });
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "storage",
+                [storage],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 8, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedStorage = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == storage.EffectiveResourceId);
+
+        Assert.Equal(ResourceManagerClass.Storage, projectedStorage.ResourceClass);
+        Assert.Equal(StorageResourceTypeProvider.ProviderId, projectedStorage.Provider);
+        Assert.Equal("provider", projectedStorage.ResourceAttributes["storage.kind"]);
+        Assert.Equal("Local Storage", projectedStorage.ResourceAttributes["storage.provider"]);
+        Assert.Equal("FileSystem", projectedStorage.ResourceAttributes["storage.medium"]);
+        Assert.Equal("Data/storage/local", projectedStorage.ResourceAttributes["storage.location"]);
+        Assert.DoesNotContain("storage.volumes", projectedStorage.ResourceAttributes.Keys);
+        Assert.DoesNotContain("storage.runtimeStatus", projectedStorage.ResourceAttributes.Keys);
+        Assert.Contains(projectedStorage.ResourceCapabilities, capability =>
+            capability.Id == StorageResourceTypeProvider.Capabilities.StorageProvider.ToString());
+        Assert.Contains(projectedStorage.ResourceCapabilities, capability =>
+            capability.Id == StorageResourceTypeProvider.Capabilities.StorageMountProvider.ToString());
+        var inspect = Assert.Single(projectedStorage.ResourceActions, action =>
+            action.Id == StorageResourceTypeProvider.Operations.Inspect.ToString());
+        Assert.Equal("Storage Inspect", inspect.DisplayName);
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveAsync(storage.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors);
+        var projection = Assert.IsType<StorageResource>(
+            await serviceProvider
+                .GetRequiredService<ResourceProjectionResolver>()
+                .GetResourceProjectionAsync(
+                    resolution.Target!,
+                    new ResourceProjectionContext("local", "developer")));
+        Assert.Equal("FileSystem", projection.Medium);
+
+        var procedure = new ResourceProcedureContext(
+            projectedStorage,
+            null,
+            null,
+            new EmptyResourceRegistrationStore());
+
+        Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, inspect));
+
+        var procedureResult = await provider.ExecuteActionAsync(procedure, inspect);
+
+        Assert.Equal("Executed Storage Inspect for local.", procedureResult.Message);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesSecretsVaultAcrossProviderBoundaries()
     {
         var services = new ServiceCollection();
