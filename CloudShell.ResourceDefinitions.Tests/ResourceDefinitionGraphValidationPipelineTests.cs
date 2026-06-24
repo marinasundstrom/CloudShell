@@ -52,6 +52,49 @@ public sealed class ResourceDefinitionGraphValidationPipelineTests
     }
 
     [Fact]
+    public async Task ValidateAsync_Graph_ReturnsMissingCapabilityReferenceDiagnostic()
+    {
+        var pipeline = CreateVolumeConsumerGraphPipeline();
+        var api = CreateExecutableDefinition(
+            "api",
+            mounts:
+            [
+                new("storage.volume:missing", "App_Data")
+            ]);
+
+        var result = await pipeline.ValidateAsync(
+            new ResourceDefinitionGraph([api]),
+            new ResourceDefinitionValidationContext());
+
+        Assert.True(result.HasErrors);
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Code == ResourceDefinitionDiagnosticCodes.ResourceCapabilityReferenceMissing &&
+            diagnostic.Target == api.EffectiveResourceId);
+    }
+
+    [Fact]
+    public async Task ValidateAsync_Graph_ReturnsInvalidCapabilityReferenceDiagnostic()
+    {
+        var pipeline = CreateVolumeConsumerGraphPipeline();
+        var worker = CreateExecutableDefinition("worker");
+        var api = CreateExecutableDefinition(
+            "api",
+            mounts:
+            [
+                new(worker.EffectiveResourceId, "App_Data")
+            ]);
+
+        var result = await pipeline.ValidateAsync(
+            new ResourceDefinitionGraph([worker, api]),
+            new ResourceDefinitionValidationContext());
+
+        Assert.True(result.HasErrors);
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Code == ResourceDefinitionDiagnosticCodes.ResourceCapabilityReferenceInvalid &&
+            diagnostic.Target == api.EffectiveResourceId);
+    }
+
+    [Fact]
     public async Task PlanApplyAsync_ValidatedGraph_UsesResourceTypeApplyProviders()
     {
         var validation = await CreateGraphPipeline().ValidateAsync(
@@ -125,6 +168,21 @@ public sealed class ResourceDefinitionGraphValidationPipelineTests
     private static ResourceDefinitionGraphValidationPipeline CreateGraphPipeline() =>
         new(CreateResourcePipeline());
 
+    private static ResourceDefinitionGraphValidationPipeline CreateVolumeConsumerGraphPipeline() =>
+        new(
+            new ResourceDefinitionValidationPipeline(
+                [
+                    ExecutableApplicationResourceTypeProvider.ClassDefinition,
+                    LocalVolumeResourceTypeProvider.ClassDefinition
+                ],
+                [
+                    new ExecutableApplicationResourceTypeProvider(),
+                    new LocalVolumeResourceTypeProvider()
+                ],
+                capabilityProviders: [new VolumeConsumerCapabilityProvider()],
+                operationProviders: [new ExecutableStartOperationProvider()]),
+            [new VolumeConsumerGraphValidator()]);
+
     private static ResourceDefinitionGraphApplyPlanner CreateApplyPlanner() =>
         new([new ExecutableApplicationResourceTypeProvider()]);
 
@@ -136,7 +194,8 @@ public sealed class ResourceDefinitionGraphValidationPipelineTests
 
     private static ResourceDefinition CreateExecutableDefinition(
         string name,
-        IReadOnlyList<string>? dependsOn = null) =>
+        IReadOnlyList<string>? dependsOn = null,
+        IReadOnlyList<VolumeMountDefinition>? mounts = null) =>
         new(
             name,
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
@@ -149,7 +208,14 @@ public sealed class ResourceDefinitionGraphValidationPipelineTests
             {
                 [ExecutableApplicationResourceTypeProvider.ConfigurationSection] =
                     ResourceDefinitionJson.FromValue(new ExecutableApplicationConfiguration("dotnet", "run"))
-            });
+            },
+            Capabilities: mounts is null
+                ? null
+                : new Dictionary<ResourceCapabilityId, JsonElement>
+                {
+                    [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
+                        ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(mounts))
+                });
 
     private sealed class ExecutableStartOperationProvider : IResourceOperationProvider
     {

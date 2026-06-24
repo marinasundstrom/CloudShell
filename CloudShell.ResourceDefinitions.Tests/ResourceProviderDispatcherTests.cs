@@ -46,6 +46,7 @@ public sealed class ResourceProviderDispatcherTests
     public async Task AddExecutableApplicationResourceType_RegistersCompleteResourceTypeBoundary()
     {
         var services = new ServiceCollection();
+        services.AddLocalVolumeResourceType();
         services.AddExecutableApplicationResourceType();
         services.AddInMemoryResourceModelGraph();
         services.AddResourceModelGraphServices();
@@ -54,9 +55,13 @@ public sealed class ResourceProviderDispatcherTests
         Assert.NotNull(serviceProvider.GetRequiredService<ResourceModelGraphResourceResolver>());
         Assert.NotNull(serviceProvider.GetRequiredService<ResourceDefinitionGraphChangeApplier>());
 
+        var volume = new ResourceDefinition(
+            "data",
+            LocalVolumeResourceTypeProvider.ResourceTypeId);
         var definition = new ResourceDefinition(
             "api",
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+            DependsOn: [volume.EffectiveResourceId],
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
                 [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
@@ -71,13 +76,13 @@ public sealed class ResourceProviderDispatcherTests
                 [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
                     ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
                     [
-                        new("volume:data", "App_Data")
+                        new(volume.EffectiveResourceId, "App_Data")
                     ]))
             });
         var validation = await serviceProvider
             .GetRequiredService<ResourceDefinitionGraphValidationPipeline>()
             .ValidateAsync(
-                new ResourceDefinitionGraph([definition]),
+                new ResourceDefinitionGraph([volume, definition]),
                 new ResourceDefinitionValidationContext("local", "developer"));
 
         Assert.False(validation.HasErrors);
@@ -96,7 +101,7 @@ public sealed class ResourceProviderDispatcherTests
         var start = await projection.GetStartOperationAsync();
 
         Assert.NotNull(start);
-        Assert.Equal("volume:data", Assert.Single(volumes).Volume);
+        Assert.Equal(volume.EffectiveResourceId, Assert.Single(volumes).Volume);
         Assert.True(await start.CanExecuteAsync());
         Assert.Equal("dotnet", projection.ExecutablePath);
 

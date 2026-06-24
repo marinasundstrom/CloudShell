@@ -583,6 +583,8 @@ public static class ResourceDefinitionDiagnosticCodes
     public const string ResourceTypeProviderMissing = "resourceDefinition.resourceTypeProviderMissing";
     public const string DuplicateResourceDefinition = "resourceDefinition.duplicateResourceDefinition";
     public const string ResourceDependencyMissing = "resourceDefinition.resourceDependencyMissing";
+    public const string ResourceCapabilityReferenceMissing = "resourceDefinition.capabilityReferenceMissing";
+    public const string ResourceCapabilityReferenceInvalid = "resourceDefinition.capabilityReferenceInvalid";
     public const string ResourceDefinitionApplyProviderMissing = "resourceDefinition.applyProviderMissing";
     public const string ResourceProjectionProviderMissing = "resourceDefinition.projectionProviderMissing";
     public const string ResourceChangeApplyProviderMissing = "resourceDefinition.changeApplyProviderMissing";

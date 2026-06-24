@@ -32,7 +32,7 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(ResourceManagerClass.Executable, projected.ResourceClass);
         Assert.Equal(ResourceSource.User, projected.Source);
         Assert.Equal(ResourceManagementMode.UserManaged, projected.ManagementMode);
-        Assert.Equal(["storage:data"], projected.DependsOn);
+        Assert.Equal(["storage.volume:data"], projected.DependsOn);
         Assert.Equal("dotnet", projected.ResourceAttributes["executable.path"]);
         Assert.Equal(ResourceGraphMembershipKinds.Declared, projected.ResourceGraphMembership);
         Assert.Equal(
@@ -62,7 +62,7 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal("API", projected.DisplayName);
         Assert.Equal("application.executable", projected.Kind);
         Assert.Equal(ResourceManagerClass.Executable, projected.ResourceClass);
-        Assert.Equal(["storage:data"], projected.DependsOn);
+        Assert.Equal(["storage.volume:data"], projected.DependsOn);
         Assert.Equal("dotnet", projected.ResourceAttributes["executable.path"]);
         Assert.Equal(
             "resource-model",
@@ -101,7 +101,7 @@ public sealed class ResourceManagerIntegrationTests
         Assert.NotNull(start);
         Assert.Same(target, volumes.Resource);
         Assert.Same(target, start.Resource);
-        Assert.Equal("storage:data", Assert.Single(volumes.Mounts).Volume);
+        Assert.Equal("storage.volume:data", Assert.Single(volumes.Mounts).Volume);
         Assert.True(await start.CanExecuteAsync());
     }
 
@@ -147,7 +147,7 @@ public sealed class ResourceManagerIntegrationTests
         var capability = Assert.IsType<VolumeConsumerCapability>(resolution.Capability);
         Assert.Same(resolution.Resource, capability.Resource);
         Assert.Equal(VolumeConsumerCapabilityProvider.CapabilityIdValue, resolution.CapabilityId);
-        Assert.Equal("storage:data", Assert.Single(capability.Mounts).Volume);
+        Assert.Equal("storage.volume:data", Assert.Single(capability.Mounts).Volume);
 
         var changes = capability.AddMount(new("storage:logs", "Logs"));
 
@@ -183,7 +183,8 @@ public sealed class ResourceManagerIntegrationTests
     public async Task ResourceModelGraphResourceResolver_ResolvesResourceManagerActionToOperationProjection()
     {
         var services = new ServiceCollection();
-        services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
+        services.AddInMemoryResourceModelGraph([CreateLocalVolumeState(), CreateExecutableState()]);
+        services.AddLocalVolumeResourceType();
         services.AddExecutableApplicationResourceType();
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
@@ -338,7 +339,8 @@ public sealed class ResourceManagerIntegrationTests
     public async Task ResourceModelGraphDefinitionApplyService_CommitsDefinitionOverlay()
     {
         var services = new ServiceCollection();
-        services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
+        services.AddInMemoryResourceModelGraph([CreateLocalVolumeState(), CreateExecutableState()]);
+        services.AddLocalVolumeResourceType();
         services.AddExecutableApplicationResourceType();
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
@@ -359,13 +361,14 @@ public sealed class ResourceManagerIntegrationTests
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 24, 16, 0, 0, TimeSpan.Zero)));
 
-        Assert.False(result.HasErrors);
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
         Assert.True(result.IsCommitted);
         Assert.Equal(ResourceGraphVersion.Initial, result.BaseVersion);
         Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
         Assert.Single(result.Changes.AcceptedResources);
 
-        var committed = Assert.Single(result.Commit.Snapshot!.Resources);
+        var committed = result.Commit.Snapshot!.Resources.Single(resource =>
+            resource.EffectiveResourceId == "application.executable:api");
         Assert.Equal(new ResourceRevision(1), committed.Revision);
         Assert.Equal(
             "dotnet-watch",
@@ -376,7 +379,8 @@ public sealed class ResourceManagerIntegrationTests
     public async Task ResourceModelGraphDefinitionApplyService_RejectsProviderDiagnostics()
     {
         var services = new ServiceCollection();
-        services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
+        services.AddInMemoryResourceModelGraph([CreateLocalVolumeState(), CreateExecutableState()]);
+        services.AddLocalVolumeResourceType();
         services.AddExecutableApplicationResourceType();
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
@@ -405,7 +409,8 @@ public sealed class ResourceManagerIntegrationTests
 
         var graphModel = serviceProvider.GetRequiredService<ResourceGraphModel>();
         var snapshot = await graphModel.GetSnapshotAsync();
-        var state = Assert.Single(snapshot.Resources);
+        var state = snapshot.Resources.Single(resource =>
+            resource.EffectiveResourceId == "application.executable:api");
         Assert.Equal(
             "dotnet",
             state.ResourceAttributes[ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
@@ -530,6 +535,56 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(volume.EffectiveResourceId, Assert.Single(volumeCapability.Mounts).Volume);
     }
 
+    [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_RejectsInvalidCapabilityReference()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddLocalVolumeResourceType();
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var executable = new ResourceDefinition(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+            ProviderId: ExecutableApplicationResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
+            },
+            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
+            {
+                [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
+                    ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
+                    [
+                        new("storage.volume:missing", "App_Data")
+                    ]))
+            });
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "local-app",
+                [executable],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 24, 17, 30, 0, TimeSpan.Zero)));
+
+        Assert.True(result.HasErrors);
+        Assert.False(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Rejected, result.Commit.Summary.Status);
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Code == ResourceDefinitionDiagnosticCodes.ResourceCapabilityReferenceMissing &&
+            diagnostic.Target == executable.EffectiveResourceId);
+
+        var snapshot = await serviceProvider
+            .GetRequiredService<ResourceGraphModel>()
+            .GetSnapshotAsync();
+
+        Assert.Empty(snapshot.Resources);
+    }
+
     private static ResourceState CreateExecutableState(
         string name = "api",
         IReadOnlyList<string>? dependsOn = null) =>
@@ -538,7 +593,7 @@ public sealed class ResourceManagerIntegrationTests
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
             ProviderId: ExecutableApplicationResourceTypeProvider.ProviderId,
             DisplayName: name.ToUpperInvariant(),
-            DependsOn: dependsOn ?? ["storage:data"],
+            DependsOn: dependsOn ?? ["storage.volume:data"],
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
                 [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
@@ -553,9 +608,16 @@ public sealed class ResourceManagerIntegrationTests
                 [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
                     ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
                     [
-                        new("storage:data", "App_Data")
+                        new("storage.volume:data", "App_Data")
                     ]))
             });
+
+    private static ResourceState CreateLocalVolumeState(
+        string name = "data") =>
+        new(
+            name,
+            LocalVolumeResourceTypeProvider.ResourceTypeId,
+            ProviderId: LocalVolumeResourceTypeProvider.ProviderId);
 
     private static ResourceResolver CreateResolver() =>
         new(
@@ -570,6 +632,13 @@ public sealed class ResourceManagerIntegrationTests
             [
                 new ExecutableApplicationResourceTypeProvider().TypeDefinition
             ]);
+
+    private static string FormatDiagnostics(
+        IEnumerable<ResourceDefinitionDiagnostic> diagnostics) =>
+        string.Join(
+            Environment.NewLine,
+            diagnostics.Select(diagnostic =>
+                $"{diagnostic.Severity}: {diagnostic.Code}: {diagnostic.Message} ({diagnostic.Target})"));
 
     private sealed class EmptyResourceRegistrationStore : IResourceRegistrationStore
     {

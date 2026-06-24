@@ -1028,6 +1028,13 @@ resource IDs or dependencies that cannot be found in either the current graph
 or the incoming definitions. Those remain graph-level diagnostics because the
 individual resource type provider should not have to reason about whether the
 whole definition batch is structurally coherent.
+After resource-local apply providers accept their proposed state, the graph
+applier can run registered `IResourceDefinitionGraphValidator` implementations
+against the proposed graph before commit. This is the right place for
+cross-resource capability references, compatibility checks, and other graph
+rules that need resolved resources from more than one provider boundary. The
+capability projection itself remains resource-local; the caller still owns the
+graph scope and commit boundary.
 When it resolves existing resources or create-missing definitions, the graph
 applier also maps the apply context into `ResourceDefinitionResolutionContext`
 so attribute validators can use the same environment and principal as the
@@ -2209,7 +2216,8 @@ pipeline:
 8. Let the resource type provider normalize and validate type-specific
    configuration.
 9. Resolve capability providers for declared capability intent.
-10. Let capability providers validate capability-owned payloads and references.
+10. Let capability providers validate capability-owned payload shape and
+    resource-local semantics.
 11. Resolve resource operation providers for declared and type-supported
    operations.
 12. Let operation providers validate operation configuration and command
@@ -2221,7 +2229,8 @@ pipeline:
    current resource, proposed resource state, changed
    attributes/capabilities/operations, and current runtime state.
 15. Run cross-definition graph validation, including dependencies,
-   authorization, compatibility, and host/provider policy.
+   capability references, authorization, compatibility, and host/provider
+   policy.
 16. Return diagnostics and normalized accepted resource state without side
     effects.
 17. Apply, update, persist, or project only after validation succeeds.

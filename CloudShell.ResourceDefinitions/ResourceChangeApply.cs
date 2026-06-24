@@ -85,8 +85,12 @@ public sealed class ResourceChangeApplyDispatcher(
 
 public sealed class ResourceDefinitionGraphChangeApplier(
     ResourceResolver resolver,
-    ResourceChangeApplyDispatcher applyDispatcher)
+    ResourceChangeApplyDispatcher applyDispatcher,
+    IEnumerable<IResourceDefinitionGraphValidator>? graphValidators = null)
 {
+    private readonly IReadOnlyList<IResourceDefinitionGraphValidator> _graphValidators =
+        (graphValidators ?? []).ToArray();
+
     public async ValueTask<ResourceGraphChangeSet> ApplyDefinitionsAsync(
         ResourceGraphSnapshot snapshot,
         IEnumerable<ResourceDefinition> definitions,
@@ -168,7 +172,77 @@ public sealed class ResourceDefinitionGraphChangeApplier(
             tracker.Track(accepted);
         }
 
+        if (!tracker.GetChanges().HasErrors)
+        {
+            await ValidateProposedGraphAsync(
+                snapshot,
+                tracker,
+                context,
+                cancellationToken);
+        }
+
         return tracker.GetChanges();
+    }
+
+    private async ValueTask ValidateProposedGraphAsync(
+        ResourceGraphSnapshot snapshot,
+        ResourceGraphChangeTracker tracker,
+        ResourceChangeApplyContext context,
+        CancellationToken cancellationToken)
+    {
+        if (_graphValidators.Count == 0)
+        {
+            return;
+        }
+
+        var changes = tracker.GetChanges();
+        var acceptedById = changes.AcceptedResources
+            .Where(resource => resource.AcceptedState is not null)
+            .ToDictionary(
+                resource => resource.AcceptedState!.EffectiveResourceId,
+                resource => resource.AcceptedState!,
+                StringComparer.OrdinalIgnoreCase);
+        var proposedStates = new List<ResourceState>();
+        var replacedIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var existing in snapshot.Resources)
+        {
+            if (acceptedById.TryGetValue(existing.EffectiveResourceId, out var accepted))
+            {
+                proposedStates.Add(accepted);
+                replacedIds.Add(existing.EffectiveResourceId);
+                continue;
+            }
+
+            proposedStates.Add(existing);
+        }
+
+        proposedStates.AddRange(acceptedById
+            .Where(resource => !replacedIds.Contains(resource.Key))
+            .Select(resource => resource.Value));
+
+        var resolutionContext = ToResolutionContext(context);
+        var resources = proposedStates
+            .Select(state => resolver.Resolve(state, resolutionContext))
+            .ToArray();
+        var graphContext = new ResourceDefinitionGraphValidationContext(
+            new ResourceDefinitionGraph(proposedStates
+                .Select(state => state.ToDefinition())
+                .ToArray()),
+            resources,
+            context.EnvironmentId,
+            context.PrincipalId);
+
+        foreach (var validator in _graphValidators)
+        {
+            var result = await validator.ValidateAsync(
+                graphContext,
+                cancellationToken);
+            foreach (var diagnostic in result.Diagnostics)
+            {
+                tracker.TrackDiagnostic(diagnostic);
+            }
+        }
     }
 
     private static IReadOnlyList<ResourceDefinitionDiagnostic> ValidateIncomingDefinitions(

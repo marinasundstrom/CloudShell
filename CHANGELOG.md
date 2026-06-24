@@ -98,6 +98,10 @@ on `git blame --follow`, and then by the broad type of change.
   and executable application across separate provider boundaries, then project
   both resources through the Resource Manager bridge and resolve the executable
   dependency closure from the graph.
+- The resource definitions POC now has graph-level validators that run against
+  resolved proposed graph state before commit, and the reference volume
+  consumer validator rejects missing or non-volume mount targets without
+  moving graph scope into the resource-local capability projection.
 - The resource definitions POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change

@@ -12,9 +12,48 @@ public sealed record ResourceDeploymentDefinition(
 public sealed record ResourceDefinitionGraph(
     IReadOnlyList<ResourceDefinition> Resources);
 
-public sealed class ResourceDefinitionGraphValidationPipeline(
-    ResourceDefinitionValidationPipeline resourcePipeline)
+public interface IResourceDefinitionGraphValidator
 {
+    ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
+        ResourceDefinitionGraphValidationContext context,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed record ResourceDefinitionGraphValidationContext(
+    ResourceDefinitionGraph Graph,
+    IReadOnlyList<Resource> Resources,
+    string? EnvironmentId = null,
+    string? PrincipalId = null)
+{
+    public Resource? FindResource(string resourceId) =>
+        Resources.FirstOrDefault(resource =>
+            string.Equals(
+                resource.EffectiveResourceId,
+                resourceId,
+                StringComparison.OrdinalIgnoreCase));
+}
+
+public sealed class ResourceDefinitionGraphValidationPipeline
+{
+    private readonly ResourceDefinitionValidationPipeline _resourcePipeline;
+    private readonly IReadOnlyList<IResourceDefinitionGraphValidator> _graphValidators;
+
+    public ResourceDefinitionGraphValidationPipeline(
+        ResourceDefinitionValidationPipeline resourcePipeline)
+        : this(resourcePipeline, [])
+    {
+    }
+
+    public ResourceDefinitionGraphValidationPipeline(
+        ResourceDefinitionValidationPipeline resourcePipeline,
+        IEnumerable<IResourceDefinitionGraphValidator> graphValidators)
+    {
+        _resourcePipeline = resourcePipeline ??
+            throw new ArgumentNullException(nameof(resourcePipeline));
+        _graphValidators = graphValidators?.ToArray() ??
+            throw new ArgumentNullException(nameof(graphValidators));
+    }
+
     public ValueTask<ResourceDefinitionGraphValidationPipelineResult> ValidateAsync(
         ResourceDeploymentDefinition deployment,
         ResourceDefinitionValidationContext context,
@@ -78,10 +117,27 @@ public sealed class ResourceDefinitionGraphValidationPipeline(
         var resources = new List<ResourceDefinitionValidationPipelineResult>();
         foreach (var definition in graph.Resources)
         {
-            resources.Add(await resourcePipeline.ValidateAsync(
+            resources.Add(await _resourcePipeline.ValidateAsync(
                 definition,
                 context,
                 cancellationToken));
+        }
+
+        if (_graphValidators.Count > 0)
+        {
+            var graphContext = new ResourceDefinitionGraphValidationContext(
+                graph,
+                resources.Select(resource => resource.Resource).ToArray(),
+                context.EnvironmentId,
+                context.PrincipalId);
+
+            foreach (var validator in _graphValidators)
+            {
+                var result = await validator.ValidateAsync(
+                    graphContext,
+                    cancellationToken);
+                diagnostics.AddRange(result.Diagnostics);
+            }
         }
 
         return new(graph, resources, diagnostics);
