@@ -26,6 +26,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The resource definitions POC now includes a string-keyed
   `ResourceDefinitionRecord` persistence projection that rehydrates into the
   domain `ResourceDefinition` before validation and provider behavior.
+- The resource definitions POC now has an end-to-end model flow test covering
+  document serialization, persistence projection, graph validation,
+  type-specific projection, capability resolution, and apply planning.
 - The resource definitions POC now includes a capability resolver and
   `ResourceDefinitionProjection` wrapper so provider-owned capability behavior
   can be composed into type-specific resource projections without making the
