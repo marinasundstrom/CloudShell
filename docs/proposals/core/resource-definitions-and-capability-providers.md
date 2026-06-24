@@ -637,8 +637,16 @@ objects, not raw resource ID strings. A reference carries the target value, the
 relationship, and the addressing mode. The current resolver only resolves
 `dependsOn` references addressed by `resourceId`, but the document shape can
 later represent references to projected resources or provider-native
-addresses. Resource-to-resource relationships should prefer `ResourceReference`
-declarations over duplicating relationship identity into resource attributes.
+addresses. `ResourceReference` is the primitive for saying that one model
+element references a resource. A plain resource ID is only one addressing value
+inside that primitive, not the relationship model itself. `DependsOn` is the
+graph-level collection of `ResourceReference` values. A typed resource
+attribute may also carry a `ResourceReference` when the relationship belongs
+to the resource's own shape. For example, the former
+`database.serverResourceId` string attribute should become `database.server`,
+with a complex `ResourceReference` value, rather than duplicating the target
+identity as a plain string. The POC currently keeps attributes string-backed,
+so this belongs with the broader typed/complex attribute-value work.
 References may also carry optional expectations, such as expected resource
 type or provider id, so validation can reject a reference that resolves to the
 wrong kind of target. A later proposal should define additional reference
@@ -646,6 +654,31 @@ arguments for projected-resource and provider-native addressing modes, for
 example selector arguments, projection names, provider scopes, or other
 addressing hints. That should remain part of the reference model instead of
 being copied into unrelated resource attributes.
+
+A future `ResourceDefinition` attribute value for a graph reference can use a
+shape like:
+
+```json
+{
+  "attributes": {
+    "database.server": {
+      "refType": "graph",
+      "resourceId": "application.sql-server:server",
+      "resourceTypeId": "application.sql-server"
+    }
+  }
+}
+```
+
+`refType` identifies the reference addressing family. A missing or `graph`
+value means a normal graph reference. Later alternatives can represent
+resources that are not in the graph and need projection. `resourceTypeId` is
+optional expectation metadata: the attribute definition on the
+`ResourceTypeDefinition` or `ResourceClassDefinition` may constrain the
+expected type, while the resource value may also declare an expected type when
+the definition leaves it unconstrained and the author knows the target shape.
+Validation can then diagnose a `ResourceReference` attribute that resolves to
+the wrong resource type.
 Resolving a `ResourceReference` is a first-class graph operation:
 when the reference can be resolved, the result carries the projected
 `Resource`; when it cannot, the result can stay unresolved or carry

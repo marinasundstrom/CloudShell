@@ -175,6 +175,11 @@ on `git blame --follow`, and then by the broad type of change.
   records and operation provider services in separate files next to the owning
   resource type provider, keeping type providers focused on definition shape,
   validation, and apply planning.
+- The container application reference provider now validates optional
+  container-host placement references declared as typed `ResourceReference`
+  dependencies, and the proposal records `database.server` as the future
+  complex `ResourceReference` attribute shape replacing
+  `database.serverResourceId`.
 - The resource definitions POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change

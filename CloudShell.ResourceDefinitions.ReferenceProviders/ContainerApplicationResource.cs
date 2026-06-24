@@ -17,6 +17,13 @@ public sealed class ContainerApplicationResource(
                 ? replicas
                 : 1;
 
+    public string? ContainerHostResourceId =>
+        ContainerApplicationResourceTypeProvider.TryGetContainerHostResourceId(
+            Resource.State,
+            out var containerHostResourceId)
+            ? containerHostResourceId
+            : null;
+
     public ValueTask<IReadOnlyList<VolumeMountDefinition>> GetVolumesAsync(
         CancellationToken cancellationToken = default)
     {

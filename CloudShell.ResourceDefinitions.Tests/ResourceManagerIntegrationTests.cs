@@ -766,6 +766,7 @@ public sealed class ResourceManagerIntegrationTests
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph();
         services.AddLocalVolumeResourceType();
+        services.AddContainerHostResourceType();
         services.AddContainerApplicationResourceType();
         services.AddResourceModelGraphServices();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
@@ -774,10 +775,21 @@ public sealed class ResourceManagerIntegrationTests
         var volume = new ResourceDefinition(
             "data",
             LocalVolumeResourceTypeProvider.ResourceTypeId);
+        var host = new ResourceDefinition(
+            "docker",
+            ContainerHostResourceTypeProvider.ResourceTypeId);
         var container = new ResourceDefinition(
             "api",
             ContainerApplicationResourceTypeProvider.ResourceTypeId,
             ProviderId: ContainerApplicationResourceTypeProvider.ProviderId,
+            DependsOn:
+            [
+                new(
+                    host.EffectiveResourceId,
+                    ResourceReferenceRelationships.DependsOn,
+                    ResourceReferenceAddressingModes.ResourceId,
+                    TypeId: ContainerHostResourceTypeProvider.ResourceTypeId)
+            ],
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
                 [ContainerApplicationResourceTypeProvider.Attributes.ContainerImage] = "ghcr.io/example/api:latest",
@@ -795,7 +807,7 @@ public sealed class ResourceManagerIntegrationTests
         var result = await service.ApplyDeploymentAsync(
             new ResourceDeploymentDefinition(
                 "container-app",
-                [volume, container],
+                [host, volume, container],
                 EnvironmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
@@ -817,7 +829,7 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(ContainerApplicationResourceTypeProvider.ProviderId, projectedContainer.Provider);
         Assert.Equal("ghcr.io/example/api:latest", projectedContainer.ResourceAttributes["container.image"]);
         Assert.Equal("2", projectedContainer.ResourceAttributes["container.replicas"]);
-        Assert.Equal([volume.EffectiveResourceId], projectedContainer.DependsOn);
+        Assert.Equal([host.EffectiveResourceId, volume.EffectiveResourceId], projectedContainer.DependsOn);
         Assert.Contains(projectedContainer.ResourceCapabilities, capability =>
             capability.Id == VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString());
         Assert.Contains(projectedContainer.ResourceActions, action =>
@@ -831,7 +843,7 @@ public sealed class ResourceManagerIntegrationTests
 
         Assert.False(resolution.HasErrors);
         Assert.Equal(
-            [container.EffectiveResourceId, volume.EffectiveResourceId],
+            [container.EffectiveResourceId, host.EffectiveResourceId, volume.EffectiveResourceId],
             resolution.Resources.Select(resource => resource.EffectiveResourceId));
         var volumeCapability = Assert.IsType<VolumeConsumerCapability>(
             resolution.Target!.Capabilities.Get<VolumeConsumerCapability>());

@@ -331,15 +331,27 @@ public sealed class ResourceProviderDispatcherTests
     {
         var services = new ServiceCollection();
         services.AddLocalVolumeResourceType();
+        services.AddContainerHostResourceType();
         services.AddContainerApplicationResourceType();
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
         var volume = new ResourceDefinition(
             "data",
             LocalVolumeResourceTypeProvider.ResourceTypeId);
+        var host = new ResourceDefinition(
+            "docker",
+            ContainerHostResourceTypeProvider.ResourceTypeId);
         var definition = new ResourceDefinition(
             "api",
             ContainerApplicationResourceTypeProvider.ResourceTypeId,
+            DependsOn:
+            [
+                new(
+                    host.EffectiveResourceId,
+                    ResourceReferenceRelationships.DependsOn,
+                    ResourceReferenceAddressingModes.ResourceId,
+                    TypeId: ContainerHostResourceTypeProvider.ResourceTypeId)
+            ],
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
                 [ContainerApplicationResourceTypeProvider.Attributes.ContainerImage] = "ghcr.io/example/api:latest",
@@ -357,7 +369,7 @@ public sealed class ResourceProviderDispatcherTests
         var validation = await serviceProvider
             .GetRequiredService<ResourceDefinitionGraphValidationPipeline>()
             .ValidateAsync(
-                new ResourceDefinitionGraph([volume, definition]),
+                new ResourceDefinitionGraph([host, volume, definition]),
                 new ResourceDefinitionValidationContext("local", "developer"));
 
         Assert.False(validation.HasErrors);
@@ -388,6 +400,7 @@ public sealed class ResourceProviderDispatcherTests
         Assert.NotNull(projection);
         Assert.Equal("ghcr.io/example/api:latest", projection.Image);
         Assert.Equal(2, projection.Replicas);
+        Assert.Equal(host.EffectiveResourceId, projection.ContainerHostResourceId);
         Assert.Equal(volume.EffectiveResourceId, Assert.Single(await projection.GetVolumesAsync()).Volume);
         Assert.True(await (await projection.GetStartOperationAsync())!.CanExecuteAsync());
         Assert.True(await (await projection.GetRestartOperationAsync())!.CanExecuteAsync());
