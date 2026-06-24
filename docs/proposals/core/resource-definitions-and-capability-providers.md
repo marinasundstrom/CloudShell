@@ -883,6 +883,19 @@ as typed methods or properties exposed by a capability projection. The model
 should therefore not require every capability declaration to have an attached
 behavior provider.
 
+Capability declaration and capability implementation should also stay
+separate. A `ResourceClassDefinition` can declare that all resources in the
+class have a capability and a provider package can register a default
+implementation for that class-level capability. A more specific
+`ResourceTypeDefinition` may need to override the implementation for one type
+while keeping the same capability ID and contract. The resolver should allow a
+type-specific capability provider to take precedence over a class-level
+default, and it should also allow the type provider to opt back into the base
+implementation when the inherited behavior is sufficient. This mirrors the
+operation-provider rule: the declaration identifies the capability surface,
+while provider resolution selects the implementation that best matches the
+resolved resource.
+
 Examples:
 
 - `storage.volumeConsumer`: the resource can consume mounted volumes.
@@ -1043,6 +1056,13 @@ operation declaration.
 Those are the operation declaration sites. Operation providers do not declare
 operations on their own; they advertise which resolved operation declarations
 they can handle for matching resources.
+
+Capability overrides should be explicit as well. A type definition can refine
+or replace the provider implementation for a class-level capability without
+renaming the capability. The selected implementation must still satisfy the
+same capability contract unless the type also declares a more specific
+capability ID. This keeps capability discovery stable while allowing concrete
+resource types to supply better behavior than the class default.
 
 Operation overrides should be explicit. A type definition can refine or hide a
 class-level operation, and resource-owned state can refine or disable a
@@ -2564,6 +2584,8 @@ availability are incomplete.
   diagnostics only, or support both modes?
 - How should capability providers declare compatibility with resource types:
   type-provider metadata, capability-provider metadata, or both?
+- How should class-level capability implementations be selected and overridden
+  by resource types while preserving one stable capability contract?
 - Which validation belongs in capability providers versus graph-level Control
   Plane policy?
 - How should operation providers declare compatibility with resource types:
