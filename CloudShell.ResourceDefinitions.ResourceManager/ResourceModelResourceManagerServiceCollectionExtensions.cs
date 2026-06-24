@@ -176,12 +176,11 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(resolveSnapshot);
 
         services.AddScoped<IResourceProvider>(serviceProvider =>
-            new ResourceModelGraphResourceProvider(
+            CreateResourceModelGraphResourceProvider(
+                serviceProvider,
                 id,
                 displayName,
-                () => resolveSnapshot(serviceProvider),
-                serviceProvider.GetRequiredService<ResourceResolver>(),
-                serviceProvider.GetServices<IResourceGraphDependencyProvider>(),
+                resolveSnapshot,
                 resolutionContext,
                 projectionOptions));
 
@@ -225,12 +224,11 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
 
         services.AddScoped(serviceProvider =>
             new ResourceModelGraphProcedureProvider(
-                new ResourceModelGraphResourceProvider(
+                CreateResourceModelGraphResourceProvider(
+                    serviceProvider,
                     id,
                     displayName,
-                    () => resolveSnapshot(serviceProvider),
-                    serviceProvider.GetRequiredService<ResourceResolver>(),
-                    serviceProvider.GetServices<IResourceGraphDependencyProvider>(),
+                    resolveSnapshot,
                     resolutionContext,
                     projectionOptions),
                 serviceProvider.GetRequiredService<ResourceModelGraphResourceResolver>(),
@@ -242,4 +240,20 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
 
         return services;
     }
+
+    private static ResourceModelGraphResourceProvider CreateResourceModelGraphResourceProvider(
+        IServiceProvider serviceProvider,
+        string id,
+        string displayName,
+        Func<IServiceProvider, ResourceGraphSnapshot> resolveSnapshot,
+        ResourceDefinitionResolutionContext? resolutionContext,
+        ResourceModelResourceManagerProjectionOptions? projectionOptions) =>
+        new(
+            id,
+            displayName,
+            () => resolveSnapshot(serviceProvider),
+            serviceProvider.GetRequiredService<ResourceResolver>(),
+            serviceProvider.GetServices<IResourceGraphDependencyProvider>(),
+            resolutionContext,
+            projectionOptions);
 }
