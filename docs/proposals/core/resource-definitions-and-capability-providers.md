@@ -447,6 +447,14 @@ registered by the consuming boundary, the bridge returns diagnostics instead
 of throwing, so the caller can expose the operation as unavailable or route it
 to another implementation.
 
+When a host wants direct Resource Manager action integration, it can register
+an explicit procedure-capable bridge provider. That provider still lists the
+same graph-backed Resource Manager resources, but it also implements Resource
+Manager action availability and procedure execution by resolving the matching
+Resource model operation projection. It only executes operations that opt into
+the generic executable operation projection contract. This keeps the read-only
+graph provider and the procedure-capable provider as separate host choices.
+
 The bridge project should own registration helpers for this integration seam.
 Hosts can register a graph-backed Resource model provider as an existing
 Resource Manager `IResourceProvider` without making `CloudShell.ControlPlane`

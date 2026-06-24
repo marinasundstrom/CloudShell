@@ -67,6 +67,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource model operation projections can now opt into a generic executable
   operation contract, giving Resource Manager and orchestrator integrations a
   provider-neutral way to check and invoke resolved operations.
+- The Resource model Resource Manager bridge now has an explicit
+  procedure-capable graph provider that can evaluate and execute Resource
+  Manager actions by resolving executable Resource model operation projections,
+  while keeping the read-only graph provider available separately.
 - The resource definitions POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change

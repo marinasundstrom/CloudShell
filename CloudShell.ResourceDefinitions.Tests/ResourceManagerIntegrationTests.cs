@@ -223,6 +223,64 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal("application.executable:api", diagnostic.Target);
     }
 
+    [Fact]
+    public async Task ResourceModelGraphProcedureProvider_ExecutesExecutableOperationProjection()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices(
+            [new(ExecutableApplicationResourceTypeProvider.ClassId)]);
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var resource = Assert.Single(provider.GetResources());
+        var procedure = new ResourceProcedureContext(
+            resource,
+            null,
+            null,
+            new EmptyResourceRegistrationStore());
+
+        Assert.True(provider.CanEvaluateAction(resource, ResourceAction.Start));
+        Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, ResourceAction.Start));
+
+        var result = await provider.ExecuteActionAsync(procedure, ResourceAction.Start);
+
+        Assert.Equal("Executed Start for api.", result.Message);
+    }
+
+    [Fact]
+    public async Task ResourceModelGraphProcedureProvider_ReturnsUnavailableReasonWhenProjectionIsMissing()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
+        services.AddSingleton<IResourceTypeProvider>(new ExecutableApplicationResourceTypeProvider());
+        services.AddResourceModelGraphServices(
+            [new(ExecutableApplicationResourceTypeProvider.ClassId)]);
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var resource = Assert.Single(provider.GetResources());
+        var procedure = new ResourceProcedureContext(
+            resource,
+            null,
+            null,
+            new EmptyResourceRegistrationStore());
+
+        var reason = await provider.GetActionUnavailableReasonAsync(procedure, ResourceAction.Start);
+
+        Assert.NotNull(reason);
+        Assert.Contains("no operation projection is available", reason);
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await provider.ExecuteActionAsync(procedure, ResourceAction.Start));
+    }
+
     private static ResourceState CreateExecutableState(
         string name = "api",
         IReadOnlyList<string>? dependsOn = null) =>
@@ -263,4 +321,37 @@ public sealed class ResourceManagerIntegrationTests
             [
                 new ExecutableApplicationResourceTypeProvider().TypeDefinition
             ]);
+
+    private sealed class EmptyResourceRegistrationStore : IResourceRegistrationStore
+    {
+        public IReadOnlyList<ResourceRegistration> GetRegistrations() => [];
+
+        public ResourceRegistration? GetRegistration(string resourceId) => null;
+
+        public Task RegisterAsync(
+            string providerId,
+            string resourceId,
+            string? resourceGroupId = null,
+            IReadOnlyList<string>? dependsOn = null,
+            CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task RemoveAsync(
+            string resourceId,
+            CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task AssignToGroupAsync(
+            string resourceId,
+            string? resourceGroupId,
+            IReadOnlyList<string>? dependsOn = null,
+            CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task SetDependenciesAsync(
+            string resourceId,
+            IReadOnlyList<string> dependsOn,
+            CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+    }
 }
