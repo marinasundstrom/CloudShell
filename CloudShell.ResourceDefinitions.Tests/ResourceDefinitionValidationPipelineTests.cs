@@ -88,13 +88,21 @@ public sealed class ResourceDefinitionValidationPipelineTests
 
         Assert.Same(result.Resource, volumeConsumer.Resource);
 
-        var updated = volumeConsumer.AddMount(
+        var changes = volumeConsumer.AddMount(
             new VolumeMountDefinition("volume:logs", "Logs", ReadOnly: true));
-        var updatedPayload = updated.GetCapability<VolumeConsumerDefinition>(
+        var updatedPayload = changes.ProposedState.GetCapability<VolumeConsumerDefinition>(
+            VolumeConsumerCapabilityProvider.CapabilityIdValue);
+        var incrementalPayload = changes.ToIncrementalDefinition().GetCapability<VolumeConsumerDefinition>(
             VolumeConsumerCapabilityProvider.CapabilityIdValue);
 
+        Assert.True(changes.HasChanges);
+        Assert.Same(result.Resource, changes.Resource);
+        Assert.Single(changes.CapabilityChanges);
+        Assert.Single(volumeConsumer.Mounts);
         Assert.NotNull(updatedPayload);
+        Assert.NotNull(incrementalPayload);
         Assert.Equal(2, updatedPayload.Mounts.Count);
+        Assert.Equal(2, incrementalPayload.Mounts.Count);
         Assert.Contains(updatedPayload.Mounts, mount =>
             mount.Volume == "volume:logs" &&
             mount.TargetPath == "Logs" &&

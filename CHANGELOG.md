@@ -42,6 +42,10 @@ on `git blame --follow`, and then by the broad type of change.
   and exposes projected behavior through `Resource.Capabilities.Get<T>()` and
   `Resource.Operations.Get<T>()` so wrappers can resolve volume capability
   behavior and start operation behavior from the same resource projection.
+- The resource definitions POC now tracks pending resource projection changes
+  through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
+  render either full proposed or incremental `ResourceDefinition` change
+  documents without implying graph-wide commit semantics.
 - The resource definitions POC now includes a capability resolver so
   provider-owned capability behavior can be composed into type-specific
   resource projections without making the definition stop being the persisted

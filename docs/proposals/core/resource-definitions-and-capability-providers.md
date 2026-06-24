@@ -595,7 +595,8 @@ For example:
 ```csharp
 var volumeCapability = resource.Capabilities.Get<VolumeConsumerCapability>();
 var mounts = volumeCapability.Mounts;
-var updatedDefinition = volumeCapability.AddMount(new("volume:logs", "Logs"));
+var volumeChanges = volumeCapability.AddMount(new("volume:logs", "Logs"));
+var incrementalDefinition = volumeChanges.ToIncrementalDefinition();
 
 var start = resource.Operations.Get<ExecutableStartOperation>();
 if (await start.CanExecuteAsync(cancellationToken))
@@ -603,6 +604,38 @@ if (await start.CanExecuteAsync(cancellationToken))
     await start.ExecuteAsync(cancellationToken);
 }
 ```
+
+Changes made through `Resource`, capability projections, operation
+projections, or generated wrappers should be tracked as pending resource-state
+changes until an explicit apply/commit boundary. The low-level resource view
+can support direct staging:
+
+```csharp
+resource.SetAttribute(NamedAttributeIds.ContainerReplicasAttributeId, 2);
+
+ResourceChangeSet changes = resource.ApplyChanges();
+ResourceDefinition fullDefinition = changes.ToDefinition();
+ResourceDefinition incrementalChange = changes.ToIncrementalDefinition();
+```
+
+`ApplyChanges()` in this model does not mean the graph has been mutated or
+that provider/runtime consequences have cascaded. It creates an explicit
+change set that can be validated, planned, accepted, rejected, persisted, or
+projected as a full or incremental `ResourceDefinition`. A provider or future
+resource manager commit pipeline owns the actual application of those changes
+to resource state and the surrounding resource graph.
+
+Typed projections can use the same boundary through a change context:
+
+```csharp
+using var changeContext = model.CreateChangeContext();
+typedResource.ContainerReplicas = 2;
+
+ResourceChangeSet changes = changeContext.ApplyChanges();
+```
+
+The exact source-generated shape is open, but property setters should not
+silently commit provider-visible state or trigger graph-wide consequences.
 
 The POC can keep these resource-type projection wrappers hand-written, but the
 expected mature implementation is source-generated wrappers from the resource

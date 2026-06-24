@@ -50,6 +50,66 @@ public sealed class ResourceModelResolverTests
     }
 
     [Fact]
+    public void ApplyChanges_ReturnsProposedResourceStateWithoutMutatingProjection()
+    {
+        var resolver = CreateResolver();
+        var resource = resolver.Resolve(CreateState("./api"));
+
+        resource.SetAttribute(ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath, "./worker");
+
+        Assert.True(resource.HasPendingChanges);
+        Assert.Equal("./api", resource.ToDefinition().ResourceAttributes[ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
+        Assert.Equal("./worker", resource.ToDefinition(includePendingChanges: true).ResourceAttributes[ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
+
+        var changes = resource.ApplyChanges();
+        var updated = resolver.Resolve(changes.ProposedState);
+
+        Assert.True(changes.HasChanges);
+        Assert.False(resource.HasPendingChanges);
+        Assert.Single(changes.AttributeChanges);
+        Assert.Equal("./api", resource.Attributes.GetString(ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath));
+        Assert.Equal("./worker", changes.ProposedState.ResourceAttributes[ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
+        Assert.Equal("./worker", updated.Attributes.GetString(ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath));
+    }
+
+    [Fact]
+    public void ChangeContext_GroupsAttributeChangesUntilApply()
+    {
+        var resolver = CreateResolver();
+        var resource = resolver.Resolve(CreateState("./api"));
+
+        using var changes = resource.CreateChangeContext();
+        changes.SetAttribute(ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath, "./worker");
+        changes.SetAttribute("container.replicas", 2);
+
+        var proposed = changes.ApplyChanges();
+
+        Assert.Equal("./api", resource.Attributes.GetString(ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath));
+        Assert.Equal("./worker", proposed.ProposedState.ResourceAttributes[ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
+        Assert.Equal("2", proposed.ProposedState.ResourceAttributes["container.replicas"]);
+        Assert.Equal(2, proposed.AttributeChanges.Count);
+    }
+
+    [Fact]
+    public void ResourceChangeSet_RendersIncrementalResourceDefinition()
+    {
+        var resolver = CreateResolver();
+        var resource = resolver.Resolve(CreateState("./api"));
+        using var changes = resource.CreateChangeContext();
+        changes.SetAttribute("container.replicas", 2);
+
+        var proposed = changes.ApplyChanges();
+        var fullDefinition = proposed.ToDefinition();
+        var incrementalDefinition = proposed.ToIncrementalDefinition();
+
+        Assert.Contains(ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath, fullDefinition.ResourceAttributes.Keys);
+        Assert.DoesNotContain(ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath, incrementalDefinition.ResourceAttributes.Keys);
+        Assert.Equal("2", incrementalDefinition.ResourceAttributes["container.replicas"]);
+        Assert.Equal(resource.Name, incrementalDefinition.Name);
+        Assert.Equal(resource.Type.TypeId, incrementalDefinition.TypeId);
+    }
+
+    [Fact]
     public void ResourceRecord_RoundTripsResourceOwnedState()
     {
         var state = CreateState("./api");

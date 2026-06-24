@@ -64,24 +64,17 @@ public sealed class VolumeConsumerCapability(
 
     public IReadOnlyList<VolumeMountDefinition> Mounts { get; } = mounts;
 
-    public ResourceDefinition AddMount(VolumeMountDefinition mount)
+    public ResourceChangeSet AddMount(VolumeMountDefinition mount)
     {
         var updatedMounts = Mounts
             .Concat([mount])
             .ToArray();
-        var definition = Resource.ToDefinition();
 
-        var capabilities = new Dictionary<ResourceCapabilityId, JsonElement>(
-            definition.CapabilityPayloads)
-        {
-            [CapabilityId] = ResourceDefinitionJson.FromValue(
-                new VolumeConsumerDefinition(updatedMounts))
-        };
-
-        return definition with
-        {
-            Capabilities = capabilities
-        };
+        using var changes = Resource.CreateChangeContext();
+        changes.SetCapability(
+            CapabilityId,
+            ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(updatedMounts)));
+        return changes.ApplyChanges();
     }
 }
 
