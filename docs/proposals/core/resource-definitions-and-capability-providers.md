@@ -571,7 +571,11 @@ infrastructure should only take abstractions that multiple providers prove are
 shared: graph resolution, definition/state projection, capability and
 operation contracts, diagnostics, and registration composition. Unique provider
 behavior should not move into broad shared infrastructure just because it is
-needed by the first provider that exercises a scenario.
+needed by the first provider that exercises a scenario. The reference POC
+applies this by keeping provider-owned configuration records and operation
+provider services in separate files next to the owning resource type provider,
+while the type provider stays focused on definition shape, validation, and
+apply planning.
 
 The working porting status for the reference POC is:
 
@@ -748,6 +752,16 @@ requirements, or compatibility rules. It is not necessarily something a caller
 invokes. Capability declarations are resolved into `.Capabilities` through
 the same inheritance path as attributes and operations.
 
+A capability declaration has two related uses. In the simplest form it is a
+marker that says the resource supports a named capability. The owning resource
+type provider may then handle that capability when it validates resource
+state, applies changes, plans materialization, or projects Resource Manager
+state. In the richer form, the same declaration can also be resolved through a
+capability provider that attaches behavior to the projected `Resource`, such
+as typed methods or properties exposed by a capability projection. The model
+should therefore not require every capability declaration to have an attached
+behavior provider.
+
 Examples:
 
 - `storage.volumeConsumer`: the resource can consume mounted volumes.
@@ -763,6 +777,14 @@ command affordance for that operation. The operation itself remains the
 domain-level behavior declaration. Operation declarations are resolved into
 `.Operations`; the provider implementation for that declaration may vary by
 resource class, resource type, provider, or resource instance.
+
+An operation declaration names an operation surface on a resource. It is closer
+to an interface method or Web API endpoint declaration than to the execution
+implementation itself. A caller can discover that the resource has a named
+operation, check whether it can execute, and invoke the matching operation
+projection when one is registered. The implementation may live in an operation
+provider, in the resource type provider boundary, or in a higher Control Plane
+integration that maps the operation ID to its own behavior.
 
 Examples:
 

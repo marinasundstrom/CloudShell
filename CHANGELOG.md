@@ -159,6 +159,10 @@ on `git blame --follow`, and then by the broad type of change.
   Core project resource type with project path, arguments, hot reload, and
   launch-settings attributes, shared volume-consumer support, start/restart
   operation providers, a typed wrapper, and Resource Manager bridge coverage.
+- Reference provider implementations now keep provider-owned configuration
+  records and operation provider services in separate files next to the owning
+  resource type provider, keeping type providers focused on definition shape,
+  validation, and apply planning.
 - The resource definitions POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change
