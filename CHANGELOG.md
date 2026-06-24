@@ -60,6 +60,10 @@ on `git blame --follow`, and then by the broad type of change.
 - The Resource model Resource Manager bridge can now resolve declared
   capability IDs to registered capability projections and report diagnostics
   when the consuming boundary has not registered a capability implementation.
+- The Resource definitions POC now documents and tests the current rule that
+  capability and operation work units may perform integration logic but should
+  stage direct Resource model graph changes only for their attached resource
+  until a future scoped graph isolation model is defined.
 - The resource definitions POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change

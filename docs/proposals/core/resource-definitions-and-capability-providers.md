@@ -420,6 +420,16 @@ commit policy. This keeps capability and operation objects as integration
 work units while leaving graph stability decisions at the Control Plane or
 Resource Manager boundary.
 
+For the POC, capability and operation work units should be designed to modify
+only the `Resource` they are attached to when they produce Resource model
+changes. They may still perform integration logic, such as asking Resource
+Manager to run a procedure or querying other services, but any direct Resource
+model mutation should be limited to the attached resource and returned as a
+caller-owned change set. Cross-resource graph mutations, graph-wide
+side-effects, graph-wide isolation, and whether a capability or operation must
+run inside a transaction or other stable graph scope are deferred coordination
+concerns for the Resource Manager, orchestrator, or Control Plane layer.
+
 The same bridge can resolve a declared capability by capability ID and return
 the capability projection registered by the consuming boundary. This gives
 Resource Manager, Control Plane services, or an orchestrator a typed
@@ -1570,6 +1580,13 @@ commit them through a graph transaction. This keeps capability methods
 ergonomic while preventing hidden graph writes from a capability projection
 that was created for inspection.
 
+As an immediate rule, projected capabilities should stage direct Resource model
+changes only for the resource they are attached to. A capability can call out
+to Resource Manager or other services for integration behavior, but graph-wide
+Resource model side-effects and cross-resource graph mutations need an
+explicit future scope or isolation model before they become part of the
+Resource model contract.
+
 If a capability needs to reject raw authored document shape before resource
 resolution, that should be modeled as a resource-definition validator for the
 interchange layer. It may use the same capability ID, but it is not the
@@ -1713,6 +1730,12 @@ transaction, lock, apply dispatcher, and commit boundary. If an operation
 needs to stage model changes, it can return or expose resource change sets
 from the target `Resource`; the caller decides how those changes are applied,
 tracked, and committed.
+
+As with capabilities, direct Resource model changes produced by an operation
+should be limited to the attached resource for the POC. Operations can still
+trigger Resource Manager behavior or other integration logic, but any
+cross-resource graph mutation or graph-wide Resource model side-effect needs a
+later scoped execution or isolation concept.
 
 The operation declaration is the resource model contract. The provider is the
 implementation. Two resource types can declare the same operation ID while

@@ -144,6 +144,12 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Same(resolution.Resource, capability.Resource);
         Assert.Equal(VolumeConsumerCapabilityProvider.CapabilityIdValue, resolution.CapabilityId);
         Assert.Equal("storage:data", Assert.Single(capability.Mounts).Volume);
+
+        var changes = capability.AddMount(new("storage:logs", "Logs"));
+
+        Assert.Same(resolution.Resource, changes.Resource);
+        Assert.Equal(resolution.Resource?.EffectiveResourceId, changes.Resource.EffectiveResourceId);
+        Assert.Single(changes.CapabilityChanges);
     }
 
     [Fact]
