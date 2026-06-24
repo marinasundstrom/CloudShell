@@ -128,6 +128,15 @@ implementation for that behavior in the current environment.
 
 ## Proposed Model
 
+At the highest level, resource definitions describe the state of the resource
+graph, while capabilities and operations describe behavior over that graph.
+`ResourceDefinition`, `ResourceTypeDefinition`, and
+`ResourceClassDefinition` define and store desired graph state as attributes,
+capability declarations, operation declarations, and provider-owned payloads.
+Capability providers and operation providers interpret that state as behavior:
+they can validate it, project helper data or command affordances from it,
+resolve related resources, and produce changes that update the resource graph.
+
 CloudShell should use `ResourceDefinition` for authored or persisted resource
 intent.
 
@@ -229,6 +238,12 @@ resource projection role distinct from the resource-definition ownership role.
 
 Capabilities and operations both add behavior to the resource model, but they
 serve different purposes.
+
+They should not be treated as the persisted state container. The definition
+layers store the graph state that declares which capabilities and operations
+exist for a resource. Providers attach behavior to that declared state and may
+return diagnostics, projections, operations, or definition updates that modify
+the graph.
 
 A capability describes functionality, role, or semantics attached to a
 resource. Capabilities are commonly used by Resource Manager, Control Plane
