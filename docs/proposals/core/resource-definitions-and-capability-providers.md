@@ -491,6 +491,11 @@ dependencies. Missing staged dependencies may remain visible as declared
 `DependsOn` IDs, but a reference that resolves to an existing resource of the
 wrong expected type should be diagnosed and not projected as an actionable
 Resource Manager dependency.
+Reference resolution may still return the target resource for diagnostics and
+debugging when an expected-type check fails, but the bridge should bind
+capability and operation projections only for successfully resolved references.
+That keeps invalid targets inspectable without making their behavior available
+through the wrong relationship.
 
 The bridge project should own registration helpers for this integration seam.
 Hosts can register a graph-backed Resource model provider as an existing

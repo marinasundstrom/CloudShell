@@ -51,10 +51,10 @@ public sealed class ResourceModelGraphResourceResolver(
             reference,
             resolvedContext);
 
-        if (resolution.Resource is not null)
+        if (resolution.IsResolved)
         {
             await BindProjectionsAsync(
-                resolution.Resource,
+                resolution.Resource!,
                 resolvedContext,
                 cancellationToken);
         }

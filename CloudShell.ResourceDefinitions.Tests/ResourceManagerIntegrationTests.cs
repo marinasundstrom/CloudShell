@@ -252,6 +252,34 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphResourceResolver_DoesNotBindProjectionsForInvalidTypedReference()
+    {
+        var worker = CreateExecutableState(
+            "worker",
+            dependsOn: [],
+            includeVolumeConsumer: false);
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph([worker]);
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveReferenceAsync(ResourceReference.ResourceId(
+                worker.EffectiveResourceId,
+                typeId: LocalVolumeResourceTypeProvider.ResourceTypeId));
+
+        Assert.False(resolution.IsResolved);
+        Assert.True(resolution.HasErrors);
+        Assert.Equal(worker.EffectiveResourceId, resolution.Resource?.EffectiveResourceId);
+        Assert.Null(resolution.Resource?.Operations.Get(
+            ExecutableApplicationResourceTypeProvider.Operations.Start));
+        Assert.Contains(resolution.Diagnostics, diagnostic =>
+            diagnostic.Code == ResourceDefinitionDiagnosticCodes.ResourceReferenceTypeMismatch);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphResourceResolver_ReturnsUnresolvedReferenceForUnsupportedAddressingMode()
     {
         var services = new ServiceCollection();

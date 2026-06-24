@@ -45,6 +45,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager bridge projections now use graph-reference resolution for
   provider-produced dependencies, keeping missing staged dependencies visible
   while filtering and diagnosing existing targets with the wrong resource type.
+- Resource Manager bridge reference resolution now binds capability and
+  operation projections only for successfully resolved references, while still
+  returning wrong-type targets for diagnostics and debugging.
 - The resource definitions proposal now clarifies that resource type providers
   are integration points that may receive injected services, but should not own
   recurring runtime tasks, watchers, polling loops, or reconciliation schedulers
