@@ -149,7 +149,8 @@ public sealed class ResourceModelGraphResourceResolver(
         return new(
             snapshot,
             resolution.Resources,
-            resolution.Diagnostics);
+            resolution.Diagnostics,
+            resolution.ResolvedReferences);
     }
 
     private ResourceGraphResolutionResult ResolveSingle(
@@ -207,8 +208,12 @@ public sealed class ResourceModelGraphResourceResolver(
 public sealed record ResourceModelGraphResourceResolution(
     ResourceGraphSnapshot Snapshot,
     IReadOnlyList<Resource> Resources,
-    IReadOnlyList<ResourceDefinitionDiagnostic> Diagnostics)
+    IReadOnlyList<ResourceDefinitionDiagnostic> Diagnostics,
+    IReadOnlyList<ResourceGraphReferenceResolution>? ReferenceResolutions = null)
 {
+    public IReadOnlyList<ResourceGraphReferenceResolution> ResolvedReferences =>
+        ReferenceResolutions ?? [];
+
     public ResourceGraphVersion Version => Snapshot.Version;
 
     public Resource? Target => Resources.FirstOrDefault();

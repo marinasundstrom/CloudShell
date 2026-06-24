@@ -130,6 +130,10 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(
             [api.EffectiveResourceId, worker.EffectiveResourceId],
             resolution.Resources.Select(resource => resource.EffectiveResourceId));
+        var reference = Assert.Single(resolution.ResolvedReferences);
+        Assert.True(reference.IsResolved);
+        Assert.Equal(worker.EffectiveResourceId, reference.Reference.Value);
+        Assert.Same(resolution.Resources[1], reference.Resource);
     }
 
     [Fact]
@@ -152,6 +156,10 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(
             [api.EffectiveResourceId, volume.EffectiveResourceId],
             resolution.Resources.Select(resource => resource.EffectiveResourceId));
+        var reference = Assert.Single(resolution.ResolvedReferences);
+        Assert.True(reference.IsResolved);
+        Assert.Equal(volume.EffectiveResourceId, reference.Reference.Value);
+        Assert.Same(resolution.Resources[1], reference.Resource);
     }
 
     [Fact]

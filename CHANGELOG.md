@@ -122,6 +122,9 @@ on `git blame --follow`, and then by the broad type of change.
   store records through `IResourceGraphStoreProjector<TRecord>`, proving that
   Resource Manager-owned rows can keep operational fields while persisting the
   Resource model graph payload.
+- Resource Manager graph resolution now carries followed resource-reference
+  resolutions alongside the resolved dependency closure, preserving the
+  relationship object and target resource projection for topology consumers.
 - The resource definitions POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change
