@@ -1160,6 +1160,34 @@ process, `ResourceGraphModel` can keep that graph in memory and synchronize it
 through the same provider commit boundary rather than forcing each operation
 to rematerialize the whole graph from storage.
 
+## Transactions and Staged Changes
+
+The core model should distinguish committed state from staged changes. A
+`ResourceChangeSet` is a proposed change against a base graph version; it is
+not a new resource version and it does not represent committed resource state.
+Callers may stage attribute or capability changes freely inside a change
+context or future transaction because those changes are outside the committed
+model until the graph commit boundary accepts them.
+
+Versions are assigned only when changes become committed state:
+
+- `ResourceGraphSnapshot.Version` identifies the committed graph snapshot.
+- `Resource.Revision` identifies committed resource state.
+- `ResourceChangeSet` carries proposed changes and the base graph version it
+  was prepared against.
+- A future `ResourceGraphTransaction` should own staging, provider validation,
+  conflict checks, commit, diagnostics, summary, and future event creation.
+
+That transaction layer sits above the core resource projection. The core model
+resolves state and allows proposed changes to be expressed; the transaction or
+resource graph management layer decides whether those proposals can become
+committed state. In the conservative default, a transaction commits only when
+the stored graph version still matches its base graph version. If the stored
+graph is newer, the transaction is rejected with a version conflict and the
+caller refreshes the graph or relevant resources before creating a new change
+set. Future merge or rebase support should be explicit, provider-aware, and
+auditable rather than implicit in `Resource` or capability projections.
+
 ## Capability Providers
 
 Capability providers are attached behavior for resolved capabilities. They

@@ -78,6 +78,10 @@ on `git blame --follow`, and then by the broad type of change.
   `ResourceGraphModel`, including full refreshes that advance the cached graph
   version and selected-resource refreshes that update resource data without
   making stale graph commits valid.
+- The resource definitions proposal now documents staged changes as
+  unversioned transaction proposals, with graph versions and resource
+  revisions assigned only when the resource graph commit boundary accepts
+  changes.
 - The resource definitions POC now includes a capability resolver so
   provider-owned capability behavior can be composed into type-specific
   resource projections without making the definition stop being the persisted
