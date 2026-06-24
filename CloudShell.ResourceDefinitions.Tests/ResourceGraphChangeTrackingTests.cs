@@ -341,6 +341,56 @@ public sealed class ResourceGraphChangeTrackingTests
     }
 
     [Fact]
+    public async Task DefinitionGraphChangeApplier_RejectsDuplicateIncomingDefinitions()
+    {
+        var stateProvider = new InMemoryResourceStateProvider();
+        var applier = CreateDefinitionGraphChangeApplier();
+        var snapshot = await stateProvider.GetSnapshotAsync();
+
+        var changes = await applier.ApplyDefinitionsAsync(
+            snapshot,
+            [
+                CreateDefinition("api", "./api"),
+                CreateDefinition("api", "./api-duplicate")
+            ],
+            new ResourceChangeApplyContext(Commit: true),
+            ResourceDefinitionGraphChangeApplierOptions.CreateMissing);
+
+        var diagnostic = Assert.Single(changes.Diagnostics);
+        Assert.True(changes.HasErrors);
+        Assert.False(changes.HasChanges);
+        Assert.Empty(changes.Resources);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.DuplicateResourceDefinition, diagnostic.Code);
+        Assert.Equal("application.executable:api", diagnostic.Target);
+    }
+
+    [Fact]
+    public async Task DefinitionGraphChangeApplier_RejectsMissingDependencies()
+    {
+        var stateProvider = new InMemoryResourceStateProvider([CreateState("api", "./api")]);
+        var applier = CreateDefinitionGraphChangeApplier();
+        var snapshot = await stateProvider.GetSnapshotAsync();
+
+        var changes = await applier.ApplyDefinitionsAsync(
+            snapshot,
+            [
+                CreateDefinition(
+                    "worker",
+                    "./worker",
+                    dependsOn: ["application.executable:api", "storage:missing"])
+            ],
+            new ResourceChangeApplyContext(Commit: true),
+            ResourceDefinitionGraphChangeApplierOptions.CreateMissing);
+
+        var diagnostic = Assert.Single(changes.Diagnostics);
+        Assert.True(changes.HasErrors);
+        Assert.False(changes.HasChanges);
+        Assert.Empty(changes.Resources);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.ResourceDependencyMissing, diagnostic.Code);
+        Assert.Equal("application.executable:worker", diagnostic.Target);
+    }
+
+    [Fact]
     public async Task CommitAsync_RejectsStaleGraphVersion()
     {
         var stateProvider = new InMemoryResourceStateProvider([CreateState("api", "./api")]);
@@ -760,6 +810,19 @@ public sealed class ResourceGraphChangeTrackingTests
             Version: version,
             CreatedAt: createdAt,
             LastModifiedAt: lastModifiedAt,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = executablePath
+            });
+
+    private static ResourceDefinition CreateDefinition(
+        string name,
+        string executablePath,
+        IReadOnlyList<string>? dependsOn = null) =>
+        new(
+            name,
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+            DependsOn: dependsOn,
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
                 [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = executablePath

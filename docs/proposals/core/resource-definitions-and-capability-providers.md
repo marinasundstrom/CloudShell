@@ -1009,6 +1009,12 @@ current `ResourceState`, builds resource-local changes, runs the type-owned
 apply providers, and returns one `ResourceGraphChangeSet` for the caller to
 commit or reject. Missing target resources remain graph-level diagnostics
 instead of being hidden inside a resource-local provider result.
+Before staging resource-local changes, the graph applier now preflights the
+incoming batch against the current snapshot and rejects duplicate incoming
+resource IDs or dependencies that cannot be found in either the current graph
+or the incoming definitions. Those remain graph-level diagnostics because the
+individual resource type provider should not have to reason about whether the
+whole definition batch is structurally coherent.
 When the caller is applying a deployment document rather than a conservative
 overlay update, the applier can be explicitly told to create missing
 resources. In that mode the incoming definition is resolved as a new

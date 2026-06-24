@@ -111,13 +111,26 @@ public sealed class ResourceDefinitionGraphChangeApplier(
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(options);
 
+        var incomingDefinitions = definitions.ToArray();
         var tracker = new ResourceGraphChangeTracker(snapshot);
         var statesById = snapshot.Resources.ToDictionary(
             resource => resource.EffectiveResourceId,
             resource => resource,
             StringComparer.OrdinalIgnoreCase);
 
-        foreach (var definition in definitions)
+        foreach (var diagnostic in ValidateIncomingDefinitions(
+            incomingDefinitions,
+            statesById.Keys))
+        {
+            tracker.TrackDiagnostic(diagnostic);
+        }
+
+        if (tracker.GetChanges().HasErrors)
+        {
+            return tracker.GetChanges();
+        }
+
+        foreach (var definition in incomingDefinitions)
         {
             if (!statesById.TryGetValue(definition.EffectiveResourceId, out var state))
             {
@@ -152,6 +165,50 @@ public sealed class ResourceDefinitionGraphChangeApplier(
         }
 
         return tracker.GetChanges();
+    }
+
+    private static IReadOnlyList<ResourceDefinitionDiagnostic> ValidateIncomingDefinitions(
+        IReadOnlyList<ResourceDefinition> definitions,
+        IEnumerable<string> existingResourceIds)
+    {
+        var diagnostics = new List<ResourceDefinitionDiagnostic>();
+        var incomingIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var duplicateIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var definition in definitions)
+        {
+            if (!incomingIds.Add(definition.EffectiveResourceId))
+            {
+                duplicateIds.Add(definition.EffectiveResourceId);
+            }
+        }
+
+        foreach (var duplicateId in duplicateIds)
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                ResourceDefinitionDiagnosticCodes.DuplicateResourceDefinition,
+                $"Resource definition '{duplicateId}' is declared more than once in the graph.",
+                duplicateId));
+        }
+
+        var knownResourceIds = new HashSet<string>(existingResourceIds, StringComparer.OrdinalIgnoreCase);
+        knownResourceIds.UnionWith(incomingIds);
+
+        foreach (var definition in definitions)
+        {
+            foreach (var dependency in definition.ResourceDependencies)
+            {
+                if (!knownResourceIds.Contains(dependency))
+                {
+                    diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                        ResourceDefinitionDiagnosticCodes.ResourceDependencyMissing,
+                        $"Resource definition '{definition.EffectiveResourceId}' depends on missing resource '{dependency}'.",
+                        definition.EffectiveResourceId));
+                }
+            }
+        }
+
+        return diagnostics;
     }
 }
 
