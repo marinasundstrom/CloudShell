@@ -1,10 +1,18 @@
+using System.Text.Json;
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager.Identity;
+using CloudShell.ResourceDefinitions.ReferenceProviders;
+using CloudShell.ResourceDefinitions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
+using DefinitionAttributeId = CloudShell.ResourceDefinitions.ResourceAttributeId;
+using DefinitionCapabilityId = CloudShell.ResourceDefinitions.ResourceCapabilityId;
+using DefinitionResourceDefinition = CloudShell.ResourceDefinitions.ResourceDefinition;
+using DefinitionResourceResolver = CloudShell.ResourceDefinitions.ResourceResolver;
+using DefinitionJson = CloudShell.ResourceDefinitions.ResourceDefinitionJson;
 
 namespace CloudShell.ControlPlane.Tests;
 
@@ -507,6 +515,70 @@ public sealed class ResourceManagerStoreProjectionTests
     }
 
     [Fact]
+    public void GetResources_ComposesResourceModelBridgeProviderProjection()
+    {
+        var resolved = CreateResourceModelResolver().Resolve(new DefinitionResourceDefinition(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+            ProviderId: ExecutableApplicationResourceTypeProvider.ProviderId,
+            DisplayName: "API",
+            DependsOn: ["storage:data"],
+            Attributes: new Dictionary<DefinitionAttributeId, string>
+            {
+                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
+            },
+            Configuration: new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ExecutableApplicationResourceTypeProvider.ConfigurationSection] =
+                    DefinitionJson.FromValue(new ExecutableApplicationConfiguration("dotnet", "run"))
+            },
+            Capabilities: new Dictionary<DefinitionCapabilityId, JsonElement>
+            {
+                [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
+                    DefinitionJson.FromValue(new VolumeConsumerDefinition(
+                    [
+                        new("storage:data", "App_Data")
+                    ]))
+            }));
+        var provider = new ResourceModelResourceProvider(
+            "resource-model",
+            "Resource model",
+            () => [resolved],
+            new ResourceModelResourceManagerProjectionOptions(
+                DefaultLastUpdated: new DateTimeOffset(2026, 6, 24, 0, 0, 0, TimeSpan.Zero)));
+        var store = new ResourceManagerStore(
+            [provider],
+            new TestResourceGroupStore([]),
+            new TestResourceRegistrationStore(
+            [
+                new(
+                    "application.executable:api",
+                    ExecutableApplicationResourceTypeProvider.ProviderId,
+                    null,
+                    DateTimeOffset.UtcNow,
+                    [])
+            ]),
+            new ResourceDeclarationStore(),
+            new ResourceIdentityProviderCatalog(),
+            new CloudShellExtensionRegistry(),
+            new InMemoryCloudShellExtensionActivationStore());
+
+        var resource = Assert.Single(store.GetResources());
+
+        Assert.Equal("application.executable:api", resource.Id);
+        Assert.Equal("API", resource.DisplayName);
+        Assert.Equal(ExecutableApplicationResourceTypeProvider.ProviderId, resource.Provider);
+        Assert.Equal(ResourceClass.Executable, resource.ResourceClass);
+        Assert.Equal(["storage:data"], resource.DependsOn);
+        Assert.Equal("dotnet", resource.ResourceAttributes[ResourceAttributeNames.ExecutablePath]);
+        Assert.True(resource.IsDeclaredResource);
+        Assert.Contains(resource.ResourceCapabilities, capability =>
+            capability.Id == VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString());
+        Assert.Contains(resource.ResourceActions, action =>
+            action.Id == ResourceActionIds.Start && action.Kind == ResourceActionKind.Start);
+    }
+
+    [Fact]
     public void GetGroupForResource_InheritsGroupFromRegisteredParent()
     {
         var group = new ResourceGroup("group-one", "Group One", "Test group", []);
@@ -556,6 +628,20 @@ public sealed class ResourceManagerStoreProjectionTests
             extensionRegistry ?? new CloudShellExtensionRegistry(),
             new InMemoryCloudShellExtensionActivationStore());
     }
+
+    private static DefinitionResourceResolver CreateResourceModelResolver() =>
+        new(
+            [
+                new(
+                    ExecutableApplicationResourceTypeProvider.ClassId,
+                    Attributes: new Dictionary<DefinitionAttributeId, string>
+                    {
+                        ["workload.kind"] = "executable"
+                    })
+            ],
+            [
+                new ExecutableApplicationResourceTypeProvider().TypeDefinition
+            ]);
 
     private static CloudShellExtensionRegistry CreateExtensionRegistry(ResourceClass resourceClass)
     {

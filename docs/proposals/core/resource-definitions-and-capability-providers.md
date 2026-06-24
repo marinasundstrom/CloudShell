@@ -393,7 +393,11 @@ shape and exposes them through `IResourceProvider`. This does not replace
 Resource Manager storage or orchestration. It tests whether the new Resource
 model can be consumed by the existing Resource Manager composition path before
 the project decides which existing declaration/provider paths it should
-replace.
+replace. The bridge provider can be registered with the existing
+`ResourceManagerStore` like any other provider, letting the current Resource
+Manager registration filtering, metadata composition, resource class
+projection, capability projection, and action projection run over resources
+that originated in the new Resource model.
 
 Graph locking, graph update coordination, and transaction policy belong at
 the Resource Manager or Control Plane coordination layer. The Resource model
