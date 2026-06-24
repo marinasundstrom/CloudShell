@@ -580,6 +580,77 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task AddDockerContainerResourceType_RegistersCompleteResourceTypeBoundary()
+    {
+        var services = new ServiceCollection();
+        services.AddDockerContainerResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var definition = new ResourceDefinition(
+            "api",
+            DockerContainerResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [DockerContainerResourceTypeProvider.Attributes.ContainerImage] = "example/api:1.0",
+                [DockerContainerResourceTypeProvider.Attributes.ContainerRegistry] = "registry.local",
+                [DockerContainerResourceTypeProvider.Attributes.EndpointCount] = "2"
+            });
+
+        var validation = await serviceProvider
+            .GetRequiredService<ResourceDefinitionValidationPipeline>()
+            .ValidateAsync(
+                definition,
+                new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.False(validation.HasErrors);
+        Assert.Equal(DockerContainerResourceTypeProvider.ClassId, validation.Resource.Class.ClassId);
+        Assert.Equal("ContainerImage", validation.Resource.Attributes.GetString(
+            DockerContainerResourceTypeProvider.Attributes.WorkloadKind));
+        Assert.Equal("example/api:1.0", validation.Resource.Attributes.GetString(
+            DockerContainerResourceTypeProvider.Attributes.ContainerImage));
+        Assert.Equal("registry.local", validation.Resource.Attributes.GetString(
+            DockerContainerResourceTypeProvider.Attributes.ContainerRegistry));
+        Assert.Equal("1", validation.Resource.Attributes.GetString(
+            DockerContainerResourceTypeProvider.Attributes.ContainerReplicas));
+        Assert.Equal("2", validation.Resource.Attributes.GetString(
+            DockerContainerResourceTypeProvider.Attributes.EndpointCount));
+        Assert.True(validation.Resource.Capabilities.Has(
+            DockerContainerResourceTypeProvider.Capabilities.Monitoring));
+        Assert.True(validation.Resource.Capabilities.Has(
+            DockerContainerResourceTypeProvider.Capabilities.LogSources));
+        Assert.True(validation.Resource.Operations.Has(
+            DockerContainerResourceTypeProvider.Operations.Start));
+        Assert.True(validation.Resource.Operations.Has(
+            DockerContainerResourceTypeProvider.Operations.Unpause));
+
+        var projectedGraph = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphProjectionResolver>()
+            .ProjectAsync(
+                new ResourceDefinitionGraphValidationPipelineResult(
+                    new ResourceDefinitionGraph([definition]),
+                    [validation],
+                    []),
+                new ResourceProjectionContext("local", "developer"));
+        var projection = projectedGraph.Find<DockerContainerResource>(
+            definition.EffectiveResourceId);
+
+        Assert.NotNull(projection);
+        Assert.Equal("example/api:1.0", projection.Image);
+        Assert.Equal("registry.local", projection.Registry);
+        Assert.Equal(1, projection.Replicas);
+        Assert.Equal(2, projection.EndpointCount);
+        Assert.True(projection.SupportsMonitoring);
+        Assert.True(projection.SupportsLogSources);
+        var start = await projection.GetStartOperationAsync();
+        var unpause = await projection.GetUnpauseOperationAsync();
+
+        Assert.NotNull(start);
+        Assert.NotNull(unpause);
+        Assert.True(await start.CanExecuteAsync());
+        Assert.True(await unpause.CanExecuteAsync());
+    }
+
+    [Fact]
     public async Task AddConfigurationStoreResourceType_RegistersCompleteResourceTypeBoundary()
     {
         var services = new ServiceCollection();

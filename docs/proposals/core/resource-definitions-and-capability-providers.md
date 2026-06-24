@@ -714,6 +714,14 @@ local provider while setting `host.os` to `macos`. Platform support checks,
 host proxy runtime state, and resolver/provisioner integration remain
 operational provider concerns outside the Resource model POC.
 
+A narrow Docker container reference provider covers `docker.container` as a
+provider-projected container artifact. It owns stable workload, image,
+registry, replica, and endpoint-count attributes, passive monitoring and log
+source capability markers, lifecycle operation projections, a typed wrapper,
+apply planning, and Resource Manager bridge projection/execution. Actual
+Docker API calls, log streaming, runtime discovery, and state-sensitive action
+availability remain operational provider concerns.
+
 The working porting status for the reference POC is:
 
 | Provider or resource type | Status | New-model coverage | Remaining outside the POC |
@@ -729,6 +737,7 @@ The working porting status for the reference POC is:
 | SQL database child (`application.sql-database`) | Ported as a narrow reference provider | Database name/source/ensure-created attributes, server `ResourceReference` validation, ensure-created operation, typed wrapper, Resource Manager bridge projection and execution | Real SQL database materialization, credential/grant reconciliation, provider-managed child ownership metadata, and UI tabs |
 | Container host (`cloudshell.container-host`) | Ported as a narrow reference provider | Infrastructure class/type defaults, host kind/endpoint/registry/default attributes, passive container image/build/filesystem-mount capability markers, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real Docker/container host runtime integration, host resolution, placement behavior, credentials, and runtime diagnostics |
 | Docker host (`docker.host`) | Ported as a narrow reference provider | Infrastructure class/type defaults, Docker host kind/endpoint/registry/default attributes, passive container image/build/filesystem-mount capability markers, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real Docker runtime integration, discovery, health, logs, container child projections, credentials, and UI registration/update flow |
+| Docker container (`docker.container`) | Ported as a narrow reference provider | Container class/type defaults, workload/image/registry/replica/endpoint-count attributes, passive monitoring and log-source capability markers, lifecycle operation projections, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Real Docker API integration, runtime discovery, container state, state-sensitive action availability, log streaming, endpoint projection, and hidden/runtime-managed Resource Manager behavior |
 | Load balancer (`cloudshell.loadBalancer`) | Ported as a narrow reference provider | Network class/type defaults, provider/host/count attributes, passive networking capability markers, apply-configuration operation, typed wrapper, Resource Manager bridge projection and execution | Route and entrypoint payloads, target `ResourceReference` graph validation, Traefik/materialization runtime integration, endpoint mappings, and UI registration/update flow |
 | Network (`cloudshell.network`) | Ported as a narrow reference provider | Network class/type defaults, kind/readiness/provider attributes, passive networking capability markers, reconcile-endpoint-mappings operation, typed wrapper, Resource Manager bridge projection and execution | Endpoint and mapping payloads, observed mapping state as capability members, host/virtual network specialization, provisioner integration, and UI registration/update flow |
 | Virtual network (`cloudshell.virtualNetwork`) | Ported as a narrow reference provider | Network class/type defaults, virtual/default/readiness/provider attributes, passive virtual-network and ingress capability markers, type-specific `reconcileEndpointMappings` operation provider, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Endpoint and mapping payloads, observed mapping state as capability members or operation plans, endpoint mapping provisioner integration, and UI registration/update flow |

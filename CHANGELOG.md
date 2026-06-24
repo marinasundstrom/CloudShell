@@ -205,6 +205,12 @@ on `git blame --follow`, and then by the broad type of change.
   bridge coverage while leaving platform support checks to the operational
   provider.
 - The resource definitions reference providers now include a narrow Docker
+  container resource type with workload, image, registry, replica, and endpoint
+  count attributes, passive monitoring and log-source capability markers,
+  lifecycle operation projections, typed wrapper, apply planning, and Resource
+  Manager bridge coverage while leaving Docker API execution and log streaming
+  to the operational provider.
+- The resource definitions reference providers now include a narrow Docker
   host resource type with Docker host kind, endpoint, registry, default-host
   attributes, passive container capability markers, an inspect operation,
   typed wrapper, and Resource Manager bridge coverage.

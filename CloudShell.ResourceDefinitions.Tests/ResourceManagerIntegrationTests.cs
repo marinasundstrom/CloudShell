@@ -1101,6 +1101,92 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesDockerContainerAcrossProviderBoundaries()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddDockerContainerResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var container = new ResourceDefinition(
+            "api",
+            DockerContainerResourceTypeProvider.ResourceTypeId,
+            ProviderId: DockerContainerResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [DockerContainerResourceTypeProvider.Attributes.ContainerImage] = "example/api:1.0",
+                [DockerContainerResourceTypeProvider.Attributes.ContainerRegistry] = "registry.local",
+                [DockerContainerResourceTypeProvider.Attributes.EndpointCount] = "2"
+            });
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "docker-container",
+                [container],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 4, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedContainer = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == container.EffectiveResourceId);
+
+        Assert.Equal(ResourceManagerClass.Container, projectedContainer.ResourceClass);
+        Assert.Equal(DockerContainerResourceTypeProvider.ProviderId, projectedContainer.Provider);
+        Assert.Equal("ContainerImage", projectedContainer.ResourceAttributes["workload.kind"]);
+        Assert.Equal("example/api:1.0", projectedContainer.ResourceAttributes["container.image"]);
+        Assert.Equal("registry.local", projectedContainer.ResourceAttributes["container.registry"]);
+        Assert.Equal("1", projectedContainer.ResourceAttributes["container.replicas"]);
+        Assert.Equal("2", projectedContainer.ResourceAttributes["endpoints.count"]);
+        Assert.Contains(projectedContainer.ResourceCapabilities, capability =>
+            capability.Id == DockerContainerResourceTypeProvider.Capabilities.Monitoring.ToString());
+        Assert.Contains(projectedContainer.ResourceCapabilities, capability =>
+            capability.Id == DockerContainerResourceTypeProvider.Capabilities.LogSources.ToString());
+        var start = Assert.Single(projectedContainer.ResourceActions, action =>
+            action.Id == DockerContainerResourceTypeProvider.Operations.Start.ToString());
+        Assert.Equal(ResourceActionKind.Start, start.Kind);
+        var unpause = Assert.Single(projectedContainer.ResourceActions, action =>
+            action.Id == DockerContainerResourceTypeProvider.Operations.Unpause.ToString());
+        Assert.Equal("Docker Unpause", unpause.DisplayName);
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveAsync(container.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors);
+        var projection = Assert.IsType<DockerContainerResource>(
+            await serviceProvider
+                .GetRequiredService<ResourceProjectionResolver>()
+                .GetResourceProjectionAsync(
+                    resolution.Target!,
+                    new ResourceProjectionContext("local", "developer")));
+        Assert.Equal("example/api:1.0", projection.Image);
+        Assert.True(projection.SupportsLogSources);
+
+        var procedure = new ResourceProcedureContext(
+            projectedContainer,
+            null,
+            null,
+            new EmptyResourceRegistrationStore());
+
+        Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, start));
+
+        var procedureResult = await provider.ExecuteActionAsync(procedure, start);
+
+        Assert.Equal("Executed Start for api.", procedureResult.Message);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesConfigurationStoreAcrossProviderBoundaries()
     {
         var services = new ServiceCollection();
