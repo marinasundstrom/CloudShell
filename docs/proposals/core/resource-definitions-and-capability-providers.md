@@ -651,6 +651,20 @@ provider would use the same boundary, but materialize resources from database
 records and persist the accepted state or provider-specific delta format in a
 transaction.
 
+The graph version is the batch/concurrency token for the whole resource graph.
+Each persisted resource state also carries its own resource revision through
+the serialized `Version` field, surfaced in the model as `ResourceRevision`.
+When the state provider commits accepted changes, only changed resources get
+their revision advanced and their last-modified timestamp updated. Creation
+time is set when committed state is first persisted and preserved on later
+commits. The projected `Resource` exposes `Version`, `Revision`, `CreatedAt`,
+and `LastModifiedAt` from committed `ResourceState`; pending
+`ResourceChangeSet` values do not update those fields until the graph commit
+boundary accepts the change. This lets persistence providers store graph-level
+ordering and resource-level revisions independently, while keeping
+`ResourceDefinition`, `ResourceState`, and `ResourceRecord` document/store
+shapes serializer-friendly.
+
 For the server application shape, the POC also allows a single in-memory
 `ResourceGraphModel` to own the current graph snapshot. The model loads from
 `IResourceStateProvider`, hands out trackers based on the current snapshot,

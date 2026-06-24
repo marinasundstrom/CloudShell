@@ -7,8 +7,10 @@ public sealed class ResourceGraphChangeTrackingTests
     [Fact]
     public async Task CommitAsync_PersistsAcceptedChangesWithSingleGraphVersion()
     {
+        var createdAt = new DateTimeOffset(2026, 6, 23, 12, 0, 0, TimeSpan.Zero);
+        var committedAt = new DateTimeOffset(2026, 6, 24, 12, 0, 0, TimeSpan.Zero);
         var stateProvider = new InMemoryResourceStateProvider(
-            [CreateState("api", "./api"), CreateState("worker", "./worker")]);
+            [CreateState("api", "./api"), CreateState("worker", "./worker", version: "4", createdAt: createdAt)]);
         var snapshot = await stateProvider.GetSnapshotAsync();
         var tracker = new ResourceGraphChangeTracker(snapshot);
         var applyDispatcher = new ResourceChangeApplyDispatcher(
@@ -27,17 +29,54 @@ public sealed class ResourceGraphChangeTrackingTests
 
         var commit = await stateProvider.CommitAsync(
             tracker.GetChanges(),
-            new ResourceGraphCommitContext("local", "developer"));
+            new ResourceGraphCommitContext("local", "developer", committedAt));
 
         Assert.True(commit.IsCommitted);
         Assert.Equal(new ResourceGraphVersion(1), commit.Version);
         Assert.NotNull(commit.Snapshot);
+        Assert.Equal("1", FindState(commit.Snapshot, "application.executable:api").Version);
+        Assert.Equal("5", FindState(commit.Snapshot, "application.executable:worker").Version);
+        Assert.Equal(committedAt, FindState(commit.Snapshot, "application.executable:api").CreatedAt);
+        Assert.Equal(createdAt, FindState(commit.Snapshot, "application.executable:worker").CreatedAt);
         Assert.All(commit.Snapshot.Resources, resource =>
-            Assert.Equal("1", resource.Version));
+            Assert.Equal(committedAt, resource.LastModifiedAt));
         Assert.Equal("./api-v2", FindState(commit.Snapshot, "application.executable:api")
             .ResourceAttributes[ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
         Assert.Equal("./worker-v2", FindState(commit.Snapshot, "application.executable:worker")
             .ResourceAttributes[ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
+    }
+
+    [Fact]
+    public async Task CommitAsync_PersistsResourceRevisionSeparatelyFromGraphVersion()
+    {
+        var committedAt = new DateTimeOffset(2026, 6, 24, 13, 0, 0, TimeSpan.Zero);
+        var stateProvider = new InMemoryResourceStateProvider([CreateState("api", "./api", version: "9")]);
+        var snapshot = await stateProvider.GetSnapshotAsync();
+        var tracker = new ResourceGraphChangeTracker(snapshot);
+        var applyDispatcher = new ResourceChangeApplyDispatcher(
+            [new ExecutableApplicationResourceTypeProvider()]);
+
+        tracker.Track(await StageExecutablePathChangeAsync(
+            snapshot,
+            "application.executable:api",
+            "./api-v2",
+            applyDispatcher));
+
+        var commit = await stateProvider.CommitAsync(
+            tracker.GetChanges(),
+            new ResourceGraphCommitContext(Timestamp: committedAt));
+
+        Assert.Equal(new ResourceGraphVersion(1), commit.Version);
+        Assert.NotNull(commit.Snapshot);
+        Assert.Equal(new ResourceRevision(10), FindState(commit.Snapshot, "application.executable:api").Revision);
+        Assert.Equal("10", FindState(commit.Snapshot, "application.executable:api").Version);
+        Assert.Equal(committedAt, FindState(commit.Snapshot, "application.executable:api").LastModifiedAt);
+
+        var projected = Resolve(FindState(commit.Snapshot, "application.executable:api"));
+        Assert.Equal("10", projected.Version);
+        Assert.Equal(new ResourceRevision(10), projected.Revision);
+        Assert.Equal(committedAt, projected.CreatedAt);
+        Assert.Equal(committedAt, projected.LastModifiedAt);
     }
 
     [Fact]
@@ -255,10 +294,16 @@ public sealed class ResourceGraphChangeTrackingTests
 
     private static ResourceState CreateState(
         string name,
-        string executablePath) =>
+        string executablePath,
+        string? version = null,
+        DateTimeOffset? createdAt = null,
+        DateTimeOffset? lastModifiedAt = null) =>
         new(
             name,
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+            Version: version,
+            CreatedAt: createdAt,
+            LastModifiedAt: lastModifiedAt,
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
                 [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = executablePath

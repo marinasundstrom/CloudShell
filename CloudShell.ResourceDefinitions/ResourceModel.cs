@@ -15,7 +15,9 @@ public sealed record ResourceState(
     IReadOnlyDictionary<string, JsonElement>? Configuration = null,
     IReadOnlyDictionary<ResourceCapabilityId, JsonElement>? Capabilities = null,
     IReadOnlyDictionary<ResourceOperationId, JsonElement>? Operations = null,
-    IReadOnlyDictionary<string, string>? Metadata = null)
+    IReadOnlyDictionary<string, string>? Metadata = null,
+    DateTimeOffset? CreatedAt = null,
+    DateTimeOffset? LastModifiedAt = null)
 {
     private static readonly IReadOnlyList<string> EmptyList = [];
     private static readonly IReadOnlyDictionary<ResourceAttributeId, string> EmptyAttributes =
@@ -41,6 +43,11 @@ public sealed record ResourceState(
 
     public IReadOnlyDictionary<ResourceOperationId, JsonElement> OperationPayloads =>
         Operations ?? EmptyOperationPayloads;
+
+    public ResourceRevision Revision => ResourceRevision.Parse(Version);
+
+    public ResourceState WithRevision(ResourceRevision revision) =>
+        this with { Version = revision.ToString() };
 
     public static ResourceState FromDefinition(ResourceDefinition definition)
     {
@@ -101,6 +108,20 @@ public sealed record ResourceState(
             : default;
 }
 
+public readonly record struct ResourceRevision(long Value)
+{
+    public static ResourceRevision Initial { get; } = new(0);
+
+    public ResourceRevision Next() => new(Value + 1);
+
+    public override string ToString() => Value.ToString(CultureInfo.InvariantCulture);
+
+    public static ResourceRevision Parse(string? value) =>
+        long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var revision) && revision >= 0
+            ? new(revision)
+            : Initial;
+}
+
 public sealed record ResourceClass(
     ResourceClassDefinition Definition,
     ResourceAttributeSet Attributes,
@@ -136,6 +157,14 @@ public sealed record Resource(
     public string Name => State.Name;
 
     public string EffectiveResourceId => State.EffectiveResourceId;
+
+    public string? Version => State.Version;
+
+    public ResourceRevision Revision => State.Revision;
+
+    public DateTimeOffset? CreatedAt => State.CreatedAt;
+
+    public DateTimeOffset? LastModifiedAt => State.LastModifiedAt;
 
     public bool HasPendingChanges => _pendingChanges?.HasChanges == true;
 

@@ -29,6 +29,8 @@ public sealed class ResourceRecordTests
         Assert.Equal(definition.EffectiveResourceId, roundTrip.EffectiveResourceId);
         Assert.Equal(definition.Name, roundTrip.Name);
         Assert.Equal(definition.TypeId, roundTrip.TypeId);
+        Assert.Equal("7", roundTrip.Version);
+        Assert.Equal(new ResourceRevision(7), roundTrip.Revision);
         Assert.Equal(
             "dotnet",
             roundTrip.ResourceAttributes[ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
@@ -56,11 +58,35 @@ public sealed class ResourceRecordTests
             recordJson.GetRawText());
     }
 
+    [Fact]
+    public void ResourceRecord_RoundTripsCommittedResourceMetadata()
+    {
+        var createdAt = new DateTimeOffset(2026, 6, 23, 12, 0, 0, TimeSpan.Zero);
+        var lastModifiedAt = new DateTimeOffset(2026, 6, 24, 12, 0, 0, TimeSpan.Zero);
+        var state = ResourceState.FromDefinition(CreateDefinition()) with
+        {
+            Version = "8",
+            CreatedAt = createdAt,
+            LastModifiedAt = lastModifiedAt
+        };
+
+        var record = ResourceRecord.FromState(state);
+        var roundTrip = record.ToState();
+
+        Assert.Equal("8", record.Version);
+        Assert.Equal(createdAt, record.CreatedAt);
+        Assert.Equal(lastModifiedAt, record.LastModifiedAt);
+        Assert.Equal(new ResourceRevision(8), roundTrip.Revision);
+        Assert.Equal(createdAt, roundTrip.CreatedAt);
+        Assert.Equal(lastModifiedAt, roundTrip.LastModifiedAt);
+    }
+
     private static ResourceDefinition CreateDefinition() =>
         new(
             "api",
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
             ProviderId: ExecutableApplicationResourceTypeProvider.ProviderId,
+            Version: "7",
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
                 [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"

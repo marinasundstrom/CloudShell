@@ -42,7 +42,8 @@ public sealed record ResourceGraphChangeSet(
 
 public sealed record ResourceGraphCommitContext(
     string? EnvironmentId = null,
-    string? PrincipalId = null);
+    string? PrincipalId = null,
+    DateTimeOffset? Timestamp = null);
 
 public sealed record ResourceGraphCommitResult(
     ResourceGraphVersion Version,
@@ -216,11 +217,19 @@ public sealed class InMemoryResourceStateProvider(
         }
 
         var nextVersion = _version.Next();
+        var timestamp = context.Timestamp ?? DateTimeOffset.UtcNow;
 
         foreach (var accepted in changes.AcceptedResources)
         {
-            _resources[accepted.AcceptedState!.EffectiveResourceId] =
-                accepted.AcceptedState with { Version = nextVersion.ToString() };
+            var acceptedState = accepted.AcceptedState!;
+            _resources.TryGetValue(acceptedState.EffectiveResourceId, out var currentState);
+            _resources[acceptedState.EffectiveResourceId] =
+                acceptedState
+                    .WithRevision(acceptedState.Revision.Next()) with
+                    {
+                        CreatedAt = acceptedState.CreatedAt ?? currentState?.CreatedAt ?? timestamp,
+                        LastModifiedAt = timestamp
+                    };
         }
 
         _version = nextVersion;

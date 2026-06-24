@@ -14,7 +14,9 @@ public sealed record ResourceRecord(
     IReadOnlyDictionary<string, JsonElement>? Configuration = null,
     IReadOnlyDictionary<string, JsonElement>? Capabilities = null,
     IReadOnlyDictionary<string, JsonElement>? Operations = null,
-    IReadOnlyDictionary<string, string>? Metadata = null)
+    IReadOnlyDictionary<string, string>? Metadata = null,
+    DateTimeOffset? CreatedAt = null,
+    DateTimeOffset? LastModifiedAt = null)
 {
     public static ResourceRecord FromState(ResourceState state)
     {
@@ -38,7 +40,9 @@ public sealed record ResourceRecord(
             state.Metadata?.ToDictionary(
                 item => item.Key,
                 item => item.Value,
-                StringComparer.OrdinalIgnoreCase));
+                StringComparer.OrdinalIgnoreCase),
+            state.CreatedAt,
+            state.LastModifiedAt);
     }
 
     public static ResourceRecord FromDefinition(ResourceDefinition definition) =>
@@ -69,7 +73,9 @@ public sealed record ResourceRecord(
             Operations?.ToDictionary(
                 payload => ResourceOperationId.Create(payload.Key),
                 payload => ResourceDefinitionJson.Clone(payload.Value)),
-            Metadata);
+            Metadata,
+            CreatedAt,
+            LastModifiedAt);
 
     public ResourceDefinition ToDefinition() => ToState().ToDefinition();
 
