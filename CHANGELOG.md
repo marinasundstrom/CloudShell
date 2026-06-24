@@ -62,6 +62,10 @@ on `git blame --follow`, and then by the broad type of change.
   `ResourceReference` dependencies survive the record persistence projection.
 - `ResourceReference` now has JSON round-trip coverage for expected resource
   type and provider metadata.
+- Resource model provider integration tests now include an
+  ApplicationTopology-inspired graph that composes local volume, SQL Server,
+  SQL database, configuration store, Secrets Vault, and executable application
+  resources through the Resource Manager bridge.
 - The resource definitions proposal now records the near-term POC path:
   stabilize the current model enough to port real provider behavior, and
   propose new abstractions only when provider ports expose concrete gaps.

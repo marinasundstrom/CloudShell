@@ -2647,6 +2647,165 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesApplicationTopologyInspiredGraphAcrossProviderBoundaries()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddLocalVolumeResourceType();
+        services.AddSqlServerResourceType();
+        services.AddSqlDatabaseResourceType();
+        services.AddConfigurationStoreResourceType();
+        services.AddSecretsVaultResourceType();
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var volume = new ResourceDefinition(
+            "application-topology-sql-data",
+            LocalVolumeResourceTypeProvider.ResourceTypeId);
+        var sqlServer = new ResourceDefinition(
+            "application-topology-sql-server",
+            SqlServerResourceTypeProvider.ResourceTypeId,
+            ProviderId: SqlServerResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [SqlServerResourceTypeProvider.Attributes.Version] = "2022",
+                [SqlServerResourceTypeProvider.Attributes.Edition] = "Developer"
+            },
+            Configuration: new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
+            {
+                [SqlServerResourceTypeProvider.ConfigurationSection] =
+                    ResourceDefinitionJson.FromValue(new SqlServerConfiguration(
+                    [
+                        new("application_topology", "Application Topology", EnsureCreated: true)
+                    ]))
+            },
+            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
+            {
+                [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
+                    ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
+                    [
+                        new(volume.EffectiveResourceId, "/var/opt/mssql")
+                    ]))
+            });
+        var database = new ResourceDefinition(
+            "application-topology-db",
+            SqlDatabaseResourceTypeProvider.ResourceTypeId,
+            ProviderId: SqlDatabaseResourceTypeProvider.ProviderId,
+            DependsOn:
+            [
+                ResourceReference.ResourceId(
+                    sqlServer.EffectiveResourceId,
+                    typeId: SqlServerResourceTypeProvider.ResourceTypeId)
+            ],
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [SqlDatabaseResourceTypeProvider.Attributes.DatabaseName] = "application_topology",
+                [SqlDatabaseResourceTypeProvider.Attributes.Source] = "declared",
+                [SqlDatabaseResourceTypeProvider.Attributes.EnsureCreated] = bool.TrueString.ToLowerInvariant()
+            });
+        var settings = new ResourceDefinition(
+            "application-topology-settings",
+            ConfigurationStoreResourceTypeProvider.ResourceTypeId,
+            ProviderId: ConfigurationStoreResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [ConfigurationStoreResourceTypeProvider.Attributes.Endpoint] = "http://localhost:5138"
+            });
+        var secrets = new ResourceDefinition(
+            "application-topology-secrets",
+            SecretsVaultResourceTypeProvider.ResourceTypeId,
+            ProviderId: SecretsVaultResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [SecretsVaultResourceTypeProvider.Attributes.Endpoint] = "http://localhost:6138"
+            });
+        var api = new ResourceDefinition(
+            "application-topology-api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+            ProviderId: ExecutableApplicationResourceTypeProvider.ProviderId,
+            DependsOn:
+            [
+                ResourceReference.ResourceId(
+                    database.EffectiveResourceId,
+                    typeId: SqlDatabaseResourceTypeProvider.ResourceTypeId),
+                ResourceReference.ResourceId(
+                    settings.EffectiveResourceId,
+                    typeId: ConfigurationStoreResourceTypeProvider.ResourceTypeId),
+                ResourceReference.ResourceId(
+                    secrets.EffectiveResourceId,
+                    typeId: SecretsVaultResourceTypeProvider.ResourceTypeId)
+            ],
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
+            });
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "application-topology",
+                [volume, sqlServer, database, settings, secrets, api],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 13, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+        Assert.Equal(6, result.Commit.Summary.AcceptedResourceCount);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedResources = provider.GetResources().ToArray();
+        var projectedApi = Assert.Single(projectedResources, resource =>
+            resource.Id == api.EffectiveResourceId);
+        var projectedSqlServer = Assert.Single(projectedResources, resource =>
+            resource.Id == sqlServer.EffectiveResourceId);
+        var projectedDatabase = Assert.Single(projectedResources, resource =>
+            resource.Id == database.EffectiveResourceId);
+        var projectedSettings = Assert.Single(projectedResources, resource =>
+            resource.Id == settings.EffectiveResourceId);
+        var projectedSecrets = Assert.Single(projectedResources, resource =>
+            resource.Id == secrets.EffectiveResourceId);
+
+        Assert.Equal(
+            [database.EffectiveResourceId, settings.EffectiveResourceId, secrets.EffectiveResourceId],
+            projectedApi.DependsOn);
+        Assert.Equal([volume.EffectiveResourceId], projectedSqlServer.DependsOn);
+        Assert.Equal([sqlServer.EffectiveResourceId], projectedDatabase.DependsOn);
+        Assert.Equal(ResourceManagerClass.Configuration, projectedSettings.ResourceClass);
+        Assert.Equal(ResourceManagerClass.SecretsVault, projectedSecrets.ResourceClass);
+        Assert.Contains(projectedDatabase.ResourceActions, action =>
+            action.Id == SqlDatabaseResourceTypeProvider.Operations.EnsureCreated.ToString());
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveWithDependenciesAsync(api.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors, FormatDiagnostics(resolution.Diagnostics));
+        var resolvedResourceIds = resolution.Resources
+            .Select(resource => resource.EffectiveResourceId)
+            .ToArray();
+        Assert.Equal(6, resolvedResourceIds.Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.Contains(api.EffectiveResourceId, resolvedResourceIds);
+        Assert.Contains(database.EffectiveResourceId, resolvedResourceIds);
+        Assert.Contains(sqlServer.EffectiveResourceId, resolvedResourceIds);
+        Assert.Contains(volume.EffectiveResourceId, resolvedResourceIds);
+        Assert.Contains(settings.EffectiveResourceId, resolvedResourceIds);
+        Assert.Contains(secrets.EffectiveResourceId, resolvedResourceIds);
+
+        var resolvedSqlServer = Assert.Single(resolution.Resources, resource =>
+            resource.EffectiveResourceId == sqlServer.EffectiveResourceId);
+        var volumeCapability = Assert.IsType<VolumeConsumerCapability>(
+            resolvedSqlServer.Capabilities.Get<VolumeConsumerCapability>());
+        Assert.Equal(volume.EffectiveResourceId, Assert.Single(volumeCapability.Mounts).Volume);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_RejectsInvalidCapabilityReference()
     {
         var services = new ServiceCollection();
