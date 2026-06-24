@@ -1021,6 +1021,86 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesDockerHostAcrossProviderBoundaries()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddDockerHostResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var host = new ResourceDefinition(
+            "engine",
+            DockerHostResourceTypeProvider.ResourceTypeId,
+            ProviderId: DockerHostResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [DockerHostResourceTypeProvider.Attributes.HostKind] = "local",
+                [DockerHostResourceTypeProvider.Attributes.Endpoint] = "unix:///var/run/docker.sock",
+                [DockerHostResourceTypeProvider.Attributes.Registry] = "docker.io",
+                [DockerHostResourceTypeProvider.Attributes.IsDefault] = bool.TrueString.ToLowerInvariant()
+            });
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "docker-host",
+                [host],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 3, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedHost = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == host.EffectiveResourceId);
+
+        Assert.Equal(ResourceManagerClass.Infrastructure, projectedHost.ResourceClass);
+        Assert.Equal(DockerHostResourceTypeProvider.ProviderId, projectedHost.Provider);
+        Assert.Equal("containerHost", projectedHost.ResourceAttributes["infrastructure.kind"]);
+        Assert.Equal("local", projectedHost.ResourceAttributes["docker.host.kind"]);
+        Assert.Equal("unix:///var/run/docker.sock", projectedHost.ResourceAttributes["docker.host.endpoint"]);
+        Assert.Contains(projectedHost.ResourceCapabilities, capability =>
+            capability.Id == DockerHostResourceTypeProvider.Capabilities.ContainerImage.ToString());
+        Assert.Contains(projectedHost.ResourceCapabilities, capability =>
+            capability.Id == DockerHostResourceTypeProvider.Capabilities.StorageMountFileSystem.ToString());
+        var inspect = Assert.Single(projectedHost.ResourceActions, action =>
+            action.Id == DockerHostResourceTypeProvider.Operations.Inspect.ToString());
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveAsync(host.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors);
+        var projection = Assert.IsType<DockerHostResource>(
+            await serviceProvider
+                .GetRequiredService<ResourceProjectionResolver>()
+                .GetResourceProjectionAsync(
+                    resolution.Target!,
+                    new ResourceProjectionContext("local", "developer")));
+        Assert.True(projection.SupportsContainerImages);
+
+        var procedure = new ResourceProcedureContext(
+            projectedHost,
+            null,
+            null,
+            new EmptyResourceRegistrationStore());
+
+        Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, inspect));
+
+        var procedureResult = await provider.ExecuteActionAsync(procedure, inspect);
+
+        Assert.Equal("Executed Docker Host Inspect for engine.", procedureResult.Message);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesConfigurationStoreAcrossProviderBoundaries()
     {
         var services = new ServiceCollection();

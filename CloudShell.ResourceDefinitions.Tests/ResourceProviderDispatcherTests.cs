@@ -327,6 +327,71 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task AddDockerHostResourceType_RegistersCompleteResourceTypeBoundary()
+    {
+        var services = new ServiceCollection();
+        services.AddDockerHostResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var definition = new ResourceDefinition(
+            "engine",
+            DockerHostResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [DockerHostResourceTypeProvider.Attributes.HostKind] = "local",
+                [DockerHostResourceTypeProvider.Attributes.Endpoint] = "unix:///var/run/docker.sock",
+                [DockerHostResourceTypeProvider.Attributes.Registry] = "docker.io",
+                [DockerHostResourceTypeProvider.Attributes.IsDefault] = bool.TrueString.ToLowerInvariant()
+            });
+
+        var validation = await serviceProvider
+            .GetRequiredService<ResourceDefinitionValidationPipeline>()
+            .ValidateAsync(
+                definition,
+                new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.False(validation.HasErrors);
+        Assert.Equal(DockerHostResourceTypeProvider.ClassId, validation.Resource.Class.ClassId);
+        Assert.Equal("containerHost", validation.Resource.Attributes.GetString(
+            DockerHostResourceTypeProvider.Attributes.InfrastructureKind));
+        Assert.Equal("local", validation.Resource.Attributes.GetString(
+            DockerHostResourceTypeProvider.Attributes.HostKind));
+        Assert.True(validation.Resource.Capabilities.Has(
+            DockerHostResourceTypeProvider.Capabilities.ContainerImage));
+        Assert.True(validation.Resource.Capabilities.Has(
+            DockerHostResourceTypeProvider.Capabilities.ContainerBuild));
+        Assert.True(validation.Resource.Capabilities.Has(
+            DockerHostResourceTypeProvider.Capabilities.StorageMountFileSystem));
+        Assert.True(validation.Resource.Operations.Has(
+            DockerHostResourceTypeProvider.Operations.Inspect));
+
+        var projectedGraph = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphProjectionResolver>()
+            .ProjectAsync(
+                new ResourceDefinitionGraphValidationPipelineResult(
+                    new ResourceDefinitionGraph([definition]),
+                    [validation],
+                    []),
+                new ResourceProjectionContext("local", "developer"));
+        var projection = projectedGraph.Find<DockerHostResource>(
+            definition.EffectiveResourceId);
+
+        Assert.NotNull(projection);
+        Assert.Equal("local", projection.HostKind);
+        Assert.Equal("unix:///var/run/docker.sock", projection.Endpoint);
+        Assert.Equal("docker.io", projection.Registry);
+        Assert.True(projection.IsDefault);
+        Assert.True(projection.SupportsContainerImages);
+        Assert.True(projection.SupportsContainerBuild);
+        Assert.True(projection.SupportsFileSystemMounts);
+        var inspect = await projection.GetInspectOperationAsync();
+
+        Assert.NotNull(inspect);
+        Assert.True(await inspect.CanExecuteAsync());
+        Assert.Equal("docker.io", inspect.PlanInspection().Registry);
+    }
+
+    [Fact]
     public async Task AddConfigurationStoreResourceType_RegistersCompleteResourceTypeBoundary()
     {
         var services = new ServiceCollection();
