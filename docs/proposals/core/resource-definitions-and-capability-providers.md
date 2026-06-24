@@ -1163,6 +1163,57 @@ Those wrappers are how domain code should consume behavior-rich resource
 views; they are not the persistence record and they are not the portable
 serialized document format.
 
+Layered definition, persistence, and projection model:
+
+```mermaid
+flowchart TD
+    subgraph domainData [Domain definition data]
+        classDefinition["ResourceClassDefinition"]
+        typeDefinition["ResourceTypeDefinition"]
+        definition["ResourceDefinition<br/>desired graph state"]
+    end
+
+    subgraph documentProjection [Document/interchange projection]
+        json["JSON"]
+        yaml["YAML"]
+        xml["XML"]
+        templates["Templates and imports"]
+    end
+
+    subgraph persistenceProjection [CloudShell persistence projection]
+        record["ResourceDefinitionRecord"]
+        tables["Normalized tables"]
+        indexes["Indexes and metadata"]
+    end
+
+    subgraph resolvedData [Computed resolved data]
+        resolver["ResourceDefinitionResolver"]
+        resolved["ResolvedResourceDefinition<br/>complete value set"]
+    end
+
+    subgraph upperApi [Upper domain-model API]
+        projection["ResourceDefinitionProjection"]
+        wrapper["Generated resource wrapper"]
+        behavior["Capability and operation methods"]
+    end
+
+    classDefinition --> resolver
+    typeDefinition --> resolver
+    definition --> resolver
+
+    definition --> json
+    definition --> yaml
+    definition --> xml
+    definition --> templates
+
+    definition --> record
+    record --> tables
+    record --> indexes
+    record --> definition
+
+    resolver --> resolved --> projection --> wrapper --> behavior
+```
+
 The durable formats should avoid making C# builder types, generated DTO names,
 or provider-native files the source of truth.
 
