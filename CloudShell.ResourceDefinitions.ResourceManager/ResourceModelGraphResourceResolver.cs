@@ -1,3 +1,5 @@
+using ResourceManagerAction = CloudShell.Abstractions.ResourceManager.ResourceAction;
+
 namespace CloudShell.ResourceDefinitions.ResourceManager;
 
 public sealed class ResourceModelGraphResourceResolver(
@@ -37,6 +39,54 @@ public sealed class ResourceModelGraphResourceResolver(
             includeDependencies: true,
             context,
             cancellationToken);
+
+    public async ValueTask<ResourceModelGraphOperationResolution> ResolveOperationAsync(
+        string resourceId,
+        ResourceManagerAction action,
+        ResourceDefinitionResolutionContext? context = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+
+        return await ResolveOperationAsync(
+            resourceId,
+            ResourceOperationId.Create(action.Id),
+            context,
+            cancellationToken);
+    }
+
+    public async ValueTask<ResourceModelGraphOperationResolution> ResolveOperationAsync(
+        string resourceId,
+        ResourceOperationId operationId,
+        ResourceDefinitionResolutionContext? context = null,
+        CancellationToken cancellationToken = default)
+    {
+        var resourceResolution = await ResolveAsync(
+            resourceId,
+            context,
+            cancellationToken);
+        var diagnostics = new List<ResourceDefinitionDiagnostic>(
+            resourceResolution.Diagnostics);
+        var resource = resourceResolution.Target;
+        var operation = resource?.Operations.Get(operationId);
+
+        if (resource is not null && operation is null)
+        {
+            var operationResolution = resource.Operations.Resolve(operationId);
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                ResourceDefinitionDiagnosticCodes.ResourceOperationProjectionMissing,
+                operationResolution.IsAvailable
+                    ? $"Operation '{operationId}' is declared but no operation projection is available."
+                    : operationResolution.UnavailableReason ?? $"Operation '{operationId}' is not available.",
+                resource.EffectiveResourceId));
+        }
+
+        return new(
+            resourceResolution,
+            operationId,
+            operation,
+            diagnostics);
+    }
 
     private async ValueTask<ResourceModelGraphResourceResolution> ResolveCoreAsync(
         string resourceId,
@@ -129,6 +179,24 @@ public sealed record ResourceModelGraphResourceResolution(
     public ResourceGraphVersion Version => Snapshot.Version;
 
     public Resource? Target => Resources.FirstOrDefault();
+
+    public bool HasErrors => Diagnostics.Any(diagnostic =>
+        diagnostic.Severity == ResourceDefinitionDiagnosticSeverity.Error);
+}
+
+public sealed record ResourceModelGraphOperationResolution(
+    ResourceModelGraphResourceResolution ResourceResolution,
+    ResourceOperationId OperationId,
+    IResourceOperationProjection? Operation,
+    IReadOnlyList<ResourceDefinitionDiagnostic> Diagnostics)
+{
+    public ResourceGraphSnapshot Snapshot => ResourceResolution.Snapshot;
+
+    public ResourceGraphVersion Version => ResourceResolution.Version;
+
+    public Resource? Resource => ResourceResolution.Target;
+
+    public bool IsResolved => Operation is not null && !HasErrors;
 
     public bool HasErrors => Diagnostics.Any(diagnostic =>
         diagnostic.Severity == ResourceDefinitionDiagnosticSeverity.Error);

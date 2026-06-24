@@ -420,6 +420,15 @@ commit policy. This keeps capability and operation objects as integration
 work units while leaving graph stability decisions at the Control Plane or
 Resource Manager boundary.
 
+The bridge can also translate a Resource Manager action request into the
+matching Resource model operation projection by using the action ID as the
+operation ID. That gives Resource Manager or an orchestrator a typed operation
+work unit to inspect or execute without making the bridge the operation
+executor. If the operation is declared but no operation projection has been
+registered by the consuming boundary, the bridge returns diagnostics instead
+of throwing, so the caller can expose the operation as unavailable or route it
+to another implementation.
+
 The bridge project should own registration helpers for this integration seam.
 Hosts can register a graph-backed Resource model provider as an existing
 Resource Manager `IResourceProvider` without making `CloudShell.ControlPlane`
@@ -1690,14 +1699,12 @@ wrapper that consumes the operation should not pass a `ResourceDefinition`
 back into it; changes can be rendered to interchange only when the operation
 needs to return a proposed resource-state update.
 
-Like capabilities, operation projections should be created with an implicit
-resource graph scope. The operation should know the target resource and the
-graph context it is operating in. If the operation needs to stage model
-changes, it should use that scope to create a resource change context and
-route accepted changes into the active graph boundary. Direct commit/flush
-from the operation should be treated as a higher-risk explicit operation and
-should only be available when the operation was resolved inside a change
-boundary that allows it.
+Like capabilities, operation projections should stay resource-bound. The
+caller that resolves and invokes the operation owns the graph snapshot,
+transaction, lock, apply dispatcher, and commit boundary. If an operation
+needs to stage model changes, it can return or expose resource change sets
+from the target `Resource`; the caller decides how those changes are applied,
+tracked, and committed.
 
 The operation declaration is the resource model contract. The provider is the
 implementation. Two resource types can declare the same operation ID while

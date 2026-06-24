@@ -121,6 +121,49 @@ public sealed class ResourceManagerIntegrationTests
             resolution.Resources.Select(resource => resource.EffectiveResourceId));
     }
 
+    [Fact]
+    public async Task ResourceModelGraphResourceResolver_ResolvesResourceManagerActionToOperationProjection()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices(
+            [new(ExecutableApplicationResourceTypeProvider.ClassId)]);
+        using var serviceProvider = services.BuildServiceProvider();
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveOperationAsync("application.executable:api", ResourceAction.Start);
+
+        Assert.True(resolution.IsResolved);
+        Assert.False(resolution.HasErrors);
+        Assert.Equal(ResourceGraphVersion.Initial, resolution.Version);
+        var operation = Assert.IsType<ExecutableStartOperation>(resolution.Operation);
+        Assert.Same(resolution.Resource, operation.Resource);
+        Assert.Equal(ExecutableApplicationResourceTypeProvider.Operations.Start, resolution.OperationId);
+    }
+
+    [Fact]
+    public async Task ResourceModelGraphResourceResolver_ReturnsDiagnosticWhenOperationProjectionIsMissing()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
+        services.AddSingleton<IResourceTypeProvider>(new ExecutableApplicationResourceTypeProvider());
+        services.AddResourceModelGraphServices(
+            [new(ExecutableApplicationResourceTypeProvider.ClassId)]);
+        using var serviceProvider = services.BuildServiceProvider();
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveOperationAsync("application.executable:api", ResourceAction.Start);
+
+        Assert.False(resolution.IsResolved);
+        Assert.True(resolution.HasErrors);
+        var diagnostic = Assert.Single(resolution.Diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.ResourceOperationProjectionMissing, diagnostic.Code);
+        Assert.Equal("application.executable:api", diagnostic.Target);
+    }
+
     private static ResourceState CreateExecutableState(
         string name = "api",
         IReadOnlyList<string>? dependsOn = null) =>

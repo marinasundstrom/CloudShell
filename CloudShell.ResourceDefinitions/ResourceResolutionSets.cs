@@ -98,6 +98,9 @@ public sealed class ResourceOperationSet : IReadOnlyCollection<ResourceOperation
         where TOperation : class, IResourceOperationProjection =>
         _projections.OfType<TOperation>().FirstOrDefault();
 
+    public IResourceOperationProjection? Get(ResourceOperationId operationId) =>
+        _projections.FirstOrDefault(projection => projection.OperationId == operationId);
+
     public ResourceOperationResolution Resolve(
         ResourceOperationId operationId,
         ResourceDefinitionValueSource? source = null)

@@ -53,6 +53,10 @@ on `git blame --follow`, and then by the broad type of change.
   resolver that resolves a resource by ID, optionally includes dependencies,
   binds registered capability and operation projections, and returns the graph
   snapshot version while leaving apply and commit policy to the caller.
+- The Resource model Resource Manager bridge can now resolve a Resource
+  Manager action ID to the matching Resource model operation projection,
+  returning diagnostics when the operation projection is not registered instead
+  of executing or owning the operation boundary.
 - The resource definitions POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change
