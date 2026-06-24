@@ -242,6 +242,10 @@ without forcing provider-specific logic into shared helpers.
   into `ApplicationResourceActionAvailabilityOperations` so resource-type
   providers can query action capability without depending on runtime procedure
   execution.
+- [x] Move application workload and runtime environment-variable composition
+  into `ApplicationResourceEnvironmentVariableResolver` so workload
+  descriptors and process/container startup share one provider-neutral
+  resolver.
 
 ## Next Slices
 

@@ -485,10 +485,18 @@ public sealed class ResourceTemplateTests
                 definitionSource,
                 registrationOperations,
                 definitionRegistrations);
-            var workloadConfigurations = new ApplicationWorkloadConfigurationProvider(
+            var settingResolver = new ApplicationResourceSettingResolver(
+                declarations,
+                [],
+                []);
+            var environmentVariables = new ApplicationResourceEnvironmentVariableResolver(
                 options,
                 declarations,
+                settingResolver,
+                [],
                 []);
+            var workloadConfigurations = new ApplicationWorkloadConfigurationProvider(
+                environmentVariables);
             var containerProcesses = new ApplicationContainerProcessTracker(
                 runtimeStates,
                 options,
@@ -507,10 +515,6 @@ public sealed class ResourceTemplateTests
             var descriptorOperations = new ApplicationResourceDescriptorOperations(
                 definitionSource,
                 workloadConfigurations);
-            var settingResolver = new ApplicationResourceSettingResolver(
-                declarations,
-                [],
-                []);
             var actionAvailability = new ApplicationResourceActionAvailabilityOperations(
                 definitionSource,
                 runningState,
@@ -533,7 +537,8 @@ public sealed class ResourceTemplateTests
                 [],
                 declarations,
                 settingResolver: settingResolver,
-                actionAvailability: actionAvailability);
+                actionAvailability: actionAvailability,
+                environmentVariables: environmentVariables);
             ResourceProvider = new ExecutableApplicationResourceProvider(
                 projectionSource,
                 definitionSource,

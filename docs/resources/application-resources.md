@@ -215,14 +215,15 @@ configuration, and cleanup.
 Application resource behavior is now split across focused provider-facing
 operations for definitions, registration, configuration, declarations,
 templates, descriptors, projection, logging, monitoring, settings, cleanup,
-running-state checks, setting resolution, and SQL Server support. The
-remaining `ApplicationResourceRuntimeOperations` facade coordinates runtime
-procedure execution, action availability, and container-app orchestration hooks
-while those concerns are separated further. The direction is to keep
-provider-neutral primitives reusable so external resource authors can reuse
-common declaration, projection, process-definition, logging, monitoring,
-endpoint, volume, and container-host command infrastructure without depending
-on runtime facade internals.
+running-state checks, setting resolution, environment-variable resolution,
+action availability, and SQL Server support. The remaining
+`ApplicationResourceRuntimeOperations` facade coordinates runtime procedure
+execution and container-app orchestration hooks while those concerns are
+separated further. The direction is to keep provider-neutral primitives
+reusable so external resource authors can reuse common declaration,
+projection, process-definition, logging, monitoring, endpoint, volume, and
+container-host command infrastructure without depending on runtime facade
+internals.
 
 `ApplicationResourceDefinitionNormalizer` owns the shared hygiene pass for
 application-backed definitions, such as identity, dependencies, endpoints, log

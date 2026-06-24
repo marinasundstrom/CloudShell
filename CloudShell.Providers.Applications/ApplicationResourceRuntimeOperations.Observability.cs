@@ -75,32 +75,6 @@ public sealed partial class ApplicationResourceRuntimeOperations
         };
     }
 
-    private static string CreateOtelResourceAttributes(
-        ApplicationResourceDefinition definition,
-        ResourceObservability observability)
-    {
-        var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["service.instance.id"] = definition.Id,
-            ["cloudshell.resource.id"] = definition.Id,
-            ["cloudshell.resource.type"] = definition.ResourceType
-        };
-
-        foreach (var attribute in observability.Attributes)
-        {
-            if (!string.IsNullOrWhiteSpace(attribute.Key))
-            {
-                attributes[attribute.Key.Trim()] = attribute.Value;
-            }
-        }
-
-        return string.Join(
-            ',',
-            attributes
-                .Where(attribute => !string.IsNullOrWhiteSpace(attribute.Key))
-                .Select(attribute => $"{attribute.Key}={EscapeOtelAttributeValue(attribute.Value)}"));
-    }
-
     private static IReadOnlyDictionary<string, string> CreateRuntimeContainerTelemetryAttributes(
         ApplicationResourceDefinition definition,
         ResourceOrchestratorServiceInstance instance,

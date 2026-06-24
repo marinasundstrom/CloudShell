@@ -65,6 +65,7 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
         builder.Services.TryAddSingleton<ApplicationHostScopedResourceCleanupProvider>();
         builder.Services.TryAddSingleton<ApplicationResourceSettingsProvider>();
         builder.Services.TryAddSingleton<ApplicationResourceMonitoringProvider>();
+        builder.Services.TryAddSingleton<ApplicationResourceEnvironmentVariableResolver>();
         builder.Services.TryAddSingleton<ApplicationWorkloadConfigurationProvider>();
         builder.Services.TryAddSingleton<ApplicationResourceSettingResolver>();
         builder.Services.TryAddSingleton<ApplicationResourceActionAvailabilityOperations>();

@@ -114,6 +114,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Application resource action availability and start/restart preflight checks
   now live in `ApplicationResourceActionAvailabilityOperations` instead of the
   runtime/procedure coordinator.
+- Application workload and runtime environment-variable composition now lives
+  in `ApplicationResourceEnvironmentVariableResolver`, shared by workload
+  descriptors and process/container startup.
 
 ### 2026-06-23
 

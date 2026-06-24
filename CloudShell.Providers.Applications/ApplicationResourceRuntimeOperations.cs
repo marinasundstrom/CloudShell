@@ -34,7 +34,8 @@ public sealed partial class ApplicationResourceRuntimeOperations(
     ApplicationResourceDefinitionRegistrationService? applicationDefinitionRegistrations = null,
     ApplicationWorkloadConfigurationProvider? workloadConfigurations = null,
     ApplicationResourceSettingResolver? settingResolver = null,
-    IApplicationResourceActionAvailabilityOperations? actionAvailability = null) :
+    IApplicationResourceActionAvailabilityOperations? actionAvailability = null,
+    ApplicationResourceEnvironmentVariableResolver? environmentVariables = null) :
     IApplicationResourceProcedureOperations,
     IContainerApplicationResourceProviderOperations,
     IDisposable
@@ -48,8 +49,6 @@ public sealed partial class ApplicationResourceRuntimeOperations(
 
     private readonly ConcurrentDictionary<string, Lazy<Task<ApplicationResourceDefinition>>> _containerImageMaterializations =
         new(StringComparer.OrdinalIgnoreCase);
-    private readonly IReadOnlyList<IResourceIdentityCredentialEnvironmentProvider> identityCredentialEnvironmentProviders =
-        identityCredentialEnvironmentProviders.ToArray();
     private readonly ILogger dockerHostLogger =
         loggerFactory?.CreateLogger(CloudShellLogCategories.DockerHostLifecycle) ??
         NullLogger.Instance;
@@ -62,16 +61,33 @@ public sealed partial class ApplicationResourceRuntimeOperations(
     private readonly ApplicationContainerHostResolver _containerHosts =
         containerHosts ?? new ApplicationContainerHostResolver(serviceProvider);
     private readonly ApplicationResourcePortResolver _ports = new(options);
-    private readonly ApplicationWorkloadConfigurationProvider _workloadConfigurations =
-        workloadConfigurations ?? new ApplicationWorkloadConfigurationProvider(
-            options,
-            declarations,
-            identityCredentialEnvironmentProviders);
     private readonly ApplicationResourceSettingResolver _settingResolver =
-        settingResolver ?? new ApplicationResourceSettingResolver(
+        settingResolver ?? serviceProvider.GetService<ApplicationResourceSettingResolver>() ?? new ApplicationResourceSettingResolver(
             declarations,
             serviceProvider.GetServices<IConfigurationEntryReferenceResolver>(),
             serviceProvider.GetServices<ISecretReferenceResolver>());
+    private readonly ApplicationResourceEnvironmentVariableResolver _environmentVariables =
+        environmentVariables ?? serviceProvider.GetService<ApplicationResourceEnvironmentVariableResolver>() ?? new ApplicationResourceEnvironmentVariableResolver(
+            options,
+            declarations,
+            settingResolver ?? serviceProvider.GetService<ApplicationResourceSettingResolver>() ?? new ApplicationResourceSettingResolver(
+                declarations,
+                serviceProvider.GetServices<IConfigurationEntryReferenceResolver>(),
+                serviceProvider.GetServices<ISecretReferenceResolver>()),
+            identityCredentialEnvironmentProviders,
+            environmentVariableProviders);
+    private readonly ApplicationWorkloadConfigurationProvider _workloadConfigurations =
+        workloadConfigurations ?? serviceProvider.GetService<ApplicationWorkloadConfigurationProvider>() ??
+        new ApplicationWorkloadConfigurationProvider(
+            environmentVariables ?? serviceProvider.GetService<ApplicationResourceEnvironmentVariableResolver>() ?? new ApplicationResourceEnvironmentVariableResolver(
+                options,
+                declarations,
+                settingResolver ?? serviceProvider.GetService<ApplicationResourceSettingResolver>() ?? new ApplicationResourceSettingResolver(
+                    declarations,
+                    serviceProvider.GetServices<IConfigurationEntryReferenceResolver>(),
+                    serviceProvider.GetServices<ISecretReferenceResolver>()),
+                identityCredentialEnvironmentProviders,
+                environmentVariableProviders));
     private readonly IApplicationResourceActionAvailabilityOperations _actionAvailability =
         actionAvailability ?? serviceProvider.GetService<IApplicationResourceActionAvailabilityOperations>() ??
             new ApplicationResourceActionAvailabilityOperations(
@@ -89,15 +105,23 @@ public sealed partial class ApplicationResourceRuntimeOperations(
                             options,
                             environment,
                             loggerFactory)),
-                settingResolver ?? new ApplicationResourceSettingResolver(
+                settingResolver ?? serviceProvider.GetService<ApplicationResourceSettingResolver>() ?? new ApplicationResourceSettingResolver(
                     declarations,
                     serviceProvider.GetServices<IConfigurationEntryReferenceResolver>(),
                     serviceProvider.GetServices<ISecretReferenceResolver>()),
-                workloadConfigurations ?? new ApplicationWorkloadConfigurationProvider(
-                    options,
-                    declarations,
-                    identityCredentialEnvironmentProviders),
-                containerHosts ?? new ApplicationContainerHostResolver(serviceProvider),
+                workloadConfigurations ?? serviceProvider.GetService<ApplicationWorkloadConfigurationProvider>() ??
+                    new ApplicationWorkloadConfigurationProvider(
+                        environmentVariables ?? serviceProvider.GetService<ApplicationResourceEnvironmentVariableResolver>() ?? new ApplicationResourceEnvironmentVariableResolver(
+                            options,
+                            declarations,
+                            settingResolver ?? serviceProvider.GetService<ApplicationResourceSettingResolver>() ?? new ApplicationResourceSettingResolver(
+                                declarations,
+                                serviceProvider.GetServices<IConfigurationEntryReferenceResolver>(),
+                                serviceProvider.GetServices<ISecretReferenceResolver>()),
+                            identityCredentialEnvironmentProviders,
+                            environmentVariableProviders)),
+                containerHosts ?? serviceProvider.GetService<ApplicationContainerHostResolver>() ??
+                    new ApplicationContainerHostResolver(serviceProvider),
                 options,
                 environment,
                 declarations);
@@ -124,10 +148,17 @@ public sealed partial class ApplicationResourceRuntimeOperations(
                         options,
                         environment,
                         loggerFactory)),
-            workloadConfigurations ?? new ApplicationWorkloadConfigurationProvider(
-                options,
-                declarations,
-                identityCredentialEnvironmentProviders),
+            workloadConfigurations ?? serviceProvider.GetService<ApplicationWorkloadConfigurationProvider>() ??
+                new ApplicationWorkloadConfigurationProvider(
+                    environmentVariables ?? serviceProvider.GetService<ApplicationResourceEnvironmentVariableResolver>() ?? new ApplicationResourceEnvironmentVariableResolver(
+                        options,
+                        declarations,
+                        settingResolver ?? serviceProvider.GetService<ApplicationResourceSettingResolver>() ?? new ApplicationResourceSettingResolver(
+                            declarations,
+                            serviceProvider.GetServices<IConfigurationEntryReferenceResolver>(),
+                            serviceProvider.GetServices<ISecretReferenceResolver>()),
+                        identityCredentialEnvironmentProviders,
+                        environmentVariableProviders)),
             containerDeployments,
             options);
 
@@ -781,14 +812,19 @@ public sealed partial class ApplicationResourceRuntimeOperations(
         IReadOnlyList<string> dependsOn,
         string? resourceGroupId,
         IResourceManagerStore? resourceManager,
-        CancellationToken cancellationToken) =>
-        ResolveApplicationEnvironmentVariablesAsync(
+        CancellationToken cancellationToken)
+    {
+        var providerRuntimeVariables = ApplicationResourceTypes.IsAspNetCoreProject(definition.ResourceType)
+            ? ResolveAspNetCoreProjectEnvironmentVariables(definition, resourceManager)
+            : [];
+        return _environmentVariables.ResolveRuntimeEnvironmentVariablesAsync(
             definition,
             dependsOn,
             resourceGroupId,
             resourceManager,
-            includeAspNetCoreProjectVariables: true,
+            providerRuntimeVariables,
             cancellationToken);
+    }
 
     private IReadOnlyList<EnvironmentVariableAssignment> ResolveAspNetCoreProjectEnvironmentVariables(
         ApplicationResourceDefinition definition,
@@ -802,248 +838,6 @@ public sealed partial class ApplicationResourceRuntimeOperations(
 
     private AspNetCoreProjectEnvironmentFactory CreateAspNetCoreProjectEnvironmentFactory() =>
         new(CreateEndpointNetworkMappings);
-
-    private IReadOnlyList<EnvironmentVariableAssignment> ResolveDependencyEnvironmentVariables(
-        ApplicationResourceDefinition definition,
-        IReadOnlyList<string> dependsOn) =>
-        definition.DependsOn
-            .Concat(dependsOn)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .SelectMany(dependency => environmentVariableProviders
-                .SelectMany(provider => provider.GetEnvironmentVariables(dependency)))
-            .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
-            .GroupBy(variable => variable.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.Last())
-            .ToArray();
-
-    private IReadOnlyList<EnvironmentVariableAssignment> ResolveServiceDiscoveryEnvironmentVariables(
-        ApplicationResourceDefinition definition,
-        string? resourceGroupId,
-        IResourceManagerStore? resourceManager)
-    {
-        if (resourceManager is null)
-        {
-            return [];
-        }
-
-        var references = definition.References
-            .Where(reference => !string.IsNullOrWhiteSpace(reference))
-            .Where(reference => IsSameResourceGroup(resourceManager.GetGroupForResource(reference)?.Id, resourceGroupId))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        if (references.Count == 0)
-        {
-            return [];
-        }
-
-        return references
-            .Select(reference => resourceManager.GetResource(reference))
-            .Where(resource => resource is not null)
-            .Cast<Resource>()
-            .SelectMany(CreateServiceDiscoveryEndpointEnvironmentVariables)
-            .GroupBy(variable => variable.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.Last())
-            .ToArray();
-    }
-
-    private IReadOnlyList<EnvironmentVariableAssignment> ResolveObservabilityEnvironmentVariables(
-        ApplicationResourceDefinition definition)
-    {
-        var observability = GetEffectiveObservability(definition);
-        if (!observability.HasAnySignal)
-        {
-            return [];
-        }
-
-        var variables = new List<EnvironmentVariableAssignment>
-        {
-            new("OTEL_SERVICE_NAME", FirstNonEmpty(
-                observability.ServiceName,
-                ApplicationServiceDiscoveryDisplay.CreateConfigurationSegment(definition.Name),
-                ApplicationServiceDiscoveryDisplay.CreateConfigurationSegment(definition.Id)) ?? definition.Id),
-            new("OTEL_RESOURCE_ATTRIBUTES", CreateOtelResourceAttributes(definition, observability))
-        };
-
-        var endpoint = FirstNonEmpty(
-            observability.OtlpEndpoint,
-            options.OtlpEndpoint,
-            Environment.GetEnvironmentVariable("ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL"));
-        var protocol = FirstNonEmpty(
-            observability.OtlpProtocol,
-            options.OtlpProtocol,
-            endpoint is null
-                ? null
-                : "grpc");
-
-        if (endpoint is null)
-        {
-            endpoint = FirstNonEmpty(
-                Environment.GetEnvironmentVariable("ASPIRE_DASHBOARD_OTLP_HTTP_ENDPOINT_URL"),
-                Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT"));
-            protocol = FirstNonEmpty(
-                observability.OtlpProtocol,
-                options.OtlpProtocol,
-                Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_PROTOCOL"),
-                Environment.GetEnvironmentVariable("ASPIRE_DASHBOARD_OTLP_HTTP_ENDPOINT_URL") is null
-                    ? null
-                    : "http/protobuf");
-        }
-
-        if (!string.IsNullOrWhiteSpace(endpoint))
-        {
-            variables.Add(new("OTEL_EXPORTER_OTLP_ENDPOINT", endpoint));
-        }
-
-        if (!string.IsNullOrWhiteSpace(protocol))
-        {
-            variables.Add(new("OTEL_EXPORTER_OTLP_PROTOCOL", protocol));
-        }
-
-        var headers = FirstNonEmpty(
-            observability.OtlpHeaders,
-            options.OtlpHeaders,
-            Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_HEADERS"));
-        if (!string.IsNullOrWhiteSpace(headers))
-        {
-            variables.Add(new("OTEL_EXPORTER_OTLP_HEADERS", headers));
-        }
-
-        return variables;
-    }
-
-    private IReadOnlyList<EnvironmentVariableAssignment> ResolveWorkloadEnvironmentVariables(
-        ApplicationResourceDefinition definition,
-        string? resourceGroupId = null,
-        IResourceManagerStore? resourceManager = null) =>
-        (definition.UseServiceDiscovery
-                ? ResolveServiceDiscoveryEnvironmentVariables(definition, resourceGroupId, resourceManager)
-                : [])
-            .Concat(ResolveObservabilityEnvironmentVariables(definition))
-            .Concat(ResolveResourceIdentityEnvironmentVariables(definition))
-            .Concat(definition.EnvironmentVariables)
-            .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
-            .GroupBy(variable => variable.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.Last())
-            .ToArray();
-
-    private async Task<IReadOnlyList<EnvironmentVariableAssignment>> ResolveApplicationEnvironmentVariablesAsync(
-        ApplicationResourceDefinition definition,
-        IReadOnlyList<string> dependsOn,
-        string? resourceGroupId,
-        IResourceManagerStore? resourceManager,
-        bool includeAspNetCoreProjectVariables,
-        CancellationToken cancellationToken)
-    {
-        var configuredVariables = await _settingResolver.ResolveConfiguredEnvironmentVariablesAsync(
-            definition,
-            resourceGroupId,
-            cancellationToken);
-
-        return ResolveDependencyEnvironmentVariables(definition, dependsOn)
-            .Concat(definition.UseServiceDiscovery
-                ? ResolveServiceDiscoveryEnvironmentVariables(definition, resourceGroupId, resourceManager)
-                : [])
-            .Concat(ResolveObservabilityEnvironmentVariables(definition))
-            .Concat(includeAspNetCoreProjectVariables
-                ? ResolveAspNetCoreProjectEnvironmentVariables(definition, resourceManager)
-                : [])
-            .Concat(ResolveResourceIdentityEnvironmentVariables(definition))
-            .Concat(configuredVariables)
-            .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
-            .GroupBy(variable => variable.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.Last())
-            .ToArray();
-    }
-
-    private IReadOnlyList<EnvironmentVariableAssignment> ResolveResourceIdentityEnvironmentVariables(
-        ApplicationResourceDefinition definition)
-    {
-        var declaration = declarations.GetDeclaration(definition.Id);
-        if (declaration?.IdentityBinding is null)
-        {
-            return [];
-        }
-
-        var providerCatalog = declarations.CreateIdentityProviderCatalog(
-            new ResourceIdentityProviderCatalog());
-        var resolution = providerCatalog.Resolve(declaration.IdentityBinding);
-        if (resolution.Provider is null)
-        {
-            return [];
-        }
-
-        var identity = ResourceIdentityReference.ForResource(
-            definition.Id,
-            declaration.IdentityBinding.Name);
-        var scope = declaration.IdentityBinding.IdentityScopes.Count == 0
-            ? string.IsNullOrWhiteSpace(options.ResourceIdentityDefaultScope)
-                ? "ControlPlane.Access"
-                : options.ResourceIdentityDefaultScope
-            : declaration.IdentityBinding.IdentityScopes[0];
-        var credentialEnvironmentProvider = identityCredentialEnvironmentProviders.FirstOrDefault(provider =>
-            provider.CanCreateEnvironment(resolution.Provider));
-        if (credentialEnvironmentProvider is not null)
-        {
-            return credentialEnvironmentProvider
-                .CreateEnvironment(new ResourceIdentityCredentialEnvironmentRequest(
-                    resolution.Provider,
-                    identity,
-                    declaration.IdentityBinding,
-                    scope))
-                .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
-                .ToArray();
-        }
-
-        var tokenEndpoint = options.ResourceIdentityTokenEndpoint;
-        if (resolution.Provider.Kind != ResourceIdentityProviderKind.BuiltIn ||
-            string.IsNullOrWhiteSpace(tokenEndpoint))
-        {
-            return [];
-        }
-
-        var clientId = CreateResourceIdentityClientId(identity);
-
-        return
-        [
-            new(
-                EnvironmentCloudShellResourceCredential.TokenEndpointEnvironmentVariable,
-                tokenEndpoint),
-            new(
-                EnvironmentCloudShellResourceCredential.ClientIdEnvironmentVariable,
-                clientId),
-            new(
-                EnvironmentCloudShellResourceCredential.ClientSecretEnvironmentVariable,
-                ResolveBuiltInResourceIdentityClientSecret(resolution.Provider, clientId)),
-            new(
-                EnvironmentCloudShellResourceCredential.ScopeEnvironmentVariable,
-                scope)
-        ];
-    }
-
-    private string ResolveBuiltInResourceIdentityClientSecret(
-        ResourceIdentityProviderDefinition provider,
-        string clientId) =>
-        provider.ProviderSettings.TryGetValue("clientSecret", out var configuredSecret) &&
-        !string.IsNullOrWhiteSpace(configuredSecret)
-            ? configuredSecret
-            : $"local-development-{SanitizeResourceIdentityClientId(clientId)}-secret";
-
-    private static string CreateResourceIdentityClientId(ResourceIdentityReference identity) =>
-        string.IsNullOrWhiteSpace(identity.Name)
-            ? identity.ResourceId
-            : $"{identity.ResourceId}/{identity.Name}";
-
-    private static string SanitizeResourceIdentityClientId(string value)
-    {
-        var characters = value
-            .Select(character => char.IsLetterOrDigit(character) ? char.ToLowerInvariant(character) : '-')
-            .ToArray();
-        return new string(characters).Trim('-');
-    }
-
-    private ResourceIdentityReference? ResolveIdentity(string resourceId) =>
-        _settingResolver.ResolveIdentity(resourceId);
 
     private async Task StartContainerApplicationAsync(
         ApplicationResourceDefinition definition,
@@ -1355,12 +1149,12 @@ public sealed partial class ApplicationResourceRuntimeOperations(
             startInfo.ArgumentList.Add($"{hostPort}:{port.TargetPort}/{NormalizeContainerPublishProtocol(port.Protocol)}");
         }
 
-        var environmentVariables = await ResolveApplicationEnvironmentVariablesAsync(
+        var environmentVariables = await _environmentVariables.ResolveRuntimeEnvironmentVariablesAsync(
             definition,
             dependsOn,
             resourceGroupId,
             resourceManager,
-            includeAspNetCoreProjectVariables: false,
+            [],
             cancellationToken);
         environmentVariables = ApplyRuntimeContainerTelemetryScopeEnvironmentVariables(
             definition,
@@ -1529,25 +1323,6 @@ public sealed partial class ApplicationResourceRuntimeOperations(
                 processLog,
             cancellationToken,
             procedureContext);
-        }
-    }
-
-    private static bool IsSameResourceGroup(
-        string? candidateResourceGroupId,
-        string? resourceGroupId) =>
-        string.Equals(
-            NormalizeGroupId(candidateResourceGroupId),
-            NormalizeGroupId(resourceGroupId),
-            StringComparison.OrdinalIgnoreCase);
-
-    private static IEnumerable<EnvironmentVariableAssignment> CreateServiceDiscoveryEndpointEnvironmentVariables(
-        Resource resource)
-    {
-        foreach (var binding in ApplicationServiceDiscoveryDisplay.GetEndpointBindings(resource))
-        {
-            yield return new EnvironmentVariableAssignment(
-                binding.EnvironmentVariableName,
-                binding.Address);
         }
     }
 
@@ -2955,9 +2730,6 @@ public sealed partial class ApplicationResourceRuntimeOperations(
 
     private static string? NormalizeNullable(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-
-    private static string? NormalizeGroupId(string? resourceGroupId) =>
-        string.IsNullOrWhiteSpace(resourceGroupId) ? null : resourceGroupId;
 
     private static string GetResourceName(string resourceId) =>
         ResourceId.TryParse(resourceId, out var id) && !string.IsNullOrWhiteSpace(id.Name)
