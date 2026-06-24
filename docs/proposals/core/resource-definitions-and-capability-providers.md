@@ -696,6 +696,17 @@ clients, directory records, credential issuance, and grant reconciliation
 remain provider-owned operational concerns for Resource Manager or Control
 Plane integrations.
 
+A narrow local host networking reference provider covers
+`cloudshell.hostNetworking.local` as infrastructure that declares host network
+mapping support for the graph. It owns `infrastructure.kind`,
+`network.hostReadiness`, `host.os`, and `networking.mode` attributes, passive
+networking provider, endpoint mapper, gateway, ingress, and host-network
+capability markers, a type-specific endpoint-mapping reconcile operation, a
+typed projection wrapper, apply planning, and Resource Manager bridge
+projection/execution. Live mapping counts and host proxy runtime state remain
+observed provider state for future capability members or operation plans, not
+declared Resource graph attributes.
+
 The working porting status for the reference POC is:
 
 | Provider or resource type | Status | New-model coverage | Remaining outside the POC |
@@ -714,6 +725,7 @@ The working porting status for the reference POC is:
 | Load balancer (`cloudshell.loadBalancer`) | Ported as a narrow reference provider | Network class/type defaults, provider/host/count attributes, passive networking capability markers, apply-configuration operation, typed wrapper, Resource Manager bridge projection and execution | Route and entrypoint payloads, target `ResourceReference` graph validation, Traefik/materialization runtime integration, endpoint mappings, and UI registration/update flow |
 | Network (`cloudshell.network`) | Ported as a narrow reference provider | Network class/type defaults, kind/readiness/provider attributes, passive networking capability markers, reconcile-endpoint-mappings operation, typed wrapper, Resource Manager bridge projection and execution | Endpoint and mapping payloads, observed mapping state as capability members, host/virtual network specialization, provisioner integration, and UI registration/update flow |
 | Virtual network (`cloudshell.virtualNetwork`) | Ported as a narrow reference provider | Network class/type defaults, virtual/default/readiness/provider attributes, passive virtual-network and ingress capability markers, type-specific `reconcileEndpointMappings` operation provider, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Endpoint and mapping payloads, observed mapping state as capability members or operation plans, endpoint mapping provisioner integration, and UI registration/update flow |
+| Local host networking (`cloudshell.hostNetworking.local`) | Ported as a narrow reference provider | Infrastructure class/type defaults, host-readiness/OS/mode attributes, passive networking provider/endpoint-mapper/gateway/ingress/host-network capability markers, type-specific `reconcileEndpointMappings` operation provider, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Live mapping counts, host proxy runtime state, endpoint mapping provisioner integration, macOS-specific provider specialization, diagnostics, and UI registration/update flow |
 | DNS Zone (`cloudshell.dnsZone`) | Ported as a narrow reference provider | Network class/type defaults, zone/provider attributes, passive DNS-zone capability marker, reconcile-name-mappings operation, typed wrapper, Resource Manager bridge projection and execution | Name-mapping child resource integration, record/conflict/materialization views as capability members or operation plans, DNS publisher integration, and UI registration/update flow |
 | Name mapping (`cloudshell.nameMapping`) | Ported as a narrow reference provider | Network class/type defaults, host/endpoint/exposure attributes, passive name-mapping capability marker, `ResourceReference` dependencies, typed wrapper, apply planning, and Resource Manager bridge projection | Typed reference attributes when complex attribute values are promoted, target endpoint validation, conflict/materialization views as capability members or operation plans, DNS publisher integration, and UI registration/update flow |
 | Configuration store (`configuration.store`) | Ported as a narrow reference provider | Configuration class/type defaults, endpoint and entry-count attributes, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real configuration service runtime integration, entry collection payloads, authorization, logs, templates, and UI registration/update flow |

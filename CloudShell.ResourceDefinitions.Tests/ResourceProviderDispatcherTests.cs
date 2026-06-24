@@ -869,6 +869,60 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task AddLocalHostNetworkResourceType_RegistersCompleteResourceTypeBoundary()
+    {
+        var services = new ServiceCollection();
+        services.AddLocalHostNetworkResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var definition = new ResourceDefinition(
+            "host-local",
+            LocalHostNetworkResourceTypeProvider.ResourceTypeId);
+
+        var validation = await serviceProvider
+            .GetRequiredService<ResourceDefinitionValidationPipeline>()
+            .ValidateAsync(
+                definition,
+                new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.False(validation.HasErrors);
+        Assert.Equal(LocalHostNetworkResourceTypeProvider.ClassId, validation.Resource.Class.ClassId);
+        Assert.Equal("hostNetworking", validation.Resource.Attributes.GetString(
+            LocalHostNetworkResourceTypeProvider.Attributes.InfrastructureKind));
+        Assert.Equal("ready", validation.Resource.Attributes.GetString(
+            LocalHostNetworkResourceTypeProvider.Attributes.HostReadiness));
+        Assert.Equal("cross-platform", validation.Resource.Attributes.GetString(
+            LocalHostNetworkResourceTypeProvider.Attributes.HostOperatingSystem));
+        Assert.Equal("localProxy", validation.Resource.Attributes.GetString(
+            LocalHostNetworkResourceTypeProvider.Attributes.NetworkingMode));
+        Assert.True(validation.Resource.Capabilities.Has(
+            LocalHostNetworkResourceTypeProvider.Capabilities.NetworkingHostNetwork));
+        Assert.True(validation.Resource.Operations.Has(
+            LocalHostNetworkResourceTypeProvider.Operations.ReconcileEndpointMappings));
+
+        var projectedGraph = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphProjectionResolver>()
+            .ProjectAsync(
+                new ResourceDefinitionGraphValidationPipelineResult(
+                    new ResourceDefinitionGraph([definition]),
+                    [validation],
+                    []),
+                new ResourceProjectionContext("local", "developer"));
+        var projection = projectedGraph.Find<LocalHostNetworkResource>(
+            definition.EffectiveResourceId);
+
+        Assert.NotNull(projection);
+        Assert.True(projection.SupportsEndpointMapping);
+        Assert.True(projection.SupportsHostNetwork);
+        Assert.Equal("localProxy", projection.NetworkingMode);
+        var reconcile = await projection.GetReconcileEndpointMappingsOperationAsync();
+
+        Assert.NotNull(reconcile);
+        Assert.True(await reconcile.CanExecuteAsync());
+        Assert.Equal("localProxy", reconcile.PlanReconcile().NetworkingMode);
+    }
+
+    [Fact]
     public async Task AddDnsZoneResourceType_RegistersCompleteResourceTypeBoundary()
     {
         var services = new ServiceCollection();

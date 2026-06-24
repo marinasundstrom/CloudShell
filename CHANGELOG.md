@@ -192,6 +192,12 @@ on `git blame --follow`, and then by the broad type of change.
   provisioning resource type with provider attributes, a passive
   identity-provisioning capability marker, a setup operation provider, typed
   wrapper, apply planning, and Resource Manager bridge coverage.
+- The resource definitions reference providers now include a narrow local host
+  networking resource type with host-readiness, OS, and networking-mode
+  attributes, passive networking capability markers, an endpoint-mapping
+  reconcile operation provider, typed wrapper, apply planning, and Resource
+  Manager bridge coverage without persisting live mapping counts as graph
+  attributes.
 - The resource definitions reference providers now include a narrow Docker
   host resource type with Docker host kind, endpoint, registry, default-host
   attributes, passive container capability markers, an inspect operation,

@@ -1488,6 +1488,82 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesLocalHostNetworkAcrossProviderBoundaries()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddLocalHostNetworkResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var network = new ResourceDefinition(
+            "host-local",
+            LocalHostNetworkResourceTypeProvider.ResourceTypeId,
+            ProviderId: LocalHostNetworkResourceTypeProvider.ProviderId);
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "local-host-network",
+                [network],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 12, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedNetwork = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == network.EffectiveResourceId);
+
+        Assert.Equal(ResourceManagerClass.Infrastructure, projectedNetwork.ResourceClass);
+        Assert.Equal(LocalHostNetworkResourceTypeProvider.ProviderId, projectedNetwork.Provider);
+        Assert.Equal("hostNetworking", projectedNetwork.ResourceAttributes["infrastructure.kind"]);
+        Assert.Equal("ready", projectedNetwork.ResourceAttributes["network.hostReadiness"]);
+        Assert.Equal("cross-platform", projectedNetwork.ResourceAttributes["host.os"]);
+        Assert.Equal("localProxy", projectedNetwork.ResourceAttributes["networking.mode"]);
+        Assert.DoesNotContain("network.provisionedMappingCount", projectedNetwork.ResourceAttributes.Keys);
+        Assert.Contains(projectedNetwork.ResourceCapabilities, capability =>
+            capability.Id == LocalHostNetworkResourceTypeProvider.Capabilities.NetworkingProvider.ToString());
+        Assert.Contains(projectedNetwork.ResourceCapabilities, capability =>
+            capability.Id == LocalHostNetworkResourceTypeProvider.Capabilities.NetworkingHostNetwork.ToString());
+        var reconcile = Assert.Single(projectedNetwork.ResourceActions, action =>
+            action.Id == LocalHostNetworkResourceTypeProvider.Operations.ReconcileEndpointMappings.ToString());
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveAsync(network.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors);
+        var projection = Assert.IsType<LocalHostNetworkResource>(
+            await serviceProvider
+                .GetRequiredService<ResourceProjectionResolver>()
+                .GetResourceProjectionAsync(
+                    resolution.Target!,
+                    new ResourceProjectionContext("local", "developer")));
+        Assert.True(projection.SupportsHostNetwork);
+        Assert.Equal("cross-platform", projection.HostOperatingSystem);
+
+        var procedure = new ResourceProcedureContext(
+            projectedNetwork,
+            null,
+            null,
+            new EmptyResourceRegistrationStore());
+
+        Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, reconcile));
+
+        var procedureResult = await provider.ExecuteActionAsync(procedure, reconcile);
+
+        Assert.Equal("Executed ReconcileEndpointMappings for host-local.", procedureResult.Message);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesDnsZoneAcrossProviderBoundaries()
     {
         var services = new ServiceCollection();
