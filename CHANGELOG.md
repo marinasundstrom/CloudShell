@@ -42,6 +42,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Provider-produced graph dependencies now preserve typed reference diagnostics
   during dependency-closure resolution, and the volume-consumer dependency
   provider emits expected local-volume references.
+- Resource Manager bridge projections now use graph-reference resolution for
+  provider-produced dependencies, keeping missing staged dependencies visible
+  while filtering and diagnosing existing targets with the wrong resource type.
 - The resource definitions proposal now clarifies that resource type providers
   are integration points that may receive injected services, but should not own
   recurring runtime tasks, watchers, polling loops, or reconciliation schedulers

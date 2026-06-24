@@ -485,6 +485,12 @@ Graph-backed Resource Manager projections should also carry bridge-provider
 metadata. The procedure-capable bridge must use that metadata when evaluating
 actions, rather than claiming every declared resource with a matching action
 ID, so it does not interfere with unrelated Resource Manager providers.
+The Resource Manager bridge should use the same graph-reference resolution
+rules as dependency-closure resolution when projecting provider-produced
+dependencies. Missing staged dependencies may remain visible as declared
+`DependsOn` IDs, but a reference that resolves to an existing resource of the
+wrong expected type should be diagnosed and not projected as an actionable
+Resource Manager dependency.
 
 The bridge project should own registration helpers for this integration seam.
 Hosts can register a graph-backed Resource model provider as an existing

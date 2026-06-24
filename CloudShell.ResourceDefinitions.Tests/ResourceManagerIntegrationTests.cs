@@ -90,6 +90,36 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public void ResourceModelGraphResourceProvider_DoesNotProjectInvalidTypedCapabilityDependency()
+    {
+        var worker = CreateExecutableState(
+            "worker",
+            dependsOn: [],
+            includeVolumeConsumer: false);
+        var api = CreateExecutableState(
+            dependsOn: [worker.EffectiveResourceId],
+            mounts:
+            [
+                new(worker.EffectiveResourceId, "App_Data")
+            ]);
+        var provider = new ResourceModelGraphResourceProvider(
+            "resource-model",
+            "Resource model",
+            () => new ResourceGraphSnapshot(ResourceGraphVersion.Initial, [api, worker]),
+            CreateResolver(),
+            [new VolumeConsumerGraphDependencyProvider()]);
+
+        var projected = provider.GetResources()
+            .Single(resource => resource.Id == api.EffectiveResourceId);
+        var diagnostic = Assert.Single(provider.GetResourceModelDiagnostics());
+
+        Assert.Empty(projected.DependsOn);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.ResourceReferenceTypeMismatch, diagnostic.Code);
+        Assert.Equal(api.EffectiveResourceId, diagnostic.ResourceId);
+        Assert.Contains(worker.EffectiveResourceId, diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphResourceResolver_ResolvesBoundResourceFromGraph()
     {
         var services = new ServiceCollection();
@@ -2573,7 +2603,8 @@ public sealed class ResourceManagerIntegrationTests
     private static ResourceState CreateExecutableState(
         string name = "api",
         IReadOnlyList<string>? dependsOn = null,
-        bool includeVolumeConsumer = true) =>
+        bool includeVolumeConsumer = true,
+        IReadOnlyList<VolumeMountDefinition>? mounts = null) =>
         new(
             name,
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
@@ -2594,9 +2625,10 @@ public sealed class ResourceManagerIntegrationTests
                 {
                     [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
                         ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
-                        [
-                            new("storage.volume:data", "App_Data")
-                        ]))
+                            mounts ??
+                            [
+                                new("storage.volume:data", "App_Data")
+                            ]))
                 }
                 : null);
 
