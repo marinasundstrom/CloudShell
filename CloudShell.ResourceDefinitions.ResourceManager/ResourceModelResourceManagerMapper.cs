@@ -39,7 +39,7 @@ public static class ResourceModelResourceManagerMapper
             Endpoints: [],
             resource.Version ?? resource.Revision.ToString(),
             resource.LastModifiedAt ?? resource.CreatedAt ?? options.DefaultLastUpdated ?? DateTimeOffset.UnixEpoch,
-            resource.State.ResourceDependencies,
+            resource.State.ResourceDependencyIds,
             TypeId: resource.Type.TypeId.ToString(),
             Actions: resource.Operations
                 .Where(operation => operation.IsAvailable)

@@ -9,7 +9,7 @@ public sealed record ResourceRecord(
     string? ProviderId = null,
     string? DisplayName = null,
     string? Version = null,
-    IReadOnlyList<string>? Dependencies = null,
+    IReadOnlyList<ResourceReference>? Dependencies = null,
     IReadOnlyDictionary<string, string>? Attributes = null,
     IReadOnlyDictionary<string, JsonElement>? Configuration = null,
     IReadOnlyDictionary<string, JsonElement>? Capabilities = null,

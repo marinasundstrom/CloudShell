@@ -9,14 +9,14 @@ public sealed record ResourceDefinition(
     string? ProviderId = null,
     string? DisplayName = null,
     string? Version = null,
-    IReadOnlyList<string>? DependsOn = null,
+    IReadOnlyList<ResourceReference>? DependsOn = null,
     IReadOnlyDictionary<ResourceAttributeId, string>? Attributes = null,
     IReadOnlyDictionary<string, JsonElement>? Configuration = null,
     IReadOnlyDictionary<ResourceCapabilityId, JsonElement>? Capabilities = null,
     IReadOnlyDictionary<ResourceOperationId, JsonElement>? Operations = null,
     IReadOnlyDictionary<string, string>? Metadata = null)
 {
-    private static readonly IReadOnlyList<string> EmptyList = [];
+    private static readonly IReadOnlyList<ResourceReference> EmptyReferences = [];
     private static readonly IReadOnlyDictionary<ResourceAttributeId, string> EmptyAttributes =
         new Dictionary<ResourceAttributeId, string>();
     private static readonly IReadOnlyDictionary<string, JsonElement> EmptyConfigurationPayloads =
@@ -29,7 +29,16 @@ public sealed record ResourceDefinition(
     public string EffectiveResourceId =>
         string.IsNullOrWhiteSpace(ResourceId) ? $"{TypeId}:{Name}" : ResourceId;
 
-    public IReadOnlyList<string> ResourceDependencies => DependsOn ?? EmptyList;
+    public IReadOnlyList<ResourceReference> ResourceDependencies => DependsOn ?? EmptyReferences;
+
+    public IReadOnlyList<string> ResourceDependencyIds => ResourceDependencies
+        .Where(dependency => dependency.TryGetResourceId(out _))
+        .Select(dependency =>
+        {
+            dependency.TryGetResourceId(out var resourceId);
+            return resourceId;
+        })
+        .ToArray();
 
     public IReadOnlyDictionary<ResourceAttributeId, string> ResourceAttributes => Attributes ?? EmptyAttributes;
 

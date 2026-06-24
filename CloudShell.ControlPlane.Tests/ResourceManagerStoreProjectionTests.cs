@@ -20,6 +20,7 @@ using DefinitionCapabilityId = CloudShell.ResourceDefinitions.ResourceCapability
 using DefinitionGraphSnapshot = CloudShell.ResourceDefinitions.ResourceGraphSnapshot;
 using DefinitionGraphVersion = CloudShell.ResourceDefinitions.ResourceGraphVersion;
 using DefinitionResourceRecord = CloudShell.ResourceDefinitions.ResourceRecord;
+using DefinitionResourceReference = CloudShell.ResourceDefinitions.ResourceReference;
 using DefinitionResourceTypeProvider = CloudShell.ResourceDefinitions.IResourceTypeProvider;
 using DefinitionResourceResolver = CloudShell.ResourceDefinitions.ResourceResolver;
 using DefinitionResourceState = CloudShell.ResourceDefinitions.ResourceState;
@@ -959,7 +960,7 @@ public sealed class ResourceManagerStoreProjectionTests
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
             ProviderId: ExecutableApplicationResourceTypeProvider.ProviderId,
             DisplayName: "API",
-            DependsOn: ["storage:data"],
+            DependsOn: [DefinitionResourceReference.ResourceId("storage:data")],
             Attributes: new Dictionary<DefinitionAttributeId, string>
             {
                 [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"

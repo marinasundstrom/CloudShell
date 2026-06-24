@@ -199,7 +199,7 @@ public sealed class ResourceDefinitionGraphValidationPipelineTests
         new(
             name,
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
-            DependsOn: dependsOn,
+            DependsOn: ToReferences(dependsOn),
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
                 [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
@@ -216,6 +216,10 @@ public sealed class ResourceDefinitionGraphValidationPipelineTests
                     [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
                         ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(mounts))
                 });
+
+    private static IReadOnlyList<ResourceReference>? ToReferences(
+        IReadOnlyList<string>? resourceIds) =>
+        resourceIds?.Select(resourceId => ResourceReference.ResourceId(resourceId)).ToArray();
 
     private sealed class ExecutableStartOperationProvider : IResourceOperationProvider
     {

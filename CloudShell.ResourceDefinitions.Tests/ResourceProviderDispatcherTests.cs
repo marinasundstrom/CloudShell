@@ -61,7 +61,7 @@ public sealed class ResourceProviderDispatcherTests
         var definition = new ResourceDefinition(
             "api",
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
-            DependsOn: [volume.EffectiveResourceId],
+            DependsOn: [ResourceReference.ResourceId(volume.EffectiveResourceId)],
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
                 [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"

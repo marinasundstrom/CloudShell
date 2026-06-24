@@ -104,7 +104,7 @@ public sealed class ResourceGraphResolver(
         Resource resource)
     {
         var dependencies = new HashSet<string>(
-            state.ResourceDependencies,
+            state.ResourceDependencyIds,
             StringComparer.OrdinalIgnoreCase);
 
         foreach (var provider in _dependencyProviders)

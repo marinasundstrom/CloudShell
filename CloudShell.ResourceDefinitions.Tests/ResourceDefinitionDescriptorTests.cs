@@ -126,4 +126,24 @@ public sealed class ResourceDefinitionDescriptorTests
         var attributes = document.RootElement.GetProperty("attributes");
         Assert.Equal("1", attributes.GetProperty("container.replicas").GetString());
     }
+
+    [Fact]
+    public void ResourceDefinition_SerializesDependenciesAsResourceReferences()
+    {
+        var definition = new ResourceDefinition(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+            DependsOn:
+            [
+                ResourceReference.ResourceId("storage.volume:data")
+            ]);
+
+        var json = JsonSerializer.Serialize(definition, JsonSerializerOptions.Web);
+
+        using var document = JsonDocument.Parse(json);
+        var dependency = Assert.Single(document.RootElement.GetProperty("dependsOn").EnumerateArray());
+        Assert.Equal("storage.volume:data", dependency.GetProperty("value").GetString());
+        Assert.Equal("dependsOn", dependency.GetProperty("relationship").GetString());
+        Assert.Equal("resourceId", dependency.GetProperty("addressingMode").GetString());
+    }
 }

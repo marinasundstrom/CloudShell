@@ -104,7 +104,7 @@ public sealed class ResourceGraphResolverTests
         new(
             name,
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
-            DependsOn: dependsOn,
+            DependsOn: ToReferences(dependsOn),
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
                 [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
@@ -116,6 +116,10 @@ public sealed class ResourceGraphResolverTests
                     [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
                         ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(mounts))
                 });
+
+    private static IReadOnlyList<ResourceReference>? ToReferences(
+        IReadOnlyList<string>? resourceIds) =>
+        resourceIds?.Select(resourceId => ResourceReference.ResourceId(resourceId)).ToArray();
 
     private static ResourceState CreateLocalVolumeState(
         string name) =>

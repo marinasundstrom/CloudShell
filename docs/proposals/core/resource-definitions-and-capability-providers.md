@@ -265,7 +265,13 @@ A serialized projection might look like:
   "type": "application.executable",
   "provider": "applications.executable",
   "displayName": "API",
-  "dependsOn": ["volume:data"],
+  "dependsOn": [
+    {
+      "value": "storage.volume:data",
+      "relationship": "dependsOn",
+      "addressingMode": "resourceId"
+    }
+  ],
   "configuration": {
     "executable": {
       "path": "dotnet",
@@ -581,14 +587,18 @@ layer.
 
 The POC supports that lookup shape with a small Resource model graph resolver
 that can resolve a target resource and its dependency closure from a
-`ResourceGraphSnapshot`. The closure includes explicit `DependsOn` entries and
-dependencies contributed by registered `IResourceGraphDependencyProvider`
-implementations. This lets capability-owned relationships, such as mounted
-volumes, participate in graph traversal without forcing every authoring path
-to duplicate those references into `DependsOn`. The resolver returns resolved
-`Resource` projections plus diagnostics for missing graph nodes or dependency
-cycles; it does not decide lifecycle ordering, lock policy, or persistence
-behavior.
+`ResourceGraphSnapshot`. Explicit `DependsOn` entries are `ResourceReference`
+objects, not raw resource ID strings. A reference carries the target value, the
+relationship, and the addressing mode. The current resolver only resolves
+`dependsOn` references addressed by `resourceId`, but the document shape can
+later represent references to projected resources or provider-native
+addresses. The closure also includes dependencies contributed by registered
+`IResourceGraphDependencyProvider` implementations. This lets
+capability-owned relationships, such as mounted volumes, participate in graph
+traversal without forcing every authoring path to duplicate those references
+into `DependsOn`. The resolver returns resolved `Resource` projections plus
+diagnostics for missing graph nodes or dependency cycles; it does not decide
+lifecycle ordering, lock policy, or persistence behavior.
 
 Identity and authorization hooks are Resource model and graph concerns, but
 identity should not automatically become an inherent property of the core

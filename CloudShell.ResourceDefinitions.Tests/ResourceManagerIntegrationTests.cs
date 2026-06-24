@@ -502,7 +502,7 @@ public sealed class ResourceManagerIntegrationTests
             "api",
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
             ProviderId: ExecutableApplicationResourceTypeProvider.ProviderId,
-            DependsOn: [volume.EffectiveResourceId],
+            DependsOn: [ResourceReference.ResourceId(volume.EffectiveResourceId)],
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
                 [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
@@ -622,7 +622,7 @@ public sealed class ResourceManagerIntegrationTests
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
             ProviderId: ExecutableApplicationResourceTypeProvider.ProviderId,
             DisplayName: name.ToUpperInvariant(),
-            DependsOn: dependsOn ?? ["storage.volume:data"],
+            DependsOn: ToReferences(dependsOn ?? ["storage.volume:data"]),
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
                 [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
@@ -642,6 +642,10 @@ public sealed class ResourceManagerIntegrationTests
                         ]))
                 }
                 : null);
+
+    private static IReadOnlyList<ResourceReference>? ToReferences(
+        IReadOnlyList<string>? resourceIds) =>
+        resourceIds?.Select(resourceId => ResourceReference.ResourceId(resourceId)).ToArray();
 
     private static ResourceState CreateLocalVolumeState(
         string name = "data") =>

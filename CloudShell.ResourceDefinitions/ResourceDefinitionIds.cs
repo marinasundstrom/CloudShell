@@ -63,6 +63,32 @@ public readonly record struct ResourceOperationId(string Value)
     public static implicit operator string(ResourceOperationId value) => value.ToString();
 }
 
+[JsonConverter(typeof(ResourceReferenceRelationshipJsonConverter))]
+public readonly record struct ResourceReferenceRelationship(string Value)
+{
+    public static ResourceReferenceRelationship Create(string value) =>
+        new(ResourceDefinitionId.Normalize(value, nameof(value)));
+
+    public override string ToString() => Value ?? string.Empty;
+
+    public static implicit operator ResourceReferenceRelationship(string value) => Create(value);
+
+    public static implicit operator string(ResourceReferenceRelationship value) => value.ToString();
+}
+
+[JsonConverter(typeof(ResourceReferenceAddressingModeJsonConverter))]
+public readonly record struct ResourceReferenceAddressingMode(string Value)
+{
+    public static ResourceReferenceAddressingMode Create(string value) =>
+        new(ResourceDefinitionId.Normalize(value, nameof(value)));
+
+    public override string ToString() => Value ?? string.Empty;
+
+    public static implicit operator ResourceReferenceAddressingMode(string value) => Create(value);
+
+    public static implicit operator string(ResourceReferenceAddressingMode value) => value.ToString();
+}
+
 internal static class ResourceDefinitionId
 {
     public static string Normalize(string value, string parameterName)
@@ -99,6 +125,20 @@ internal sealed class ResourceCapabilityIdJsonConverter : ResourceDefinitionIdJs
 internal sealed class ResourceOperationIdJsonConverter : ResourceDefinitionIdJsonConverter<ResourceOperationId>
 {
     protected override ResourceOperationId Create(string value) => ResourceOperationId.Create(value);
+}
+
+internal sealed class ResourceReferenceRelationshipJsonConverter :
+    ResourceDefinitionIdJsonConverter<ResourceReferenceRelationship>
+{
+    protected override ResourceReferenceRelationship Create(string value) =>
+        ResourceReferenceRelationship.Create(value);
+}
+
+internal sealed class ResourceReferenceAddressingModeJsonConverter :
+    ResourceDefinitionIdJsonConverter<ResourceReferenceAddressingMode>
+{
+    protected override ResourceReferenceAddressingMode Create(string value) =>
+        ResourceReferenceAddressingMode.Create(value);
 }
 
 internal abstract class ResourceDefinitionIdJsonConverter<TId> : JsonConverter<TId>

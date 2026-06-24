@@ -106,6 +106,10 @@ on `git blame --follow`, and then by the broad type of change.
   dependencies with explicit `DependsOn` entries, and the reference volume
   consumer provider contributes mounted volumes to dependency closure without
   duplicating those relationships into every resource definition.
+- Resource definition and state dependencies now use `ResourceReference`
+  objects with relationship and addressing-mode metadata instead of raw
+  resource ID strings, while the current resolver only follows `dependsOn`
+  references addressed by `resourceId`.
 - The resource definitions POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change
