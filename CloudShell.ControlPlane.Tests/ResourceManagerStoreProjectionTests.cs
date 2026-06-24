@@ -727,6 +727,67 @@ public sealed class ResourceManagerStoreProjectionTests
     }
 
     [Fact]
+    public void GetResources_ProjectsPersistedApplicationTopologyRecordsThroughResourceModelBridge()
+    {
+        var states = CreateApplicationTopologyProjectGraphStates();
+        var services = new ServiceCollection();
+        services.AddLocalVolumeResourceType();
+        services.AddSqlServerResourceType();
+        services.AddSqlDatabaseResourceType();
+        services.AddConfigurationStoreResourceType();
+        services.AddSecretsVaultResourceType();
+        services.AddAspNetCoreProjectResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddInMemoryResourceModelGraphRecords(
+            states.Select(DefinitionResourceRecord.FromState).ToArray());
+        services.AddResourceModelGraphResourceProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var registrations = new TestResourceRegistrationStore(
+            states
+                .Select(state => new ResourceRegistration(
+                    state.EffectiveResourceId,
+                    "resource-model",
+                    null,
+                    DateTimeOffset.UtcNow,
+                    []))
+                .ToArray());
+        var store = new ResourceManagerStore(
+            serviceProvider.GetServices<IResourceProvider>().ToArray(),
+            new TestResourceGroupStore([]),
+            registrations,
+            new ResourceDeclarationStore(),
+            new ResourceIdentityProviderCatalog(),
+            new CloudShellExtensionRegistry(),
+            new InMemoryCloudShellExtensionActivationStore());
+
+        var resources = store.GetResources().ToDictionary(
+            resource => resource.Id,
+            StringComparer.OrdinalIgnoreCase);
+        var api = resources["application.aspnet-core-project:application-topology-api"];
+        var database = resources["application.sql-database:application-topology-db"];
+        var sqlServer = resources["application.sql-server:application-topology-sql-server"];
+
+        Assert.Equal(6, resources.Count);
+        Assert.Empty(store.GetResourceModelDiagnostics());
+        Assert.Equal(ResourceClass.Project, api.ResourceClass);
+        Assert.Equal(AspNetCoreProjectResourceTypeProvider.ProviderId, api.Provider);
+        Assert.True(api.IsDeclaredResource);
+        Assert.Equal("../Api/CloudShell.ApplicationTopologyApi.csproj", api.ResourceAttributes[
+            AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath]);
+        Assert.Equal(
+            [
+                "application.sql-database:application-topology-db",
+                "configuration.store:application-topology-settings",
+                "secrets.vault:application-topology-secrets"
+            ],
+            api.DependsOn);
+        Assert.Contains(api.ResourceActions, action =>
+            action.Id == AspNetCoreProjectResourceTypeProvider.Operations.Start.ToString());
+        Assert.Equal(["application.sql-server:application-topology-sql-server"], database.DependsOn);
+        Assert.Equal(["storage.volume:application-topology-sql-data"], sqlServer.DependsOn);
+    }
+
+    [Fact]
     public async Task ExecuteActionAsync_RoutesGraphResourceThroughProcedureCapableBridgeProvider()
     {
         var services = new ServiceCollection();
@@ -978,6 +1039,77 @@ public sealed class ResourceManagerStoreProjectionTests
                         new("storage:data", "App_Data")
                     ]))
             });
+
+    private static IReadOnlyList<DefinitionResourceState> CreateApplicationTopologyProjectGraphStates()
+    {
+        var volume = new DefinitionResourceState(
+            "application-topology-sql-data",
+            LocalVolumeResourceTypeProvider.ResourceTypeId);
+        var sqlServer = new DefinitionResourceState(
+            "application-topology-sql-server",
+            SqlServerResourceTypeProvider.ResourceTypeId,
+            ProviderId: SqlServerResourceTypeProvider.ProviderId,
+            Capabilities: new Dictionary<DefinitionCapabilityId, JsonElement>
+            {
+                [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
+                    DefinitionJson.FromValue(new VolumeConsumerDefinition(
+                    [
+                        new(volume.EffectiveResourceId, "/var/opt/mssql")
+                    ]))
+            });
+        var database = new DefinitionResourceState(
+            "application-topology-db",
+            SqlDatabaseResourceTypeProvider.ResourceTypeId,
+            ProviderId: SqlDatabaseResourceTypeProvider.ProviderId,
+            DependsOn:
+            [
+                DefinitionResourceReference.ResourceId(
+                    sqlServer.EffectiveResourceId,
+                    typeId: SqlServerResourceTypeProvider.ResourceTypeId)
+            ],
+            Attributes: new Dictionary<DefinitionAttributeId, string>
+            {
+                [SqlDatabaseResourceTypeProvider.Attributes.DatabaseName] = "application_topology",
+                [SqlDatabaseResourceTypeProvider.Attributes.EnsureCreated] = bool.TrueString.ToLowerInvariant()
+            });
+        var settings = new DefinitionResourceState(
+            "application-topology-settings",
+            ConfigurationStoreResourceTypeProvider.ResourceTypeId,
+            ProviderId: ConfigurationStoreResourceTypeProvider.ProviderId);
+        var secrets = new DefinitionResourceState(
+            "application-topology-secrets",
+            SecretsVaultResourceTypeProvider.ResourceTypeId,
+            ProviderId: SecretsVaultResourceTypeProvider.ProviderId);
+        var api = new DefinitionResourceState(
+            "application-topology-api",
+            AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
+            ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
+            DependsOn:
+            [
+                DefinitionResourceReference.ResourceId(
+                    database.EffectiveResourceId,
+                    typeId: SqlDatabaseResourceTypeProvider.ResourceTypeId),
+                DefinitionResourceReference.ResourceId(
+                    settings.EffectiveResourceId,
+                    typeId: ConfigurationStoreResourceTypeProvider.ResourceTypeId),
+                DefinitionResourceReference.ResourceId(
+                    secrets.EffectiveResourceId,
+                    typeId: SecretsVaultResourceTypeProvider.ResourceTypeId)
+            ],
+            Attributes: new Dictionary<DefinitionAttributeId, string>
+            {
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] =
+                    "../Api/CloudShell.ApplicationTopologyApi.csproj",
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectArguments] =
+                    "--urls http://localhost:21422",
+                [AspNetCoreProjectResourceTypeProvider.Attributes.HotReload] =
+                    bool.TrueString.ToLowerInvariant(),
+                [AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings] =
+                    bool.FalseString.ToLowerInvariant()
+            });
+
+        return [volume, sqlServer, database, settings, secrets, api];
+    }
 
     private static ResourceOrchestratorSelectionStore CreateSelectionStore() =>
         new(

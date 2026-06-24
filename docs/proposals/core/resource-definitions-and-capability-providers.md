@@ -557,7 +557,10 @@ name mapping depends on the service and DNS zone. The tests should prove
 provider composition, typed `ResourceReference` resolution,
 capability-produced dependencies, Resource Manager bridge projection, and
 operation projection without reintroducing the old aggregate application
-provider.
+provider. The same sample-shaped graph should also be projected from persisted
+`ResourceRecord` values through Resource Manager, because the likely
+integration path is to let Resource Manager keep its own operational resource
+records while storing the Resource model graph state alongside them.
 
 Porting a provider means implementing the complete Resource model support that
 the resource type needs to work, not only mapping an existing provider to a new
