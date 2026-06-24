@@ -17,6 +17,10 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- The resource definitions POC now includes a validation pipeline that resolves
+  definitions from registered resource type providers and then runs
+  type-provider, capability-provider, and operation-provider validation with
+  combined diagnostics.
 - The resource definitions POC now uses strongly typed class, type,
   attribute, capability, and operation IDs, adds an isolated resource type
   provider validation path, and introduces a separate
