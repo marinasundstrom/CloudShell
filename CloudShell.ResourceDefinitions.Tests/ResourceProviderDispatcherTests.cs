@@ -592,8 +592,7 @@ public sealed class ResourceProviderDispatcherTests
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
                 [DockerContainerResourceTypeProvider.Attributes.ContainerImage] = "example/api:1.0",
-                [DockerContainerResourceTypeProvider.Attributes.ContainerRegistry] = "registry.local",
-                [DockerContainerResourceTypeProvider.Attributes.EndpointCount] = "2"
+                [DockerContainerResourceTypeProvider.Attributes.ContainerRegistry] = "registry.local"
             });
 
         var validation = await serviceProvider
@@ -612,7 +611,7 @@ public sealed class ResourceProviderDispatcherTests
             DockerContainerResourceTypeProvider.Attributes.ContainerRegistry));
         Assert.Equal("1", validation.Resource.Attributes.GetString(
             DockerContainerResourceTypeProvider.Attributes.ContainerReplicas));
-        Assert.Equal("2", validation.Resource.Attributes.GetString(
+        Assert.Equal("0", validation.Resource.Attributes.GetString(
             DockerContainerResourceTypeProvider.Attributes.EndpointCount));
         Assert.True(validation.Resource.Capabilities.Has(
             DockerContainerResourceTypeProvider.Capabilities.Monitoring));
@@ -638,7 +637,7 @@ public sealed class ResourceProviderDispatcherTests
         Assert.Equal("example/api:1.0", projection.Image);
         Assert.Equal("registry.local", projection.Registry);
         Assert.Equal(1, projection.Replicas);
-        Assert.Equal(2, projection.EndpointCount);
+        Assert.Equal(0, projection.EndpointCount);
         Assert.True(projection.SupportsMonitoring);
         Assert.True(projection.SupportsLogSources);
         var start = await projection.GetStartOperationAsync();

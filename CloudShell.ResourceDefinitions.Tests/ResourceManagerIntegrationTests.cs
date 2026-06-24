@@ -1117,8 +1117,7 @@ public sealed class ResourceManagerIntegrationTests
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
                 [DockerContainerResourceTypeProvider.Attributes.ContainerImage] = "example/api:1.0",
-                [DockerContainerResourceTypeProvider.Attributes.ContainerRegistry] = "registry.local",
-                [DockerContainerResourceTypeProvider.Attributes.EndpointCount] = "2"
+                [DockerContainerResourceTypeProvider.Attributes.ContainerRegistry] = "registry.local"
             });
 
         var result = await service.ApplyDeploymentAsync(
@@ -1147,7 +1146,7 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal("example/api:1.0", projectedContainer.ResourceAttributes["container.image"]);
         Assert.Equal("registry.local", projectedContainer.ResourceAttributes["container.registry"]);
         Assert.Equal("1", projectedContainer.ResourceAttributes["container.replicas"]);
-        Assert.Equal("2", projectedContainer.ResourceAttributes["endpoints.count"]);
+        Assert.Equal("0", projectedContainer.ResourceAttributes["endpoints.count"]);
         Assert.Contains(projectedContainer.ResourceCapabilities, capability =>
             capability.Id == DockerContainerResourceTypeProvider.Capabilities.Monitoring.ToString());
         Assert.Contains(projectedContainer.ResourceCapabilities, capability =>
@@ -1184,6 +1183,45 @@ public sealed class ResourceManagerIntegrationTests
         var procedureResult = await provider.ExecuteActionAsync(procedure, start);
 
         Assert.Equal("Executed Start for api.", procedureResult.Message);
+    }
+
+    [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_RejectsDockerContainerEndpointCountChanges()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddDockerContainerResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var container = new ResourceDefinition(
+            "api",
+            DockerContainerResourceTypeProvider.ResourceTypeId,
+            ProviderId: DockerContainerResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [DockerContainerResourceTypeProvider.Attributes.ContainerImage] = "example/api:1.0",
+                [DockerContainerResourceTypeProvider.Attributes.EndpointCount] = "2"
+            });
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "docker-container",
+                [container],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 5, 0, 0, TimeSpan.Zero)));
+
+        Assert.True(result.HasErrors);
+        Assert.False(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Rejected, result.Commit.Summary.Status);
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Code == ResourceDefinitionDiagnosticCodes.ReadOnlyAttributeChange &&
+            string.Equals(
+                diagnostic.Target,
+                DockerContainerResourceTypeProvider.Attributes.EndpointCount.ToString(),
+                StringComparison.Ordinal));
     }
 
     [Fact]

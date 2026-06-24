@@ -58,7 +58,8 @@ public sealed class DockerContainerResourceTypeProvider :
                 ValueShape: new(ResourceAttributeValueKind.Integer)),
             [Attributes.EndpointCount] = new(
                 DefaultValue: 0,
-                ValueShape: new(ResourceAttributeValueKind.Integer))
+                ValueShape: new(ResourceAttributeValueKind.Integer),
+                ReadOnly: true)
         },
         Capabilities:
         [

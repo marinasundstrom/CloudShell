@@ -13,6 +13,14 @@ link to ADR entries when a change depends on a recorded decision.
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
+### 2026-06-25
+
+#### Changed
+
+- Docker container reference resources now mark `endpoints.count` as read-only
+  provider-projected state, so deployment definitions cannot author endpoint
+  counts while resolved Resource projections still expose the default count.
+
 ### 2026-06-24
 
 #### Changed
