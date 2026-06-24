@@ -155,6 +155,10 @@ on `git blame --follow`, and then by the broad type of change.
   resource type with version/edition attributes, declared database
   configuration, shared volume-consumer support, a reconcile-access operation
   provider, typed wrapper, and Resource Manager bridge coverage.
+- The resource definitions reference providers now include a narrow ASP.NET
+  Core project resource type with project path, arguments, hot reload, and
+  launch-settings attributes, shared volume-consumer support, start/restart
+  operation providers, a typed wrapper, and Resource Manager bridge coverage.
 - The resource definitions POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change

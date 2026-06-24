@@ -1,0 +1,48 @@
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+
+namespace CloudShell.ResourceDefinitions.ReferenceProviders;
+
+public static class AspNetCoreProjectResourceTypeServiceCollectionExtensions
+{
+    public static IServiceCollection AddAspNetCoreProjectResourceType(
+        this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        if (!services.Any(descriptor =>
+                descriptor.ServiceType == typeof(ResourceClassDefinition) &&
+                descriptor.ImplementationInstance is ResourceClassDefinition classDefinition &&
+                classDefinition.ClassId == AspNetCoreProjectResourceTypeProvider.ClassId))
+        {
+            services.AddSingleton(AspNetCoreProjectResourceTypeProvider.ClassDefinition);
+        }
+
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceTypeProvider, AspNetCoreProjectResourceTypeProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceChangeApplyProvider, AspNetCoreProjectResourceTypeProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceDefinitionApplyProvider, AspNetCoreProjectResourceTypeProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceCapabilityProvider, VolumeConsumerCapabilityProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceCapabilityProjector, VolumeConsumerCapabilityProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceDefinitionGraphValidator, VolumeConsumerGraphValidator>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceGraphDependencyProvider, VolumeConsumerGraphDependencyProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOperationProvider, AspNetCoreProjectStartOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOperationProvider, AspNetCoreProjectRestartOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOperationProjector, AspNetCoreProjectStartOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOperationProjector, AspNetCoreProjectRestartOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceProjectionProvider, AspNetCoreProjectResourceProjectionProvider>());
+
+        return services;
+    }
+}

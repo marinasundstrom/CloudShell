@@ -851,6 +851,98 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesAspNetCoreProjectAcrossProviderBoundaries()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddLocalVolumeResourceType();
+        services.AddAspNetCoreProjectResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var volume = new ResourceDefinition(
+            "data",
+            LocalVolumeResourceTypeProvider.ResourceTypeId);
+        var project = new ResourceDefinition(
+            "api",
+            AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
+            ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] = "src/Api/Api.csproj",
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectArguments] = "--urls http://localhost:5010",
+                [AspNetCoreProjectResourceTypeProvider.Attributes.HotReload] = bool.TrueString.ToLowerInvariant(),
+                [AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings] = bool.FalseString.ToLowerInvariant()
+            },
+            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
+            {
+                [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
+                    ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
+                    [
+                        new(volume.EffectiveResourceId, "App_Data")
+                    ]))
+            });
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "project-app",
+                [volume, project],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 24, 21, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedProject = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == project.EffectiveResourceId);
+
+        Assert.Equal(ResourceManagerClass.Project, projectedProject.ResourceClass);
+        Assert.Equal(AspNetCoreProjectResourceTypeProvider.ProviderId, projectedProject.Provider);
+        Assert.Equal("src/Api/Api.csproj", projectedProject.ResourceAttributes["project.path"]);
+        Assert.Equal("--urls http://localhost:5010", projectedProject.ResourceAttributes["project.arguments"]);
+        Assert.Equal(bool.TrueString.ToLowerInvariant(), projectedProject.ResourceAttributes["project.hotReload"]);
+        Assert.Equal([volume.EffectiveResourceId], projectedProject.DependsOn);
+        Assert.Contains(projectedProject.ResourceCapabilities, capability =>
+            capability.Id == VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString());
+        Assert.Contains(projectedProject.ResourceActions, action =>
+            action.Id == AspNetCoreProjectResourceTypeProvider.Operations.Start.ToString());
+        var restart = Assert.Single(projectedProject.ResourceActions, action =>
+            action.Id == AspNetCoreProjectResourceTypeProvider.Operations.Restart.ToString());
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveWithDependenciesAsync(project.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors);
+        Assert.Equal(
+            [project.EffectiveResourceId, volume.EffectiveResourceId],
+            resolution.Resources.Select(resource => resource.EffectiveResourceId));
+        var capability = Assert.IsType<VolumeConsumerCapability>(
+            resolution.Target!.Capabilities.Get<VolumeConsumerCapability>());
+        Assert.Equal(volume.EffectiveResourceId, Assert.Single(capability.Mounts).Volume);
+
+        var procedure = new ResourceProcedureContext(
+            projectedProject,
+            null,
+            null,
+            new EmptyResourceRegistrationStore());
+
+        Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, restart));
+
+        var procedureResult = await provider.ExecuteActionAsync(procedure, restart);
+
+        Assert.Equal("Executed Restart for api.", procedureResult.Message);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesSqlServerAcrossProviderBoundaries()
     {
         var services = new ServiceCollection();

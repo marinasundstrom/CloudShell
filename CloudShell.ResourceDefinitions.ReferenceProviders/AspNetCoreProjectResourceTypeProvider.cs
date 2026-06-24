@@ -1,0 +1,128 @@
+namespace CloudShell.ResourceDefinitions.ReferenceProviders;
+
+public sealed class AspNetCoreProjectResourceTypeProvider :
+    IResourceTypeProvider,
+    IResourceChangeApplyProvider,
+    IResourceDefinitionApplyProvider
+{
+    public static readonly ResourceClassId ClassId = "project";
+    public static readonly ResourceTypeId ResourceTypeId = "application.aspnet-core-project";
+    public const string ProviderId = "applications.aspnet-core-project";
+    public const string ConfigurationSection = "aspNetCoreProject";
+
+    public static ResourceClassDefinition ClassDefinition { get; } = new(ClassId);
+
+    public static class Attributes
+    {
+        public static readonly ResourceAttributeId ProjectPath = "project.path";
+        public static readonly ResourceAttributeId ProjectArguments = "project.arguments";
+        public static readonly ResourceAttributeId HotReload = "project.hotReload";
+        public static readonly ResourceAttributeId UseLaunchSettings = "project.useLaunchSettings";
+    }
+
+    public static class Operations
+    {
+        public static readonly ResourceOperationId Start = "start";
+        public static readonly ResourceOperationId Restart = "restart";
+    }
+
+    public ResourceTypeId TypeId => ResourceTypeId;
+
+    public ResourceTypeDefinition TypeDefinition { get; } = new(
+        ResourceTypeId,
+        ClassId,
+        DefaultProviderId: ProviderId,
+        Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+        {
+            [Attributes.ProjectPath] = new(
+                Required: true,
+                RequiredMessage: "ASP.NET Core project path is required.",
+                ValueShape: new(ResourceAttributeValueKind.String)),
+            [Attributes.ProjectArguments] = new(
+                ValueShape: new(ResourceAttributeValueKind.String)),
+            [Attributes.HotReload] = new(
+                DefaultValue: true,
+                ValueShape: new(ResourceAttributeValueKind.Boolean)),
+            [Attributes.UseLaunchSettings] = new(
+                DefaultValue: true,
+                ValueShape: new(ResourceAttributeValueKind.Boolean))
+        },
+        Operations:
+        [
+            new(Operations.Start),
+            new(Operations.Restart)
+        ]);
+
+    public bool CanValidate(Resource resource) =>
+        resource.Type.TypeId == ResourceTypeId;
+
+    public ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
+        Resource resource,
+        ResourceProviderContext context,
+        CancellationToken cancellationToken = default)
+    {
+        var diagnostics = new List<ResourceDefinitionDiagnostic>();
+        ValidateProjectPath(
+            resource.Attributes.GetString(Attributes.ProjectPath),
+            diagnostics);
+
+        return ValueTask.FromResult(
+            ResourceDefinitionValidationResult.FromDiagnostics(diagnostics));
+    }
+
+    public bool CanApply(ResourceChangeSet changes) =>
+        changes.Resource.Type.TypeId == ResourceTypeId;
+
+    public ValueTask<ResourceChangeApplyResult> ApplyChangesAsync(
+        ResourceChangeSet changes,
+        ResourceChangeApplyContext context,
+        CancellationToken cancellationToken = default)
+    {
+        var diagnostics = new List<ResourceDefinitionDiagnostic>(changes.Diagnostics);
+        ValidateProjectPath(
+            changes.ProposedState.ResourceAttributes.GetValueOrDefault(Attributes.ProjectPath),
+            diagnostics);
+
+        return ValueTask.FromResult(diagnostics.Any(diagnostic =>
+            diagnostic.Severity == ResourceDefinitionDiagnosticSeverity.Error)
+                ? ResourceChangeApplyResult.Rejected(changes, diagnostics)
+                : new ResourceChangeApplyResult(changes, changes.ProposedState, diagnostics));
+    }
+
+    public bool CanPlan(Resource resource) =>
+        resource.Type.TypeId == ResourceTypeId;
+
+    public ValueTask<ResourceDefinitionApplyPlan> PlanApplyAsync(
+        Resource resource,
+        ResourceDefinitionApplyContext context,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult(new ResourceDefinitionApplyPlan(
+            resource,
+            [
+                new(
+                    resource.EffectiveResourceId,
+                    ResourceTypeId,
+                    ResourceDefinitionApplyStepKind.AcceptDefinition,
+                    "Accept ASP.NET Core project definition.",
+                    resource.ToDefinition()),
+                new(
+                    resource.EffectiveResourceId,
+                    ResourceTypeId,
+                    ResourceDefinitionApplyStepKind.MaterializeRuntime,
+                    $"Materialize ASP.NET Core project resource '{resource.Name}'.")
+            ],
+            []));
+
+    private static void ValidateProjectPath(
+        string? projectPath,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        if (string.IsNullOrWhiteSpace(projectPath))
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                "application.aspNetCoreProject.pathRequired",
+                "ASP.NET Core project path is required.",
+                Attributes.ProjectPath));
+        }
+    }
+}

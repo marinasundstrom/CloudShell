@@ -119,6 +119,88 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task AddAspNetCoreProjectResourceType_RegistersCompleteResourceTypeBoundary()
+    {
+        var services = new ServiceCollection();
+        services.AddLocalVolumeResourceType();
+        services.AddAspNetCoreProjectResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var volume = new ResourceDefinition(
+            "data",
+            LocalVolumeResourceTypeProvider.ResourceTypeId);
+        var definition = new ResourceDefinition(
+            "api",
+            AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] = "src/Api/Api.csproj",
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectArguments] = "--urls http://localhost:5010",
+                [AspNetCoreProjectResourceTypeProvider.Attributes.HotReload] = bool.TrueString.ToLowerInvariant(),
+                [AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings] = bool.FalseString.ToLowerInvariant()
+            },
+            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
+            {
+                [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
+                    ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
+                    [
+                        new(volume.EffectiveResourceId, "App_Data")
+                    ]))
+            });
+
+        var validation = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphValidationPipeline>()
+            .ValidateAsync(
+                new ResourceDefinitionGraph([volume, definition]),
+                new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.False(validation.HasErrors);
+        var projectValidation = validation.Resources.Single(resource =>
+            resource.Resource.EffectiveResourceId == definition.EffectiveResourceId);
+        Assert.Equal(AspNetCoreProjectResourceTypeProvider.ClassId, projectValidation.Resource.Class.ClassId);
+        Assert.Equal("src/Api/Api.csproj", projectValidation.Resource.Attributes.GetString(
+            AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath));
+        Assert.True(projectValidation.Resource.Capabilities.Has(
+            VolumeConsumerCapabilityProvider.CapabilityIdValue));
+        Assert.True(projectValidation.Resource.Operations.Has(
+            AspNetCoreProjectResourceTypeProvider.Operations.Start));
+
+        var projectedGraph = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphProjectionResolver>()
+            .ProjectAsync(
+                validation,
+                new ResourceProjectionContext("local", "developer"));
+        var projection = projectedGraph.Find<AspNetCoreProjectResource>(
+            definition.EffectiveResourceId);
+
+        Assert.NotNull(projection);
+        Assert.Equal("src/Api/Api.csproj", projection.ProjectPath);
+        Assert.Equal("--urls http://localhost:5010", projection.Arguments);
+        Assert.True(projection.HotReload);
+        Assert.False(projection.UseLaunchSettings);
+        Assert.Equal(volume.EffectiveResourceId, Assert.Single(await projection.GetVolumesAsync()).Volume);
+
+        var start = await projection.GetStartOperationAsync();
+        var restart = await projection.GetRestartOperationAsync();
+
+        Assert.NotNull(start);
+        Assert.NotNull(restart);
+        Assert.True(await start.CanExecuteAsync());
+        Assert.True(await restart.CanExecuteAsync());
+
+        var applyPlan = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphApplyPlanner>()
+            .PlanApplyAsync(
+                validation,
+                new ResourceDefinitionApplyContext("local", "developer"));
+
+        Assert.False(applyPlan.HasErrors);
+        Assert.Contains(applyPlan.Steps, step =>
+            step.ResourceId == definition.EffectiveResourceId &&
+            step.Kind == ResourceDefinitionApplyStepKind.MaterializeRuntime);
+    }
+
+    [Fact]
     public async Task AddLocalVolumeResourceType_RegistersCompleteResourceTypeBoundary()
     {
         var services = new ServiceCollection();

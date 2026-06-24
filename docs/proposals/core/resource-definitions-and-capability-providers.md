@@ -560,6 +560,19 @@ declaration rather than maintaining a hard-coded list of compatible resource
 types; type compatibility can be expressed by which resource types declare or
 accept the capability and by graph-level validation.
 
+An ASP.NET Core project reference provider extends the proof without depending
+on `CloudShell.Providers.Applications`. It owns
+`application.aspnet-core-project`, project path and launch-related attributes,
+start/restart operation providers, a typed projection wrapper, and shared
+volume-consumer capability support. Provider-specific services, configuration
+records, operation implementations, validators, and projectors should live in
+the provider boundary that owns them. The generic Resource model
+infrastructure should only take abstractions that multiple providers prove are
+shared: graph resolution, definition/state projection, capability and
+operation contracts, diagnostics, and registration composition. Unique provider
+behavior should not move into broad shared infrastructure just because it is
+needed by the first provider that exercises a scenario.
+
 The working porting status for the reference POC is:
 
 | Provider or resource type | Status | New-model coverage | Remaining outside the POC |
@@ -567,8 +580,8 @@ The working porting status for the reference POC is:
 | Executable application (`application.executable`) | Ported as a reference provider | Type and class defaults, executable path validation and configuration, shared volume-consumer capability, start operation, typed wrapper, Resource Manager bridge projection and execution | Real local-process runtime integration, logs, endpoints, templates, and UI registration/update flow |
 | Local volume (`storage.volume`) | Ported as a reference provider | Storage class and type defaults, medium validation, provision operation, typed wrapper, apply planning, Resource Manager bridge projection | Provider-backed storage materialization, usage tracking, health, and monitoring |
 | Container application (`application.container-app`) | Ported as a narrow reference provider | Image and replica attributes, shared volume-consumer capability, start/restart/image-update operations, typed wrapper, Resource Manager bridge projection and execution | Actual container host orchestration, endpoints, revisions, replica runtime state, monitoring, and UI operations |
+| ASP.NET Core project (`application.aspnet-core-project`) | Ported as a narrow reference provider | Project path, arguments, hot reload, launch-settings attributes, shared volume-consumer capability, start/restart operations, typed wrapper, Resource Manager bridge projection and execution | Launch settings parsing, endpoints, local process or container build behavior, UI registration/update flow |
 | SQL Server (`application.sql-server`) | Ported as a narrow reference provider | Service class and type defaults, version/edition attributes, declared database configuration, shared volume-consumer capability, reconcile-access operation, typed wrapper, Resource Manager bridge projection and execution | Real SQL runtime integration, credential/grant reconciliation, database child projections, endpoints, and UI tabs |
-| ASP.NET Core project (`application.aspnet-core-project`) | Not ported | None | Project path and launch settings, endpoints, local process or container build behavior, UI registration/update flow |
 | SQL database child (`application.sql-database`) | Not ported | None | Provider-managed child projection, database-specific attributes, and database operations |
 | Docker/container host providers | Not ported | None | Runtime host capability providers, container host resolution, placement behavior, and runtime diagnostics |
 
