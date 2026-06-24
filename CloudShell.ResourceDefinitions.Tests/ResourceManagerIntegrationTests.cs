@@ -943,6 +943,72 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesContainerHostAcrossProviderBoundaries()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddContainerHostResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var host = new ResourceDefinition(
+            "docker",
+            ContainerHostResourceTypeProvider.ResourceTypeId,
+            ProviderId: ContainerHostResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [ContainerHostResourceTypeProvider.Attributes.HostKind] = "Docker",
+                [ContainerHostResourceTypeProvider.Attributes.Endpoint] = "unix:///var/run/docker.sock",
+                [ContainerHostResourceTypeProvider.Attributes.Registry] = "docker.io",
+                [ContainerHostResourceTypeProvider.Attributes.IsDefault] = bool.TrueString.ToLowerInvariant()
+            });
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "container-host",
+                [host],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 24, 23, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedHost = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == host.EffectiveResourceId);
+
+        Assert.Equal(ResourceManagerClass.Infrastructure, projectedHost.ResourceClass);
+        Assert.Equal(ContainerHostResourceTypeProvider.ProviderId, projectedHost.Provider);
+        Assert.Equal("containerHost", projectedHost.ResourceAttributes["infrastructure.kind"]);
+        Assert.Equal("Docker", projectedHost.ResourceAttributes["container.host.kind"]);
+        Assert.Contains(projectedHost.ResourceCapabilities, capability =>
+            capability.Id == ContainerHostResourceTypeProvider.Capabilities.ContainerImage.ToString());
+        Assert.Contains(projectedHost.ResourceCapabilities, capability =>
+            capability.Id == ContainerHostResourceTypeProvider.Capabilities.StorageMountFileSystem.ToString());
+        var inspect = Assert.Single(projectedHost.ResourceActions, action =>
+            action.Id == ContainerHostResourceTypeProvider.Operations.Inspect.ToString());
+
+        var procedure = new ResourceProcedureContext(
+            projectedHost,
+            null,
+            null,
+            new EmptyResourceRegistrationStore());
+
+        Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, inspect));
+
+        var procedureResult = await provider.ExecuteActionAsync(procedure, inspect);
+
+        Assert.Equal("Executed Container Host Inspect for docker.", procedureResult.Message);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesSqlServerAcrossProviderBoundaries()
     {
         var services = new ServiceCollection();

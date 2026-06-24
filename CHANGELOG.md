@@ -166,6 +166,11 @@ on `git blame --follow`, and then by the broad type of change.
   database resource type with database attributes, server `ResourceReference`
   graph validation, an ensure-created operation provider, typed wrapper, and
   Resource Manager bridge coverage.
+- The resource definitions reference providers now include a narrow container
+  host resource type with host kind/endpoint/registry/default attributes,
+  passive container image/build/filesystem-mount capability markers, an
+  inspect operation provider, typed wrapper, and Resource Manager bridge
+  coverage.
 - Reference provider implementations now keep provider-owned configuration
   records and operation provider services in separate files next to the owning
   resource type provider, keeping type providers focused on definition shape,

@@ -587,7 +587,7 @@ The working porting status for the reference POC is:
 | ASP.NET Core project (`application.aspnet-core-project`) | Ported as a narrow reference provider | Project path, arguments, hot reload, launch-settings attributes, shared volume-consumer capability, start/restart operations, typed wrapper, Resource Manager bridge projection and execution | Launch settings parsing, endpoints, local process or container build behavior, UI registration/update flow |
 | SQL Server (`application.sql-server`) | Ported as a narrow reference provider | Service class and type defaults, version/edition attributes, declared database configuration, shared volume-consumer capability, reconcile-access operation, typed wrapper, Resource Manager bridge projection and execution | Real SQL runtime integration, credential/grant reconciliation, database child projections, endpoints, and UI tabs |
 | SQL database child (`application.sql-database`) | Ported as a narrow reference provider | Database name/source/ensure-created attributes, server `ResourceReference` validation, ensure-created operation, typed wrapper, Resource Manager bridge projection and execution | Real SQL database materialization, credential/grant reconciliation, provider-managed child ownership metadata, and UI tabs |
-| Docker/container host providers | Not ported | None | Runtime host capability providers, container host resolution, placement behavior, and runtime diagnostics |
+| Container host (`cloudshell.container-host`) | Ported as a narrow reference provider | Infrastructure class/type defaults, host kind/endpoint/registry/default attributes, passive container image/build/filesystem-mount capability markers, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real Docker/container host runtime integration, host resolution, placement behavior, credentials, and runtime diagnostics |
 
 Host infrastructure registration is a separate concern from provider
 registration. A host may compose the generic graph services once from whatever
@@ -639,6 +639,13 @@ relationship, and the addressing mode. The current resolver only resolves
 later represent references to projected resources or provider-native
 addresses. Resource-to-resource relationships should prefer `ResourceReference`
 declarations over duplicating relationship identity into resource attributes.
+References may also carry optional expectations, such as expected resource
+type or provider id, so validation can reject a reference that resolves to the
+wrong kind of target. A later proposal should define additional reference
+arguments for projected-resource and provider-native addressing modes, for
+example selector arguments, projection names, provider scopes, or other
+addressing hints. That should remain part of the reference model instead of
+being copied into unrelated resource attributes.
 Resolving a `ResourceReference` is a first-class graph operation:
 when the reference can be resolved, the result carries the projected
 `Resource`; when it cannot, the result can stay unresolved or carry
