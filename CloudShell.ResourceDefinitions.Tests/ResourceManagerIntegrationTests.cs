@@ -1406,6 +1406,88 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesVirtualNetworkAcrossProviderBoundaries()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddVirtualNetworkResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var network = new ResourceDefinition(
+            "app",
+            VirtualNetworkResourceTypeProvider.ResourceTypeId,
+            ProviderId: VirtualNetworkResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [VirtualNetworkResourceTypeProvider.Attributes.IsDefault] = bool.TrueString.ToLowerInvariant(),
+                [VirtualNetworkResourceTypeProvider.Attributes.HostReadiness] = "providerRequired",
+                [VirtualNetworkResourceTypeProvider.Attributes.MappingProviders] = "cloudshell.loadBalancer:edge"
+            });
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "virtual-network",
+                [network],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 11, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedNetwork = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == network.EffectiveResourceId);
+
+        Assert.Equal(ResourceManagerClass.Network, projectedNetwork.ResourceClass);
+        Assert.Equal(VirtualNetworkResourceTypeProvider.ProviderId, projectedNetwork.Provider);
+        Assert.Equal("Virtual", projectedNetwork.ResourceAttributes["network.kind"]);
+        Assert.Equal(bool.TrueString.ToLowerInvariant(), projectedNetwork.ResourceAttributes["network.default"]);
+        Assert.Equal("providerRequired", projectedNetwork.ResourceAttributes["network.hostReadiness"]);
+        Assert.Equal("cloudshell.loadBalancer:edge", projectedNetwork.ResourceAttributes["network.mappingProviders"]);
+        Assert.DoesNotContain("endpoints.count", projectedNetwork.ResourceAttributes.Keys);
+        Assert.Contains(projectedNetwork.ResourceCapabilities, capability =>
+            capability.Id == VirtualNetworkResourceTypeProvider.Capabilities.NetworkingVirtualNetwork.ToString());
+        Assert.Contains(projectedNetwork.ResourceCapabilities, capability =>
+            capability.Id == VirtualNetworkResourceTypeProvider.Capabilities.NetworkingIngress.ToString());
+        var reconcile = Assert.Single(projectedNetwork.ResourceActions, action =>
+            action.Id == VirtualNetworkResourceTypeProvider.Operations.ReconcileEndpointMappings.ToString());
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveAsync(network.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors);
+        var projection = Assert.IsType<VirtualNetworkResource>(
+            await serviceProvider
+                .GetRequiredService<ResourceProjectionResolver>()
+                .GetResourceProjectionAsync(
+                    resolution.Target!,
+                    new ResourceProjectionContext("local", "developer")));
+        Assert.True(projection.IsDefault);
+        Assert.True(projection.SupportsIngress);
+
+        var procedure = new ResourceProcedureContext(
+            projectedNetwork,
+            null,
+            null,
+            new EmptyResourceRegistrationStore());
+
+        Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, reconcile));
+
+        var procedureResult = await provider.ExecuteActionAsync(procedure, reconcile);
+
+        Assert.Equal("Executed ReconcileEndpointMappings for app.", procedureResult.Message);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesDnsZoneAcrossProviderBoundaries()
     {
         var services = new ServiceCollection();

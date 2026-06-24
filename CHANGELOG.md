@@ -233,6 +233,12 @@ on `git blame --follow`, and then by the broad type of change.
   reconcile operation, typed wrapper, apply planning, and Resource Manager
   bridge coverage while keeping port, endpoint, and target collections out of
   normal count attributes.
+- The resource definitions reference providers now include a narrow virtual
+  network resource type with virtual/default/readiness/provider attributes,
+  passive virtual-network and ingress capability markers, a type-specific
+  `reconcileEndpointMappings` operation provider, typed wrapper, apply
+  planning, and Resource Manager bridge coverage while keeping endpoint and
+  mapping observations out of normal attributes.
 - The resource definitions reference providers now include a narrow Secrets
   Vault resource type with endpoint and secret-count attributes, an inspect
   operation provider, typed wrapper, and Resource Manager bridge coverage

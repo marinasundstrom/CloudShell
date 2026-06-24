@@ -622,6 +622,15 @@ configuration. Fetched or calculated network views, such as observed endpoint
 or mapping summaries, should be exposed through resolved capability members or
 operation plans rather than stored as normal resource attributes.
 
+A narrow virtual network reference provider covers the more specific
+`cloudshell.virtualNetwork` graph resource. It owns virtual-network kind,
+default-network, host-readiness, and mapping-provider attributes, passive
+virtual-network and ingress capability markers, a type-specific implementation
+of the shared `reconcileEndpointMappings` operation ID, a typed projection
+wrapper, apply planning, and Resource Manager bridge projection/execution.
+Endpoint collections and observed endpoint mappings remain future typed
+payloads or capability members rather than normal count attributes.
+
 A narrow DNS Zone reference provider covers the declarative
 `cloudshell.dnsZone` graph resource. It owns the DNS zone name and selected
 DNS provider attributes, the passive DNS-zone capability marker, a reconcile
@@ -693,6 +702,7 @@ The working porting status for the reference POC is:
 | Docker host (`docker.host`) | Ported as a narrow reference provider | Infrastructure class/type defaults, Docker host kind/endpoint/registry/default attributes, passive container image/build/filesystem-mount capability markers, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real Docker runtime integration, discovery, health, logs, container child projections, credentials, and UI registration/update flow |
 | Load balancer (`cloudshell.loadBalancer`) | Ported as a narrow reference provider | Network class/type defaults, provider/host/count attributes, passive networking capability markers, apply-configuration operation, typed wrapper, Resource Manager bridge projection and execution | Route and entrypoint payloads, target `ResourceReference` graph validation, Traefik/materialization runtime integration, endpoint mappings, and UI registration/update flow |
 | Network (`cloudshell.network`) | Ported as a narrow reference provider | Network class/type defaults, kind/readiness/provider attributes, passive networking capability markers, reconcile-endpoint-mappings operation, typed wrapper, Resource Manager bridge projection and execution | Endpoint and mapping payloads, observed mapping state as capability members, host/virtual network specialization, provisioner integration, and UI registration/update flow |
+| Virtual network (`cloudshell.virtualNetwork`) | Ported as a narrow reference provider | Network class/type defaults, virtual/default/readiness/provider attributes, passive virtual-network and ingress capability markers, type-specific `reconcileEndpointMappings` operation provider, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Endpoint and mapping payloads, observed mapping state as capability members or operation plans, endpoint mapping provisioner integration, and UI registration/update flow |
 | DNS Zone (`cloudshell.dnsZone`) | Ported as a narrow reference provider | Network class/type defaults, zone/provider attributes, passive DNS-zone capability marker, reconcile-name-mappings operation, typed wrapper, Resource Manager bridge projection and execution | Name-mapping child resource integration, record/conflict/materialization views as capability members or operation plans, DNS publisher integration, and UI registration/update flow |
 | Name mapping (`cloudshell.nameMapping`) | Ported as a narrow reference provider | Network class/type defaults, host/endpoint/exposure attributes, passive name-mapping capability marker, `ResourceReference` dependencies, typed wrapper, apply planning, and Resource Manager bridge projection | Typed reference attributes when complex attribute values are promoted, target endpoint validation, conflict/materialization views as capability members or operation plans, DNS publisher integration, and UI registration/update flow |
 | Configuration store (`configuration.store`) | Ported as a narrow reference provider | Configuration class/type defaults, endpoint and entry-count attributes, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real configuration service runtime integration, entry collection payloads, authorization, logs, templates, and UI registration/update flow |

@@ -810,6 +810,65 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task AddVirtualNetworkResourceType_RegistersCompleteResourceTypeBoundary()
+    {
+        var services = new ServiceCollection();
+        services.AddVirtualNetworkResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var definition = new ResourceDefinition(
+            "app",
+            VirtualNetworkResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [VirtualNetworkResourceTypeProvider.Attributes.IsDefault] = bool.TrueString.ToLowerInvariant(),
+                [VirtualNetworkResourceTypeProvider.Attributes.HostReadiness] = "providerRequired",
+                [VirtualNetworkResourceTypeProvider.Attributes.MappingProviders] = "cloudshell.loadBalancer:edge"
+            });
+
+        var validation = await serviceProvider
+            .GetRequiredService<ResourceDefinitionValidationPipeline>()
+            .ValidateAsync(
+                definition,
+                new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.False(validation.HasErrors);
+        Assert.Equal(VirtualNetworkResourceTypeProvider.ClassId, validation.Resource.Class.ClassId);
+        Assert.Equal("Virtual", validation.Resource.Attributes.GetString(
+            VirtualNetworkResourceTypeProvider.Attributes.NetworkKind));
+        Assert.Equal(bool.TrueString.ToLowerInvariant(), validation.Resource.Attributes.GetString(
+            VirtualNetworkResourceTypeProvider.Attributes.IsDefault));
+        Assert.True(validation.Resource.Capabilities.Has(
+            VirtualNetworkResourceTypeProvider.Capabilities.NetworkingVirtualNetwork));
+        Assert.True(validation.Resource.Capabilities.Has(
+            VirtualNetworkResourceTypeProvider.Capabilities.NetworkingIngress));
+        Assert.True(validation.Resource.Operations.Has(
+            VirtualNetworkResourceTypeProvider.Operations.ReconcileEndpointMappings));
+
+        var projectedGraph = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphProjectionResolver>()
+            .ProjectAsync(
+                new ResourceDefinitionGraphValidationPipelineResult(
+                    new ResourceDefinitionGraph([definition]),
+                    [validation],
+                    []),
+                new ResourceProjectionContext("local", "developer"));
+        var projection = projectedGraph.Find<VirtualNetworkResource>(
+            definition.EffectiveResourceId);
+
+        Assert.NotNull(projection);
+        Assert.True(projection.IsDefault);
+        Assert.Equal("providerRequired", projection.HostReadiness);
+        Assert.True(projection.SupportsEndpointMapping);
+        Assert.True(projection.SupportsIngress);
+        var reconcile = await projection.GetReconcileEndpointMappingsOperationAsync();
+
+        Assert.NotNull(reconcile);
+        Assert.True(await reconcile.CanExecuteAsync());
+        Assert.Equal("cloudshell.loadBalancer:edge", reconcile.PlanReconcile().MappingProviders);
+    }
+
+    [Fact]
     public async Task AddDnsZoneResourceType_RegistersCompleteResourceTypeBoundary()
     {
         var services = new ServiceCollection();
