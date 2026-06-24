@@ -599,13 +599,14 @@ diagnostics. Direct lookup by resource ID remains supported for consumers that
 already have a graph resource address and only need the corresponding
 projection. The dependency-closure result also exposes the reference
 resolutions it followed, so consumers can distinguish the declared relationship
-from the target resource projection. The Resource Manager bridge preserves
-those followed reference resolutions when resolving graph resources for
-Control Plane consumers. The closure includes dependency references contributed
-by registered `IResourceGraphDependencyProvider` implementations. Those
-providers return `ResourceReference` objects too, and the current resolver
-applies the same `dependsOn` plus `resourceId` filter before following them.
-This lets
+from the target resource projection. The Resource Manager bridge can resolve a
+`ResourceReference` directly and binds capability and operation projections on
+the target when the reference resolves to a graph resource. It also preserves
+followed reference resolutions when resolving dependency closures for Control
+Plane consumers. The closure includes dependency references contributed by
+registered `IResourceGraphDependencyProvider` implementations. Those providers
+return `ResourceReference` objects too, and the current resolver applies the
+same `dependsOn` plus `resourceId` filter before following them. This lets
 capability-owned relationships, such as mounted volumes, participate in graph
 traversal without forcing every authoring path to duplicate those references
 into `DependsOn`. The resolver returns resolved `Resource` projections plus

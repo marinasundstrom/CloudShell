@@ -40,6 +40,35 @@ public sealed class ResourceModelGraphResourceResolver(
             context,
             cancellationToken);
 
+    public async ValueTask<ResourceModelGraphReferenceResolution> ResolveReferenceAsync(
+        ResourceReference reference,
+        ResourceDefinitionResolutionContext? context = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(reference);
+
+        var snapshot = await _graphModel.GetSnapshotAsync(cancellationToken);
+        var resolvedContext = context ?? ResourceDefinitionResolutionContext.Empty;
+        var resolution = _graphResolver.ResolveReference(
+            snapshot,
+            reference,
+            resolvedContext);
+
+        if (resolution.Resource is not null)
+        {
+            await BindProjectionsAsync(
+                resolution.Resource,
+                resolvedContext,
+                cancellationToken);
+        }
+
+        return new(
+            snapshot,
+            resolution.Reference,
+            resolution.Resource,
+            resolution.Diagnostics);
+    }
+
     public async ValueTask<ResourceModelGraphCapabilityResolution> ResolveCapabilityAsync(
         string resourceId,
         ResourceCapabilityId capabilityId,
@@ -235,6 +264,20 @@ public sealed record ResourceModelGraphCapabilityResolution(
     public Resource? Resource => ResourceResolution.Target;
 
     public bool IsResolved => Capability is not null && !HasErrors;
+
+    public bool HasErrors => Diagnostics.Any(diagnostic =>
+        diagnostic.Severity == ResourceDefinitionDiagnosticSeverity.Error);
+}
+
+public sealed record ResourceModelGraphReferenceResolution(
+    ResourceGraphSnapshot Snapshot,
+    ResourceReference Reference,
+    Resource? Resource,
+    IReadOnlyList<ResourceDefinitionDiagnostic> Diagnostics)
+{
+    public ResourceGraphVersion Version => Snapshot.Version;
+
+    public bool IsResolved => Resource is not null && !HasErrors;
 
     public bool HasErrors => Diagnostics.Any(diagnostic =>
         diagnostic.Severity == ResourceDefinitionDiagnosticSeverity.Error);

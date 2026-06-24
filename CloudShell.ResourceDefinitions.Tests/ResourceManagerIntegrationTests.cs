@@ -163,6 +163,52 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphResourceResolver_ResolvesReferenceFromGraph()
+    {
+        var volume = CreateLocalVolumeState();
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph([volume]);
+        services.AddLocalVolumeResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveReferenceAsync(ResourceReference.ResourceId(volume.EffectiveResourceId));
+
+        Assert.True(resolution.IsResolved);
+        Assert.False(resolution.HasErrors);
+        Assert.Equal(ResourceGraphVersion.Initial, resolution.Version);
+        Assert.Equal(volume.EffectiveResourceId, resolution.Reference.Value);
+        Assert.Equal(volume.EffectiveResourceId, resolution.Resource?.EffectiveResourceId);
+        Assert.Equal(LocalVolumeResourceTypeProvider.ResourceTypeId, resolution.Resource?.Type.TypeId);
+    }
+
+    [Fact]
+    public async Task ResourceModelGraphResourceResolver_ReturnsUnresolvedReferenceForUnsupportedAddressingMode()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph([CreateLocalVolumeState()]);
+        services.AddLocalVolumeResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var reference = new ResourceReference(
+            "provider-native-volume",
+            ResourceReferenceRelationships.DependsOn,
+            ResourceReferenceAddressingModes.ProviderNative);
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveReferenceAsync(reference);
+
+        Assert.False(resolution.IsResolved);
+        Assert.False(resolution.HasErrors);
+        Assert.Empty(resolution.Diagnostics);
+        Assert.Same(reference, resolution.Reference);
+        Assert.Null(resolution.Resource);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphResourceResolver_ResolvesCapabilityProjection()
     {
         var services = new ServiceCollection();

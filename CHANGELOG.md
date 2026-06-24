@@ -125,6 +125,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager graph resolution now carries followed resource-reference
   resolutions alongside the resolved dependency closure, preserving the
   relationship object and target resource projection for topology consumers.
+- The Resource Manager graph resolver can now resolve a `ResourceReference`
+  directly and bind capability and operation projections on the resolved
+  resource when the reference targets a graph resource.
 - The resource definitions POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change
