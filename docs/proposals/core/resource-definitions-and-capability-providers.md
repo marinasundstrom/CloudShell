@@ -1,4 +1,4 @@
-# Resource Definitions and Capability Providers Proposal
+# Resource Definitions, Capability Providers, and Operation Providers Proposal
 
 ## Status
 
@@ -9,7 +9,7 @@ the resource model documentation, and several providers already carry typed
 definition records such as application, storage, volume, network, service, DNS,
 and load-balancer definitions. This proposal tracks the next model step:
 formalizing `ResourceDefinition` as resource intent and formalizing capability
-providers as attached behavior over that intent.
+providers and operation providers as attached behavior over that intent.
 
 ## Problem
 
@@ -40,6 +40,16 @@ an individual resource definition may declare capability-owned intent, and a
 projected resource may advertise a capability that downstream systems can
 discover. Those are related, but they are not the same lifecycle phase.
 
+Resource commands and operations have the same boundary concern. A projected
+resource can advertise commands such as start, stop, restart, reconcile,
+update-image, or a provider-specific command. A command is the thing a caller
+performs. The operation is the provider-side work that happens behind that
+command. The behavior that validates command availability and executes the
+backing operation should not have to live in a single monolithic resource type
+provider. The current implementation may continue mapping commands onto the
+existing action-shaped API fields during migration, but the durable domain
+language should distinguish commands from operations.
+
 ## Goals
 
 - Distinguish `Resource` instances from `ResourceDefinition` intent in public
@@ -54,6 +64,9 @@ discover. Those are related, but they are not the same lifecycle phase.
 - Treat capability providers as attached behavior registered through
   dependency injection, so they can resolve provider or platform services while
   validating and interpreting capability-owned intent.
+- Treat resource operation providers as attached behavior registered through
+  dependency injection, so each provider can own the provider-side operation
+  behind one defined resource command.
 - Separate resource-type validation from cross-cutting capability validation.
 - Preserve provider ownership over runtime behavior, apply/update/delete
   behavior, and provider-specific configuration.
@@ -75,6 +88,9 @@ discover. Those are related, but they are not the same lifecycle phase.
   into.
 - Do not make capability providers UI actions. Capabilities may support UI
   workflows, but their model behavior belongs to the resource/domain layer.
+- Do not make resource commands UI actions. They are resource-domain commands
+  that UI or API surfaces may invoke after authorization and capability checks.
+  Resource operation providers own what happens behind those commands.
 
 ## Proposed Model
 
@@ -91,6 +107,8 @@ A definition should include:
 - optional definition version
 - provider-owned configuration payload
 - capability-owned intent payloads
+- optional command declarations or operation configuration when a resource type
+  allows authored command or operation policy
 - non-secret platform metadata needed for registration, ownership, visibility,
   persistence, or grouping
 
@@ -138,8 +156,8 @@ and deployment projection.
 
 `Resource` describes the current known resource instance. It is the output of
 provider projection, provider observation, Control Plane overlays, current
-actions, health, lifecycle state, endpoints, materialization facts, attributes,
-visibility, ownership, and authorization-filtered views.
+commands, health, lifecycle state, endpoints, materialization facts,
+attributes, visibility, ownership, and authorization-filtered views.
 
 The distinction should be kept explicit:
 
@@ -168,12 +186,123 @@ Responsibilities:
 - apply changes, update persisted state, and tear down resource state
 - project accepted definitions and observed provider state as `Resource`
   instances
-- expose resource actions and action availability where applicable
+- expose resource commands and command availability where applicable
 
 Resource type providers may expose typed facades such as
 `ExecutableApplicationResourceDefinition`, `ContainerApplicationDefinition`, or
 `VolumeResourceDefinition`. Those facades should map to and from the common
 definition envelope instead of replacing it as the platform model.
+
+For example, an executable application resource type provider could own the
+`application.executable` type while delegating storage mounts and start/stop
+operations to DI-backed attached providers:
+
+```csharp
+public sealed class ExecutableApplicationResourceTypeProvider(
+    IExecutableApplicationDefinitionStore definitions,
+    IEnumerable<IResourceDefinitionCapabilityProvider> capabilityProviders,
+    IEnumerable<IResourceOperationProvider> operationProviders)
+    : IResourceTypeProvider
+{
+    public string TypeId => "application.executable";
+
+    public ResourceClass ResourceClass => ResourceClass.Executable;
+
+    public IReadOnlyList<ResourceCapabilityDescriptor> SupportedCapabilities =>
+    [
+        new("storage.volumeConsumer"),
+        new("logs.sources"),
+        new("monitoring")
+    ];
+
+    public ResourceDefinitionValidationResult Validate(
+        ResourceDefinition definition,
+        ResourceDefinitionValidationContext context)
+    {
+        var executable = definition.GetConfiguration<ExecutableConfiguration>(
+            "executable");
+
+        var diagnostics = new List<ResourceDefinitionDiagnostic>();
+
+        if (string.IsNullOrWhiteSpace(executable.Path))
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                definition.Name,
+                "Executable path is required."));
+        }
+
+        foreach (var capability in definition.Capabilities)
+        {
+            var provider = capabilityProviders.FirstOrDefault(provider =>
+                provider.CanValidate(definition, capability.Key));
+
+            if (provider is null)
+            {
+                diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                    definition.Name,
+                    $"No provider is registered for capability '{capability.Key}'."));
+                continue;
+            }
+
+            diagnostics.AddRange(provider.Validate(definition, context).Diagnostics);
+        }
+
+        return ResourceDefinitionValidationResult.FromDiagnostics(diagnostics);
+    }
+
+    public Resource Project(
+        ResourceDefinition definition,
+        ResourceProjectionContext context)
+    {
+        var executable = definition.GetConfiguration<ExecutableConfiguration>(
+            "executable");
+
+        var commands = operationProviders
+            .Where(provider => provider.CanHandle(definition))
+            .Select(provider => provider.ProjectCommand(definition, context))
+            .ToArray();
+
+        return new Resource(
+            Id: definition.ResourceId,
+            Name: definition.Name,
+            Kind: TypeId,
+            Provider: "applications.executable",
+            Region: "local",
+            State: context.GetLifecycleState(definition.ResourceId),
+            Endpoints: context.GetEndpoints(definition.ResourceId),
+            Version: definition.Version,
+            LastUpdated: context.Now,
+            DependsOn: definition.DependsOn,
+            TypeId: TypeId,
+            Commands: commands,
+            ResourceClass: ResourceClass,
+            Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.ExecutablePath] = executable.Path,
+                [ResourceAttributeNames.WorkingDirectory] =
+                    executable.WorkingDirectory ?? "."
+            },
+            Capabilities: context.ProjectCapabilities(definition));
+    }
+
+    public Task<ResourceApplyResult> ApplyAsync(
+        ResourceDefinition definition,
+        ResourceApplyContext context,
+        CancellationToken cancellationToken)
+    {
+        var executable = definition.ToTyped<ExecutableApplicationResourceDefinition>();
+        definitions.Save(executable);
+
+        return Task.FromResult(ResourceApplyResult.Accepted(definition.ResourceId));
+    }
+}
+```
+
+The resource type provider owns the type's configuration and projection shape.
+It does not need to know every cross-cutting capability or every executable
+operation implementation in detail. Capability and operation providers can be added
+by capability packages through DI as long as they use stable resource type,
+capability, and operation identifiers.
 
 ## Capability Providers
 
@@ -235,6 +364,109 @@ This keeps storage behavior reusable across executable apps, ASP.NET Core
 projects, container apps, SQL Server resources, or future provider-owned
 service resources without pushing volume semantics into each resource type.
 
+## Resource Operation Providers
+
+Resource operation providers are attached behavior for the provider-side work
+behind a defined resource command. They should be registered with dependency
+injection and resolved by the Control Plane when it projects resource commands,
+computes command availability, or executes a requested command.
+
+Responsibilities:
+
+- declare the command ID they handle
+- declare the resource types, resource classes, or capabilities they can
+  handle
+- project the command affordance when the command applies to a resource
+- compute current command availability and user-displayable unavailable
+  reasons
+- execute the backing operation after Control Plane authorization and
+  validation
+- return resource procedure results, diagnostics, activity events, or
+  reconciliation signals
+
+Resource commands are not UI commands. A Resource Manager button, menu item, or
+API route can invoke a resource command, but the operation provider owns the
+domain behavior behind that command.
+
+For example, an executable start operation provider can own the standard
+`start` command for executable application resources:
+
+```csharp
+public sealed class ExecutableStartOperationProvider(
+    IExecutableApplicationDefinitionStore definitions,
+    ILocalProcessRunner processes,
+    IResourceDefinitionCapabilityProvider<VolumeConsumerDefinition> volumes)
+    : IResourceOperationProvider
+{
+    public string CommandId => ResourceCommandIds.Start;
+
+    public bool CanHandle(ResourceDefinition definition) =>
+        string.Equals(
+            definition.Type,
+            "application.executable",
+            StringComparison.OrdinalIgnoreCase);
+
+    public ResourceCommand ProjectCommand(
+        ResourceDefinition definition,
+        ResourceProjectionContext context) =>
+        new(
+            Id: ResourceCommandIds.Start,
+            Label: "Start",
+            Description: "Start the executable application.",
+            RequiresConfirmation: false);
+
+    public async Task<ResourceCommandAvailability> GetAvailabilityAsync(
+        ResourceDefinition definition,
+        ResourceCommandAvailabilityContext context,
+        CancellationToken cancellationToken)
+    {
+        if (context.State is ResourceState.Running or ResourceState.Starting)
+        {
+            return ResourceCommandAvailability.Unavailable(
+                ResourceCommandIds.Start,
+                "The resource is already running or starting.");
+        }
+
+        var volumeDiagnostics = await volumes.ValidateAsync(
+            definition,
+            context.ToDefinitionValidationContext(),
+            cancellationToken);
+
+        if (volumeDiagnostics.HasErrors)
+        {
+            return ResourceCommandAvailability.Unavailable(
+                ResourceCommandIds.Start,
+                "One or more volume mounts cannot be materialized.");
+        }
+
+        return ResourceCommandAvailability.Available(ResourceCommandIds.Start);
+    }
+
+    public async Task<ResourceProcedureResult> ExecuteAsync(
+        ResourceDefinition definition,
+        ResourceCommandExecutionContext context,
+        CancellationToken cancellationToken)
+    {
+        var executable = definitions.Get(definition.ResourceId);
+        if (executable is null)
+        {
+            return ResourceProcedureResult.Failed(
+                $"Resource definition '{definition.ResourceId}' was not found.");
+        }
+
+        await processes.StartAsync(executable, cancellationToken);
+
+        return ResourceProcedureResult.Completed(
+            $"Started executable application '{definition.Name}'.");
+    }
+}
+```
+
+This lets a resource type support multiple commands without centralizing every
+backing operation in the resource type provider. Standard lifecycle commands
+can have shared policy in the Control Plane, while provider-specific operation
+providers still own provider-specific checks and execution.
+
 ## Capability Lifecycle
 
 CloudShell should distinguish these phases:
@@ -291,10 +523,16 @@ pipeline:
    configuration.
 5. Resolve capability providers for declared capability intent.
 6. Let capability providers validate capability-owned payloads and references.
-7. Run cross-definition graph validation, including dependencies,
+7. Resolve resource operation providers for declared and type-supported
+   commands.
+8. Let operation providers validate command configuration, operation
+   configuration, and availability policy that can be checked before projection
+   or apply.
+9. Run cross-definition graph validation, including dependencies,
    authorization, compatibility, and host/provider policy.
-8. Return diagnostics and normalized accepted definitions without side effects.
-9. Apply, update, persist, or project only after validation succeeds.
+10. Return diagnostics and normalized accepted definitions without side
+    effects.
+11. Apply, update, persist, or project only after validation succeeds.
 
 Expected validation failures should be returned as diagnostics or result
 objects. Exceptions should remain for programmer errors or boundary adapters
@@ -344,12 +582,14 @@ authorable, their provider should introduce a definition shape deliberately.
    type, preferably `cloudshell.volume` or `application.executable`.
 5. Add a capability-provider path for `storage.volumeConsumer` that validates
    `ResourceVolumeMount` intent outside application-specific code.
-6. Map one existing programmatic builder into the definition envelope.
-7. Update resource template export/import for the same narrow type to use the
+6. Add a resource-operation-provider path for one standard lifecycle command,
+   preferably executable `start` or container app `restart`.
+7. Map one existing programmatic builder into the definition envelope.
+8. Update resource template export/import for the same narrow type to use the
    definition format.
-8. Add Control Plane tests for valid definitions, invalid capability payloads,
-   missing capability providers, and diagnostics.
-9. Add API/client projection only after the in-process definition model is
+9. Add Control Plane tests for valid definitions, invalid capability payloads,
+   missing capability providers, missing operation providers, and diagnostics.
+10. Add API/client projection only after the in-process definition model is
    stable enough to expose.
 
 ## Open Questions
@@ -367,6 +607,12 @@ authorable, their provider should introduce a definition shape deliberately.
   type-provider metadata, capability-provider metadata, or both?
 - Which validation belongs in capability providers versus graph-level Control
   Plane policy?
+- How should operation providers declare compatibility with resource types:
+  operation-provider metadata, type-provider metadata, capability requirements,
+  or all of those?
+- Should resource definitions be able to declare command or operation policy,
+  or should commands always be inferred from type, provider, lifecycle state,
+  and capability support?
 - How should persisted definitions represent provider selection when several
   providers can handle the same resource type?
 - What is the minimal API surface for remote clients to create, validate, and
@@ -379,6 +625,9 @@ authorable, their provider should introduce a definition shape deliberately.
   normalization, validation, projection, apply, update, and tear down.
 - Define capability provider contracts for capability-owned payload parsing,
   validation, diagnostics, and helper behavior.
+- Define resource operation provider contracts for command projection, command
+  availability, backing operation execution, diagnostics, and procedure
+  results.
 - Decide how existing provider-specific definitions map to the envelope.
 - Decide how resource templates, persisted declarations, imports, and create
   requests converge on the definition model.
