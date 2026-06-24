@@ -85,6 +85,11 @@ on `git blame --follow`, and then by the broad type of change.
 - The resource definitions POC now includes a small `ResourceGraphTransaction`
   facade that stages accepted resource changes against a graph snapshot and
   commits them once through `ResourceGraphModel`.
+- The resource definitions POC now separates graph change tracking, graph
+  commit results, graph model transactions, graph state snapshots, and
+  persistence providers into focused infrastructure files, and the proposal
+  clarifies that Control Plane resource manager state remains a complementary
+  operational model around the resource graph.
 - The resource definitions POC now includes a capability resolver so
   provider-owned capability behavior can be composed into type-specific
   resource projections without making the definition stop being the persisted

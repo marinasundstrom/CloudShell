@@ -1548,6 +1548,15 @@ providers. Those wrappers are how domain code should consume behavior-rich
 resource views; they are not the persistence record and they are not the
 portable serialized interchange format.
 
+This does not replace the Control Plane's own resource manager model. The
+Control Plane may store additional resource records for ownership,
+authorization, grouping, procedures, liveness signals, operational state,
+logs, traces, and provider runtime metadata. Those records are complementary
+server-side state around the resource graph. They may share identity with this
+POC's `Resource` projection and may materialize or consume it, but they are
+not required to use the same persistence shape or to expose every Control
+Plane operational concern through the low-level resource definition model.
+
 Layered definition, persistence, and projection model:
 
 ```mermaid
