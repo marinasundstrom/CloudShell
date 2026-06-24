@@ -135,6 +135,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The resource definitions POC now validates class/type attribute default
   values against declared `ResourceAttributeValueShape` metadata, returning
   diagnostics for mismatched scalar kinds and missing required object fields.
+- The Resource Manager bridge for the resource definitions POC now exposes
+  resolved Resource model diagnostics through the existing
+  `GetResourceModelDiagnostics()` Control Plane store surface.
 - The resource definitions proposal now clarifies that capabilities and
   operations are integration points whose implementations may be owned by
   Resource Manager, orchestrators, provider packages, or other Control Plane

@@ -402,6 +402,14 @@ that originated in the new Resource model. The bridge can also resolve a
 Resource Manager entry point stable while moving graph resolution to the
 provider boundary where graph-aware behavior is needed.
 
+The bridge should also project Resource model diagnostics into Resource
+Manager diagnostics. That makes invalid graph definitions visible through the
+existing `GetResourceModelDiagnostics()` surface instead of hiding resolver
+diagnostics inside the bridge provider. The initial POC maps
+`ResourceDefinitionDiagnostic` entries to `ResourceModelDiagnostic` entries
+with the Resource model diagnostic code and message preserved, while the
+diagnostic source identifies the Resource model bridge.
+
 Graph locking, graph update coordination, and transaction policy belong at
 the Resource Manager or Control Plane coordination layer. The Resource model
 can provide change sets, resolved projections, diagnostics, and commit-shaped

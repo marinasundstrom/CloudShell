@@ -10,6 +10,8 @@ using CloudShell.ResourceDefinitions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 using DefinitionAttributeDefinition = CloudShell.ResourceDefinitions.ResourceAttributeDefinition;
 using DefinitionAttributeId = CloudShell.ResourceDefinitions.ResourceAttributeId;
+using DefinitionAttributeValueKind = CloudShell.ResourceDefinitions.ResourceAttributeValueKind;
+using DefinitionDiagnosticCodes = CloudShell.ResourceDefinitions.ResourceDefinitionDiagnosticCodes;
 using DefinitionCapabilityId = CloudShell.ResourceDefinitions.ResourceCapabilityId;
 using DefinitionGraphSnapshot = CloudShell.ResourceDefinitions.ResourceGraphSnapshot;
 using DefinitionGraphVersion = CloudShell.ResourceDefinitions.ResourceGraphVersion;
@@ -557,6 +559,46 @@ public sealed class ResourceManagerStoreProjectionTests
             capability.Id == VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString());
         Assert.Contains(resource.ResourceActions, action =>
             action.Id == ResourceActionIds.Start && action.Kind == ResourceActionKind.Start);
+    }
+
+    [Fact]
+    public void GetResourceModelDiagnostics_IncludesResourceModelBridgeDiagnostics()
+    {
+        var provider = new ResourceModelGraphResourceProvider(
+            "resource-model",
+            "Resource model",
+            () => new DefinitionGraphSnapshot(DefinitionGraphVersion.Initial, [CreateResourceModelExecutableState()]),
+            new DefinitionResourceResolver(
+                [
+                    new(ExecutableApplicationResourceTypeProvider.ClassId)
+                ],
+                [
+                    new(
+                        ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                        ExecutableApplicationResourceTypeProvider.ClassId,
+                        Attributes: new Dictionary<DefinitionAttributeId, DefinitionAttributeDefinition>
+                        {
+                            ["container:replicas"] = new(
+                                DefaultValue: "one",
+                                ValueShape: new(DefinitionAttributeValueKind.Integer))
+                        })
+                ]));
+        var store = new ResourceManagerStore(
+            [provider],
+            new TestResourceGroupStore([]),
+            new TestResourceRegistrationStore([]),
+            new ResourceDeclarationStore(),
+            new ResourceIdentityProviderCatalog(),
+            new CloudShellExtensionRegistry(),
+            new InMemoryCloudShellExtensionActivationStore());
+
+        var diagnostic = Assert.Single(store.GetResourceModelDiagnostics());
+
+        Assert.Equal(DefinitionDiagnosticCodes.AttributeDefinitionDefaultInvalid, diagnostic.Code);
+        Assert.Equal("application.executable:api", diagnostic.ResourceId);
+        Assert.Equal(ExecutableApplicationResourceTypeProvider.ResourceTypeId.ToString(), diagnostic.ResourceType);
+        Assert.Equal("resource model", diagnostic.Source);
+        Assert.Contains("container:replicas", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]

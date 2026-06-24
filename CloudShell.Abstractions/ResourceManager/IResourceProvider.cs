@@ -8,3 +8,8 @@ public interface IResourceProvider
 
     IReadOnlyList<Resource> GetResources();
 }
+
+public interface IResourceModelDiagnosticProvider
+{
+    IReadOnlyList<ResourceModelDiagnostic> GetResourceModelDiagnostics();
+}

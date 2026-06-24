@@ -3,7 +3,9 @@ using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource
 
 namespace CloudShell.ResourceDefinitions.ResourceManager;
 
-public sealed class ResourceModelGraphResourceProvider : IResourceProvider
+public sealed class ResourceModelGraphResourceProvider :
+    IResourceProvider,
+    IResourceModelDiagnosticProvider
 {
     private readonly Func<ResourceGraphSnapshot> _resolveSnapshot;
     private readonly ResourceResolver _resolver;
@@ -44,6 +46,16 @@ public sealed class ResourceModelGraphResourceProvider : IResourceProvider
             .Select(resource => ResourceModelResourceManagerMapper.ToResourceManagerResource(
                 resource,
                 _projectionOptions))
+            .ToArray();
+    }
+
+    public IReadOnlyList<ResourceModelDiagnostic> GetResourceModelDiagnostics()
+    {
+        var snapshot = _resolveSnapshot();
+
+        return snapshot.Resources
+            .Select(state => _resolver.Resolve(state, _resolutionContext))
+            .SelectMany(ResourceModelResourceManagerMapper.ToResourceModelDiagnostics)
             .ToArray();
     }
 }

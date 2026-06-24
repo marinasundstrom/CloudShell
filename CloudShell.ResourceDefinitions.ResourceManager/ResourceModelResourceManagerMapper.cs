@@ -47,6 +47,23 @@ public static class ResourceModelResourceManagerMapper
             DisplayName: resource.State.DisplayName);
     }
 
+    public static IReadOnlyList<ResourceModelDiagnostic> ToResourceModelDiagnostics(
+        ResourceModelResource resource)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+
+        return resource.Diagnostics
+            .Select(diagnostic => new ResourceModelDiagnostic(
+                diagnostic.Code,
+                ToResourceModelDiagnosticMessage(diagnostic),
+                resource.EffectiveResourceId,
+                resource.Type.TypeId.ToString(),
+                ToResourceManagerClass(resource.Class.ClassId),
+                ToResourceManagerClass(resource.Class.ClassId),
+                "resource model"))
+            .ToArray();
+    }
+
     private static IReadOnlyDictionary<string, string> ToResourceManagerAttributes(
         ResourceModelResource resource)
     {
@@ -86,4 +103,10 @@ public static class ResourceModelResourceManagerMapper
                 .Replace('-', ' ')
                 .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .Select(part => char.ToUpperInvariant(part[0]) + part[1..]));
+
+    private static string ToResourceModelDiagnosticMessage(
+        ResourceDefinitionDiagnostic diagnostic) =>
+        string.IsNullOrWhiteSpace(diagnostic.Target)
+            ? diagnostic.Message
+            : $"{diagnostic.Message} Target: {diagnostic.Target}.";
 }

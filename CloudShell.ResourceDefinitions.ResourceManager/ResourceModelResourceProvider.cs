@@ -4,7 +4,9 @@ using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource
 
 namespace CloudShell.ResourceDefinitions.ResourceManager;
 
-public sealed class ResourceModelResourceProvider : IResourceProvider
+public sealed class ResourceModelResourceProvider :
+    IResourceProvider,
+    IResourceModelDiagnosticProvider
 {
     public const string DefaultProviderId = "resource-model";
     public const string DefaultRegion = "local";
@@ -35,5 +37,10 @@ public sealed class ResourceModelResourceProvider : IResourceProvider
     public IReadOnlyList<ResourceManagerResource> GetResources() =>
         _resolveResources()
             .Select(resource => ResourceModelResourceManagerMapper.ToResourceManagerResource(resource, _options))
+            .ToArray();
+
+    public IReadOnlyList<ResourceModelDiagnostic> GetResourceModelDiagnostics() =>
+        _resolveResources()
+            .SelectMany(ResourceModelResourceManagerMapper.ToResourceModelDiagnostics)
             .ToArray();
 }
