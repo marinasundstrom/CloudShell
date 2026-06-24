@@ -397,7 +397,10 @@ replace. The bridge provider can be registered with the existing
 `ResourceManagerStore` like any other provider, letting the current Resource
 Manager registration filtering, metadata composition, resource class
 projection, capability projection, and action projection run over resources
-that originated in the new Resource model.
+that originated in the new Resource model. The bridge can also resolve a
+`ResourceGraphSnapshot` on demand through `ResourceResolver`, which keeps the
+Resource Manager entry point stable while moving graph resolution to the
+provider boundary where graph-aware behavior is needed.
 
 Graph locking, graph update coordination, and transaction policy belong at
 the Resource Manager or Control Plane coordination layer. The Resource model

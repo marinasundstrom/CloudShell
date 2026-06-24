@@ -10,8 +10,10 @@ using CloudShell.ResourceDefinitions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 using DefinitionAttributeId = CloudShell.ResourceDefinitions.ResourceAttributeId;
 using DefinitionCapabilityId = CloudShell.ResourceDefinitions.ResourceCapabilityId;
-using DefinitionResourceDefinition = CloudShell.ResourceDefinitions.ResourceDefinition;
+using DefinitionGraphSnapshot = CloudShell.ResourceDefinitions.ResourceGraphSnapshot;
+using DefinitionGraphVersion = CloudShell.ResourceDefinitions.ResourceGraphVersion;
 using DefinitionResourceResolver = CloudShell.ResourceDefinitions.ResourceResolver;
+using DefinitionResourceState = CloudShell.ResourceDefinitions.ResourceState;
 using DefinitionJson = CloudShell.ResourceDefinitions.ResourceDefinitionJson;
 
 namespace CloudShell.ControlPlane.Tests;
@@ -517,34 +519,12 @@ public sealed class ResourceManagerStoreProjectionTests
     [Fact]
     public void GetResources_ComposesResourceModelBridgeProviderProjection()
     {
-        var resolved = CreateResourceModelResolver().Resolve(new DefinitionResourceDefinition(
-            "api",
-            ExecutableApplicationResourceTypeProvider.ResourceTypeId,
-            ProviderId: ExecutableApplicationResourceTypeProvider.ProviderId,
-            DisplayName: "API",
-            DependsOn: ["storage:data"],
-            Attributes: new Dictionary<DefinitionAttributeId, string>
-            {
-                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
-            },
-            Configuration: new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
-            {
-                [ExecutableApplicationResourceTypeProvider.ConfigurationSection] =
-                    DefinitionJson.FromValue(new ExecutableApplicationConfiguration("dotnet", "run"))
-            },
-            Capabilities: new Dictionary<DefinitionCapabilityId, JsonElement>
-            {
-                [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
-                    DefinitionJson.FromValue(new VolumeConsumerDefinition(
-                    [
-                        new("storage:data", "App_Data")
-                    ]))
-            }));
-        var provider = new ResourceModelResourceProvider(
+        var provider = new ResourceModelGraphResourceProvider(
             "resource-model",
             "Resource model",
-            () => [resolved],
-            new ResourceModelResourceManagerProjectionOptions(
+            () => new DefinitionGraphSnapshot(DefinitionGraphVersion.Initial, [CreateResourceModelExecutableState()]),
+            CreateResourceModelResolver(),
+            projectionOptions: new ResourceModelResourceManagerProjectionOptions(
                 DefaultLastUpdated: new DateTimeOffset(2026, 6, 24, 0, 0, 0, TimeSpan.Zero)));
         var store = new ResourceManagerStore(
             [provider],
@@ -642,6 +622,31 @@ public sealed class ResourceManagerStoreProjectionTests
             [
                 new ExecutableApplicationResourceTypeProvider().TypeDefinition
             ]);
+
+    private static DefinitionResourceState CreateResourceModelExecutableState() =>
+        new(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+            ProviderId: ExecutableApplicationResourceTypeProvider.ProviderId,
+            DisplayName: "API",
+            DependsOn: ["storage:data"],
+            Attributes: new Dictionary<DefinitionAttributeId, string>
+            {
+                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
+            },
+            Configuration: new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ExecutableApplicationResourceTypeProvider.ConfigurationSection] =
+                    DefinitionJson.FromValue(new ExecutableApplicationConfiguration("dotnet", "run"))
+            },
+            Capabilities: new Dictionary<DefinitionCapabilityId, JsonElement>
+            {
+                [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
+                    DefinitionJson.FromValue(new VolumeConsumerDefinition(
+                    [
+                        new("storage:data", "App_Data")
+                    ]))
+            });
 
     private static CloudShellExtensionRegistry CreateExtensionRegistry(ResourceClass resourceClass)
     {
