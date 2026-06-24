@@ -325,6 +325,69 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task AddCloudShellVolumeResourceType_RegistersCompleteResourceTypeBoundary()
+    {
+        var services = new ServiceCollection();
+        services.AddStorageResourceType();
+        services.AddCloudShellVolumeResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var storage = new ResourceDefinition(
+            "local",
+            StorageResourceTypeProvider.ResourceTypeId);
+        var definition = new ResourceDefinition(
+            "data",
+            CloudShellVolumeResourceTypeProvider.ResourceTypeId,
+            DependsOn: [ResourceReference.ResourceId(storage.EffectiveResourceId)],
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [CloudShellVolumeResourceTypeProvider.Attributes.Provider] = "Local Storage",
+                [CloudShellVolumeResourceTypeProvider.Attributes.StorageMedium] = "FileSystem",
+                [CloudShellVolumeResourceTypeProvider.Attributes.SubPath] = "data",
+                [CloudShellVolumeResourceTypeProvider.Attributes.AccessMode] = "ReadWriteOnce",
+                [CloudShellVolumeResourceTypeProvider.Attributes.Persistent] = bool.TrueString.ToLowerInvariant()
+            });
+
+        var validation = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphValidationPipeline>()
+            .ValidateAsync(
+                new ResourceDefinitionGraph([storage, definition]),
+                new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.False(validation.HasErrors);
+        var resource = Assert.Single(validation.Resources, result =>
+            result.Resource.EffectiveResourceId == definition.EffectiveResourceId).Resource;
+        Assert.Equal(CloudShellVolumeResourceTypeProvider.ClassId, resource.Class.ClassId);
+        Assert.Equal("volume", resource.Attributes.GetString(
+            CloudShellVolumeResourceTypeProvider.Attributes.StorageKind));
+        Assert.Equal("FileSystem", resource.Attributes.GetString(
+            CloudShellVolumeResourceTypeProvider.Attributes.StorageMedium));
+        Assert.True(resource.Capabilities.Has(
+            CloudShellVolumeResourceTypeProvider.Capabilities.StorageVolume));
+        Assert.True(resource.Operations.Has(
+            CloudShellVolumeResourceTypeProvider.Operations.Provision));
+
+        var projectedGraph = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphProjectionResolver>()
+            .ProjectAsync(
+                validation,
+                new ResourceProjectionContext("local", "developer"));
+        var projection = projectedGraph.Find<CloudShellVolumeResource>(
+            definition.EffectiveResourceId);
+
+        Assert.NotNull(projection);
+        Assert.Equal("data", projection.SubPath);
+        Assert.True(projection.Persistent);
+        Assert.Equal([storage.EffectiveResourceId], projection.References.Select(reference => reference.Value));
+        var provision = await projection.GetProvisionOperationAsync();
+
+        Assert.NotNull(provision);
+        Assert.True(await provision.CanExecuteAsync());
+        Assert.Equal("FileSystem", provision.PlanProvision().StorageMedium);
+        Assert.Equal([storage.EffectiveResourceId], provision.PlanProvision().References.Select(reference => reference.Value));
+    }
+
+    [Fact]
     public async Task AddContainerHostResourceType_RegistersCompleteResourceTypeBoundary()
     {
         var services = new ServiceCollection();

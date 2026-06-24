@@ -220,6 +220,13 @@ on `git blame --follow`, and then by the broad type of change.
   operation, typed wrapper, apply planning, and Resource Manager bridge
   coverage while keeping volume counts and runtime availability out of normal
   attributes.
+- The resource definitions reference providers now include a narrow
+  CloudShell volume resource type with provider/medium/location/subpath/
+  access-mode/persistence attributes, `ResourceReference` storage dependencies,
+  a passive storage-volume capability marker, a type-specific
+  `storage.volume.provision` operation provider, typed wrapper, apply
+  planning, and Resource Manager bridge coverage while keeping runtime
+  availability out of normal attributes.
 - The resource definitions reference providers now include a narrow Secrets
   Vault resource type with endpoint and secret-count attributes, an inspect
   operation provider, typed wrapper, and Resource Manager bridge coverage

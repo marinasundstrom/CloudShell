@@ -1,0 +1,36 @@
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+
+namespace CloudShell.ResourceDefinitions.ReferenceProviders;
+
+public static class CloudShellVolumeResourceTypeServiceCollectionExtensions
+{
+    public static IServiceCollection AddCloudShellVolumeResourceType(
+        this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        if (!services.Any(descriptor =>
+                descriptor.ServiceType == typeof(ResourceClassDefinition) &&
+                descriptor.ImplementationInstance is ResourceClassDefinition classDefinition &&
+                classDefinition.ClassId == CloudShellVolumeResourceTypeProvider.ClassId))
+        {
+            services.AddSingleton(CloudShellVolumeResourceTypeProvider.ClassDefinition);
+        }
+
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceTypeProvider, CloudShellVolumeResourceTypeProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceChangeApplyProvider, CloudShellVolumeResourceTypeProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceDefinitionApplyProvider, CloudShellVolumeResourceTypeProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOperationProvider, CloudShellVolumeProvisionOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOperationProjector, CloudShellVolumeProvisionOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceProjectionProvider, CloudShellVolumeResourceProjectionProvider>());
+
+        return services;
+    }
+}

@@ -1652,6 +1652,104 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesCloudShellVolumeAcrossProviderBoundaries()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddStorageResourceType();
+        services.AddCloudShellVolumeResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var storage = new ResourceDefinition(
+            "local",
+            StorageResourceTypeProvider.ResourceTypeId,
+            ProviderId: StorageResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [StorageResourceTypeProvider.Attributes.Provider] = "Local Storage",
+                [StorageResourceTypeProvider.Attributes.Medium] = "FileSystem"
+            });
+        var volume = new ResourceDefinition(
+            "data",
+            CloudShellVolumeResourceTypeProvider.ResourceTypeId,
+            ProviderId: CloudShellVolumeResourceTypeProvider.ProviderId,
+            DependsOn: [ResourceReference.ResourceId(storage.EffectiveResourceId)],
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [CloudShellVolumeResourceTypeProvider.Attributes.Provider] = "Local Storage",
+                [CloudShellVolumeResourceTypeProvider.Attributes.StorageMedium] = "FileSystem",
+                [CloudShellVolumeResourceTypeProvider.Attributes.SubPath] = "data",
+                [CloudShellVolumeResourceTypeProvider.Attributes.AccessMode] = "ReadWriteOnce",
+                [CloudShellVolumeResourceTypeProvider.Attributes.Persistent] = bool.TrueString.ToLowerInvariant()
+            });
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "storage-volume",
+                [storage, volume],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 9, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedVolume = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == volume.EffectiveResourceId);
+
+        Assert.Equal(ResourceManagerClass.Storage, projectedVolume.ResourceClass);
+        Assert.Equal(CloudShellVolumeResourceTypeProvider.ProviderId, projectedVolume.Provider);
+        Assert.Equal("volume", projectedVolume.ResourceAttributes["storage.kind"]);
+        Assert.Equal("Local Storage", projectedVolume.ResourceAttributes["storage.volume.provider"]);
+        Assert.Equal("FileSystem", projectedVolume.ResourceAttributes["storage.volume.medium"]);
+        Assert.Equal("data", projectedVolume.ResourceAttributes["storage.volume.subPath"]);
+        Assert.Equal("ReadWriteOnce", projectedVolume.ResourceAttributes["storage.volume.accessMode"]);
+        Assert.Equal(bool.TrueString.ToLowerInvariant(), projectedVolume.ResourceAttributes["storage.volume.persistent"]);
+        Assert.DoesNotContain("storage.volume.storageResourceId", projectedVolume.ResourceAttributes.Keys);
+        Assert.DoesNotContain("storage.runtimeStatus", projectedVolume.ResourceAttributes.Keys);
+        Assert.Equal([storage.EffectiveResourceId], projectedVolume.DependsOn);
+        Assert.Contains(projectedVolume.ResourceCapabilities, capability =>
+            capability.Id == CloudShellVolumeResourceTypeProvider.Capabilities.StorageVolume.ToString());
+        var provision = Assert.Single(projectedVolume.ResourceActions, action =>
+            action.Id == CloudShellVolumeResourceTypeProvider.Operations.Provision.ToString());
+        Assert.Equal("Storage Volume Provision", provision.DisplayName);
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveAsync(volume.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors);
+        var projection = Assert.IsType<CloudShellVolumeResource>(
+            await serviceProvider
+                .GetRequiredService<ResourceProjectionResolver>()
+                .GetResourceProjectionAsync(
+                    resolution.Target!,
+                    new ResourceProjectionContext("local", "developer")));
+        Assert.Equal("data", projection.SubPath);
+        Assert.Equal([storage.EffectiveResourceId], projection.References.Select(reference => reference.Value));
+
+        var procedure = new ResourceProcedureContext(
+            projectedVolume,
+            null,
+            null,
+            new EmptyResourceRegistrationStore());
+
+        Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, provision));
+
+        var procedureResult = await provider.ExecuteActionAsync(procedure, provision);
+
+        Assert.Equal("Executed Storage Volume Provision for data.", procedureResult.Message);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesSecretsVaultAcrossProviderBoundaries()
     {
         var services = new ServiceCollection();
