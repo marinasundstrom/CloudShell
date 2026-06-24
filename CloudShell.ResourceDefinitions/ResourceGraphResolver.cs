@@ -16,6 +16,22 @@ public sealed class ResourceGraphResolver(
     private readonly IReadOnlyList<IResourceGraphDependencyProvider> _dependencyProviders =
         (dependencyProviders ?? []).ToArray();
 
+    public ResourceGraphResourceResolution ResolveResource(
+        ResourceGraphSnapshot snapshot,
+        string resourceId,
+        ResourceDefinitionResolutionContext? context = null)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
+
+        var statesById = CreateStateLookup(snapshot);
+
+        return ResolveResource(
+            resourceId,
+            statesById,
+            context ?? ResourceDefinitionResolutionContext.Empty);
+    }
+
     public ResourceGraphReferenceResolution ResolveReference(
         ResourceGraphSnapshot snapshot,
         ResourceReference reference,
@@ -66,6 +82,31 @@ public sealed class ResourceGraphResolver(
             state => state.EffectiveResourceId,
             StringComparer.OrdinalIgnoreCase);
 
+    private ResourceGraphResourceResolution ResolveResource(
+        string resourceId,
+        IReadOnlyDictionary<string, ResourceState> statesById,
+        ResourceDefinitionResolutionContext context)
+    {
+        var normalizedResourceId = resourceId.Trim();
+
+        if (!statesById.TryGetValue(normalizedResourceId, out var state))
+        {
+            return new(
+                normalizedResourceId,
+                null,
+                [
+                    ResourceDefinitionDiagnostic.Error(
+                        ResourceDefinitionDiagnosticCodes.ResourceGraphResourceMissing,
+                        $"Resource graph state '{normalizedResourceId}' was not found.",
+                        normalizedResourceId)
+                ]);
+        }
+
+        var resource = _resourceResolver.Resolve(state, context);
+
+        return new(normalizedResourceId, resource, resource.Diagnostics);
+    }
+
     private void Resolve(
         string resourceId,
         IReadOnlyDictionary<string, ResourceState> statesById,
@@ -90,23 +131,21 @@ public sealed class ResourceGraphResolver(
             return;
         }
 
-        if (!statesById.TryGetValue(resourceId, out var state))
+        var resourceResolution = ResolveResource(resourceId, statesById, context);
+        if (resourceResolution.Resource is null)
         {
-            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
-                ResourceDefinitionDiagnosticCodes.ResourceGraphResourceMissing,
-                $"Resource graph state '{resourceId}' was not found.",
-                resourceId));
+            diagnostics.AddRange(resourceResolution.Diagnostics);
             return;
         }
 
         visiting.Add(resourceId);
 
-        var resource = _resourceResolver.Resolve(state, context);
+        var resource = resourceResolution.Resource;
         resources.Add(resource);
-        diagnostics.AddRange(resource.Diagnostics);
+        diagnostics.AddRange(resourceResolution.Diagnostics);
         included.Add(resourceId);
 
-        foreach (var reference in GetDependencyReferences(state, resource))
+        foreach (var reference in GetDependencyReferences(resource.State, resource))
         {
             var referenceResolution = ResolveReference(reference, statesById, context);
 
@@ -151,22 +190,9 @@ public sealed class ResourceGraphResolver(
             return new(reference, null, []);
         }
 
-        if (!statesById.TryGetValue(resourceId, out var state))
-        {
-            return new(
-                reference,
-                null,
-                [
-                    ResourceDefinitionDiagnostic.Error(
-                        ResourceDefinitionDiagnosticCodes.ResourceGraphResourceMissing,
-                        $"Resource graph state '{resourceId}' was not found.",
-                        resourceId)
-                ]);
-        }
+        var resourceResolution = ResolveResource(resourceId, statesById, context);
 
-        var resource = _resourceResolver.Resolve(state, context);
-
-        return new(reference, resource, resource.Diagnostics);
+        return new(reference, resourceResolution.Resource, resourceResolution.Diagnostics);
     }
 
     private IReadOnlyList<ResourceReference> GetDependencyReferences(
@@ -217,6 +243,17 @@ public sealed record ResourceGraphResolutionResult(
 
 public sealed record ResourceGraphReferenceResolution(
     ResourceReference Reference,
+    Resource? Resource,
+    IReadOnlyList<ResourceDefinitionDiagnostic> Diagnostics)
+{
+    public bool IsResolved => Resource is not null && !HasErrors;
+
+    public bool HasErrors => Diagnostics.Any(diagnostic =>
+        diagnostic.Severity == ResourceDefinitionDiagnosticSeverity.Error);
+}
+
+public sealed record ResourceGraphResourceResolution(
+    string ResourceId,
     Resource? Resource,
     IReadOnlyList<ResourceDefinitionDiagnostic> Diagnostics)
 {

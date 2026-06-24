@@ -116,6 +116,8 @@ on `git blame --follow`, and then by the broad type of change.
 - The resource graph resolver can now resolve individual `ResourceReference`
   values into projected `Resource` results and exposes followed reference
   resolutions alongside dependency-closure resources.
+- The resource graph resolver also keeps direct resource-id lookup as a
+  first-class path for consumers that already hold a graph resource address.
 - The resource definitions POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change

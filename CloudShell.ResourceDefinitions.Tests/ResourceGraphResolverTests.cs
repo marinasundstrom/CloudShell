@@ -6,6 +6,38 @@ namespace CloudShell.ResourceDefinitions.Tests;
 public sealed class ResourceGraphResolverTests
 {
     [Fact]
+    public void ResolveResource_ReturnsResourceForResourceIdInGraph()
+    {
+        var resolver = new ResourceGraphResolver(CreateResourceResolver());
+        var worker = CreateExecutableState("worker");
+        var snapshot = new ResourceGraphSnapshot(ResourceGraphVersion.Initial, [worker]);
+
+        var result = resolver.ResolveResource(snapshot, worker.EffectiveResourceId);
+
+        Assert.True(result.IsResolved);
+        Assert.False(result.HasErrors);
+        Assert.Empty(result.Diagnostics);
+        Assert.Equal(worker.EffectiveResourceId, result.ResourceId);
+        Assert.Equal(worker.EffectiveResourceId, result.Resource?.EffectiveResourceId);
+    }
+
+    [Fact]
+    public void ResolveResource_ReturnsDiagnosticForMissingResourceId()
+    {
+        var resolver = new ResourceGraphResolver(CreateResourceResolver());
+        var snapshot = new ResourceGraphSnapshot(ResourceGraphVersion.Initial, []);
+
+        var result = resolver.ResolveResource(snapshot, "application.executable:missing");
+
+        Assert.False(result.IsResolved);
+        Assert.True(result.HasErrors);
+        Assert.Null(result.Resource);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.ResourceGraphResourceMissing, diagnostic.Code);
+        Assert.Equal("application.executable:missing", diagnostic.Target);
+    }
+
+    [Fact]
     public void ResolveReference_ReturnsResourceForResourceIdReference()
     {
         var resolver = new ResourceGraphResolver(CreateResourceResolver());

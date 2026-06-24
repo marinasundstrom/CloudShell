@@ -595,10 +595,12 @@ later represent references to projected resources or provider-native
 addresses. Resolving a `ResourceReference` is a first-class graph operation:
 when the reference can be resolved, the result carries the projected
 `Resource`; when it cannot, the result can stay unresolved or carry
-diagnostics. The dependency-closure result also exposes the reference
-resolutions it followed, so consumers can distinguish the declared
-relationship from the target resource projection. The closure includes
-dependency references contributed by registered `IResourceGraphDependencyProvider`
+diagnostics. Direct lookup by resource ID remains supported for consumers that
+already have a graph resource address and only need the corresponding
+projection. The dependency-closure result also exposes the reference
+resolutions it followed, so consumers can distinguish the declared relationship
+from the target resource projection. The closure includes dependency
+references contributed by registered `IResourceGraphDependencyProvider`
 implementations. Those providers return `ResourceReference` objects too, and
 the current resolver applies the same `dependsOn` plus `resourceId` filter
 before following them. This lets
