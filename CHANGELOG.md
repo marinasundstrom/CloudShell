@@ -90,6 +90,10 @@ on `git blame --follow`, and then by the broad type of change.
   persistence providers into focused infrastructure files, and the proposal
   clarifies that Control Plane resource manager state remains a complementary
   operational model around the resource graph.
+- The resource definitions proposal now clarifies that the Resource model owns
+  graph structure and resolvable behavior declarations, while Resource Manager
+  owns the Control Plane operational model and composes API projections from
+  both models when graph-aware behavior is needed.
 - The resource definitions POC now includes a capability resolver so
   provider-owned capability behavior can be composed into type-specific
   resource projections without making the definition stop being the persisted

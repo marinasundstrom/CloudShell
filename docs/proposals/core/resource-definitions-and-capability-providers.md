@@ -260,12 +260,17 @@ need to be inspected, exchanged, or loaded from provider packages.
 
 ## Resource and ResourceDefinition
 
-`Resource` is the concrete runtime concept in this model. It describes the
-resolved projected state and combines `ResourceClassDefinition` and
-`ResourceTypeDefinition` presets with resource-specific state, resolved
-attributes, resolved capabilities, resolved operations, provider
-observations, and current operation state. It is the low-level object that
-typed wrappers can be built on, not the generated typed wrapper itself.
+The core concern in this proposal is the Resource model. The Resource model
+defines resources, their relationships, resource-owned attribute data,
+capability declarations, and operation declarations. A resource graph is the
+result: a graph defined using this model, resolved from the declared resources
+and their relationships.
+
+`Resource` is the concrete resolved projection in this model. It combines
+`ResourceClassDefinition` and `ResourceTypeDefinition` presets with
+resource-specific declared state, resolved attributes, resolved capabilities,
+resolved operations, and accepted resource state. It is the low-level object
+that typed wrappers can be built on, not the generated typed wrapper itself.
 Most consumers should normally see this `Resource` projection rather than a
 `ResourceDefinition`.
 
@@ -278,23 +283,78 @@ container inside the model. The two primary operations are:
 - render `Resource` as `ResourceDefinition`
 - apply `ResourceDefinition` to `Resource`
 
-The core resource model should stay separate from the Resource Manager resource
-model. A Resource Manager resource may share identity with a low-level
-`Resource`, may use that projection model, and may reference the same accepted
-state, but it is a separate artifact. Resource Manager resources carry
-operational responsibilities such as liveness signal realization, lifecycle
-state, materialization status, authorization-filtered projection, endpoints,
-procedures, logs, traces, and provider-observed runtime facts. Those concerns
-belong to the actual Resource Manager model and projection pipeline, not to
-the core resource model or its interchange format.
+Resource Manager is part of the Control Plane. It should manage a resource
+graph that is defined using the Resource model. It may share identity with a
+low-level `Resource`, may use that projection model, and may reference the
+same accepted state, but it is a separate Control Plane artifact. Resource
+Manager resources carry operational responsibilities such as liveness signal
+realization, lifecycle state, materialization status, authorization-filtered
+projection, endpoints, procedures, logs, traces, and provider-observed runtime
+facts. Those concerns belong to the Resource Manager model and projection
+pipeline, not to the core Resource model or its interchange format.
 
-For the POC, the resource graph should be resolved far enough to prove the
-core model: type/class inheritance, resolved attributes, resolved
-capabilities, resolved operations, provider lookup, and rendering/applying
-`ResourceDefinition`. It should not try to become the Resource Manager model.
+For the POC, the Resource model should be implemented far enough to produce
+and resolve a resource graph: type/class inheritance, resolved attributes,
+resolved capabilities, resolved operations, provider lookup, and
+rendering/applying `ResourceDefinition`. It should prove declaration,
+relationship, stored attribute data, capability declaration, and operation
+declaration semantics. It should not try to become the Resource Manager model.
 Resource Manager concerns such as liveness realization, lifecycle execution,
 authorization-specific views, operational history, endpoint materialization,
 logs, and traces should remain above this model.
+
+That is the core POC concern. The immediate implementation should stay focused
+on declaring resources, storing their declared state, expressing their
+relationships, defining capabilities and operations, resolving the resulting
+graph, and committing accepted declaration-state changes. Runtime operation
+execution, liveness materialization, provider reconciliation, authorization
+views, and operational history are consumers or later layers over that graph,
+not reasons to expand the Resource model now.
+
+The next useful POC question is therefore Resource Manager integration, not
+the final data store. Resource Manager should be able to manage a resource
+graph defined by the Resource model while continuing to own Control Plane
+concerns such as registration, grouping, liveness, lifecycle procedures,
+authorization-filtered views, logs, traces, and provider runtime metadata. The
+integration slice should show where a resolved Resource model graph enters the
+existing Resource Manager composition path, how it maps to the current
+Resource Manager-facing `Resource` projection, and which operational state
+remains Control Plane-owned. Only after that boundary is proven should the POC
+optimize the backing store shape.
+
+Resource Manager should also remain the normal entry point for users and API
+consumers. Most reads can start from the Resource Manager model and its
+Resource Manager-facing resources without resolving the full Resource model
+graph. The graph should be resolved when a workflow needs graph-aware behavior:
+relationship traversal, inherited type/class values, capability or operation
+resolution, validation, planning, or a change that updates declared resource
+state. This keeps ordinary inspection and operational views on the Resource
+Manager side, while reserving Resource model resolution for the cases where
+the model's relationships and declaration semantics are actually needed.
+
+In effect, CloudShell has two complementary models. The Resource model owns
+the graph model: resource structure, declared relationships, resource-owned
+attributes, capability declarations, operation declarations, and the
+resolution rules that turn those declarations into usable capability and
+operation behavior. Resource Manager owns the operational model: records of
+existing resources and the state and behavior it needs to operate its Control
+Plane domain. When Resource Manager needs graph knowledge or behavior, it
+resolves the Resource model graph and composes that result with its own
+operational resource record.
+
+The Resource Manager API should therefore expose a projection composed from
+both sources: the Resource Manager resource record and the resolved `Resource`
+from the Resource model graph. This composition lets Resource Manager keep
+operational data and behavior in its own model while still using Resource
+model capabilities and operations when it needs to validate, plan, update, or
+execute graph-aware behavior.
+
+Graph locking, graph update coordination, and transaction policy belong at
+the Resource Manager or Control Plane coordination layer. The Resource model
+can provide change sets, resolved projections, diagnostics, and commit-shaped
+results, but it should not own the policy for whether Resource Manager locks
+the graph, uses optimistic transactions, retries, merges, or rejects
+concurrent updates.
 
 The distinction should be kept explicit:
 
@@ -1514,6 +1574,25 @@ interchange formats for JSON, YAML, XML, templates, imports,
 exports, diagnostics, tests, and review. That serialized projection is a
 portable representation of the model, not a requirement that
 CloudShell persist the exact same shape internally.
+
+Persistence is a core concern for the Resource model, but there are separate
+questions that should not be collapsed too early:
+
+1. What document or interchange format represents the model, and how is that
+   format saved and loaded?
+2. How does CloudShell persist resource-owned state: individual resources,
+   whole graph snapshots, collections of accepted changes, or incremental
+   change documents?
+
+Whether a specific store is in-memory, database-backed, file-backed, or a
+combination of those is a lower-level provider and hosting choice. The POC
+should prove the model can save, load, and commit resource-owned state without
+optimizing prematurely around one storage backend. Before choosing that store
+shape, the POC should first demonstrate how Resource Manager consumes and
+manages a resource graph defined by the Resource model. That integration will
+tell us which data belongs in the Resource model, which data belongs in the
+Control Plane operational model, and what persistence boundary the store
+actually needs to support.
 
 CloudShell persistence should store the resource-owned state on `Resource`:
 identity, type, dependencies, provider-owned payloads, and the attributes,
