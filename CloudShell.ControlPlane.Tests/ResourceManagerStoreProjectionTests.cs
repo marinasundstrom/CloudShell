@@ -5,9 +5,13 @@ using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager.Identity;
+using CloudShell.ControlPlane.ResourceManager.Orchestration;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using CloudShell.ResourceDefinitions.ResourceManager;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using DefinitionAttributeDefinition = CloudShell.ResourceDefinitions.ResourceAttributeDefinition;
 using DefinitionAttributeId = CloudShell.ResourceDefinitions.ResourceAttributeId;
 using DefinitionAttributeValueKind = CloudShell.ResourceDefinitions.ResourceAttributeValueKind;
@@ -643,6 +647,55 @@ public sealed class ResourceManagerStoreProjectionTests
     }
 
     [Fact]
+    public async Task ExecuteActionAsync_RoutesGraphResourceThroughProcedureCapableBridgeProvider()
+    {
+        var services = new ServiceCollection();
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices(
+            [new(ExecutableApplicationResourceTypeProvider.ClassId)]);
+        services.AddInMemoryResourceModelGraph([CreateResourceModelExecutableState()]);
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var providers = serviceProvider
+            .GetServices<IResourceProvider>()
+            .ToArray();
+        var registrations = new TestResourceRegistrationStore(
+        [
+            new(
+                "application.executable:api",
+                "resource-model",
+                null,
+                DateTimeOffset.UtcNow,
+                [])
+        ]);
+        var store = new ResourceManagerStore(
+            providers,
+            new TestResourceGroupStore([]),
+            registrations,
+            new ResourceDeclarationStore(),
+            new ResourceIdentityProviderCatalog(),
+            new CloudShellExtensionRegistry(),
+            new InMemoryCloudShellExtensionActivationStore());
+        var orchestration = new ResourceOrchestrationService(
+            [new DefaultResourceOrchestrator()],
+            [],
+            store,
+            registrations,
+            new ResourceDeclarationStore(),
+            CreateSelectionStore(),
+            actionAvailabilityProviders: providers.OfType<IResourceActionAvailabilityProvider>());
+        var resource = Assert.Single(store.GetResources());
+
+        var result = await orchestration.ExecuteActionAsync(
+            resource,
+            ResourceAction.Start,
+            startDependencies: false,
+            new AllowAllAuthorizationService());
+
+        Assert.Equal("Executed Start for api.", result.Message);
+    }
+
+    [Fact]
     public void GetGroupForResource_InheritsGroupFromRegisteredParent()
     {
         var group = new ResourceGroup("group-one", "Group One", "Test group", []);
@@ -732,6 +785,11 @@ public sealed class ResourceManagerStoreProjectionTests
                     ]))
             });
 
+    private static ResourceOrchestratorSelectionStore CreateSelectionStore() =>
+        new(
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))),
+            new TestOptionsMonitor<ResourceManagerOptions>(new ResourceManagerOptions()));
+
     private static CloudShellExtensionRegistry CreateExtensionRegistry(ResourceClass resourceClass)
     {
         var services = new ServiceCollection();
@@ -791,6 +849,37 @@ public sealed class ResourceManagerStoreProjectionTests
         public string DisplayName => "Test";
 
         public IReadOnlyList<Resource> GetResources() => resources;
+    }
+
+    private sealed class AllowAllAuthorizationService : ICloudShellAuthorizationService
+    {
+        public bool IsAuthenticated => true;
+
+        public bool HasPermission(string permission) => true;
+
+        public bool CanAccessResourceGroup(string? resourceGroupId, string permission) => true;
+
+        public bool CanAccessResource(string resourceId, string? resourceGroupId, string permission) => true;
+    }
+
+    private sealed class TestHostEnvironment(string contentRootPath) : IHostEnvironment
+    {
+        public string EnvironmentName { get; set; } = Environments.Development;
+
+        public string ApplicationName { get; set; } = "CloudShell.Tests";
+
+        public string ContentRootPath { get; set; } = contentRootPath;
+
+        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
+    }
+
+    private sealed class TestOptionsMonitor<T>(T value) : IOptionsMonitor<T>
+    {
+        public T CurrentValue => value;
+
+        public T Get(string? name) => value;
+
+        public IDisposable? OnChange(Action<T, string?> listener) => null;
     }
 
     private sealed class TestResourceGroupStore(IReadOnlyList<ResourceGroup> groups) : IResourceGroupStore
