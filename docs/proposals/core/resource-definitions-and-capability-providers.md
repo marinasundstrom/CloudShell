@@ -456,6 +456,13 @@ generic graph-service helper should not own provider identity or decide which
 resource types belong together; each resource type provider package keeps that
 boundary.
 
+For the integration POC, hosts can also register an in-memory Resource model
+graph and expose it through the existing Resource Manager provider composition
+path. That keeps the bridge close to the eventual server shape: Resource
+Manager consumes a graph model service, while provider packages separately
+register resource-type behavior and the host decides which graph store backs
+the model.
+
 This migration does not mean Resource Manager stops owning resources in its
 Control Plane domain. Resource Manager can continue to keep operational
 resource records and project from its own data, from the resolved Resource

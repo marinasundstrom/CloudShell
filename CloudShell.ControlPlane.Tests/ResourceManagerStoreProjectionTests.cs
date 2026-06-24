@@ -608,12 +608,10 @@ public sealed class ResourceManagerStoreProjectionTests
         services.AddExecutableApplicationResourceType();
         services.AddResourceModelGraphServices(
             [new(ExecutableApplicationResourceTypeProvider.ClassId)]);
+        services.AddInMemoryResourceModelGraph([CreateResourceModelExecutableState()]);
         services.AddResourceModelGraphResourceProvider(
             "resource-model",
             "Resource model",
-            _ => new DefinitionGraphSnapshot(
-                DefinitionGraphVersion.Initial,
-                [CreateResourceModelExecutableState()]),
             projectionOptions: new ResourceModelResourceManagerProjectionOptions(
                 DefaultLastUpdated: new DateTimeOffset(2026, 6, 24, 0, 0, 0, TimeSpan.Zero)));
         using var serviceProvider = services.BuildServiceProvider();

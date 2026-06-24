@@ -5,6 +5,21 @@ namespace CloudShell.ResourceDefinitions.ResourceManager;
 
 public static class ResourceModelResourceManagerServiceCollectionExtensions
 {
+    public static IServiceCollection AddInMemoryResourceModelGraph(
+        this IServiceCollection services,
+        IEnumerable<ResourceState>? resources = null)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        var initialResources = (resources ?? []).ToArray();
+
+        services.AddSingleton<IResourceStateProvider>(
+            _ => new InMemoryResourceStateProvider(initialResources));
+        services.AddSingleton<ResourceGraphModel>();
+
+        return services;
+    }
+
     public static IServiceCollection AddResourceModelGraphServices(
         this IServiceCollection services,
         IEnumerable<ResourceClassDefinition> classDefinitions)

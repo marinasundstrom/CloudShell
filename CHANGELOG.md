@@ -165,6 +165,9 @@ on `git blame --follow`, and then by the broad type of change.
   generic graph-service DI helper that composes validation, projection, apply,
   operation, capability, and change services from separately registered
   resource-type providers.
+- The Resource Manager bridge for the resource definitions POC now includes an
+  in-memory Resource graph registration helper so hosts can back the bridge
+  with `ResourceGraphModel` instead of ad hoc snapshot delegates.
 - The resource definitions proposal now clarifies that capabilities and
   operations are integration points whose implementations may be owned by
   Resource Manager, orchestrators, provider packages, or other Control Plane
