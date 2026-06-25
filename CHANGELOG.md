@@ -97,6 +97,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The ProjectReference sample smoke test now verifies that the graph-backed
   ASP.NET Core project emits Control Plane metric points through the
   provider-local environment variables declared on its graph resource.
+- The ProjectReference sample smoke test now verifies that the graph-backed
+  ASP.NET Core project emits Control Plane trace spans through the same
+  provider-local environment-variable seam.
 - The Resource model proposal now defers source-generated programmatic
   builders and resolved resource projection wrappers until after the ASP.NET
   Core Resource Manager integration proves the basic services path.

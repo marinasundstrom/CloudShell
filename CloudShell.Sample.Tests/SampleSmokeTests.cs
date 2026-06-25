@@ -175,6 +175,19 @@ public sealed class SampleSmokeTests
                 point.GetProperty("name").GetString() == "http.server.requests" &&
                 point.GetProperty("resourceId").GetString() == graphApiResourceId));
         Assert.NotEmpty(graphApiMetricPoints);
+        var graphApiMessageJson = await host.GetAbsoluteStringAsync($"{graphApiEndpoint}/message");
+        using var graphApiMessageDocument = JsonDocument.Parse(graphApiMessageJson);
+        Assert.Equal(
+            "Hello from the referenced API project.",
+            graphApiMessageDocument.RootElement.GetProperty("message").GetString());
+        var graphApiTraceSpans = await WaitForTraceSpansByResourceAsync(
+            host,
+            graphApiResourceId,
+            StartupTimeout,
+            spans => spans.Any(span =>
+                span.GetProperty("name").GetString() == "api.prepare-message" &&
+                span.GetProperty("resourceId").GetString() == graphApiResourceId));
+        Assert.NotEmpty(graphApiTraceSpans);
         var graphApiHealthJson = await host.SendAsync(
             HttpMethod.Post,
             $"/api/control-plane/v1/resources/{Uri.EscapeDataString(graphApiResourceId)}/health/refresh");
@@ -2605,6 +2618,44 @@ public sealed class SampleSmokeTests
 
         throw new TimeoutException(
             $"Trace '{traceId}' was not ingested within {timeout}." +
+            $"{Environment.NewLine}{lastBody ?? lastException?.Message}");
+    }
+
+    private static async Task<IReadOnlyList<JsonElement>> WaitForTraceSpansByResourceAsync(
+        SampleProcess host,
+        string resourceId,
+        TimeSpan timeout,
+        Func<IReadOnlyList<JsonElement>, bool> isComplete)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        Exception? lastException = null;
+        string? lastBody = null;
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            try
+            {
+                lastBody = await host.GetStringAsync(
+                    $"/api/control-plane/v1/traces?resourceId={Uri.EscapeDataString(resourceId)}&maxSpans=50");
+                using var document = JsonDocument.Parse(lastBody);
+                var spans = document.RootElement.EnumerateArray()
+                    .Select(span => span.Clone())
+                    .ToArray();
+                if (spans.Length > 0 && isComplete(spans))
+                {
+                    return spans;
+                }
+            }
+            catch (Exception exception) when (exception is HttpRequestException or JsonException)
+            {
+                lastException = exception;
+            }
+
+            await Task.Delay(250);
+        }
+
+        throw new TimeoutException(
+            $"Traces for resource '{resourceId}' were not ingested within {timeout}." +
             $"{Environment.NewLine}{lastBody ?? lastException?.Message}");
     }
 
