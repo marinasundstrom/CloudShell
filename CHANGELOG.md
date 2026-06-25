@@ -115,6 +115,10 @@ on `git blame --follow`, and then by the broad type of change.
 - The Resource model proposal now records the revised POC plan and progress
   tracker, focusing on one graph-backed ASP.NET Core project replacement path
   before broad provider porting continues.
+- The Resource model proposal now records the POC objective that, after the
+  ASP.NET Core provider integration works end-to-end, subsequent provider
+  ports should be used to identify architectural baggage, compatibility pain,
+  and model seams that do not contribute to the graph/configuration goal.
 - The Resource model and proposal now describe endpoint contracts, endpoint
   requests, endpoint network mappings, and configured endpoint mappings as
   runtime/networking-owned complex values that can integrate with the graph

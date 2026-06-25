@@ -119,6 +119,18 @@ implementation for that behavior in the current environment.
   inconsistent, make the new Resource model internally consistent around graph
   attributes, provider-owned capabilities, provider-owned operations, explicit
   apply hooks, and Resource Manager dispatch.
+- Use the first working ASP.NET Core project provider integration as the proof
+  point before broadening the port. After that, port the remaining providers as
+  an investigation path: identify architectural baggage, compatibility
+  adapters, old terminology, and boundary pain that do not contribute to the
+  Resource model goal, then simplify or redesign those pieces where the POC
+  exposes concrete evidence.
+- Integrate well with existing Control Plane runtime concerns without making
+  the Resource graph model Control Plane-only. Control Plane and Resource
+  Manager should be able to compose graph projections, capabilities,
+  operations, apply diagnostics, and provider-owned services, while other
+  future hosts or orchestrators can use the same graph/configuration model
+  through their own integration layers.
 - Prevent secrets from being serialized into resource definitions, projected
   attributes, diagnostics, logs, templates, or generated code.
 
@@ -589,6 +601,18 @@ path before more broad provider coverage. The current target is a graph-backed
 ASP.NET Core project resource that can be listed by Resource Manager and
 started through the new Resource model provider seams.
 
+Once that ASP.NET Core path is working end-to-end, the next provider ports
+should be treated as investigation slices as much as implementation slices.
+Each provider should test whether the graph/configuration model integrates
+cleanly with existing Control Plane runtime concerns such as lifecycle,
+materialization, liveness, diagnostics, endpoint mapping, logs, and resource
+manager records. When a port exposes old architectural baggage, duplicated
+provider terminology, compatibility adapters, or abstractions that only exist
+because of the previous application-provider structure, the POC should record
+the pain and either remove it in the slice or add a concrete cleanup task. The
+Resource model should be compatible with Control Plane needs, but it should not
+be limited to Control Plane as its only possible consumer.
+
 Working plan and progress:
 
 | Step | Status | Notes |
@@ -602,7 +626,8 @@ Working plan and progress:
 | Prove the graph-backed project can actually run | Done | An executable-backed integration test starts the ProjectReference API through typed endpoint request attributes on the graph ASP.NET Core provider seam and verifies its `/health` endpoint. |
 | Decide minimal runtime state projection | Done | The bridge can accept an optional runtime-state resolver. `null` remains the neutral no-status case, lifecycle-capable graph resources fall back to `Unknown`, and observed runtime state can enable actions such as Restart without putting runtime loops into the graph model. |
 | Re-evaluate redundant or premature model concepts | Pending | `ResolvedResourceDefinition`, broad graph contexts/transactions, and compatibility adapters should be removed, renamed, or deferred if provider ports do not prove them necessary. Attribute value-state naming now has initial POC coverage for defined/unset and undefined/custom attributes. |
-| Port the next provider | Deferred | Continue only after the ASP.NET Core vertical slice proves the provider seam and exposes any needed model changes. |
+| Use provider ports to find architectural baggage | Pending | After the ASP.NET Core vertical slice works, port the next providers in focused slices and record any old-provider baggage, compatibility pain, duplicated terminology, or model seams that do not help the graph/configuration model integrate with Control Plane runtime concerns. |
+| Port the next provider | Deferred | Continue only after the ASP.NET Core vertical slice proves the provider seam and exposes any needed model changes. Provider selection should favor the next concrete integration question over broad type-count coverage. |
 
 Attribute value-state naming needs one cleanup pass before the model is
 considered stable. `Undefined` should mean "there is no attribute definition
