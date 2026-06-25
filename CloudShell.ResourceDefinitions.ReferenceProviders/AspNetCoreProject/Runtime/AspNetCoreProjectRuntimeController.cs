@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Text;
 
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
@@ -20,6 +19,7 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
 {
     private readonly ConcurrentDictionary<string, Process> _processes = new(
         StringComparer.OrdinalIgnoreCase);
+    private readonly AspNetCoreProjectProcessCommandFactory _commands = new();
 
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(
         Resource resource,
@@ -81,13 +81,7 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
             ]);
         }
 
-        var startInfo = CreateStartInfo(
-            resource,
-            fullProjectPath,
-            useHotReload: GetBoolean(
-                resource,
-                AspNetCoreProjectResourceTypeProvider.Attributes.HotReload,
-                defaultValue: true));
+        var startInfo = _commands.CreateStartInfo(resource, fullProjectPath);
         var process = new Process
         {
             StartInfo = startInfo,
@@ -119,48 +113,6 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
             });
 
         return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
-    }
-
-    private static ProcessStartInfo CreateStartInfo(
-        Resource resource,
-        string fullProjectPath,
-        bool useHotReload)
-    {
-        var arguments = new StringBuilder();
-        if (useHotReload)
-        {
-            arguments.Append("watch --project ");
-            arguments.Append(Quote(fullProjectPath));
-            arguments.Append(" run");
-        }
-        else
-        {
-            arguments.Append("run --project ");
-            arguments.Append(Quote(fullProjectPath));
-        }
-
-        var projectArguments = resource.Attributes.GetString(
-            AspNetCoreProjectResourceTypeProvider.Attributes.ProjectArguments);
-        if (!string.IsNullOrWhiteSpace(projectArguments))
-        {
-            arguments.Append(" -- ");
-            arguments.Append(projectArguments);
-        }
-
-        var startInfo = new ProcessStartInfo("dotnet", arguments.ToString())
-        {
-            WorkingDirectory = Path.GetDirectoryName(fullProjectPath) ?? Directory.GetCurrentDirectory(),
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true
-        };
-        startInfo.Environment[AspNetCoreProjectEnvironmentNames.ResourceId] =
-            resource.EffectiveResourceId;
-        startInfo.Environment[AspNetCoreProjectEnvironmentNames.ResourceName] =
-            resource.Name;
-
-        return startInfo;
     }
 
     private async ValueTask StopAsync(
@@ -248,17 +200,6 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
             DisposeProcess(process);
         }
     }
-
-    private static bool GetBoolean(
-        Resource resource,
-        ResourceAttributeId attributeId,
-        bool defaultValue) =>
-        bool.TryParse(resource.Attributes.GetString(attributeId), out var value)
-            ? value
-            : defaultValue;
-
-    private static string Quote(string value) =>
-        "\"" + value.Replace("\"", "\\\"", StringComparison.Ordinal) + "\"";
 
     private static void DisposeProcess(Process process)
     {
