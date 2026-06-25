@@ -2682,6 +2682,39 @@ exposes a generic in-memory graph registration overload for projected store
 records, so hosts can supply their own Resource Manager-owned row type plus an
 `IResourceGraphStoreProjector<TRecord>`.
 
+Conceptual Resource model layer stack, from outer consumers down to persisted
+data representation:
+
+```mermaid
+flowchart TD
+    integrations["Other integrations<br/>Resource Manager, orchestrators, APIs, UI, tools"]
+    behavior["Capability and operation implementations<br/>provider-owned behavior over resolved resources"]
+    projections["Resource projections<br/>resolved model with effective attributes, capabilities, and operations"]
+    context["Context and snapshot handling<br/>optional caller or Resource Manager concern"]
+    changes["Versioning and applying changes<br/>change tracking, apply providers, commit results"]
+    interchange["Interchange formats<br/>ResourceDefinition and serialized documents"]
+    stateRecord["Resource state record<br/>versioned declarations of attributes, capabilities, operations, references"]
+    transactions["Transaction handling<br/>possible future operational concern"]
+    persistence["Persistence<br/>store-optimized data representation"]
+
+    integrations --> behavior
+    behavior --> projections
+    projections --> context
+    context --> changes
+    changes --> interchange
+    interchange --> stateRecord
+    stateRecord --> transactions
+    transactions --> persistence
+```
+
+This layer stack is conceptual rather than a mandate that every host needs all
+layers. The current POC keeps the core model small: `Resource` is the resolved
+projection, while `ResourceState` and `ResourceRecord` are the versioned
+resource-owned state records that can be persisted. Context, snapshot, and
+transaction handling are intentionally thin or deferred so the model can serve
+in-memory, Resource Manager-owned, centralized, or distributed graph
+projection strategies later without changing provider contracts.
+
 Layered definition, persistence, and projection model:
 
 ```mermaid

@@ -135,6 +135,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Container application reference resources now model `container.registry`,
   and integration coverage includes a ContainerAppDeployment-inspired Docker
   host, registry container, and container app graph.
+- The resource definitions proposal now includes a Resource model layer-stack
+  diagram that separates integrations, behavior, resolved projections,
+  interchange, state records, future transactions, and persistence.
 
 ### 2026-06-24
 
