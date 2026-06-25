@@ -1,6 +1,7 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
-public sealed class AspNetCoreProjectResourceTypeProvider :
+public sealed class AspNetCoreProjectResourceTypeProvider(
+    IAspNetCoreProjectRuntimeController? runtimeController = null) :
     IResourceTypeProvider,
     IResourceChangeApplyProvider,
     IResourceDefinitionApplyProvider
@@ -28,6 +29,9 @@ public sealed class AspNetCoreProjectResourceTypeProvider :
     }
 
     public ResourceTypeId TypeId => ResourceTypeId;
+
+    private readonly IAspNetCoreProjectRuntimeController _runtimeController =
+        runtimeController ?? new NoopAspNetCoreProjectRuntimeController();
 
     public ResourceTypeDefinition TypeDefinition { get; } = new(
         ResourceTypeId,
@@ -86,6 +90,7 @@ public sealed class AspNetCoreProjectResourceTypeProvider :
         ValidateProjectPath(
             changes.ProposedState.ResourceAttributes.GetValueOrDefault(Attributes.ProjectPath),
             diagnostics);
+        AddRestartRequiredDiagnostic(changes, diagnostics);
 
         return ValueTask.FromResult(diagnostics.Any(diagnostic =>
             diagnostic.Severity == ResourceDefinitionDiagnosticSeverity.Error)
@@ -116,6 +121,31 @@ public sealed class AspNetCoreProjectResourceTypeProvider :
                     $"Materialize ASP.NET Core project resource '{resource.Name}'.")
             ],
             []));
+
+    private void AddRestartRequiredDiagnostic(
+        ResourceChangeSet changes,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        if (changes.IsNewResource ||
+            !RequiresRestart(changes) ||
+            _runtimeController.GetStatus(changes.Resource) != AspNetCoreProjectRuntimeStatus.Running)
+        {
+            return;
+        }
+
+        diagnostics.Add(ResourceDefinitionDiagnostic.Warning(
+            "application.aspNetCoreProject.restartRequired",
+            "The ASP.NET Core project graph change was saved, but the running project must be restarted before it materializes the changed runtime configuration.",
+            changes.Resource.EffectiveResourceId));
+    }
+
+    private static bool RequiresRestart(ResourceChangeSet changes) =>
+        changes.AttributeChanges.Any(change =>
+            change.AttributeId == Attributes.ProjectPath ||
+            change.AttributeId == Attributes.ProjectArguments ||
+            change.AttributeId == Attributes.HotReload ||
+            change.AttributeId == Attributes.UseLaunchSettings ||
+            change.AttributeId == Attributes.EndpointRequests);
 
     private static void ValidateProjectPath(
         string? projectPath,

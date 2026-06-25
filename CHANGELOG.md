@@ -675,6 +675,10 @@ on `git blame --follow`, and then by the broad type of change.
   resource is running, or save the same proposed graph change while reporting
   that the resource type requires restart before the live resource
   materializes it.
+- ASP.NET Core project graph apply now reports a restart-required diagnostic
+  when runtime-shaping project attributes are changed while the project is
+  running, keeping the saved graph configuration separate from live resource
+  materialization.
 - The resource definitions POC now supports explicit create-missing behavior
   for deployment-definition apply flows, representing new resources as graph
   change sets and routing their initial state through type-owned apply

@@ -1516,6 +1516,71 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AcceptsAspNetCoreProjectChangeWithRestartWarningWhenRunning()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        var runtimeController = new RecordingAspNetCoreProjectRuntimeController
+        {
+            Status = AspNetCoreProjectRuntimeStatus.Stopped
+        };
+        services.AddSingleton<IAspNetCoreProjectRuntimeController>(runtimeController);
+        services.AddAspNetCoreProjectResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var initial = new ResourceDefinition(
+            "api",
+            AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
+            ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] = "src/Api/Api.csproj",
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectArguments] = "--urls http://localhost:5010"
+            });
+
+        var created = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "project-app",
+                [initial],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 22, 15, 0, TimeSpan.Zero)));
+        runtimeController.Status = AspNetCoreProjectRuntimeStatus.Running;
+
+        var changed = await service.ApplyDefinitionsAsync(
+            [
+                initial with
+                {
+                    Attributes = new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+                    {
+                        [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] =
+                            "src/Api/Api.csproj",
+                        [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectArguments] =
+                            "--urls http://localhost:5011"
+                    }
+                }
+            ],
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 22, 20, 0, TimeSpan.Zero)));
+
+        Assert.False(created.HasErrors, FormatDiagnostics(created.Diagnostics));
+        Assert.True(created.IsCommitted);
+        Assert.False(changed.HasErrors, FormatDiagnostics(changed.Diagnostics));
+        Assert.True(changed.IsCommitted);
+        var warning = Assert.Single(changed.Diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticSeverity.Warning, warning.Severity);
+        Assert.Equal("application.aspNetCoreProject.restartRequired", warning.Code);
+
+        var committed = Assert.Single(changed.Commit.Snapshot!.Resources);
+        Assert.Equal(new ResourceGraphVersion(2), changed.Commit.Version);
+        Assert.Equal("--urls http://localhost:5011", committed.ResourceAttributes[
+            AspNetCoreProjectResourceTypeProvider.Attributes.ProjectArguments]);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesContainerHostAcrossProviderBoundaries()
     {
         var services = new ServiceCollection();
@@ -4694,8 +4759,11 @@ public sealed class ResourceManagerIntegrationTests
         public IReadOnlyList<(string ResourceId, ResourceOperationId OperationId)> ExecutedOperations =>
             _executedOperations;
 
-        public AspNetCoreProjectRuntimeStatus GetStatus(Resource resource) =>
+        public AspNetCoreProjectRuntimeStatus Status { get; set; } =
             AspNetCoreProjectRuntimeStatus.Running;
+
+        public AspNetCoreProjectRuntimeStatus GetStatus(Resource resource) =>
+            Status;
 
         public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(
             Resource resource,
