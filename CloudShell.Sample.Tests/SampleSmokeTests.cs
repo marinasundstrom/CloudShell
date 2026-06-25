@@ -1579,6 +1579,16 @@ public sealed class SampleSmokeTests
             grant =>
                 grant.GetProperty("targetResourceId").GetString() == "configuration:sample-app" &&
                 grant.GetProperty("permission").GetString() == ConfigurationStoreResourceOperationPermissions.ReadEntries);
+        Assert.Contains(
+            grants,
+            grant =>
+                grant.GetProperty("targetResourceId").GetString() == "secrets.vault:graph-sample-app" &&
+                grant.GetProperty("permission").GetString() == SecretsVaultResourceOperationPermissions.ReadSecrets);
+        Assert.Contains(
+            grants,
+            grant =>
+                grant.GetProperty("targetResourceId").GetString() == "configuration.store:graph-sample-app" &&
+                grant.GetProperty("permission").GetString() == ConfigurationStoreResourceOperationPermissions.ReadEntries);
 
         var provisioning = await host.GetStringAsync(
             "/api/control-plane/v1/resources/application%3Asettings-secrets-api/identity/provisioning-status");
@@ -1662,6 +1672,8 @@ public sealed class SampleSmokeTests
         var apiEndpoint = GetPrimaryEndpointAddress(api);
         var settingsEndpoint = GetEndpointAddress(settings, "entries");
         var secretsEndpoint = GetEndpointAddress(secrets, "secrets");
+        var graphSettingsEndpoint = GetEndpointAddress(graphSettings, "entries");
+        var graphSecretsEntriesEndpoint = GetEndpointAddress(graphSecrets, "secrets");
         await host.WaitForAbsoluteHttpOkAsync(
             $"{apiEndpoint.TrimEnd('/')}/configuration",
             null,
@@ -1669,6 +1681,11 @@ public sealed class SampleSmokeTests
         await host.WaitForAbsoluteHttpOkAsync(settingsEndpoint, resourceToken, StartupTimeout);
         await host.WaitForAbsoluteHttpOkAsync(
             $"{secretsEndpoint.TrimEnd('/')}/sample-api-key",
+            resourceToken,
+            StartupTimeout);
+        await host.WaitForAbsoluteHttpOkAsync(graphSettingsEndpoint, resourceToken, StartupTimeout);
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"{graphSecretsEntriesEndpoint.TrimEnd('/')}/sample-api-key",
             resourceToken,
             StartupTimeout);
 
@@ -1688,12 +1705,33 @@ public sealed class SampleSmokeTests
             "local-development-api-key",
             secretDocument.RootElement.GetProperty("value").GetString());
 
+        var graphSettingsJson = await host.GetAbsoluteStringAsync(
+            graphSettingsEndpoint,
+            resourceToken);
+        using var graphSettingsDocument = JsonDocument.Parse(graphSettingsJson);
+        Assert.Contains(
+            graphSettingsDocument.RootElement.EnumerateArray(),
+            entry =>
+                entry.GetProperty("name").GetString() == "Sample:Message" &&
+                entry.GetProperty("value").GetString() == "Hello from a graph configuration entry");
+
+        var graphSecretJson = await host.GetAbsoluteStringAsync(
+            $"{graphSecretsEntriesEndpoint.TrimEnd('/')}/sample-api-key",
+            resourceToken);
+        using var graphSecretDocument = JsonDocument.Parse(graphSecretJson);
+        Assert.Equal(
+            "graph-local-development-api-key",
+            graphSecretDocument.RootElement.GetProperty("value").GetString());
+
         var apiConfigurationJson = await host.GetAbsoluteStringAsync(
             $"{apiEndpoint.TrimEnd('/')}/configuration");
         using var apiConfigurationDocument = JsonDocument.Parse(apiConfigurationJson);
         Assert.Equal(
             "connected",
             apiConfigurationDocument.RootElement.GetProperty("status").GetString());
+        Assert.Equal(
+            graphSettingsEndpoint,
+            apiConfigurationDocument.RootElement.GetProperty("source").GetString());
         var apiEntries = apiConfigurationDocument.RootElement
             .GetProperty("entries")
             .EnumerateArray()
@@ -1702,7 +1740,7 @@ public sealed class SampleSmokeTests
             apiEntries,
             entry =>
                 entry.GetProperty("name").GetString() == "Sample:Message" &&
-                entry.GetProperty("value").GetString() == "Hello from a configuration entry");
+                entry.GetProperty("value").GetString() == "Hello from a graph configuration entry");
 
         var serviceDiscoveryJson = await host.GetAbsoluteStringAsync(
             $"{apiEndpoint.TrimEnd('/')}/service-discovery/configuration");
@@ -1730,7 +1768,10 @@ public sealed class SampleSmokeTests
             "connected",
             apiSecretDocument.RootElement.GetProperty("status").GetString());
         Assert.Equal(
-            "local-development-api-key",
+            graphSecretsEntriesEndpoint,
+            apiSecretDocument.RootElement.GetProperty("source").GetString());
+        Assert.Equal(
+            "graph-local-development-api-key",
             apiSecretDocument.RootElement.GetProperty("value").GetString());
     }
 

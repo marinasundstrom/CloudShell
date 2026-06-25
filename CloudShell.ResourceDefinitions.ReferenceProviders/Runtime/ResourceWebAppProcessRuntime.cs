@@ -25,6 +25,9 @@ internal sealed record ResourceWebAppProcessOptions(
         Path.GetTempPath(),
         "CloudShell.ResourceDefinitions",
         "Runtime");
+
+    public IReadOnlyDictionary<string, string> EnvironmentVariables { get; init; } =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 }
 
 internal sealed class ResourceWebAppProcessRuntime :
@@ -161,6 +164,13 @@ internal sealed class ResourceWebAppProcessRuntime :
         startInfo.ArgumentList.Add(endpoint);
         startInfo.Environment[options.DefinitionsEnvironmentVariable] = definitionsPath;
         startInfo.Environment[options.ResourceIdEnvironmentVariable] = resource.EffectiveResourceId;
+        foreach (var (name, value) in options.EnvironmentVariables)
+        {
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                startInfo.Environment[name] = value;
+            }
+        }
 
         var process = new Process
         {

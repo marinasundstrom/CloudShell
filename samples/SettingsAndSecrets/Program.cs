@@ -45,6 +45,10 @@ var graphSecretsServiceEndpoint = builder.Configuration["Samples:SettingsAndSecr
     $"http://localhost:{secretsServiceBasePort}";
 const string graphSettingsResourceId = "configuration.store:graph-sample-app";
 const string graphSecretsResourceId = "secrets.vault:graph-sample-app";
+var graphConfigurationEntriesEndpoint =
+    $"{graphConfigurationServiceEndpoint.TrimEnd('/')}/api/configuration/stores/{Uri.EscapeDataString(graphSettingsResourceId)}/entries";
+var graphSecretsEndpoint =
+    $"{graphSecretsServiceEndpoint.TrimEnd('/')}/api/secrets/vaults/{Uri.EscapeDataString(graphSecretsResourceId)}/secrets";
 builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 {
     ["Authentication:BuiltInAuthority:Enabled"] = "true",
@@ -59,12 +63,27 @@ builder.Services
     .AddSingleton(new ConfigurationStoreRuntimeOptions
     {
         ServiceProjectPath = configurationStoreServiceProjectPath,
-        ServiceWorkingDirectory = repositoryRootPath
+        ServiceWorkingDirectory = repositoryRootPath,
+        ServiceAuthenticationIssuer = identityIssuer,
+        ServiceAuthenticationAudience = identityAudience,
+        ServiceAuthenticationSigningKeyPem = identitySigningKeyPem,
+        Entries =
+        {
+            new("Sample:Message", "Hello from a graph configuration entry"),
+            new("Sample:Mode", "Graph")
+        }
     })
     .AddSingleton(new SecretsVaultRuntimeOptions
     {
         ServiceProjectPath = secretsVaultServiceProjectPath,
-        ServiceWorkingDirectory = repositoryRootPath
+        ServiceWorkingDirectory = repositoryRootPath,
+        ServiceAuthenticationIssuer = identityIssuer,
+        ServiceAuthenticationAudience = identityAudience,
+        ServiceAuthenticationSigningKeyPem = identitySigningKeyPem,
+        Secrets =
+        {
+            new("sample-api-key", "graph-local-development-api-key")
+        }
     })
     .AddInMemoryResourceModelGraph(
     [
@@ -170,18 +189,26 @@ cloudShell.Resources(resources =>
         .WithEnvironment("SAMPLE_MESSAGE", settings.Entry("Sample:Message"))
         .WithEnvironment("SAMPLE_MODE", settings.Entry("Sample:Mode"))
         .WithEnvironment("SAMPLE_API_KEY", secrets.Secret("sample-api-key"))
+        .WithEnvironment("CLOUDSHELL_CONFIGURATION_SERVICE_NAME", "graph-sample-app")
+        .WithEnvironment("CLOUDSHELL_CONFIGURATION_GRAPH_SAMPLE_APP_STORE_ID", graphSettingsResourceId)
+        .WithEnvironment("CLOUDSHELL_CONFIGURATION_GRAPH_SAMPLE_APP_ENDPOINT", graphConfigurationEntriesEndpoint)
+        .WithEnvironment("CLOUDSHELL_SECRETS_VAULT_NAME", "graph-sample-app")
+        .WithEnvironment("CLOUDSHELL_SECRETS_GRAPH_SAMPLE_APP_VAULT_ID", graphSecretsResourceId)
+        .WithEnvironment("CLOUDSHELL_SECRETS_GRAPH_SAMPLE_APP_ENDPOINT", graphSecretsEndpoint)
         .WithAutoStart(false)
         .ProvisionIdentityOnStartup();
 
     secrets.Allow(api.Principal, SecretsVaultResourceOperationPermissions.ReadSecrets);
     settings.Allow(api.Principal, ConfigurationStoreResourceOperationPermissions.ReadEntries);
 
-    resources.Declare(
+    var graphSettings = resources.Declare(
         ResourceModelResourceProvider.DefaultProviderId,
         graphSettingsResourceId);
-    resources.Declare(
+    var graphSecrets = resources.Declare(
         ResourceModelResourceProvider.DefaultProviderId,
         graphSecretsResourceId);
+    graphSettings.Allow(api.Principal, ConfigurationStoreResourceOperationPermissions.ReadEntries);
+    graphSecrets.Allow(api.Principal, SecretsVaultResourceOperationPermissions.ReadSecrets);
 });
 
 var app = builder.Build();

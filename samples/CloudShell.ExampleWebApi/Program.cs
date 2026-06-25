@@ -3,8 +3,18 @@ using CloudShell.Configuration.Client;
 using CloudShell.Secrets.Client;
 
 var builder = CloudShellApplication.CreateBuilder(args);
-builder.Configuration.AddCloudShellConfigurationStore();
-builder.Configuration.AddCloudShellSecretsVault();
+var configurationStoreServiceName = Environment.GetEnvironmentVariable(
+    "CLOUDSHELL_CONFIGURATION_SERVICE_NAME");
+var secretsVaultName = Environment.GetEnvironmentVariable(
+    "CLOUDSHELL_SECRETS_VAULT_NAME");
+builder.Configuration.AddCloudShellConfigurationStore(options =>
+{
+    options.ServiceName = configurationStoreServiceName;
+});
+builder.Configuration.AddCloudShellSecretsVault(options =>
+{
+    options.VaultName = secretsVaultName;
+});
 builder.Services.AddServiceDiscovery();
 builder.Services.AddHttpClient();
 builder.Services.ConfigureHttpClientDefaults(http =>
@@ -231,8 +241,12 @@ static void LogProviderStatus(
 sealed class CloudShellServiceClients(CloudShellResourceCredential credential)
 {
     public ConfigurationStoreClient CreateConfigurationStoreClient() =>
-        ConfigurationStoreClient.FromEnvironment(credential);
+        ConfigurationStoreClient.FromEnvironment(
+            credential,
+            Environment.GetEnvironmentVariable("CLOUDSHELL_CONFIGURATION_SERVICE_NAME"));
 
     public SecretsVaultClient CreateSecretsVaultClient() =>
-        SecretsVaultClient.FromEnvironment(credential);
+        SecretsVaultClient.FromEnvironment(
+            credential,
+            Environment.GetEnvironmentVariable("CLOUDSHELL_SECRETS_VAULT_NAME"));
 }

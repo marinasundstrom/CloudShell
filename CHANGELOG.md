@@ -45,6 +45,10 @@ on `git blame --follow`, and then by the broad type of change.
   start, stop, and restart operations backed by provider-local process
   controllers that run the existing service web apps, with SettingsAndSecrets
   smoke coverage proving backing-service startup and health/liveness refresh.
+- SettingsAndSecrets now seeds provider-owned graph-backed Configuration Store
+  entries and Secrets Vault secrets into the backing services, grants the
+  sample API identity access to those graph resources, and verifies the API can
+  read configuration and secrets through the graph-backed endpoints.
 - Docker container reference resources now mark `endpoints.count` as read-only
   provider-projected state, so deployment definitions cannot author endpoint
   counts while resolved Resource projections still expose the default count.

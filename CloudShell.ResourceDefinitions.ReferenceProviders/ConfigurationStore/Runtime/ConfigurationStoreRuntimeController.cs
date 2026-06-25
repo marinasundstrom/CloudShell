@@ -13,7 +13,20 @@ public sealed class ConfigurationStoreRuntimeOptions
         "ConfigurationStore");
 
     public TimeSpan StartupTimeout { get; set; } = TimeSpan.FromSeconds(60);
+
+    public IList<ConfigurationStoreRuntimeEntry> Entries { get; } = [];
+
+    public string? ServiceAuthenticationIssuer { get; set; }
+
+    public string? ServiceAuthenticationAudience { get; set; }
+
+    public string? ServiceAuthenticationSigningKeyPem { get; set; }
 }
+
+public sealed record ConfigurationStoreRuntimeEntry(
+    string Name,
+    string Value,
+    bool IsSecret = false);
 
 public interface IConfigurationStoreRuntimeController
 {
@@ -54,7 +67,8 @@ public sealed class ConfigurationStoreProcessRuntimeController(
                 _options.StartupTimeout)
             {
                 ServiceWorkingDirectory = _options.ServiceWorkingDirectory,
-                DefinitionsDirectory = _options.DefinitionsDirectory
+                DefinitionsDirectory = _options.DefinitionsDirectory,
+                EnvironmentVariables = CreateEnvironmentVariables(_options)
             },
             CreateDefinition,
             "configuration.store",
@@ -67,7 +81,7 @@ public sealed class ConfigurationStoreProcessRuntimeController(
     public void Dispose() =>
         _runtime.Dispose();
 
-    private static object CreateDefinition(
+    private object CreateDefinition(
         Resource resource,
         string? endpoint) =>
         new
@@ -76,9 +90,49 @@ public sealed class ConfigurationStoreProcessRuntimeController(
             name = resource.Name,
             displayName = resource.State.DisplayName,
             endpoint,
-            entries = Array.Empty<object>(),
+            entries = _options.Entries.Select(entry => new
+            {
+                entry.Name,
+                entry.Value,
+                entry.IsSecret
+            }).ToArray(),
             healthChecks = Array.Empty<object>()
         };
+
+    private static IReadOnlyDictionary<string, string> CreateEnvironmentVariables(
+        ConfigurationStoreRuntimeOptions options)
+    {
+        var variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Authentication__BuiltInAuthority__Enabled"] = "true"
+        };
+
+        AddIfNotWhiteSpace(
+            variables,
+            "Authentication__BuiltInAuthority__Issuer",
+            options.ServiceAuthenticationIssuer);
+        AddIfNotWhiteSpace(
+            variables,
+            "Authentication__BuiltInAuthority__Audience",
+            options.ServiceAuthenticationAudience);
+        AddIfNotWhiteSpace(
+            variables,
+            "Authentication__BuiltInAuthority__SigningKeyPem",
+            options.ServiceAuthenticationSigningKeyPem);
+
+        return variables;
+    }
+
+    private static void AddIfNotWhiteSpace(
+        IDictionary<string, string> variables,
+        string name,
+        string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            variables[name] = value;
+        }
+    }
 }
 
 public sealed class NoopConfigurationStoreRuntimeController :
