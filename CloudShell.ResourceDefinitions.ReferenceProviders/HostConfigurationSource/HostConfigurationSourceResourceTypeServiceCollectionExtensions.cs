@@ -30,6 +30,9 @@ public static class HostConfigurationSourceResourceTypeServiceCollectionExtensio
             ServiceDescriptor.Singleton<IResourceOperationProjector, HostConfigurationSourceInspectOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, HostConfigurationSourceResourceProjectionProvider>());
+        services.TryAddSingleton<
+            IHostConfigurationSourceInspector,
+            NoopHostConfigurationSourceInspector>();
 
         return services;
     }

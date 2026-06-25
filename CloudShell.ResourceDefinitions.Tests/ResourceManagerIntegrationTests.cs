@@ -1676,6 +1676,8 @@ public sealed class ResourceManagerIntegrationTests
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph();
+        var inspector = new RecordingHostConfigurationSourceInspector();
+        services.AddSingleton<IHostConfigurationSourceInspector>(inspector);
         services.AddHostConfigurationSourceResourceType();
         services.AddResourceModelGraphServices();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
@@ -1739,6 +1741,7 @@ public sealed class ResourceManagerIntegrationTests
         var procedureResult = await provider.ExecuteActionAsync(procedure, inspect);
 
         Assert.Equal("Executed Configuration Host Inspect for host-settings.", procedureResult.Message);
+        Assert.Equal([hostConfiguration.EffectiveResourceId], inspector.InspectedResourceIds);
     }
 
     [Fact]
@@ -4386,6 +4389,23 @@ public sealed class ResourceManagerIntegrationTests
 
     private sealed class RecordingSecretsVaultInspector :
         ISecretsVaultInspector
+    {
+        private readonly List<string> _inspectedResourceIds = [];
+
+        public IReadOnlyList<string> InspectedResourceIds => _inspectedResourceIds;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> InspectAsync(
+            Resource resource,
+            CancellationToken cancellationToken = default)
+        {
+            _inspectedResourceIds.Add(resource.EffectiveResourceId);
+
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+    }
+
+    private sealed class RecordingHostConfigurationSourceInspector :
+        IHostConfigurationSourceInspector
     {
         private readonly List<string> _inspectedResourceIds = [];
 

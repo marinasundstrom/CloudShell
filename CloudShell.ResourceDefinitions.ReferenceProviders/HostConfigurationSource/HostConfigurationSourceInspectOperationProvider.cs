@@ -1,9 +1,29 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
-public sealed class HostConfigurationSourceInspectOperationProvider :
+public interface IHostConfigurationSourceInspector
+{
+    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> InspectAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed class NoopHostConfigurationSourceInspector :
+    IHostConfigurationSourceInspector
+{
+    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> InspectAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+}
+
+public sealed class HostConfigurationSourceInspectOperationProvider(
+    IHostConfigurationSourceInspector? inspector = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
+    private readonly IHostConfigurationSourceInspector _inspector =
+        inspector ?? new NoopHostConfigurationSourceInspector();
+
     public ResourceOperationId OperationId =>
         HostConfigurationSourceResourceTypeProvider.Operations.Inspect;
 
@@ -36,14 +56,18 @@ public sealed class HostConfigurationSourceInspectOperationProvider :
         ValueTask.FromResult<IResourceOperationProjection>(
             new HostConfigurationSourceInspectOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
-                operation));
+                operation,
+                _inspector));
 }
 
 public sealed class HostConfigurationSourceInspectOperation(
     ResourceProjectionExecutionContext context,
-    ResourceOperationResolution operation) : IResourceOperationExecutorProjection
+    ResourceOperationResolution operation,
+    IHostConfigurationSourceInspector inspector) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
+
+    private readonly IHostConfigurationSourceInspector _inspector = inspector;
 
     public Resource Resource => Context.Resource;
 
@@ -81,10 +105,14 @@ public sealed class HostConfigurationSourceInspectOperation(
                 ]);
         }
 
+        var diagnostics = await _inspector.InspectAsync(
+            Resource,
+            cancellationToken);
+
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            []);
+            diagnostics);
     }
 
     private static int GetEntryCount(Resource resource) =>
