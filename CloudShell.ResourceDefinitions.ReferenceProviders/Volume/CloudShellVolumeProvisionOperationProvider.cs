@@ -1,9 +1,29 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
-public sealed class CloudShellVolumeProvisionOperationProvider :
+public interface ICloudShellVolumeProvisioner
+{
+    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ProvisionAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed class NoopCloudShellVolumeProvisioner :
+    ICloudShellVolumeProvisioner
+{
+    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ProvisionAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+}
+
+public sealed class CloudShellVolumeProvisionOperationProvider(
+    ICloudShellVolumeProvisioner? provisioner = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
+    private readonly ICloudShellVolumeProvisioner _provisioner =
+        provisioner ?? new NoopCloudShellVolumeProvisioner();
+
     public ResourceOperationId OperationId =>
         CloudShellVolumeResourceTypeProvider.Operations.Provision;
 
@@ -50,14 +70,18 @@ public sealed class CloudShellVolumeProvisionOperationProvider :
         ValueTask.FromResult<IResourceOperationProjection>(
             new CloudShellVolumeProvisionOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
-                operation));
+                operation,
+                _provisioner));
 }
 
 public sealed class CloudShellVolumeProvisionOperation(
     ResourceProjectionExecutionContext context,
-    ResourceOperationResolution operation) : IResourceOperationExecutorProjection
+    ResourceOperationResolution operation,
+    ICloudShellVolumeProvisioner provisioner) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
+
+    private readonly ICloudShellVolumeProvisioner _provisioner = provisioner;
 
     public Resource Resource => Context.Resource;
 
@@ -100,10 +124,14 @@ public sealed class CloudShellVolumeProvisionOperation(
                 ]);
         }
 
+        var diagnostics = await _provisioner.ProvisionAsync(
+            Resource,
+            cancellationToken);
+
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            []);
+            diagnostics);
     }
 
     internal static bool HasRequiredState(Resource resource) =>

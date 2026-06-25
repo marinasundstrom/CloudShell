@@ -32,6 +32,9 @@ public static class CloudShellVolumeResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, CloudShellVolumeProvisionOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, CloudShellVolumeResourceProjectionProvider>());
+        services.TryAddSingleton<
+            ICloudShellVolumeProvisioner,
+            NoopCloudShellVolumeProvisioner>();
 
         return services;
     }

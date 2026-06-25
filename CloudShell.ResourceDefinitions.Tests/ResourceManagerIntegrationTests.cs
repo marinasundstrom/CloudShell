@@ -2732,6 +2732,8 @@ public sealed class ResourceManagerIntegrationTests
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph();
+        var provisioner = new RecordingCloudShellVolumeProvisioner();
+        services.AddSingleton<ICloudShellVolumeProvisioner>(provisioner);
         services.AddStorageResourceType();
         services.AddCloudShellVolumeResourceType();
         services.AddResourceModelGraphServices();
@@ -2828,6 +2830,7 @@ public sealed class ResourceManagerIntegrationTests
         var procedureResult = await provider.ExecuteActionAsync(procedure, provision);
 
         Assert.Equal("Executed Storage Volume Provision for data.", procedureResult.Message);
+        Assert.Equal([volume.EffectiveResourceId], provisioner.ProvisionedResourceIds);
     }
 
     [Fact]
@@ -4266,6 +4269,23 @@ public sealed class ResourceManagerIntegrationTests
 
     private sealed class RecordingLocalVolumeProvisioner :
         ILocalVolumeProvisioner
+    {
+        private readonly List<string> _provisionedResourceIds = [];
+
+        public IReadOnlyList<string> ProvisionedResourceIds => _provisionedResourceIds;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ProvisionAsync(
+            Resource resource,
+            CancellationToken cancellationToken = default)
+        {
+            _provisionedResourceIds.Add(resource.EffectiveResourceId);
+
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+    }
+
+    private sealed class RecordingCloudShellVolumeProvisioner :
+        ICloudShellVolumeProvisioner
     {
         private readonly List<string> _provisionedResourceIds = [];
 
