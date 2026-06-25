@@ -134,6 +134,10 @@ on `git blame --follow`, and then by the broad type of change.
   balancer operation code now lives under provider-local `Operations/`
   folders, and their runtime reconcile/apply seams live under provider-local
   `Runtime/` folders.
+- Executable application, ASP.NET Core project, container application, and
+  Docker container operation code now lives under provider-local `Operations/`
+  folders, and the executable runtime-controller seam lives under
+  `ExecutableApplication/Runtime/`.
 - Resource graph records now have test coverage proving typed
   `ResourceReference` dependencies survive the record persistence projection.
 - `ResourceReference` now has JSON round-trip coverage for expected resource
