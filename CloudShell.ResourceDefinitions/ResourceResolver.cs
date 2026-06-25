@@ -268,17 +268,25 @@ public sealed class ResourceResolver
 
         foreach (var (name, value) in attributes)
         {
+            target.TryGetValue(name, out var inherited);
+            var isDefined = inherited?.IsDefined == true;
             var readOnly =
-                target.TryGetValue(name, out var inherited) && inherited.ReadOnly ||
+                inherited?.ReadOnly == true ||
                 readOnlyAttributes?.Contains(name) == true;
             var mutability =
-                target.TryGetValue(name, out inherited)
-                    ? inherited.Mutability
+                isDefined
+                    ? inherited!.Mutability
                     : attributeMutability is not null &&
                         attributeMutability.TryGetValue(name, out var configuredMutability)
                             ? configuredMutability
                             : ResourceAttributeMutability.CallerManaged;
-            target[name] = new(name, value, source, readOnly, mutability);
+            target[name] = new(
+                name,
+                value,
+                source,
+                readOnly,
+                mutability,
+                IsDefined: isDefined);
         }
     }
 
@@ -343,18 +351,30 @@ public sealed class ResourceResolver
 
         foreach (var (name, attributeDefinition) in attributeDefinitions)
         {
-            if (attributeDefinition.DefaultValue is null ||
-                !attributeDefinition.DefaultValue.TryGetScalarString(out var value))
+            string? value = null;
+            if (attributeDefinition.DefaultValue is not null &&
+                attributeDefinition.DefaultValue.TryGetScalarString(out var defaultValue))
             {
-                continue;
+                value = defaultValue;
             }
+
+            var valueSource =
+                value is null &&
+                target.TryGetValue(name, out var inherited) &&
+                inherited.IsSet
+                    ? inherited.Source
+                    : source;
+            value ??= target.TryGetValue(name, out inherited)
+                ? inherited.Value
+                : null;
 
             target[name] = new(
                 name,
                 value,
-                source,
+                valueSource,
                 attributeDefinition.ReadOnly == true,
-                attributeDefinition.Mutability ?? ResourceAttributeMutability.CallerManaged);
+                attributeDefinition.Mutability ?? ResourceAttributeMutability.CallerManaged,
+                IsDefined: true);
         }
     }
 

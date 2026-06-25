@@ -31,10 +31,14 @@ public sealed class ResourceAttributeSet : IReadOnlyCollection<ResourceAttribute
 
 public sealed record ResourceAttributeResolution(
     ResourceAttributeId Name,
-    string Value,
+    string? Value,
     ResourceDefinitionValueSource Source,
     bool ReadOnly = false,
-    ResourceAttributeMutability Mutability = ResourceAttributeMutability.CallerManaged);
+    ResourceAttributeMutability Mutability = ResourceAttributeMutability.CallerManaged,
+    bool IsDefined = true)
+{
+    public bool IsSet => Value is not null;
+}
 
 public sealed class ResourceCapabilitySet : IReadOnlyCollection<ResourceCapabilityResolution>
 {

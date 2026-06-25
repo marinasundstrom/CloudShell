@@ -81,10 +81,12 @@ public static class ResourceModelResourceManagerMapper
     private static Dictionary<string, string> ToResourceManagerAttributes(
         ResourceModelResource resource)
     {
-        var attributes = resource.Attributes.ToDictionary(
-            attribute => attribute.Name.ToString(),
-            attribute => attribute.Value,
-            StringComparer.OrdinalIgnoreCase);
+        var attributes = resource.Attributes
+            .Where(attribute => attribute.IsSet)
+            .ToDictionary(
+                attribute => attribute.Name.ToString(),
+                attribute => attribute.Value!,
+                StringComparer.OrdinalIgnoreCase);
 
         attributes[ResourceAttributeNames.ResourceGraphMembership] = ResourceGraphMembershipKinds.Declared;
 

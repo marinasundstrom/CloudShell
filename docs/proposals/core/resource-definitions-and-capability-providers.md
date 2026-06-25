@@ -600,7 +600,7 @@ Working plan and progress:
 | Keep ASP.NET Core runtime behavior provider-local | Done | The runtime controller starts from resolved graph attributes, and command construction now honors project path, arguments, hot reload, launch-settings, environment, process lifetime, and diagnostics inside the ASP.NET Core provider boundary. |
 | Prove the graph-backed project can actually run | Done | An executable-backed integration test starts the ProjectReference API through the graph ASP.NET Core provider seam and verifies its `/health` endpoint. |
 | Decide minimal runtime state projection | Done | The bridge can accept an optional runtime-state resolver. `null` remains the neutral no-status case, lifecycle-capable graph resources fall back to `Unknown`, and observed runtime state can enable actions such as Restart without putting runtime loops into the graph model. |
-| Re-evaluate redundant or premature model concepts | Pending | `ResolvedResourceDefinition`, broad graph contexts/transactions, compatibility adapters, and attribute value-state naming should be removed, renamed, or deferred if provider ports do not prove them necessary. |
+| Re-evaluate redundant or premature model concepts | Pending | `ResolvedResourceDefinition`, broad graph contexts/transactions, and compatibility adapters should be removed, renamed, or deferred if provider ports do not prove them necessary. Attribute value-state naming now has initial POC coverage for defined/unset and undefined/custom attributes. |
 | Port the next provider | Deferred | Continue only after the ASP.NET Core vertical slice proves the provider seam and exposes any needed model changes. |
 
 Attribute value-state naming needs one cleanup pass before the model is
@@ -626,6 +626,14 @@ attributes with unset values. Validation can stay permissive for neutral
 custom namespaces while warning or rejecting unknown attributes in reserved
 provider or CloudShell namespaces where an unknown id is more likely to be a
 schema error.
+The POC now reflects this distinction in `ResourceAttributeResolution`:
+`IsDefined` indicates whether the attribute id came from a resolved
+class/type definition, and `IsSet` indicates whether the resolved resource has
+an actual string value. Class/type attributes without defaults resolve as
+defined but unset. Resource-state attributes without class/type definitions
+resolve as undefined/custom but set. Projections that need concrete
+id/string maps, such as the Resource Manager bridge, should include only set
+attributes.
 
 The bridge project should own registration helpers for this integration seam.
 Hosts can register a graph-backed Resource model provider as an existing

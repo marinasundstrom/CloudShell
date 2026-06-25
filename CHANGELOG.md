@@ -97,6 +97,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The Resource model proposal now clarifies that an unset defined attribute can
   represent no projected status value, while `Unknown` is an explicit projected
   value for resources that participate in a status surface.
+- Resource attribute resolution now distinguishes defined/unset attributes
+  from undefined/custom attributes, and Resource Manager bridge projections
+  omit unset attributes from concrete id/string attribute maps.
 - The Resource model proposal now records the POC objective that existing
   providers are behavioral references, while the new model should resolve old
   inconsistencies through consistent graph attributes, provider-owned

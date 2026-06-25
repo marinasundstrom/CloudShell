@@ -153,6 +153,69 @@ public sealed class ResourceResolverTests
     }
 
     [Fact]
+    public void Resolve_KeepsDefinedAttributeUnsetWhenNoValueOrDefaultExists()
+    {
+        var resolver = new ResourceResolver(
+            [
+                new(ExecutableApplicationResourceTypeProvider.ClassId)
+            ],
+            [
+                new(
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    ExecutableApplicationResourceTypeProvider.ClassId,
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                    {
+                        ["runtime.status"] = new(
+                            ValueType: ResourceAttributeValueType.String)
+                    })
+            ]);
+        var definition = new ResourceDefinition(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId);
+
+        var resolved = resolver.Resolve(definition);
+        var attribute = resolved.Attributes.Resolve("runtime.status");
+
+        Assert.NotNull(attribute);
+        Assert.True(attribute.IsDefined);
+        Assert.False(attribute.IsSet);
+        Assert.Null(attribute.Value);
+        Assert.Null(resolved.Attributes.GetString("runtime.status"));
+        Assert.Empty(resolved.Diagnostics);
+    }
+
+    [Fact]
+    public void Resolve_MarksCustomResourceStateAttributeAsUndefined()
+    {
+        var resolver = new ResourceResolver(
+            [
+                new(ExecutableApplicationResourceTypeProvider.ClassId)
+            ],
+            [
+                new(
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    ExecutableApplicationResourceTypeProvider.ClassId)
+            ]);
+        var definition = new ResourceDefinition(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                ["annotations.owner"] = "platform"
+            });
+
+        var resolved = resolver.Resolve(definition);
+        var attribute = resolved.Attributes.Resolve("annotations.owner");
+
+        Assert.NotNull(attribute);
+        Assert.False(attribute.IsDefined);
+        Assert.True(attribute.IsSet);
+        Assert.Equal("platform", attribute.Value);
+        Assert.Equal("platform", resolved.Attributes.GetString("annotations.owner"));
+        Assert.Empty(resolved.Diagnostics);
+    }
+
+    [Fact]
     public void Resolve_ReportsReadOnlyAttributeDeclaredInResourceDefinition()
     {
         var resolver = new ResourceResolver(
