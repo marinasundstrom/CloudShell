@@ -14,6 +14,8 @@ using CloudShell.ControlPlane.ResourceManager.Orchestration;
 using CloudShell.ControlPlane.ResourceManager.Platform;
 using CloudShell.ControlPlane.ResourceManager.Recovery;
 using CloudShell.ControlPlane.ResourceManager.Templates;
+using CloudShell.ResourceDefinitions.ReferenceProviders;
+using CloudShell.ResourceDefinitions.ResourceManager;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
@@ -23,6 +25,11 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Security.Claims;
 using System.Text.Json;
+using GraphResource = CloudShell.ResourceDefinitions.Resource;
+using GraphResourceAttributeId = CloudShell.ResourceDefinitions.ResourceAttributeId;
+using GraphResourceDefinitionDiagnostic = CloudShell.ResourceDefinitions.ResourceDefinitionDiagnostic;
+using GraphResourceOperationId = CloudShell.ResourceDefinitions.ResourceOperationId;
+using GraphResourceState = CloudShell.ResourceDefinitions.ResourceState;
 
 namespace CloudShell.ControlPlane.Tests;
 
@@ -977,6 +984,47 @@ public sealed class InProcessControlPlaneResourceStateTests
         await controlPlane.ExecuteResourceActionAsync(new ExecuteResourceActionCommand("target", actionId));
 
         Assert.Equal([$"target:{actionId}"], provider.ExecutedActions);
+    }
+
+    [Fact]
+    public async Task ExecuteResourceActionAsync_DispatchesRegisteredResourceModelGraphResource()
+    {
+        var runtimeController = new RecordingAspNetCoreProjectRuntimeController();
+        var graphState = new GraphResourceState(
+            "graph-project-reference-api",
+            AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
+            ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<GraphResourceAttributeId, string>
+            {
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] =
+                    "samples/ProjectReference/Api/CloudShell.ProjectReferenceApi.csproj",
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectArguments] =
+                    "--urls http://localhost:5229",
+                [AspNetCoreProjectResourceTypeProvider.Attributes.HotReload] =
+                    bool.FalseString.ToLowerInvariant()
+            });
+        var services = new ServiceCollection();
+        services.AddSingleton<IAspNetCoreProjectRuntimeController>(runtimeController);
+        services.AddInMemoryResourceModelGraph([graphState]);
+        services.AddAspNetCoreProjectResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider(
+            ResourceModelResourceProvider.DefaultProviderId,
+            "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<ResourceModelGraphProcedureProvider>();
+        var projectedResource = Assert.Single(provider.GetResources());
+        var controlPlane = CreateControlPlane([projectedResource], provider);
+
+        var result = await controlPlane.ExecuteResourceActionAsync(
+            new ExecuteResourceActionCommand(
+                projectedResource.Id,
+                ResourceActionIds.Start));
+
+        Assert.Equal("Executed Start for graph-project-reference-api.", result.Message);
+        Assert.Equal(
+            [(graphState.EffectiveResourceId, AspNetCoreProjectResourceTypeProvider.Operations.Start)],
+            runtimeController.ExecutedOperations);
     }
 
     [Fact]
@@ -4368,6 +4416,25 @@ public sealed class InProcessControlPlaneResourceStateTests
         {
             ExecutedActions.Add($"{context.Resource.Id}:{action.Id}");
             return Task.FromResult(ResourceProcedureResult.Completed($"Executed {action.Id}."));
+        }
+    }
+
+    private sealed class RecordingAspNetCoreProjectRuntimeController :
+        IAspNetCoreProjectRuntimeController
+    {
+        private readonly List<(string ResourceId, GraphResourceOperationId OperationId)> _executedOperations = [];
+
+        public IReadOnlyList<(string ResourceId, GraphResourceOperationId OperationId)> ExecutedOperations =>
+            _executedOperations;
+
+        public ValueTask<IReadOnlyList<GraphResourceDefinitionDiagnostic>> ExecuteAsync(
+            GraphResource resource,
+            GraphResourceOperationId operationId,
+            CancellationToken cancellationToken = default)
+        {
+            _executedOperations.Add((resource.EffectiveResourceId, operationId));
+
+            return ValueTask.FromResult<IReadOnlyList<GraphResourceDefinitionDiagnostic>>([]);
         }
     }
 

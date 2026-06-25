@@ -66,6 +66,9 @@ on `git blame --follow`, and then by the broad type of change.
   project resource through the Resource model bridge provider, giving the POC a
   concrete host path for starting a project resource through the new provider
   model.
+- Resource Manager bridge projections now mark graph resources with lifecycle
+  operations as `Unknown` lifecycle state, allowing registered graph-backed
+  resources to dispatch Start through the graph procedure provider.
 - The local host networking reconcile operation now delegates endpoint-mapping
   work to an injected provider-owned reconciler with a no-op POC default,
   matching the provider-integration pattern without moving runtime logic into

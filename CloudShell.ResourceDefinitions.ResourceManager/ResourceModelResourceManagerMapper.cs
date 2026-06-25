@@ -1,5 +1,6 @@
 using CloudShell.Abstractions.ResourceManager;
 using ResourceManagerClass = CloudShell.Abstractions.ResourceManager.ResourceClass;
+using ResourceManagerState = CloudShell.Abstractions.ResourceManager.ResourceState;
 using ResourceModelResource = CloudShell.ResourceDefinitions.Resource;
 using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource;
 
@@ -36,7 +37,7 @@ public static class ResourceModelResourceManagerMapper
             resource.Type.TypeId.ToString(),
             resource.State.ProviderId ?? resource.Type.Definition.DefaultProviderId ?? options.DefaultProviderId,
             options.DefaultRegion,
-            State: null,
+            State: ToResourceManagerState(resource),
             Endpoints: [],
             resource.Version ?? resource.Revision.ToString(),
             resource.LastModifiedAt ?? resource.CreatedAt ?? options.DefaultLastUpdated ?? DateTimeOffset.UnixEpoch,
@@ -90,6 +91,18 @@ public static class ResourceModelResourceManagerMapper
         Enum.TryParse<ResourceManagerClass>(classId.ToString(), ignoreCase: true, out var resourceClass)
             ? resourceClass
             : ResourceManagerClass.Generic;
+
+    private static ResourceManagerState? ToResourceManagerState(ResourceModelResource resource) =>
+        resource.Operations.Any(operation => IsLifecycleOperation(operation.Id))
+            ? ResourceManagerState.Unknown
+            : null;
+
+    private static bool IsLifecycleOperation(ResourceOperationId operationId) =>
+        operationId.ToString() is
+            ResourceActionIds.Start or
+            ResourceActionIds.Stop or
+            ResourceActionIds.Pause or
+            ResourceActionIds.Restart;
 
     private static ResourceAction ToResourceManagerAction(ResourceOperationResolution operation) =>
         operation.Id.ToString() switch

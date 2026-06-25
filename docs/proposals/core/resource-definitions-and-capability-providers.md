@@ -535,6 +535,11 @@ narrow: wrong-type existing dependency targets are unsafe for runtime
 execution, while broader dependency validation, missing staged resources, and
 cross-resource orchestration policy remain provider/Resource Manager concerns
 to refine as real providers are ported.
+When a graph resource declares lifecycle operations, the Resource Manager
+bridge should project an initial lifecycle state such as `Unknown` instead of
+leaving lifecycle state empty. Resource Manager has generic action guards
+before provider dispatch; a lifecycle-capable graph resource with no lifecycle
+state would otherwise be blocked before the operation provider can execute.
 Runtime-facing operation implementations should sit behind provider-owned
 services that are injected into the operation provider or projector. The
 reference executable start operation demonstrates this with a no-op default

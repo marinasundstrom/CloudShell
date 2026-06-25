@@ -5,6 +5,7 @@ using CloudShell.ResourceDefinitions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 using ResourceManagerClass = CloudShell.Abstractions.ResourceManager.ResourceClass;
 using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource;
+using ResourceManagerResourceState = CloudShell.Abstractions.ResourceManager.ResourceState;
 
 namespace CloudShell.ResourceDefinitions.Tests;
 
@@ -29,6 +30,7 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal("application.executable", projected.Kind);
         Assert.Equal("application.executable", projected.TypeId);
         Assert.Equal(ExecutableApplicationResourceTypeProvider.ProviderId, projected.Provider);
+        Assert.Equal(ResourceManagerResourceState.Unknown, projected.State);
         Assert.Equal(ResourceManagerClass.Executable, projected.ResourceClass);
         Assert.Equal(ResourceSource.User, projected.Source);
         Assert.Equal(ResourceManagementMode.UserManaged, projected.ManagementMode);
