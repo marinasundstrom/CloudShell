@@ -1,31 +1,15 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
-public interface ILoadBalancerConfigurationApplier
-{
-    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyConfigurationAsync(
-        Resource resource,
-        CancellationToken cancellationToken = default);
-}
-
-public sealed class NoopLoadBalancerConfigurationApplier :
-    ILoadBalancerConfigurationApplier
-{
-    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyConfigurationAsync(
-        Resource resource,
-        CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
-}
-
-public sealed class LoadBalancerApplyConfigurationOperationProvider(
-    ILoadBalancerConfigurationApplier? configurationApplier = null) :
+public sealed class MacOSHostNetworkReconcileEndpointMappingsOperationProvider(
+    IMacOSHostNetworkEndpointMappingReconciler? reconciler = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly ILoadBalancerConfigurationApplier _configurationApplier =
-        configurationApplier ?? new NoopLoadBalancerConfigurationApplier();
+    private readonly IMacOSHostNetworkEndpointMappingReconciler _reconciler =
+        reconciler ?? new NoopMacOSHostNetworkEndpointMappingReconciler();
 
     public ResourceOperationId OperationId =>
-        LoadBalancerResourceTypeProvider.Operations.ApplyConfiguration;
+        MacOSHostNetworkResourceTypeProvider.Operations.ReconcileEndpointMappings;
 
     public ResourceDefinitionValueSource ResolutionLevel =>
         ResourceDefinitionValueSource.TypeDefinition;
@@ -33,7 +17,7 @@ public sealed class LoadBalancerApplyConfigurationOperationProvider(
     public bool CanHandle(
         Resource resource,
         ResourceOperationResolution operation) =>
-        resource.Type.TypeId == LoadBalancerResourceTypeProvider.ResourceTypeId &&
+        resource.Type.TypeId == MacOSHostNetworkResourceTypeProvider.ResourceTypeId &&
         operation.IsAvailable;
 
     public ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
@@ -54,27 +38,28 @@ public sealed class LoadBalancerApplyConfigurationOperationProvider(
         ResourceOperationProjectionContext context,
         CancellationToken cancellationToken = default) =>
         ValueTask.FromResult<IResourceOperationProjection>(
-            new LoadBalancerApplyConfigurationOperation(
+            new MacOSHostNetworkReconcileEndpointMappingsOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _configurationApplier));
+                _reconciler));
 }
 
-public sealed class LoadBalancerApplyConfigurationOperation(
+public sealed class MacOSHostNetworkReconcileEndpointMappingsOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    ILoadBalancerConfigurationApplier configurationApplier) : IResourceOperationExecutorProjection
+    IMacOSHostNetworkEndpointMappingReconciler reconciler) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
-    private readonly ILoadBalancerConfigurationApplier _configurationApplier =
-        configurationApplier;
+    private readonly IMacOSHostNetworkEndpointMappingReconciler _reconciler =
+        reconciler;
 
     public Resource Resource => Context.Resource;
 
     public ResourceOperationResolution Definition { get; } = operation;
 
-    public ResourceOperationId OperationId => LoadBalancerResourceTypeProvider.Operations.ApplyConfiguration;
+    public ResourceOperationId OperationId =>
+        MacOSHostNetworkResourceTypeProvider.Operations.ReconcileEndpointMappings;
 
     public bool IsAvailable => Definition.IsAvailable;
 
@@ -84,11 +69,11 @@ public sealed class LoadBalancerApplyConfigurationOperation(
         CancellationToken cancellationToken = default) =>
         ValueTask.FromResult(IsAvailable);
 
-    public LoadBalancerConfigurationPlan PlanApply() =>
+    public MacOSHostNetworkReconcileEndpointMappingsPlan PlanReconcile() =>
         new(
             Resource,
-            Resource.Attributes.GetString(LoadBalancerResourceTypeProvider.Attributes.Provider),
-            GetCount(LoadBalancerResourceTypeProvider.Attributes.RouteCount));
+            Resource.Attributes.GetString(MacOSHostNetworkResourceTypeProvider.Attributes.NetworkingMode),
+            Resource.Attributes.GetString(MacOSHostNetworkResourceTypeProvider.Attributes.HostOperatingSystem));
 
     public async ValueTask<ResourceOperationExecutionResult> ExecuteAsync(
         CancellationToken cancellationToken = default)
@@ -100,13 +85,13 @@ public sealed class LoadBalancerApplyConfigurationOperation(
                 OperationId,
                 [
                     ResourceDefinitionDiagnostic.Error(
-                        "network.loadBalancer.applyUnavailable",
-                        UnavailableReason ?? "The load balancer apply-configuration operation is not available.",
+                        "hostNetworking.macos.reconcileEndpointMappingsUnavailable",
+                        UnavailableReason ?? "The macOS host networking endpoint-mapping reconcile operation is not available.",
                         OperationId)
                 ]);
         }
 
-        var diagnostics = await _configurationApplier.ApplyConfigurationAsync(
+        var diagnostics = await _reconciler.ReconcileEndpointMappingsAsync(
             Resource,
             cancellationToken);
 
@@ -115,14 +100,9 @@ public sealed class LoadBalancerApplyConfigurationOperation(
             OperationId,
             diagnostics);
     }
-
-    private int GetCount(ResourceAttributeId attributeId) =>
-        int.TryParse(Resource.Attributes.GetString(attributeId), out var count)
-            ? count
-            : 0;
 }
 
-public sealed record LoadBalancerConfigurationPlan(
+public sealed record MacOSHostNetworkReconcileEndpointMappingsPlan(
     Resource Resource,
-    string? Provider,
-    int RouteCount);
+    string? NetworkingMode,
+    string? HostOperatingSystem);

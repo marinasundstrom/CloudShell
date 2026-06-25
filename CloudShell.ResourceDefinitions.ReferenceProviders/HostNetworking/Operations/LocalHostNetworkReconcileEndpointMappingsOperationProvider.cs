@@ -1,31 +1,15 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
-public interface IMacOSHostNetworkEndpointMappingReconciler
-{
-    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileEndpointMappingsAsync(
-        Resource resource,
-        CancellationToken cancellationToken = default);
-}
-
-public sealed class NoopMacOSHostNetworkEndpointMappingReconciler :
-    IMacOSHostNetworkEndpointMappingReconciler
-{
-    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileEndpointMappingsAsync(
-        Resource resource,
-        CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
-}
-
-public sealed class MacOSHostNetworkReconcileEndpointMappingsOperationProvider(
-    IMacOSHostNetworkEndpointMappingReconciler? reconciler = null) :
+public sealed class LocalHostNetworkReconcileEndpointMappingsOperationProvider(
+    ILocalHostNetworkEndpointMappingReconciler? reconciler = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly IMacOSHostNetworkEndpointMappingReconciler _reconciler =
-        reconciler ?? new NoopMacOSHostNetworkEndpointMappingReconciler();
+    private readonly ILocalHostNetworkEndpointMappingReconciler _reconciler =
+        reconciler ?? new NoopLocalHostNetworkEndpointMappingReconciler();
 
     public ResourceOperationId OperationId =>
-        MacOSHostNetworkResourceTypeProvider.Operations.ReconcileEndpointMappings;
+        LocalHostNetworkResourceTypeProvider.Operations.ReconcileEndpointMappings;
 
     public ResourceDefinitionValueSource ResolutionLevel =>
         ResourceDefinitionValueSource.TypeDefinition;
@@ -33,7 +17,7 @@ public sealed class MacOSHostNetworkReconcileEndpointMappingsOperationProvider(
     public bool CanHandle(
         Resource resource,
         ResourceOperationResolution operation) =>
-        resource.Type.TypeId == MacOSHostNetworkResourceTypeProvider.ResourceTypeId &&
+        resource.Type.TypeId == LocalHostNetworkResourceTypeProvider.ResourceTypeId &&
         operation.IsAvailable;
 
     public ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
@@ -54,20 +38,20 @@ public sealed class MacOSHostNetworkReconcileEndpointMappingsOperationProvider(
         ResourceOperationProjectionContext context,
         CancellationToken cancellationToken = default) =>
         ValueTask.FromResult<IResourceOperationProjection>(
-            new MacOSHostNetworkReconcileEndpointMappingsOperation(
+            new LocalHostNetworkReconcileEndpointMappingsOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
                 _reconciler));
 }
 
-public sealed class MacOSHostNetworkReconcileEndpointMappingsOperation(
+public sealed class LocalHostNetworkReconcileEndpointMappingsOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IMacOSHostNetworkEndpointMappingReconciler reconciler) : IResourceOperationExecutorProjection
+    ILocalHostNetworkEndpointMappingReconciler reconciler) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
-    private readonly IMacOSHostNetworkEndpointMappingReconciler _reconciler =
+    private readonly ILocalHostNetworkEndpointMappingReconciler _reconciler =
         reconciler;
 
     public Resource Resource => Context.Resource;
@@ -75,7 +59,7 @@ public sealed class MacOSHostNetworkReconcileEndpointMappingsOperation(
     public ResourceOperationResolution Definition { get; } = operation;
 
     public ResourceOperationId OperationId =>
-        MacOSHostNetworkResourceTypeProvider.Operations.ReconcileEndpointMappings;
+        LocalHostNetworkResourceTypeProvider.Operations.ReconcileEndpointMappings;
 
     public bool IsAvailable => Definition.IsAvailable;
 
@@ -85,11 +69,11 @@ public sealed class MacOSHostNetworkReconcileEndpointMappingsOperation(
         CancellationToken cancellationToken = default) =>
         ValueTask.FromResult(IsAvailable);
 
-    public MacOSHostNetworkReconcileEndpointMappingsPlan PlanReconcile() =>
+    public LocalHostNetworkReconcileEndpointMappingsPlan PlanReconcile() =>
         new(
             Resource,
-            Resource.Attributes.GetString(MacOSHostNetworkResourceTypeProvider.Attributes.NetworkingMode),
-            Resource.Attributes.GetString(MacOSHostNetworkResourceTypeProvider.Attributes.HostOperatingSystem));
+            Resource.Attributes.GetString(LocalHostNetworkResourceTypeProvider.Attributes.NetworkingMode),
+            Resource.Attributes.GetString(LocalHostNetworkResourceTypeProvider.Attributes.HostOperatingSystem));
 
     public async ValueTask<ResourceOperationExecutionResult> ExecuteAsync(
         CancellationToken cancellationToken = default)
@@ -101,8 +85,8 @@ public sealed class MacOSHostNetworkReconcileEndpointMappingsOperation(
                 OperationId,
                 [
                     ResourceDefinitionDiagnostic.Error(
-                        "hostNetworking.macos.reconcileEndpointMappingsUnavailable",
-                        UnavailableReason ?? "The macOS host networking endpoint-mapping reconcile operation is not available.",
+                        "hostNetworking.reconcileEndpointMappingsUnavailable",
+                        UnavailableReason ?? "The local host networking endpoint-mapping reconcile operation is not available.",
                         OperationId)
                 ]);
         }
@@ -118,7 +102,7 @@ public sealed class MacOSHostNetworkReconcileEndpointMappingsOperation(
     }
 }
 
-public sealed record MacOSHostNetworkReconcileEndpointMappingsPlan(
+public sealed record LocalHostNetworkReconcileEndpointMappingsPlan(
     Resource Resource,
     string? NetworkingMode,
     string? HostOperatingSystem);

@@ -1,37 +1,15 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
-public interface IDnsZoneNameMappingReconciler
-{
-    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileNameMappingsAsync(
-        Resource resource,
-        CancellationToken cancellationToken = default);
-}
-
-public sealed class NoopDnsZoneNameMappingReconciler :
-    IDnsZoneNameMappingReconciler
-{
-    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileNameMappingsAsync(
-        Resource resource,
-        CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
-}
-
-public sealed class DnsZoneReconcileNameMappingsOperationProvider :
+public sealed class LoadBalancerApplyConfigurationOperationProvider(
+    ILoadBalancerConfigurationApplier? configurationApplier = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly IDnsZoneNameMappingReconciler _nameMappingReconciler =
-        new NoopDnsZoneNameMappingReconciler();
-
-    public DnsZoneReconcileNameMappingsOperationProvider(
-        IDnsZoneNameMappingReconciler? nameMappingReconciler = null)
-    {
-        _nameMappingReconciler =
-            nameMappingReconciler ?? new NoopDnsZoneNameMappingReconciler();
-    }
+    private readonly ILoadBalancerConfigurationApplier _configurationApplier =
+        configurationApplier ?? new NoopLoadBalancerConfigurationApplier();
 
     public ResourceOperationId OperationId =>
-        DnsZoneResourceTypeProvider.Operations.ReconcileNameMappings;
+        LoadBalancerResourceTypeProvider.Operations.ApplyConfiguration;
 
     public ResourceDefinitionValueSource ResolutionLevel =>
         ResourceDefinitionValueSource.TypeDefinition;
@@ -39,7 +17,7 @@ public sealed class DnsZoneReconcileNameMappingsOperationProvider :
     public bool CanHandle(
         Resource resource,
         ResourceOperationResolution operation) =>
-        resource.Type.TypeId == DnsZoneResourceTypeProvider.ResourceTypeId &&
+        resource.Type.TypeId == LoadBalancerResourceTypeProvider.ResourceTypeId &&
         operation.IsAvailable;
 
     public ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
@@ -60,27 +38,27 @@ public sealed class DnsZoneReconcileNameMappingsOperationProvider :
         ResourceOperationProjectionContext context,
         CancellationToken cancellationToken = default) =>
         ValueTask.FromResult<IResourceOperationProjection>(
-            new DnsZoneReconcileNameMappingsOperation(
+            new LoadBalancerApplyConfigurationOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _nameMappingReconciler));
+                _configurationApplier));
 }
 
-public sealed class DnsZoneReconcileNameMappingsOperation(
+public sealed class LoadBalancerApplyConfigurationOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IDnsZoneNameMappingReconciler nameMappingReconciler) : IResourceOperationExecutorProjection
+    ILoadBalancerConfigurationApplier configurationApplier) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
-    private readonly IDnsZoneNameMappingReconciler _nameMappingReconciler =
-        nameMappingReconciler;
+    private readonly ILoadBalancerConfigurationApplier _configurationApplier =
+        configurationApplier;
 
     public Resource Resource => Context.Resource;
 
     public ResourceOperationResolution Definition { get; } = operation;
 
-    public ResourceOperationId OperationId => DnsZoneResourceTypeProvider.Operations.ReconcileNameMappings;
+    public ResourceOperationId OperationId => LoadBalancerResourceTypeProvider.Operations.ApplyConfiguration;
 
     public bool IsAvailable => Definition.IsAvailable;
 
@@ -90,11 +68,11 @@ public sealed class DnsZoneReconcileNameMappingsOperation(
         CancellationToken cancellationToken = default) =>
         ValueTask.FromResult(IsAvailable);
 
-    public DnsZoneReconcileNameMappingsPlan PlanReconcile() =>
+    public LoadBalancerConfigurationPlan PlanApply() =>
         new(
             Resource,
-            Resource.Attributes.GetString(DnsZoneResourceTypeProvider.Attributes.ZoneName),
-            Resource.Attributes.GetString(DnsZoneResourceTypeProvider.Attributes.Provider));
+            Resource.Attributes.GetString(LoadBalancerResourceTypeProvider.Attributes.Provider),
+            GetCount(LoadBalancerResourceTypeProvider.Attributes.RouteCount));
 
     public async ValueTask<ResourceOperationExecutionResult> ExecuteAsync(
         CancellationToken cancellationToken = default)
@@ -106,13 +84,13 @@ public sealed class DnsZoneReconcileNameMappingsOperation(
                 OperationId,
                 [
                     ResourceDefinitionDiagnostic.Error(
-                        "dns.zone.reconcileNameMappingsUnavailable",
-                        UnavailableReason ?? "The DNS zone name-mapping reconcile operation is not available.",
+                        "network.loadBalancer.applyUnavailable",
+                        UnavailableReason ?? "The load balancer apply-configuration operation is not available.",
                         OperationId)
                 ]);
         }
 
-        var diagnostics = await _nameMappingReconciler.ReconcileNameMappingsAsync(
+        var diagnostics = await _configurationApplier.ApplyConfigurationAsync(
             Resource,
             cancellationToken);
 
@@ -121,9 +99,14 @@ public sealed class DnsZoneReconcileNameMappingsOperation(
             OperationId,
             diagnostics);
     }
+
+    private int GetCount(ResourceAttributeId attributeId) =>
+        int.TryParse(Resource.Attributes.GetString(attributeId), out var count)
+            ? count
+            : 0;
 }
 
-public sealed record DnsZoneReconcileNameMappingsPlan(
+public sealed record LoadBalancerConfigurationPlan(
     Resource Resource,
-    string? ZoneName,
-    string? Provider);
+    string? Provider,
+    int RouteCount);

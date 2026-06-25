@@ -1,31 +1,15 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
-public interface ILocalHostNetworkEndpointMappingReconciler
-{
-    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileEndpointMappingsAsync(
-        Resource resource,
-        CancellationToken cancellationToken = default);
-}
-
-public sealed class NoopLocalHostNetworkEndpointMappingReconciler :
-    ILocalHostNetworkEndpointMappingReconciler
-{
-    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileEndpointMappingsAsync(
-        Resource resource,
-        CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
-}
-
-public sealed class LocalHostNetworkReconcileEndpointMappingsOperationProvider(
-    ILocalHostNetworkEndpointMappingReconciler? reconciler = null) :
+public sealed class ServiceReconcileOperationProvider(
+    IServiceReconciler? reconciler = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly ILocalHostNetworkEndpointMappingReconciler _reconciler =
-        reconciler ?? new NoopLocalHostNetworkEndpointMappingReconciler();
+    private readonly IServiceReconciler _reconciler =
+        reconciler ?? new NoopServiceReconciler();
 
     public ResourceOperationId OperationId =>
-        LocalHostNetworkResourceTypeProvider.Operations.ReconcileEndpointMappings;
+        ServiceResourceTypeProvider.Operations.Reconcile;
 
     public ResourceDefinitionValueSource ResolutionLevel =>
         ResourceDefinitionValueSource.TypeDefinition;
@@ -33,7 +17,7 @@ public sealed class LocalHostNetworkReconcileEndpointMappingsOperationProvider(
     public bool CanHandle(
         Resource resource,
         ResourceOperationResolution operation) =>
-        resource.Type.TypeId == LocalHostNetworkResourceTypeProvider.ResourceTypeId &&
+        resource.Type.TypeId == ServiceResourceTypeProvider.ResourceTypeId &&
         operation.IsAvailable;
 
     public ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
@@ -54,28 +38,26 @@ public sealed class LocalHostNetworkReconcileEndpointMappingsOperationProvider(
         ResourceOperationProjectionContext context,
         CancellationToken cancellationToken = default) =>
         ValueTask.FromResult<IResourceOperationProjection>(
-            new LocalHostNetworkReconcileEndpointMappingsOperation(
+            new ServiceReconcileOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
                 _reconciler));
 }
 
-public sealed class LocalHostNetworkReconcileEndpointMappingsOperation(
+public sealed class ServiceReconcileOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    ILocalHostNetworkEndpointMappingReconciler reconciler) : IResourceOperationExecutorProjection
+    IServiceReconciler reconciler) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
-    private readonly ILocalHostNetworkEndpointMappingReconciler _reconciler =
-        reconciler;
+    private readonly IServiceReconciler _reconciler = reconciler;
 
     public Resource Resource => Context.Resource;
 
     public ResourceOperationResolution Definition { get; } = operation;
 
-    public ResourceOperationId OperationId =>
-        LocalHostNetworkResourceTypeProvider.Operations.ReconcileEndpointMappings;
+    public ResourceOperationId OperationId => ServiceResourceTypeProvider.Operations.Reconcile;
 
     public bool IsAvailable => Definition.IsAvailable;
 
@@ -85,11 +67,11 @@ public sealed class LocalHostNetworkReconcileEndpointMappingsOperation(
         CancellationToken cancellationToken = default) =>
         ValueTask.FromResult(IsAvailable);
 
-    public LocalHostNetworkReconcileEndpointMappingsPlan PlanReconcile() =>
+    public ServiceReconcilePlan PlanReconcile() =>
         new(
             Resource,
-            Resource.Attributes.GetString(LocalHostNetworkResourceTypeProvider.Attributes.NetworkingMode),
-            Resource.Attributes.GetString(LocalHostNetworkResourceTypeProvider.Attributes.HostOperatingSystem));
+            Resource.Attributes.GetString(ServiceResourceTypeProvider.Attributes.RoutingMode),
+            Resource.State.StartupDependencies);
 
     public async ValueTask<ResourceOperationExecutionResult> ExecuteAsync(
         CancellationToken cancellationToken = default)
@@ -101,13 +83,13 @@ public sealed class LocalHostNetworkReconcileEndpointMappingsOperation(
                 OperationId,
                 [
                     ResourceDefinitionDiagnostic.Error(
-                        "hostNetworking.reconcileEndpointMappingsUnavailable",
-                        UnavailableReason ?? "The local host networking endpoint-mapping reconcile operation is not available.",
+                        "service.reconcileUnavailable",
+                        UnavailableReason ?? "The service reconcile operation is not available.",
                         OperationId)
                 ]);
         }
 
-        var diagnostics = await _reconciler.ReconcileEndpointMappingsAsync(
+        var diagnostics = await _reconciler.ReconcileAsync(
             Resource,
             cancellationToken);
 
@@ -118,7 +100,7 @@ public sealed class LocalHostNetworkReconcileEndpointMappingsOperation(
     }
 }
 
-public sealed record LocalHostNetworkReconcileEndpointMappingsPlan(
+public sealed record ServiceReconcilePlan(
     Resource Resource,
-    string? NetworkingMode,
-    string? HostOperatingSystem);
+    string? RoutingMode,
+    IReadOnlyList<ResourceReference> References);

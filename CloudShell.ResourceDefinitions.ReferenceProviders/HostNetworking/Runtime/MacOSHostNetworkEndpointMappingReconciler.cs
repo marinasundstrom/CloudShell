@@ -1,0 +1,17 @@
+namespace CloudShell.ResourceDefinitions.ReferenceProviders;
+
+public interface IMacOSHostNetworkEndpointMappingReconciler
+{
+    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileEndpointMappingsAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed class NoopMacOSHostNetworkEndpointMappingReconciler :
+    IMacOSHostNetworkEndpointMappingReconciler
+{
+    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileEndpointMappingsAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+}

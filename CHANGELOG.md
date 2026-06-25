@@ -130,6 +130,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Generic container host and Docker host operation code now lives under
   provider-local `Operations/` folders, and their runtime inspector seams live
   under provider-local `Runtime/` folders.
+- Service, DNS zone, network, virtual network, host networking, and load
+  balancer operation code now lives under provider-local `Operations/`
+  folders, and their runtime reconcile/apply seams live under provider-local
+  `Runtime/` folders.
 - Resource graph records now have test coverage proving typed
   `ResourceReference` dependencies survive the record persistence projection.
 - `ResourceReference` now has JSON round-trip coverage for expected resource

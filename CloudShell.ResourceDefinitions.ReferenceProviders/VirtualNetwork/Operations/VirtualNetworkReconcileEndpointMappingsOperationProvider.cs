@@ -1,31 +1,15 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
-public interface IServiceReconciler
-{
-    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileAsync(
-        Resource resource,
-        CancellationToken cancellationToken = default);
-}
-
-public sealed class NoopServiceReconciler :
-    IServiceReconciler
-{
-    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileAsync(
-        Resource resource,
-        CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
-}
-
-public sealed class ServiceReconcileOperationProvider(
-    IServiceReconciler? reconciler = null) :
+public sealed class VirtualNetworkReconcileEndpointMappingsOperationProvider(
+    IVirtualNetworkEndpointMappingReconciler? reconciler = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly IServiceReconciler _reconciler =
-        reconciler ?? new NoopServiceReconciler();
+    private readonly IVirtualNetworkEndpointMappingReconciler _reconciler =
+        reconciler ?? new NoopVirtualNetworkEndpointMappingReconciler();
 
     public ResourceOperationId OperationId =>
-        ServiceResourceTypeProvider.Operations.Reconcile;
+        VirtualNetworkResourceTypeProvider.Operations.ReconcileEndpointMappings;
 
     public ResourceDefinitionValueSource ResolutionLevel =>
         ResourceDefinitionValueSource.TypeDefinition;
@@ -33,7 +17,7 @@ public sealed class ServiceReconcileOperationProvider(
     public bool CanHandle(
         Resource resource,
         ResourceOperationResolution operation) =>
-        resource.Type.TypeId == ServiceResourceTypeProvider.ResourceTypeId &&
+        resource.Type.TypeId == VirtualNetworkResourceTypeProvider.ResourceTypeId &&
         operation.IsAvailable;
 
     public ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
@@ -54,26 +38,27 @@ public sealed class ServiceReconcileOperationProvider(
         ResourceOperationProjectionContext context,
         CancellationToken cancellationToken = default) =>
         ValueTask.FromResult<IResourceOperationProjection>(
-            new ServiceReconcileOperation(
+            new VirtualNetworkReconcileEndpointMappingsOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
                 _reconciler));
 }
 
-public sealed class ServiceReconcileOperation(
+public sealed class VirtualNetworkReconcileEndpointMappingsOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IServiceReconciler reconciler) : IResourceOperationExecutorProjection
+    IVirtualNetworkEndpointMappingReconciler reconciler) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
-    private readonly IServiceReconciler _reconciler = reconciler;
+    private readonly IVirtualNetworkEndpointMappingReconciler _reconciler =
+        reconciler;
 
     public Resource Resource => Context.Resource;
 
     public ResourceOperationResolution Definition { get; } = operation;
 
-    public ResourceOperationId OperationId => ServiceResourceTypeProvider.Operations.Reconcile;
+    public ResourceOperationId OperationId => VirtualNetworkResourceTypeProvider.Operations.ReconcileEndpointMappings;
 
     public bool IsAvailable => Definition.IsAvailable;
 
@@ -83,11 +68,11 @@ public sealed class ServiceReconcileOperation(
         CancellationToken cancellationToken = default) =>
         ValueTask.FromResult(IsAvailable);
 
-    public ServiceReconcilePlan PlanReconcile() =>
+    public VirtualNetworkReconcileEndpointMappingsPlan PlanReconcile() =>
         new(
             Resource,
-            Resource.Attributes.GetString(ServiceResourceTypeProvider.Attributes.RoutingMode),
-            Resource.State.StartupDependencies);
+            Resource.Attributes.GetString(VirtualNetworkResourceTypeProvider.Attributes.MappingProviders),
+            Resource.Attributes.GetString(VirtualNetworkResourceTypeProvider.Attributes.HostReadiness));
 
     public async ValueTask<ResourceOperationExecutionResult> ExecuteAsync(
         CancellationToken cancellationToken = default)
@@ -99,13 +84,13 @@ public sealed class ServiceReconcileOperation(
                 OperationId,
                 [
                     ResourceDefinitionDiagnostic.Error(
-                        "service.reconcileUnavailable",
-                        UnavailableReason ?? "The service reconcile operation is not available.",
+                        "network.virtual.reconcileEndpointMappingsUnavailable",
+                        UnavailableReason ?? "The virtual network endpoint-mapping reconcile operation is not available.",
                         OperationId)
                 ]);
         }
 
-        var diagnostics = await _reconciler.ReconcileAsync(
+        var diagnostics = await _reconciler.ReconcileEndpointMappingsAsync(
             Resource,
             cancellationToken);
 
@@ -116,7 +101,7 @@ public sealed class ServiceReconcileOperation(
     }
 }
 
-public sealed record ServiceReconcilePlan(
+public sealed record VirtualNetworkReconcileEndpointMappingsPlan(
     Resource Resource,
-    string? RoutingMode,
-    IReadOnlyList<ResourceReference> References);
+    string? MappingProviders,
+    string? HostReadiness);

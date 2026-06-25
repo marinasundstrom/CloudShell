@@ -1,31 +1,21 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
-public interface IVirtualNetworkEndpointMappingReconciler
-{
-    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileEndpointMappingsAsync(
-        Resource resource,
-        CancellationToken cancellationToken = default);
-}
-
-public sealed class NoopVirtualNetworkEndpointMappingReconciler :
-    IVirtualNetworkEndpointMappingReconciler
-{
-    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileEndpointMappingsAsync(
-        Resource resource,
-        CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
-}
-
-public sealed class VirtualNetworkReconcileEndpointMappingsOperationProvider(
-    IVirtualNetworkEndpointMappingReconciler? reconciler = null) :
+public sealed class DnsZoneReconcileNameMappingsOperationProvider :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
-    private readonly IVirtualNetworkEndpointMappingReconciler _reconciler =
-        reconciler ?? new NoopVirtualNetworkEndpointMappingReconciler();
+    private readonly IDnsZoneNameMappingReconciler _nameMappingReconciler =
+        new NoopDnsZoneNameMappingReconciler();
+
+    public DnsZoneReconcileNameMappingsOperationProvider(
+        IDnsZoneNameMappingReconciler? nameMappingReconciler = null)
+    {
+        _nameMappingReconciler =
+            nameMappingReconciler ?? new NoopDnsZoneNameMappingReconciler();
+    }
 
     public ResourceOperationId OperationId =>
-        VirtualNetworkResourceTypeProvider.Operations.ReconcileEndpointMappings;
+        DnsZoneResourceTypeProvider.Operations.ReconcileNameMappings;
 
     public ResourceDefinitionValueSource ResolutionLevel =>
         ResourceDefinitionValueSource.TypeDefinition;
@@ -33,7 +23,7 @@ public sealed class VirtualNetworkReconcileEndpointMappingsOperationProvider(
     public bool CanHandle(
         Resource resource,
         ResourceOperationResolution operation) =>
-        resource.Type.TypeId == VirtualNetworkResourceTypeProvider.ResourceTypeId &&
+        resource.Type.TypeId == DnsZoneResourceTypeProvider.ResourceTypeId &&
         operation.IsAvailable;
 
     public ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
@@ -54,27 +44,27 @@ public sealed class VirtualNetworkReconcileEndpointMappingsOperationProvider(
         ResourceOperationProjectionContext context,
         CancellationToken cancellationToken = default) =>
         ValueTask.FromResult<IResourceOperationProjection>(
-            new VirtualNetworkReconcileEndpointMappingsOperation(
+            new DnsZoneReconcileNameMappingsOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _reconciler));
+                _nameMappingReconciler));
 }
 
-public sealed class VirtualNetworkReconcileEndpointMappingsOperation(
+public sealed class DnsZoneReconcileNameMappingsOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IVirtualNetworkEndpointMappingReconciler reconciler) : IResourceOperationExecutorProjection
+    IDnsZoneNameMappingReconciler nameMappingReconciler) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
-    private readonly IVirtualNetworkEndpointMappingReconciler _reconciler =
-        reconciler;
+    private readonly IDnsZoneNameMappingReconciler _nameMappingReconciler =
+        nameMappingReconciler;
 
     public Resource Resource => Context.Resource;
 
     public ResourceOperationResolution Definition { get; } = operation;
 
-    public ResourceOperationId OperationId => VirtualNetworkResourceTypeProvider.Operations.ReconcileEndpointMappings;
+    public ResourceOperationId OperationId => DnsZoneResourceTypeProvider.Operations.ReconcileNameMappings;
 
     public bool IsAvailable => Definition.IsAvailable;
 
@@ -84,11 +74,11 @@ public sealed class VirtualNetworkReconcileEndpointMappingsOperation(
         CancellationToken cancellationToken = default) =>
         ValueTask.FromResult(IsAvailable);
 
-    public VirtualNetworkReconcileEndpointMappingsPlan PlanReconcile() =>
+    public DnsZoneReconcileNameMappingsPlan PlanReconcile() =>
         new(
             Resource,
-            Resource.Attributes.GetString(VirtualNetworkResourceTypeProvider.Attributes.MappingProviders),
-            Resource.Attributes.GetString(VirtualNetworkResourceTypeProvider.Attributes.HostReadiness));
+            Resource.Attributes.GetString(DnsZoneResourceTypeProvider.Attributes.ZoneName),
+            Resource.Attributes.GetString(DnsZoneResourceTypeProvider.Attributes.Provider));
 
     public async ValueTask<ResourceOperationExecutionResult> ExecuteAsync(
         CancellationToken cancellationToken = default)
@@ -100,13 +90,13 @@ public sealed class VirtualNetworkReconcileEndpointMappingsOperation(
                 OperationId,
                 [
                     ResourceDefinitionDiagnostic.Error(
-                        "network.virtual.reconcileEndpointMappingsUnavailable",
-                        UnavailableReason ?? "The virtual network endpoint-mapping reconcile operation is not available.",
+                        "dns.zone.reconcileNameMappingsUnavailable",
+                        UnavailableReason ?? "The DNS zone name-mapping reconcile operation is not available.",
                         OperationId)
                 ]);
         }
 
-        var diagnostics = await _reconciler.ReconcileEndpointMappingsAsync(
+        var diagnostics = await _nameMappingReconciler.ReconcileNameMappingsAsync(
             Resource,
             cancellationToken);
 
@@ -117,7 +107,7 @@ public sealed class VirtualNetworkReconcileEndpointMappingsOperation(
     }
 }
 
-public sealed record VirtualNetworkReconcileEndpointMappingsPlan(
+public sealed record DnsZoneReconcileNameMappingsPlan(
     Resource Resource,
-    string? MappingProviders,
-    string? HostReadiness);
+    string? ZoneName,
+    string? Provider);
