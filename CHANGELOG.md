@@ -92,6 +92,12 @@ on `git blame --follow`, and then by the broad type of change.
   from complex `ValueShape` metadata, keep reusable shapes local to the owning
   class/type definition, and declare collection intent with optional min/max
   size expectations.
+- Resource definition default validation now resolves locally reusable
+  attribute value shapes when checking complex defaults and collection size
+  expectations.
+- `ResourceAttributeValue` can now map concrete CLR objects such as
+  `ResourceReference` into shape-validated complex attribute values and back
+  again.
 - Resource Manager store projection tests now cover persisted Resource model
   records for an ApplicationTopology-shaped graph, proving the bridge can
   project stored graph records alongside Resource Manager registrations.

@@ -293,6 +293,137 @@ public sealed class ResourceResolverTests
     }
 
     [Fact]
+    public void Resolve_ReportsInvalidAttributeDefinitionDefaultMissingRequiredFieldFromLocalShape()
+    {
+        var resolver = new ResourceResolver(
+            [
+                new(ExecutableApplicationResourceTypeProvider.ClassId)
+            ],
+            [
+                new(
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    ExecutableApplicationResourceTypeProvider.ClassId,
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                    {
+                        ["runtime:healthCheck"] = new(
+                            DefaultValue: ResourceAttributeValue.Object(
+                                new Dictionary<string, ResourceAttributeValue>()),
+                            ValueType: ResourceAttributeValueType.ComplexType,
+                            ValueShapeId: "runtime:healthCheck")
+                    },
+                    AttributeValueShapes: new Dictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>
+                    {
+                        ["runtime:healthCheck"] = new(
+                            new(
+                                new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                                {
+                                    ["name"] = new(
+                                        ValueType: ResourceAttributeValueType.String,
+                                        Required: true)
+                                }))
+                    })
+            ]);
+        var definition = new ResourceDefinition(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId);
+
+        var resolved = resolver.Resolve(definition);
+
+        var diagnostic = Assert.Single(resolved.Diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.AttributeDefinitionDefaultInvalid, diagnostic.Code);
+        Assert.Equal("runtime:healthCheck.name", diagnostic.Target);
+    }
+
+    [Fact]
+    public void Resolve_ReportsInvalidResourceReferenceAttributeDefinitionDefault()
+    {
+        var referenceValue = ResourceAttributeValue.FromObject(
+            ResourceReference.ResourceId(
+                "application.sql-server:server",
+                typeId: "application.sql-server"));
+        var invalidReferenceValue = ResourceAttributeValue.Object(
+            referenceValue.ObjectValue!
+                .Where(pair => pair.Key != "addressingMode")
+                .ToDictionary(
+                    pair => pair.Key,
+                    pair => pair.Value));
+        var resolver = new ResourceResolver(
+            [
+                new(ExecutableApplicationResourceTypeProvider.ClassId)
+            ],
+            [
+                new(
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    ExecutableApplicationResourceTypeProvider.ClassId,
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                    {
+                        ["database.server"] = new(
+                            DefaultValue: invalidReferenceValue,
+                            ValueType: ResourceAttributeValueType.ComplexType,
+                            ValueShapeId: ResourceReference.AttributeValueShapeId)
+                    },
+                    AttributeValueShapes: new Dictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>
+                    {
+                        [ResourceReference.AttributeValueShapeId] =
+                            ResourceReference.CreateAttributeValueShapeDefinition()
+                    })
+            ]);
+        var definition = new ResourceDefinition(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId);
+
+        var resolved = resolver.Resolve(definition);
+
+        var diagnostic = Assert.Single(resolved.Diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.AttributeDefinitionDefaultInvalid, diagnostic.Code);
+        Assert.Equal("database.server.addressingMode", diagnostic.Target);
+    }
+
+    [Fact]
+    public void Resolve_ReportsInvalidAttributeDefinitionDefaultCollectionSize()
+    {
+        var resolver = new ResourceResolver(
+            [
+                new(ExecutableApplicationResourceTypeProvider.ClassId)
+            ],
+            [
+                new(
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    ExecutableApplicationResourceTypeProvider.ClassId,
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                    {
+                        ["runtime:healthChecks"] = new(
+                            DefaultValue: ResourceAttributeValue.Array([]),
+                            ValueType: ResourceAttributeValueType.ComplexType,
+                            ValueShapeId: "runtime:healthCheck",
+                            IsCollection: true,
+                            Collection: new(MinSize: 1))
+                    },
+                    AttributeValueShapes: new Dictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>
+                    {
+                        ["runtime:healthCheck"] = new(
+                            new(
+                                new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                                {
+                                    ["name"] = new(ValueType: ResourceAttributeValueType.String)
+                                }))
+                    })
+            ]);
+        var definition = new ResourceDefinition(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId);
+
+        var resolved = resolver.Resolve(definition);
+
+        var diagnostic = Assert.Single(resolved.Diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.AttributeDefinitionDefaultInvalid, diagnostic.Code);
+        Assert.Equal("runtime:healthChecks", diagnostic.Target);
+    }
+
+    [Fact]
     public void Resolve_ReportsRequiredAttributeDiagnostics()
     {
         var resolver = new ResourceResolver(

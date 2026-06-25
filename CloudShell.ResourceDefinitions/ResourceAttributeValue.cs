@@ -7,6 +7,11 @@ namespace CloudShell.ResourceDefinitions;
 [JsonConverter(typeof(ResourceAttributeValueJsonConverter))]
 public sealed record ResourceAttributeValue
 {
+    private static readonly JsonSerializerOptions DefaultObjectMappingOptions = new(JsonSerializerOptions.Web)
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+
     private ResourceAttributeValue(
         ResourceAttributeValueKind kind,
         string? stringValue = null,
@@ -59,6 +64,21 @@ public sealed record ResourceAttributeValue
         IReadOnlyList<ResourceAttributeValue> value) =>
         new(ResourceAttributeValueKind.Array, arrayValue: value);
 
+    public static ResourceAttributeValue FromObject<TValue>(
+        TValue value,
+        JsonSerializerOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+
+        var serializerOptions = options ?? DefaultObjectMappingOptions;
+        using var document = JsonSerializer.SerializeToDocument(
+            value,
+            serializerOptions);
+        return document.RootElement.Deserialize<ResourceAttributeValue>(
+            serializerOptions) ??
+            throw new JsonException($"Could not map {typeof(TValue).Name} to a resource attribute value.");
+    }
+
     public static implicit operator ResourceAttributeValue(string value) => String(value);
 
     public static implicit operator ResourceAttributeValue(bool value) => Boolean(value);
@@ -68,6 +88,16 @@ public sealed record ResourceAttributeValue
     public static implicit operator ResourceAttributeValue(long value) => Integer(value);
 
     public static implicit operator ResourceAttributeValue(decimal value) => Decimal(value);
+
+    public TValue? ToObject<TValue>(
+        JsonSerializerOptions? options = null)
+    {
+        var serializerOptions = options ?? DefaultObjectMappingOptions;
+        return JsonSerializer.SerializeToElement(
+                this,
+                serializerOptions)
+            .Deserialize<TValue>(serializerOptions);
+    }
 
     public bool TryGetScalarString(out string value)
     {

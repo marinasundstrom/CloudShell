@@ -998,30 +998,35 @@ other addressing hints. That should remain part of the reference model instead
 of being copied into unrelated resource attributes.
 
 A future `ResourceDefinition` attribute value for a graph reference can use a
-shape like:
+shape like the serialized `ResourceReference` record:
 
 ```json
 {
   "attributes": {
     "database.server": {
-      "refType": "graph",
-      "resourceId": "application.sql-server:server",
-      "resourceTypeId": "application.sql-server"
+      "value": "application.sql-server:server",
+      "relationship": "dependsOn",
+      "addressingMode": "resourceId",
+      "typeId": "application.sql-server",
+      "providerId": "applications.sql-server"
     }
   }
 }
 ```
 
-`refType` identifies the reference addressing family. A missing or `graph`
-value means a normal graph reference. Later alternatives can represent
-resources that are not in the graph and need projection. `resourceTypeId` is
+`value` is the address being referenced. `relationship` describes how the
+source relates to the target. `addressingMode` identifies the addressing
+family; the current graph resolver supports `resourceId`, while later modes
+can represent projected resources or provider-native references. `typeId` is
 optional expectation metadata: the attribute definition on the
 `ResourceTypeDefinition` or `ResourceClassDefinition` may constrain the
 expected type, while the resource value may also declare an expected type when
 the definition leaves it unconstrained and the author knows the target shape.
+`providerId` can carry the same kind of optional provider expectation.
 Validation can then diagnose a `ResourceReference` attribute that resolves to
-the wrong resource type. For graph-level `DependsOn` references, the POC
-already supports the same expected-type check through `ResourceReference.TypeId`.
+the wrong resource type or provider. For graph-level `DependsOn` references,
+the POC already supports the same expected-type check through
+`ResourceReference.TypeId`.
 Provider-produced dependencies should set this expectation when the provider
 knows the required target shape, so graph resolution can reject a dependency
 that points at an existing resource of the wrong type instead of silently
@@ -1410,6 +1415,31 @@ type. The same pattern can model health-check declarations, log-source
 declarations, endpoint declarations, and other structured provider-owned
 configuration without tying those declarations to JSON-specific schema
 constructs.
+
+The POC resolver uses local reusable shape references when it validates
+definition defaults, including nested required attributes and collection
+minimum/maximum size expectations. A missing `valueShapeId` should eventually
+be reported by descriptor validation, but that diagnostic is deferred until
+the POC has a broader descriptor-validation pass instead of overloading
+default-value validation.
+
+`ResourceReference` is the first named complex value that should define its
+own attribute value shape. Providers can include
+`ResourceReference.AttributeValueShapeId` and
+`ResourceReference.CreateAttributeValueShapeDefinition()` in their local
+`AttributeValueShapes` maps when an attribute such as `database.server`
+stores a reference. The serialized/deserialized object mapping target remains
+the `ResourceReference` record itself; the shape only describes the attribute
+contract in serializer-neutral model terms.
+
+When code sets or reads a typed attribute, the preferred API should allow the
+concrete CLR type, for example `ResourceReference`, rather than forcing every
+caller to construct a shape-specific dictionary. The resource model can map
+that concrete object to the internal `ResourceAttributeValue` representation,
+validate that representation against the declared shape, and let format
+adapters serialize or deserialize it as JSON, YAML, XML, database records, or
+another target. The shape is the validation contract; it should not become a
+separate DTO that replaces the concrete model type.
 
 Stable IDs should use `:` as the namespace separator and `.` for local
 hierarchy inside that namespace. For example, `container:replicas`,

@@ -132,6 +132,71 @@ public sealed class ResourceDefinitionDescriptorTests
     }
 
     [Fact]
+    public void ResourceTypeDefinition_CanDeclareResourceReferenceAttributeShape()
+    {
+        var typeDefinition = new ResourceTypeDefinition(
+            "application.sql-database",
+            "database",
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+            {
+                ["database.server"] = new(
+                    ValueType: ResourceAttributeValueType.ComplexType,
+                    ValueShapeId: ResourceReference.AttributeValueShapeId,
+                    Required: true)
+            },
+            AttributeValueShapes: new Dictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>
+            {
+                [ResourceReference.AttributeValueShapeId] =
+                    ResourceReference.CreateAttributeValueShapeDefinition()
+            });
+
+        var (attributeName, attribute) = Assert.Single(typeDefinition.Attributes!);
+        Assert.Equal("database.server", attributeName);
+        Assert.Equal(ResourceAttributeValueType.ComplexType, attribute.ValueType);
+        Assert.Equal(ResourceReference.AttributeValueShapeId, attribute.ValueShapeId);
+        Assert.True(attribute.Required);
+
+        var (shapeId, shapeDefinition) = Assert.Single(typeDefinition.AttributeValueShapes!);
+        Assert.Equal(ResourceReference.AttributeValueShapeId, shapeId);
+        Assert.Equal(
+            ["value", "relationship", "addressingMode", "typeId", "providerId"],
+            shapeDefinition.Shape.Attributes!.Keys.Select(key => key.ToString()).ToArray());
+        Assert.True(shapeDefinition.Shape.Attributes["value"].Required);
+        Assert.True(shapeDefinition.Shape.Attributes["relationship"].Required);
+        Assert.True(shapeDefinition.Shape.Attributes["addressingMode"].Required);
+    }
+
+    [Fact]
+    public void ResourceReferenceAttributeShapeMatchesJsonTarget()
+    {
+        var reference = ResourceReference.ResourceId(
+            "application.sql-server:server",
+            typeId: SqlServerResourceTypeProvider.ResourceTypeId,
+            providerId: SqlServerResourceTypeProvider.ProviderId);
+        var json = JsonSerializer.Serialize(reference, JsonSerializerOptions.Web);
+        using var document = JsonDocument.Parse(json);
+
+        var shape = ResourceReference.CreateAttributeValueShapeDefinition().Shape;
+        var attributeValue = ResourceAttributeValue.FromObject(reference);
+        var mappedReference = attributeValue.ToObject<ResourceReference>();
+
+        foreach (var attributeId in shape.Attributes!.Keys)
+        {
+            Assert.True(
+                document.RootElement.TryGetProperty(attributeId.ToString(), out _),
+                $"Expected ResourceReference JSON to include '{attributeId}'.");
+            Assert.True(
+                attributeValue.ObjectValue?.ContainsKey(attributeId.ToString()),
+                $"Expected ResourceReference attribute value to include '{attributeId}'.");
+        }
+
+        var roundTrip = JsonSerializer.Deserialize<ResourceReference>(json, JsonSerializerOptions.Web);
+
+        Assert.Equal(reference, roundTrip);
+        Assert.Equal(reference, mappedReference);
+    }
+
+    [Fact]
     public void ResourceTypeDefinition_SerializesAttributesAsDefinitionMap()
     {
         var typeDefinition = new ResourceTypeDefinition(

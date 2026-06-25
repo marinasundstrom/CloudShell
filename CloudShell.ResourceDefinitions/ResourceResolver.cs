@@ -53,10 +53,12 @@ public sealed class ResourceResolver
         var classDefinition = ResolveClassDefinition(typeDefinition, diagnostics);
         ValidateAttributeDefinitionDefaults(
             classDefinition.Attributes,
+            classDefinition.AttributeValueShapes,
             ResourceDefinitionValueSource.ClassDefinition,
             diagnostics);
         ValidateAttributeDefinitionDefaults(
             typeDefinition.Attributes,
+            typeDefinition.AttributeValueShapes,
             ResourceDefinitionValueSource.TypeDefinition,
             diagnostics);
         var resourceClass = ResolveResourceClass(classDefinition);
@@ -533,6 +535,7 @@ public sealed class ResourceResolver
 
     private static void ValidateAttributeDefinitionDefaults(
         IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? attributeDefinitions,
+        IReadOnlyDictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>? shapeDefinitions,
         ResourceDefinitionValueSource source,
         List<ResourceDefinitionDiagnostic> diagnostics)
     {
@@ -554,6 +557,7 @@ public sealed class ResourceResolver
                 name,
                 attributeDefinition.DefaultValue,
                 attributeDefinition,
+                shapeDefinitions,
                 source,
                 diagnostics);
         }
@@ -564,6 +568,7 @@ public sealed class ResourceResolver
         ResourceAttributeId target,
         ResourceAttributeValue value,
         ResourceAttributeDefinition definition,
+        IReadOnlyDictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>? shapeDefinitions,
         ResourceDefinitionValueSource source,
         List<ResourceDefinitionDiagnostic> diagnostics)
     {
@@ -579,6 +584,7 @@ public sealed class ResourceResolver
                 target,
                 value,
                 definition,
+                shapeDefinitions,
                 source,
                 diagnostics);
             return;
@@ -593,12 +599,14 @@ public sealed class ResourceResolver
             return;
         }
 
+        var shape = ResolveAttributeValueShape(definition, shapeDefinitions);
+
         if (definition.ValueType == ResourceAttributeValueType.ComplexType &&
-            definition.ValueShape?.Attributes is not null)
+            shape?.Attributes is not null)
         {
             var objectValue = value.ObjectValue ?? new Dictionary<string, ResourceAttributeValue>();
 
-            foreach (var (fieldName, fieldDefinition) in definition.ValueShape.Attributes)
+            foreach (var (fieldName, fieldDefinition) in shape.Attributes)
             {
                 if (!objectValue.TryGetValue(fieldName.ToString(), out var fieldValue))
                 {
@@ -618,6 +626,7 @@ public sealed class ResourceResolver
                     target,
                     fieldValue,
                     fieldDefinition,
+                    shapeDefinitions,
                     source,
                     diagnostics);
             }
@@ -629,6 +638,7 @@ public sealed class ResourceResolver
         ResourceAttributeId target,
         ResourceAttributeValue value,
         ResourceAttributeDefinition definition,
+        IReadOnlyDictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>? shapeDefinitions,
         ResourceDefinitionValueSource source,
         List<ResourceDefinitionDiagnostic> diagnostics)
     {
@@ -675,10 +685,30 @@ public sealed class ResourceResolver
                 target,
                 element,
                 itemDefinition,
+                shapeDefinitions,
                 source,
                 diagnostics);
             index++;
         }
+    }
+
+    private static ResourceAttributeValueShape? ResolveAttributeValueShape(
+        ResourceAttributeDefinition definition,
+        IReadOnlyDictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>? shapeDefinitions)
+    {
+        if (definition.ValueShape is not null)
+        {
+            return definition.ValueShape;
+        }
+
+        if (definition.ValueShapeId is { } shapeId &&
+            shapeDefinitions is not null &&
+            shapeDefinitions.TryGetValue(shapeId, out var shapeDefinition))
+        {
+            return shapeDefinition.Shape;
+        }
+
+        return null;
     }
 
     private static bool AttributeValueMatchesType(
