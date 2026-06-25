@@ -30,6 +30,9 @@ public static class VirtualNetworkResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, VirtualNetworkReconcileEndpointMappingsOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, VirtualNetworkResourceProjectionProvider>());
+        services.TryAddSingleton<
+            IVirtualNetworkEndpointMappingReconciler,
+            NoopVirtualNetworkEndpointMappingReconciler>();
 
         return services;
     }

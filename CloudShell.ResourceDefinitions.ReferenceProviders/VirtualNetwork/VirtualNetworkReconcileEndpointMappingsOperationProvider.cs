@@ -1,9 +1,29 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
-public sealed class VirtualNetworkReconcileEndpointMappingsOperationProvider :
+public interface IVirtualNetworkEndpointMappingReconciler
+{
+    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileEndpointMappingsAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed class NoopVirtualNetworkEndpointMappingReconciler :
+    IVirtualNetworkEndpointMappingReconciler
+{
+    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileEndpointMappingsAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+}
+
+public sealed class VirtualNetworkReconcileEndpointMappingsOperationProvider(
+    IVirtualNetworkEndpointMappingReconciler? reconciler = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
+    private readonly IVirtualNetworkEndpointMappingReconciler _reconciler =
+        reconciler ?? new NoopVirtualNetworkEndpointMappingReconciler();
+
     public ResourceOperationId OperationId =>
         VirtualNetworkResourceTypeProvider.Operations.ReconcileEndpointMappings;
 
@@ -36,14 +56,19 @@ public sealed class VirtualNetworkReconcileEndpointMappingsOperationProvider :
         ValueTask.FromResult<IResourceOperationProjection>(
             new VirtualNetworkReconcileEndpointMappingsOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
-                operation));
+                operation,
+                _reconciler));
 }
 
 public sealed class VirtualNetworkReconcileEndpointMappingsOperation(
     ResourceProjectionExecutionContext context,
-    ResourceOperationResolution operation) : IResourceOperationExecutorProjection
+    ResourceOperationResolution operation,
+    IVirtualNetworkEndpointMappingReconciler reconciler) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
+
+    private readonly IVirtualNetworkEndpointMappingReconciler _reconciler =
+        reconciler;
 
     public Resource Resource => Context.Resource;
 
@@ -81,10 +106,14 @@ public sealed class VirtualNetworkReconcileEndpointMappingsOperation(
                 ]);
         }
 
+        var diagnostics = await _reconciler.ReconcileEndpointMappingsAsync(
+            Resource,
+            cancellationToken);
+
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            []);
+            diagnostics);
     }
 }
 
