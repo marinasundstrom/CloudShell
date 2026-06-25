@@ -1232,6 +1232,8 @@ public sealed class ResourceManagerIntegrationTests
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph();
+        var runtimeController = new RecordingAspNetCoreProjectRuntimeController();
+        services.AddSingleton<IAspNetCoreProjectRuntimeController>(runtimeController);
         services.AddLocalVolumeResourceType();
         services.AddAspNetCoreProjectResourceType();
         services.AddResourceModelGraphServices();
@@ -1317,6 +1319,9 @@ public sealed class ResourceManagerIntegrationTests
         var procedureResult = await provider.ExecuteActionAsync(procedure, restart);
 
         Assert.Equal("Executed Restart for api.", procedureResult.Message);
+        Assert.Equal(
+            [(project.EffectiveResourceId, AspNetCoreProjectResourceTypeProvider.Operations.Restart)],
+            runtimeController.ExecutedOperations);
     }
 
     [Fact]
@@ -4476,6 +4481,25 @@ public sealed class ResourceManagerIntegrationTests
             CancellationToken cancellationToken = default)
         {
             _createdResourceIds.Add(resource.EffectiveResourceId);
+
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+    }
+
+    private sealed class RecordingAspNetCoreProjectRuntimeController :
+        IAspNetCoreProjectRuntimeController
+    {
+        private readonly List<(string ResourceId, ResourceOperationId OperationId)> _executedOperations = [];
+
+        public IReadOnlyList<(string ResourceId, ResourceOperationId OperationId)> ExecutedOperations =>
+            _executedOperations;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(
+            Resource resource,
+            ResourceOperationId operationId,
+            CancellationToken cancellationToken = default)
+        {
+            _executedOperations.Add((resource.EffectiveResourceId, operationId));
 
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }

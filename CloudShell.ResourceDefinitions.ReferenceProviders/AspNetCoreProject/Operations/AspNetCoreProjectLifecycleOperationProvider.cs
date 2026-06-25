@@ -3,8 +3,11 @@ namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 public sealed class AspNetCoreProjectStartOperationProvider :
     AspNetCoreProjectLifecycleOperationProvider
 {
-    public AspNetCoreProjectStartOperationProvider()
-        : base(AspNetCoreProjectResourceTypeProvider.Operations.Start)
+    public AspNetCoreProjectStartOperationProvider(
+        IAspNetCoreProjectRuntimeController? runtimeController = null)
+        : base(
+            AspNetCoreProjectResourceTypeProvider.Operations.Start,
+            runtimeController)
     {
     }
 }
@@ -12,17 +15,24 @@ public sealed class AspNetCoreProjectStartOperationProvider :
 public sealed class AspNetCoreProjectRestartOperationProvider :
     AspNetCoreProjectLifecycleOperationProvider
 {
-    public AspNetCoreProjectRestartOperationProvider()
-        : base(AspNetCoreProjectResourceTypeProvider.Operations.Restart)
+    public AspNetCoreProjectRestartOperationProvider(
+        IAspNetCoreProjectRuntimeController? runtimeController = null)
+        : base(
+            AspNetCoreProjectResourceTypeProvider.Operations.Restart,
+            runtimeController)
     {
     }
 }
 
 public abstract class AspNetCoreProjectLifecycleOperationProvider(
-    ResourceOperationId operationId) :
+    ResourceOperationId operationId,
+    IAspNetCoreProjectRuntimeController? runtimeController = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
+    private readonly IAspNetCoreProjectRuntimeController _runtimeController =
+        runtimeController ?? new NoopAspNetCoreProjectRuntimeController();
+
     public ResourceOperationId OperationId { get; } = operationId;
 
     public ResourceDefinitionValueSource ResolutionLevel =>
@@ -54,14 +64,19 @@ public abstract class AspNetCoreProjectLifecycleOperationProvider(
         ValueTask.FromResult<IResourceOperationProjection>(
             new AspNetCoreProjectLifecycleOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
-                operation));
+                operation,
+                _runtimeController));
 }
 
 public sealed class AspNetCoreProjectLifecycleOperation(
     ResourceProjectionExecutionContext context,
-    ResourceOperationResolution operation) : IResourceOperationExecutorProjection
+    ResourceOperationResolution operation,
+    IAspNetCoreProjectRuntimeController runtimeController) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
+
+    private readonly IAspNetCoreProjectRuntimeController _runtimeController =
+        runtimeController;
 
     public Resource Resource => Context.Resource;
 
@@ -93,9 +108,14 @@ public sealed class AspNetCoreProjectLifecycleOperation(
                 ]);
         }
 
+        var diagnostics = await _runtimeController.ExecuteAsync(
+            Resource,
+            OperationId,
+            cancellationToken);
+
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            []);
+            diagnostics);
     }
 }

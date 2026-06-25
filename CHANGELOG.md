@@ -145,6 +145,8 @@ on `git blame --follow`, and then by the broad type of change.
   providers stay with their shared capability.
 - Provider-owned configuration records now live under provider-local
   `Configuration/` folders.
+- ASP.NET Core project start/restart operations now delegate runtime behavior
+  to an injected provider-owned runtime controller with a no-op POC default.
 - Resource graph records now have test coverage proving typed
   `ResourceReference` dependencies survive the record persistence projection.
 - `ResourceReference` now has JSON round-trip coverage for expected resource

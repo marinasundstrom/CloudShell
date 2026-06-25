@@ -42,6 +42,9 @@ public static class AspNetCoreProjectResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, AspNetCoreProjectRestartOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, AspNetCoreProjectResourceProjectionProvider>());
+        services.TryAddSingleton<
+            IAspNetCoreProjectRuntimeController,
+            NoopAspNetCoreProjectRuntimeController>();
 
         return services;
     }
