@@ -1273,7 +1273,7 @@ public sealed class ResourceManagerStoreProjectionTests
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
             ProviderId: ExecutableApplicationResourceTypeProvider.ProviderId,
             DisplayName: "API",
-            DependsOn: [DefinitionResourceReference.ResourceId("storage:data")],
+            DependsOn: [DefinitionResourceReference.DependsOnResourceId("storage:data")],
             Attributes: new Dictionary<DefinitionAttributeId, string>
             {
                 [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
@@ -1315,7 +1315,7 @@ public sealed class ResourceManagerStoreProjectionTests
             ProviderId: SqlDatabaseResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                DefinitionResourceReference.ResourceId(
+                DefinitionResourceReference.DependsOnResourceId(
                     sqlServer.EffectiveResourceId,
                     typeId: SqlServerResourceTypeProvider.ResourceTypeId)
             ],
@@ -1338,13 +1338,13 @@ public sealed class ResourceManagerStoreProjectionTests
             ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                DefinitionResourceReference.ResourceId(
+                DefinitionResourceReference.DependsOnResourceId(
                     database.EffectiveResourceId,
                     typeId: SqlDatabaseResourceTypeProvider.ResourceTypeId),
-                DefinitionResourceReference.ResourceId(
+                DefinitionResourceReference.DependsOnResourceId(
                     settings.EffectiveResourceId,
                     typeId: ConfigurationStoreResourceTypeProvider.ResourceTypeId),
-                DefinitionResourceReference.ResourceId(
+                DefinitionResourceReference.DependsOnResourceId(
                     secrets.EffectiveResourceId,
                     typeId: SecretsVaultResourceTypeProvider.ResourceTypeId)
             ],
@@ -1380,7 +1380,7 @@ public sealed class ResourceManagerStoreProjectionTests
             ProviderId: ConfigurationStoreResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                DefinitionResourceReference.ResourceId(
+                DefinitionResourceReference.DependsOnResourceId(
                     identity.EffectiveResourceId,
                     typeId: IdentityProvisioningResourceTypeProvider.ResourceTypeId)
             ],
@@ -1394,7 +1394,7 @@ public sealed class ResourceManagerStoreProjectionTests
             ProviderId: SecretsVaultResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                DefinitionResourceReference.ResourceId(
+                DefinitionResourceReference.DependsOnResourceId(
                     identity.EffectiveResourceId,
                     typeId: IdentityProvisioningResourceTypeProvider.ResourceTypeId)
             ],
@@ -1408,13 +1408,13 @@ public sealed class ResourceManagerStoreProjectionTests
             ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                DefinitionResourceReference.ResourceId(
+                DefinitionResourceReference.DependsOnResourceId(
                     identity.EffectiveResourceId,
                     typeId: IdentityProvisioningResourceTypeProvider.ResourceTypeId),
-                DefinitionResourceReference.ResourceId(
+                DefinitionResourceReference.DependsOnResourceId(
                     settings.EffectiveResourceId,
                     typeId: ConfigurationStoreResourceTypeProvider.ResourceTypeId),
-                DefinitionResourceReference.ResourceId(
+                DefinitionResourceReference.DependsOnResourceId(
                     secrets.EffectiveResourceId,
                     typeId: SecretsVaultResourceTypeProvider.ResourceTypeId)
             ],
@@ -1445,7 +1445,7 @@ public sealed class ResourceManagerStoreProjectionTests
             ProviderId: ConfigurationStoreResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                DefinitionResourceReference.ResourceId(
+                DefinitionResourceReference.DependsOnResourceId(
                     wrongIdentity.EffectiveResourceId,
                     typeId: IdentityProvisioningResourceTypeProvider.ResourceTypeId)
             ],
