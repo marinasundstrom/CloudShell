@@ -30,6 +30,9 @@ public static class NetworkResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, NetworkReconcileEndpointMappingsOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, NetworkResourceProjectionProvider>());
+        services.TryAddSingleton<
+            INetworkEndpointMappingReconciler,
+            NoopNetworkEndpointMappingReconciler>();
 
         return services;
     }

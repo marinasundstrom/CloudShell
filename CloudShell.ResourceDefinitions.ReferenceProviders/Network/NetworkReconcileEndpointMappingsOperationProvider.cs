@@ -1,9 +1,29 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
-public sealed class NetworkReconcileEndpointMappingsOperationProvider :
+public interface INetworkEndpointMappingReconciler
+{
+    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileEndpointMappingsAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed class NoopNetworkEndpointMappingReconciler :
+    INetworkEndpointMappingReconciler
+{
+    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileEndpointMappingsAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+}
+
+public sealed class NetworkReconcileEndpointMappingsOperationProvider(
+    INetworkEndpointMappingReconciler? reconciler = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
+    private readonly INetworkEndpointMappingReconciler _reconciler =
+        reconciler ?? new NoopNetworkEndpointMappingReconciler();
+
     public ResourceOperationId OperationId =>
         NetworkResourceTypeProvider.Operations.ReconcileEndpointMappings;
 
@@ -36,14 +56,19 @@ public sealed class NetworkReconcileEndpointMappingsOperationProvider :
         ValueTask.FromResult<IResourceOperationProjection>(
             new NetworkReconcileEndpointMappingsOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
-                operation));
+                operation,
+                _reconciler));
 }
 
 public sealed class NetworkReconcileEndpointMappingsOperation(
     ResourceProjectionExecutionContext context,
-    ResourceOperationResolution operation) : IResourceOperationExecutorProjection
+    ResourceOperationResolution operation,
+    INetworkEndpointMappingReconciler reconciler) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
+
+    private readonly INetworkEndpointMappingReconciler _reconciler =
+        reconciler;
 
     public Resource Resource => Context.Resource;
 
@@ -80,10 +105,14 @@ public sealed class NetworkReconcileEndpointMappingsOperation(
                 ]);
         }
 
+        var diagnostics = await _reconciler.ReconcileEndpointMappingsAsync(
+            Resource,
+            cancellationToken);
+
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            []);
+            diagnostics);
     }
 }
 

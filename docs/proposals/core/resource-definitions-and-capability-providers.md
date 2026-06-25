@@ -749,10 +749,12 @@ A narrow network reference provider covers the declarative `cloudshell.network`
 graph resource. It owns network kind, host-readiness, and mapping-provider
 attributes, passive networking capability markers, a reconcile-endpoint-
 mapping operation, a typed projection wrapper, and Resource Manager bridge
-coverage. The POC treats those attributes as resource-owned state or
-configuration. Fetched or calculated network views, such as observed endpoint
-or mapping summaries, should be exposed through resolved capability members or
-operation plans rather than stored as normal resource attributes.
+coverage. The reconcile operation delegates to a provider-owned
+endpoint-mapping reconciler with a no-op POC default. The POC treats those
+attributes as resource-owned state or configuration. Fetched or calculated
+network views, such as observed endpoint or mapping summaries, should be
+exposed through resolved capability members or operation plans rather than
+stored as normal resource attributes.
 
 A narrow virtual network reference provider covers the more specific
 `cloudshell.virtualNetwork` graph resource. It owns virtual-network kind,
@@ -886,7 +888,7 @@ not mean the existing operational provider can be turned off yet.
 | Docker host (`docker.host`) | Modeled as a narrow reference provider | Infrastructure class/type defaults, Docker host kind/endpoint/registry/default attributes, passive container image/build/filesystem-mount capability markers, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real Docker runtime integration, discovery, health, logs, container child projections, credentials, and UI registration/update flow |
 | Docker container (`docker.container`) | Modeled as a narrow reference provider | Container class/type defaults, workload/image/registry/replica attributes, read-only endpoint-count attribute, passive monitoring and log-source capability markers, lifecycle operation projections, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Real Docker API integration, runtime discovery, container state, state-sensitive action availability, log streaming, endpoint projection, and hidden/runtime-managed Resource Manager behavior |
 | Load balancer (`cloudshell.loadBalancer`) | Modeled as a narrow reference provider | Network class/type defaults, provider/host attributes, read-only count attributes, passive networking capability markers, temporary typed host/backend `ResourceReference` dependencies, backend-target graph validation, apply-configuration operation, typed wrapper, Resource Manager bridge projection and execution | Route and entrypoint payloads, provider-specific reference modeling if needed, Traefik/materialization runtime integration, endpoint mappings, and UI registration/update flow |
-| Network (`cloudshell.network`) | Modeled as a narrow reference provider | Network class/type defaults, kind/readiness/provider attributes, passive networking capability markers, reconcile-endpoint-mappings operation, typed wrapper, Resource Manager bridge projection and execution | Endpoint and mapping payloads, observed mapping state as capability members, host/virtual network specialization, provisioner integration, and UI registration/update flow |
+| Network (`cloudshell.network`) | Modeled as a narrow reference provider | Network class/type defaults, kind/readiness/provider attributes, passive networking capability markers, reconcile-endpoint-mappings operation with an injected provider-owned reconciler seam, typed wrapper, Resource Manager bridge projection and execution | Endpoint and mapping payloads, observed mapping state as capability members, host/virtual network specialization, provisioner integration, and UI registration/update flow |
 | Virtual network (`cloudshell.virtualNetwork`) | Modeled as a narrow reference provider | Network class/type defaults, virtual/default/readiness/provider attributes, passive virtual-network and ingress capability markers, type-specific `reconcileEndpointMappings` operation provider with an injected provider-owned reconciler seam, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Endpoint and mapping payloads, observed mapping state as capability members or operation plans, endpoint mapping provisioner integration, and UI registration/update flow |
 | Local host networking (`cloudshell.hostNetworking.local`) | Modeled as a narrow reference provider | Infrastructure class/type defaults, host-readiness/OS/mode attributes, passive networking provider/endpoint-mapper/gateway/ingress/host-network capability markers, type-specific `reconcileEndpointMappings` operation provider with an injected provider-owned reconciler seam, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Live mapping counts, host proxy runtime state, endpoint mapping provisioner integration, macOS-specific provider specialization, diagnostics, and UI registration/update flow |
 | macOS host networking (`cloudshell.hostNetworking.macos`) | Modeled as a narrow reference provider | Infrastructure class/type defaults, host-readiness/OS/mode attributes, passive networking provider/endpoint-mapper/gateway/ingress/host-network capability markers, type-specific `reconcileEndpointMappings` operation provider, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Platform support checks, live mapping counts, host proxy runtime state, endpoint mapping provisioner integration, diagnostics, and UI registration/update flow |
@@ -971,6 +973,13 @@ the early POC names suggest:
   monolithic class that implements every possible provider behavior itself.
   Implementations can inject Control Plane services and delegate graph-state
   changes through Resource Manager commit services.
+- **Graph apply hooks** validate, normalize, and stage changes to graph state.
+  When applying a change requires runtime behavior, the graph-facing provider
+  can delegate to a Resource Manager-owned handler or secondary provider. That
+  handler performs the operational work with Control Plane services and may
+  return accepted graph-state updates, such as provider-managed read-only
+  attributes projected from runtime state. Those updates still flow through the
+  graph apply/commit boundary instead of mutating persistence directly.
 - **Resource model / graph layer** owns the graph representation, resolved
   graph projections, and graph-state primitives. The current POC `Resource`
   class belongs here: it is the resolved graph resource projection, not the
@@ -1770,6 +1779,17 @@ with diagnostics and an accepted `ResourceState` when the change is allowed.
 The apply context can request commit behavior, but committing accepted state to
 durable persistence or cascading changes through the graph remains a Resource
 Manager/persistence concern outside this low-level projection model.
+Some resource types will need more than validation and normalization when a
+change is applied. In those cases the graph-facing apply provider should stay
+as the declaration/state boundary and delegate runtime work to a Resource
+Manager-owned handler or secondary provider. That handler can call runtime
+services, orchestrators, local process runners, endpoint-mapping provisioners,
+or provider SDKs, then return diagnostics and accepted graph-state updates.
+For example, a runtime handler may update provider-managed read-only
+attributes that summarize observed state. The graph layer still owns applying
+those accepted values to `ResourceState`; the runtime handler does not become
+the persistence boundary and the graph model does not become the runtime
+owner.
 `ResourceDefinitionGraphChangeApplier` lifts that behavior to a graph
 snapshot: it resolves each incoming `ResourceDefinition` overlay against the
 current `ResourceState`, builds resource-local changes, runs the type-owned
@@ -2607,6 +2627,12 @@ orchestration state, procedure dispatch, activity logging, or provider runtime
 coordination. The Resource model should define the operation declaration and
 make it resolvable on the resource graph; it should not require the operation
 implementation to live beside the resource type definition.
+This is the same separation used for apply hooks: the graph declares that the
+operation exists and can resolve a resource-bound work unit, while the
+Resource Manager or provider integration implements the runtime behavior. If
+that behavior observes or changes graph-backed state, it should return
+diagnostics or accepted graph-state updates that the Resource Manager commits
+through the graph model.
 
 Operation projections follow the same pattern as capability projections: they
 are resource-bound work units resolved from a `Resource`, an operation ID, and

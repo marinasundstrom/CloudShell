@@ -1879,7 +1879,9 @@ public sealed class ResourceManagerIntegrationTests
     [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesNetworkAcrossProviderBoundaries()
     {
+        var reconciler = new RecordingNetworkEndpointMappingReconciler();
         var services = new ServiceCollection();
+        services.AddSingleton<INetworkEndpointMappingReconciler>(reconciler);
         services.AddInMemoryResourceModelGraph();
         services.AddNetworkResourceType();
         services.AddResourceModelGraphServices();
@@ -1951,6 +1953,7 @@ public sealed class ResourceManagerIntegrationTests
         var procedureResult = await provider.ExecuteActionAsync(procedure, reconcile);
 
         Assert.Equal("Executed ReconcileEndpointMappings for edge-network.", procedureResult.Message);
+        Assert.Equal([network.EffectiveResourceId], reconciler.ReconciledResourceIds);
     }
 
     [Fact]
@@ -4146,6 +4149,23 @@ public sealed class ResourceManagerIntegrationTests
 
     private sealed class RecordingVirtualNetworkEndpointMappingReconciler :
         IVirtualNetworkEndpointMappingReconciler
+    {
+        private readonly List<string> _reconciledResourceIds = [];
+
+        public IReadOnlyList<string> ReconciledResourceIds => _reconciledResourceIds;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileEndpointMappingsAsync(
+            Resource resource,
+            CancellationToken cancellationToken = default)
+        {
+            _reconciledResourceIds.Add(resource.EffectiveResourceId);
+
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+    }
+
+    private sealed class RecordingNetworkEndpointMappingReconciler :
+        INetworkEndpointMappingReconciler
     {
         private readonly List<string> _reconciledResourceIds = [];
 
