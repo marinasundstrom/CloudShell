@@ -136,9 +136,8 @@ public sealed class ResourceDefinitionValidationPipelineTests
             [new VolumeConsumerCapabilityProvider()]);
         var applyDispatcher = new ResourceChangeApplyDispatcher([typeProvider]);
 
-        await using var boundary = await graphModel.BeginTransactionAsync(
-            ResourceGraphTransactionOptions.Exclusive);
-        var resource = resolver.Resolve(boundary.Snapshot.Resources.Single());
+        var snapshot = await graphModel.GetSnapshotAsync();
+        var resource = resolver.Resolve(snapshot.Resources.Single());
         await capabilityResolver.BindAsync(
             resource,
             new ResourceCapabilityProjectionContext(
@@ -155,8 +154,11 @@ public sealed class ResourceDefinitionValidationPipelineTests
             changes,
             new ResourceChangeApplyContext("local", "developer", Commit: true));
 
-        boundary.Track(accepted);
-        var commit = await boundary.CommitAsync(new ResourceGraphCommitContext("local", "developer"));
+        var tracker = new ResourceGraphChangeTracker(snapshot);
+        tracker.Track(accepted);
+        var commit = await graphModel.CommitAsync(
+            tracker.GetChanges(),
+            new ResourceGraphCommitContext("local", "developer"));
 
         Assert.True(commit.IsCommitted);
         Assert.Equal(new ResourceGraphVersion(1), commit.Version);

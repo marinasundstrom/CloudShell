@@ -93,6 +93,10 @@ on `git blame --follow`, and then by the broad type of change.
   are integration points that may receive injected services, but should not own
   recurring runtime tasks, watchers, polling loops, or reconciliation schedulers
   in the POC.
+- The Resource definitions POC removed the experimental graph transaction and
+  exclusive-lock APIs, keeping graph versions, change tracking, and commit
+  contexts as the minimal write boundary while the proposal refocuses
+  integration on custom projection from Resource Manager operational records.
 
 ### 2026-06-24
 

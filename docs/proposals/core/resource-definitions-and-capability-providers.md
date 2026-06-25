@@ -438,10 +438,10 @@ that need Resource model behavior. Resource Manager or an orchestrator can
 resolve a graph resource by the shared resource ID, optionally include its
 dependency closure, and receive the graph snapshot version plus the resolved
 `Resource` projections with capability and operation work units bound. The
-caller still owns any graph transaction, locking, apply dispatcher, retry, and
-commit policy. This keeps capability and operation objects as integration
-work units while leaving graph stability decisions at the Control Plane or
-Resource Manager boundary.
+caller still owns the operational scope, apply dispatcher, retry behavior, and
+commit policy. This keeps capability and operation objects as integration work
+units while leaving graph stability decisions at the Control Plane or Resource
+Manager boundary.
 
 For the POC, capability and operation work units should be designed to modify
 only the `Resource` they are attached to when they produce Resource model
@@ -449,9 +449,9 @@ changes. They may still perform integration logic, such as asking Resource
 Manager to run a procedure or querying other services, but any direct Resource
 model mutation should be limited to the attached resource and returned as a
 caller-owned change set. Cross-resource graph mutations, graph-wide
-side-effects, graph-wide isolation, and whether a capability or operation must
-run inside a transaction or other stable graph scope are deferred coordination
-concerns for the Resource Manager, orchestrator, or Control Plane layer.
+side-effects, graph-wide isolation, and whether a capability or operation
+needs stronger write coordination are deferred concerns for the Resource
+Manager, orchestrator, or Control Plane layer.
 
 The same bridge can resolve a declared capability by capability ID and return
 the capability projection registered by the consuming boundary. This gives
@@ -545,6 +545,15 @@ composition. New abstractions should be proposed only when a provider port
 demonstrates a concrete gap that cannot be handled by the existing Resource,
 ResourceTypeDefinition, ResourceClassDefinition, ResourceReference, capability,
 operation, apply, and bridge contracts.
+The first serious replacement candidates should be simple resource types with
+clear current documentation and low runtime coupling. Networking and
+relationship resources such as networks, DNS zones, and name mappings are
+better early POC targets than container applications because they can prove
+typed references, Resource Manager projection, provider boundaries, validation,
+and sample-shaped graph composition without starting from the most complex
+runtime/orchestration resource. Container applications should still inform the
+model, but they should not be treated as the first end-to-end provider
+replacement.
 
 Integration tests for the POC should use sample-shaped resource graphs as soon
 as several narrow providers exist. The Application Topology sample is a useful
@@ -773,33 +782,36 @@ updates this value in `ResourceState` while keeping it out of rendered
 discovery, and state-sensitive action availability remain operational provider
 concerns.
 
-The working porting status for the reference POC is:
+The working reference-model coverage for the POC is listed below. "Modeled"
+means the resource type has enough new-model coverage to exercise definitions,
+resolution, validation, projection, and the Resource Manager bridge; it does
+not mean the existing operational provider can be turned off yet.
 
 | Provider or resource type | Status | New-model coverage | Remaining outside the POC |
 | --- | --- | --- | --- |
-| Executable application (`application.executable`) | Ported as a reference provider | Type and class defaults, executable path validation and configuration, shared volume-consumer capability, start operation with an injected runtime-controller seam, typed wrapper, Resource Manager bridge projection and execution | Real local-process runtime integration, logs, endpoints, templates, and UI registration/update flow |
-| Local volume (`storage.volume`) | Ported as a reference provider | Storage class and type defaults, medium validation, provision operation, typed wrapper, apply planning, Resource Manager bridge projection | Provider-backed storage materialization, usage tracking, health, and monitoring |
-| Storage (`cloudshell.storage`) | Ported as a narrow reference provider | Storage class/type defaults, provider/medium/location attributes, passive storage-provider and mount-provider capability markers, inspect operation, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Volume collection payloads, runtime filesystem availability and volume counts as capability members or operation plans, provider-backed storage materialization, health, monitoring, and UI registration/update flow |
-| CloudShell volume (`cloudshell.volume`) | Ported as a narrow reference provider | Storage class/type defaults, provider/medium/location/subpath/access-mode/persistence attributes, passive storage-volume capability marker, `ResourceReference` storage dependencies, type-specific `storage.volume.provision` operation provider, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Storage-reference graph validation, runtime filesystem availability as capability members or operation plans, provider-backed volume materialization, health, monitoring, and UI registration/update flow |
-| Service (`cloudshell.service`) | Ported as a narrow reference provider | Service class/type defaults, service kind/routing-mode attributes, passive endpoint-source capability marker, `ResourceReference` target/network dependencies, reconcile operation, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Port, endpoint, target, and health-check payloads, endpoint projection through Resource Manager, target validation, orchestration integration, and UI registration/update flow |
-| Container application (`application.container-app`) | Ported as a narrow reference provider | Image and replica attributes, shared volume-consumer capability, start/restart/image-update operations, typed wrapper, Resource Manager bridge projection and execution | Actual container host orchestration, endpoints, revisions, replica runtime state, monitoring, and UI operations |
-| ASP.NET Core project (`application.aspnet-core-project`) | Ported as a narrow reference provider | Project path, arguments, hot reload, launch-settings attributes, shared volume-consumer capability, start/restart operations, typed wrapper, Resource Manager bridge projection and execution | Launch settings parsing, endpoints, local process or container build behavior, UI registration/update flow |
-| SQL Server (`application.sql-server`) | Ported as a narrow reference provider | Service class and type defaults, version/edition attributes, declared database configuration, shared volume-consumer capability, reconcile-access operation, typed wrapper, Resource Manager bridge projection and execution | Real SQL runtime integration, credential/grant reconciliation, database child projections, endpoints, and UI tabs |
-| SQL database child (`application.sql-database`) | Ported as a narrow reference provider | Database name/source/ensure-created attributes, server `ResourceReference` validation, ensure-created operation, typed wrapper, Resource Manager bridge projection and execution | Real SQL database materialization, credential/grant reconciliation, provider-managed child ownership metadata, and UI tabs |
-| Container host (`cloudshell.container-host`) | Ported as a narrow reference provider | Infrastructure class/type defaults, host kind/endpoint/registry/default attributes, passive container image/build/filesystem-mount capability markers, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real Docker/container host runtime integration, host resolution, placement behavior, credentials, and runtime diagnostics |
-| Docker host (`docker.host`) | Ported as a narrow reference provider | Infrastructure class/type defaults, Docker host kind/endpoint/registry/default attributes, passive container image/build/filesystem-mount capability markers, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real Docker runtime integration, discovery, health, logs, container child projections, credentials, and UI registration/update flow |
-| Docker container (`docker.container`) | Ported as a narrow reference provider | Container class/type defaults, workload/image/registry/replica attributes, read-only endpoint-count attribute, passive monitoring and log-source capability markers, lifecycle operation projections, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Real Docker API integration, runtime discovery, container state, state-sensitive action availability, log streaming, endpoint projection, and hidden/runtime-managed Resource Manager behavior |
-| Load balancer (`cloudshell.loadBalancer`) | Ported as a narrow reference provider | Network class/type defaults, provider/host attributes, read-only count attributes, passive networking capability markers, apply-configuration operation, typed wrapper, Resource Manager bridge projection and execution | Route and entrypoint payloads, target `ResourceReference` graph validation, Traefik/materialization runtime integration, endpoint mappings, and UI registration/update flow |
-| Network (`cloudshell.network`) | Ported as a narrow reference provider | Network class/type defaults, kind/readiness/provider attributes, passive networking capability markers, reconcile-endpoint-mappings operation, typed wrapper, Resource Manager bridge projection and execution | Endpoint and mapping payloads, observed mapping state as capability members, host/virtual network specialization, provisioner integration, and UI registration/update flow |
-| Virtual network (`cloudshell.virtualNetwork`) | Ported as a narrow reference provider | Network class/type defaults, virtual/default/readiness/provider attributes, passive virtual-network and ingress capability markers, type-specific `reconcileEndpointMappings` operation provider, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Endpoint and mapping payloads, observed mapping state as capability members or operation plans, endpoint mapping provisioner integration, and UI registration/update flow |
-| Local host networking (`cloudshell.hostNetworking.local`) | Ported as a narrow reference provider | Infrastructure class/type defaults, host-readiness/OS/mode attributes, passive networking provider/endpoint-mapper/gateway/ingress/host-network capability markers, type-specific `reconcileEndpointMappings` operation provider, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Live mapping counts, host proxy runtime state, endpoint mapping provisioner integration, macOS-specific provider specialization, diagnostics, and UI registration/update flow |
-| macOS host networking (`cloudshell.hostNetworking.macos`) | Ported as a narrow reference provider | Infrastructure class/type defaults, host-readiness/OS/mode attributes, passive networking provider/endpoint-mapper/gateway/ingress/host-network capability markers, type-specific `reconcileEndpointMappings` operation provider, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Platform support checks, live mapping counts, host proxy runtime state, endpoint mapping provisioner integration, diagnostics, and UI registration/update flow |
-| DNS Zone (`cloudshell.dnsZone`) | Ported as a narrow reference provider | Network class/type defaults, zone/provider attributes, passive DNS-zone capability marker, reconcile-name-mappings operation, typed wrapper, Resource Manager bridge projection and execution | Name-mapping child resource integration, record/conflict/materialization views as capability members or operation plans, DNS publisher integration, and UI registration/update flow |
-| Name mapping (`cloudshell.nameMapping`) | Ported as a narrow reference provider | Network class/type defaults, host/endpoint/exposure attributes, passive name-mapping capability marker, `ResourceReference` dependencies, typed wrapper, apply planning, and Resource Manager bridge projection | Typed reference attributes when complex attribute values are promoted, target endpoint validation, conflict/materialization views as capability members or operation plans, DNS publisher integration, and UI registration/update flow |
-| Configuration store (`configuration.store`) | Ported as a narrow reference provider | Configuration class/type defaults, endpoint and read-only entry-count attributes, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real configuration service runtime integration, entry collection payloads, authorization, logs, templates, and UI registration/update flow |
-| Host configuration source (`configuration.host`) | Ported as a narrow reference provider | Configuration class/type defaults, source and read-only entry-count attributes, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Runtime host configuration lookup, entry-name payloads, authorization, templates, and UI registration/update flow |
-| Secrets Vault (`secrets.vault`) | Ported as a narrow reference provider | Secrets Vault class/type defaults, endpoint and read-only secret-count attributes, inspect operation, typed wrapper, Resource Manager bridge projection and execution without storing secret values | Real Secrets Vault runtime integration, secret collection payloads, authorization, logs, templates, and UI registration/update flow |
-| Identity provisioning (`cloudshell.identity-provisioning`) | Ported as a narrow reference provider | Infrastructure class/type defaults, provider/provider-kind attributes, passive identity-provisioning capability marker, setup operation, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Real identity provider setup, directory/client materialization, credential issuance, grant reconciliation, authorization, diagnostics, and UI registration/update flow |
+| Executable application (`application.executable`) | Modeled as a reference provider | Type and class defaults, executable path validation and configuration, shared volume-consumer capability, start operation with an injected runtime-controller seam, typed wrapper, Resource Manager bridge projection and execution | Real local-process runtime integration, logs, endpoints, templates, and UI registration/update flow |
+| Local volume (`storage.volume`) | Modeled as a reference provider | Storage class and type defaults, medium validation, provision operation, typed wrapper, apply planning, Resource Manager bridge projection | Provider-backed storage materialization, usage tracking, health, and monitoring |
+| Storage (`cloudshell.storage`) | Modeled as a narrow reference provider | Storage class/type defaults, provider/medium/location attributes, passive storage-provider and mount-provider capability markers, inspect operation, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Volume collection payloads, runtime filesystem availability and volume counts as capability members or operation plans, provider-backed storage materialization, health, monitoring, and UI registration/update flow |
+| CloudShell volume (`cloudshell.volume`) | Modeled as a narrow reference provider | Storage class/type defaults, provider/medium/location/subpath/access-mode/persistence attributes, passive storage-volume capability marker, `ResourceReference` storage dependencies, type-specific `storage.volume.provision` operation provider, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Storage-reference graph validation, runtime filesystem availability as capability members or operation plans, provider-backed volume materialization, health, monitoring, and UI registration/update flow |
+| Service (`cloudshell.service`) | Modeled as a narrow reference provider | Service class/type defaults, service kind/routing-mode attributes, passive endpoint-source capability marker, `ResourceReference` target/network dependencies, reconcile operation, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Port, endpoint, target, and health-check payloads, endpoint projection through Resource Manager, target validation, orchestration integration, and UI registration/update flow |
+| Container application (`application.container-app`) | Modeled as a narrow reference provider | Image and replica attributes, shared volume-consumer capability, start/restart/image-update operations, typed wrapper, Resource Manager bridge projection and execution | Actual container host orchestration, endpoints, revisions, replica runtime state, monitoring, and UI operations |
+| ASP.NET Core project (`application.aspnet-core-project`) | Modeled as a narrow reference provider | Project path, arguments, hot reload, launch-settings attributes, shared volume-consumer capability, start/restart operations, typed wrapper, Resource Manager bridge projection and execution | Launch settings parsing, endpoints, local process or container build behavior, UI registration/update flow |
+| SQL Server (`application.sql-server`) | Modeled as a narrow reference provider | Service class and type defaults, version/edition attributes, declared database configuration, shared volume-consumer capability, reconcile-access operation, typed wrapper, Resource Manager bridge projection and execution | Real SQL runtime integration, credential/grant reconciliation, database child projections, endpoints, and UI tabs |
+| SQL database child (`application.sql-database`) | Modeled as a narrow reference provider | Database name/source/ensure-created attributes, server `ResourceReference` validation, ensure-created operation, typed wrapper, Resource Manager bridge projection and execution | Real SQL database materialization, credential/grant reconciliation, provider-managed child ownership metadata, and UI tabs |
+| Container host (`cloudshell.container-host`) | Modeled as a narrow reference provider | Infrastructure class/type defaults, host kind/endpoint/registry/default attributes, passive container image/build/filesystem-mount capability markers, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real Docker/container host runtime integration, host resolution, placement behavior, credentials, and runtime diagnostics |
+| Docker host (`docker.host`) | Modeled as a narrow reference provider | Infrastructure class/type defaults, Docker host kind/endpoint/registry/default attributes, passive container image/build/filesystem-mount capability markers, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real Docker runtime integration, discovery, health, logs, container child projections, credentials, and UI registration/update flow |
+| Docker container (`docker.container`) | Modeled as a narrow reference provider | Container class/type defaults, workload/image/registry/replica attributes, read-only endpoint-count attribute, passive monitoring and log-source capability markers, lifecycle operation projections, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Real Docker API integration, runtime discovery, container state, state-sensitive action availability, log streaming, endpoint projection, and hidden/runtime-managed Resource Manager behavior |
+| Load balancer (`cloudshell.loadBalancer`) | Modeled as a narrow reference provider | Network class/type defaults, provider/host attributes, read-only count attributes, passive networking capability markers, apply-configuration operation, typed wrapper, Resource Manager bridge projection and execution | Route and entrypoint payloads, target `ResourceReference` graph validation, Traefik/materialization runtime integration, endpoint mappings, and UI registration/update flow |
+| Network (`cloudshell.network`) | Modeled as a narrow reference provider | Network class/type defaults, kind/readiness/provider attributes, passive networking capability markers, reconcile-endpoint-mappings operation, typed wrapper, Resource Manager bridge projection and execution | Endpoint and mapping payloads, observed mapping state as capability members, host/virtual network specialization, provisioner integration, and UI registration/update flow |
+| Virtual network (`cloudshell.virtualNetwork`) | Modeled as a narrow reference provider | Network class/type defaults, virtual/default/readiness/provider attributes, passive virtual-network and ingress capability markers, type-specific `reconcileEndpointMappings` operation provider, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Endpoint and mapping payloads, observed mapping state as capability members or operation plans, endpoint mapping provisioner integration, and UI registration/update flow |
+| Local host networking (`cloudshell.hostNetworking.local`) | Modeled as a narrow reference provider | Infrastructure class/type defaults, host-readiness/OS/mode attributes, passive networking provider/endpoint-mapper/gateway/ingress/host-network capability markers, type-specific `reconcileEndpointMappings` operation provider, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Live mapping counts, host proxy runtime state, endpoint mapping provisioner integration, macOS-specific provider specialization, diagnostics, and UI registration/update flow |
+| macOS host networking (`cloudshell.hostNetworking.macos`) | Modeled as a narrow reference provider | Infrastructure class/type defaults, host-readiness/OS/mode attributes, passive networking provider/endpoint-mapper/gateway/ingress/host-network capability markers, type-specific `reconcileEndpointMappings` operation provider, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Platform support checks, live mapping counts, host proxy runtime state, endpoint mapping provisioner integration, diagnostics, and UI registration/update flow |
+| DNS Zone (`cloudshell.dnsZone`) | Modeled as a narrow reference provider | Network class/type defaults, zone/provider attributes, passive DNS-zone capability marker, reconcile-name-mappings operation, typed wrapper, Resource Manager bridge projection and execution | Name-mapping child resource integration, record/conflict/materialization views as capability members or operation plans, DNS publisher integration, and UI registration/update flow |
+| Name mapping (`cloudshell.nameMapping`) | Modeled as a narrow reference provider | Network class/type defaults, host/endpoint/exposure attributes, passive name-mapping capability marker, `ResourceReference` dependencies, typed wrapper, apply planning, and Resource Manager bridge projection | Typed reference attributes when complex attribute values are promoted, target endpoint validation, conflict/materialization views as capability members or operation plans, DNS publisher integration, and UI registration/update flow |
+| Configuration store (`configuration.store`) | Modeled as a narrow reference provider | Configuration class/type defaults, endpoint and read-only entry-count attributes, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real configuration service runtime integration, entry collection payloads, authorization, logs, templates, and UI registration/update flow |
+| Host configuration source (`configuration.host`) | Modeled as a narrow reference provider | Configuration class/type defaults, source and read-only entry-count attributes, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Runtime host configuration lookup, entry-name payloads, authorization, templates, and UI registration/update flow |
+| Secrets Vault (`secrets.vault`) | Modeled as a narrow reference provider | Secrets Vault class/type defaults, endpoint and read-only secret-count attributes, inspect operation, typed wrapper, Resource Manager bridge projection and execution without storing secret values | Real Secrets Vault runtime integration, secret collection payloads, authorization, logs, templates, and UI registration/update flow |
+| Identity provisioning (`cloudshell.identity-provisioning`) | Modeled as a narrow reference provider | Infrastructure class/type defaults, provider/provider-kind attributes, passive identity-provisioning capability marker, setup operation, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Real identity provider setup, directory/client materialization, credential issuance, grant reconciliation, authorization, diagnostics, and UI registration/update flow |
 
 Host infrastructure registration is a separate concern from provider
 registration. A host may compose the generic graph services once from whatever
@@ -865,12 +877,11 @@ resolved `Resource` projection behavior-rich without letting random
 provider-specific properties bypass graph versioning, persistence, and apply
 validation.
 
-Graph locking, graph update coordination, and transaction policy belong at
-the Resource Manager or Control Plane coordination layer. The Resource model
-can provide change sets, resolved projections, diagnostics, and commit-shaped
+Graph locking, graph update coordination, and conflict policy belong at the
+Resource Manager or Control Plane coordination layer. The Resource model can
+provide change sets, resolved projections, diagnostics, and commit-shaped
 results, but it should not own the policy for whether Resource Manager locks
-the graph, uses optimistic transactions, retries, merges, or rejects
-concurrent updates.
+records, retries, merges, or rejects concurrent updates.
 
 A future orchestrator or lifecycle service can follow the same boundary. It
 can start from the Control Plane's own Resource Manager resource record, use
@@ -878,11 +889,10 @@ the shared resource ID to resolve the matching Resource model graph node and
 any dependencies it needs, then use the resolved graph knowledge,
 capabilities, and operations while operating the lifecycle. If that operation
 needs to update declared graph state, it should persist only the necessary
-Resource model changes. Any locks, transactions, retries, or conflict handling
-between reading the Control Plane resource, resolving the graph, executing
-provider behavior, and committing graph changes remain implementation details
-of the Resource Manager, orchestrator, or broader Control Plane coordination
-layer.
+Resource model changes. Any locks, retries, or conflict handling between
+reading the Control Plane resource, resolving the graph, executing provider
+behavior, and committing graph changes remain implementation details of the
+Resource Manager, orchestrator, or broader Control Plane coordination layer.
 
 The POC supports that lookup shape with a small Resource model graph resolver
 that can resolve a target resource and its dependency closure from a
@@ -1602,14 +1612,15 @@ ordering and resource-level revisions independently, while keeping
 `ResourceDefinition`, `ResourceState`, and `ResourceRecord` document/store
 shapes serializer-friendly.
 
-For the server application shape, the POC also allows a single in-memory
-`ResourceGraphModel` to own the current graph snapshot. The model loads from
-`IResourceStateProvider`, hands out trackers based on the current snapshot,
-commits changes back through the state provider, and only updates its cached
-snapshot from the committed provider result. This lets the server keep the
-resource graph hot in memory when there is one primary graph consumer, while
-still preserving explicit commit boundaries, optimistic graph versions, and a
-clear synchronization point with the backing data store.
+For the server application shape, `ResourceGraphModel` should be treated as a
+lightweight POC helper over an `IResourceStateProvider`, not as the final
+Resource Manager graph context. A real Resource Manager integration can use a
+custom projection layer that loads operational resource records, reads the
+stored Resource model graph payload from those records, and materializes
+short-lived `ResourceState` values only when a workflow needs graph-aware
+behavior. The important boundary is that accepted graph-state changes are
+written back through the owning operational persistence path, with graph
+versions acting as the minimal concurrency guard.
 
 Before a server-hosted `ResourceGraphModel` commits changes, it should refresh
 the current snapshot from `IResourceStateProvider` and compare the change
@@ -2067,33 +2078,40 @@ document to a graph. A `ResourceDefinition` can be rendered from a
 state before resolution, but provider-owned change acceptance acts on the
 resolved `Resource` projection and its proposed resource state.
 
-The future Resource Manager model can add a broader transaction or graph
-commit pipeline on top:
+The POC should keep the graph write path as a small projection/apply boundary,
+not a full graph context. A host or Resource Manager integration loads the
+current graph state from its own operational records, resolves the relevant
+`Resource` projections, asks providers to accept or reject proposed changes,
+and then commits the accepted changes through the backing store.
 
 ```csharp
-using var changeContext = model.CreateChangeContext();
+ResourceGraphSnapshot snapshot = await graphModel.GetSnapshotAsync(cancellationToken);
+Resource resource = resolver.Resolve(snapshot.Resources.Single(resource =>
+    resource.EffectiveResourceId == resourceId));
+
 resource.SetAttribute(NamedAttributeIds.ContainerReplicasAttributeId, 2);
 
-ResourceChangeSet staged = changeContext.ApplyChanges();
 ResourceChangeApplyResult accepted =
-    await changeApplyDispatcher.ApplyChangesAsync(staged, context, cancellationToken);
+    await changeApplyDispatcher.ApplyChangesAsync(
+        resource.ApplyChanges(),
+        context,
+        cancellationToken);
 
-await using var transaction = await graphModel.BeginTransactionAsync(cancellationToken);
-transaction.Track(accepted);
+var tracker = new ResourceGraphChangeTracker(snapshot);
+tracker.Track(accepted);
 
 ResourceGraphCommitResult commit =
-    await transaction.CommitAsync(commitContext, cancellationToken);
+    await graphModel.CommitAsync(
+        tracker.GetChanges(),
+        commitContext,
+        cancellationToken);
 ```
 
-The naming is still open. This boundary may end up being called a transaction,
-a graph change context, or something else. The important requirement is that
-CloudShell has a clear scope where graph changes are staged, validated,
-accepted, and flushed to the backing store as one unit. For workflows that need
-stronger coordination, that scope should be able to become exclusive so no
-other writer can modify or flush graph changes to the same store while the
-scope is active. The conservative POC shape is an in-process exclusive graph
-boundary; a distributed Control Plane would still need store-backed locking,
-leases, or transaction support above this model.
+The example uses `ResourceGraphChangeTracker` directly rather than adding
+transaction or graph-context APIs. If a later
+Resource Manager workflow needs locks, retries, merge policy, or distributed
+transactions, that coordination should be designed in the operational model or
+persistence integration that owns concurrent writes.
 
 For a hypothetical container type provider, changing `container.image` while
 the resource is stopped may only update accepted resource state. Changing it while the
@@ -2109,19 +2127,19 @@ in-place, starts a deployment operation, is blocked by current state, or needs
 manual intervention. That richer planning belongs in a later Resource Manager
 or provider orchestration layer; the POC only proves the low-level resource
 projection can stage changes, route them to the owning type provider, and
-commit accepted changes together as a versioned resource graph. In a server
-process, `ResourceGraphModel` can keep that graph in memory and synchronize it
-through the same provider commit boundary rather than forcing each operation
-to rematerialize the whole graph from storage.
+commit accepted changes together as versioned graph state. In the likely
+server integration, Resource Manager can keep operational resource records and
+store the Resource model graph payload alongside those records. A custom
+projection layer can then materialize `ResourceState` values from that
+operational data model when graph-aware behavior is needed.
 
-## Transactions and Staged Changes
+## Staged Changes and Versions
 
 The core model should distinguish committed state from staged changes. A
 `ResourceChangeSet` is a proposed change against a base graph version; it is
 not a new resource version and it does not represent committed resource state.
-Callers may stage attribute or capability changes freely inside a change
-context or future transaction because those changes are outside the committed
-model until the graph commit boundary accepts them.
+Callers may stage attribute or capability changes freely because those changes
+are outside the committed model until the graph commit boundary accepts them.
 
 Versions are assigned only when changes become committed state:
 
@@ -2129,35 +2147,17 @@ Versions are assigned only when changes become committed state:
 - `Resource.Revision` identifies committed resource state.
 - `ResourceChangeSet` carries proposed changes and the base graph version it
   was prepared against.
-- `ResourceGraphTransaction` owns staged accepted changes for a graph snapshot
-  and commits them through `ResourceGraphModel`.
-- Future transaction slices can add provider validation orchestration,
-  conflict policy, diagnostics enrichment, summary enrichment, and event
-  creation.
+- `ResourceGraphChangeTracker` groups accepted changes against one snapshot.
+- `ResourceGraphModel` commits the grouped changes only when the backing
+  store still reports the same graph version.
 
-That transaction layer sits above the core resource projection. The core model
-resolves state and allows proposed changes to be expressed; the transaction or
-resource graph management layer decides whether those proposals can become
-committed state. In the conservative default, a transaction commits only when
-the stored graph version still matches its base graph version. If the stored
-graph is newer, the transaction is rejected with a version conflict and the
-caller refreshes the graph or relevant resources before creating a new change
-set. Future merge or rebase support should be explicit, provider-aware, and
-auditable rather than implicit in `Resource` or capability projections.
-
-The current POC transaction is intentionally small. It captures the base
-`ResourceGraphSnapshot`, tracks accepted `ResourceChangeApplyResult` values,
-exposes the pending `ResourceGraphChangeSet` for inspection, and can be
-committed once through the graph model. It prevents reusing a completed
-transaction, but it does not yet resolve resources, run capability providers,
-or apply merge policies itself.
-
-The POC also supports an opt-in exclusive mode for the in-memory
-`ResourceGraphModel`. Exclusive mode holds the model lock for the graph change
-boundary and blocks other in-process graph reads, commits, refreshes, and
-reloads until the boundary commits or is disposed. This proves the shape of an
-atomic change boundary without making the core Resource model responsible for
-the final distributed locking or transaction policy.
+The current POC intentionally does not include a transaction, exclusive lock,
+graph session, or long-lived graph context abstraction. If the stored graph is
+newer than the change set's base graph version, the commit is rejected with a
+version conflict and the caller can refresh the relevant operational records
+before creating a new change set. Future merge or rebase support should be
+explicit, provider-aware, and auditable rather than implicit in `Resource` or
+capability projections.
 
 ## Capability Providers
 
@@ -2196,10 +2196,10 @@ the effective capability entry, resource attributes, operation declarations,
 type/class views, current environment, and provider observations needed for
 validation.
 
-Projected capabilities should be resource-bound behavior, not graph transaction
+Projected capabilities should be resource-bound behavior, not graph-scope
 owners. The caller that resolves and executes a capability or operation should
-own the resource graph scope it is operating within, including any snapshot,
-transaction, lock, apply dispatcher, and commit boundary. This keeps graph
+own the operational scope it is operating within, including the snapshot,
+apply dispatcher, retry behavior, and commit boundary. This keeps graph
 stability and concurrency policy at the orchestration boundary instead of
 passing graph snapshots or lock handles into capability or operation execution
 contexts.
@@ -2207,9 +2207,8 @@ contexts.
 Capability methods can stage changes through the target `Resource` and return
 `ResourceChangeSet` values. The caller can then validate or apply those changes
 through the relevant resource type provider and decide whether to track and
-commit them through a graph transaction. This keeps capability methods
-ergonomic while preventing hidden graph writes from a capability projection
-that was created for inspection.
+commit them. This keeps capability methods ergonomic while preventing hidden
+graph writes from a capability projection that was created for inspection.
 
 As an immediate rule, projected capabilities should stage direct Resource model
 changes only for the resource they are attached to. A capability can call out
@@ -2365,7 +2364,7 @@ need them.
 
 Like capabilities, operation projections should stay resource-bound. The
 caller that resolves and invokes the operation owns the graph snapshot,
-transaction, lock, apply dispatcher, and commit boundary. If an operation
+apply dispatcher, retry behavior, and commit boundary. If an operation
 needs to stage model changes, it can return or expose resource change sets
 from the target `Resource`; the caller decides how those changes are applied,
 tracked, and committed.
