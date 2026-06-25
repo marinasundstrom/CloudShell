@@ -22,6 +22,11 @@ public sealed class ResourceAttributeSet : IReadOnlyCollection<ResourceAttribute
     public ResourceAttributeValue? GetValue(ResourceAttributeId name) =>
         _attributes.TryGetValue(name, out var attribute) ? attribute.AttributeValue : null;
 
+    public TValue? GetObject<TValue>(
+        ResourceAttributeId name,
+        JsonSerializerOptions? options = null) =>
+        GetValue(name) is { } value ? value.ToObject<TValue>(options) : default;
+
     public ResourceAttributeResolution? Resolve(ResourceAttributeId name) =>
         _attributes.GetValueOrDefault(name);
 

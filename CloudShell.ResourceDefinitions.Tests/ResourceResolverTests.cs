@@ -228,14 +228,14 @@ public sealed class ResourceResolverTests
                     ExecutableApplicationResourceTypeProvider.ClassId,
                     Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
                     {
-                        ["endpoints"] = new(
+                        ["runtime.healthChecks"] = new(
                             ValueType: ResourceAttributeValueType.ComplexType,
-                            ValueShapeId: "networking.endpoint",
+                            ValueShapeId: "runtime.healthCheck",
                             IsCollection: true)
                     },
                     AttributeValueShapes: new Dictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>
                     {
-                        ["networking.endpoint"] = new(
+                        ["runtime.healthCheck"] = new(
                             new(
                                 new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
                                 {
@@ -255,7 +255,7 @@ public sealed class ResourceResolverTests
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
             Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
-                ["endpoints"] = ResourceAttributeValue.Array(
+                ["runtime.healthChecks"] = ResourceAttributeValue.Array(
                     [
                         ResourceAttributeValue.Object(
                             new Dictionary<string, ResourceAttributeValue>
@@ -270,9 +270,9 @@ public sealed class ResourceResolverTests
         var resolved = resolver.Resolve(definition);
 
         Assert.Empty(resolved.Diagnostics);
-        var endpoints = resolved.Attributes.GetValue("endpoints");
-        Assert.NotNull(endpoints);
-        Assert.Equal(ResourceAttributeValueKind.Array, endpoints.Kind);
+        var healthChecks = resolved.Attributes.GetValue("runtime.healthChecks");
+        Assert.NotNull(healthChecks);
+        Assert.Equal(ResourceAttributeValueKind.Array, healthChecks.Kind);
     }
 
     [Fact]
@@ -326,6 +326,122 @@ public sealed class ResourceResolverTests
         Assert.Equal(ResourceDefinitionDiagnosticCodes.AttributeValueInvalid, diagnostic.Code);
         Assert.Equal("endpoints", diagnostic.Target);
         Assert.Contains("endpoints[0].targetPort", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Resolve_ValidatesEndpointMappingAttributeValuesAgainstRuntimeProvidedShapes()
+    {
+        var resolver = new ResourceResolver(
+            [
+                new(ExecutableApplicationResourceTypeProvider.ClassId)
+            ],
+            [
+                new(
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    ExecutableApplicationResourceTypeProvider.ClassId,
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                    {
+                        ["endpoints"] = new(
+                            ValueType: ResourceAttributeValueType.ComplexType,
+                            ValueShapeId: NetworkingEndpointShapeIds.Endpoint,
+                            IsCollection: true),
+                        ["endpointMappings"] = new(
+                            ValueType: ResourceAttributeValueType.ComplexType,
+                            ValueShapeId: NetworkingEndpointShapeIds.EndpointMapping,
+                            IsCollection: true)
+                    })
+            ],
+            attributeValueShapeProviders: [new NetworkingEndpointShapeProvider()]);
+        var definition = new ResourceDefinition(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                ["endpoints"] = ResourceAttributeValue.FromObject(
+                    new[]
+                    {
+                        new NetworkingEndpointValue(
+                            "http",
+                            "http",
+                            TargetPort: 8080,
+                            Exposure: "Local")
+                    }),
+                ["endpointMappings"] = ResourceAttributeValue.FromObject(
+                    new[]
+                    {
+                        new NetworkingEndpointMappingValue(
+                            new NetworkingEndpointReferenceValue(
+                                ResourceReference.DependsOnResourceId(
+                                    "cloudshell.network:default",
+                                    typeId: "cloudshell.network"),
+                                "public-http"),
+                            new NetworkingEndpointReferenceValue(
+                                ResourceReference.DependsOnResourceId(
+                                    "application.executable:api",
+                                    typeId: ExecutableApplicationResourceTypeProvider.ResourceTypeId),
+                                "http"),
+                            Id: "api-http",
+                            Name: "api-http",
+                            Network: ResourceReference.DependsOnResourceId(
+                                "cloudshell.network:default",
+                                typeId: "cloudshell.network"))
+                    })
+            });
+
+        var resolved = resolver.Resolve(definition);
+
+        Assert.Empty(resolved.Diagnostics);
+        var projected = Assert.Single(resolved.Attributes.GetObject<NetworkingEndpointMappingValue[]>("endpointMappings")!);
+        Assert.Equal("public-http", projected.Source.EndpointName);
+        Assert.True(projected.Target.Resource.TryGetDependsOnResourceId(out var targetResourceId));
+        Assert.Equal("application.executable:api", targetResourceId);
+    }
+
+    [Fact]
+    public void Resolve_ReportsEndpointMappingRuntimeProvidedShapeDiagnostics()
+    {
+        var resolver = new ResourceResolver(
+            [
+                new(ExecutableApplicationResourceTypeProvider.ClassId)
+            ],
+            [
+                new(
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    ExecutableApplicationResourceTypeProvider.ClassId,
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                    {
+                        ["endpointMappings"] = new(
+                            ValueType: ResourceAttributeValueType.ComplexType,
+                            ValueShapeId: NetworkingEndpointShapeIds.EndpointMapping,
+                            IsCollection: true)
+                    })
+            ],
+            attributeValueShapeProviders: [new NetworkingEndpointShapeProvider()]);
+        var definition = new ResourceDefinition(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                ["endpointMappings"] = ResourceAttributeValue.Array(
+                    [
+                        ResourceAttributeValue.Object(
+                            new Dictionary<string, ResourceAttributeValue>
+                            {
+                                ["source"] = ResourceAttributeValue.FromObject(
+                                    new NetworkingEndpointReferenceValue(
+                                        ResourceReference.DependsOnResourceId(
+                                            "cloudshell.network:default",
+                                            typeId: "cloudshell.network"),
+                                        "public-http"))
+                            })
+                    ])
+            });
+
+        var resolved = resolver.Resolve(definition);
+
+        var diagnostic = Assert.Single(resolved.Diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.AttributeValueInvalid, diagnostic.Code);
+        Assert.Equal("endpointMappings.target", diagnostic.Target);
     }
 
     [Fact]

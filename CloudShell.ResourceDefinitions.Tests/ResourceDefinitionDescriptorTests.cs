@@ -132,6 +132,37 @@ public sealed class ResourceDefinitionDescriptorTests
     }
 
     [Fact]
+    public void ResourceTypeDefinition_CanDeclareRuntimeProvidedEndpointShapeIdsAsJsonTarget()
+    {
+        var typeDefinition = new ResourceTypeDefinition(
+            "application.endpoint-source",
+            ExecutableApplicationResourceTypeProvider.ClassId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+            {
+                ["endpoints"] = new(
+                    ValueType: ResourceAttributeValueType.ComplexType,
+                    ValueShapeId: NetworkingEndpointShapeIds.Endpoint,
+                    IsCollection: true),
+                ["endpointMappings"] = new(
+                    ValueType: ResourceAttributeValueType.ComplexType,
+                    ValueShapeId: NetworkingEndpointShapeIds.EndpointMapping,
+                    IsCollection: true)
+            });
+
+        var json = JsonSerializer.Serialize(typeDefinition, JsonSerializerOptions.Web);
+        var roundTrip = JsonSerializer.Deserialize<ResourceTypeDefinition>(json, JsonSerializerOptions.Web);
+
+        Assert.NotNull(roundTrip);
+        Assert.Equal(
+            NetworkingEndpointShapeIds.Endpoint,
+            roundTrip.Attributes!["endpoints"].ValueShapeId);
+        Assert.Equal(
+            NetworkingEndpointShapeIds.EndpointMapping,
+            roundTrip.Attributes!["endpointMappings"].ValueShapeId);
+        Assert.Null(roundTrip.AttributeValueShapes);
+    }
+
+    [Fact]
     public void ResourceTypeDefinition_CanDeclareResourceReferenceAttributeType()
     {
         var typeDefinition = new ResourceTypeDefinition(
@@ -160,7 +191,7 @@ public sealed class ResourceDefinitionDescriptorTests
         var json = JsonSerializer.Serialize(reference, JsonSerializerOptions.Web);
         using var document = JsonDocument.Parse(json);
 
-        var attributeValue = ResourceAttributeValue.FromObject(reference);
+        var attributeValue = ResourceAttributeValue.ResourceReference(reference);
         var mappedReference = attributeValue.ToObject<ResourceReference>();
 
         foreach (var propertyName in new[] { "value", "relationship", "addressingMode", "typeId", "providerId" })
@@ -179,6 +210,40 @@ public sealed class ResourceDefinitionDescriptorTests
         Assert.Equal(reference, roundTrip);
         Assert.Equal(reference, mappedReference);
         Assert.Equal(reference, navigatedReference);
+    }
+
+    [Fact]
+    public void ResourceAttributeValueMap_CanSetAndExtractTypedValues()
+    {
+        var reference = ResourceReference.DependsOnResourceId(
+            "application.sql-server:server",
+            typeId: SqlServerResourceTypeProvider.ResourceTypeId);
+        var endpoint = new NetworkingEndpointMappingValue(
+            new NetworkingEndpointReferenceValue(
+                ResourceReference.DependsOnResourceId(
+                    "cloudshell.network:default",
+                    typeId: "cloudshell.network"),
+                "public-http"),
+            new NetworkingEndpointReferenceValue(reference, "tds"),
+            Id: "sql-tds",
+            Name: "sql-tds");
+        var attributes = new ResourceAttributeValueMap(
+            new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                ["database.server"] = ResourceAttributeValue.ResourceReference(reference),
+                ["database.endpointMapping"] = ResourceAttributeValue.FromObject(endpoint),
+                ["database.enabled"] = true,
+                ["database.port"] = 1433
+            });
+
+        var mappedReference = attributes.GetObject<ResourceReference>("database.server");
+        var mappedEndpoint = attributes.GetObject<NetworkingEndpointMappingValue>("database.endpointMapping");
+
+        Assert.Equal(reference, mappedReference);
+        Assert.NotNull(mappedEndpoint);
+        Assert.Equal("tds", mappedEndpoint.Target.EndpointName);
+        Assert.Equal("true", ResourceAttributeValueMaps.ToScalars(attributes)["database.enabled"]);
+        Assert.Equal("1433", ResourceAttributeValueMaps.ToScalars(attributes)["database.port"]);
     }
 
     [Fact]
@@ -225,7 +290,7 @@ public sealed class ResourceDefinitionDescriptorTests
     [Fact]
     public void ResourceDefinition_RoundTripsComplexAttributeValuesAsJsonTarget()
     {
-        var endpoint = new EndpointDeclaration(
+        var endpoint = new NetworkingEndpointValue(
             "http",
             "http",
             8080,
@@ -244,7 +309,7 @@ public sealed class ResourceDefinitionDescriptorTests
         Assert.NotNull(roundTrip);
         var endpoints = roundTrip.ResourceAttributeValues["endpoints"];
         Assert.Equal(ResourceAttributeValueKind.Array, endpoints.Kind);
-        var projected = Assert.Single(endpoints.ToObject<EndpointDeclaration[]>()!);
+        var projected = Assert.Single(endpoints.ToObject<NetworkingEndpointValue[]>()!);
         Assert.Equal(endpoint, projected);
         Assert.DoesNotContain("\"targetPort\":\"8080\"", json);
     }
@@ -252,20 +317,20 @@ public sealed class ResourceDefinitionDescriptorTests
     [Fact]
     public void ResourceAttributeValue_ProjectsConcreteClrTypeAndBack()
     {
-        var mapping = new EndpointMappingDeclaration(
-            new EndpointReferenceDeclaration(
+        var mapping = new NetworkingEndpointMappingValue(
+            new NetworkingEndpointReferenceValue(
                 ResourceReference.DependsOnResourceId(
                     "cloudshell.network:default",
                     typeId: "cloudshell.network"),
                 "public-http"),
-            new EndpointReferenceDeclaration(
+            new NetworkingEndpointReferenceValue(
                 ResourceReference.DependsOnResourceId(
                     "application.aspnet-core-project:api",
                     typeId: "application.aspnet-core-project"),
                 "http"));
 
         var value = ResourceAttributeValue.FromObject(mapping);
-        var projected = value.ToObject<EndpointMappingDeclaration>();
+        var projected = value.ToObject<NetworkingEndpointMappingValue>();
         var roundTrip = ResourceAttributeValue.FromObject(projected!);
 
         Assert.NotNull(projected);
@@ -333,17 +398,4 @@ public sealed class ResourceDefinitionDescriptorTests
         Assert.Equal("application.sql-server:server", resourceId);
     }
 
-    private sealed record EndpointDeclaration(
-        string Name,
-        string Protocol,
-        int TargetPort,
-        string Exposure);
-
-    private sealed record EndpointReferenceDeclaration(
-        ResourceReference Resource,
-        string EndpointName);
-
-    private sealed record EndpointMappingDeclaration(
-        EndpointReferenceDeclaration Source,
-        EndpointReferenceDeclaration Target);
 }

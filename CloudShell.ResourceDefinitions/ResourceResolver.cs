@@ -5,11 +5,14 @@ public sealed class ResourceResolver
     private readonly IReadOnlyDictionary<ResourceClassId, ResourceClassDefinition> _classDefinitions;
     private readonly IReadOnlyDictionary<ResourceTypeId, ResourceTypeDefinition> _typeDefinitions;
     private readonly IReadOnlyList<IResourceAttributeValidator> _attributeValidators;
+    private readonly IReadOnlyDictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>
+        _sharedAttributeValueShapes;
 
     public ResourceResolver(
         IEnumerable<ResourceClassDefinition> classDefinitions,
         IEnumerable<ResourceTypeDefinition> typeDefinitions,
-        IEnumerable<IResourceAttributeValidator>? attributeValidators = null)
+        IEnumerable<IResourceAttributeValidator>? attributeValidators = null,
+        IEnumerable<IResourceAttributeValueShapeProvider>? attributeValueShapeProviders = null)
     {
         ArgumentNullException.ThrowIfNull(classDefinitions);
         ArgumentNullException.ThrowIfNull(typeDefinitions);
@@ -19,6 +22,7 @@ public sealed class ResourceResolver
         _typeDefinitions = typeDefinitions.ToDictionary(
             definition => definition.TypeId);
         _attributeValidators = attributeValidators?.ToArray() ?? [];
+        _sharedAttributeValueShapes = MergeAttributeValueShapeProviders(attributeValueShapeProviders);
     }
 
     public Resource Resolve(
@@ -53,12 +57,17 @@ public sealed class ResourceResolver
         var classDefinition = ResolveClassDefinition(typeDefinition, diagnostics);
         ValidateAttributeDefinitionDefaults(
             classDefinition.Attributes,
-            classDefinition.AttributeValueShapes,
+            MergeAttributeValueShapeDefinitions(
+                _sharedAttributeValueShapes,
+                classDefinition.AttributeValueShapes),
             ResourceDefinitionValueSource.ClassDefinition,
             diagnostics);
         ValidateAttributeDefinitionDefaults(
             typeDefinition.Attributes,
-            typeDefinition.AttributeValueShapes,
+            MergeAttributeValueShapeDefinitions(
+                _sharedAttributeValueShapes,
+                classDefinition.AttributeValueShapes,
+                typeDefinition.AttributeValueShapes),
             ResourceDefinitionValueSource.TypeDefinition,
             diagnostics);
         var resourceClass = ResolveResourceClass(classDefinition);
@@ -78,6 +87,7 @@ public sealed class ResourceResolver
             state,
             classDefinition,
             typeDefinition,
+            _sharedAttributeValueShapes,
             diagnostics);
         ValidateAttributes(
             state,
@@ -587,9 +597,11 @@ public sealed class ResourceResolver
         ResourceState state,
         ResourceClassDefinition classDefinition,
         ResourceTypeDefinition typeDefinition,
+        IReadOnlyDictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>? sharedShapeDefinitions,
         List<ResourceDefinitionDiagnostic> diagnostics)
     {
         var shapeDefinitions = MergeAttributeValueShapeDefinitions(
+            sharedShapeDefinitions,
             classDefinition.AttributeValueShapes,
             typeDefinition.AttributeValueShapes);
 
@@ -636,29 +648,43 @@ public sealed class ResourceResolver
         return null;
     }
 
-    private static IReadOnlyDictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>?
-        MergeAttributeValueShapeDefinitions(
-            IReadOnlyDictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>? classShapes,
-            IReadOnlyDictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>? typeShapes)
+    private static IReadOnlyDictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>
+        MergeAttributeValueShapeProviders(
+            IEnumerable<IResourceAttributeValueShapeProvider>? shapeProviders)
     {
-        if (classShapes is null && typeShapes is null)
-        {
-            return null;
-        }
+        var shapes = new Dictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>();
 
-        var shapes = classShapes is null
-            ? new Dictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>()
-            : new Dictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>(classShapes);
-
-        if (typeShapes is not null)
+        foreach (var provider in shapeProviders ?? [])
         {
-            foreach (var (id, shape) in typeShapes)
+            foreach (var (id, shape) in provider.GetAttributeValueShapes())
             {
                 shapes[id] = shape;
             }
         }
 
         return shapes;
+    }
+
+    private static IReadOnlyDictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>?
+        MergeAttributeValueShapeDefinitions(
+            params IReadOnlyDictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>?[] shapeSets)
+    {
+        var shapes = new Dictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>();
+
+        foreach (var shapeSet in shapeSets)
+        {
+            if (shapeSet is null)
+            {
+                continue;
+            }
+
+            foreach (var (id, shape) in shapeSet)
+            {
+                shapes[id] = shape;
+            }
+        }
+
+        return shapes.Count == 0 ? null : shapes;
     }
 
     private static void ValidateAttributeDefinitionDefault(

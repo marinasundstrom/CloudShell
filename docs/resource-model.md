@@ -369,12 +369,15 @@ resource type or instance. `ResourceEndpoint` is the current projected shape for
 the resource-owned contract; concrete reachable addresses belong to endpoint
 network mappings.
 
-In the Resource graph/configuration model, endpoint contracts should be
-represented as typed complex attribute values, typically in an `endpoints`
-collection declared by the resource type definition. The complex value carries
-the resource-owned contract fields, such as endpoint name, protocol, target
-port, and exposure. It should not carry a concrete reachable address unless the
-attribute is explicitly provider-managed state for an endpoint network mapping.
+Endpoint is a runtime/networking concept, not a graph-native primitive. When a
+runtime or networking provider needs to persist endpoint contracts in the
+Resource graph/configuration model, it should contribute the endpoint shape and
+mapped value type, then represent endpoint contracts as typed complex attribute
+values, typically in an `endpoints` collection declared by the resource type
+definition. The complex value carries the resource-owned contract fields, such
+as endpoint name, protocol, target port, and exposure. It should not carry a
+concrete reachable address unless the attribute is explicitly provider-managed
+state for an endpoint network mapping.
 
 ## Endpoint Descriptors
 
@@ -426,11 +429,11 @@ Endpoint requests are intent, not observed state. They ask a network or
 provider to assign, reserve, or use an address for an endpoint.
 
 When endpoint requests are stored in the Resource graph/configuration model,
-they should also be complex attribute values. Assignment-specific fields such
-as host, port, IP address, assignment mode, network reference, and provider
-endpoint ID belong to the request value. References to resources should use the
-Resource model `ResourceReference` primitive rather than raw resource ID
-strings.
+they should also be provider-contributed complex attribute values.
+Assignment-specific fields such as host, port, IP address, assignment mode,
+network reference, and provider endpoint ID belong to the request value.
+References to resources should use the Resource model `ResourceReference`
+primitive rather than raw resource ID strings.
 
 ## Endpoint Network Mappings
 
@@ -512,12 +515,12 @@ Consumers that need a reachable address for a resource endpoint should resolve
 the endpoint's network mapping by endpoint name.
 
 In the Resource graph/configuration model, configured endpoint mappings should
-be complex values that contain endpoint references: a `ResourceReference` plus
-an endpoint name for the source and target. They may also include optional
-network and provider references. Runtime materialization status, observed
-conflicts, and concrete reachable addresses should be projected by provider
-capabilities, operations, or read-only/provider-managed graph attributes rather
-than authored as caller-managed mapping configuration.
+be provider-contributed complex values that contain endpoint references: a
+`ResourceReference` plus an endpoint name for the source and target. They may
+also include optional network and provider references. Runtime materialization
+status, observed conflicts, and concrete reachable addresses should be
+projected by provider capabilities, operations, or read-only/provider-managed
+graph attributes rather than authored as caller-managed mapping configuration.
 
 ## Actions
 

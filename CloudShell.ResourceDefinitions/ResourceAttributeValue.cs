@@ -65,6 +65,10 @@ public sealed record ResourceAttributeValue
         IReadOnlyList<ResourceAttributeValue> value) =>
         new(ResourceAttributeValueKind.Array, arrayValue: value);
 
+    public static ResourceAttributeValue ResourceReference(
+        ResourceReference value) =>
+        FromObject(value);
+
     public static ResourceAttributeValue FromObject<TValue>(
         TValue value,
         JsonSerializerOptions? options = null)

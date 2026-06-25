@@ -967,31 +967,41 @@ provider requirements prove one is needed. Port, endpoint, and target
 collections remain future typed payloads or capability members instead of
 normal count attributes.
 
-### Endpoint and endpoint-mapping values
+### Runtime endpoint shapes
 
-Endpoints and endpoint mappings should move into the Resource graph as typed
-complex values instead of staying as unrelated scalar attributes or
-provider-specific configuration payloads. They are part of the graph
-configuration because they describe what a resource exposes, what a network
-should assign or reserve, and which source endpoint should map to which target
-endpoint. They are not the same as runtime observations such as currently
-listening sockets, proxy process state, DNS publication status, or provider
-diagnostics.
+`ResourceReference` stays a graph-native primitive concept. The graph value
+system should be able to store primitive values, complex object values,
+collections, and built-in graph values such as `ResourceReference`, independent
+of JSON, YAML, XML, or any one runtime. The API should remain easy to use:
+callers can assign primitive values directly, use graph-native factories for
+built-ins such as `ResourceReference`, map provider-owned CLR records into
+complex values, and project those values back to typed CLR records when a
+capability, operation, or Resource Manager integration needs to consume them.
+
+Endpoint is not a graph-native primitive. It is a runtime/networking concept
+that integrates with the graph by contributing attribute value shapes and
+optional mapped CLR records. A networking or runtime provider can declare
+endpoint contracts, endpoint requests, endpoint network mappings, and
+configured endpoint mappings as typed complex attribute values when a concrete
+provider needs that state. The core graph model supplies the generic complex
+value and shape validation mechanics; it should not bake endpoint fields into
+the graph primitives.
 
 The working model should keep the existing domain distinction:
 
 | Concept | Graph representation | Owner |
 | --- | --- | --- |
-| Endpoint contract | Complex value on the exposing resource, usually in an `endpoints` collection. | Resource type/provider declares and validates the shape. |
-| Endpoint request | Complex value on the resource or network that asks for assignment/reservation. | Resource type/provider or network provider validates assignment policy. |
+| Endpoint contract | Provider-owned complex value on the exposing resource, usually in an `endpoints` collection. | Runtime/networking provider declares and validates the shape when needed. |
+| Endpoint request | Provider-owned complex value on the resource or network that asks for assignment/reservation. | Runtime/networking provider validates assignment policy. |
 | Endpoint network mapping | Provider-managed complex value that records a resolved address for a resource endpoint in a topology. | Runtime/network provider projects or updates it. |
-| Configured endpoint mapping | Complex value on a network, gateway, load balancer, service, or mapping resource that connects a source endpoint to a target endpoint. | Network/runtime provider validates and materializes it through capabilities or operations. |
+| Configured endpoint mapping | Provider-owned complex value on a network, gateway, load balancer, service, or mapping resource that connects a source endpoint to a target endpoint. | Network/runtime provider validates and materializes it through capabilities or operations. |
 
-Endpoint values should use a common shape with fields such as `name`,
-`protocol`, `targetPort`, and `exposure`. They should not carry concrete
-addresses unless they represent a provider-managed endpoint-network mapping.
-Endpoint requests can add assignment fields such as `host`, `port`,
-`ipAddress`, `assignment`, `network`, and `providerEndpointId`.
+The networking/runtime integration can provide shared endpoint shapes with
+fields such as `name`, `protocol`, `targetPort`, and `exposure`. Endpoint
+contract values should not carry concrete addresses unless they represent a
+provider-managed endpoint-network mapping. Endpoint requests can add assignment
+fields such as `host`, `port`, `ipAddress`, `assignment`, `network`, and
+`providerEndpointId`.
 
 Endpoint mappings should use `ResourceReference` as the primitive for resource
 references, not raw resource IDs. The endpoint name is a property on the
@@ -1032,19 +1042,20 @@ A minimal configured endpoint-mapping value can be shaped as:
 }
 ```
 
-This shape is deliberately a graph value, not a runtime API contract. A
-capability or operation can project a richer resolved view that includes
-current addresses, availability, conflicts, or materialization status. If a
-provider needs to persist observed endpoint-network mappings, those attributes
-should be read-only/provider-managed so they can be resolved on `Resource`
-without being authored into deployment `ResourceDefinition` documents.
+This shape is deliberately a provider-owned graph value, not a runtime API
+contract and not a graph primitive. A capability or operation can project a
+richer resolved view that includes current addresses, availability, conflicts,
+or materialization status. If a provider needs to persist observed
+endpoint-network mappings, those attributes should be read-only/provider-managed
+so they can be resolved on `Resource` without being authored into deployment
+`ResourceDefinition` documents.
 
 For the POC, this should not introduce another endpoint-specific store.
-Resource attributes now have a typed `ResourceAttributeValue` representation,
-so the next endpoint-specific slice is to declare endpoint and
-endpoint-mapping attribute definitions with shared/common shapes. Provider
-ports can then replace scalar summary attributes such as endpoint counts with
-typed endpoint collections only when a concrete provider needs that data.
+Resource attributes now have a typed `ResourceAttributeValue` representation
+and providers can contribute reusable `ResourceAttributeValueShapeDefinition`
+entries through the graph resolver. Provider ports can replace scalar summary
+attributes such as endpoint counts with typed endpoint collections only when a
+concrete provider needs that data.
 
 A narrow Secrets Vault reference provider follows the same boundary while
 keeping secret material out of the Resource model. It owns `secrets.vault`,

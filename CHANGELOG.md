@@ -117,15 +117,22 @@ on `git blame --follow`, and then by the broad type of change.
   before broad provider porting continues.
 - The Resource model and proposal now describe endpoint contracts, endpoint
   requests, endpoint network mappings, and configured endpoint mappings as
-  complex graph/configuration values, with `ResourceReference` used inside
-  endpoint-mapping values and runtime observations kept behind provider
-  projections.
+  runtime/networking-owned complex values that can integrate with the graph
+  value system through provider-contributed shapes, while `ResourceReference`
+  remains a graph-native primitive used inside those values.
 - Resource definitions and resource records now carry typed
   `ResourceAttributeValue` maps, allowing complex object and collection
   attributes to serialize through ResourceDefinition, resolve through Resource
   projections, validate against complex shapes, and project into concrete CLR
   types for provider/runtime consumers while preserving scalar compatibility
   for existing provider ports.
+- Resource attribute values now have small typed-value ergonomics for
+  graph-native `ResourceReference` values and typed object extraction from
+  attribute maps and resolved Resource attributes.
+- The Resource graph resolver now accepts provider-contributed attribute value
+  shape providers, and the reference networking providers register runtime-owned
+  endpoint and endpoint-mapping shapes without baking endpoint into the graph
+  primitive model.
 - The local host networking reconcile operation now delegates endpoint-mapping
   work to an injected provider-owned reconciler with a no-op POC default,
   matching the provider-integration pattern without moving runtime logic into

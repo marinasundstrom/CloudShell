@@ -33,6 +33,11 @@ public sealed class ResourceAttributeValueMap : IReadOnlyDictionary<ResourceAttr
     public bool TryGetValue(ResourceAttributeId key, out ResourceAttributeValue value) =>
         _attributes.TryGetValue(key, out value!);
 
+    public TValue? GetObject<TValue>(
+        ResourceAttributeId key,
+        JsonSerializerOptions? options = null) =>
+        TryGetValue(key, out var value) ? value.ToObject<TValue>(options) : default;
+
     System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() =>
         GetEnumerator();
 
