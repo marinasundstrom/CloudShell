@@ -16,9 +16,7 @@ public sealed class VolumeConsumerGraphDependencyProvider : IResourceGraphDepend
             .Select(mount => mount.Volume)
             .Where(volume => !string.IsNullOrWhiteSpace(volume))
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Select(volume => ResourceReference.ResourceId(
-                volume,
-                typeId: LocalVolumeResourceTypeProvider.ResourceTypeId))
+            .Select(volume => ResourceReference.ResourceId(volume))
             .ToArray() ?? [];
     }
 }

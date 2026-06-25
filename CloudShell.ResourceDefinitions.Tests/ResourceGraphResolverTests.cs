@@ -148,19 +148,22 @@ public sealed class ResourceGraphResolverTests
     }
 
     [Fact]
-    public void ResolveResourceAndDependencies_ReportsCapabilityDependencyTypeMismatch()
+    public void ResolveResourceAndDependencies_ReportsExplicitDependencyTypeMismatch()
     {
         var resolver = new ResourceGraphResolver(
-            CreateResourceResolver(),
-            [new VolumeConsumerGraphDependencyProvider()]);
+            CreateResourceResolver());
         var worker = CreateExecutableState("worker");
         var api = CreateExecutableState(
             "api",
-            dependsOn: [worker.EffectiveResourceId],
-            mounts:
-            [
-                new(worker.EffectiveResourceId, "App_Data")
-            ]);
+            dependsOn: []) with
+            {
+                DependsOn =
+                [
+                    ResourceReference.ResourceId(
+                        worker.EffectiveResourceId,
+                        typeId: LocalVolumeResourceTypeProvider.ResourceTypeId)
+                ]
+            };
         var snapshot = new ResourceGraphSnapshot(ResourceGraphVersion.Initial, [api, worker]);
 
         var result = resolver.ResolveResourceAndDependencies(snapshot, api.EffectiveResourceId);

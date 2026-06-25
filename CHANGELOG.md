@@ -118,6 +118,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Load balancer reference-provider validation now keeps declared host/backend
   dependencies as typed `ResourceReference` entries and rejects network or
   infrastructure provider resources when they are used as backend targets.
+- Resource model provider integration tests now include a ContainerHost
+  sample-inspired graph across storage, CloudShell volume, and SQL Server
+  reference providers, and volume-consumer graph validation now accepts both
+  direct local volumes and storage-backed CloudShell volumes.
 
 ### 2026-06-24
 

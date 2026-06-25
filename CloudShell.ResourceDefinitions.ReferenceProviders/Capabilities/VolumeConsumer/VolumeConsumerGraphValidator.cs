@@ -34,11 +34,11 @@ public sealed class VolumeConsumerGraphValidator : IResourceDefinitionGraphValid
                     continue;
                 }
 
-                if (mountedResource.Type.TypeId != LocalVolumeResourceTypeProvider.ResourceTypeId)
+                if (!IsVolumeResource(mountedResource))
                 {
                     diagnostics.Add(ResourceDefinitionDiagnostic.Error(
                         ResourceDefinitionDiagnosticCodes.ResourceCapabilityReferenceInvalid,
-                        $"Volume mount '{mount.Volume}' references resource type '{mountedResource.Type.TypeId}', expected '{LocalVolumeResourceTypeProvider.ResourceTypeId}'.",
+                        $"Volume mount '{mount.Volume}' references resource type '{mountedResource.Type.TypeId}', expected a volume resource.",
                         resource.EffectiveResourceId));
                 }
             }
@@ -47,4 +47,8 @@ public sealed class VolumeConsumerGraphValidator : IResourceDefinitionGraphValid
         return ValueTask.FromResult(
             ResourceDefinitionValidationResult.FromDiagnostics(diagnostics));
     }
+
+    private static bool IsVolumeResource(Resource resource) =>
+        resource.Type.TypeId == LocalVolumeResourceTypeProvider.ResourceTypeId ||
+        resource.Type.TypeId == CloudShellVolumeResourceTypeProvider.ResourceTypeId;
 }

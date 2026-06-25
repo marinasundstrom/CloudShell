@@ -90,18 +90,23 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
-    public void ResourceModelGraphResourceProvider_DoesNotProjectInvalidTypedCapabilityDependency()
+    public void ResourceModelGraphResourceProvider_DoesNotProjectInvalidTypedDependency()
     {
         var worker = CreateExecutableState(
             "worker",
             dependsOn: [],
             includeVolumeConsumer: false);
         var api = CreateExecutableState(
-            dependsOn: [worker.EffectiveResourceId],
-            mounts:
-            [
-                new(worker.EffectiveResourceId, "App_Data")
-            ]);
+            dependsOn: [],
+            includeVolumeConsumer: false) with
+            {
+                DependsOn =
+                [
+                    ResourceReference.ResourceId(
+                        worker.EffectiveResourceId,
+                        typeId: LocalVolumeResourceTypeProvider.ResourceTypeId)
+                ]
+            };
         var provider = new ResourceModelGraphResourceProvider(
             "resource-model",
             "Resource model",
@@ -494,11 +499,16 @@ public sealed class ResourceManagerIntegrationTests
             dependsOn: [],
             includeVolumeConsumer: false);
         var api = CreateExecutableState(
-            dependsOn: [worker.EffectiveResourceId],
-            mounts:
-            [
-                new(worker.EffectiveResourceId, "App_Data")
-            ]);
+            dependsOn: [],
+            includeVolumeConsumer: false) with
+            {
+                DependsOn =
+                [
+                    ResourceReference.ResourceId(
+                        worker.EffectiveResourceId,
+                        typeId: LocalVolumeResourceTypeProvider.ResourceTypeId)
+                ]
+            };
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph([api, worker]);
         services.AddExecutableApplicationResourceType();
@@ -3102,6 +3112,116 @@ public sealed class ResourceManagerIntegrationTests
         var procedureResult = await provider.ExecuteActionAsync(procedure, ensureCreated);
 
         Assert.Equal("Executed Application Sql Database Ensure Created for appdb.", procedureResult.Message);
+    }
+
+    [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesContainerHostSampleGraphAcrossProviderBoundaries()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddStorageResourceType();
+        services.AddCloudShellVolumeResourceType();
+        services.AddSqlServerResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var storage = new ResourceDefinition(
+            "local",
+            StorageResourceTypeProvider.ResourceTypeId,
+            ProviderId: StorageResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [StorageResourceTypeProvider.Attributes.Provider] = "Local Storage",
+                [StorageResourceTypeProvider.Attributes.Medium] = "FileSystem",
+                [StorageResourceTypeProvider.Attributes.Location] = "./Data/storage"
+            });
+        var volume = new ResourceDefinition(
+            "sql-data",
+            CloudShellVolumeResourceTypeProvider.ResourceTypeId,
+            ProviderId: CloudShellVolumeResourceTypeProvider.ProviderId,
+            DependsOn:
+            [
+                ResourceReference.ResourceId(
+                    storage.EffectiveResourceId,
+                    typeId: StorageResourceTypeProvider.ResourceTypeId)
+            ],
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [CloudShellVolumeResourceTypeProvider.Attributes.Provider] = "Local Storage",
+                [CloudShellVolumeResourceTypeProvider.Attributes.StorageMedium] = "FileSystem",
+                [CloudShellVolumeResourceTypeProvider.Attributes.SubPath] = "sql-server",
+                [CloudShellVolumeResourceTypeProvider.Attributes.AccessMode] = "ReadWriteOnce",
+                [CloudShellVolumeResourceTypeProvider.Attributes.Persistent] = bool.TrueString.ToLowerInvariant()
+            });
+        var sqlServer = new ResourceDefinition(
+            "sql-server",
+            SqlServerResourceTypeProvider.ResourceTypeId,
+            ProviderId: SqlServerResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [SqlServerResourceTypeProvider.Attributes.Version] = "2022",
+                [SqlServerResourceTypeProvider.Attributes.Edition] = "Developer"
+            },
+            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
+            {
+                [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
+                    ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
+                    [
+                        new(volume.EffectiveResourceId, "/var/opt/mssql")
+                    ]))
+            });
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "container-host",
+                [storage, volume, sqlServer],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 19, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+        Assert.Equal(3, result.Commit.Summary.AcceptedResourceCount);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedResources = provider.GetResources().ToArray();
+        var projectedStorage = Assert.Single(projectedResources, resource =>
+            resource.Id == storage.EffectiveResourceId);
+        var projectedVolume = Assert.Single(projectedResources, resource =>
+            resource.Id == volume.EffectiveResourceId);
+        var projectedSqlServer = Assert.Single(projectedResources, resource =>
+            resource.Id == sqlServer.EffectiveResourceId);
+
+        Assert.Equal(ResourceManagerClass.Storage, projectedStorage.ResourceClass);
+        Assert.Equal("./Data/storage", projectedStorage.ResourceAttributes["storage.location"]);
+        Assert.Equal([storage.EffectiveResourceId], projectedVolume.DependsOn);
+        Assert.Equal("sql-server", projectedVolume.ResourceAttributes["storage.volume.subPath"]);
+        Assert.Equal([volume.EffectiveResourceId], projectedSqlServer.DependsOn);
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveWithDependenciesAsync(sqlServer.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors, FormatDiagnostics(resolution.Diagnostics));
+        var resolvedResourceIds = resolution.Resources
+            .Select(resource => resource.EffectiveResourceId)
+            .ToArray();
+        Assert.Contains(sqlServer.EffectiveResourceId, resolvedResourceIds);
+        Assert.Contains(volume.EffectiveResourceId, resolvedResourceIds);
+        Assert.Contains(storage.EffectiveResourceId, resolvedResourceIds);
+        var resolvedSqlServer = Assert.Single(resolution.Resources, resource =>
+            resource.EffectiveResourceId == sqlServer.EffectiveResourceId);
+        var volumeCapability = Assert.IsType<VolumeConsumerCapability>(
+            resolvedSqlServer.Capabilities.Get<VolumeConsumerCapability>());
+        var mount = Assert.Single(volumeCapability.Mounts);
+        Assert.Equal(volume.EffectiveResourceId, mount.Volume);
+        Assert.Equal("/var/opt/mssql", mount.TargetPath);
     }
 
     [Fact]

@@ -637,6 +637,14 @@ declaration rather than maintaining a hard-coded list of compatible resource
 types; type compatibility can be expressed by which resource types declare or
 accept the capability and by graph-level validation.
 
+Volume consumers can target direct local volumes (`storage.volume`) or
+storage-backed CloudShell volumes (`cloudshell.volume`). Because both are
+valid mountable graph resources, the dependency provider should not force a
+single expected resource type into the produced `ResourceReference`; graph
+validation owns the accepted volume resource-type set. The ContainerHost sample
+is the smallest current sample path for this shape: local storage,
+storage-backed SQL data volume, and SQL Server consuming that volume.
+
 An ASP.NET Core project reference provider extends the proof without depending
 on `CloudShell.Providers.Applications`. It owns
 `application.aspnet-core-project`, project path and launch-related attributes,
@@ -817,7 +825,7 @@ not mean the existing operational provider can be turned off yet.
 | Service (`cloudshell.service`) | Modeled as a narrow reference provider | Service class/type defaults, service kind/routing-mode attributes, passive endpoint-source capability marker, typed `ResourceReference` target/network dependencies, target/network graph validation, reconcile operation, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Port, endpoint, and health-check payloads, endpoint projection through Resource Manager, richer target eligibility validation, orchestration integration, and UI registration/update flow |
 | Container application (`application.container-app`) | Modeled as a narrow reference provider | Image and replica attributes, shared volume-consumer capability, start/restart/image-update operations, typed wrapper, Resource Manager bridge projection and execution | Actual container host orchestration, endpoints, revisions, replica runtime state, monitoring, and UI operations |
 | ASP.NET Core project (`application.aspnet-core-project`) | Modeled as a narrow reference provider | Project path, arguments, hot reload, launch-settings attributes, shared volume-consumer capability, start/restart operations, typed wrapper, Resource Manager bridge projection and execution | Launch settings parsing, endpoints, local process or container build behavior, UI registration/update flow |
-| SQL Server (`application.sql-server`) | Modeled as a narrow reference provider | Service class and type defaults, version/edition attributes, declared database configuration, shared volume-consumer capability, reconcile-access operation, typed wrapper, Resource Manager bridge projection and execution | Real SQL runtime integration, credential/grant reconciliation, database child projections, endpoints, and UI tabs |
+| SQL Server (`application.sql-server`) | Modeled as a narrow reference provider | Service class and type defaults, version/edition attributes, declared database configuration, shared volume-consumer capability over direct and storage-backed volumes, reconcile-access operation, typed wrapper, ContainerHost sample-inspired graph coverage, Resource Manager bridge projection and execution | Real SQL runtime integration, credential/grant reconciliation, database child projections, endpoints, and UI tabs |
 | SQL database child (`application.sql-database`) | Modeled as a narrow reference provider | Database name/source/ensure-created attributes, server `ResourceReference` validation, ensure-created operation, typed wrapper, Resource Manager bridge projection and execution | Real SQL database materialization, credential/grant reconciliation, provider-managed child ownership metadata, and UI tabs |
 | Container host (`cloudshell.container-host`) | Modeled as a narrow reference provider | Infrastructure class/type defaults, host kind/endpoint/registry/default attributes, passive container image/build/filesystem-mount capability markers, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real Docker/container host runtime integration, host resolution, placement behavior, credentials, and runtime diagnostics |
 | Docker host (`docker.host`) | Modeled as a narrow reference provider | Infrastructure class/type defaults, Docker host kind/endpoint/registry/default attributes, passive container image/build/filesystem-mount capability markers, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real Docker runtime integration, discovery, health, logs, container child projections, credentials, and UI registration/update flow |
