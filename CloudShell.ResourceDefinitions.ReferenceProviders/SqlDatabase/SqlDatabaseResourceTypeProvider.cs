@@ -62,6 +62,7 @@ public sealed class SqlDatabaseResourceTypeProvider :
     {
         var diagnostics = ValidateResolvedResource(resource);
         ValidateServerReference(resource.State, diagnostics);
+        ValidateUnsupportedServerAttribute(resource.State, diagnostics);
 
         return ValueTask.FromResult(
             ResourceDefinitionValidationResult.FromDiagnostics(diagnostics));
@@ -137,6 +138,8 @@ public sealed class SqlDatabaseResourceTypeProvider :
             ValidateEnsureCreated(ensureCreated, diagnostics);
         }
 
+        ValidateUnsupportedServerAttribute(state, diagnostics);
+
         return diagnostics;
     }
 
@@ -182,6 +185,21 @@ public sealed class SqlDatabaseResourceTypeProvider :
 
         serverResourceId = string.Empty;
         return false;
+    }
+
+    private static void ValidateUnsupportedServerAttribute(
+        ResourceState state,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        if (!state.ResourceAttributes.ContainsKey(Attributes.Server))
+        {
+            return;
+        }
+
+        diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+            "application.sqlDatabase.serverAttributeUnsupported",
+            "SQL database server references must be declared through DependsOn until typed ResourceReference attributes are promoted to the interchange model.",
+            Attributes.Server));
     }
 
     private static void ValidateEnsureCreated(

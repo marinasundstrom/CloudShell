@@ -1541,6 +1541,43 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task AddSqlDatabaseResourceType_RejectsServerAttributeUntilTypedAttributesArePromoted()
+    {
+        var services = new ServiceCollection();
+        services.AddSqlServerResourceType();
+        services.AddSqlDatabaseResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var server = new ResourceDefinition(
+            "sql",
+            SqlServerResourceTypeProvider.ResourceTypeId);
+        var definition = new ResourceDefinition(
+            "appdb",
+            SqlDatabaseResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [SqlDatabaseResourceTypeProvider.Attributes.DatabaseName] = "appdb",
+                [SqlDatabaseResourceTypeProvider.Attributes.Server] = server.EffectiveResourceId
+            });
+
+        var validation = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphValidationPipeline>()
+            .ValidateAsync(
+                new ResourceDefinitionGraph([server, definition]),
+                new ResourceDefinitionValidationContext("local", "developer"));
+
+        var databaseValidation = validation.Resources.Single(resource =>
+            resource.Resource.EffectiveResourceId == definition.EffectiveResourceId);
+
+        Assert.True(databaseValidation.HasErrors);
+        Assert.Contains(
+            databaseValidation.Diagnostics,
+            diagnostic =>
+                diagnostic.Code == "application.sqlDatabase.serverAttributeUnsupported" &&
+                diagnostic.Target == SqlDatabaseResourceTypeProvider.Attributes.Server.ToString());
+    }
+
+    [Fact]
     public async Task ValidateCapabilitiesAsync_UsesRegisteredCapabilityProvider()
     {
         var dispatcher = CreateDispatcher(

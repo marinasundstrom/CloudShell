@@ -1434,6 +1434,15 @@ arbitrary complex provider object. Projection wrappers may still deserialize
 the value to the concrete `ResourceReference` record when that object-oriented
 API is appropriate.
 
+For the immediate POC, resource graph relationships still use `DependsOn`
+because `ResourceDefinition` and persisted resource state remain string-backed
+for authored attributes. Providers may declare future typed reference
+attributes, but they should reject caller-authored string values for those
+attributes until typed attribute values are promoted to the interchange and
+persistence model. For example, `application.sql-database` declares
+`database.server` as a built-in `ResourceReference` attribute type but still
+requires the SQL Server relationship through `DependsOn`.
+
 When code sets or reads a typed attribute, the preferred API should allow the
 concrete CLR type, for example `ResourceReference`, rather than forcing every
 caller to construct a dictionary. The resource model can map that concrete
