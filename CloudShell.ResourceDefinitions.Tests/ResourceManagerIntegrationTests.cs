@@ -3220,6 +3220,8 @@ public sealed class ResourceManagerIntegrationTests
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph();
+        var accessReconciler = new RecordingSqlServerAccessReconciler();
+        services.AddSingleton<ISqlServerAccessReconciler>(accessReconciler);
         services.AddLocalVolumeResourceType();
         services.AddSqlServerResourceType();
         services.AddResourceModelGraphServices();
@@ -3305,6 +3307,7 @@ public sealed class ResourceManagerIntegrationTests
         var procedureResult = await provider.ExecuteActionAsync(procedure, reconcile);
 
         Assert.Equal("Executed Application Sql Server Reconcile Access for sql.", procedureResult.Message);
+        Assert.Equal([sql.EffectiveResourceId], accessReconciler.ReconciledResourceIds);
     }
 
     [Fact]
@@ -4436,6 +4439,23 @@ public sealed class ResourceManagerIntegrationTests
             CancellationToken cancellationToken = default)
         {
             _setupResourceIds.Add(resource.EffectiveResourceId);
+
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+    }
+
+    private sealed class RecordingSqlServerAccessReconciler :
+        ISqlServerAccessReconciler
+    {
+        private readonly List<string> _reconciledResourceIds = [];
+
+        public IReadOnlyList<string> ReconciledResourceIds => _reconciledResourceIds;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileAccessAsync(
+            Resource resource,
+            CancellationToken cancellationToken = default)
+        {
+            _reconciledResourceIds.Add(resource.EffectiveResourceId);
 
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }

@@ -40,6 +40,9 @@ public static class SqlServerResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, SqlServerReconcileAccessOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, SqlServerResourceProjectionProvider>());
+        services.TryAddSingleton<
+            ISqlServerAccessReconciler,
+            NoopSqlServerAccessReconciler>();
 
         return services;
     }

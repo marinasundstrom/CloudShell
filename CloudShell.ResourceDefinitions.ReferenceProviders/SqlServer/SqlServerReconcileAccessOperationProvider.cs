@@ -1,9 +1,13 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
-public sealed class SqlServerReconcileAccessOperationProvider :
+public sealed class SqlServerReconcileAccessOperationProvider(
+    ISqlServerAccessReconciler? accessReconciler = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
+    private readonly ISqlServerAccessReconciler _accessReconciler =
+        accessReconciler ?? new NoopSqlServerAccessReconciler();
+
     public ResourceOperationId OperationId =>
         SqlServerResourceTypeProvider.Operations.ReconcileAccess;
 
@@ -36,14 +40,18 @@ public sealed class SqlServerReconcileAccessOperationProvider :
         ValueTask.FromResult<IResourceOperationProjection>(
             new SqlServerReconcileAccessOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
-                operation));
+                operation,
+                _accessReconciler));
 }
 
 public sealed class SqlServerReconcileAccessOperation(
     ResourceProjectionExecutionContext context,
-    ResourceOperationResolution operation) : IResourceOperationExecutorProjection
+    ResourceOperationResolution operation,
+    ISqlServerAccessReconciler accessReconciler) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
+
+    private readonly ISqlServerAccessReconciler _accessReconciler = accessReconciler;
 
     public Resource Resource => Context.Resource;
 
@@ -85,10 +93,14 @@ public sealed class SqlServerReconcileAccessOperation(
                 ]);
         }
 
+        var diagnostics = await _accessReconciler.ReconcileAccessAsync(
+            Resource,
+            cancellationToken);
+
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            []);
+            diagnostics);
     }
 }
 
