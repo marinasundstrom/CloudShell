@@ -464,6 +464,16 @@ public sealed class SampleSmokeTests
         Assert.Contains("Showing activity correlated with trace", relatedActivityHtml);
         Assert.Contains("Showing activity correlated with span", relatedActivityHtml);
         Assert.Contains("Clear", relatedActivityHtml);
+
+        await host.SendAsync(
+            HttpMethod.Post,
+            $"/api/control-plane/v1/resources/{Uri.EscapeDataString(graphApiResourceId)}/actions/stop?ignoreDependentWarning=true");
+        var stoppedGraphApi = await WaitForResourceStateAsync(
+            host,
+            graphApiResourceId,
+            ResourceState.Stopped,
+            StartupTimeout);
+        Assert.True(HasResourceState(stoppedGraphApi, ResourceState.Stopped));
     }
 
     [Fact]
@@ -2569,6 +2579,41 @@ public sealed class SampleSmokeTests
                 value == (int)expected,
             _ => false
         };
+    }
+
+    private static async Task<JsonElement> WaitForResourceStateAsync(
+        SampleProcess host,
+        string resourceId,
+        ResourceState state,
+        TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        string? lastBody = null;
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            lastBody = await host.GetStringAsync("/api/control-plane/v1/resources");
+            using var document = JsonDocument.Parse(lastBody);
+            var resource = document.RootElement
+                .EnumerateArray()
+                .FirstOrDefault(resource =>
+                    string.Equals(
+                        resource.GetProperty("id").GetString(),
+                        resourceId,
+                        StringComparison.OrdinalIgnoreCase));
+
+            if (resource.ValueKind != JsonValueKind.Undefined &&
+                HasResourceState(resource, state))
+            {
+                return resource.Clone();
+            }
+
+            await Task.Delay(250);
+        }
+
+        throw new TimeoutException(
+            $"Resource '{resourceId}' did not reach state '{state}' within {timeout}." +
+            $"{Environment.NewLine}{lastBody}");
     }
 
     private static string GetEndpointAddress(JsonElement resource, string endpointName)
