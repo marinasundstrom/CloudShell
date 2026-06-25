@@ -3746,6 +3746,97 @@ public sealed class ResourceDeclarationTests
 
     [Fact]
     [Trait("Category", "Integration")]
+    public async Task ContainerApplicationProvider_StopRemovesReplicatedProjectContainerResources()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(contentRoot);
+        var commandLogPath = Path.Combine(contentRoot, "fake-docker-commands.log");
+        var fakeDocker = CreateRecordingContainerHostExecutable(contentRoot, commandLogPath);
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .UseContainerHost(new ContainerHostDescriptor(
+                "docker:test",
+                "Test Docker",
+                ContainerHostKind.Docker,
+                "unix:///var/run/docker.sock",
+                Metadata: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["cloudshell.executable"] = fakeDocker
+                },
+                Capabilities:
+                [
+                    ContainerHostCapabilityIds.ContainerImage,
+                    ContainerHostCapabilityIds.StorageMountFileSystem
+                ]))
+            .AddApplicationProvider(options =>
+            {
+                options.DefinitionsPath = "application-resources.json";
+                options.RuntimeStatePath = "application-runtime-state.json";
+                options.LogDirectory = "application-logs";
+            })
+            .Resources(resources =>
+            {
+                resources
+                    .AddAspNetCoreProject(
+                        "api",
+                        "samples/ReplicatedContainerHealth/Api/CloudShell.ReplicatedContainerHealth.Api.csproj")
+                    .AsContainer(replicas: 3, tag: "20260622.2")
+                    .WithContainerHost("docker:test")
+                    .WithAutoStart(false);
+            });
+
+        try
+        {
+            using var serviceProvider = services.BuildServiceProvider();
+            var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
+            var resourceProviders = serviceProvider.GetServices<IResourceProvider>().ToArray();
+            var registrations = new DeclarationRegistrationStore(
+                serviceProvider.GetRequiredService<ResourceDeclarationStore>());
+            var resourceManager = new StaticResourceManagerStore(
+                resourceProviders.SelectMany(provider => provider.GetResources()).ToArray(),
+                resourceProviders);
+            var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
+            var orchestrator = new DefaultResourceOrchestrator();
+
+            await orchestrator.ExecuteActionAsync(
+                new ResourceOrchestrationContext(
+                    resource,
+                    registrations.GetRegistration(resource.Id),
+                    null,
+                    resourceManager,
+                    registrations),
+                ResourceAction.Stop);
+
+            var commands = File.ReadAllLines(commandLogPath);
+            var stopped = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
+
+            Assert.Contains("rm -f cloudshell-application-api-replica-1", commands);
+            Assert.Contains("rm -f cloudshell-application-api-replica-2", commands);
+            Assert.Contains("rm -f cloudshell-application-api-replica-3", commands);
+            Assert.DoesNotContain("stop cloudshell-application-api-replica-1", commands);
+            Assert.DoesNotContain("stop cloudshell-application-api-replica-2", commands);
+            Assert.DoesNotContain("stop cloudshell-application-api-replica-3", commands);
+            Assert.Equal(ResourceState.Stopped, stopped.State);
+        }
+        finally
+        {
+            if (Directory.Exists(contentRoot))
+            {
+                Directory.Delete(contentRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
     public async Task ApplicationProvider_CancellingContainerHostCommandKillsProcess()
     {
         if (OperatingSystem.IsWindows())

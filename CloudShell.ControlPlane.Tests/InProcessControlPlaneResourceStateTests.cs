@@ -989,7 +989,8 @@ public sealed class InProcessControlPlaneResourceStateTests
     [Fact]
     public async Task ExecuteResourceActionAsync_DispatchesRegisteredResourceModelGraphResource()
     {
-        var runtimeController = new RecordingAspNetCoreProjectRuntimeController();
+        var runtimeController = new RecordingAspNetCoreProjectRuntimeController(
+            AspNetCoreProjectRuntimeStatus.Stopped);
         var graphState = new GraphResourceState(
             "graph-project-reference-api",
             AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
@@ -2094,6 +2095,44 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.Equal(ResourceState.Degraded, projected.State);
         Assert.NotNull(loaded);
         Assert.Equal(ResourceState.Degraded, loaded.State);
+    }
+
+    [Fact]
+    public async Task ListResourcesAsync_ProjectsParentAsDegradedWhenAllRuntimeChildrenDoNotRespond()
+    {
+        var resourceEvents = new InMemoryResourceEventStore();
+        var parent = CreateResource("application:api", ResourceState.Running);
+        var replica1 = CreateRuntimeReplicaResource(parent.Id, 1) with
+        {
+            HealthChecks = [CreateLivenessCheck()]
+        };
+        var replica2 = CreateRuntimeReplicaResource(parent.Id, 2) with
+        {
+            HealthChecks = [CreateLivenessCheck()]
+        };
+        var controlPlane = CreateControlPlane(
+            [parent, replica1, replica2],
+            probeEvaluators:
+            [
+                new StaticProbeEvaluator(
+                    ResourceHealthStatus.Unhealthy,
+                    "Connection refused.",
+                    ResourceHealthCheckOutcome.NoResponse)
+            ],
+            resourceEvents: resourceEvents);
+
+        await controlPlane.RefreshResourceHealthAsync(parent.Id);
+        await controlPlane.RefreshResourceHealthAsync(parent.Id);
+        await controlPlane.RefreshResourceHealthAsync(parent.Id);
+
+        var projected = (await controlPlane.ListResourcesAsync())
+            .Single(resource => resource.Id == parent.Id);
+        var resourceEvent = Assert.Single(resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: parent.Id)));
+
+        Assert.Equal(ResourceState.Degraded, projected.State);
+        Assert.Equal(ResourceEventTypes.Events.Lifecycle.Degraded, resourceEvent.EventType);
+        Assert.Equal(ResourceSignalSeverity.Warning, resourceEvent.Severity);
+        Assert.Contains("Resource degraded", resourceEvent.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -4468,7 +4507,8 @@ public sealed class InProcessControlPlaneResourceStateTests
         }
     }
 
-    private sealed class RecordingAspNetCoreProjectRuntimeController :
+    private sealed class RecordingAspNetCoreProjectRuntimeController(
+        AspNetCoreProjectRuntimeStatus status = AspNetCoreProjectRuntimeStatus.Running) :
         IAspNetCoreProjectRuntimeController
     {
         private readonly List<(string ResourceId, GraphResourceOperationId OperationId)> _executedOperations = [];
@@ -4477,7 +4517,7 @@ public sealed class InProcessControlPlaneResourceStateTests
             _executedOperations;
 
         public AspNetCoreProjectRuntimeStatus GetStatus(GraphResource resource) =>
-            AspNetCoreProjectRuntimeStatus.Running;
+            status;
 
         public ValueTask<IReadOnlyList<GraphResourceDefinitionDiagnostic>> ExecuteAsync(
             GraphResource resource,

@@ -13,6 +13,18 @@ link to ADR entries when a change depends on a recorded decision.
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
+### 2026-06-26
+
+#### Fixed
+
+- Replica aggregate liveness no longer reports a parent application as stopped
+  from transient no-response checks, and Resource Manager suppresses stale
+  liveness failure banners when the current resource state no longer matches
+  the activity event.
+- Container app stop now removes replicated project container instances and
+  clears the parent application runtime state, preventing stopped replicas from
+  remaining as discovered Docker resources in the current environment.
+
 ### 2026-06-25
 
 #### Changed

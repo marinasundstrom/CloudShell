@@ -962,7 +962,10 @@ StringComparer.OrdinalIgnoreCase);
                 .Select(group => new
                 {
                     ResourceId = group.Key,
-                    Failure = ResourceFailureSignalResolver.GetActiveFailure(group)
+                    Failure = resources.FirstOrDefault(resource =>
+                        string.Equals(resource.Id, group.Key, StringComparison.OrdinalIgnoreCase)) is { } resource
+                        ? ResourceFailureSignalResolver.GetActiveFailure(resource, group)
+                        : null
                 })
                 .Where(item => item.Failure is not null)
                 .ToDictionary(

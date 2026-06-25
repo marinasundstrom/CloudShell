@@ -2268,6 +2268,12 @@ public sealed class InProcessControlPlane(
     private static ResourceState ProjectLivenessState(ResourceHealthCheckResult failedLiveness)
     {
         if (failedLiveness.ScopeObservations.Any(observation =>
+            string.Equals(observation.ScopeKind, ResourceHealthScopeKinds.Runtime, StringComparison.OrdinalIgnoreCase)))
+        {
+            return ResourceState.Degraded;
+        }
+
+        if (failedLiveness.ScopeObservations.Any(observation =>
             observation.Status == ResourceHealthStatus.Healthy))
         {
             return ResourceState.Degraded;

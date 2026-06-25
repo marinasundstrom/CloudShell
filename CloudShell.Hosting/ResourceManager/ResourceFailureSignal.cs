@@ -26,7 +26,9 @@ internal static class ResourceFailureSignalResolver
     private const int MaxMessageLength = 220;
     private const string FailedEventSuffix = ".failed";
 
-    public static ResourceFailureSignal? GetActiveFailure(IEnumerable<ResourceEvent> events)
+    public static ResourceFailureSignal? GetActiveFailure(
+        Resource resource,
+        IEnumerable<ResourceEvent> events)
     {
         var orderedEvents = events
             .OrderByDescending(resourceEvent => resourceEvent.Timestamp)
@@ -44,6 +46,11 @@ internal static class ResourceFailureSignalResolver
             return null;
         }
 
+        if (IsStaleForCurrentResourceState(resource, latestFailure))
+        {
+            return null;
+        }
+
         return new ResourceFailureSignal(
             GetFailureKind(latestFailure.EventType),
             GetFailureSeverity(latestFailure),
@@ -51,6 +58,14 @@ internal static class ResourceFailureSignalResolver
             latestFailure.EventType,
             latestFailure.Timestamp);
     }
+
+    private static bool IsStaleForCurrentResourceState(
+        Resource resource,
+        ResourceEvent resourceEvent) =>
+        MatchesAny(
+            resourceEvent.EventType,
+            ResourceEventTypes.Events.Lifecycle.StoppedUnexpectedly) &&
+        resource.State != ResourceState.Stopped;
 
     private static ResourceFailureKind GetFailureKind(string eventType)
     {
