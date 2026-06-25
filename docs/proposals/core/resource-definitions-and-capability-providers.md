@@ -718,11 +718,12 @@ boundary that owns them.
 A narrow configuration store reference provider extends the proof outside the
 old application-provider group. It owns `configuration.store`, configuration
 class defaults, endpoint and entry-count attributes, an inspect operation, a
-typed projection wrapper, and Resource Manager bridge coverage. The POC keeps
-the actual configuration entries out of the string-backed attribute state for
-now; later typed/complex attribute values can represent the entry collection
-or a provider-owned configuration payload without changing the provider
-boundary.
+typed projection wrapper, and Resource Manager bridge coverage. The inspect
+operation delegates to a provider-owned configuration-store inspector with a
+no-op POC default. The POC keeps the actual configuration entries out of the
+string-backed attribute state for now; later typed/complex attribute values can
+represent the entry collection or a provider-owned configuration payload
+without changing the provider boundary.
 
 A narrow host configuration source reference provider covers the companion
 `configuration.host` type. It owns host-source defaults, source and
@@ -910,7 +911,7 @@ not mean the existing operational provider can be turned off yet.
 | macOS host networking (`cloudshell.hostNetworking.macos`) | Modeled as a narrow reference provider | Infrastructure class/type defaults, host-readiness/OS/mode attributes, passive networking provider/endpoint-mapper/gateway/ingress/host-network capability markers, type-specific `reconcileEndpointMappings` operation provider with an injected provider-owned reconciler seam, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Platform support checks, live mapping counts, host proxy runtime state, endpoint mapping provisioner integration, diagnostics, and UI registration/update flow |
 | DNS Zone (`cloudshell.dnsZone`) | Modeled as a narrow reference provider | Network class/type defaults, zone/provider attributes, passive DNS-zone capability marker, reconcile-name-mappings operation, typed wrapper, Resource Manager bridge projection and execution | Name-mapping child resource integration, record/conflict/materialization views as capability members or operation plans, DNS publisher integration, and UI registration/update flow |
 | Name mapping (`cloudshell.nameMapping`) | Modeled as a narrow reference provider | Network class/type defaults, host/endpoint/exposure attributes, passive name-mapping capability marker, temporary `ResourceReference` DNS-zone and target dependencies, typed wrapper, apply planning, graph validation, and Resource Manager bridge projection | Provider-specific reference modeling if needed, target endpoint validation, conflict/materialization views as capability members or operation plans, DNS publisher integration, and UI registration/update flow |
-| Configuration store (`configuration.store`) | Modeled as a narrow reference provider | Configuration class/type defaults, endpoint and read-only entry-count attributes, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real configuration service runtime integration, entry collection payloads, authorization, logs, templates, and UI registration/update flow |
+| Configuration store (`configuration.store`) | Modeled as a narrow reference provider | Configuration class/type defaults, endpoint and read-only entry-count attributes, inspect operation with an injected provider-owned inspector seam, typed wrapper, Resource Manager bridge projection and execution | Real configuration service runtime integration, entry collection payloads, authorization, logs, templates, and UI registration/update flow |
 | Host configuration source (`configuration.host`) | Modeled as a narrow reference provider | Configuration class/type defaults, source and read-only entry-count attributes, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Runtime host configuration lookup, entry-name payloads, authorization, templates, and UI registration/update flow |
 | Secrets Vault (`secrets.vault`) | Modeled as a narrow reference provider | Secrets Vault class/type defaults, endpoint and read-only secret-count attributes, inspect operation, typed wrapper, Resource Manager bridge projection and execution without storing secret values | Real Secrets Vault runtime integration, secret collection payloads, authorization, logs, templates, and UI registration/update flow |
 | Identity provisioning (`cloudshell.identity-provisioning`) | Modeled as a narrow reference provider | Infrastructure class/type defaults, provider/provider-kind attributes, passive identity-provisioning capability marker, setup operation, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Real identity provider setup, directory/client materialization, credential issuance, grant reconciliation, authorization, diagnostics, and UI registration/update flow |

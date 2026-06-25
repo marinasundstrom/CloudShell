@@ -30,6 +30,9 @@ public static class ConfigurationStoreResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, ConfigurationStoreInspectOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, ConfigurationStoreResourceProjectionProvider>());
+        services.TryAddSingleton<
+            IConfigurationStoreInspector,
+            NoopConfigurationStoreInspector>();
 
         return services;
     }

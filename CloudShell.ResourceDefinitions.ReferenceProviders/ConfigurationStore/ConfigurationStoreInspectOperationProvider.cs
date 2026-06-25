@@ -1,9 +1,29 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
-public sealed class ConfigurationStoreInspectOperationProvider :
+public interface IConfigurationStoreInspector
+{
+    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> InspectAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed class NoopConfigurationStoreInspector :
+    IConfigurationStoreInspector
+{
+    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> InspectAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+}
+
+public sealed class ConfigurationStoreInspectOperationProvider(
+    IConfigurationStoreInspector? inspector = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
+    private readonly IConfigurationStoreInspector _inspector =
+        inspector ?? new NoopConfigurationStoreInspector();
+
     public ResourceOperationId OperationId =>
         ConfigurationStoreResourceTypeProvider.Operations.Inspect;
 
@@ -36,14 +56,18 @@ public sealed class ConfigurationStoreInspectOperationProvider :
         ValueTask.FromResult<IResourceOperationProjection>(
             new ConfigurationStoreInspectOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
-                operation));
+                operation,
+                _inspector));
 }
 
 public sealed class ConfigurationStoreInspectOperation(
     ResourceProjectionExecutionContext context,
-    ResourceOperationResolution operation) : IResourceOperationExecutorProjection
+    ResourceOperationResolution operation,
+    IConfigurationStoreInspector inspector) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
+
+    private readonly IConfigurationStoreInspector _inspector = inspector;
 
     public Resource Resource => Context.Resource;
 
@@ -81,10 +105,14 @@ public sealed class ConfigurationStoreInspectOperation(
                 ]);
         }
 
+        var diagnostics = await _inspector.InspectAsync(
+            Resource,
+            cancellationToken);
+
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            []);
+            diagnostics);
     }
 
     private static int GetEntryCount(Resource resource) =>
