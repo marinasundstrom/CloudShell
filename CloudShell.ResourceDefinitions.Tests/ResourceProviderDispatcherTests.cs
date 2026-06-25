@@ -1499,6 +1499,14 @@ public sealed class ResourceProviderDispatcherTests
         Assert.Equal(SqlDatabaseResourceTypeProvider.ClassId, databaseValidation.Resource.Class.ClassId);
         Assert.Equal("appdb", databaseValidation.Resource.Attributes.GetString(
             SqlDatabaseResourceTypeProvider.Attributes.DatabaseName));
+        var databaseAttributeDefinitions = databaseValidation.Resource.Type.Definition.Attributes;
+        Assert.NotNull(databaseAttributeDefinitions);
+        var serverAttribute = databaseAttributeDefinitions[SqlDatabaseResourceTypeProvider.Attributes.Server];
+        Assert.Equal(ResourceAttributeValueType.ComplexType, serverAttribute.ValueType);
+        Assert.Equal(ResourceReference.AttributeValueShapeId, serverAttribute.ValueShapeId);
+        Assert.Contains(
+            ResourceReference.AttributeValueShapeId,
+            databaseValidation.Resource.Type.Definition.AttributeValueShapes?.Keys ?? []);
         Assert.Equal("declared", databaseValidation.Resource.Attributes.GetString(
             SqlDatabaseResourceTypeProvider.Attributes.Source));
         Assert.True(databaseValidation.Resource.Operations.Has(

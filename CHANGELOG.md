@@ -98,6 +98,9 @@ on `git blame --follow`, and then by the broad type of change.
 - `ResourceAttributeValue` can now map concrete CLR objects such as
   `ResourceReference` into shape-validated complex attribute values and back
   again.
+- The SQL database reference provider now declares `database.server` as a
+  local `ResourceReference` attribute shape while continuing to use `DependsOn`
+  as the runtime reference source for the current POC.
 - Resource Manager store projection tests now cover persisted Resource model
   records for an ApplicationTopology-shaped graph, proving the bridge can
   project stored graph records alongside Resource Manager registrations.

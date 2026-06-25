@@ -14,6 +14,7 @@ public sealed class SqlDatabaseResourceTypeProvider :
     public static class Attributes
     {
         public static readonly ResourceAttributeId DatabaseName = "database.name";
+        public static readonly ResourceAttributeId Server = "database.server";
         public static readonly ResourceAttributeId Source = "database.source";
         public static readonly ResourceAttributeId EnsureCreated = "database.ensureCreated";
     }
@@ -36,12 +37,22 @@ public sealed class SqlDatabaseResourceTypeProvider :
                 Required: true,
                 RequiredMessage: "SQL database name is required.",
                 ValueType: ResourceAttributeValueType.String),
+            [Attributes.Server] = new(
+                Description: "SQL Server resource reference.",
+                ValueType: ResourceAttributeValueType.ComplexType,
+                ValueShapeId: ResourceReference.AttributeValueShapeId),
             [Attributes.Source] = new(
                 DefaultValue: "declared",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.EnsureCreated] = new(
                 DefaultValue: false,
                 ValueType: ResourceAttributeValueType.Boolean)
+        },
+        AttributeValueShapes: new Dictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>
+        {
+            [ResourceReference.AttributeValueShapeId] =
+                ResourceReference.CreateAttributeValueShapeDefinition(
+                    "SQL database resource reference.")
         },
         Operations:
         [
