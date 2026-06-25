@@ -102,7 +102,8 @@ public sealed class AspNetCoreProjectLifecycleOperation(
 
     public ValueTask<bool> CanExecuteAsync(
         CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult(IsAvailable);
+        ValueTask.FromResult(IsAvailable && CanExecuteForStatus(
+            _runtimeController.GetStatus(Resource)));
 
     public async ValueTask<ResourceOperationExecutionResult> ExecuteAsync(
         CancellationToken cancellationToken = default)
@@ -130,4 +131,15 @@ public sealed class AspNetCoreProjectLifecycleOperation(
             OperationId,
             diagnostics);
     }
+
+    private bool CanExecuteForStatus(AspNetCoreProjectRuntimeStatus status) =>
+        status switch
+        {
+            AspNetCoreProjectRuntimeStatus.Running =>
+                OperationId == AspNetCoreProjectResourceTypeProvider.Operations.Stop ||
+                OperationId == AspNetCoreProjectResourceTypeProvider.Operations.Restart,
+            AspNetCoreProjectRuntimeStatus.Stopped =>
+                OperationId == AspNetCoreProjectResourceTypeProvider.Operations.Start,
+            _ => true
+        };
 }

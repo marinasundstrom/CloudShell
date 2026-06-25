@@ -1641,7 +1641,7 @@ public sealed class ResourceManagerIntegrationTests
             LogSourceCapabilities.Read | LogSourceCapabilities.Stream,
             logSource.Capabilities);
         Assert.True(projectedProject.SupportsLogSources);
-        Assert.Contains(projectedProject.ResourceActions, action =>
+        var start = Assert.Single(projectedProject.ResourceActions, action =>
             action.Id == AspNetCoreProjectResourceTypeProvider.Operations.Start.ToString());
         var stop = Assert.Single(projectedProject.ResourceActions, action =>
             action.Id == AspNetCoreProjectResourceTypeProvider.Operations.Stop.ToString());
@@ -1685,6 +1685,7 @@ public sealed class ResourceManagerIntegrationTests
             null,
             new EmptyResourceRegistrationStore());
 
+        Assert.NotNull(await provider.GetActionUnavailableReasonAsync(procedure, start));
         Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, stop));
         Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, restart));
 

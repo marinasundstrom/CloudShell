@@ -205,7 +205,8 @@ public sealed class ResourceProviderDispatcherTests
         Assert.NotNull(stop);
         Assert.NotNull(restart);
         Assert.True(await start.CanExecuteAsync());
-        Assert.True(await restart.CanExecuteAsync());
+        Assert.False(await stop.CanExecuteAsync());
+        Assert.False(await restart.CanExecuteAsync());
 
         var applyPlan = await serviceProvider
             .GetRequiredService<ResourceDefinitionGraphApplyPlanner>()

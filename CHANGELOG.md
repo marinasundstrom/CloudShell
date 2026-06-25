@@ -91,6 +91,9 @@ on `git blame --follow`, and then by the broad type of change.
   `stop` lifecycle operation, and the provider-owned process runtime controller
   can stop tracked graph-backed project processes through the Resource Manager
   bridge.
+- ASP.NET Core project lifecycle operation projections now use provider-owned
+  runtime status to expose state-sensitive execution availability: stopped
+  projects can start, and running projects can stop or restart.
 - The graph-backed ASP.NET Core project runtime now retains a bounded
   provider-local process output buffer, and the ProjectReference sample adapts
   that output into a Control Plane `ILogProvider` so graph-declared log sources
