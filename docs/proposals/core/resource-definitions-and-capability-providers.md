@@ -440,6 +440,24 @@ When the backing store wants a more compact or store-optimized shape, it can
 persist `ResourceRecord` rows/documents and rehydrate them into `ResourceState`
 at the graph boundary before resolution.
 
+Future Control Plane scaling may require the same logical Resource model to be
+served from either centralized or distributed graph storage. A single Control
+Plane can keep one authoritative graph projection, while several Control Plane
+instances may need graph partitions, replicated graph records, or delegated
+provider-owned graph segments. That is a deployment and projection concern,
+not a different domain model. The Resource model should continue to describe
+the logical graph, references, attributes, capabilities, and operations; the
+projection layer decides whether a resource and its dependencies are resolved
+from one central graph store, from several distributed stores, or from a
+Resource Manager-owned operational record that embeds graph state. The current
+POC should not add distributed graph APIs, but it should avoid assuming that
+all future projections come from one in-memory graph owned by one process.
+This is also why the Resource graph and Resource model primitives should stay
+small: they should describe the durable logical graph and the integration
+points needed by providers, while leaving topology, synchronization, and
+distributed projection strategies room to evolve when a real architecture
+requirement appears.
+
 The bridge should also project Resource model diagnostics into Resource
 Manager diagnostics. That makes invalid graph definitions visible through the
 existing `GetResourceModelDiagnostics()` surface instead of hiding resolver
@@ -1652,6 +1670,19 @@ short-lived `ResourceState` values only when a workflow needs graph-aware
 behavior. The important boundary is that accepted graph-state changes are
 written back through the owning operational persistence path, with graph
 versions acting as the minimal concurrency guard.
+
+That custom projection layer is also where a future centralized or distributed
+graph topology should be hidden from providers and callers. Provider ports
+should depend on resolving the logical `Resource` projection and its
+`ResourceReference` dependencies, not on whether those records were loaded
+from a single Resource Manager database row, a centralized graph store, a
+provider-owned graph segment, or a replicated Control Plane graph. If later
+architecture requires multiple Control Plane instances, graph partitioning, or
+federated provider graphs, the projection layer can expand without changing
+resource type definitions or capability and operation contracts.
+Keeping the core primitives narrow is the guardrail here: providers should see
+the same small model whether the backing graph is local, centralized,
+distributed, or projected from Resource Manager operational records.
 
 Before a server-hosted `ResourceGraphModel` commits changes, it should refresh
 the current snapshot from `IResourceStateProvider` and compare the change

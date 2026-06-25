@@ -126,6 +126,9 @@ on `git blame --follow`, and then by the broad type of change.
   container-host references, validating selected container hosts through the
   SQL Server provider boundary while leaving default/preferred host resolution
   to later Resource Manager integration.
+- The resource definitions proposal now records centralized versus
+  distributed graph storage as a future projection concern, keeping the POC
+  focused on the logical Resource model and provider integration contracts.
 
 ### 2026-06-24
 
