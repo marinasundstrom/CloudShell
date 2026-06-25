@@ -2089,7 +2089,9 @@ public sealed class ResourceManagerIntegrationTests
             ProviderId: NameMappingResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                ResourceReference.ResourceId(zone.EffectiveResourceId),
+                ResourceReference.ResourceId(
+                    zone.EffectiveResourceId,
+                    typeId: DnsZoneResourceTypeProvider.ResourceTypeId),
                 ResourceReference.ResourceId(target.EffectiveResourceId)
             ],
             Attributes: new Dictionary<ResourceAttributeId, string>
@@ -2144,6 +2146,51 @@ public sealed class ResourceManagerIntegrationTests
                     new ResourceProjectionContext("local", "developer")));
         Assert.Equal("api.local", projection.HostName);
         Assert.Equal([zone.EffectiveResourceId, target.EffectiveResourceId], projection.References.Select(reference => reference.Value));
+    }
+
+    [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_RejectsNameMappingWithoutDnsZoneReference()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddLocalVolumeResourceType();
+        services.AddNameMappingResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var target = new ResourceDefinition(
+            "api",
+            LocalVolumeResourceTypeProvider.ResourceTypeId,
+            ProviderId: LocalVolumeResourceTypeProvider.ProviderId);
+        var mapping = new ResourceDefinition(
+            "api-local",
+            NameMappingResourceTypeProvider.ResourceTypeId,
+            ProviderId: NameMappingResourceTypeProvider.ProviderId,
+            DependsOn:
+            [
+                ResourceReference.ResourceId(target.EffectiveResourceId)
+            ],
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [NameMappingResourceTypeProvider.Attributes.HostName] = "api.local",
+                [NameMappingResourceTypeProvider.Attributes.TargetEndpointName] = "http"
+            });
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "invalid-name-mapping",
+                [target, mapping],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 16, 30, 0, TimeSpan.Zero)));
+
+        Assert.True(result.HasErrors);
+        Assert.False(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Rejected, result.Commit.Summary.Status);
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Code == ResourceDefinitionDiagnosticCodes.ResourceCapabilityReferenceInvalid &&
+            diagnostic.Message.Contains("must reference a DNS zone", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

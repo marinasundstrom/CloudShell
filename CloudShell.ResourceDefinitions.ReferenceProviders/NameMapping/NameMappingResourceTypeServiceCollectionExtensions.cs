@@ -25,6 +25,8 @@ public static class NameMappingResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceDefinitionApplyProvider, NameMappingResourceTypeProvider>());
         services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceDefinitionGraphValidator, NameMappingGraphValidator>());
+        services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, NameMappingResourceProjectionProvider>());
 
         return services;

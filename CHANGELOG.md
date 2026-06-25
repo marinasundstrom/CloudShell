@@ -101,6 +101,13 @@ on `git blame --follow`, and then by the broad type of change.
   sample-inspired graph across local host networking, virtual network, and
   ASP.NET Core project reference providers, keeping the next POC path focused
   on simpler networking resources before container app orchestration.
+- Name mapping reference-provider validation now requires mappings to compose
+  a DNS zone reference and a target resource reference, keeping the simpler
+  networking provider path aligned with the DNS/name-mapping proposal.
+- The resource definitions proposal now frames the POC as a resource graph and
+  configuration model: stored graph/configuration state lives in the model,
+  while capabilities and operations are behavior integration points over that
+  state.
 
 ### 2026-06-24
 

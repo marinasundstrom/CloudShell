@@ -8,10 +8,20 @@ CloudShell already distinguishes projected resources from declared resources in
 the resource model documentation, and several providers already carry typed
 definition records such as application, storage, volume, network, service, DNS,
 and load-balancer definitions. This proposal tracks the next model step:
-formalizing `Resource` as the resolved core projection, formalizing
+formalizing a resource graph and configuration model, formalizing
 `ResourceDefinition` as its interchange model/format, and formalizing
-capability providers and operation providers as attached behavior over the
-resolved resource.
+capability providers and operation providers as integration points for
+behavior over resolved resource graph state.
+
+The POC should primarily be read as a resource graph and configuration model.
+It stores the basic data that defines a resource graph: resource identity,
+type/class membership, relationships, dependencies, declared attributes,
+configuration values, declared capabilities, declared operations, metadata, and
+accepted provider-managed state. It does not own runtime lifecycle execution or
+Control Plane operational state. Capabilities and operations are the behavior
+integration points over that graph/configuration state: they can declare what a
+resource supports and can attach provider-owned behavior that interprets or
+updates the resolved resource view.
 
 The first implementation slice is isolated in `CloudShell.ResourceDefinitions`
 with tests in `CloudShell.ResourceDefinitions.Tests`. It proves the
@@ -109,28 +119,29 @@ implementation for that behavior in the current environment.
 
 ## Why This Model
 
-The main advantage of this model is that it separates graph structure from
-Control Plane operations. The Resource model owns declared resources,
-relationships, resource-owned attributes, capability declarations, operation
-declarations, and resolution rules. Resource Manager owns operational records,
-liveness, lifecycle procedures, authorization-filtered views, logs, traces,
-and provider runtime state. That lets each side evolve without forcing one
-model to carry every concern.
+The main advantage of this model is that it separates resource graph
+configuration from Control Plane operations. The Resource model is best
+understood as the resource graph and configuration model: it owns declared
+resources, relationships, resource-owned attributes, configuration values,
+capability declarations, operation declarations, and resolution rules. Resource
+Manager owns operational records, liveness, lifecycle procedures,
+authorization-filtered views, logs, traces, and provider runtime state. That
+lets each side evolve without forcing one model to carry every concern.
 
 The expected benefits are:
 
 - Cleaner provider boundaries: provider packages can define resource types,
   attributes, capabilities, and operations without mixing those declarations
   with Resource Manager UI or operational state.
-- A real declaration graph: declared resources and relationships can be
-  resolved, validated, rendered, diffed, and applied instead of being inferred
-  from ad hoc provider projections.
+- A real graph/configuration boundary: declared resources, relationships, and
+  configuration values can be resolved, validated, rendered, diffed, and applied
+  instead of being inferred from ad hoc provider projections.
 - Lazy resolution: Resource Manager can serve ordinary inspection from its own
   model and resolve the Resource model graph only when relationships,
   capabilities, operations, validation, planning, or graph changes require it.
-- Behavior as model concepts: capabilities and operations become resolvable
-  resource behavior with provider-owned implementations, not scattered helper
-  methods or UI-shaped actions.
+- Behavior as integration points: capabilities and operations declare supported
+  behavior on graph resources, while provider-owned implementations attach the
+  actual behavior outside the stored graph/configuration record.
 - Deliberate interchange: `ResourceDefinition` becomes an import, export,
   deployment, template, and debug format instead of the required internal
   runtime state container.
@@ -303,11 +314,12 @@ need to be inspected, exchanged, or loaded from provider packages.
 
 ## Resource and ResourceDefinition
 
-The core concern in this proposal is the Resource model. The Resource model
-defines resources, their relationships, resource-owned attribute data,
-capability declarations, and operation declarations. A resource graph is the
-result: a graph defined using this model, resolved from the declared resources
-and their relationships.
+The core concern in this proposal is the Resource model, understood as a
+resource graph and configuration model. The model defines resources, their
+relationships, resource-owned attribute data, configuration values, capability
+declarations, and operation declarations. A resource graph is the result: a
+graph defined using this model, resolved from the declared resources and their
+relationships.
 
 `Resource` is the concrete resolved projection in this model. It combines
 `ResourceClassDefinition` and `ResourceTypeDefinition` presets with
@@ -341,18 +353,21 @@ and resolve a resource graph: type/class inheritance, resolved attributes,
 resolved capabilities, resolved operations, provider lookup, and
 rendering/applying `ResourceDefinition`. It should prove declaration,
 relationship, stored attribute data, capability declaration, and operation
-declaration semantics. It should not try to become the Resource Manager model.
-Resource Manager concerns such as liveness realization, lifecycle execution,
-authorization-specific views, operational history, endpoint materialization,
-logs, and traces should remain above this model.
+declaration semantics. It should also prove that capabilities and operations
+are integration points over this graph/configuration state, not a reason to
+move runtime lifecycle logic into the stored graph model. It should not try to
+become the Resource Manager model. Resource Manager concerns such as liveness
+realization, lifecycle execution, authorization-specific views, operational
+history, endpoint materialization, logs, and traces should remain above this
+model.
 
 That is the core POC concern. The immediate implementation should stay focused
-on declaring resources, storing their declared state, expressing their
-relationships, defining capabilities and operations, resolving the resulting
-graph, and committing accepted declaration-state changes. Runtime operation
-execution, liveness materialization, provider reconciliation, authorization
-views, and operational history are consumers or later layers over that graph,
-not reasons to expand the Resource model now.
+on declaring resources, storing their graph/configuration state, expressing
+their relationships, defining capabilities and operations, resolving the
+resulting graph, and committing accepted declaration-state changes. Runtime
+operation execution, liveness materialization, provider reconciliation,
+authorization views, and operational history are consumers or later layers over
+that graph, not reasons to expand the Resource model now.
 
 The next useful POC question is therefore Resource Manager integration, not
 the final data store. Resource Manager should be able to manage a resource
@@ -813,7 +828,7 @@ not mean the existing operational provider can be turned off yet.
 | Local host networking (`cloudshell.hostNetworking.local`) | Modeled as a narrow reference provider | Infrastructure class/type defaults, host-readiness/OS/mode attributes, passive networking provider/endpoint-mapper/gateway/ingress/host-network capability markers, type-specific `reconcileEndpointMappings` operation provider, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Live mapping counts, host proxy runtime state, endpoint mapping provisioner integration, macOS-specific provider specialization, diagnostics, and UI registration/update flow |
 | macOS host networking (`cloudshell.hostNetworking.macos`) | Modeled as a narrow reference provider | Infrastructure class/type defaults, host-readiness/OS/mode attributes, passive networking provider/endpoint-mapper/gateway/ingress/host-network capability markers, type-specific `reconcileEndpointMappings` operation provider, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Platform support checks, live mapping counts, host proxy runtime state, endpoint mapping provisioner integration, diagnostics, and UI registration/update flow |
 | DNS Zone (`cloudshell.dnsZone`) | Modeled as a narrow reference provider | Network class/type defaults, zone/provider attributes, passive DNS-zone capability marker, reconcile-name-mappings operation, typed wrapper, Resource Manager bridge projection and execution | Name-mapping child resource integration, record/conflict/materialization views as capability members or operation plans, DNS publisher integration, and UI registration/update flow |
-| Name mapping (`cloudshell.nameMapping`) | Modeled as a narrow reference provider | Network class/type defaults, host/endpoint/exposure attributes, passive name-mapping capability marker, `ResourceReference` dependencies, typed wrapper, apply planning, and Resource Manager bridge projection | Typed reference attributes when complex attribute values are promoted, target endpoint validation, conflict/materialization views as capability members or operation plans, DNS publisher integration, and UI registration/update flow |
+| Name mapping (`cloudshell.nameMapping`) | Modeled as a narrow reference provider | Network class/type defaults, host/endpoint/exposure attributes, passive name-mapping capability marker, `ResourceReference` DNS-zone and target dependencies, typed wrapper, apply planning, graph validation, and Resource Manager bridge projection | Typed reference attributes when complex attribute values are promoted, target endpoint validation, conflict/materialization views as capability members or operation plans, DNS publisher integration, and UI registration/update flow |
 | Configuration store (`configuration.store`) | Modeled as a narrow reference provider | Configuration class/type defaults, endpoint and read-only entry-count attributes, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real configuration service runtime integration, entry collection payloads, authorization, logs, templates, and UI registration/update flow |
 | Host configuration source (`configuration.host`) | Modeled as a narrow reference provider | Configuration class/type defaults, source and read-only entry-count attributes, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Runtime host configuration lookup, entry-name payloads, authorization, templates, and UI registration/update flow |
 | Secrets Vault (`secrets.vault`) | Modeled as a narrow reference provider | Secrets Vault class/type defaults, endpoint and read-only secret-count attributes, inspect operation, typed wrapper, Resource Manager bridge projection and execution without storing secret values | Real Secrets Vault runtime integration, secret collection payloads, authorization, logs, templates, and UI registration/update flow |
