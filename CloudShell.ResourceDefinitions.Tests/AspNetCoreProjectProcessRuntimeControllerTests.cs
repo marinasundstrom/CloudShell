@@ -70,6 +70,25 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
     }
 
     [Fact]
+    public void CommandFactory_AppliesGraphEnvironmentVariables()
+    {
+        var resource = CreateResource(
+            "src/Api/Api.csproj",
+            environmentVariables:
+            [
+                new("CLOUDSHELL_TRACE_INGEST_ENDPOINT", "http://localhost:5104/api/control-plane/v1/traces/ingest"),
+                new("EMPTY_VALUE")
+            ]);
+        var command = new AspNetCoreProjectProcessCommandFactory()
+            .CreateStartInfo(resource, "/repo/src/Api/Api.csproj");
+
+        Assert.Equal(
+            "http://localhost:5104/api/control-plane/v1/traces/ingest",
+            command.Environment["CLOUDSHELL_TRACE_INGEST_ENDPOINT"]);
+        Assert.Equal(string.Empty, command.Environment["EMPTY_VALUE"]);
+    }
+
+    [Fact]
     public void CommandFactory_PrefersExplicitProjectArgumentsOverEndpointRequests()
     {
         var resource = CreateResource(
@@ -186,7 +205,8 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
         string? arguments = null,
         bool? hotReload = null,
         bool? useLaunchSettings = null,
-        IReadOnlyList<NetworkingEndpointRequestValue>? endpointRequests = null)
+        IReadOnlyList<NetworkingEndpointRequestValue>? endpointRequests = null,
+        IReadOnlyList<AspNetCoreProjectEnvironmentVariableValue>? environmentVariables = null)
     {
         var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeValue>
         {
@@ -217,10 +237,20 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
                 ResourceAttributeValue.FromObject(endpointRequests);
         }
 
+        if (environmentVariables is not null)
+        {
+            attributes[AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables] =
+                ResourceAttributeValue.FromObject(environmentVariables);
+        }
+
         var resolver = new ResourceResolver(
             [AspNetCoreProjectResourceTypeProvider.ClassDefinition],
             [new AspNetCoreProjectResourceTypeProvider().TypeDefinition],
-            attributeValueShapeProviders: [new NetworkingEndpointShapeProvider()]);
+            attributeValueShapeProviders:
+            [
+                new NetworkingEndpointShapeProvider(),
+                new AspNetCoreProjectShapeProvider()
+            ]);
 
         return resolver.Resolve(new ResourceGraphState(
             "api",

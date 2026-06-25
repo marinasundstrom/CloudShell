@@ -53,6 +53,7 @@ public sealed class AspNetCoreProjectProcessCommandFactory
             resource.EffectiveResourceId;
         startInfo.Environment[AspNetCoreProjectEnvironmentNames.ResourceName] =
             resource.Name;
+        ApplyEnvironmentVariables(resource, startInfo);
 
         return startInfo;
     }
@@ -109,6 +110,29 @@ public sealed class AspNetCoreProjectProcessCommandFactory
         }
 
         return $"{endpoint.Protocol}://{host}:{endpoint.Port.Value}";
+    }
+
+    private static void ApplyEnvironmentVariables(
+        Resource resource,
+        ProcessStartInfo startInfo)
+    {
+        var environmentVariables = resource.Attributes
+            .GetObject<AspNetCoreProjectEnvironmentVariableValue[]>(
+                AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables);
+        if (environmentVariables is null)
+        {
+            return;
+        }
+
+        foreach (var variable in environmentVariables)
+        {
+            if (string.IsNullOrWhiteSpace(variable.Name))
+            {
+                continue;
+            }
+
+            startInfo.Environment[variable.Name.Trim()] = variable.Value ?? string.Empty;
+        }
     }
 
     private static string Quote(string value) =>

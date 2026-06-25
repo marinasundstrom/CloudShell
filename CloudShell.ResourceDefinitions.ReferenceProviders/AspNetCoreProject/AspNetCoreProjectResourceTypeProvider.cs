@@ -20,6 +20,7 @@ public sealed class AspNetCoreProjectResourceTypeProvider(
         public static readonly ResourceAttributeId HotReload = "project.hotReload";
         public static readonly ResourceAttributeId UseLaunchSettings = "project.useLaunchSettings";
         public static readonly ResourceAttributeId EndpointRequests = "project.endpointRequests";
+        public static readonly ResourceAttributeId EnvironmentVariables = "project.environmentVariables";
     }
 
     public static class Operations
@@ -53,7 +54,10 @@ public sealed class AspNetCoreProjectResourceTypeProvider(
                 ValueType: ResourceAttributeValueType.Boolean),
             [Attributes.EndpointRequests] = ResourceAttributeDefinition.Collection(
                 itemType: ResourceAttributeValueType.ComplexType,
-                itemShapeId: NetworkingEndpointShapeIds.EndpointRequest)
+                itemShapeId: NetworkingEndpointShapeIds.EndpointRequest),
+            [Attributes.EnvironmentVariables] = ResourceAttributeDefinition.Collection(
+                itemType: ResourceAttributeValueType.ComplexType,
+                itemShapeId: AspNetCoreProjectShapeIds.EnvironmentVariable)
         },
         Capabilities:
         [
@@ -151,7 +155,8 @@ public sealed class AspNetCoreProjectResourceTypeProvider(
             change.AttributeId == Attributes.ProjectArguments ||
             change.AttributeId == Attributes.HotReload ||
             change.AttributeId == Attributes.UseLaunchSettings ||
-            change.AttributeId == Attributes.EndpointRequests);
+            change.AttributeId == Attributes.EndpointRequests ||
+            change.AttributeId == Attributes.EnvironmentVariables);
 
     private static void ValidateProjectPath(
         string? projectPath,

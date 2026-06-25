@@ -11,6 +11,8 @@ public static class AspNetCoreProjectResourceTypeServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddNetworkingEndpointGraphShapes();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceAttributeValueShapeProvider, AspNetCoreProjectShapeProvider>());
 
         if (!services.Any(descriptor =>
                 descriptor.ServiceType == typeof(ResourceClassDefinition) &&

@@ -68,6 +68,19 @@ builder.Services
                             Host: graphApiEndpointUri.Host,
                             Port: graphApiEndpointUri.Port,
                             Exposure: "Local")
+                    }),
+                [AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
+                            traceIngestEndpoint ?? string.Empty),
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "CLOUDSHELL_METRIC_INGEST_ENDPOINT",
+                            metricIngestEndpoint ?? string.Empty),
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "OTEL_SERVICE_NAME",
+                            "graph-project-reference-api")
                     })
             },
             Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>

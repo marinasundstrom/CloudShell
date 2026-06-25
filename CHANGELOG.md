@@ -90,6 +90,10 @@ on `git blame --follow`, and then by the broad type of change.
   graph-backed ASP.NET Core project through the Control Plane API and verifies
   that graph-declared health and liveness probes evaluate through the projected
   Resource Manager endpoint mapping.
+- The ASP.NET Core project reference provider now has a provider-local
+  `project.environmentVariables` complex attribute, allowing graph-backed
+  project resources to apply non-secret process environment variables without
+  extracting a shared application-resource toolkit prematurely.
 - The Resource model proposal now defers source-generated programmatic
   builders and resolved resource projection wrappers until after the ASP.NET
   Core Resource Manager integration proves the basic services path.

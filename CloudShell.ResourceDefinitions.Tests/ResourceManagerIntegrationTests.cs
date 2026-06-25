@@ -1516,6 +1516,13 @@ public sealed class ResourceManagerIntegrationTests
                             Host: "localhost",
                             Port: 5010,
                             Exposure: "Local")
+                    }),
+                [AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
+                            "http://localhost:5104/api/control-plane/v1/traces/ingest")
                     })
             },
             Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
@@ -1611,6 +1618,14 @@ public sealed class ResourceManagerIntegrationTests
         var endpointRequest = Assert.Single(projectProjection.EndpointRequests);
         Assert.Equal("http", endpointRequest.Name);
         Assert.Equal(5010, endpointRequest.Port);
+        var environmentVariables = resolution.Target.Attributes
+            .GetObject<AspNetCoreProjectEnvironmentVariableValue[]>(
+                AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables);
+        var environmentVariable = Assert.Single(environmentVariables ?? []);
+        Assert.Equal("CLOUDSHELL_TRACE_INGEST_ENDPOINT", environmentVariable.Name);
+        Assert.Equal(
+            "http://localhost:5104/api/control-plane/v1/traces/ingest",
+            environmentVariable.Value);
 
         var procedure = new ResourceProcedureContext(
             projectedProject,
