@@ -79,6 +79,9 @@ on `git blame --follow`, and then by the broad type of change.
   resolved-model concepts, old-provider adapter leakage, graph lifecycle-state
   projection, premature graph context/transaction APIs, and compatibility
   bridge layers that do not fit the new provider seams.
+- The Resource model proposal now records the revised POC plan and progress
+  tracker, focusing on one graph-backed ASP.NET Core project replacement path
+  before broad provider porting continues.
 - The local host networking reconcile operation now delegates endpoint-mapping
   work to an injected provider-owned reconciler with a no-op POC default,
   matching the provider-integration pattern without moving runtime logic into

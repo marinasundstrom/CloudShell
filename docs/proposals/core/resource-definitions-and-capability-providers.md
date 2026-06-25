@@ -567,6 +567,27 @@ path is intentionally narrow: it proves Resource Manager can list and dispatch
 operations to a resolved graph resource while the concrete process behavior is
 owned by the ASP.NET Core reference provider.
 
+### Revised POC Plan
+
+The POC should now optimize for one clean end-to-end provider replacement
+path before more broad provider coverage. The current target is a graph-backed
+ASP.NET Core project resource that can be listed by Resource Manager and
+started through the new Resource model provider seams.
+
+Working plan and progress:
+
+| Step | Status | Notes |
+| --- | --- | --- |
+| Keep the graph model and Resource Manager operational model separate | Done | Graph resources carry configuration and declarations; Resource Manager owns operational state and dispatch. |
+| Use existing providers as behavior references only | Done | The POC should not adapt `ApplicationResourceDefinition`, application stores, or old application-provider terminology into the new provider seams. |
+| Register a graph-backed ASP.NET Core resource in a real host/sample | Done | ProjectReference declares `Graph Project Reference API` through the Resource Manager bridge provider. |
+| Dispatch Resource Manager Start to a resolved graph operation | Done | Registered graph resources with lifecycle operations project `Unknown` state so Start reaches `ResourceModelGraphProcedureProvider`. |
+| Keep ASP.NET Core runtime behavior provider-local | In progress | The runtime controller starts from resolved graph attributes and should keep command construction, process lifetime, and diagnostics inside the ASP.NET Core provider boundary. |
+| Prove the graph-backed project can actually run | In progress | The sample has a concrete host path; next verification should start `Graph Project Reference API` and hit its health endpoint. |
+| Decide minimal runtime state projection | Pending | Restart is blocked while state is `Unknown`; runtime state projection or a deliberate Resource Manager policy change is needed before restart parity. |
+| Re-evaluate redundant or premature model concepts | Pending | `ResolvedResourceDefinition`, broad graph contexts/transactions, and compatibility adapters should be removed or deferred if provider ports do not prove them necessary. |
+| Port the next provider | Deferred | Continue only after the ASP.NET Core vertical slice proves the provider seam and exposes any needed model changes. |
+
 The bridge project should own registration helpers for this integration seam.
 Hosts can register a graph-backed Resource model provider as an existing
 Resource Manager `IResourceProvider` without making `CloudShell.ControlPlane`
