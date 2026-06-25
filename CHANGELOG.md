@@ -94,6 +94,9 @@ on `git blame --follow`, and then by the broad type of change.
   `project.environmentVariables` complex attribute, allowing graph-backed
   project resources to apply non-secret process environment variables without
   extracting a shared application-resource toolkit prematurely.
+- The ProjectReference sample smoke test now verifies that the graph-backed
+  ASP.NET Core project emits Control Plane metric points through the
+  provider-local environment variables declared on its graph resource.
 - The Resource model proposal now defers source-generated programmatic
   builders and resolved resource projection wrappers until after the ASP.NET
   Core Resource Manager integration proves the basic services path.

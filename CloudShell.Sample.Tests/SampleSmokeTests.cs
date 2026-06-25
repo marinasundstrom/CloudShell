@@ -167,6 +167,14 @@ public sealed class SampleSmokeTests
         var graphApiLogSourceId = await WaitForLogSourceAsync(host, graphApiResourceId);
         var graphApiLogEntries = await WaitForLogEntriesAsync(host, graphApiLogSourceId);
         Assert.NotEmpty(graphApiLogEntries);
+        var graphApiMetricPoints = await WaitForMetricPointsAsync(
+            host,
+            graphApiResourceId,
+            StartupTimeout,
+            points => points.Any(point =>
+                point.GetProperty("name").GetString() == "http.server.requests" &&
+                point.GetProperty("resourceId").GetString() == graphApiResourceId));
+        Assert.NotEmpty(graphApiMetricPoints);
         var graphApiHealthJson = await host.SendAsync(
             HttpMethod.Post,
             $"/api/control-plane/v1/resources/{Uri.EscapeDataString(graphApiResourceId)}/health/refresh");
