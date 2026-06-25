@@ -167,6 +167,20 @@ public sealed class SampleSmokeTests
         var graphApiLogSourceId = await WaitForLogSourceAsync(host, graphApiResourceId);
         var graphApiLogEntries = await WaitForLogEntriesAsync(host, graphApiLogSourceId);
         Assert.NotEmpty(graphApiLogEntries);
+        var graphApiHealthJson = await host.SendAsync(
+            HttpMethod.Post,
+            $"/api/control-plane/v1/resources/{Uri.EscapeDataString(graphApiResourceId)}/health/refresh");
+        using var graphApiHealthDocument = JsonDocument.Parse(graphApiHealthJson);
+        var graphApiHealth = graphApiHealthDocument.RootElement;
+        var graphApiHealthChecks = graphApiHealth.GetProperty("checks").EnumerateArray().ToArray();
+        Assert.Equal(graphApiResourceId, graphApiHealth.GetProperty("resourceId").GetString());
+        Assert.Equal((int)ResourceHealthStatus.Healthy, graphApiHealth.GetProperty("status").GetInt32());
+        Assert.Contains(graphApiHealthChecks, check =>
+            check.GetProperty("check").GetProperty("type").GetInt32() == (int)ResourceProbeType.Health &&
+            check.GetProperty("status").GetInt32() == (int)ResourceHealthStatus.Healthy);
+        Assert.Contains(graphApiHealthChecks, check =>
+            check.GetProperty("check").GetProperty("type").GetInt32() == (int)ResourceProbeType.Liveness &&
+            check.GetProperty("status").GetInt32() == (int)ResourceHealthStatus.Healthy);
 
         await host.WaitForAbsoluteHttpOkAsync(
             $"{frontendEndpoint}/upstream",

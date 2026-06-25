@@ -86,6 +86,10 @@ on `git blame --follow`, and then by the broad type of change.
   that output into a Control Plane `ILogProvider` so graph-declared log sources
   can be read through the existing log-source API after Resource Manager starts
   the project.
+- The ProjectReference sample smoke test now refreshes health for the
+  graph-backed ASP.NET Core project through the Control Plane API and verifies
+  that graph-declared health and liveness probes evaluate through the projected
+  Resource Manager endpoint mapping.
 - The Resource model proposal now defers source-generated programmatic
   builders and resolved resource projection wrappers until after the ASP.NET
   Core Resource Manager integration proves the basic services path.
