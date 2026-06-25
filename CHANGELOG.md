@@ -119,6 +119,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The resource definitions proposal now clarifies that `ResourceReference` is
   an addressing primitive that may carry a relationship qualifier in the POC,
   not a complete relationship model on its own.
+- The resource definitions proposal now marks service, load-balancer, and
+  name-mapping target dependencies as temporary POC encodings pending concrete
+  provider-specific reference requirements.
 - The Resource Manager graph resource provider now projects only `dependsOn`
   references into Resource Manager dependency lists, leaving ownership
   references out of startup-order metadata.

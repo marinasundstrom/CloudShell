@@ -492,11 +492,11 @@ provider starts the workload, without displaying resolved values.
 Endpoint variables are generated from the application's referenced resources,
 not from its wait dependencies. For declarative application resources,
 `WithReference(...)` records an endpoint reference, while `DependsOn(...)`
-records a startup dependency. The broader resource model uses `DependsOn(...)`
-as the standard dependency relationship; `WaitFor(...)` remains available on the
-executable application builder as an Aspire-compatible alias. CloudShell only
-emits endpoint variables when the referenced resource is registered in the same
-resource group.
+records a startup dependency. The broader resource model uses
+`DependsOn(...)` as the standard explicit startup dependency declaration;
+`WaitFor(...)` remains available on the executable application builder as an
+Aspire-compatible alias. CloudShell only emits endpoint variables when the
+referenced resource is registered in the same resource group.
 
 An application can depend on any resource builder returned from the declarative
 graph, including provider sub-resources such as Docker containers.
