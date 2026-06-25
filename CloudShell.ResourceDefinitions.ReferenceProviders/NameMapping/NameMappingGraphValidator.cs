@@ -28,7 +28,7 @@ public sealed class NameMappingGraphValidator : IResourceDefinitionGraphValidato
         var hasDnsZone = false;
         var hasTarget = false;
 
-        foreach (var reference in resource.State.ResourceDependencies)
+        foreach (var reference in resource.State.StartupDependencies)
         {
             if (!reference.TryGetDependsOnResourceId(out var resourceId))
             {

@@ -112,11 +112,11 @@ public sealed class ResourceModelGraphResourceProvider :
 
     private IReadOnlyList<ResourceReference> GetDependencyReferences(Resource resource)
     {
-        var references = resource.State.ResourceDependencies
+        var references = resource.State.StartupDependencies
             .Where(reference => reference.TryGetDependsOnResourceId(out _))
             .ToList();
         var dependencyIds = new HashSet<string>(
-            resource.State.ResourceDependencyIds,
+            resource.State.StartupDependencyIds,
             StringComparer.OrdinalIgnoreCase);
 
         foreach (var provider in _dependencyProviders)

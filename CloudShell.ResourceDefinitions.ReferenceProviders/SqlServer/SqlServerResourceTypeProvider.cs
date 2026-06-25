@@ -144,7 +144,7 @@ public sealed class SqlServerResourceTypeProvider :
         ResourceState state,
         out string containerHostResourceId)
     {
-        foreach (var reference in state.ResourceDependencies)
+        foreach (var reference in state.StartupDependencies)
         {
             if (reference.TypeId is { } typeId &&
                 IsContainerHostResourceType(typeId) &&

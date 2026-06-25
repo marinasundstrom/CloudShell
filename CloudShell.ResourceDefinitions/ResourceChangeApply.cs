@@ -355,7 +355,7 @@ public sealed class ResourceDefinitionGraphChangeApplier(
 
         foreach (var definition in definitions)
         {
-            foreach (var dependency in definition.ResourceDependencyIds)
+            foreach (var dependency in definition.StartupDependencyIds)
             {
                 if (!knownResourceIds.Contains(dependency))
                 {

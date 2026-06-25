@@ -122,6 +122,12 @@ on `git blame --follow`, and then by the broad type of change.
 - The resource definitions proposal now marks service, load-balancer, and
   name-mapping target dependencies as temporary POC encodings pending concrete
   provider-specific reference requirements.
+- Resource definitions now expose `StartupDependencies` and
+  `StartupDependencyIds` aliases for the historical `DependsOn` record field
+  so internal code can distinguish orchestrator startup metadata from broader
+  references.
+- The generic `ResourceReference.ResourceId` factory now requires an explicit
+  qualifier instead of defaulting to `dependsOn`.
 - The Resource Manager graph resource provider now projects only `dependsOn`
   references into Resource Manager dependency lists, leaving ownership
   references out of startup-order metadata.

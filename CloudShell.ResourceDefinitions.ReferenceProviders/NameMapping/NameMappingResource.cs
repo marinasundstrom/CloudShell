@@ -15,7 +15,7 @@ public sealed class NameMappingResource(
         Resource.Attributes.GetString(NameMappingResourceTypeProvider.Attributes.Exposure);
 
     public IReadOnlyList<ResourceReference> References =>
-        Resource.State.ResourceDependencies;
+        Resource.State.StartupDependencies;
 
     public bool SupportsNameMapping =>
         Resource.Capabilities.Has(NameMappingResourceTypeProvider.Capabilities.NetworkingNameMapping);

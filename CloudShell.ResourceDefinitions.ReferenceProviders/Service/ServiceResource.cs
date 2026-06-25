@@ -12,7 +12,7 @@ public sealed class ServiceResource(
         Resource.Attributes.GetString(ServiceResourceTypeProvider.Attributes.RoutingMode);
 
     public IReadOnlyList<ResourceReference> References =>
-        Resource.State.ResourceDependencies;
+        Resource.State.StartupDependencies;
 
     public bool SupportsEndpointSource =>
         Resource.Capabilities.Has(ServiceResourceTypeProvider.Capabilities.EndpointSource);

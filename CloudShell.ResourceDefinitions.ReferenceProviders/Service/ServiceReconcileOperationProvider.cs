@@ -63,7 +63,7 @@ public sealed class ServiceReconcileOperation(
         new(
             Resource,
             Resource.Attributes.GetString(ServiceResourceTypeProvider.Attributes.RoutingMode),
-            Resource.State.ResourceDependencies);
+            Resource.State.StartupDependencies);
 
     public async ValueTask<ResourceOperationExecutionResult> ExecuteAsync(
         CancellationToken cancellationToken = default)

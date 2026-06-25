@@ -32,9 +32,9 @@ public sealed record ResourceState(
     public string EffectiveResourceId =>
         string.IsNullOrWhiteSpace(ResourceId) ? $"{TypeId}:{Name}" : ResourceId;
 
-    public IReadOnlyList<ResourceReference> ResourceDependencies => DependsOn ?? EmptyReferences;
+    public IReadOnlyList<ResourceReference> StartupDependencies => DependsOn ?? EmptyReferences;
 
-    public IReadOnlyList<string> ResourceDependencyIds => ResourceDependencies
+    public IReadOnlyList<string> StartupDependencyIds => StartupDependencies
         .Where(dependency => dependency.TryGetDependsOnResourceId(out _))
         .Select(dependency =>
         {
@@ -42,6 +42,10 @@ public sealed record ResourceState(
             return resourceId;
         })
         .ToArray();
+
+    public IReadOnlyList<ResourceReference> ResourceDependencies => StartupDependencies;
+
+    public IReadOnlyList<string> ResourceDependencyIds => StartupDependencyIds;
 
     public IReadOnlyDictionary<ResourceAttributeId, string> ResourceAttributes => Attributes ?? EmptyAttributes;
 
@@ -108,7 +112,7 @@ public sealed record ResourceState(
             ProviderId,
             DisplayName,
             Version,
-            ResourceDependencies,
+            StartupDependencies,
             ResourceAttributes,
             ConfigurationPayloads,
             CapabilityPayloads,

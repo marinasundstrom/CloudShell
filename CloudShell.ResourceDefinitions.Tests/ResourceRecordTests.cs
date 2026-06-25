@@ -108,7 +108,7 @@ public sealed class ResourceRecordTests
         Assert.Equal(SqlServerResourceTypeProvider.ResourceTypeId, dependency.TypeId);
         Assert.Equal(SqlServerResourceTypeProvider.ProviderId, dependency.ProviderId);
 
-        var roundTripDependency = Assert.Single(roundTrip.ResourceDependencies);
+        var roundTripDependency = Assert.Single(roundTrip.StartupDependencies);
         Assert.Equal(dependency, roundTripDependency);
     }
 

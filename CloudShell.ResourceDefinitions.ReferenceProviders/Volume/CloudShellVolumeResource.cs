@@ -30,7 +30,7 @@ public sealed class CloudShellVolumeResource(
         persistent;
 
     public IReadOnlyList<ResourceReference> References =>
-        Resource.State.ResourceDependencies;
+        Resource.State.StartupDependencies;
 
     public bool SupportsVolume =>
         Resource.Capabilities.Has(CloudShellVolumeResourceTypeProvider.Capabilities.StorageVolume);

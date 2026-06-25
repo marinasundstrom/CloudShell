@@ -28,7 +28,7 @@ public sealed class ServiceGraphValidator : IResourceDefinitionGraphValidator
         var hasResolvedTarget = false;
         var hasResolvedReference = false;
 
-        foreach (var reference in resource.State.ResourceDependencies)
+        foreach (var reference in resource.State.StartupDependencies)
         {
             if (!reference.TryGetDependsOnResourceId(out var resourceId))
             {
@@ -60,7 +60,7 @@ public sealed class ServiceGraphValidator : IResourceDefinitionGraphValidator
             }
         }
 
-        if (resource.State.ResourceDependencies.Count > 0 &&
+        if (resource.State.StartupDependencies.Count > 0 &&
             hasResolvedReference &&
             !hasResolvedTarget)
         {

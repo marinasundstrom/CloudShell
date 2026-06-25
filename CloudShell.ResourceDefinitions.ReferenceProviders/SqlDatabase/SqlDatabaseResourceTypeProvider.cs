@@ -177,7 +177,7 @@ public sealed class SqlDatabaseResourceTypeProvider :
         ResourceState state,
         out string serverResourceId)
     {
-        foreach (var reference in state.ResourceDependencies)
+        foreach (var reference in state.StartupDependencies)
         {
             if (reference.TryGetDependsOnResourceId(out serverResourceId))
             {

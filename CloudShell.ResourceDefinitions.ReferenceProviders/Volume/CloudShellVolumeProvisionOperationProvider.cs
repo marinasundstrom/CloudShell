@@ -82,7 +82,7 @@ public sealed class CloudShellVolumeProvisionOperation(
             Resource.Attributes.GetString(CloudShellVolumeResourceTypeProvider.Attributes.StorageMedium),
             Resource.Attributes.GetString(CloudShellVolumeResourceTypeProvider.Attributes.Location),
             Resource.Attributes.GetString(CloudShellVolumeResourceTypeProvider.Attributes.SubPath),
-            Resource.State.ResourceDependencies);
+            Resource.State.StartupDependencies);
 
     public async ValueTask<ResourceOperationExecutionResult> ExecuteAsync(
         CancellationToken cancellationToken = default)

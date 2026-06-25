@@ -29,7 +29,7 @@ public sealed record ResourceRecord(
             state.ProviderId,
             state.DisplayName,
             state.Version,
-            state.ResourceDependencies.ToArray(),
+            state.StartupDependencies.ToArray(),
             state.ResourceAttributes.ToDictionary(
                 attribute => attribute.Key.ToString(),
                 attribute => attribute.Value,

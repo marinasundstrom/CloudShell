@@ -22,7 +22,7 @@ public sealed record ResourceReference(
 {
     public static ResourceReference ResourceId(
         string resourceId,
-        ResourceReferenceRelationship? relationship = null,
+        ResourceReferenceRelationship relationship,
         ResourceTypeId? typeId = null,
         string? providerId = null)
     {
@@ -30,7 +30,7 @@ public sealed record ResourceReference(
 
         return new(
             resourceId.Trim(),
-            relationship ?? ResourceReferenceRelationships.DependsOn,
+            relationship,
             ResourceReferenceAddressingModes.ResourceId,
             typeId,
             providerId);

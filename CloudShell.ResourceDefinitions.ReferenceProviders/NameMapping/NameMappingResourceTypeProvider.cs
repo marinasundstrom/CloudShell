@@ -106,7 +106,7 @@ public sealed class NameMappingResourceTypeProvider :
             resource.Attributes.GetString(Attributes.HostName),
             Attributes.HostName,
             diagnostics);
-        ValidateHasGraphReference(resource.State.ResourceDependencies, diagnostics);
+        ValidateHasGraphReference(resource.State.StartupDependencies, diagnostics);
         return diagnostics;
     }
 
@@ -120,7 +120,7 @@ public sealed class NameMappingResourceTypeProvider :
             ValidateRequired(hostName, Attributes.HostName, diagnostics);
         }
 
-        ValidateHasGraphReference(state.ResourceDependencies, diagnostics);
+        ValidateHasGraphReference(state.StartupDependencies, diagnostics);
         return diagnostics;
     }
 

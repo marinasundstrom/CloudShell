@@ -215,11 +215,11 @@ public sealed class ResourceGraphResolver(
         ResourceState state,
         Resource resource)
     {
-        var dependencies = state.ResourceDependencies
+        var dependencies = state.StartupDependencies
             .Where(reference => reference.TryGetDependsOnResourceId(out _))
             .ToList();
         var dependencyIds = new HashSet<string>(
-            state.ResourceDependencyIds,
+            state.StartupDependencyIds,
             StringComparer.OrdinalIgnoreCase);
 
         foreach (var provider in _dependencyProviders)

@@ -102,7 +102,7 @@ public sealed class ResourceDefinitionGraphValidationPipeline
 
         foreach (var definition in graph.Resources)
         {
-            foreach (var dependency in definition.ResourceDependencyIds)
+            foreach (var dependency in definition.StartupDependencyIds)
             {
                 if (!resourceIds.Contains(dependency))
                 {

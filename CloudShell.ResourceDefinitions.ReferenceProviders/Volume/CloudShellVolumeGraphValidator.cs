@@ -25,7 +25,7 @@ public sealed class CloudShellVolumeGraphValidator : IResourceDefinitionGraphVal
         ResourceDefinitionGraphValidationContext context,
         List<ResourceDefinitionDiagnostic> diagnostics)
     {
-        foreach (var reference in resource.State.ResourceDependencies)
+        foreach (var reference in resource.State.StartupDependencies)
         {
             if (!reference.TryGetDependsOnResourceId(out var resourceId))
             {

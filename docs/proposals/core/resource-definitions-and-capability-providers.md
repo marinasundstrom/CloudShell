@@ -1446,12 +1446,16 @@ arbitrary complex provider object. Projection wrappers may still deserialize
 the value to the concrete `ResourceReference` record when that object-oriented
 API is appropriate.
 
-`DependsOn` should keep its historical meaning: a startup or ordering
-dependency. It is not the general relationship model. For the immediate POC,
-some reference providers still use `DependsOn` as a temporary input because
-`ResourceDefinition` and persisted resource state remain string-backed for
-authored attributes. That should not become the desired long-term model for
-all relationships.
+`DependsOn` should keep its historical meaning: an optional startup or
+ordering hint for the orchestrator. It is not the general relationship model
+and it is not the shared collection of every dependency-like reference in the
+resource graph. In the current record/interchange shape it is declared beside
+resource identity, provider, and attributes for historical compatibility; it
+could later be promoted to a defined global attribute if that makes the model
+more consistent. For the immediate POC, some reference providers still use
+`DependsOn` as a temporary input because `ResourceDefinition` and persisted
+resource state remain string-backed for authored attributes. That should not
+become the desired long-term model for all references.
 
 The `ResourceReference` primitive separates addressing mode from the current
 POC relationship qualifier. A `resourceId`-addressed reference can be resolved
@@ -1464,13 +1468,12 @@ accidentally becoming startup-order dependencies. Code should prefer explicit
 factories such as `DependsOnResourceId` and `BelongsToResourceId` when
 constructing resource-id references with those qualifiers.
 
-`DependsOn` should remain a first-class optional collection on the resource
-record and interchange definition, not a normal inherited attribute. It is
-instance-specific graph metadata that gives an orchestrator a startup-order
-hint. Resource classes and resource types may eventually declare validation
-rules or expectations for dependencies, but they should not inherit concrete
-dependency values as attribute defaults because those values normally point at
-specific resource instances.
+`DependsOn` should remain instance-specific graph metadata while it lives on
+the resource record and interchange definition. Resource classes and resource
+types may eventually declare validation rules or expectations for startup
+dependencies, but they should not inherit concrete dependency values as type
+or class defaults because those values normally point at specific resource
+instances.
 
 For example, an `application.sql-database` resource belongs
 to an owning SQL Server resource. The SQL database type declares

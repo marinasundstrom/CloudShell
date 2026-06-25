@@ -27,7 +27,7 @@ public sealed class LoadBalancerResource(
         GetCount(LoadBalancerResourceTypeProvider.Attributes.EndpointCount);
 
     public IReadOnlyList<ResourceReference> References =>
-        Resource.State.ResourceDependencies;
+        Resource.State.StartupDependencies;
 
     public bool SupportsLoadBalancing =>
         Resource.Capabilities.Has(LoadBalancerResourceTypeProvider.Capabilities.NetworkingLoadBalancer);
