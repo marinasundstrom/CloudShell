@@ -2038,7 +2038,9 @@ public sealed class ResourceManagerIntegrationTests
     [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesLocalHostNetworkAcrossProviderBoundaries()
     {
+        var reconciler = new RecordingLocalHostNetworkEndpointMappingReconciler();
         var services = new ServiceCollection();
+        services.AddSingleton<ILocalHostNetworkEndpointMappingReconciler>(reconciler);
         services.AddInMemoryResourceModelGraph();
         services.AddLocalHostNetworkResourceType();
         services.AddResourceModelGraphServices();
@@ -2109,6 +2111,7 @@ public sealed class ResourceManagerIntegrationTests
         var procedureResult = await provider.ExecuteActionAsync(procedure, reconcile);
 
         Assert.Equal("Executed ReconcileEndpointMappings for host-local.", procedureResult.Message);
+        Assert.Equal([network.EffectiveResourceId], reconciler.ReconciledResourceIds);
     }
 
     [Fact]
@@ -4116,6 +4119,23 @@ public sealed class ResourceManagerIntegrationTests
             CancellationToken cancellationToken = default)
         {
             _startedResourceIds.Add(resource.EffectiveResourceId);
+
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+    }
+
+    private sealed class RecordingLocalHostNetworkEndpointMappingReconciler :
+        ILocalHostNetworkEndpointMappingReconciler
+    {
+        private readonly List<string> _reconciledResourceIds = [];
+
+        public IReadOnlyList<string> ReconciledResourceIds => _reconciledResourceIds;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileEndpointMappingsAsync(
+            Resource resource,
+            CancellationToken cancellationToken = default)
+        {
+            _reconciledResourceIds.Add(resource.EffectiveResourceId);
 
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }

@@ -1,9 +1,29 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
-public sealed class LocalHostNetworkReconcileEndpointMappingsOperationProvider :
+public interface ILocalHostNetworkEndpointMappingReconciler
+{
+    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileEndpointMappingsAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed class NoopLocalHostNetworkEndpointMappingReconciler :
+    ILocalHostNetworkEndpointMappingReconciler
+{
+    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileEndpointMappingsAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+}
+
+public sealed class LocalHostNetworkReconcileEndpointMappingsOperationProvider(
+    ILocalHostNetworkEndpointMappingReconciler? reconciler = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
+    private readonly ILocalHostNetworkEndpointMappingReconciler _reconciler =
+        reconciler ?? new NoopLocalHostNetworkEndpointMappingReconciler();
+
     public ResourceOperationId OperationId =>
         LocalHostNetworkResourceTypeProvider.Operations.ReconcileEndpointMappings;
 
@@ -36,14 +56,19 @@ public sealed class LocalHostNetworkReconcileEndpointMappingsOperationProvider :
         ValueTask.FromResult<IResourceOperationProjection>(
             new LocalHostNetworkReconcileEndpointMappingsOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
-                operation));
+                operation,
+                _reconciler));
 }
 
 public sealed class LocalHostNetworkReconcileEndpointMappingsOperation(
     ResourceProjectionExecutionContext context,
-    ResourceOperationResolution operation) : IResourceOperationExecutorProjection
+    ResourceOperationResolution operation,
+    ILocalHostNetworkEndpointMappingReconciler reconciler) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
+
+    private readonly ILocalHostNetworkEndpointMappingReconciler _reconciler =
+        reconciler;
 
     public Resource Resource => Context.Resource;
 
@@ -82,10 +107,14 @@ public sealed class LocalHostNetworkReconcileEndpointMappingsOperation(
                 ]);
         }
 
+        var diagnostics = await _reconciler.ReconcileEndpointMappingsAsync(
+            Resource,
+            cancellationToken);
+
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            []);
+            diagnostics);
     }
 }
 

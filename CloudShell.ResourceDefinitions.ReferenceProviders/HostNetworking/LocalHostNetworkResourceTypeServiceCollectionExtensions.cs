@@ -30,6 +30,9 @@ public static class LocalHostNetworkResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, LocalHostNetworkReconcileEndpointMappingsOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, LocalHostNetworkResourceProjectionProvider>());
+        services.TryAddSingleton<
+            ILocalHostNetworkEndpointMappingReconciler,
+            NoopLocalHostNetworkEndpointMappingReconciler>();
 
         return services;
     }

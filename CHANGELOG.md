@@ -58,6 +58,10 @@ on `git blame --follow`, and then by the broad type of change.
 - The executable application start operation now delegates runtime-facing start
   behavior to an injected provider-owned runtime controller with a no-op POC
   default.
+- The local host networking reconcile operation now delegates endpoint-mapping
+  work to an injected provider-owned reconciler with a no-op POC default,
+  matching the provider-integration pattern without moving runtime logic into
+  the Resource model.
 - Resource graph records now have test coverage proving typed
   `ResourceReference` dependencies survive the record persistence projection.
 - `ResourceReference` now has JSON round-trip coverage for expected resource
