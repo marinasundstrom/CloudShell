@@ -1,9 +1,29 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
-public sealed class ContainerHostInspectOperationProvider :
+public interface IContainerHostInspector
+{
+    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> InspectAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed class NoopContainerHostInspector :
+    IContainerHostInspector
+{
+    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> InspectAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+}
+
+public sealed class ContainerHostInspectOperationProvider(
+    IContainerHostInspector? inspector = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
+    private readonly IContainerHostInspector _inspector =
+        inspector ?? new NoopContainerHostInspector();
+
     public ResourceOperationId OperationId =>
         ContainerHostResourceTypeProvider.Operations.Inspect;
 
@@ -36,14 +56,18 @@ public sealed class ContainerHostInspectOperationProvider :
         ValueTask.FromResult<IResourceOperationProjection>(
             new ContainerHostInspectOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
-                operation));
+                operation,
+                _inspector));
 }
 
 public sealed class ContainerHostInspectOperation(
     ResourceProjectionExecutionContext context,
-    ResourceOperationResolution operation) : IResourceOperationExecutorProjection
+    ResourceOperationResolution operation,
+    IContainerHostInspector inspector) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
+
+    private readonly IContainerHostInspector _inspector = inspector;
 
     public Resource Resource => Context.Resource;
 
@@ -81,10 +105,14 @@ public sealed class ContainerHostInspectOperation(
                 ]);
         }
 
+        var diagnostics = await _inspector.InspectAsync(
+            Resource,
+            cancellationToken);
+
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            []);
+            diagnostics);
     }
 }
 

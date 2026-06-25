@@ -30,6 +30,7 @@ public static class ContainerHostResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, ContainerHostInspectOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, ContainerHostResourceProjectionProvider>());
+        services.TryAddSingleton<IContainerHostInspector, NoopContainerHostInspector>();
 
         return services;
     }
