@@ -2579,8 +2579,12 @@ public sealed class ResourceManagerIntegrationTests
             ProviderId: ServiceResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                ResourceReference.ResourceId(target.EffectiveResourceId),
-                ResourceReference.ResourceId(network.EffectiveResourceId)
+                ResourceReference.ResourceId(
+                    target.EffectiveResourceId,
+                    typeId: ContainerApplicationResourceTypeProvider.ResourceTypeId),
+                ResourceReference.ResourceId(
+                    network.EffectiveResourceId,
+                    typeId: NetworkResourceTypeProvider.ResourceTypeId)
             ],
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
@@ -2645,6 +2649,64 @@ public sealed class ResourceManagerIntegrationTests
         var procedureResult = await provider.ExecuteActionAsync(procedure, reconcile);
 
         Assert.Equal("Executed Service Reconcile for api-service.", procedureResult.Message);
+    }
+
+    [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_RejectsServiceWithNonNetworkReference()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddContainerApplicationResourceType();
+        services.AddLocalVolumeResourceType();
+        services.AddServiceResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var target = new ResourceDefinition(
+            "api",
+            ContainerApplicationResourceTypeProvider.ResourceTypeId,
+            ProviderId: ContainerApplicationResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [ContainerApplicationResourceTypeProvider.Attributes.ContainerImage] = "example/api:1.0"
+            });
+        var notNetwork = new ResourceDefinition(
+            "local-data",
+            LocalVolumeResourceTypeProvider.ResourceTypeId,
+            ProviderId: LocalVolumeResourceTypeProvider.ProviderId);
+        var definition = new ResourceDefinition(
+            "api-service",
+            ServiceResourceTypeProvider.ResourceTypeId,
+            ProviderId: ServiceResourceTypeProvider.ProviderId,
+            DependsOn:
+            [
+                ResourceReference.ResourceId(
+                    target.EffectiveResourceId,
+                    typeId: ContainerApplicationResourceTypeProvider.ResourceTypeId),
+                ResourceReference.ResourceId(
+                    notNetwork.EffectiveResourceId,
+                    typeId: NetworkResourceTypeProvider.ResourceTypeId)
+            ],
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [ServiceResourceTypeProvider.Attributes.RoutingMode] = "logical"
+            });
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "invalid-service",
+                [target, notNetwork, definition],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 17, 30, 0, TimeSpan.Zero)));
+
+        Assert.True(result.HasErrors);
+        Assert.False(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Rejected, result.Commit.Summary.Status);
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Code == ResourceDefinitionDiagnosticCodes.ResourceCapabilityReferenceInvalid &&
+            diagnostic.Message.Contains("expected a network resource", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

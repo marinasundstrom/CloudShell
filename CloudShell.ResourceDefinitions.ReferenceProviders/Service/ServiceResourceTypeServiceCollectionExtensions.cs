@@ -25,6 +25,8 @@ public static class ServiceResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceDefinitionApplyProvider, ServiceResourceTypeProvider>());
         services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceDefinitionGraphValidator, ServiceGraphValidator>());
+        services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProvider, ServiceReconcileOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProjector, ServiceReconcileOperationProvider>());

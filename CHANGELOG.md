@@ -112,6 +112,9 @@ on `git blame --follow`, and then by the broad type of change.
   dependencies to resolve to `cloudshell.storage` resources, keeping storage
   relationship semantics in the provider boundary instead of generic graph
   infrastructure.
+- Service reference-provider validation now treats typed network dependencies
+  as provider-owned graph semantics and rejects service definitions whose
+  network reference resolves to a non-network resource.
 
 ### 2026-06-24
 
