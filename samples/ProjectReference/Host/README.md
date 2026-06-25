@@ -3,10 +3,22 @@
 This sample mirrors the Aspire-style local dev loop where one project resource
 references another project resource.
 
-`CloudShell.ProjectReferenceHost` declares two ASP.NET Core project resources:
+`CloudShell.ProjectReferenceHost` declares two ASP.NET Core project resources
+through the existing application provider:
 
 - `Project Reference API` with an auto-assigned HTTP endpoint
 - `Project Reference Frontend` on `http://localhost:5218`
+
+It also registers one graph-backed ASP.NET Core project resource through the
+new Resource model bridge provider:
+
+- `Graph Project Reference API` on `http://localhost:5229`
+
+That resource uses the new `application.aspnet-core-project` resource type
+provider and provider-owned process runtime controller. It is intentionally
+narrow: it proves Resource Manager can list a Resource model graph resource
+and dispatch Start to the new provider seam without adapting the old
+application-provider definition/store concepts.
 
 The frontend resource uses:
 
@@ -117,6 +129,19 @@ http://localhost:5218/upstream
 ```
 
 The response includes the resolved API endpoint and the API health payload.
+
+To exercise the Resource model POC path, start the `Graph Project Reference
+API` resource and open:
+
+```text
+http://localhost:5229/health
+```
+
+Restart is still a model gap for this graph-backed resource. The bridge
+projects lifecycle-capable graph resources with `Unknown` state so Resource
+Manager allows Start to dispatch, but Resource Manager blocks Restart while
+state is `Unknown`. A later slice should either project provider-observed
+runtime state or deliberately change Resource Manager restart policy.
 
 Runtime state is stored under `samples/ProjectReference/Host/Data/`
 and is ignored by git.

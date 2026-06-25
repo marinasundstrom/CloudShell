@@ -540,6 +540,10 @@ bridge should project an initial lifecycle state such as `Unknown` instead of
 leaving lifecycle state empty. Resource Manager has generic action guards
 before provider dispatch; a lifecycle-capable graph resource with no lifecycle
 state would otherwise be blocked before the operation provider can execute.
+This currently proves Start dispatch, not full lifecycle parity. Resource
+Manager still blocks Restart while state is `Unknown`, so graph-backed
+resources that need Restart must either project provider-observed runtime
+state or wait for an explicit Resource Manager policy decision.
 Runtime-facing operation implementations should sit behind provider-owned
 services that are injected into the operation provider or projector. The
 reference executable start operation demonstrates this with a no-op default
