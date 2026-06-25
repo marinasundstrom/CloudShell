@@ -13,12 +13,16 @@ public sealed record ResourceModelResourceManagerProjectionOptions(
     DateTimeOffset? DefaultLastUpdated = null,
     string BridgeProviderId = ResourceModelResourceProvider.DefaultProviderId,
     ResourceModelResourceManagerStateResolver? StateResolver = null,
-    ResourceModelResourceManagerEndpointProjectionResolver? EndpointProjectionResolver = null);
+    ResourceModelResourceManagerEndpointProjectionResolver? EndpointProjectionResolver = null,
+    ResourceModelResourceManagerObservabilityResolver? ObservabilityResolver = null);
 
 public delegate ResourceManagerState? ResourceModelResourceManagerStateResolver(
     ResourceModelResource resource);
 
 public delegate ResourceModelResourceManagerEndpointProjection? ResourceModelResourceManagerEndpointProjectionResolver(
+    ResourceModelResource resource);
+
+public delegate ResourceObservability? ResourceModelResourceManagerObservabilityResolver(
     ResourceModelResource resource);
 
 public sealed record ResourceModelResourceManagerEndpointProjection(
@@ -57,6 +61,7 @@ public static class ResourceModelResourceManagerMapper
             options.BridgeProviderId;
         var healthChecks = ToResourceManagerHealthChecks(resource);
         var endpointProjection = ToResourceManagerEndpointProjection(resource, options);
+        var logSources = ToResourceManagerLogSources(resource);
 
         return new ResourceManagerResource(
             resource.EffectiveResourceId,
@@ -75,6 +80,7 @@ public static class ResourceModelResourceManagerMapper
                 .Select(ToResourceManagerAction)
                 .ToArray(),
             HealthChecks: healthChecks,
+            Observability: ToResourceManagerObservability(resource, options, logSources),
             ResourceClass: ToResourceManagerClass(resource.Class.ClassId),
             Attributes: attributes,
             Capabilities: ToResourceManagerCapabilities(resource, healthChecks),
@@ -83,7 +89,7 @@ public static class ResourceModelResourceManagerMapper
             DisplayName: resource.State.DisplayName,
             EndpointMappings: endpointProjection.ResourceEndpointMappings,
             EndpointNetworkMappings: endpointProjection.ResourceEndpointNetworkMappings,
-            LogSources: ToResourceManagerLogSources(resource));
+            LogSources: logSources);
     }
 
     public static IReadOnlyList<ResourceModelDiagnostic> ToResourceModelDiagnostics(
@@ -136,6 +142,24 @@ public static class ResourceModelResourceManagerMapper
         ResourceModelResourceManagerProjectionOptions options) =>
         options.EndpointProjectionResolver?.Invoke(resource) ??
         ResourceModelResourceManagerEndpointProjection.Empty;
+
+    private static ResourceObservability? ToResourceManagerObservability(
+        ResourceModelResource resource,
+        ResourceModelResourceManagerProjectionOptions options,
+        IReadOnlyList<ResourceLogSource> logSources)
+    {
+        var observability = options.ObservabilityResolver?.Invoke(resource);
+        if (observability is not null)
+        {
+            return logSources.Count > 0 && !observability.Logs
+                ? observability with { Logs = true }
+                : observability;
+        }
+
+        return logSources.Count > 0
+            ? new ResourceObservability(Logs: true)
+            : null;
+    }
 
     private static bool IsLifecycleOperation(ResourceOperationId operationId) =>
         operationId.ToString() is

@@ -42,6 +42,9 @@ builder.Services.AddSingleton<
 builder.Services.AddSingleton<
     IResourceModelResourceManagerEndpointProjectionProvider,
     AspNetCoreProjectResourceManagerEndpointProjectionProvider>();
+builder.Services.AddSingleton<
+    IResourceModelResourceManagerObservabilityProvider,
+    AspNetCoreProjectResourceManagerObservabilityProvider>();
 builder.Services.AddSingleton<ILogProvider, AspNetCoreProjectResourceManagerLogProvider>();
 builder.Services
     .AddInMemoryResourceModelGraph(
@@ -317,6 +320,20 @@ internal sealed class AspNetCoreProjectResourceManagerEndpointProjectionProvider
 
         return null;
     }
+}
+
+internal sealed class AspNetCoreProjectResourceManagerObservabilityProvider :
+    IResourceModelResourceManagerObservabilityProvider
+{
+    public ResourceObservability? GetObservability(
+        CloudShell.ResourceDefinitions.Resource resource) =>
+        resource.Type.TypeId == AspNetCoreProjectResourceTypeProvider.ResourceTypeId
+            ? new ResourceObservability(
+                Logs: true,
+                Traces: true,
+                Metrics: true,
+                ServiceName: resource.Name)
+            : null;
 }
 
 internal sealed class AspNetCoreProjectResourceManagerLogProvider(

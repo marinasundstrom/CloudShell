@@ -81,6 +81,12 @@ on `git blame --follow`, and then by the broad type of change.
   projection providers from DI, letting hosts and provider packages own
   endpoint mapping logic without passing provider-specific lambdas into graph
   provider registration.
+- Resource Manager bridge projections can now accept provider-owned
+  observability resolvers, and bridge services can compose registered
+  observability providers from DI so runtime integrations can declare
+  Resource Manager logs, traces, and metrics support for graph resources
+  without making that provider-specific behavior part of the generic graph
+  model.
 - The graph-backed ASP.NET Core project runtime now retains a bounded
   provider-local process output buffer, and the ProjectReference sample adapts
   that output into a Control Plane `ILogProvider` so graph-declared log sources
@@ -100,6 +106,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The ProjectReference sample smoke test now verifies that the graph-backed
   ASP.NET Core project emits Control Plane trace spans through the same
   provider-local environment-variable seam.
+- The ProjectReference sample smoke test now verifies that the graph-backed
+  ASP.NET Core project renders through the Resource Manager details page and
+  inline logs, traces, metrics, and health tabs.
 - The Resource model proposal now defers source-generated programmatic
   builders and resolved resource projection wrappers until after the ASP.NET
   Core Resource Manager integration proves the basic services path.

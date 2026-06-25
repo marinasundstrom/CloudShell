@@ -203,6 +203,32 @@ public sealed class SampleSmokeTests
             check.GetProperty("check").GetProperty("type").GetInt32() == (int)ResourceProbeType.Liveness &&
             check.GetProperty("status").GetInt32() == (int)ResourceHealthStatus.Healthy);
 
+        var graphApiDetailsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString(graphApiResourceId)}/details");
+        Assert.Contains("Graph Project Reference API", graphApiDetailsHtml);
+        Assert.Contains("graph-project-reference-api", graphApiDetailsHtml);
+
+        var graphApiLogsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString(graphApiResourceId)}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Logs.Value)}");
+        Assert.Contains("Telemetry", graphApiLogsHtml);
+        Assert.Contains("Console logs", graphApiLogsHtml);
+
+        var graphApiTracesHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString(graphApiResourceId)}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Traces.Value)}");
+        Assert.Contains("Telemetry", graphApiTracesHtml);
+        Assert.Contains("graph-project-reference-api", graphApiTracesHtml);
+
+        var graphApiMetricsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString(graphApiResourceId)}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Metrics.Value)}");
+        Assert.Contains("Telemetry", graphApiMetricsHtml);
+        Assert.Contains("http.server.requests", graphApiMetricsHtml);
+        Assert.Contains("graph-project-reference-api", graphApiMetricsHtml);
+
+        var graphApiHealthHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString(graphApiResourceId)}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Health.Value)}");
+        Assert.Contains("Health", graphApiHealthHtml);
+        Assert.Contains("Graph Project Reference API", graphApiHealthHtml);
+
         await host.WaitForAbsoluteHttpOkAsync(
             $"{frontendEndpoint}/upstream",
             bearerToken: null,
@@ -341,9 +367,11 @@ public sealed class SampleSmokeTests
 
         var allTraceListHtml = await host.GetStringAsync("/observability/traces");
         Assert.Contains("All sources", allTraceListHtml);
-        Assert.Contains("2 trace resources", allTraceListHtml);
+        Assert.Contains("3 trace resources", allTraceListHtml);
         Assert.Contains("GET /upstream", allTraceListHtml);
-        Assert.Contains("project-reference-frontend, project-reference-api", allTraceListHtml);
+        Assert.Contains("project-reference-frontend", allTraceListHtml);
+        Assert.Contains("project-reference-api", allTraceListHtml);
+        Assert.Contains("graph-project-reference-api", allTraceListHtml);
         Assert.Contains("recent-trace-item attention", allTraceListHtml);
         Assert.Contains("Needs attention: 1 error span(s)", allTraceListHtml);
         Assert.Contains(

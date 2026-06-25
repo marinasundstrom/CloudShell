@@ -123,6 +123,32 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public void ResourceModelResourceProvider_UsesProjectionObservabilityResolver()
+    {
+        var resolved = CreateResolver().Resolve(CreateExecutableState());
+        var provider = new ResourceModelResourceProvider(
+            "resource-model",
+            "Resource model",
+            () => [resolved],
+            new ResourceModelResourceManagerProjectionOptions(
+                ObservabilityResolver: resource =>
+                    resource.EffectiveResourceId == resolved.EffectiveResourceId
+                        ? new ResourceObservability(
+                            Logs: true,
+                            Traces: true,
+                            Metrics: true,
+                            ServiceName: "api")
+                        : null));
+
+        var projected = Assert.Single(provider.GetResources());
+
+        Assert.True(projected.EffectiveObservability.Logs);
+        Assert.True(projected.EffectiveObservability.Traces);
+        Assert.True(projected.EffectiveObservability.Metrics);
+        Assert.Equal("api", projected.EffectiveObservability.ServiceName);
+    }
+
+    [Fact]
     public void ResourceModelGraphResourceProvider_ResolvesSnapshotIntoResourceManagerShape()
     {
         var provider = new ResourceModelGraphResourceProvider(
@@ -277,6 +303,29 @@ public sealed class ResourceManagerIntegrationTests
         var endpointNetworkMapping = Assert.Single(projected.ResourceEndpointNetworkMappings);
         Assert.Equal("http://localhost:5010", endpointNetworkMapping.Address);
         Assert.Equal("http://localhost:5010", projected.PrimaryEndpoint);
+    }
+
+    [Fact]
+    public void ResourceModelGraphResourceProvider_UsesRegisteredObservabilityProvider()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
+        services.AddSingleton<IResourceModelResourceManagerObservabilityProvider>(
+            new StaticResourceModelObservabilityProvider("application.executable:api"));
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphResourceProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .Single();
+
+        var projected = Assert.Single(provider.GetResources());
+
+        Assert.True(projected.EffectiveObservability.Logs);
+        Assert.True(projected.EffectiveObservability.Traces);
+        Assert.True(projected.EffectiveObservability.Metrics);
+        Assert.Equal("api", projected.EffectiveObservability.ServiceName);
     }
 
     [Fact]
@@ -5017,6 +5066,22 @@ public sealed class ResourceManagerIntegrationTests
                             "http",
                             "http://localhost:5010")
                     ])
+                : null;
+    }
+
+    private sealed class StaticResourceModelObservabilityProvider(
+        string resourceId) : IResourceModelResourceManagerObservabilityProvider
+    {
+        public ResourceObservability? GetObservability(Resource resource) =>
+            string.Equals(
+                resource.EffectiveResourceId,
+                resourceId,
+                StringComparison.OrdinalIgnoreCase)
+                ? new ResourceObservability(
+                    Logs: true,
+                    Traces: true,
+                    Metrics: true,
+                    ServiceName: resource.Name)
                 : null;
     }
 }

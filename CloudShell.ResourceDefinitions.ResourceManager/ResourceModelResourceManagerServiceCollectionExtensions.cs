@@ -271,14 +271,20 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
         var endpointProjectionProviders = serviceProvider
             .GetServices<IResourceModelResourceManagerEndpointProjectionProvider>()
             .ToArray();
+        var observabilityProviders = serviceProvider
+            .GetServices<IResourceModelResourceManagerObservabilityProvider>()
+            .ToArray();
 
-        if (stateProviders.Length == 0 && endpointProjectionProviders.Length == 0)
+        if (stateProviders.Length == 0 &&
+            endpointProjectionProviders.Length == 0 &&
+            observabilityProviders.Length == 0)
         {
             return options;
         }
 
         var stateResolver = options.StateResolver;
         var endpointProjectionResolver = options.EndpointProjectionResolver;
+        var observabilityResolver = options.ObservabilityResolver;
         return options with
         {
             StateResolver = stateProviders.Length == 0
@@ -289,7 +295,13 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
                 : resource => ResolveEndpointProjection(
                     resource,
                     endpointProjectionResolver,
-                    endpointProjectionProviders)
+                    endpointProjectionProviders),
+            ObservabilityResolver = observabilityProviders.Length == 0
+                ? observabilityResolver
+                : resource => ResolveObservability(
+                    resource,
+                    observabilityResolver,
+                    observabilityProviders)
         };
     }
 
@@ -333,6 +345,29 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
             if (projection is not null)
             {
                 return projection;
+            }
+        }
+
+        return null;
+    }
+
+    private static ResourceObservability? ResolveObservability(
+        ResourceModelResource resource,
+        ResourceModelResourceManagerObservabilityResolver? observabilityResolver,
+        IReadOnlyList<IResourceModelResourceManagerObservabilityProvider> observabilityProviders)
+    {
+        var observability = observabilityResolver?.Invoke(resource);
+        if (observability is not null)
+        {
+            return observability;
+        }
+
+        foreach (var observabilityProvider in observabilityProviders)
+        {
+            observability = observabilityProvider.GetObservability(resource);
+            if (observability is not null)
+            {
+                return observability;
             }
         }
 
