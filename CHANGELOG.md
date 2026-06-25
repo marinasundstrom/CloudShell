@@ -79,6 +79,9 @@ on `git blame --follow`, and then by the broad type of change.
   graph state must map to graph primitives, while runtime-only and Control
   Plane operational state stay outside the graph unless deliberately promoted
   to provider-managed attributes.
+- The resource definitions proposal now clarifies that a Resource graph record
+  may be stored beside the Control Plane resource record, while the resolved
+  `Resource` remains a short-lived working projection over stored graph state.
 - The resource definitions proposal now records the near-term POC path:
   stabilize the current model enough to port real provider behavior, and
   propose new abstractions only when provider ports expose concrete gaps.

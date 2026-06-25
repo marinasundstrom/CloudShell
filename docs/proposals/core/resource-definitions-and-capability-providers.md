@@ -823,6 +823,16 @@ model graph, or from both when a workflow needs graph-aware information. The
 Resource model becomes the declaration and graph-behavior boundary; Resource
 Manager remains the operational entry point that composes the view it needs.
 
+The graph record may be stored with the Control Plane's operational resource
+record. In a database-backed Resource Manager this may mean a resource row has
+an associated `ResourceRecord` or serialized Resource graph payload that is
+loaded together with the operational resource representation. That storage
+colocation does not make the Resource graph a live runtime object graph. It
+means Resource Manager can fetch the latest operational record and graph-state
+payload together, resolve a short-lived `Resource` working projection for a
+read, operation, or commit flow, then persist accepted graph-state changes
+back to the stored payload and revision.
+
 The state ownership rule should be explicit: persistent Resource graph state
 must be represented through the graph state primitives. If a value is part of
 the versioned graph, it belongs in resource identity, references, attributes,
