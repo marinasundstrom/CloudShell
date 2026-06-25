@@ -731,6 +731,8 @@ The intended provider-local structure is:
   Attributes.cs or nested ID constants when local to the provider
   Validators/
     <ProviderName>GraphValidator.cs
+  Dependencies/
+    <ProviderName>GraphDependencyProvider.cs
   Capabilities/
     <CapabilityName>CapabilityProvider.cs
     <CapabilityName>Capability.cs
@@ -749,7 +751,9 @@ contracts and no-op defaults should move into `Runtime/` as soon as they
 represent behavior that Resource Manager or another runtime integration may
 replace. Shared capabilities that are intentionally cross-provider, such as
 volume consumption, should live in a shared capability folder rather than
-inside whichever provider used them first.
+inside whichever provider used them first. The same applies to dependency
+providers that are owned by a shared capability rather than by one resource
+type.
 
 A narrow configuration store reference provider extends the proof outside the
 old application-provider group. It owns `configuration.store`, configuration
