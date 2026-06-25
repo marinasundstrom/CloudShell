@@ -967,6 +967,85 @@ provider requirements prove one is needed. Port, endpoint, and target
 collections remain future typed payloads or capability members instead of
 normal count attributes.
 
+### Endpoint and endpoint-mapping values
+
+Endpoints and endpoint mappings should move into the Resource graph as typed
+complex values instead of staying as unrelated scalar attributes or
+provider-specific configuration payloads. They are part of the graph
+configuration because they describe what a resource exposes, what a network
+should assign or reserve, and which source endpoint should map to which target
+endpoint. They are not the same as runtime observations such as currently
+listening sockets, proxy process state, DNS publication status, or provider
+diagnostics.
+
+The working model should keep the existing domain distinction:
+
+| Concept | Graph representation | Owner |
+| --- | --- | --- |
+| Endpoint contract | Complex value on the exposing resource, usually in an `endpoints` collection. | Resource type/provider declares and validates the shape. |
+| Endpoint request | Complex value on the resource or network that asks for assignment/reservation. | Resource type/provider or network provider validates assignment policy. |
+| Endpoint network mapping | Provider-managed complex value that records a resolved address for a resource endpoint in a topology. | Runtime/network provider projects or updates it. |
+| Configured endpoint mapping | Complex value on a network, gateway, load balancer, service, or mapping resource that connects a source endpoint to a target endpoint. | Network/runtime provider validates and materializes it through capabilities or operations. |
+
+Endpoint values should use a common shape with fields such as `name`,
+`protocol`, `targetPort`, and `exposure`. They should not carry concrete
+addresses unless they represent a provider-managed endpoint-network mapping.
+Endpoint requests can add assignment fields such as `host`, `port`,
+`ipAddress`, `assignment`, `network`, and `providerEndpointId`.
+
+Endpoint mappings should use `ResourceReference` as the primitive for resource
+references, not raw resource IDs. The endpoint name is a property on the
+mapping value because it references a resource endpoint, not only a resource.
+A minimal configured endpoint-mapping value can be shaped as:
+
+```jsonc
+{
+  "source": {
+    "resource": {
+      "value": "cloudshell.network:default",
+      "relationship": "dependsOn",
+      "addressingMode": "resourceId",
+      "typeId": "cloudshell.network"
+    },
+    "endpointName": "public-http"
+  },
+  "target": {
+    "resource": {
+      "value": "application.aspnet-core-project:api",
+      "relationship": "dependsOn",
+      "addressingMode": "resourceId",
+      "typeId": "application.aspnet-core-project"
+    },
+    "endpointName": "http"
+  },
+  "network": {
+    "value": "cloudshell.network:default",
+    "relationship": "dependsOn",
+    "addressingMode": "resourceId",
+    "typeId": "cloudshell.network"
+  },
+  "provider": {
+    "value": "networking.host-local:default",
+    "relationship": "dependsOn",
+    "addressingMode": "resourceId"
+  }
+}
+```
+
+This shape is deliberately a graph value, not a runtime API contract. A
+capability or operation can project a richer resolved view that includes
+current addresses, availability, conflicts, or materialization status. If a
+provider needs to persist observed endpoint-network mappings, those attributes
+should be read-only/provider-managed so they can be resolved on `Resource`
+without being authored into deployment `ResourceDefinition` documents.
+
+For the POC, the next useful implementation step is not to add another
+endpoint-specific store. It is to finish moving resource attributes from
+string-only state to `ResourceAttributeValue`, then declare endpoint and
+endpoint-mapping attribute definitions with shared/common shapes. Provider
+ports can then replace scalar summary attributes such as endpoint counts with
+typed endpoint collections only when a concrete provider needs that data.
+
 A narrow Secrets Vault reference provider follows the same boundary while
 keeping secret material out of the Resource model. It owns `secrets.vault`,
 Secrets Vault class defaults, endpoint and secret-count attributes, an inspect

@@ -115,6 +115,11 @@ on `git blame --follow`, and then by the broad type of change.
 - The Resource model proposal now records the revised POC plan and progress
   tracker, focusing on one graph-backed ASP.NET Core project replacement path
   before broad provider porting continues.
+- The Resource model and proposal now describe endpoint contracts, endpoint
+  requests, endpoint network mappings, and configured endpoint mappings as
+  complex graph/configuration values, with `ResourceReference` used inside
+  endpoint-mapping values and runtime observations kept behind provider
+  projections.
 - The local host networking reconcile operation now delegates endpoint-mapping
   work to an injected provider-owned reconciler with a no-op POC default,
   matching the provider-integration pattern without moving runtime logic into
