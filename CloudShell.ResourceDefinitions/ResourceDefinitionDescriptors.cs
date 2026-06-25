@@ -30,12 +30,35 @@ public sealed record ResourceAttributeDefinition(
     ResourceAttributeValueShape? ValueShape = null,
     ResourceAttributeValueShapeId? ValueShapeId = null,
     bool IsCollection = false,
-    ResourceAttributeCollectionDefinition? Collection = null,
+    [property: JsonPropertyName("collection")]
+    ResourceAttributeCollectionDefinition? CollectionOptions = null,
     bool? ReadOnly = null,
     ResourceAttributeMutability? Mutability = null)
 {
     [JsonIgnore]
     public ResourceAttributeValueShapeId? ItemShapeId => IsCollection ? ValueShapeId : null;
+
+    public static ResourceAttributeDefinition Collection(
+        ResourceAttributeValueType itemType,
+        ResourceAttributeValueShape? itemShape = null,
+        ResourceAttributeValueShapeId? itemShapeId = null,
+        ResourceAttributeCollectionDefinition? collection = null,
+        string? description = null,
+        bool required = false,
+        string? requiredMessage = null,
+        bool? readOnly = null,
+        ResourceAttributeMutability? mutability = null) =>
+        new(
+            Required: required,
+            RequiredMessage: requiredMessage,
+            Description: description,
+            ValueType: itemType,
+            ValueShape: itemShape,
+            ValueShapeId: itemShapeId,
+            IsCollection: true,
+            CollectionOptions: collection,
+            ReadOnly: readOnly,
+            Mutability: mutability);
 }
 
 public sealed record ResourceAttributeValueShapeDefinition(

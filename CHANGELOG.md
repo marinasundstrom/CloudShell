@@ -132,6 +132,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource attribute definitions now expose a non-serialized `ItemShapeId`
   alias so collection attribute declarations can refer to the item shape
   without changing the persisted `valueShapeId` contract.
+- Resource attribute definitions now include a `Collection(...)` factory so
+  collection declarations can name `itemType` and `itemShapeId` directly while
+  still serializing through the existing `valueType` and `valueShapeId` fields.
 - The Resource graph resolver now accepts provider-contributed attribute value
   shape providers, and the reference networking providers register runtime-owned
   endpoint and endpoint-mapping shapes without baking endpoint into the graph

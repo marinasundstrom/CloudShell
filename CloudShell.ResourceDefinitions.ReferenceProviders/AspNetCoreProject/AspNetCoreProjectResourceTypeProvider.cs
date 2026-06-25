@@ -47,10 +47,9 @@ public sealed class AspNetCoreProjectResourceTypeProvider :
             [Attributes.UseLaunchSettings] = new(
                 DefaultValue: true,
                 ValueType: ResourceAttributeValueType.Boolean),
-            [Attributes.EndpointRequests] = new(
-                ValueType: ResourceAttributeValueType.ComplexType,
-                ValueShapeId: NetworkingEndpointShapeIds.EndpointRequest,
-                IsCollection: true)
+            [Attributes.EndpointRequests] = ResourceAttributeDefinition.Collection(
+                itemType: ResourceAttributeValueType.ComplexType,
+                itemShapeId: NetworkingEndpointShapeIds.EndpointRequest)
         },
         Operations:
         [

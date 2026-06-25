@@ -685,7 +685,7 @@ public sealed class ResourceResolverTests
                             ValueType: ResourceAttributeValueType.ComplexType,
                             ValueShapeId: "runtime:healthCheck",
                             IsCollection: true,
-                            Collection: new(MinSize: 1))
+                            CollectionOptions: new(MinSize: 1))
                     },
                     AttributeValueShapes: new Dictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>
                     {

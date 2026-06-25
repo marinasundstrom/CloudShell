@@ -92,12 +92,11 @@ public sealed class ResourceDefinitionDescriptorTests
             ExecutableApplicationResourceTypeProvider.ClassId,
             Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
             {
-                ["runtime:healthChecks"] = new(
-                    Description: "Declared health checks evaluated by the runtime provider.",
-                    ValueType: ResourceAttributeValueType.ComplexType,
-                    ValueShapeId: "runtime:healthCheck",
-                    IsCollection: true,
-                    Collection: new(MinSize: 1))
+                ["runtime:healthChecks"] = ResourceAttributeDefinition.Collection(
+                    itemType: ResourceAttributeValueType.ComplexType,
+                    itemShapeId: "runtime:healthCheck",
+                    description: "Declared health checks evaluated by the runtime provider.",
+                    collection: new(MinSize: 1))
             },
             AttributeValueShapes: new Dictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>
             {
@@ -123,8 +122,8 @@ public sealed class ResourceDefinitionDescriptorTests
         Assert.Equal("runtime:healthCheck", attribute.ValueShapeId?.ToString());
         Assert.Equal(attribute.ValueShapeId, attribute.ItemShapeId);
         Assert.True(attribute.IsCollection);
-        Assert.NotNull(attribute.Collection);
-        Assert.Equal(1, attribute.Collection.MinSize);
+        Assert.NotNull(attribute.CollectionOptions);
+        Assert.Equal(1, attribute.CollectionOptions.MinSize);
         Assert.DoesNotContain("itemShapeId", json, StringComparison.OrdinalIgnoreCase);
         var (shapeId, shapeDefinition) = Assert.Single(roundTrip.AttributeValueShapes!);
         Assert.Equal("runtime:healthCheck", shapeId);

@@ -813,28 +813,28 @@ public sealed class ResourceResolver
 
         var values = value.ArrayValue ?? [];
 
-        if (definition.Collection?.MinSize is not null &&
-            values.Count < definition.Collection.MinSize.Value)
+        if (definition.CollectionOptions?.MinSize is not null &&
+            values.Count < definition.CollectionOptions.MinSize.Value)
         {
             diagnostics.Add(ResourceDefinitionDiagnostic.Error(
                 diagnosticCode,
-                $"{diagnosticSubject} '{path}' has {values.Count} item(s) but requires at least {definition.Collection.MinSize.Value}.",
+                $"{diagnosticSubject} '{path}' has {values.Count} item(s) but requires at least {definition.CollectionOptions.MinSize.Value}.",
                 target));
         }
 
-        if (definition.Collection?.MaxSize is not null &&
-            values.Count > definition.Collection.MaxSize.Value)
+        if (definition.CollectionOptions?.MaxSize is not null &&
+            values.Count > definition.CollectionOptions.MaxSize.Value)
         {
             diagnostics.Add(ResourceDefinitionDiagnostic.Error(
                 diagnosticCode,
-                $"{diagnosticSubject} '{path}' has {values.Count} item(s) but allows at most {definition.Collection.MaxSize.Value}.",
+                $"{diagnosticSubject} '{path}' has {values.Count} item(s) but allows at most {definition.CollectionOptions.MaxSize.Value}.",
                 target));
         }
 
         var itemDefinition = definition with
         {
             IsCollection = false,
-            Collection = null
+            CollectionOptions = null
         };
         var index = 0;
 
