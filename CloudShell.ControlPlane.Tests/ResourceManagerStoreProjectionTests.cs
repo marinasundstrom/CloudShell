@@ -788,6 +788,77 @@ public sealed class ResourceManagerStoreProjectionTests
     }
 
     [Fact]
+    public void GetResources_ProjectsPersistedSettingsAndSecretsRecordsThroughResourceModelBridge()
+    {
+        var states = CreateSettingsAndSecretsGraphStates();
+        var services = new ServiceCollection();
+        services.AddIdentityProvisioningResourceType();
+        services.AddConfigurationStoreResourceType();
+        services.AddSecretsVaultResourceType();
+        services.AddAspNetCoreProjectResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddInMemoryResourceModelGraphRecords(
+            states.Select(DefinitionResourceRecord.FromState).ToArray());
+        services.AddResourceModelGraphResourceProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var registrations = new TestResourceRegistrationStore(
+            states
+                .Select(state => new ResourceRegistration(
+                    state.EffectiveResourceId,
+                    "resource-model",
+                    null,
+                    DateTimeOffset.UtcNow,
+                    []))
+                .ToArray());
+        var store = new ResourceManagerStore(
+            serviceProvider.GetServices<IResourceProvider>().ToArray(),
+            new TestResourceGroupStore([]),
+            registrations,
+            new ResourceDeclarationStore(),
+            new ResourceIdentityProviderCatalog(),
+            new CloudShellExtensionRegistry(),
+            new InMemoryCloudShellExtensionActivationStore());
+
+        var resources = store.GetResources().ToDictionary(
+            resource => resource.Id,
+            StringComparer.OrdinalIgnoreCase);
+        var identity = resources["cloudshell.identity-provisioning:settings-secrets-identity"];
+        var settings = resources["configuration.store:settings-secrets-settings"];
+        var secrets = resources["secrets.vault:settings-secrets-secrets"];
+        var api = resources["application.aspnet-core-project:settings-secrets-api"];
+
+        Assert.Equal(4, resources.Count);
+        Assert.Empty(store.GetResourceModelDiagnostics());
+        Assert.Equal(ResourceClass.Infrastructure, identity.ResourceClass);
+        Assert.Equal(ResourceClass.Configuration, settings.ResourceClass);
+        Assert.Equal(ResourceClass.SecretsVault, secrets.ResourceClass);
+        Assert.Equal(ResourceClass.Project, api.ResourceClass);
+        Assert.Equal(
+            [
+                "cloudshell.identity-provisioning:settings-secrets-identity",
+                "configuration.store:settings-secrets-settings",
+                "secrets.vault:settings-secrets-secrets"
+            ],
+            api.DependsOn);
+        Assert.Equal(
+            ["cloudshell.identity-provisioning:settings-secrets-identity"],
+            settings.DependsOn);
+        Assert.Equal(
+            ["cloudshell.identity-provisioning:settings-secrets-identity"],
+            secrets.DependsOn);
+        Assert.Equal("http://localhost:5138", settings.ResourceAttributes[
+            ConfigurationStoreResourceTypeProvider.Attributes.Endpoint]);
+        Assert.Equal("http://localhost:6138", secrets.ResourceAttributes[
+            SecretsVaultResourceTypeProvider.Attributes.Endpoint]);
+        Assert.Equal("../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj", api.ResourceAttributes[
+            AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath]);
+        Assert.Contains(identity.ResourceCapabilities, capability =>
+            capability.Id == IdentityProvisioningResourceTypeProvider.Capabilities.IdentityProvisioning.ToString());
+        Assert.Contains(api.ResourceActions, action =>
+            action.Id == AspNetCoreProjectResourceTypeProvider.Operations.Start.ToString());
+    }
+
+    [Fact]
     public async Task ExecuteActionAsync_RoutesGraphResourceThroughProcedureCapableBridgeProvider()
     {
         var services = new ServiceCollection();
@@ -1109,6 +1180,76 @@ public sealed class ResourceManagerStoreProjectionTests
             });
 
         return [volume, sqlServer, database, settings, secrets, api];
+    }
+
+    private static IReadOnlyList<DefinitionResourceState> CreateSettingsAndSecretsGraphStates()
+    {
+        var identity = new DefinitionResourceState(
+            "settings-secrets-identity",
+            IdentityProvisioningResourceTypeProvider.ResourceTypeId,
+            ProviderId: IdentityProvisioningResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<DefinitionAttributeId, string>
+            {
+                [IdentityProvisioningResourceTypeProvider.Attributes.IdentityProvider] = "Built-in Identity",
+                [IdentityProvisioningResourceTypeProvider.Attributes.ProviderKind] = "built-in"
+            });
+        var settings = new DefinitionResourceState(
+            "settings-secrets-settings",
+            ConfigurationStoreResourceTypeProvider.ResourceTypeId,
+            ProviderId: ConfigurationStoreResourceTypeProvider.ProviderId,
+            DependsOn:
+            [
+                DefinitionResourceReference.ResourceId(
+                    identity.EffectiveResourceId,
+                    typeId: IdentityProvisioningResourceTypeProvider.ResourceTypeId)
+            ],
+            Attributes: new Dictionary<DefinitionAttributeId, string>
+            {
+                [ConfigurationStoreResourceTypeProvider.Attributes.Endpoint] = "http://localhost:5138"
+            });
+        var secrets = new DefinitionResourceState(
+            "settings-secrets-secrets",
+            SecretsVaultResourceTypeProvider.ResourceTypeId,
+            ProviderId: SecretsVaultResourceTypeProvider.ProviderId,
+            DependsOn:
+            [
+                DefinitionResourceReference.ResourceId(
+                    identity.EffectiveResourceId,
+                    typeId: IdentityProvisioningResourceTypeProvider.ResourceTypeId)
+            ],
+            Attributes: new Dictionary<DefinitionAttributeId, string>
+            {
+                [SecretsVaultResourceTypeProvider.Attributes.Endpoint] = "http://localhost:6138"
+            });
+        var api = new DefinitionResourceState(
+            "settings-secrets-api",
+            AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
+            ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
+            DependsOn:
+            [
+                DefinitionResourceReference.ResourceId(
+                    identity.EffectiveResourceId,
+                    typeId: IdentityProvisioningResourceTypeProvider.ResourceTypeId),
+                DefinitionResourceReference.ResourceId(
+                    settings.EffectiveResourceId,
+                    typeId: ConfigurationStoreResourceTypeProvider.ResourceTypeId),
+                DefinitionResourceReference.ResourceId(
+                    secrets.EffectiveResourceId,
+                    typeId: SecretsVaultResourceTypeProvider.ResourceTypeId)
+            ],
+            Attributes: new Dictionary<DefinitionAttributeId, string>
+            {
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] =
+                    "../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj",
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectArguments] =
+                    "--urls http://localhost:5227",
+                [AspNetCoreProjectResourceTypeProvider.Attributes.HotReload] =
+                    bool.FalseString.ToLowerInvariant(),
+                [AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings] =
+                    bool.FalseString.ToLowerInvariant()
+            });
+
+        return [identity, settings, secrets, api];
     }
 
     private static ResourceOrchestratorSelectionStore CreateSelectionStore() =>

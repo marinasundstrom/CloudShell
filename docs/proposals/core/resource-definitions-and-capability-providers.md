@@ -615,7 +615,10 @@ ASP.NET Core project, configuration store, Secrets Vault, and identity
 provisioning resources as separate provider boundaries and prove that typed
 graph dependencies, Resource Manager projection, and typed Resource
 projections compose without moving grants, secret values, configuration
-entries, or runtime credential provisioning into the Resource graph.
+entries, or runtime credential provisioning into the Resource graph. The same
+shape should also be projected from persisted `ResourceRecord` values through
+Resource Manager, matching the likely integration path where graph state is
+stored beside operational Resource Manager records.
 
 Porting a provider means implementing the complete Resource model support that
 the resource type needs to work, not only mapping an existing provider to a new

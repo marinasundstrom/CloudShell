@@ -76,6 +76,10 @@ on `git blame --follow`, and then by the broad type of change.
   sample-inspired graph across identity provisioning, configuration store,
   Secrets Vault, and ASP.NET Core project reference providers.
 - Resource Manager store projection tests now cover persisted Resource model
+  records for the SettingsAndSecrets-shaped graph, proving the bridge can
+  project identity, configuration, secrets, and project resources from stored
+  graph records.
+- Resource Manager store projection tests now cover persisted Resource model
   records for an ApplicationTopology-shaped graph, proving the bridge can
   project stored graph records alongside Resource Manager registrations.
 - The resource definitions proposal now clarifies that versioned Resource
