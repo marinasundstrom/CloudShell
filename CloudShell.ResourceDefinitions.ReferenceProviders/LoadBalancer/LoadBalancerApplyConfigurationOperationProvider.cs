@@ -1,9 +1,29 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
-public sealed class LoadBalancerApplyConfigurationOperationProvider :
+public interface ILoadBalancerConfigurationApplier
+{
+    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyConfigurationAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed class NoopLoadBalancerConfigurationApplier :
+    ILoadBalancerConfigurationApplier
+{
+    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyConfigurationAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+}
+
+public sealed class LoadBalancerApplyConfigurationOperationProvider(
+    ILoadBalancerConfigurationApplier? configurationApplier = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
+    private readonly ILoadBalancerConfigurationApplier _configurationApplier =
+        configurationApplier ?? new NoopLoadBalancerConfigurationApplier();
+
     public ResourceOperationId OperationId =>
         LoadBalancerResourceTypeProvider.Operations.ApplyConfiguration;
 
@@ -36,14 +56,19 @@ public sealed class LoadBalancerApplyConfigurationOperationProvider :
         ValueTask.FromResult<IResourceOperationProjection>(
             new LoadBalancerApplyConfigurationOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
-                operation));
+                operation,
+                _configurationApplier));
 }
 
 public sealed class LoadBalancerApplyConfigurationOperation(
     ResourceProjectionExecutionContext context,
-    ResourceOperationResolution operation) : IResourceOperationExecutorProjection
+    ResourceOperationResolution operation,
+    ILoadBalancerConfigurationApplier configurationApplier) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
+
+    private readonly ILoadBalancerConfigurationApplier _configurationApplier =
+        configurationApplier;
 
     public Resource Resource => Context.Resource;
 
@@ -81,10 +106,14 @@ public sealed class LoadBalancerApplyConfigurationOperation(
                 ]);
         }
 
+        var diagnostics = await _configurationApplier.ApplyConfigurationAsync(
+            Resource,
+            cancellationToken);
+
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            []);
+            diagnostics);
     }
 
     private int GetCount(ResourceAttributeId attributeId) =>

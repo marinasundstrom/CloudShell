@@ -1732,7 +1732,9 @@ public sealed class ResourceManagerIntegrationTests
     [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesLoadBalancerAcrossProviderBoundaries()
     {
+        var configurationApplier = new RecordingLoadBalancerConfigurationApplier();
         var services = new ServiceCollection();
+        services.AddSingleton<ILoadBalancerConfigurationApplier>(configurationApplier);
         services.AddInMemoryResourceModelGraph();
         services.AddContainerApplicationResourceType();
         services.AddDockerHostResourceType();
@@ -1828,6 +1830,7 @@ public sealed class ResourceManagerIntegrationTests
         var procedureResult = await provider.ExecuteActionAsync(procedure, apply);
 
         Assert.Equal("Executed ApplyLoadBalancerConfiguration for edge.", procedureResult.Message);
+        Assert.Equal([loadBalancer.EffectiveResourceId], configurationApplier.AppliedResourceIds);
     }
 
     [Fact]
@@ -4196,6 +4199,23 @@ public sealed class ResourceManagerIntegrationTests
             CancellationToken cancellationToken = default)
         {
             _reconciledResourceIds.Add(resource.EffectiveResourceId);
+
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+    }
+
+    private sealed class RecordingLoadBalancerConfigurationApplier :
+        ILoadBalancerConfigurationApplier
+    {
+        private readonly List<string> _appliedResourceIds = [];
+
+        public IReadOnlyList<string> AppliedResourceIds => _appliedResourceIds;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyConfigurationAsync(
+            Resource resource,
+            CancellationToken cancellationToken = default)
+        {
+            _appliedResourceIds.Add(resource.EffectiveResourceId);
 
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }

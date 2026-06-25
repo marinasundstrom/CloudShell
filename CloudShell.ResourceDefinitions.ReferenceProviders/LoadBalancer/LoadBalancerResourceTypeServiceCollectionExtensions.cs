@@ -32,6 +32,9 @@ public static class LoadBalancerResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, LoadBalancerApplyConfigurationOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, LoadBalancerResourceProjectionProvider>());
+        services.TryAddSingleton<
+            ILoadBalancerConfigurationApplier,
+            NoopLoadBalancerConfigurationApplier>();
 
         return services;
     }
