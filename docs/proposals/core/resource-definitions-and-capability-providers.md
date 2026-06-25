@@ -833,14 +833,16 @@ payload together, resolve a short-lived `Resource` working projection for a
 read, operation, or commit flow, then persist accepted graph-state changes
 back to the stored payload and revision.
 
-The current POC should prove that flow before naming a broader control
-service abstraction: begin from the latest graph snapshot or transaction,
-resolve a `Resource` working projection, stage changes through that projection
-or its capability/operation projections, run provider apply validation, and
-commit accepted changes through `ResourceGraphModel`. A future
-ResourceManager-owned control service can wrap those steps and add locking,
-authorization, retries, or operational side effects, but those policies should
-remain above the Resource model.
+The current POC should stay focused on the lower Resource model and the
+Resource Manager integration path: load stored graph-state records, resolve
+`Resource` projections only when a read or operation needs graph behavior,
+invoke capability or operation integrations, and persist accepted graph-state
+changes back through the owning Resource Manager persistence path. The POC
+should avoid adding broader graph context, session, transaction, or control
+service abstractions until moving real provider behavior into Resource Manager
+proves that those concepts are required. Versioning can remain a minimal
+concurrency guard on the stored graph-state payload rather than a commitment
+to a separate live graph runtime.
 
 The state ownership rule should be explicit: persistent Resource graph state
 must be represented through the graph state primitives. If a value is part of

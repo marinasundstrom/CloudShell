@@ -543,40 +543,6 @@ public sealed class ResourceGraphChangeTrackingTests
     }
 
     [Fact]
-    public async Task ResourceGraphTransaction_UsesResolvedResourceAsShortLivedWorkingProjection()
-    {
-        var committedAt = new DateTimeOffset(2026, 6, 25, 16, 0, 0, TimeSpan.Zero);
-        var stateProvider = new InMemoryResourceStateProvider([CreateState("api", "./api")]);
-        var model = new ResourceGraphModel(stateProvider);
-        var applyDispatcher = new ResourceChangeApplyDispatcher(
-            [new ExecutableApplicationResourceTypeProvider()]);
-
-        await using var transaction = await model.BeginTransactionAsync();
-        var resource = Resolve(FindState(
-            transaction.Snapshot,
-            "application.executable:api"));
-
-        resource.SetAttribute(
-            ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath,
-            "./api-controlled");
-        transaction.Track(await applyDispatcher.ApplyChangesAsync(
-            resource.ApplyChanges(),
-            new ResourceChangeApplyContext("local", "operator", Commit: true)));
-
-        var commit = await transaction.CommitAsync(
-            new ResourceGraphCommitContext("local", "operator", committedAt));
-        var current = await model.GetSnapshotAsync();
-        var committedState = FindState(current, "application.executable:api");
-
-        Assert.True(commit.IsCommitted);
-        Assert.Equal(new ResourceGraphVersion(1), current.Version);
-        Assert.Equal(new ResourceRevision(1), committedState.Revision);
-        Assert.Equal(committedAt, committedState.LastModifiedAt);
-        Assert.Equal("./api-controlled", committedState.ResourceAttributes[
-            ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
-    }
-
-    [Fact]
     public async Task ResourceGraphTransaction_CannotBeReusedAfterCommit()
     {
         var stateProvider = new InMemoryResourceStateProvider([CreateState("api", "./api")]);
