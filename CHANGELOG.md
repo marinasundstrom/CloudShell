@@ -108,6 +108,10 @@ on `git blame --follow`, and then by the broad type of change.
   configuration model: stored graph/configuration state lives in the model,
   while capabilities and operations are behavior integration points over that
   state.
+- CloudShell volume reference-provider validation now requires volume
+  dependencies to resolve to `cloudshell.storage` resources, keeping storage
+  relationship semantics in the provider boundary instead of generic graph
+  infrastructure.
 
 ### 2026-06-24
 

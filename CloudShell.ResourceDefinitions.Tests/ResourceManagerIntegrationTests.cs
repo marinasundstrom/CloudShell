@@ -2423,7 +2423,12 @@ public sealed class ResourceManagerIntegrationTests
             "data",
             CloudShellVolumeResourceTypeProvider.ResourceTypeId,
             ProviderId: CloudShellVolumeResourceTypeProvider.ProviderId,
-            DependsOn: [ResourceReference.ResourceId(storage.EffectiveResourceId)],
+            DependsOn:
+            [
+                ResourceReference.ResourceId(
+                    storage.EffectiveResourceId,
+                    typeId: StorageResourceTypeProvider.ResourceTypeId)
+            ],
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
                 [CloudShellVolumeResourceTypeProvider.Attributes.Provider] = "Local Storage",
@@ -2495,6 +2500,53 @@ public sealed class ResourceManagerIntegrationTests
         var procedureResult = await provider.ExecuteActionAsync(procedure, provision);
 
         Assert.Equal("Executed Storage Volume Provision for data.", procedureResult.Message);
+    }
+
+    [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_RejectsCloudShellVolumeWithNonStorageReference()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddLocalVolumeResourceType();
+        services.AddCloudShellVolumeResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var localVolume = new ResourceDefinition(
+            "local-data",
+            LocalVolumeResourceTypeProvider.ResourceTypeId,
+            ProviderId: LocalVolumeResourceTypeProvider.ProviderId);
+        var volume = new ResourceDefinition(
+            "data",
+            CloudShellVolumeResourceTypeProvider.ResourceTypeId,
+            ProviderId: CloudShellVolumeResourceTypeProvider.ProviderId,
+            DependsOn:
+            [
+                ResourceReference.ResourceId(
+                    localVolume.EffectiveResourceId,
+                    typeId: StorageResourceTypeProvider.ResourceTypeId)
+            ],
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [CloudShellVolumeResourceTypeProvider.Attributes.StorageMedium] = "FileSystem",
+                [CloudShellVolumeResourceTypeProvider.Attributes.AccessMode] = "ReadWriteOnce"
+            });
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "invalid-storage-volume",
+                [localVolume, volume],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 17, 0, 0, TimeSpan.Zero)));
+
+        Assert.True(result.HasErrors);
+        Assert.False(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Rejected, result.Commit.Summary.Status);
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Code == ResourceDefinitionDiagnosticCodes.ResourceCapabilityReferenceInvalid &&
+            diagnostic.Message.Contains("expected 'cloudshell.storage'", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
