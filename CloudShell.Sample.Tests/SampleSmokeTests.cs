@@ -123,6 +123,11 @@ public sealed class SampleSmokeTests
         Assert.Contains("Resource graph", resourceGraphHtml);
         Assert.Contains("resource-dependency-graph-canvas", resourceGraphHtml);
 
+        var healthHtml = await host.GetStringAsync("/health");
+        Assert.Contains("Graph Project Reference API", healthHtml);
+        Assert.Contains("/health", healthHtml);
+        Assert.Contains("/alive", healthHtml);
+
         var apiJson = await host.GetStringAsync("/api/control-plane/v1/resources");
         using var document = JsonDocument.Parse(apiJson);
         var resources = document.RootElement.EnumerateArray().ToArray();

@@ -69,6 +69,10 @@ on `git blame --follow`, and then by the broad type of change.
   Resource Manager bridge projections map those declarations to
   `ResourceHealthCheck` plus the derived `liveness` capability while leaving
   polling, snapshots, degradation, and recovery policy in Control Plane.
+- The ProjectReference sample graph-backed ASP.NET Core project resource now
+  declares `/health` and `/alive` through the Resource model `health.checks`
+  payload, and the sample smoke test verifies it appears in Resource Manager's
+  health inventory.
 - The Resource model proposal now records the executable provider port finding
   that command-shape attributes such as executable arguments and working
   directory should be added intentionally when needed instead of copying the old

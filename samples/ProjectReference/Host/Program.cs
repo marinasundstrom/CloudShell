@@ -1,3 +1,4 @@
+using System.Text.Json;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Hosting;
@@ -60,6 +61,20 @@ builder.Services
                             Port: 5229,
                             Exposure: "Local")
                     })
+            },
+            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
+            {
+                [ResourceHealthCheckCapabilityIds.HealthChecks] =
+                    ResourceDefinitionJson.FromValue(new ResourceHealthCheckDefinitionSet(
+                    [
+                        ResourceHealthCheckDefinition.Http(
+                            "/health",
+                            endpointName: "http"),
+                        ResourceHealthCheckDefinition.HttpLiveness(
+                            "/alive",
+                            endpointName: "http",
+                            name: "alive")
+                    ]))
             })
     ])
     .AddAspNetCoreProjectResourceType()
