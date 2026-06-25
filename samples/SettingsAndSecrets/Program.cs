@@ -9,7 +9,12 @@ using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
 using CloudShell.Providers.Applications;
 using CloudShell.Providers.Configuration;
+using CloudShell.ResourceDefinitions;
+using CloudShell.ResourceDefinitions.ReferenceProviders;
+using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
+using CloudShell.ResourceDefinitions.ResourceManager;
 using System.Security.Cryptography;
+using ResourceGraphState = CloudShell.ResourceDefinitions.ResourceState;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 var repositoryRootPath = Path.GetFullPath("../..", builder.Environment.ContentRootPath);
@@ -30,6 +35,12 @@ var identitySigningKeyPem = builder.Configuration["Authentication:BuiltInAuthori
 var identityTokenEndpoint = $"{ResolveFirstUrl(builder.Configuration["urls"] ?? builder.Configuration["ASPNETCORE_URLS"] ?? "http://localhost:5047")}/api/auth/v1/token";
 var apiEndpoint = builder.Configuration["Samples:SettingsAndSecrets:ApiEndpoint"] ??
     "http://localhost:5227";
+var configurationServiceBasePort = builder.Configuration.GetValue<int?>(
+    "Samples:SettingsAndSecrets:ConfigurationServiceBasePort") ?? 5138;
+var secretsServiceBasePort = builder.Configuration.GetValue<int?>(
+    "Samples:SettingsAndSecrets:SecretsServiceBasePort") ?? 6138;
+const string graphSettingsResourceId = "configuration.store:graph-sample-app";
+const string graphSecretsResourceId = "secrets.vault:graph-sample-app";
 builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 {
     ["Authentication:BuiltInAuthority:Enabled"] = "true",
@@ -40,6 +51,43 @@ builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
+builder.Services
+    .AddInMemoryResourceModelGraph(
+    [
+        new ResourceGraphState(
+            "graph-sample-app",
+            ConfigurationStoreResourceTypeProvider.ResourceTypeId,
+            ResourceId: graphSettingsResourceId,
+            ProviderId: ConfigurationStoreResourceTypeProvider.ProviderId,
+            DisplayName: "Graph Sample App Settings",
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                [ConfigurationStoreResourceTypeProvider.Attributes.Endpoint] =
+                    $"http://localhost:{configurationServiceBasePort}",
+                [ConfigurationStoreResourceTypeProvider.Attributes.EntryCount] =
+                    2
+            }),
+        new ResourceGraphState(
+            "graph-sample-app",
+            SecretsVaultResourceTypeProvider.ResourceTypeId,
+            ResourceId: graphSecretsResourceId,
+            ProviderId: SecretsVaultResourceTypeProvider.ProviderId,
+            DisplayName: "Graph Sample App Secrets",
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                [SecretsVaultResourceTypeProvider.Attributes.Endpoint] =
+                    $"http://localhost:{secretsServiceBasePort}",
+                [SecretsVaultResourceTypeProvider.Attributes.SecretCount] =
+                    1
+            })
+    ])
+    .AddConfigurationStoreResourceType()
+    .AddSecretsVaultResourceType()
+    .AddResourceModelGraphServices()
+    .AddReferenceProviderResourceManagerProjections()
+    .AddResourceModelGraphProcedureProvider(
+        ResourceModelResourceProvider.DefaultProviderId,
+        "Resource model");
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()
@@ -52,8 +100,7 @@ cloudShell
     {
         options.ServiceProjectPath = configurationStoreServiceProjectPath;
         options.ServiceWorkingDirectory = repositoryRootPath;
-        options.ServiceBasePort = builder.Configuration.GetValue<int?>(
-            "Samples:SettingsAndSecrets:ConfigurationServiceBasePort") ?? options.ServiceBasePort;
+        options.ServiceBasePort = configurationServiceBasePort;
         options.ServiceAuthenticationIssuer = identityIssuer;
         options.ServiceAuthenticationAudience = identityAudience;
         options.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
@@ -62,8 +109,7 @@ cloudShell
     {
         options.SecretsServiceProjectPath = secretsVaultServiceProjectPath;
         options.SecretsServiceWorkingDirectory = repositoryRootPath;
-        options.SecretsServiceBasePort = builder.Configuration.GetValue<int?>(
-            "Samples:SettingsAndSecrets:SecretsServiceBasePort") ?? options.SecretsServiceBasePort;
+        options.SecretsServiceBasePort = secretsServiceBasePort;
         options.ServiceAuthenticationIssuer = identityIssuer;
         options.ServiceAuthenticationAudience = identityAudience;
         options.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
@@ -115,6 +161,13 @@ cloudShell.Resources(resources =>
 
     secrets.Allow(api.Principal, SecretsVaultResourceOperationPermissions.ReadSecrets);
     settings.Allow(api.Principal, ConfigurationStoreResourceOperationPermissions.ReadEntries);
+
+    resources.Declare(
+        ResourceModelResourceProvider.DefaultProviderId,
+        graphSettingsResourceId);
+    resources.Declare(
+        ResourceModelResourceProvider.DefaultProviderId,
+        graphSecretsResourceId);
 });
 
 var app = builder.Build();

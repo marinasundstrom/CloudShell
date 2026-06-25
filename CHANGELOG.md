@@ -113,6 +113,9 @@ on `git blame --follow`, and then by the broad type of change.
   providers now use explicit `*.entries.count` read-only attributes for
   provider-projected service entry summaries, while keeping actual entries and
   secret values in provider/runtime state.
+- SettingsAndSecrets now declares side-by-side graph-backed Configuration
+  Store and Secrets Vault resources that project Resource Manager endpoints and
+  count summaries without replacing the existing runtime providers.
 - The graph-backed ASP.NET Core project runtime now retains a bounded
   provider-local process output buffer, and the ProjectReference sample adapts
   that output into a Control Plane `ILogProvider` so graph-declared log sources

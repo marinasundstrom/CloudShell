@@ -613,7 +613,7 @@ same concept belongs in shared code.
 | Sample lens | Current graph-model coverage | Next migration question |
 | --- | --- | --- |
 | ProjectReference | One graph-backed ASP.NET Core API runs side-by-side with old application-provider resources and now proves start, stop, logs, traces, metrics, health, endpoint projection, state projection, and ResourceDefinition apply diagnostics. | Replacing the old API resource requires a stable graph-backed service-discovery identity for the frontend and updated smoke coverage for dependency links that currently expect `application:project-reference-api`. |
-| SettingsAndSecrets | Configuration Store, Secrets Vault, identity provisioning, and ASP.NET Core project graph definitions can be applied together; Configuration Store and Secrets Vault now project Resource Manager endpoints through a provider-bridge package. | Decide how graph-backed configuration/secrets resources hand off entries, secrets, grants, and protected backing services to Control Plane-owned runtime handlers without storing secret values in graph state. |
+| SettingsAndSecrets | Configuration Store, Secrets Vault, identity provisioning, and ASP.NET Core project graph definitions can be applied together; Configuration Store and Secrets Vault now project Resource Manager endpoints through a provider-bridge package, and the sample host carries side-by-side graph-backed settings/secrets resources with endpoint and count-summary projections. | Decide how graph-backed configuration/secrets resources hand off entries, secrets, grants, and protected backing services to Control Plane-owned runtime handlers without storing entries or secret values in graph state. |
 | ApplicationTopology | The inspired graph composes storage, SQL Server/database, configuration, secrets, and ASP.NET Core resources across provider boundaries. | Use it after SettingsAndSecrets to validate multi-provider dependencies, SQL child ownership, volume materialization, and application-level discovery without reintroducing application-provider terminology. |
 | ContainerAppDeployment | The inspired graph covers Docker/container host references and container app definitions; old sample runtime still owns deployment, registry, and Docker behavior. | Port only when the graph-to-Resource Manager runtime apply boundary for container app deployment can be tested against registry and container-host seams. |
 | HostVirtualNetwork and LoadBalancer | Network, virtual network, host networking, DNS zone, name mapping, service, and load-balancer graph providers have definition/projection coverage. | Use these samples to validate endpoint mapping operations and provider-owned network reconciliation after application and settings dependencies are stable. |
@@ -931,6 +931,9 @@ inspector with a no-op POC default. The POC keeps configuration entries out of
 graph attributes and capabilities; actual entries are service/runtime state,
 while `*.entries.count` attributes such as `configuration.entries.count`
 summarize provider-projected counts.
+The existing provider backs the service by starting a local C# project. A
+future provider implementation should be free to back the same graph resource
+with a containerized service without changing the graph model surface.
 
 A narrow host configuration source reference provider covers the companion
 `configuration.host` type. It owns host-source defaults, source and
@@ -1157,6 +1160,9 @@ inspector with a no-op POC default. The POC intentionally keeps secret entries
 and values out of graph attributes and capabilities; secret value lifecycle
 behavior remains a provider-owned runtime concern, while count attributes
 such as `secrets.entries.count` summarize provider-projected state.
+The existing provider backs the vault by starting a local C# project. A future
+provider implementation should be free to run a container-backed vault service
+behind the same graph resource shape.
 
 A narrow identity provisioning reference provider covers
 `cloudshell.identity-provisioning` as infrastructure that declares identity

@@ -47,6 +47,15 @@ credential acquisition environment when it starts the Web API resource. The
 configuration store and vault are protected target resources; they do not need
 their own identities unless they later call another resource or provider.
 
+The sample also declares graph-backed Configuration Store and Secrets Vault
+resources side-by-side with the existing runtime-backed resources. These graph
+resources project endpoint and `*.entries.count` summary attributes through the
+Resource Manager bridge, but the actual configuration entries, secrets, grants,
+and backing services remain owned by the existing Control Plane providers.
+Those existing providers currently start local C# service projects; a future
+provider implementation can back the same graph resource shapes with
+containers.
+
 Run the sample host:
 
 ```bash

@@ -1453,6 +1453,10 @@ public sealed class SampleSmokeTests
             resource.GetProperty("id").GetString() == "configuration:sample-app");
         var secrets = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "secrets-vault:sample-app");
+        var graphSettings = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "configuration.store:graph-sample-app");
+        var graphSecrets = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "secrets.vault:graph-sample-app");
         var api = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "application:settings-secrets-api");
         var dependsOn = api
@@ -1464,6 +1468,22 @@ public sealed class SampleSmokeTests
 
         Assert.Equal("configuration.store", settings.GetProperty("typeId").GetString());
         Assert.Equal("secrets.vault", secrets.GetProperty("typeId").GetString());
+        Assert.Equal("configuration.store", graphSettings.GetProperty("typeId").GetString());
+        Assert.Equal("secrets.vault", graphSecrets.GetProperty("typeId").GetString());
+        Assert.Equal(
+            "2",
+            graphSettings.GetProperty("attributes").GetProperty("configuration.entries.count").GetString());
+        Assert.Equal(
+            "1",
+            graphSecrets.GetProperty("attributes").GetProperty("secrets.entries.count").GetString());
+        Assert.EndsWith(
+            "/api/configuration/stores/configuration.store%3Agraph-sample-app/entries",
+            GetEndpointAddress(graphSettings, "entries"),
+            StringComparison.Ordinal);
+        Assert.EndsWith(
+            "/api/secrets/vaults/secrets.vault%3Agraph-sample-app/secrets",
+            GetEndpointAddress(graphSecrets, "secrets"),
+            StringComparison.Ordinal);
         Assert.Contains("configuration:sample-app", dependsOn);
         Assert.Contains("secrets-vault:sample-app", dependsOn);
         Assert.Equal("identity:development", identity.GetProperty("providerId").GetString());
