@@ -198,6 +198,13 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
         Assert.Contains("Project Reference API", body, StringComparison.Ordinal);
         var output = await WaitForOutputAsync(controller, resource.EffectiveResourceId);
         Assert.NotEmpty(output);
+
+        var stopDiagnostics = await controller.ExecuteAsync(
+            resource,
+            AspNetCoreProjectResourceTypeProvider.Operations.Stop);
+
+        Assert.Empty(stopDiagnostics);
+        Assert.Equal(AspNetCoreProjectRuntimeStatus.Stopped, controller.GetStatus(resource));
     }
 
     private static Resource CreateResource(

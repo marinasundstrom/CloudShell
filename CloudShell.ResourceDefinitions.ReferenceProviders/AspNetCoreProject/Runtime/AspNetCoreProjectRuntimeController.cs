@@ -67,6 +67,12 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
             return await StartAsync(resource, cancellationToken);
         }
 
+        if (operationId == AspNetCoreProjectResourceTypeProvider.Operations.Stop)
+        {
+            await StopAsync(resource, cancellationToken);
+            return [];
+        }
+
         if (operationId == AspNetCoreProjectResourceTypeProvider.Operations.Restart)
         {
             await StopAsync(resource, cancellationToken);

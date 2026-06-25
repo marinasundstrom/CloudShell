@@ -174,6 +174,10 @@ public sealed class ResourceProviderDispatcherTests
             VolumeConsumerCapabilityProvider.CapabilityIdValue));
         Assert.True(projectValidation.Resource.Operations.Has(
             AspNetCoreProjectResourceTypeProvider.Operations.Start));
+        Assert.True(projectValidation.Resource.Operations.Has(
+            AspNetCoreProjectResourceTypeProvider.Operations.Stop));
+        Assert.True(projectValidation.Resource.Operations.Has(
+            AspNetCoreProjectResourceTypeProvider.Operations.Restart));
 
         var projectedGraph = await serviceProvider
             .GetRequiredService<ResourceDefinitionGraphProjectionResolver>()
@@ -194,9 +198,11 @@ public sealed class ResourceProviderDispatcherTests
         Assert.Equal(volume.EffectiveResourceId, Assert.Single(await projection.GetVolumesAsync()).Volume);
 
         var start = await projection.GetStartOperationAsync();
+        var stop = await projection.GetStopOperationAsync();
         var restart = await projection.GetRestartOperationAsync();
 
         Assert.NotNull(start);
+        Assert.NotNull(stop);
         Assert.NotNull(restart);
         Assert.True(await start.CanExecuteAsync());
         Assert.True(await restart.CanExecuteAsync());

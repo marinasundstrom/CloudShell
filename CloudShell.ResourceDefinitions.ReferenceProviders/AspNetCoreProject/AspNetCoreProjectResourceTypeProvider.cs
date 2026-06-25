@@ -26,6 +26,7 @@ public sealed class AspNetCoreProjectResourceTypeProvider(
     public static class Operations
     {
         public static readonly ResourceOperationId Start = "start";
+        public static readonly ResourceOperationId Stop = "stop";
         public static readonly ResourceOperationId Restart = "restart";
     }
 
@@ -68,6 +69,7 @@ public sealed class AspNetCoreProjectResourceTypeProvider(
         Operations:
         [
             new(Operations.Start),
+            new(Operations.Stop),
             new(Operations.Restart)
         ]);
 

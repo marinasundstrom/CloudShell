@@ -41,6 +41,12 @@ public sealed class AspNetCoreProjectResource(
             Resource.Operations.Get(AspNetCoreProjectResourceTypeProvider.Operations.Start)
                 as AspNetCoreProjectLifecycleOperation);
 
+    public ValueTask<AspNetCoreProjectLifecycleOperation?> GetStopOperationAsync(
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult(
+            Resource.Operations.Get(AspNetCoreProjectResourceTypeProvider.Operations.Stop)
+                as AspNetCoreProjectLifecycleOperation);
+
     public ValueTask<AspNetCoreProjectLifecycleOperation?> GetRestartOperationAsync(
         CancellationToken cancellationToken = default) =>
         ValueTask.FromResult(

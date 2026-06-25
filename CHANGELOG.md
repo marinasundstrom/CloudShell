@@ -87,6 +87,10 @@ on `git blame --follow`, and then by the broad type of change.
   Resource Manager logs, traces, and metrics support for graph resources
   without making that provider-specific behavior part of the generic graph
   model.
+- The ASP.NET Core project reference provider now declares and projects a
+  `stop` lifecycle operation, and the provider-owned process runtime controller
+  can stop tracked graph-backed project processes through the Resource Manager
+  bridge.
 - The graph-backed ASP.NET Core project runtime now retains a bounded
   provider-local process output buffer, and the ProjectReference sample adapts
   that output into a Control Plane `ILogProvider` so graph-declared log sources

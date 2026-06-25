@@ -24,6 +24,18 @@ public sealed class AspNetCoreProjectRestartOperationProvider :
     }
 }
 
+public sealed class AspNetCoreProjectStopOperationProvider :
+    AspNetCoreProjectLifecycleOperationProvider
+{
+    public AspNetCoreProjectStopOperationProvider(
+        IAspNetCoreProjectRuntimeController? runtimeController = null)
+        : base(
+            AspNetCoreProjectResourceTypeProvider.Operations.Stop,
+            runtimeController)
+    {
+    }
+}
+
 public abstract class AspNetCoreProjectLifecycleOperationProvider(
     ResourceOperationId operationId,
     IAspNetCoreProjectRuntimeController? runtimeController = null) :

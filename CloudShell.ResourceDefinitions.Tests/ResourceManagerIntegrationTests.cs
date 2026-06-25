@@ -1643,6 +1643,8 @@ public sealed class ResourceManagerIntegrationTests
         Assert.True(projectedProject.SupportsLogSources);
         Assert.Contains(projectedProject.ResourceActions, action =>
             action.Id == AspNetCoreProjectResourceTypeProvider.Operations.Start.ToString());
+        var stop = Assert.Single(projectedProject.ResourceActions, action =>
+            action.Id == AspNetCoreProjectResourceTypeProvider.Operations.Stop.ToString());
         var restart = Assert.Single(projectedProject.ResourceActions, action =>
             action.Id == AspNetCoreProjectResourceTypeProvider.Operations.Restart.ToString());
 
@@ -1667,6 +1669,7 @@ public sealed class ResourceManagerIntegrationTests
         var endpointRequest = Assert.Single(projectProjection.EndpointRequests);
         Assert.Equal("http", endpointRequest.Name);
         Assert.Equal(5010, endpointRequest.Port);
+        Assert.NotNull(await projectProjection.GetStopOperationAsync());
         var environmentVariables = resolution.Target.Attributes
             .GetObject<AspNetCoreProjectEnvironmentVariableValue[]>(
                 AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables);
@@ -1682,13 +1685,19 @@ public sealed class ResourceManagerIntegrationTests
             null,
             new EmptyResourceRegistrationStore());
 
+        Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, stop));
         Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, restart));
 
-        var procedureResult = await provider.ExecuteActionAsync(procedure, restart);
+        var stopResult = await provider.ExecuteActionAsync(procedure, stop);
+        var restartResult = await provider.ExecuteActionAsync(procedure, restart);
 
-        Assert.Equal("Executed Restart for api.", procedureResult.Message);
+        Assert.Equal("Executed Stop for api.", stopResult.Message);
+        Assert.Equal("Executed Restart for api.", restartResult.Message);
         Assert.Equal(
-            [(project.EffectiveResourceId, AspNetCoreProjectResourceTypeProvider.Operations.Restart)],
+            [
+                (project.EffectiveResourceId, AspNetCoreProjectResourceTypeProvider.Operations.Stop),
+                (project.EffectiveResourceId, AspNetCoreProjectResourceTypeProvider.Operations.Restart)
+            ],
             runtimeController.ExecutedOperations);
     }
 
@@ -4250,6 +4259,8 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Contains(projectedApi.ResourceActions, action =>
             action.Id == AspNetCoreProjectResourceTypeProvider.Operations.Start.ToString());
         Assert.Contains(projectedApi.ResourceActions, action =>
+            action.Id == AspNetCoreProjectResourceTypeProvider.Operations.Stop.ToString());
+        Assert.Contains(projectedApi.ResourceActions, action =>
             action.Id == AspNetCoreProjectResourceTypeProvider.Operations.Restart.ToString());
 
         var resolution = await serviceProvider
@@ -4387,6 +4398,8 @@ public sealed class ResourceManagerIntegrationTests
             capability.Id == IdentityProvisioningResourceTypeProvider.Capabilities.IdentityProvisioning.ToString());
         Assert.Contains(projectedApi.ResourceActions, action =>
             action.Id == AspNetCoreProjectResourceTypeProvider.Operations.Start.ToString());
+        Assert.Contains(projectedApi.ResourceActions, action =>
+            action.Id == AspNetCoreProjectResourceTypeProvider.Operations.Stop.ToString());
 
         var resolution = await serviceProvider
             .GetRequiredService<ResourceModelGraphResourceResolver>()
