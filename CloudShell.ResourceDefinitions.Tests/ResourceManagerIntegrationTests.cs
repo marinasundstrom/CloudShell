@@ -2226,7 +2226,9 @@ public sealed class ResourceManagerIntegrationTests
     [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesMacOSHostNetworkAcrossProviderBoundaries()
     {
+        var reconciler = new RecordingMacOSHostNetworkEndpointMappingReconciler();
         var services = new ServiceCollection();
+        services.AddSingleton<IMacOSHostNetworkEndpointMappingReconciler>(reconciler);
         services.AddInMemoryResourceModelGraph();
         services.AddMacOSHostNetworkResourceType();
         services.AddResourceModelGraphServices();
@@ -2297,6 +2299,7 @@ public sealed class ResourceManagerIntegrationTests
         var procedureResult = await provider.ExecuteActionAsync(procedure, reconcile);
 
         Assert.Equal("Executed ReconcileEndpointMappings for host-macos.", procedureResult.Message);
+        Assert.Equal([network.EffectiveResourceId], reconciler.ReconciledResourceIds);
     }
 
     [Fact]
@@ -4166,6 +4169,23 @@ public sealed class ResourceManagerIntegrationTests
 
     private sealed class RecordingNetworkEndpointMappingReconciler :
         INetworkEndpointMappingReconciler
+    {
+        private readonly List<string> _reconciledResourceIds = [];
+
+        public IReadOnlyList<string> ReconciledResourceIds => _reconciledResourceIds;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileEndpointMappingsAsync(
+            Resource resource,
+            CancellationToken cancellationToken = default)
+        {
+            _reconciledResourceIds.Add(resource.EffectiveResourceId);
+
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+    }
+
+    private sealed class RecordingMacOSHostNetworkEndpointMappingReconciler :
+        IMacOSHostNetworkEndpointMappingReconciler
     {
         private readonly List<string> _reconciledResourceIds = [];
 

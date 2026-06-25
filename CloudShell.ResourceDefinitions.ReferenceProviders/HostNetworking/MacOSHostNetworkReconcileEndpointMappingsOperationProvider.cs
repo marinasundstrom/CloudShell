@@ -1,9 +1,29 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
-public sealed class MacOSHostNetworkReconcileEndpointMappingsOperationProvider :
+public interface IMacOSHostNetworkEndpointMappingReconciler
+{
+    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileEndpointMappingsAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed class NoopMacOSHostNetworkEndpointMappingReconciler :
+    IMacOSHostNetworkEndpointMappingReconciler
+{
+    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileEndpointMappingsAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+}
+
+public sealed class MacOSHostNetworkReconcileEndpointMappingsOperationProvider(
+    IMacOSHostNetworkEndpointMappingReconciler? reconciler = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
+    private readonly IMacOSHostNetworkEndpointMappingReconciler _reconciler =
+        reconciler ?? new NoopMacOSHostNetworkEndpointMappingReconciler();
+
     public ResourceOperationId OperationId =>
         MacOSHostNetworkResourceTypeProvider.Operations.ReconcileEndpointMappings;
 
@@ -36,14 +56,19 @@ public sealed class MacOSHostNetworkReconcileEndpointMappingsOperationProvider :
         ValueTask.FromResult<IResourceOperationProjection>(
             new MacOSHostNetworkReconcileEndpointMappingsOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
-                operation));
+                operation,
+                _reconciler));
 }
 
 public sealed class MacOSHostNetworkReconcileEndpointMappingsOperation(
     ResourceProjectionExecutionContext context,
-    ResourceOperationResolution operation) : IResourceOperationExecutorProjection
+    ResourceOperationResolution operation,
+    IMacOSHostNetworkEndpointMappingReconciler reconciler) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
+
+    private readonly IMacOSHostNetworkEndpointMappingReconciler _reconciler =
+        reconciler;
 
     public Resource Resource => Context.Resource;
 
@@ -82,10 +107,14 @@ public sealed class MacOSHostNetworkReconcileEndpointMappingsOperation(
                 ]);
         }
 
+        var diagnostics = await _reconciler.ReconcileEndpointMappingsAsync(
+            Resource,
+            cancellationToken);
+
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            []);
+            diagnostics);
     }
 }
 

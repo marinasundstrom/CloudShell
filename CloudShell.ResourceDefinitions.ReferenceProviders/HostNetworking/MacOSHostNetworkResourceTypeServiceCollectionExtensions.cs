@@ -30,6 +30,9 @@ public static class MacOSHostNetworkResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, MacOSHostNetworkReconcileEndpointMappingsOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, MacOSHostNetworkResourceProjectionProvider>());
+        services.TryAddSingleton<
+            IMacOSHostNetworkEndpointMappingReconciler,
+            NoopMacOSHostNetworkEndpointMappingReconciler>();
 
         return services;
     }
