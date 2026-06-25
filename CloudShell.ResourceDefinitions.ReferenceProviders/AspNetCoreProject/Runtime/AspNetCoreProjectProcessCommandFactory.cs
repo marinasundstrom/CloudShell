@@ -21,11 +21,13 @@ public sealed class AspNetCoreProjectProcessCommandFactory
             arguments.Append("watch --project ");
             arguments.Append(Quote(fullProjectPath));
             arguments.Append(" run");
+            AppendLaunchSettings(arguments, resource);
         }
         else
         {
             arguments.Append("run --project ");
             arguments.Append(Quote(fullProjectPath));
+            AppendLaunchSettings(arguments, resource);
         }
 
         var projectArguments = resource.Attributes.GetString(
@@ -59,6 +61,19 @@ public sealed class AspNetCoreProjectProcessCommandFactory
         bool.TryParse(resource.Attributes.GetString(attributeId), out var value)
             ? value
             : defaultValue;
+
+    private static void AppendLaunchSettings(
+        StringBuilder arguments,
+        Resource resource)
+    {
+        if (!GetBoolean(
+                resource,
+                AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings,
+                defaultValue: true))
+        {
+            arguments.Append(" --no-launch-profile");
+        }
+    }
 
     private static string Quote(string value) =>
         "\"" + value.Replace("\"", "\\\"", StringComparison.Ordinal) + "\"";

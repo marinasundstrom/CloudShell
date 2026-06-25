@@ -65,6 +65,9 @@ on `git blame --follow`, and then by the broad type of change.
 - ASP.NET Core project process runtime command construction now lives in a
   provider-local command factory with focused tests for graph-backed project
   path, arguments, hot-reload, and Resource model environment variables.
+- ASP.NET Core project process runtime command construction now honors the
+  graph-backed `project.useLaunchSettings` attribute by passing
+  `--no-launch-profile` when launch settings are disabled.
 - The ASP.NET Core project process runtime controller now cleans up tracked
   child processes when the DI container or host disposes the provider service.
 - The ProjectReference sample now registers a graph-backed ASP.NET Core

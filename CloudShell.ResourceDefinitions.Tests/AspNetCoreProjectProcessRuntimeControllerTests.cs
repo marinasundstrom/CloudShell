@@ -11,13 +11,14 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
         var resource = CreateResource(
             "src/Api/Api.csproj",
             arguments: "--urls http://localhost:5229",
-            hotReload: false);
+            hotReload: false,
+            useLaunchSettings: false);
         var command = new AspNetCoreProjectProcessCommandFactory()
             .CreateStartInfo(resource, "/repo/src/Api/Api.csproj");
 
         Assert.Equal("dotnet", command.FileName);
         Assert.Equal(
-            "run --project \"/repo/src/Api/Api.csproj\" -- --urls http://localhost:5229",
+            "run --project \"/repo/src/Api/Api.csproj\" --no-launch-profile -- --urls http://localhost:5229",
             command.Arguments);
         Assert.Equal("/repo/src/Api", command.WorkingDirectory);
         Assert.False(command.UseShellExecute);
@@ -30,12 +31,15 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
     [Fact]
     public void CommandFactory_CreatesWatchCommandWhenHotReloadIsEnabled()
     {
-        var resource = CreateResource("src/Api/Api.csproj", hotReload: true);
+        var resource = CreateResource(
+            "src/Api/Api.csproj",
+            hotReload: true,
+            useLaunchSettings: false);
         var command = new AspNetCoreProjectProcessCommandFactory()
             .CreateStartInfo(resource, "/repo/src/Api/Api.csproj");
 
         Assert.Equal(
-            "watch --project \"/repo/src/Api/Api.csproj\" run",
+            "watch --project \"/repo/src/Api/Api.csproj\" run --no-launch-profile",
             command.Arguments);
     }
 
@@ -58,7 +62,8 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
     private static Resource CreateResource(
         string projectPath,
         string? arguments = null,
-        bool? hotReload = null)
+        bool? hotReload = null,
+        bool? useLaunchSettings = null)
     {
         var attributes = new Dictionary<ResourceAttributeId, string>
         {
@@ -75,6 +80,12 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
         {
             attributes[AspNetCoreProjectResourceTypeProvider.Attributes.HotReload] =
                 hotReload.Value.ToString().ToLowerInvariant();
+        }
+
+        if (useLaunchSettings.HasValue)
+        {
+            attributes[AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings] =
+                useLaunchSettings.Value.ToString().ToLowerInvariant();
         }
 
         var resolver = new ResourceResolver(

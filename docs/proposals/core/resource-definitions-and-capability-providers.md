@@ -558,9 +558,9 @@ For concrete provider ports, the runtime service should be shaped around the
 new resource type and its graph attributes, capabilities, and operations. The
 ASP.NET Core project POC follows that direction with a provider-local process
 runtime controller that reads `project.path`, `project.arguments`, and
-`project.hotReload` directly from the resolved Resource projection. It should
-not adapt the old application-provider definition/store terminology back into
-the new provider model.
+`project.hotReload`, and `project.useLaunchSettings` directly from the
+resolved Resource projection. It should not adapt the old application-provider
+definition/store terminology back into the new provider model.
 The ProjectReference sample now includes a graph-backed ASP.NET Core project
 resource registered through the Resource Manager bridge provider. That sample
 path is intentionally narrow: it proves Resource Manager can list and dispatch
@@ -582,7 +582,7 @@ Working plan and progress:
 | Use existing providers as behavior references only | Done | The POC should not adapt `ApplicationResourceDefinition`, application stores, or old application-provider terminology into the new provider seams. |
 | Register a graph-backed ASP.NET Core resource in a real host/sample | Done | ProjectReference declares `Graph Project Reference API` through the Resource Manager bridge provider. |
 | Dispatch Resource Manager Start to a resolved graph operation | Done | Registered graph resources with lifecycle operations project `Unknown` state so Start reaches `ResourceModelGraphProcedureProvider`. |
-| Keep ASP.NET Core runtime behavior provider-local | In progress | The runtime controller starts from resolved graph attributes and should keep command construction, process lifetime, and diagnostics inside the ASP.NET Core provider boundary. |
+| Keep ASP.NET Core runtime behavior provider-local | In progress | The runtime controller starts from resolved graph attributes, and command construction now honors project path, arguments, hot reload, launch-settings, environment, process lifetime, and diagnostics inside the ASP.NET Core provider boundary. |
 | Prove the graph-backed project can actually run | In progress | The sample has a concrete host path; next verification should start `Graph Project Reference API` and hit its health endpoint. |
 | Decide minimal runtime state projection | Pending | Restart is blocked while state is `Unknown`; runtime state projection or a deliberate Resource Manager policy change is needed before restart parity. |
 | Re-evaluate redundant or premature model concepts | Pending | `ResolvedResourceDefinition`, broad graph contexts/transactions, and compatibility adapters should be removed or deferred if provider ports do not prove them necessary. |
