@@ -571,6 +571,8 @@ public sealed class ResourceManagerIntegrationTests
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph([CreateLocalVolumeState()]);
+        var provisioner = new RecordingLocalVolumeProvisioner();
+        services.AddSingleton<ILocalVolumeProvisioner>(provisioner);
         services.AddLocalVolumeResourceType();
         services.AddResourceModelGraphServices();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
@@ -595,6 +597,7 @@ public sealed class ResourceManagerIntegrationTests
         var result = await provider.ExecuteActionAsync(procedure, action);
 
         Assert.Equal("Executed Storage Volume Provision for data.", result.Message);
+        Assert.Equal(["storage.volume:data"], provisioner.ProvisionedResourceIds);
     }
 
     [Fact]
@@ -4256,6 +4259,23 @@ public sealed class ResourceManagerIntegrationTests
             CancellationToken cancellationToken = default)
         {
             _reconciledResourceIds.Add(resource.EffectiveResourceId);
+
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+    }
+
+    private sealed class RecordingLocalVolumeProvisioner :
+        ILocalVolumeProvisioner
+    {
+        private readonly List<string> _provisionedResourceIds = [];
+
+        public IReadOnlyList<string> ProvisionedResourceIds => _provisionedResourceIds;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ProvisionAsync(
+            Resource resource,
+            CancellationToken cancellationToken = default)
+        {
+            _provisionedResourceIds.Add(resource.EffectiveResourceId);
 
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }

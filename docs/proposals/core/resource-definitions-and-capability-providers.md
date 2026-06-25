@@ -650,7 +650,9 @@ boundary. A local volume resource type is a useful test because it lets the
 model prove that storage class/type defaults, apply validation, provider-owned
 operation projection, typed wrappers, and Resource Manager projection compose
 with executable application capabilities without folding storage behavior into
-an application provider aggregate. Later, when an existing provider is ported,
+an application provider aggregate. Its provision operation delegates to a
+provider-owned provisioner with a no-op POC default. Later, when an existing
+provider is ported,
 the verification path should be to register the ported provider through the
 new model, turn off the old registration, and prove the Resource Manager and
 orchestration paths still work through the graph. The first acceptance test
@@ -887,7 +889,7 @@ not mean the existing operational provider can be turned off yet.
 | Provider or resource type | Status | New-model coverage | Remaining outside the POC |
 | --- | --- | --- | --- |
 | Executable application (`application.executable`) | Modeled as a reference provider | Type and class defaults, executable path validation and configuration, shared volume-consumer capability, start operation with an injected runtime-controller seam, typed wrapper, Resource Manager bridge projection and execution | Real local-process runtime integration, logs, endpoints, templates, and UI registration/update flow |
-| Local volume (`storage.volume`) | Modeled as a reference provider | Storage class and type defaults, medium validation, provision operation, typed wrapper, apply planning, Resource Manager bridge projection | Provider-backed storage materialization, usage tracking, health, and monitoring |
+| Local volume (`storage.volume`) | Modeled as a reference provider | Storage class and type defaults, medium validation, provision operation with an injected provider-owned provisioner seam, typed wrapper, apply planning, Resource Manager bridge projection | Provider-backed storage materialization, usage tracking, health, and monitoring |
 | Storage (`cloudshell.storage`) | Modeled as a narrow reference provider | Storage class/type defaults, provider/medium/location attributes, passive storage-provider and mount-provider capability markers, inspect operation, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Volume collection payloads, runtime filesystem availability and volume counts as capability members or operation plans, provider-backed storage materialization, health, monitoring, and UI registration/update flow |
 | CloudShell volume (`cloudshell.volume`) | Modeled as a narrow reference provider | Storage class/type defaults, provider/medium/location/subpath/access-mode/persistence attributes, passive storage-volume capability marker, typed `ResourceReference` storage dependencies, storage-reference graph validation, type-specific `storage.volume.provision` operation provider, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Runtime filesystem availability as capability members or operation plans, provider-backed volume materialization, health, monitoring, and UI registration/update flow |
 | Service (`cloudshell.service`) | Modeled as a narrow reference provider | Service class/type defaults, service kind/routing-mode attributes, passive endpoint-source capability marker, temporary typed `ResourceReference` target/network dependencies, target/network graph validation, reconcile operation with an injected provider-owned reconciler seam, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Port, endpoint, and health-check payloads, provider-specific reference modeling if needed, endpoint projection through Resource Manager, richer target eligibility validation, orchestration integration, and UI registration/update flow |
@@ -1801,12 +1803,13 @@ belong to the graph layer because the graph provider is the caller, but the
 handler implementation is registered by Resource Manager or the runtime
 integration layer. For example, a container-app graph provider can validate
 and stage requested image or replica configuration, then dispatch an
-`ApplyResourceChanges<ContainerAppResource>` command. A Resource Manager-owned
-handler registered as something like
-`IResourceOperationHandler<ApplyResourceChanges<ContainerAppResource>>` can
-handle that command with runtime services, orchestrators, local process
-runners, endpoint-mapping provisioners, or provider SDKs, then return
-diagnostics and accepted graph-state updates.
+`ApplyResourceChanges` command that identifies the resource, may carry the
+resolved resource projection, and includes the attribute change set that
+should drive the runtime apply. A Resource Manager-owned handler registered as
+something like `IResourceOperationHandler<ApplyResourceChanges>` can handle
+that command with runtime services, orchestrators, local process runners,
+endpoint-mapping provisioners, or provider SDKs, then return diagnostics and
+accepted graph-state updates.
 Provider-managed read-only attributes that summarize observed runtime state
 are updated this way: the handler produces the accepted value, but the graph
 layer still applies it to `ResourceState` through the normal graph
@@ -1842,21 +1845,25 @@ public interface IResourceOperationDispatcher
         where TCommand : IResourceOperationCommand;
 }
 
-public sealed record ApplyResourceChanges<TResource>(
-    TResource Resource,
+public sealed record ApplyResourceChanges(
+    ResourceId ResourceId,
+    Resource? Resource,
     ResourceChangeSet Changes,
     IReadOnlyDictionary<string, object?>? ProviderData = null)
     : IResourceOperationCommand;
 ```
 
-`ApplyResourceChanges<TResource>` may carry provider-specific data from the
-graph resource type provider when the handler needs more context than the
-generic `ResourceChangeSet` contains. The command type should stay specific
-enough for Resource Manager to register focused handlers per resource type
-without turning the graph dispatcher into a broad runtime service locator. The
-result should carry diagnostics, status, optional accepted graph-state updates,
-and enough information for the graph-facing provider to decide how to complete
-the apply result.
+`ApplyResourceChanges` may carry provider-specific data from the graph resource
+type provider when the handler needs more context than the generic
+`ResourceChangeSet` contains. The command must at least identify the resource
+being changed and carry the resource-local attribute/capability/operation
+change set. Passing the resolved graph `Resource` projection is useful when the
+handler needs effective inherited values, capabilities, or operations, but the
+runtime handler should still treat the command as scoped to the current
+resource unless a future graph isolation model explicitly allows broader graph
+side effects. The result should carry diagnostics, status, optional accepted
+graph-state updates, and enough information for the graph-facing provider to
+decide how to complete the apply result.
 `ResourceDefinitionGraphChangeApplier` lifts that behavior to a graph
 snapshot: it resolves each incoming `ResourceDefinition` overlay against the
 current `ResourceState`, builds resource-local changes, runs the type-owned

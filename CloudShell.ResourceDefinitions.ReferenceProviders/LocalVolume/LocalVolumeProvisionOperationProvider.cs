@@ -1,9 +1,29 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
-public sealed class LocalVolumeProvisionOperationProvider :
+public interface ILocalVolumeProvisioner
+{
+    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ProvisionAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed class NoopLocalVolumeProvisioner :
+    ILocalVolumeProvisioner
+{
+    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ProvisionAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+}
+
+public sealed class LocalVolumeProvisionOperationProvider(
+    ILocalVolumeProvisioner? provisioner = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
+    private readonly ILocalVolumeProvisioner _provisioner =
+        provisioner ?? new NoopLocalVolumeProvisioner();
+
     public ResourceOperationId OperationId =>
         LocalVolumeResourceTypeProvider.Operations.Provision;
 
@@ -50,14 +70,18 @@ public sealed class LocalVolumeProvisionOperationProvider :
         ValueTask.FromResult<IResourceOperationProjection>(
             new LocalVolumeProvisionOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
-                operation));
+                operation,
+                _provisioner));
 }
 
 public sealed class LocalVolumeProvisionOperation(
     ResourceProjectionExecutionContext context,
-    ResourceOperationResolution operation) : IResourceOperationExecutorProjection
+    ResourceOperationResolution operation,
+    ILocalVolumeProvisioner provisioner) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
+
+    private readonly ILocalVolumeProvisioner _provisioner = provisioner;
 
     public Resource Resource => Context.Resource;
 
@@ -98,10 +122,14 @@ public sealed class LocalVolumeProvisionOperation(
                 ]);
         }
 
+        var diagnostics = await _provisioner.ProvisionAsync(
+            Resource,
+            cancellationToken);
+
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            []);
+            diagnostics);
     }
 
     internal static bool HasRequiredState(Resource resource) =>

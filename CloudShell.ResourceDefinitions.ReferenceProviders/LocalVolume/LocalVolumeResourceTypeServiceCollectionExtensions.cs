@@ -30,6 +30,7 @@ public static class LocalVolumeResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, LocalVolumeProvisionOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, LocalVolumeResourceProjectionProvider>());
+        services.TryAddSingleton<ILocalVolumeProvisioner, NoopLocalVolumeProvisioner>();
 
         return services;
     }
