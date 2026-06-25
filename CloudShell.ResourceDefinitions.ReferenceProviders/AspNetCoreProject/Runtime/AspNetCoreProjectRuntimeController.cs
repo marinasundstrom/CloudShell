@@ -14,6 +14,20 @@ public interface IAspNetCoreProjectRuntimeController
         CancellationToken cancellationToken = default);
 }
 
+public interface IAspNetCoreProjectRuntimeOutputReader
+{
+    IReadOnlyList<AspNetCoreProjectRuntimeOutputEntry> ReadOutput(
+        string resourceId,
+        int maxEntries = 200,
+        DateTimeOffset? before = null);
+}
+
+public sealed record AspNetCoreProjectRuntimeOutputEntry(
+    DateTimeOffset Timestamp,
+    string Message,
+    string Stream,
+    string? Severity = null);
+
 public enum AspNetCoreProjectRuntimeStatus
 {
     Unknown,
@@ -23,10 +37,13 @@ public enum AspNetCoreProjectRuntimeStatus
 
 public sealed class AspNetCoreProjectProcessRuntimeController :
     IAspNetCoreProjectRuntimeController,
+    IAspNetCoreProjectRuntimeOutputReader,
     IDisposable,
     IAsyncDisposable
 {
     private readonly ConcurrentDictionary<string, Process> _processes = new(
+        StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, BoundedRuntimeOutputBuffer> _output = new(
         StringComparer.OrdinalIgnoreCase);
     private readonly AspNetCoreProjectProcessCommandFactory _commands = new();
 
@@ -100,14 +117,21 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
             ]);
         }
 
+        var output = _output.GetOrAdd(
+            resource.EffectiveResourceId,
+            _ => new BoundedRuntimeOutputBuffer());
+        output.Clear();
+
         var startInfo = _commands.CreateStartInfo(resource, fullProjectPath);
         var process = new Process
         {
             StartInfo = startInfo,
             EnableRaisingEvents = true
         };
-        process.OutputDataReceived += (_, _) => { };
-        process.ErrorDataReceived += (_, _) => { };
+        process.OutputDataReceived += (_, data) =>
+            AppendOutput(output, data.Data, "stdout", "Information");
+        process.ErrorDataReceived += (_, data) =>
+            AppendOutput(output, data.Data, "stderr", "Error");
 
         if (!process.Start())
         {
@@ -132,6 +156,18 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
             });
 
         return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+    }
+
+    public IReadOnlyList<AspNetCoreProjectRuntimeOutputEntry> ReadOutput(
+        string resourceId,
+        int maxEntries = 200,
+        DateTimeOffset? before = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
+
+        return _output.TryGetValue(resourceId, out var output)
+            ? output.Read(maxEntries, before)
+            : [];
     }
 
     private async ValueTask StopAsync(
@@ -224,10 +260,73 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
     {
         process.Dispose();
     }
+
+    private static void AppendOutput(
+        BoundedRuntimeOutputBuffer output,
+        string? message,
+        string stream,
+        string severity)
+    {
+        if (string.IsNullOrEmpty(message))
+        {
+            return;
+        }
+
+        output.Append(new AspNetCoreProjectRuntimeOutputEntry(
+            DateTimeOffset.UtcNow,
+            message,
+            stream,
+            severity));
+    }
+
+    private sealed class BoundedRuntimeOutputBuffer(int capacity = 1_000)
+    {
+        private readonly Lock _lock = new();
+        private readonly Queue<AspNetCoreProjectRuntimeOutputEntry> _entries = new();
+
+        public void Append(AspNetCoreProjectRuntimeOutputEntry entry)
+        {
+            lock (_lock)
+            {
+                _entries.Enqueue(entry);
+                while (_entries.Count > capacity)
+                {
+                    _entries.Dequeue();
+                }
+            }
+        }
+
+        public IReadOnlyList<AspNetCoreProjectRuntimeOutputEntry> Read(
+            int maxEntries,
+            DateTimeOffset? before)
+        {
+            if (maxEntries <= 0)
+            {
+                return [];
+            }
+
+            lock (_lock)
+            {
+                return _entries
+                    .Where(entry => before is null || entry.Timestamp < before)
+                    .TakeLast(maxEntries)
+                    .ToArray();
+            }
+        }
+
+        public void Clear()
+        {
+            lock (_lock)
+            {
+                _entries.Clear();
+            }
+        }
+    }
 }
 
 public sealed class NoopAspNetCoreProjectRuntimeController :
-    IAspNetCoreProjectRuntimeController
+    IAspNetCoreProjectRuntimeController,
+    IAspNetCoreProjectRuntimeOutputReader
 {
     public AspNetCoreProjectRuntimeStatus GetStatus(Resource resource) =>
         AspNetCoreProjectRuntimeStatus.Unknown;
@@ -237,6 +336,12 @@ public sealed class NoopAspNetCoreProjectRuntimeController :
         ResourceOperationId operationId,
         CancellationToken cancellationToken = default) =>
         ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+
+    public IReadOnlyList<AspNetCoreProjectRuntimeOutputEntry> ReadOutput(
+        string resourceId,
+        int maxEntries = 200,
+        DateTimeOffset? before = null) =>
+        [];
 }
 
 public static class AspNetCoreProjectEnvironmentNames

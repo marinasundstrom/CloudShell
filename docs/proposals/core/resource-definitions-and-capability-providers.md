@@ -119,12 +119,20 @@ implementation for that behavior in the current environment.
   inconsistent, make the new Resource model internally consistent around graph
   attributes, provider-owned capabilities, provider-owned operations, explicit
   apply hooks, and Resource Manager dispatch.
+- Do not extract an application-resource implementation toolkit prematurely.
+  The goal of a future toolkit still stands, but common services should be
+  introduced only after provider ports expose repeated needs. Even then,
+  shared API surfaces should split when concepts, purposes, lifecycle, or
+  behavior diverge instead of forcing unlike providers through one abstraction.
 - Use the first working ASP.NET Core project provider integration as the proof
-  point before broadening the port. After that, port the remaining providers as
-  an investigation path: identify architectural baggage, compatibility
-  adapters, old terminology, and boundary pain that do not contribute to the
-  Resource model goal, then simplify or redesign those pieces where the POC
-  exposes concrete evidence.
+  point before broadening the port. The proof should include the basic
+  Resource Manager services needed by that resource type, including actions,
+  endpoint projection, health/liveness declarations, and log-source
+  integration. After that, port the remaining providers as an investigation
+  path: identify architectural baggage, compatibility adapters, old
+  terminology, and boundary pain that do not contribute to the Resource model
+  goal, then simplify or redesign those pieces where the POC exposes concrete
+  evidence.
 - Integrate well with existing Control Plane runtime concerns without making
   the Resource graph model Control Plane-only. Control Plane and Resource
   Manager should be able to compose graph projections, capabilities,
@@ -646,7 +654,7 @@ Working plan and progress:
 | Decide minimal runtime state projection | Done | The bridge can accept an optional runtime-state resolver. `null` remains the neutral no-status case, lifecycle-capable graph resources fall back to `Unknown`, and observed runtime state can enable actions such as Restart without putting runtime loops into the graph model. |
 | Re-evaluate redundant or premature model concepts | Pending | `ResolvedResourceDefinition`, broad graph contexts/transactions, and compatibility adapters should be removed, renamed, or deferred if provider ports do not prove them necessary. Attribute value-state naming now has initial POC coverage for defined/unset and undefined/custom attributes. |
 | Use provider ports to find architectural baggage | Pending | After the ASP.NET Core vertical slice works, port the next providers in focused slices and record any old-provider baggage, compatibility pain, duplicated terminology, or model seams that do not help the graph/configuration model integrate with Control Plane runtime concerns. |
-| Pull log-source declarations into the graph model | In progress | The graph model now has a `logs.sources` capability payload for provider-owned source declarations, and executable/ASP.NET Core project type defaults project a console source into Resource Manager `ResourceLogSource`. Read/stream sessions, runtime handles, and source providers remain Control Plane `ILogProvider` concerns. |
+| Pull log-source declarations into the graph model | In progress | The graph model now has a `logs.sources` capability payload for provider-owned source declarations, and executable/ASP.NET Core project type defaults project a console source into Resource Manager `ResourceLogSource`. ProjectReference adapts the ASP.NET Core provider-local process output buffer into a Control Plane `ILogProvider`, proving that read/stream sessions, runtime handles, and source providers remain Control Plane/runtime concerns. |
 | Pull health and liveness declarations into the graph model | In progress | The graph model now has a `health.checks` capability payload for HTTP health/liveness declarations, and Resource Manager bridge projections map those declarations to `ResourceHealthCheck` plus the derived `liveness` capability. The ProjectReference graph-backed ASP.NET Core project now declares `/health` and `/alive` through this payload. Polling, observed snapshots, degradation policy, and recovery decisions remain Control Plane concerns. |
 | Project provider-owned endpoint requests into Resource Manager | In progress | The Resource Manager bridge now accepts an endpoint projection resolver and registered endpoint projection providers, allowing a host or provider integration to translate provider-owned endpoint request attributes into `ResourceEndpoint` and `ResourceEndpointNetworkMapping` projections without making endpoints graph-native primitives. ProjectReference uses this for the graph-backed ASP.NET Core project. |
 | Port the next provider | Deferred | Continue only after the ASP.NET Core vertical slice proves the provider seam and exposes any needed model changes. Provider selection should favor the next concrete integration question over broad type-count coverage. |
@@ -2575,6 +2583,15 @@ generation should be treated as an implementation aid over the definition
 model, not as the source of truth. The durable contract remains the
 `ResourceClassDefinition`, `ResourceTypeDefinition`, `ResourceDefinition`, and
 resolved-resource model.
+
+Source generation is explicitly deferred until after the ASP.NET Core project
+Resource Manager integration proves the basic service path. The likely future
+targets are resource builders over `ResourceDefinition` for the programmatic
+API, with customization hooks so providers can shape a fluent builder without
+forking the generated base, and generated projection wrappers over resolved
+`Resource` instances. Those generated projections may also help tests build
+and inspect typed resources consistently, but they should follow the model
+that provider ports prove rather than drive it.
 
 For example, an executable application resource type provider could own the
 `application.executable` type while delegating storage mounts and start/stop

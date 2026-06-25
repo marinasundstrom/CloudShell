@@ -177,6 +177,8 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
         var body = await response.Content.ReadAsStringAsync();
         Assert.Contains("\"status\":\"ok\"", body, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Project Reference API", body, StringComparison.Ordinal);
+        var output = await WaitForOutputAsync(controller, resource.EffectiveResourceId);
+        Assert.NotEmpty(output);
     }
 
     private static Resource CreateResource(
@@ -261,6 +263,25 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
         throw new TimeoutException(
             $"Timed out waiting for ASP.NET Core project health endpoint '{requestUri}'.",
             lastException);
+    }
+
+    private static async Task<IReadOnlyList<AspNetCoreProjectRuntimeOutputEntry>> WaitForOutputAsync(
+        IAspNetCoreProjectRuntimeOutputReader outputReader,
+        string resourceId)
+    {
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(30);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            var output = outputReader.ReadOutput(resourceId);
+            if (output.Count > 0)
+            {
+                return output;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(250));
+        }
+
+        return [];
     }
 
     private static string FindRepositoryRoot()

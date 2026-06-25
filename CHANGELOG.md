@@ -81,6 +81,14 @@ on `git blame --follow`, and then by the broad type of change.
   projection providers from DI, letting hosts and provider packages own
   endpoint mapping logic without passing provider-specific lambdas into graph
   provider registration.
+- The graph-backed ASP.NET Core project runtime now retains a bounded
+  provider-local process output buffer, and the ProjectReference sample adapts
+  that output into a Control Plane `ILogProvider` so graph-declared log sources
+  can be read through the existing log-source API after Resource Manager starts
+  the project.
+- The Resource model proposal now defers source-generated programmatic
+  builders and resolved resource projection wrappers until after the ASP.NET
+  Core Resource Manager integration proves the basic services path.
 - The Resource model proposal now records the executable provider port finding
   that command-shape attributes such as executable arguments and working
   directory should be added intentionally when needed instead of copying the old

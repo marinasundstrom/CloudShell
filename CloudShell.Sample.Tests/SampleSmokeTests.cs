@@ -104,12 +104,16 @@ public sealed class SampleSmokeTests
     public async Task ProjectReferenceHost_RendersResourcesAndServesControlPlaneApi()
     {
         var frontendPort = await GetFreePortAsync();
+        var graphApiPort = await GetFreePortAsync();
         var frontendEndpoint = $"http://127.0.0.1:{frontendPort}";
+        var graphApiEndpoint = $"http://127.0.0.1:{graphApiPort}";
+        const string graphApiResourceId = "application.aspnet-core-project:graph-project-reference-api";
         using var host = await SampleProcess.StartAsync(
             "samples/ProjectReference/Host/CloudShell.ProjectReferenceHost.csproj",
             await GetFreePortAsync(),
             [
-                ("ProjectReference__FrontendEndpoint", frontendEndpoint)
+                ("ProjectReference__FrontendEndpoint", frontendEndpoint),
+                ("ProjectReference__GraphApiEndpoint", graphApiEndpoint)
             ]);
 
         await host.WaitForHttpOkAsync("/", StartupTimeout);
@@ -136,18 +140,33 @@ public sealed class SampleSmokeTests
         Assert.Contains(resources, resource =>
             resource.GetProperty("id").GetString() == "application:project-reference-frontend");
         var graphApi = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application.aspnet-core-project:graph-project-reference-api");
-        var graphApiEndpoint = Assert.Single(graphApi.GetProperty("endpoints").EnumerateArray());
-        Assert.Equal("http", graphApiEndpoint.GetProperty("name").GetString());
-        Assert.Equal("http", graphApiEndpoint.GetProperty("protocol").GetString());
-        Assert.Equal(5229, graphApiEndpoint.GetProperty("targetPort").GetInt32());
-        Assert.Equal("http://localhost:5229", graphApi.GetProperty("primaryEndpoint").GetString());
+            resource.GetProperty("id").GetString() == graphApiResourceId);
+        var graphApiEndpointElement = Assert.Single(graphApi.GetProperty("endpoints").EnumerateArray());
+        Assert.Equal("http", graphApiEndpointElement.GetProperty("name").GetString());
+        Assert.Equal("http", graphApiEndpointElement.GetProperty("protocol").GetString());
+        Assert.Equal(graphApiPort, graphApiEndpointElement.GetProperty("targetPort").GetInt32());
+        Assert.Equal(graphApiEndpoint, graphApi.GetProperty("primaryEndpoint").GetString());
         var graphApiEndpointMapping = Assert.Single(
             graphApi.GetProperty("endpointNetworkMappings").EnumerateArray());
-        Assert.Equal("http://localhost:5229", graphApiEndpointMapping.GetProperty("address").GetString());
+        Assert.Equal(graphApiEndpoint, graphApiEndpointMapping.GetProperty("address").GetString());
         Assert.Equal(
             "http",
             graphApiEndpointMapping.GetProperty("target").GetProperty("endpointName").GetString());
+
+        if (!HasResourceState(graphApi, ResourceState.Running))
+        {
+            await host.SendAsync(
+                HttpMethod.Post,
+                $"/api/control-plane/v1/resources/{Uri.EscapeDataString(graphApiResourceId)}/actions/start?startDependencies=false&ignoreDependentWarning=true");
+        }
+
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"{graphApiEndpoint}/health",
+            bearerToken: null,
+            StartupTimeout);
+        var graphApiLogSourceId = await WaitForLogSourceAsync(host, graphApiResourceId);
+        var graphApiLogEntries = await WaitForLogEntriesAsync(host, graphApiLogSourceId);
+        Assert.NotEmpty(graphApiLogEntries);
 
         await host.WaitForAbsoluteHttpOkAsync(
             $"{frontendEndpoint}/upstream",
@@ -2407,6 +2426,86 @@ public sealed class SampleSmokeTests
         }
 
         return (int)(hash % 1000);
+    }
+
+    private static async Task<string> WaitForLogSourceAsync(
+        SampleProcess host,
+        string resourceId)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(StartupTimeout);
+        string? lastBody = null;
+        do
+        {
+            lastBody = await host.GetStringAsync(
+                $"/api/control-plane/v1/log-sources?resourceId={Uri.EscapeDataString(resourceId)}");
+            using var document = JsonDocument.Parse(lastBody);
+            foreach (var source in document.RootElement.EnumerateArray())
+            {
+                if (string.Equals(
+                        source.GetProperty("resourceId").GetString(),
+                        resourceId,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return source.GetProperty("id").GetString() ??
+                        throw new InvalidOperationException("The log source did not include an id.");
+                }
+            }
+
+            await Task.Delay(250);
+        }
+        while (DateTimeOffset.UtcNow < deadline);
+
+        throw new TimeoutException(
+            $"Timed out waiting for log source for resource '{resourceId}'. Last response: {lastBody}");
+    }
+
+    private static async Task<IReadOnlyList<string>> WaitForLogEntriesAsync(
+        SampleProcess host,
+        string logSourceId)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(StartupTimeout);
+        string? lastBody = null;
+        do
+        {
+            lastBody = await host.GetStringAsync(
+                $"/api/control-plane/v1/log-sources/{Uri.EscapeDataString(logSourceId)}/entries?maxEntries=50");
+            using var document = JsonDocument.Parse(lastBody);
+            var entries = document.RootElement
+                .EnumerateArray()
+                .Select(entry => entry.GetProperty("message").GetString() ?? string.Empty)
+                .Where(message => !string.IsNullOrWhiteSpace(message))
+                .ToArray();
+            if (entries.Length > 0)
+            {
+                return entries;
+            }
+
+            await Task.Delay(250);
+        }
+        while (DateTimeOffset.UtcNow < deadline);
+
+        throw new TimeoutException(
+            $"Timed out waiting for log entries for source '{logSourceId}'. Last response: {lastBody}");
+    }
+
+    private static bool HasResourceState(JsonElement resource, ResourceState expected)
+    {
+        if (!resource.TryGetProperty("state", out var state) ||
+            state.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        {
+            return false;
+        }
+
+        return state.ValueKind switch
+        {
+            JsonValueKind.String => string.Equals(
+                state.GetString(),
+                expected.ToString(),
+                StringComparison.OrdinalIgnoreCase),
+            JsonValueKind.Number => state.TryGetInt32(out var value) &&
+                value == (int)expected,
+            _ => false
+        };
     }
 
     private static string GetEndpointAddress(JsonElement resource, string endpointName)
