@@ -31,6 +31,8 @@ public static class SqlServerResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceDefinitionGraphValidator, VolumeConsumerGraphValidator>());
         services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceDefinitionGraphValidator, SqlServerGraphValidator>());
+        services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceGraphDependencyProvider, VolumeConsumerGraphDependencyProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProvider, SqlServerReconcileAccessOperationProvider>());

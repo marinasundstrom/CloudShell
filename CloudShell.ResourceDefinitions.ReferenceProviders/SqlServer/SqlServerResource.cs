@@ -11,6 +11,13 @@ public sealed class SqlServerResource(
     public string? Edition =>
         Resource.Attributes.GetString(SqlServerResourceTypeProvider.Attributes.Edition);
 
+    public string? ContainerHostResourceId =>
+        SqlServerResourceTypeProvider.TryGetContainerHostResourceId(
+            Resource.State,
+            out var containerHostResourceId)
+            ? containerHostResourceId
+            : null;
+
     public IReadOnlyList<SqlServerDatabaseDefinition> Databases =>
         Resource.GetConfiguration<SqlServerConfiguration>(
             SqlServerResourceTypeProvider.ConfigurationSection)?.Databases ?? [];

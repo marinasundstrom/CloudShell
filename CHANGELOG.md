@@ -122,6 +122,10 @@ on `git blame --follow`, and then by the broad type of change.
   sample-inspired graph across storage, CloudShell volume, and SQL Server
   reference providers, and volume-consumer graph validation now accepts both
   direct local volumes and storage-backed CloudShell volumes.
+- SQL Server reference-provider coverage now includes optional typed
+  container-host references, validating selected container hosts through the
+  SQL Server provider boundary while leaving default/preferred host resolution
+  to later Resource Manager integration.
 
 ### 2026-06-24
 

@@ -139,4 +139,21 @@ public sealed class SqlServerResourceTypeProvider :
             }
         }
     }
+
+    internal static bool TryGetContainerHostResourceId(
+        ResourceState state,
+        out string containerHostResourceId)
+    {
+        foreach (var reference in state.ResourceDependencies)
+        {
+            if (reference.TypeId == ContainerHostResourceTypeProvider.ResourceTypeId &&
+                reference.TryGetResourceId(out containerHostResourceId))
+            {
+                return true;
+            }
+        }
+
+        containerHostResourceId = string.Empty;
+        return false;
+    }
 }

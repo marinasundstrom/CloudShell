@@ -3121,11 +3121,23 @@ public sealed class ResourceManagerIntegrationTests
         services.AddInMemoryResourceModelGraph();
         services.AddStorageResourceType();
         services.AddCloudShellVolumeResourceType();
+        services.AddContainerHostResourceType();
         services.AddSqlServerResourceType();
         services.AddResourceModelGraphServices();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var host = new ResourceDefinition(
+            "docker",
+            ContainerHostResourceTypeProvider.ResourceTypeId,
+            ProviderId: ContainerHostResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [ContainerHostResourceTypeProvider.Attributes.HostKind] = "Docker",
+                [ContainerHostResourceTypeProvider.Attributes.Endpoint] = "unix:///var/run/docker.sock",
+                [ContainerHostResourceTypeProvider.Attributes.Registry] = "docker.io",
+                [ContainerHostResourceTypeProvider.Attributes.IsDefault] = bool.TrueString.ToLowerInvariant()
+            });
         var storage = new ResourceDefinition(
             "local",
             StorageResourceTypeProvider.ResourceTypeId,
@@ -3158,6 +3170,12 @@ public sealed class ResourceManagerIntegrationTests
             "sql-server",
             SqlServerResourceTypeProvider.ResourceTypeId,
             ProviderId: SqlServerResourceTypeProvider.ProviderId,
+            DependsOn:
+            [
+                ResourceReference.ResourceId(
+                    host.EffectiveResourceId,
+                    typeId: ContainerHostResourceTypeProvider.ResourceTypeId)
+            ],
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
                 [SqlServerResourceTypeProvider.Attributes.Version] = "2022",
@@ -3175,7 +3193,7 @@ public sealed class ResourceManagerIntegrationTests
         var result = await service.ApplyDeploymentAsync(
             new ResourceDeploymentDefinition(
                 "container-host",
-                [storage, volume, sqlServer],
+                [host, storage, volume, sqlServer],
                 EnvironmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
@@ -3184,13 +3202,15 @@ public sealed class ResourceManagerIntegrationTests
         Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
         Assert.True(result.IsCommitted);
         Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
-        Assert.Equal(3, result.Commit.Summary.AcceptedResourceCount);
+        Assert.Equal(4, result.Commit.Summary.AcceptedResourceCount);
 
         var provider = serviceProvider
             .GetServices<IResourceProvider>()
             .OfType<ResourceModelGraphProcedureProvider>()
             .Single();
         var projectedResources = provider.GetResources().ToArray();
+        var projectedHost = Assert.Single(projectedResources, resource =>
+            resource.Id == host.EffectiveResourceId);
         var projectedStorage = Assert.Single(projectedResources, resource =>
             resource.Id == storage.EffectiveResourceId);
         var projectedVolume = Assert.Single(projectedResources, resource =>
@@ -3198,11 +3218,12 @@ public sealed class ResourceManagerIntegrationTests
         var projectedSqlServer = Assert.Single(projectedResources, resource =>
             resource.Id == sqlServer.EffectiveResourceId);
 
+        Assert.Equal(ResourceManagerClass.Infrastructure, projectedHost.ResourceClass);
         Assert.Equal(ResourceManagerClass.Storage, projectedStorage.ResourceClass);
         Assert.Equal("./Data/storage", projectedStorage.ResourceAttributes["storage.location"]);
         Assert.Equal([storage.EffectiveResourceId], projectedVolume.DependsOn);
         Assert.Equal("sql-server", projectedVolume.ResourceAttributes["storage.volume.subPath"]);
-        Assert.Equal([volume.EffectiveResourceId], projectedSqlServer.DependsOn);
+        Assert.Equal([host.EffectiveResourceId, volume.EffectiveResourceId], projectedSqlServer.DependsOn);
 
         var resolution = await serviceProvider
             .GetRequiredService<ResourceModelGraphResourceResolver>()
@@ -3213,10 +3234,18 @@ public sealed class ResourceManagerIntegrationTests
             .Select(resource => resource.EffectiveResourceId)
             .ToArray();
         Assert.Contains(sqlServer.EffectiveResourceId, resolvedResourceIds);
+        Assert.Contains(host.EffectiveResourceId, resolvedResourceIds);
         Assert.Contains(volume.EffectiveResourceId, resolvedResourceIds);
         Assert.Contains(storage.EffectiveResourceId, resolvedResourceIds);
         var resolvedSqlServer = Assert.Single(resolution.Resources, resource =>
             resource.EffectiveResourceId == sqlServer.EffectiveResourceId);
+        var sqlProjection = Assert.IsType<SqlServerResource>(
+            await serviceProvider
+                .GetRequiredService<ResourceProjectionResolver>()
+                .GetResourceProjectionAsync(
+                    resolvedSqlServer,
+                    new ResourceProjectionContext("local", "developer")));
+        Assert.Equal(host.EffectiveResourceId, sqlProjection.ContainerHostResourceId);
         var volumeCapability = Assert.IsType<VolumeConsumerCapability>(
             resolvedSqlServer.Capabilities.Get<VolumeConsumerCapability>());
         var mount = Assert.Single(volumeCapability.Mounts);
