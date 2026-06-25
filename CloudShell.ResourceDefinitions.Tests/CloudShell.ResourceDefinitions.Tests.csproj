@@ -20,6 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager\CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.csproj" />
     <ProjectReference Include="..\CloudShell.ResourceDefinitions.ResourceManager\CloudShell.ResourceDefinitions.ResourceManager.csproj" />
     <ProjectReference Include="..\CloudShell.ResourceDefinitions.ReferenceProviders\CloudShell.ResourceDefinitions.ReferenceProviders.csproj" />
     <ProjectReference Include="..\CloudShell.ResourceDefinitions\CloudShell.ResourceDefinitions.csproj" />

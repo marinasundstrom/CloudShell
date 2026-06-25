@@ -100,6 +100,7 @@
   <Project Path="CloudShell.Providers.Docker/CloudShell.Providers.Docker.csproj" />
   <Project Path="CloudShell.Providers.DockerCompose/CloudShell.Providers.DockerCompose.csproj" />
   <Project Path="CloudShell.Providers.Traefik/CloudShell.Providers.Traefik.csproj" />
+  <Project Path="CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager/CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.csproj" />
   <Project Path="CloudShell.ResourceDefinitions.ReferenceProviders/CloudShell.ResourceDefinitions.ReferenceProviders.csproj" />
   <Project Path="CloudShell.ResourceDefinitions.Tests/CloudShell.ResourceDefinitions.Tests.csproj" />
   <Project Path="CloudShell.ResourceDefinitions/CloudShell.ResourceDefinitions.csproj" />

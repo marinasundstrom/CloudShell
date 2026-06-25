@@ -101,6 +101,10 @@ on `git blame --follow`, and then by the broad type of change.
   apply seam for the graph-backed ASP.NET Core project, and its smoke test
   verifies a running graph resource can commit a configuration change while
   returning the provider-owned restart-required diagnostic.
+- Configuration Store and Secrets Vault reference providers now have a
+  companion Resource Manager bridge package that projects their endpoint
+  attributes into Resource Manager endpoints and endpoint-network mappings,
+  with SettingsAndSecrets-inspired graph coverage.
 - The graph-backed ASP.NET Core project runtime now retains a bounded
   provider-local process output buffer, and the ProjectReference sample adapts
   that output into a Control Plane `ILogProvider` so graph-declared log sources

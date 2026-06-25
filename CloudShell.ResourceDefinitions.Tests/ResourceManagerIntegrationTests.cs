@@ -2,6 +2,7 @@ using System.Text.Json;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
+using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
 using CloudShell.ResourceDefinitions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 using ResourceManagerClass = CloudShell.Abstractions.ResourceManager.ResourceClass;
@@ -4161,6 +4162,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddSecretsVaultResourceType();
         services.AddAspNetCoreProjectResourceType();
         services.AddResourceModelGraphServices();
+        services.AddReferenceProviderResourceManagerProjections();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
@@ -4291,6 +4293,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddSecretsVaultResourceType();
         services.AddAspNetCoreProjectResourceType();
         services.AddResourceModelGraphServices();
+        services.AddReferenceProviderResourceManagerProjections();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
@@ -4395,6 +4398,20 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(ResourceManagerClass.Infrastructure, projectedIdentity.ResourceClass);
         Assert.Equal(ResourceManagerClass.Configuration, projectedSettings.ResourceClass);
         Assert.Equal(ResourceManagerClass.SecretsVault, projectedSecrets.ResourceClass);
+        var settingsEndpoint = Assert.Single(projectedSettings.Endpoints);
+        Assert.Equal("entries", settingsEndpoint.Name);
+        Assert.Equal("http", settingsEndpoint.Protocol);
+        Assert.Equal(5138, settingsEndpoint.TargetPort);
+        Assert.Equal(
+            $"http://localhost:5138/api/configuration/stores/{Uri.EscapeDataString(settings.EffectiveResourceId)}/entries",
+            Assert.Single(projectedSettings.ResourceEndpointNetworkMappings).Address);
+        var secretsEndpoint = Assert.Single(projectedSecrets.Endpoints);
+        Assert.Equal("secrets", secretsEndpoint.Name);
+        Assert.Equal("http", secretsEndpoint.Protocol);
+        Assert.Equal(6138, secretsEndpoint.TargetPort);
+        Assert.Equal(
+            $"http://localhost:6138/api/secrets/vaults/{Uri.EscapeDataString(secrets.EffectiveResourceId)}/secrets",
+            Assert.Single(projectedSecrets.ResourceEndpointNetworkMappings).Address);
         Assert.Contains(projectedIdentity.ResourceCapabilities, capability =>
             capability.Id == IdentityProvisioningResourceTypeProvider.Capabilities.IdentityProvisioning.ToString());
         Assert.Contains(projectedApi.ResourceActions, action =>
