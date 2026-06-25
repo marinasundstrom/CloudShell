@@ -35,6 +35,7 @@ public static class ResourceModelResourceManagerMapper
         var attributes = ToResourceManagerAttributes(resource);
         attributes[ResourceModelResourceManagerAttributeNames.BridgeProviderId] =
             options.BridgeProviderId;
+        var healthChecks = ToResourceManagerHealthChecks(resource);
 
         return new ResourceManagerResource(
             resource.EffectiveResourceId,
@@ -52,11 +53,10 @@ public static class ResourceModelResourceManagerMapper
                 .Where(operation => operation.IsAvailable)
                 .Select(ToResourceManagerAction)
                 .ToArray(),
+            HealthChecks: healthChecks,
             ResourceClass: ToResourceManagerClass(resource.Class.ClassId),
             Attributes: attributes,
-            Capabilities: resource.Capabilities
-                .Select(capability => new ResourceCapability(capability.Id.ToString()))
-                .ToArray(),
+            Capabilities: ToResourceManagerCapabilities(resource, healthChecks),
             Source: ResourceSource.User,
             ManagementMode: ResourceManagementMode.UserManaged,
             DisplayName: resource.State.DisplayName,
@@ -127,6 +127,73 @@ public static class ResourceModelResourceManagerMapper
                 ToDisplayName(id),
                 Description: "Resolved Resource model operation.")
         };
+
+    private static IReadOnlyList<ResourceHealthCheck> ToResourceManagerHealthChecks(
+        ResourceModelResource resource)
+    {
+        var definitions = resource.Capabilities.Get<ResourceHealthCheckDefinitionSet>(
+            ResourceHealthCheckCapabilityIds.HealthChecks);
+
+        if (definitions?.Checks is not { Count: > 0 } checks)
+        {
+            return [];
+        }
+
+        return checks
+            .Select(ToResourceManagerHealthCheck)
+            .Where(check => check is not null)
+            .Cast<ResourceHealthCheck>()
+            .ToArray();
+    }
+
+    private static ResourceHealthCheck? ToResourceManagerHealthCheck(
+        ResourceHealthCheckDefinition definition)
+    {
+        if (!string.Equals(
+                definition.Source.Kind,
+                ResourceHealthCheckDefinitionValues.Http,
+                StringComparison.OrdinalIgnoreCase) ||
+            definition.Source.Http is not { } http ||
+            string.IsNullOrWhiteSpace(http.Path))
+        {
+            return null;
+        }
+
+        var timeout = http.TimeoutMilliseconds is > 0
+            ? TimeSpan.FromMilliseconds(http.TimeoutMilliseconds.Value)
+            : (TimeSpan?)null;
+        var source = ResourceProbeSource.ForHttp(
+            http.Path,
+            http.EndpointName,
+            timeout);
+
+        return new ResourceHealthCheck(
+            source,
+            ParseEnum(definition.Type, ResourceProbeType.Health),
+            string.IsNullOrWhiteSpace(definition.Name) ? "health" : definition.Name,
+            definition.IntervalSeconds);
+    }
+
+    private static IReadOnlyList<ResourceCapability> ToResourceManagerCapabilities(
+        ResourceModelResource resource,
+        IReadOnlyList<ResourceHealthCheck> healthChecks)
+    {
+        var capabilities = resource.Capabilities
+            .Select(capability => new ResourceCapability(capability.Id.ToString()))
+            .ToList();
+
+        if (healthChecks.Any(check => check.Type == ResourceProbeType.Liveness) &&
+            capabilities.All(capability =>
+                !string.Equals(
+                    capability.Id,
+                    ResourceHealthCheckCapabilityIds.Liveness.ToString(),
+                    StringComparison.OrdinalIgnoreCase)))
+        {
+            capabilities.Add(new ResourceCapability(ResourceHealthCheckCapabilityIds.Liveness.ToString()));
+        }
+
+        return capabilities;
+    }
 
     private static IReadOnlyList<ResourceLogSource> ToResourceManagerLogSources(
         ResourceModelResource resource)

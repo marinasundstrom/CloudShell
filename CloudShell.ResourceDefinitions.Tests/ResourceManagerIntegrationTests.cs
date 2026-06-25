@@ -1457,6 +1457,15 @@ public sealed class ResourceManagerIntegrationTests
                     ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
                     [
                         new(volume.EffectiveResourceId, "App_Data")
+                    ])),
+                [ResourceHealthCheckCapabilityIds.HealthChecks] =
+                    ResourceDefinitionJson.FromValue(new ResourceHealthCheckDefinitionSet(
+                    [
+                        ResourceHealthCheckDefinition.HttpLiveness(
+                            "/alive",
+                            endpointName: "http",
+                            name: "alive",
+                            intervalSeconds: 10)
                     ]))
             });
 
@@ -1491,6 +1500,17 @@ public sealed class ResourceManagerIntegrationTests
             capability.Id == VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString());
         Assert.Contains(projectedProject.ResourceCapabilities, capability =>
             capability.Id == ResourceLogSourceCapabilityIds.LogSources.ToString());
+        Assert.Contains(projectedProject.ResourceCapabilities, capability =>
+            capability.Id == ResourceHealthCheckCapabilityIds.HealthChecks.ToString());
+        Assert.Contains(projectedProject.ResourceCapabilities, capability =>
+            capability.Id == ResourceHealthCheckCapabilityIds.Liveness.ToString());
+        var healthCheck = Assert.Single(projectedProject.ResourceHealthChecks);
+        Assert.Equal("alive", healthCheck.Name);
+        Assert.Equal(ResourceProbeType.Liveness, healthCheck.Type);
+        Assert.Equal("/alive", healthCheck.Path);
+        Assert.Equal("http", healthCheck.EndpointName);
+        Assert.Equal(10, healthCheck.IntervalSeconds);
+        Assert.True(projectedProject.SupportsLiveness);
         var logSource = Assert.Single(projectedProject.ResourceLogSources);
         Assert.Equal("console", logSource.Id);
         Assert.Equal(ResourceLogSourceKind.ProcessOutput, logSource.Kind);

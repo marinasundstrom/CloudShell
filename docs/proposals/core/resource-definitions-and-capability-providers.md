@@ -647,7 +647,7 @@ Working plan and progress:
 | Re-evaluate redundant or premature model concepts | Pending | `ResolvedResourceDefinition`, broad graph contexts/transactions, and compatibility adapters should be removed, renamed, or deferred if provider ports do not prove them necessary. Attribute value-state naming now has initial POC coverage for defined/unset and undefined/custom attributes. |
 | Use provider ports to find architectural baggage | Pending | After the ASP.NET Core vertical slice works, port the next providers in focused slices and record any old-provider baggage, compatibility pain, duplicated terminology, or model seams that do not help the graph/configuration model integrate with Control Plane runtime concerns. |
 | Pull log-source declarations into the graph model | In progress | The graph model now has a `logs.sources` capability payload for provider-owned source declarations, and executable/ASP.NET Core project type defaults project a console source into Resource Manager `ResourceLogSource`. Read/stream sessions, runtime handles, and source providers remain Control Plane `ILogProvider` concerns. |
-| Pull health and liveness declarations into the graph model | Pending | Model health-check and liveness intent as graph declarations that the orchestrator and Control Plane can resolve, while keeping polling, observed snapshots, degradation policy, and recovery decisions in Control Plane services. |
+| Pull health and liveness declarations into the graph model | In progress | The graph model now has a `health.checks` capability payload for HTTP health/liveness declarations, and Resource Manager bridge projections map those declarations to `ResourceHealthCheck` plus the derived `liveness` capability. Polling, observed snapshots, degradation policy, and recovery decisions remain Control Plane concerns. |
 | Port the next provider | Deferred | Continue only after the ASP.NET Core vertical slice proves the provider seam and exposes any needed model changes. Provider selection should favor the next concrete integration question over broad type-count coverage. |
 
 Attribute value-state naming needs one cleanup pass before the model is
@@ -1814,6 +1814,15 @@ a collection of log-source declarations. That keeps the graph declaration
 close to the capability that tells Resource Manager logs are supported, while
 leaving future room to move the same source declaration shape into a shared
 attribute or dedicated graph member if provider ports prove that is clearer.
+
+Health-check and liveness declarations follow the same narrow POC pattern.
+The graph uses a `health.checks` capability-shaped payload for declarative
+probe metadata such as name, probe type, HTTP path, endpoint name, timeout,
+and interval. The Resource Manager bridge maps that payload into the existing
+`ResourceHealthCheck` projection and derives the `liveness` capability when a
+liveness probe is declared. The graph does not evaluate probes, store health
+snapshots, decide lifecycle degradation, or execute recovery policy; those
+remain Resource Manager and Control Plane runtime concerns.
 
 The POC resolver uses local reusable shape references when it validates
 definition defaults and actual resource attribute values, including nested
