@@ -132,12 +132,22 @@ public sealed class ResourceProviderDispatcherTests
         var definition = new ResourceDefinition(
             "api",
             AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
-            Attributes: new Dictionary<ResourceAttributeId, string>
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
                 [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] = "src/Api/Api.csproj",
                 [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectArguments] = "--urls http://localhost:5010",
-                [AspNetCoreProjectResourceTypeProvider.Attributes.HotReload] = bool.TrueString.ToLowerInvariant(),
-                [AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings] = bool.FalseString.ToLowerInvariant()
+                [AspNetCoreProjectResourceTypeProvider.Attributes.HotReload] = true,
+                [AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings] = false,
+                [AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        new NetworkingEndpointRequestValue(
+                            "http",
+                            "http",
+                            Host: "localhost",
+                            Port: 5010,
+                            Exposure: "Local")
+                    })
             },
             Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
             {
@@ -176,6 +186,9 @@ public sealed class ResourceProviderDispatcherTests
         Assert.NotNull(projection);
         Assert.Equal("src/Api/Api.csproj", projection.ProjectPath);
         Assert.Equal("--urls http://localhost:5010", projection.Arguments);
+        var endpointRequest = Assert.Single(projection.EndpointRequests);
+        Assert.Equal("http", endpointRequest.Name);
+        Assert.Equal(5010, endpointRequest.Port);
         Assert.True(projection.HotReload);
         Assert.False(projection.UseLaunchSettings);
         Assert.Equal(volume.EffectiveResourceId, Assert.Single(await projection.GetVolumesAsync()).Volume);

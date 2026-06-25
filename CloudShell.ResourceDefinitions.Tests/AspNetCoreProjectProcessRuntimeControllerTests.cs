@@ -46,6 +46,55 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
     }
 
     [Fact]
+    public void CommandFactory_CreatesUrlsArgumentFromEndpointRequests()
+    {
+        var resource = CreateResource(
+            "src/Api/Api.csproj",
+            hotReload: false,
+            useLaunchSettings: false,
+            endpointRequests:
+            [
+                new(
+                    "http",
+                    "http",
+                    Host: "127.0.0.1",
+                    Port: 5229,
+                    Exposure: "Local")
+            ]);
+        var command = new AspNetCoreProjectProcessCommandFactory()
+            .CreateStartInfo(resource, "/repo/src/Api/Api.csproj");
+
+        Assert.Equal(
+            "run --project \"/repo/src/Api/Api.csproj\" --no-launch-profile -- --urls http://127.0.0.1:5229",
+            command.Arguments);
+    }
+
+    [Fact]
+    public void CommandFactory_PrefersExplicitProjectArgumentsOverEndpointRequests()
+    {
+        var resource = CreateResource(
+            "src/Api/Api.csproj",
+            arguments: "--urls http://localhost:5010",
+            hotReload: false,
+            useLaunchSettings: false,
+            endpointRequests:
+            [
+                new(
+                    "http",
+                    "http",
+                    Host: "127.0.0.1",
+                    Port: 5229,
+                    Exposure: "Local")
+            ]);
+        var command = new AspNetCoreProjectProcessCommandFactory()
+            .CreateStartInfo(resource, "/repo/src/Api/Api.csproj");
+
+        Assert.Equal(
+            "run --project \"/repo/src/Api/Api.csproj\" --no-launch-profile -- --urls http://localhost:5010",
+            command.Arguments);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_ReturnsDiagnosticWhenProjectFileIsMissing()
     {
         var resource = CreateResource("missing/CloudShell.Missing.csproj");
@@ -126,9 +175,10 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
         string projectPath,
         string? arguments = null,
         bool? hotReload = null,
-        bool? useLaunchSettings = null)
+        bool? useLaunchSettings = null,
+        IReadOnlyList<NetworkingEndpointRequestValue>? endpointRequests = null)
     {
-        var attributes = new Dictionary<ResourceAttributeId, string>
+        var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeValue>
         {
             [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] = projectPath
         };
@@ -142,18 +192,25 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
         if (hotReload.HasValue)
         {
             attributes[AspNetCoreProjectResourceTypeProvider.Attributes.HotReload] =
-                hotReload.Value.ToString().ToLowerInvariant();
+                hotReload.Value;
         }
 
         if (useLaunchSettings.HasValue)
         {
             attributes[AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings] =
-                useLaunchSettings.Value.ToString().ToLowerInvariant();
+                useLaunchSettings.Value;
+        }
+
+        if (endpointRequests is not null)
+        {
+            attributes[AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests] =
+                ResourceAttributeValue.FromObject(endpointRequests);
         }
 
         var resolver = new ResourceResolver(
             [AspNetCoreProjectResourceTypeProvider.ClassDefinition],
-            [new AspNetCoreProjectResourceTypeProvider().TypeDefinition]);
+            [new AspNetCoreProjectResourceTypeProvider().TypeDefinition],
+            attributeValueShapeProviders: [new NetworkingEndpointShapeProvider()]);
 
         return resolver.Resolve(new ResourceGraphState(
             "api",

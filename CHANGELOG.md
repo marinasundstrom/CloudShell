@@ -129,10 +129,16 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource attribute values now have small typed-value ergonomics for
   graph-native `ResourceReference` values and typed object extraction from
   attribute maps and resolved Resource attributes.
+- Resource attribute definitions now expose a non-serialized `ItemShapeId`
+  alias so collection attribute declarations can refer to the item shape
+  without changing the persisted `valueShapeId` contract.
 - The Resource graph resolver now accepts provider-contributed attribute value
   shape providers, and the reference networking providers register runtime-owned
   endpoint and endpoint-mapping shapes without baking endpoint into the graph
   primitive model.
+- ASP.NET Core project graph resources can now declare provider-owned typed
+  endpoint requests, and the process runtime derives `dotnet run --urls` from
+  those requests when explicit project arguments are not supplied.
 - The local host networking reconcile operation now delegates endpoint-mapping
   work to an injected provider-owned reconciler with a no-op POC default,
   matching the provider-integration pattern without moving runtime logic into

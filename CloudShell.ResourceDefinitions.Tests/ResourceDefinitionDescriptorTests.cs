@@ -121,9 +121,11 @@ public sealed class ResourceDefinitionDescriptorTests
         var (_, attribute) = Assert.Single(roundTrip.Attributes!);
         Assert.Equal(ResourceAttributeValueType.ComplexType, attribute.ValueType);
         Assert.Equal("runtime:healthCheck", attribute.ValueShapeId?.ToString());
+        Assert.Equal(attribute.ValueShapeId, attribute.ItemShapeId);
         Assert.True(attribute.IsCollection);
         Assert.NotNull(attribute.Collection);
         Assert.Equal(1, attribute.Collection.MinSize);
+        Assert.DoesNotContain("itemShapeId", json, StringComparison.OrdinalIgnoreCase);
         var (shapeId, shapeDefinition) = Assert.Single(roundTrip.AttributeValueShapes!);
         Assert.Equal("runtime:healthCheck", shapeId);
         var name = shapeDefinition.Shape.Attributes!["name"];

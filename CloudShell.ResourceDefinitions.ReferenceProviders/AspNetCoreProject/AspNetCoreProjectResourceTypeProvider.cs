@@ -18,6 +18,7 @@ public sealed class AspNetCoreProjectResourceTypeProvider :
         public static readonly ResourceAttributeId ProjectArguments = "project.arguments";
         public static readonly ResourceAttributeId HotReload = "project.hotReload";
         public static readonly ResourceAttributeId UseLaunchSettings = "project.useLaunchSettings";
+        public static readonly ResourceAttributeId EndpointRequests = "project.endpointRequests";
     }
 
     public static class Operations
@@ -45,7 +46,11 @@ public sealed class AspNetCoreProjectResourceTypeProvider :
                 ValueType: ResourceAttributeValueType.Boolean),
             [Attributes.UseLaunchSettings] = new(
                 DefaultValue: true,
-                ValueType: ResourceAttributeValueType.Boolean)
+                ValueType: ResourceAttributeValueType.Boolean),
+            [Attributes.EndpointRequests] = new(
+                ValueType: ResourceAttributeValueType.ComplexType,
+                ValueShapeId: NetworkingEndpointShapeIds.EndpointRequest,
+                IsCollection: true)
         },
         Operations:
         [

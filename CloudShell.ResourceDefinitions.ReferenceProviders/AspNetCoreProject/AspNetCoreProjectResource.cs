@@ -23,6 +23,10 @@ public sealed class AspNetCoreProjectResource(
             AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings,
             defaultValue: true);
 
+    public IReadOnlyList<NetworkingEndpointRequestValue> EndpointRequests =>
+        Resource.Attributes.GetObject<NetworkingEndpointRequestValue[]>(
+            AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests) ?? [];
+
     public ValueTask<IReadOnlyList<VolumeMountDefinition>> GetVolumesAsync(
         CancellationToken cancellationToken = default)
     {

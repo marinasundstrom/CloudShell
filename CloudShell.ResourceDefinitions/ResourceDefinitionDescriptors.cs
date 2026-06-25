@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace CloudShell.ResourceDefinitions;
 
@@ -31,7 +32,11 @@ public sealed record ResourceAttributeDefinition(
     bool IsCollection = false,
     ResourceAttributeCollectionDefinition? Collection = null,
     bool? ReadOnly = null,
-    ResourceAttributeMutability? Mutability = null);
+    ResourceAttributeMutability? Mutability = null)
+{
+    [JsonIgnore]
+    public ResourceAttributeValueShapeId? ItemShapeId => IsCollection ? ValueShapeId : null;
+}
 
 public sealed record ResourceAttributeValueShapeDefinition(
     ResourceAttributeValueShape Shape,

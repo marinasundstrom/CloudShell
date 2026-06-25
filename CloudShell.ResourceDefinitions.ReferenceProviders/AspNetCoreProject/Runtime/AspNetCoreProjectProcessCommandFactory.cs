@@ -32,6 +32,9 @@ public sealed class AspNetCoreProjectProcessCommandFactory
 
         var projectArguments = resource.Attributes.GetString(
             AspNetCoreProjectResourceTypeProvider.Attributes.ProjectArguments);
+        projectArguments = string.IsNullOrWhiteSpace(projectArguments)
+            ? CreateEndpointArguments(resource)
+            : projectArguments;
         if (!string.IsNullOrWhiteSpace(projectArguments))
         {
             arguments.Append(" -- ");
@@ -73,6 +76,39 @@ public sealed class AspNetCoreProjectProcessCommandFactory
         {
             arguments.Append(" --no-launch-profile");
         }
+    }
+
+    private static string? CreateEndpointArguments(Resource resource)
+    {
+        var urls = resource.Attributes
+            .GetObject<NetworkingEndpointRequestValue[]>(
+                AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests)?
+            .Select(CreateEndpointUrl)
+            .Where(url => !string.IsNullOrWhiteSpace(url))
+            .ToArray();
+
+        return urls is { Length: > 0 }
+            ? "--urls " + string.Join(';', urls)
+            : null;
+    }
+
+    private static string? CreateEndpointUrl(NetworkingEndpointRequestValue endpoint)
+    {
+        if (string.IsNullOrWhiteSpace(endpoint.Protocol) ||
+            endpoint.Port is null)
+        {
+            return null;
+        }
+
+        var host = !string.IsNullOrWhiteSpace(endpoint.Host)
+            ? endpoint.Host
+            : endpoint.IpAddress;
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            return null;
+        }
+
+        return $"{endpoint.Protocol}://{host}:{endpoint.Port.Value}";
     }
 
     private static string Quote(string value) =>

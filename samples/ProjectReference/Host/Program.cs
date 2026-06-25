@@ -42,16 +42,24 @@ builder.Services
             AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
             ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
             DisplayName: "Graph Project Reference API",
-            Attributes: new Dictionary<ResourceAttributeId, string>
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
                 [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] =
                     graphApiProjectPath,
-                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectArguments] =
-                    "--urls http://localhost:5229",
                 [AspNetCoreProjectResourceTypeProvider.Attributes.HotReload] =
-                    bool.FalseString.ToLowerInvariant(),
+                    false,
                 [AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings] =
-                    bool.FalseString.ToLowerInvariant()
+                    false,
+                [AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        new NetworkingEndpointRequestValue(
+                            "http",
+                            "http",
+                            Host: "localhost",
+                            Port: 5229,
+                            Exposure: "Local")
+                    })
             })
     ])
     .AddAspNetCoreProjectResourceType()
