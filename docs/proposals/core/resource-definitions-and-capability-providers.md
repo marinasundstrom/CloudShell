@@ -994,14 +994,20 @@ the early POC names suggest:
   changes through Resource Manager commit services.
 - **Graph apply hooks** validate, normalize, and stage changes to graph state.
   They should be treated as configuration-state apply hooks, not runtime
-  procedure owners. When applying a graph resource change requires runtime
-  behavior, the graph layer should dispatch a typed apply command through a
-  graph-owned dispatcher contract. Resource Manager or another runtime layer
-  registers the handler implementation for that command. The handler performs
-  the operational work with Control Plane services and may return accepted
-  graph-state updates, such as provider-managed read-only attributes projected
-  from runtime state. Those updates still flow through the graph apply/commit
-  boundary instead of mutating persistence directly.
+  procedure owners. Resource type providers own graph concerns for the type:
+  declared attributes, capabilities, operations, references, validation,
+  defaulting, normalization, and accepted graph-state changes. Runtime effects
+  such as provisioning storage, inspecting a Docker daemon, reconciling DNS,
+  starting processes, or applying load-balancer configuration belong to
+  Resource Manager or provider runtime integrations. When applying a graph
+  resource change requires runtime behavior, the graph layer should dispatch a
+  typed apply command through a graph-owned dispatcher contract. Resource
+  Manager or another runtime layer registers the handler implementation for
+  that command. The handler performs the operational work with Control Plane
+  services and may return accepted graph-state updates, such as
+  provider-managed read-only attributes projected from runtime state. Those
+  updates still flow through the graph apply/commit boundary instead of
+  mutating persistence directly.
 - **Resource model / graph layer** owns the graph representation, resolved
   graph projections, and graph-state primitives. The current POC `Resource`
   class belongs here: it is the resolved graph resource projection, not the
@@ -2728,6 +2734,19 @@ Control Plane service a provider-neutral way to check execution availability
 and invoke the operation after resolving it from the graph, while still
 allowing provider-specific typed wrappers to expose richer methods when they
 need them.
+
+The current POC uses `inspect` on several reference providers as a tentative
+operation name for a runtime query or diagnostic action. It should not imply
+that the Resource graph owns inspection behavior or that runtime state belongs
+in graph attributes. The graph/type provider side declares that the operation
+exists, validates whether the resolved resource has enough configuration to
+offer it, and projects the operation surface. The Resource Manager or provider
+runtime implementation owns what the inspection actually does: querying a
+store, calling a runtime service, reading operational state, enforcing
+authorization, and returning diagnostics or observed facts. If the concrete
+provider ports show that `inspect` is too vague, the operation should be
+renamed or split into more specific operations such as health check, discover,
+refresh status, list children, or validate connectivity.
 
 Like capabilities, operation projections should stay resource-bound. The
 caller that resolves and invokes the operation owns the graph snapshot,
