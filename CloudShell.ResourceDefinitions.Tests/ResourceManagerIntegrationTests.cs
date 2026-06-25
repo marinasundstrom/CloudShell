@@ -845,6 +845,68 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesDefinitionChangesToExistingDeploymentResource()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var initialDefinition = new ResourceDefinition(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+            ProviderId: ExecutableApplicationResourceTypeProvider.ProviderId,
+            DisplayName: "API",
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
+            });
+        var deployment = new ResourceDeploymentDefinition(
+            "local-app",
+            [initialDefinition],
+            EnvironmentId: "local");
+
+        var created = await service.ApplyDeploymentAsync(
+            deployment,
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 24, 16, 30, 0, TimeSpan.Zero)));
+        var changedDefinition = initialDefinition with
+        {
+            DisplayName = "API v2",
+            Attributes = new Dictionary<ResourceAttributeId, string>
+            {
+                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet-watch"
+            }
+        };
+
+        var changed = await service.ApplyDefinitionsAsync(
+            [changedDefinition],
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 24, 16, 45, 0, TimeSpan.Zero)));
+
+        Assert.False(created.HasErrors, FormatDiagnostics(created.Diagnostics));
+        Assert.True(created.IsCommitted);
+        Assert.False(changed.HasErrors, FormatDiagnostics(changed.Diagnostics));
+        Assert.True(changed.IsCommitted);
+        Assert.Equal(new ResourceGraphVersion(1), changed.BaseVersion);
+        Assert.Equal(new ResourceGraphVersion(2), changed.Commit.Version);
+        Assert.False(Assert.Single(changed.Changes.AcceptedResources).ChangeSet.IsNewResource);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, changed.Commit.Summary.Status);
+        Assert.Equal(1, changed.Commit.Summary.AttributeChangeCount);
+
+        var committed = Assert.Single(changed.Commit.Snapshot!.Resources);
+        Assert.Equal("application.executable:api", committed.EffectiveResourceId);
+        Assert.Equal("API v2", committed.DisplayName);
+        Assert.Equal(new ResourceRevision(2), committed.Revision);
+        Assert.Equal(ExecutableApplicationResourceTypeProvider.ProviderId, committed.ProviderId);
+        Assert.Equal("dotnet-watch", committed.ResourceAttributes[
+            ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_CanCommitThroughCustomResourceManagerRecordProjector()
     {
         var services = new ServiceCollection();

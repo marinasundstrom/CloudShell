@@ -146,6 +146,10 @@ on `git blame --follow`, and then by the broad type of change.
   from typed ASP.NET Core endpoint request attributes and verifies those complex
   attributes survive graph apply/projection without being flattened into scalar
   Resource Manager attributes.
+- ResourceDefinitions integration coverage now verifies the deployment flow can
+  create a graph resource from a `ResourceDefinition`, then apply a changed
+  `ResourceDefinition` to the existing graph resource with revision and graph
+  version updates.
 - The local host networking reconcile operation now delegates endpoint-mapping
   work to an injected provider-owned reconciler with a no-op POC default,
   matching the provider-integration pattern without moving runtime logic into
