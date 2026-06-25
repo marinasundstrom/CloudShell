@@ -1390,6 +1390,8 @@ public sealed class ResourceManagerIntegrationTests
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph();
+        var inspector = new RecordingDockerHostInspector();
+        services.AddSingleton<IDockerHostInspector>(inspector);
         services.AddDockerHostResourceType();
         services.AddResourceModelGraphServices();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
@@ -1463,6 +1465,7 @@ public sealed class ResourceManagerIntegrationTests
         var procedureResult = await provider.ExecuteActionAsync(procedure, inspect);
 
         Assert.Equal("Executed Docker Host Inspect for engine.", procedureResult.Message);
+        Assert.Equal([host.EffectiveResourceId], inspector.InspectedResourceIds);
     }
 
     [Fact]
@@ -4306,6 +4309,23 @@ public sealed class ResourceManagerIntegrationTests
 
     private sealed class RecordingStorageInspector :
         IStorageInspector
+    {
+        private readonly List<string> _inspectedResourceIds = [];
+
+        public IReadOnlyList<string> InspectedResourceIds => _inspectedResourceIds;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> InspectAsync(
+            Resource resource,
+            CancellationToken cancellationToken = default)
+        {
+            _inspectedResourceIds.Add(resource.EffectiveResourceId);
+
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+    }
+
+    private sealed class RecordingDockerHostInspector :
+        IDockerHostInspector
     {
         private readonly List<string> _inspectedResourceIds = [];
 
