@@ -721,6 +721,36 @@ grows. That leaves graph/type provider code close to the definition shape
 while making runtime seams, no-op defaults, and future Resource Manager-owned
 implementations visible instead of mixing them into type definition files.
 
+The intended provider-local structure is:
+
+```text
+<ProviderName>/
+  <ProviderName>ResourceTypeProvider.cs
+  <ProviderName>ResourceProjectionProvider.cs
+  <ProviderName>ResourceTypeServiceCollectionExtensions.cs
+  Attributes.cs or nested ID constants when local to the provider
+  Validators/
+    <ProviderName>GraphValidator.cs
+  Capabilities/
+    <CapabilityName>CapabilityProvider.cs
+    <CapabilityName>Capability.cs
+  Operations/
+    <OperationName>OperationProvider.cs
+    <OperationName>Operation.cs
+  Runtime/
+    <RuntimeHandlerOrService>.cs
+  Configuration/
+    <ProviderOwnedConfigurationRecord>.cs
+```
+
+Small providers can keep operation, projection, and validation files directly
+under the provider folder while the POC is still small, but runtime-facing
+contracts and no-op defaults should move into `Runtime/` as soon as they
+represent behavior that Resource Manager or another runtime integration may
+replace. Shared capabilities that are intentionally cross-provider, such as
+volume consumption, should live in a shared capability folder rather than
+inside whichever provider used them first.
+
 A narrow configuration store reference provider extends the proof outside the
 old application-provider group. It owns `configuration.store`, configuration
 class defaults, endpoint and entry-count attributes, an inspect operation, a
@@ -910,7 +940,7 @@ not mean the existing operational provider can be turned off yet.
 | Container application (`application.container-app`) | Modeled as a narrow reference provider | Image, registry, and replica attributes, optional typed generic/Docker container-host reference validation/projection, shared volume-consumer capability, start/restart/image-update operations, typed wrapper, ContainerAppDeployment sample-inspired graph coverage, Resource Manager bridge projection and execution | Actual container host orchestration, endpoints, revisions, replica runtime state, monitoring, and UI operations |
 | ASP.NET Core project (`application.aspnet-core-project`) | Modeled as a narrow reference provider | Project path, arguments, hot reload, launch-settings attributes, shared volume-consumer capability, start/restart operations, typed wrapper, Resource Manager bridge projection and execution, ApplicationTopology and SettingsAndSecrets sample-inspired graph coverage | Launch settings parsing, endpoints, local process or container build behavior, UI registration/update flow |
 | SQL Server (`application.sql-server`) | Modeled as a narrow reference provider | Service class and type defaults, version/edition attributes, optional typed generic/Docker container-host reference validation/projection, declared database configuration, shared volume-consumer capability over direct and storage-backed volumes, reconcile-access operation with an injected provider-owned runtime reconciler seam, typed wrapper, ContainerHost sample-inspired graph coverage, Resource Manager bridge projection and execution | Real SQL runtime integration, default/preferred container-host resolution, credential/grant reconciliation, database child projections, endpoints, and UI tabs |
-| SQL database child (`application.sql-database`) | Modeled as a narrow reference provider | Database name/source/ensure-created attributes, provider-managed read-only `database.server` `ResourceReference` attribute declaration for the owning SQL Server, temporary server `ResourceReference` validation through current `DependsOn` inputs, typed wrapper projection of the owning server as a `belongsTo` reference, ensure-created operation, Resource Manager bridge projection and execution | Provider projection of `database.server` when SQL database children are materialized by the SQL provider, real SQL database materialization, credential/grant reconciliation, provider-managed child ownership metadata, and UI tabs |
+| SQL database child (`application.sql-database`) | Modeled as a narrow reference provider | Database name/source/ensure-created attributes, provider-managed read-only `database.server` `ResourceReference` attribute declaration for the owning SQL Server, temporary server `ResourceReference` validation through current `DependsOn` inputs, typed wrapper projection of the owning server as a `belongsTo` reference, ensure-created operation with an injected provider-owned runtime creation handler seam, Resource Manager bridge projection and execution | Provider projection of `database.server` when SQL database children are materialized by the SQL provider, real SQL database materialization, credential/grant reconciliation, provider-managed child ownership metadata, and UI tabs |
 | Container host (`cloudshell.container-host`) | Modeled as a narrow reference provider | Infrastructure class/type defaults, host kind/endpoint/registry/default attributes, passive container image/build/filesystem-mount capability markers, inspect operation with an injected provider-owned inspector seam, typed wrapper, Resource Manager bridge projection and execution | Real Docker/container host runtime integration, host resolution, placement behavior, credentials, and runtime diagnostics |
 | Docker host (`docker.host`) | Modeled as a narrow reference provider | Infrastructure class/type defaults, Docker host kind/endpoint/registry/default attributes, passive container image/build/filesystem-mount capability markers, inspect operation with an injected provider-owned inspector seam, typed wrapper, Resource Manager bridge projection and execution | Real Docker runtime integration, discovery, health, logs, container child projections, credentials, and UI registration/update flow |
 | Docker container (`docker.container`) | Modeled as a narrow reference provider | Container class/type defaults, workload/image/registry/replica attributes, read-only endpoint-count attribute, passive monitoring and log-source capability markers, lifecycle operation projections, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Real Docker API integration, runtime discovery, container state, state-sensitive action availability, log streaming, endpoint projection, and hidden/runtime-managed Resource Manager behavior |

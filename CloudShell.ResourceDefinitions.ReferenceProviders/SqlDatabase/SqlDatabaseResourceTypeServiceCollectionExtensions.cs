@@ -34,6 +34,9 @@ public static class SqlDatabaseResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, SqlDatabaseEnsureCreatedOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, SqlDatabaseResourceProjectionProvider>());
+        services.TryAddSingleton<
+            ISqlDatabaseCreationHandler,
+            NoopSqlDatabaseCreationHandler>();
 
         return services;
     }

@@ -1,9 +1,13 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
-public sealed class SqlDatabaseEnsureCreatedOperationProvider :
+public sealed class SqlDatabaseEnsureCreatedOperationProvider(
+    ISqlDatabaseCreationHandler? creationHandler = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
+    private readonly ISqlDatabaseCreationHandler _creationHandler =
+        creationHandler ?? new NoopSqlDatabaseCreationHandler();
+
     public ResourceOperationId OperationId =>
         SqlDatabaseResourceTypeProvider.Operations.EnsureCreated;
 
@@ -36,14 +40,18 @@ public sealed class SqlDatabaseEnsureCreatedOperationProvider :
         ValueTask.FromResult<IResourceOperationProjection>(
             new SqlDatabaseEnsureCreatedOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
-                operation));
+                operation,
+                _creationHandler));
 }
 
 public sealed class SqlDatabaseEnsureCreatedOperation(
     ResourceProjectionExecutionContext context,
-    ResourceOperationResolution operation) : IResourceOperationExecutorProjection
+    ResourceOperationResolution operation,
+    ISqlDatabaseCreationHandler creationHandler) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
+
+    private readonly ISqlDatabaseCreationHandler _creationHandler = creationHandler;
 
     public Resource Resource => Context.Resource;
 
@@ -82,9 +90,13 @@ public sealed class SqlDatabaseEnsureCreatedOperation(
                 ]);
         }
 
+        var diagnostics = await _creationHandler.EnsureCreatedAsync(
+            Resource,
+            cancellationToken);
+
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            []);
+            diagnostics);
     }
 }

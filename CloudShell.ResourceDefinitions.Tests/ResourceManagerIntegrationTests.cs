@@ -3315,6 +3315,8 @@ public sealed class ResourceManagerIntegrationTests
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph();
+        var creationHandler = new RecordingSqlDatabaseCreationHandler();
+        services.AddSingleton<ISqlDatabaseCreationHandler>(creationHandler);
         services.AddSqlServerResourceType();
         services.AddSqlDatabaseResourceType();
         services.AddResourceModelGraphServices();
@@ -3389,6 +3391,7 @@ public sealed class ResourceManagerIntegrationTests
         var procedureResult = await provider.ExecuteActionAsync(procedure, ensureCreated);
 
         Assert.Equal("Executed Application Sql Database Ensure Created for appdb.", procedureResult.Message);
+        Assert.Equal([database.EffectiveResourceId], creationHandler.CreatedResourceIds);
     }
 
     [Fact]
@@ -4456,6 +4459,23 @@ public sealed class ResourceManagerIntegrationTests
             CancellationToken cancellationToken = default)
         {
             _reconciledResourceIds.Add(resource.EffectiveResourceId);
+
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+    }
+
+    private sealed class RecordingSqlDatabaseCreationHandler :
+        ISqlDatabaseCreationHandler
+    {
+        private readonly List<string> _createdResourceIds = [];
+
+        public IReadOnlyList<string> CreatedResourceIds => _createdResourceIds;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> EnsureCreatedAsync(
+            Resource resource,
+            CancellationToken cancellationToken = default)
+        {
+            _createdResourceIds.Add(resource.EffectiveResourceId);
 
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }
