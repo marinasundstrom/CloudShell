@@ -648,7 +648,7 @@ Working plan and progress:
 | Use provider ports to find architectural baggage | Pending | After the ASP.NET Core vertical slice works, port the next providers in focused slices and record any old-provider baggage, compatibility pain, duplicated terminology, or model seams that do not help the graph/configuration model integrate with Control Plane runtime concerns. |
 | Pull log-source declarations into the graph model | In progress | The graph model now has a `logs.sources` capability payload for provider-owned source declarations, and executable/ASP.NET Core project type defaults project a console source into Resource Manager `ResourceLogSource`. Read/stream sessions, runtime handles, and source providers remain Control Plane `ILogProvider` concerns. |
 | Pull health and liveness declarations into the graph model | In progress | The graph model now has a `health.checks` capability payload for HTTP health/liveness declarations, and Resource Manager bridge projections map those declarations to `ResourceHealthCheck` plus the derived `liveness` capability. The ProjectReference graph-backed ASP.NET Core project now declares `/health` and `/alive` through this payload. Polling, observed snapshots, degradation policy, and recovery decisions remain Control Plane concerns. |
-| Project provider-owned endpoint requests into Resource Manager | In progress | The Resource Manager bridge now accepts an endpoint projection resolver, allowing a host or provider integration to translate provider-owned endpoint request attributes into `ResourceEndpoint` and `ResourceEndpointNetworkMapping` projections without making endpoints graph-native primitives. ProjectReference uses this for the graph-backed ASP.NET Core project. |
+| Project provider-owned endpoint requests into Resource Manager | In progress | The Resource Manager bridge now accepts an endpoint projection resolver and registered endpoint projection providers, allowing a host or provider integration to translate provider-owned endpoint request attributes into `ResourceEndpoint` and `ResourceEndpointNetworkMapping` projections without making endpoints graph-native primitives. ProjectReference uses this for the graph-backed ASP.NET Core project. |
 | Port the next provider | Deferred | Continue only after the ASP.NET Core vertical slice proves the provider seam and exposes any needed model changes. Provider selection should favor the next concrete integration question over broad type-count coverage. |
 
 Attribute value-state naming needs one cleanup pass before the model is
@@ -1105,15 +1105,15 @@ entries through the graph resolver. Provider ports can replace scalar summary
 attributes such as endpoint counts with typed endpoint collections only when a
 concrete provider needs that data.
 
-The Resource Manager bridge can accept an endpoint projection resolver. That
-resolver belongs to the host, provider package, or runtime integration that
-understands the provider-owned endpoint value shape. It can translate resolved
-graph attributes such as ASP.NET Core project endpoint requests into
-Resource Manager `ResourceEndpoint` contracts and
-`ResourceEndpointNetworkMapping` addresses. This keeps the generic bridge from
-knowing provider-specific attribute ids such as `project.endpointRequests`,
-while still proving that graph-backed resources can feed Resource Manager's
-existing endpoint surfaces.
+The Resource Manager bridge can accept an endpoint projection resolver or
+registered endpoint projection providers. Those providers belong to the host,
+provider package, or runtime integration that understands the provider-owned
+endpoint value shape. They can translate resolved graph attributes such as
+ASP.NET Core project endpoint requests into Resource Manager
+`ResourceEndpoint` contracts and `ResourceEndpointNetworkMapping` addresses.
+This keeps the generic bridge from knowing provider-specific attribute ids such
+as `project.endpointRequests`, while still proving that graph-backed resources
+can feed Resource Manager's existing endpoint surfaces.
 
 A narrow Secrets Vault reference provider follows the same boundary while
 keeping secret material out of the Resource model. It owns `secrets.vault`,

@@ -77,6 +77,10 @@ on `git blame --follow`, and then by the broad type of change.
   projection resolver, and the ProjectReference graph-backed ASP.NET Core
   project maps its typed endpoint request into Resource Manager endpoint and
   endpoint-network-mapping projections.
+- Resource Manager bridge services can now compose registered endpoint
+  projection providers from DI, letting hosts and provider packages own
+  endpoint mapping logic without passing provider-specific lambdas into graph
+  provider registration.
 - The Resource model proposal now records the executable provider port finding
   that command-shape attributes such as executable arguments and working
   directory should be added intentionally when needed instead of copying the old

@@ -255,6 +255,31 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public void ResourceModelGraphResourceProvider_UsesRegisteredEndpointProjectionProvider()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
+        services.AddSingleton<IResourceModelResourceManagerEndpointProjectionProvider>(
+            new StaticResourceModelEndpointProjectionProvider("application.executable:api"));
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphResourceProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .Single();
+
+        var projected = Assert.Single(provider.GetResources());
+
+        var endpoint = Assert.Single(projected.Endpoints);
+        Assert.Equal("http", endpoint.Name);
+        Assert.Equal(5010, endpoint.TargetPort);
+        var endpointNetworkMapping = Assert.Single(projected.ResourceEndpointNetworkMappings);
+        Assert.Equal("http://localhost:5010", endpointNetworkMapping.Address);
+        Assert.Equal("http://localhost:5010", projected.PrimaryEndpoint);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphResourceResolver_ResolvesBoundResourceFromGraph()
     {
         var services = new ServiceCollection();
@@ -4950,6 +4975,33 @@ public sealed class ResourceManagerIntegrationTests
                 resourceId,
                 StringComparison.OrdinalIgnoreCase)
                 ? state
+                : null;
+    }
+
+    private sealed class StaticResourceModelEndpointProjectionProvider(
+        string resourceId) : IResourceModelResourceManagerEndpointProjectionProvider
+    {
+        public ResourceModelResourceManagerEndpointProjection? GetEndpointProjection(Resource resource) =>
+            string.Equals(
+                resource.EffectiveResourceId,
+                resourceId,
+                StringComparison.OrdinalIgnoreCase)
+                ? new ResourceModelResourceManagerEndpointProjection(
+                    Endpoints:
+                    [
+                        ResourceEndpoint.Contract(
+                            "http",
+                            "http",
+                            ResourceExposureScope.Local,
+                            5010)
+                    ],
+                    EndpointNetworkMappings:
+                    [
+                        ResourceEndpointNetworkMapping.ForEndpoint(
+                            resource.EffectiveResourceId,
+                            "http",
+                            "http://localhost:5010")
+                    ])
                 : null;
     }
 }

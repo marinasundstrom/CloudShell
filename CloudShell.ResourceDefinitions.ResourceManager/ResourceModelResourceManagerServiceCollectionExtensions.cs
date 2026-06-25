@@ -268,17 +268,28 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
         var stateProviders = serviceProvider
             .GetServices<IResourceModelResourceManagerStateProvider>()
             .ToArray();
+        var endpointProjectionProviders = serviceProvider
+            .GetServices<IResourceModelResourceManagerEndpointProjectionProvider>()
+            .ToArray();
 
-        if (stateProviders.Length == 0)
+        if (stateProviders.Length == 0 && endpointProjectionProviders.Length == 0)
         {
             return options;
         }
 
         var stateResolver = options.StateResolver;
+        var endpointProjectionResolver = options.EndpointProjectionResolver;
         return options with
         {
-            StateResolver = resource =>
-                ResolveState(resource, stateResolver, stateProviders)
+            StateResolver = stateProviders.Length == 0
+                ? stateResolver
+                : resource => ResolveState(resource, stateResolver, stateProviders),
+            EndpointProjectionResolver = endpointProjectionProviders.Length == 0
+                ? endpointProjectionResolver
+                : resource => ResolveEndpointProjection(
+                    resource,
+                    endpointProjectionResolver,
+                    endpointProjectionProviders)
         };
     }
 
@@ -299,6 +310,29 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
             if (state is not null)
             {
                 return state;
+            }
+        }
+
+        return null;
+    }
+
+    private static ResourceModelResourceManagerEndpointProjection? ResolveEndpointProjection(
+        ResourceModelResource resource,
+        ResourceModelResourceManagerEndpointProjectionResolver? endpointProjectionResolver,
+        IReadOnlyList<IResourceModelResourceManagerEndpointProjectionProvider> endpointProjectionProviders)
+    {
+        var projection = endpointProjectionResolver?.Invoke(resource);
+        if (projection is not null)
+        {
+            return projection;
+        }
+
+        foreach (var projectionProvider in endpointProjectionProviders)
+        {
+            projection = projectionProvider.GetEndpointProjection(resource);
+            if (projection is not null)
+            {
+                return projection;
             }
         }
 
