@@ -94,6 +94,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The Resource model proposal now tracks a value-state naming cleanup:
   `Undefined` should mean no attribute definition exists, while a defined
   attribute with no value remains a separate unset/absent state.
+- The Resource model proposal now clarifies that an unset defined attribute can
+  represent no projected status value, while `Unknown` is an explicit projected
+  value for resources that participate in a status surface.
 - The Resource model proposal now records the POC objective that existing
   providers are behavioral references, while the new model should resolve old
   inconsistencies through consistent graph attributes, provider-owned

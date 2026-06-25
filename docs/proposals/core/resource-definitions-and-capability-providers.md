@@ -611,6 +611,21 @@ That separation matters for validation, ResourceDefinition rendering, typed
 wrappers, and provider logic because an unknown attribute id is a schema
 problem, while an unset value may be valid, defaultable, required, or
 provider-managed depending on the resolved `ResourceAttributeDefinition`.
+The immediate value of this distinction is status projection. A defined but
+unset status-related attribute or projection slot can mean "this resource does
+not currently project a status value." That is different from setting a value
+to `Unknown`, which means the resource participates in that status surface but
+the current provider cannot determine the current status. If an attribute
+definition marks the value as required, unset is invalid unless the definition
+or provider contract explicitly says the value is provider-managed and may be
+filled later by provider projection.
+Resource state should still be able to carry custom id/value attributes that
+do not have resolved definitions, for annotations and extension metadata. The
+model should treat those as undefined/custom attributes, not as defined
+attributes with unset values. Validation can stay permissive for neutral
+custom namespaces while warning or rejecting unknown attributes in reserved
+provider or CloudShell namespaces where an unknown id is more likely to be a
+schema error.
 
 The bridge project should own registration helpers for this integration seam.
 Hosts can register a graph-backed Resource model provider as an existing
