@@ -57,6 +57,9 @@ on `git blame --follow`, and then by the broad type of change.
   dependencies on the graph-backed Configuration Store and Secrets Vault
   resources, keeping the projected Resource Manager dependency view aligned
   with the graph.
+- SettingsAndSecrets smoke coverage now refreshes Resource Manager health for
+  the graph-backed API resource, proving its graph-declared health probe is
+  evaluated through the projected endpoint.
 - Docker container reference resources now mark `endpoints.count` as read-only
   provider-projected state, so deployment definitions cannot author endpoint
   counts while resolved Resource projections still expose the default count.
