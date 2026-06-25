@@ -1,9 +1,29 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
-public sealed class IdentityProvisioningSetupOperationProvider :
+public interface IIdentityProvisioningSetupHandler
+{
+    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> SetupAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed class NoopIdentityProvisioningSetupHandler :
+    IIdentityProvisioningSetupHandler
+{
+    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> SetupAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+}
+
+public sealed class IdentityProvisioningSetupOperationProvider(
+    IIdentityProvisioningSetupHandler? setupHandler = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
+    private readonly IIdentityProvisioningSetupHandler _setupHandler =
+        setupHandler ?? new NoopIdentityProvisioningSetupHandler();
+
     public ResourceOperationId OperationId =>
         IdentityProvisioningResourceTypeProvider.Operations.Setup;
 
@@ -36,14 +56,18 @@ public sealed class IdentityProvisioningSetupOperationProvider :
         ValueTask.FromResult<IResourceOperationProjection>(
             new IdentityProvisioningSetupOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
-                operation));
+                operation,
+                _setupHandler));
 }
 
 public sealed class IdentityProvisioningSetupOperation(
     ResourceProjectionExecutionContext context,
-    ResourceOperationResolution operation) : IResourceOperationExecutorProjection
+    ResourceOperationResolution operation,
+    IIdentityProvisioningSetupHandler setupHandler) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
+
+    private readonly IIdentityProvisioningSetupHandler _setupHandler = setupHandler;
 
     public Resource Resource => Context.Resource;
 
@@ -82,10 +106,14 @@ public sealed class IdentityProvisioningSetupOperation(
                 ]);
         }
 
+        var diagnostics = await _setupHandler.SetupAsync(
+            Resource,
+            cancellationToken);
+
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            []);
+            diagnostics);
     }
 }
 

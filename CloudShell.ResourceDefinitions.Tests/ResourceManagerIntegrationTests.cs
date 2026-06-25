@@ -3139,6 +3139,8 @@ public sealed class ResourceManagerIntegrationTests
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph();
+        var setupHandler = new RecordingIdentityProvisioningSetupHandler();
+        services.AddSingleton<IIdentityProvisioningSetupHandler>(setupHandler);
         services.AddIdentityProvisioningResourceType();
         services.AddResourceModelGraphServices();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
@@ -3210,6 +3212,7 @@ public sealed class ResourceManagerIntegrationTests
         var procedureResult = await provider.ExecuteActionAsync(procedure, setup);
 
         Assert.Equal("Executed Identity Provisioning Setup for built-in.", procedureResult.Message);
+        Assert.Equal([identity.EffectiveResourceId], setupHandler.SetupResourceIds);
     }
 
     [Fact]
@@ -4416,6 +4419,23 @@ public sealed class ResourceManagerIntegrationTests
             CancellationToken cancellationToken = default)
         {
             _inspectedResourceIds.Add(resource.EffectiveResourceId);
+
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+    }
+
+    private sealed class RecordingIdentityProvisioningSetupHandler :
+        IIdentityProvisioningSetupHandler
+    {
+        private readonly List<string> _setupResourceIds = [];
+
+        public IReadOnlyList<string> SetupResourceIds => _setupResourceIds;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> SetupAsync(
+            Resource resource,
+            CancellationToken cancellationToken = default)
+        {
+            _setupResourceIds.Add(resource.EffectiveResourceId);
 
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }

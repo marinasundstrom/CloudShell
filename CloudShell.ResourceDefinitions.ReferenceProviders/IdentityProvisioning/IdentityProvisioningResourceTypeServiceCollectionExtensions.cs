@@ -30,6 +30,9 @@ public static class IdentityProvisioningResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, IdentityProvisioningSetupOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, IdentityProvisioningResourceProjectionProvider>());
+        services.TryAddSingleton<
+            IIdentityProvisioningSetupHandler,
+            NoopIdentityProvisioningSetupHandler>();
 
         return services;
     }
