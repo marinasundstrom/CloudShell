@@ -1798,6 +1798,16 @@ are updated this way: the handler produces the accepted value, but the graph
 layer still applies it to `ResourceState` through the normal graph
 apply/commit boundary. The runtime handler does not become the persistence
 boundary and the graph model does not become the runtime owner.
+Runtime handler results need to be structured enough for the graph-facing
+apply provider to act on them. A handler failure should return diagnostics,
+status, and any safe observed state instead of throwing for expected runtime
+failures. The graph-facing apply provider can then decide whether to reject the
+graph change, keep the previous graph state, accept a partial provider-managed
+status update, or mark a runtime-projected attribute such as materialization
+status as failed. Unexpected programmer errors can still surface as
+exceptions, but provider/runtime failures should normally be modeled as result
+diagnostics so Resource Manager, the graph commit summary, and callers can
+explain what happened without corrupting configuration state.
 `ResourceDefinitionGraphChangeApplier` lifts that behavior to a graph
 snapshot: it resolves each incoming `ResourceDefinition` overlay against the
 current `ResourceState`, builds resource-local changes, runs the type-owned
