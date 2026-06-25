@@ -100,6 +100,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource attribute resolution now distinguishes defined/unset attributes
   from undefined/custom attributes, and Resource Manager bridge projections
   omit unset attributes from concrete id/string attribute maps.
+- Name mapping reference providers now declare provider-managed
+  `nameMapping.materializationStatus` as a defined-but-unset attribute, proving
+  status slots can exist without projecting `Unknown` or a Resource Manager
+  string attribute when no status is available.
 - The Resource model proposal now records the POC objective that existing
   providers are behavioral references, while the new model should resolve old
   inconsistencies through consistent graph attributes, provider-owned

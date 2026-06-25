@@ -2526,6 +2526,15 @@ public sealed class ResourceManagerIntegrationTests
             .ResolveAsync(mapping.EffectiveResourceId);
 
         Assert.False(resolution.HasErrors);
+        var statusAttribute = resolution.Target!.Attributes.Resolve(
+            NameMappingResourceTypeProvider.Attributes.MaterializationStatus);
+        Assert.NotNull(statusAttribute);
+        Assert.True(statusAttribute.IsDefined);
+        Assert.False(statusAttribute.IsSet);
+        Assert.True(statusAttribute.ReadOnly);
+        Assert.Equal(
+            ResourceAttributeMutability.ProviderManaged,
+            statusAttribute.Mutability);
         var projection = Assert.IsType<NameMappingResource>(
             await serviceProvider
                 .GetRequiredService<ResourceProjectionResolver>()

@@ -16,6 +16,7 @@ public sealed class NameMappingResourceTypeProvider :
         public static readonly ResourceAttributeId HostName = "nameMapping.hostName";
         public static readonly ResourceAttributeId TargetEndpointName = "nameMapping.targetEndpointName";
         public static readonly ResourceAttributeId Exposure = "nameMapping.exposure";
+        public static readonly ResourceAttributeId MaterializationStatus = "nameMapping.materializationStatus";
     }
 
     public static class Capabilities
@@ -40,7 +41,11 @@ public sealed class NameMappingResourceTypeProvider :
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.Exposure] = new(
                 DefaultValue: "Public",
-                ValueType: ResourceAttributeValueType.String)
+                ValueType: ResourceAttributeValueType.String),
+            [Attributes.MaterializationStatus] = new(
+                ValueType: ResourceAttributeValueType.String,
+                ReadOnly: true,
+                Mutability: ResourceAttributeMutability.ProviderManaged)
         },
         Capabilities:
         [
