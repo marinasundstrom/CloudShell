@@ -88,6 +88,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager store projection tests now report persisted
   SettingsAndSecrets graph-record diagnostics and omit invalid typed identity
   dependencies from actionable Resource Manager dependency lists.
+- Resource attribute definitions can now reference reusable complex value
+  shape definitions and declare collection semantics separately from the item
+  shape, with descriptor coverage for health-check-style attribute
+  declarations.
 - Resource Manager store projection tests now cover persisted Resource model
   records for an ApplicationTopology-shaped graph, proving the bridge can
   project stored graph records alongside Resource Manager registrations.

@@ -39,6 +39,19 @@ public readonly record struct ResourceAttributeId(string Value)
     public static implicit operator string(ResourceAttributeId value) => value.ToString();
 }
 
+[JsonConverter(typeof(ResourceAttributeValueShapeIdJsonConverter))]
+public readonly record struct ResourceAttributeValueShapeId(string Value)
+{
+    public static ResourceAttributeValueShapeId Create(string value) =>
+        new(ResourceDefinitionId.Normalize(value, nameof(value)));
+
+    public override string ToString() => Value ?? string.Empty;
+
+    public static implicit operator ResourceAttributeValueShapeId(string value) => Create(value);
+
+    public static implicit operator string(ResourceAttributeValueShapeId value) => value.ToString();
+}
+
 [JsonConverter(typeof(ResourceCapabilityIdJsonConverter))]
 public readonly record struct ResourceCapabilityId(string Value)
 {
@@ -115,6 +128,13 @@ internal sealed class ResourceTypeIdJsonConverter : ResourceDefinitionIdJsonConv
 internal sealed class ResourceAttributeIdJsonConverter : ResourceDefinitionIdJsonConverter<ResourceAttributeId>
 {
     protected override ResourceAttributeId Create(string value) => ResourceAttributeId.Create(value);
+}
+
+internal sealed class ResourceAttributeValueShapeIdJsonConverter :
+    ResourceDefinitionIdJsonConverter<ResourceAttributeValueShapeId>
+{
+    protected override ResourceAttributeValueShapeId Create(string value) =>
+        ResourceAttributeValueShapeId.Create(value);
 }
 
 internal sealed class ResourceCapabilityIdJsonConverter : ResourceDefinitionIdJsonConverter<ResourceCapabilityId>

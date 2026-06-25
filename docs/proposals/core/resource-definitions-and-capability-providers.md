@@ -1383,6 +1383,17 @@ array element shape, not by embedding `JsonElement` or another format-specific
 DOM as the definition contract. Format adapters can map the value object and
 shape descriptors to JSON, YAML, XML, database records, or compact persistence
 records at the boundary.
+An attribute definition may define its complex value shape inline or reference
+a reusable shape declared separately by the class or type definition. Reusable
+shape definitions should describe the value/item shape, while the attribute
+definition separately declares collection semantics such as array, list, set,
+minimum item count, maximum item count, or uniqueness. For example, a
+`runtime:healthChecks` attribute can reference a reusable
+`runtime:healthCheck` object shape and declare `collection.kind = array`
+instead of defining a separate "array of health checks" type. The same pattern
+can model health-check declarations, log-source declarations, endpoint
+declarations, and other structured provider-owned configuration without
+tying those declarations to JSON-specific schema constructs.
 
 Stable IDs should use `:` as the namespace separator and `.` for local
 hierarchy inside that namespace. For example, `container:replicas`,

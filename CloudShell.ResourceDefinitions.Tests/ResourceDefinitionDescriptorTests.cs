@@ -87,6 +87,54 @@ public sealed class ResourceDefinitionDescriptorTests
     }
 
     [Fact]
+    public void ResourceTypeDefinition_CanReferenceReusableComplexAttributeShapeAsJsonTarget()
+    {
+        var typeDefinition = new ResourceTypeDefinition(
+            "application.health-checked-executable",
+            ExecutableApplicationResourceTypeProvider.ClassId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+            {
+                ["runtime:healthChecks"] = new(
+                    Description: "Declared health checks evaluated by the runtime provider.",
+                    ValueShapeId: "runtime:healthCheck",
+                    Collection: new(
+                        ResourceAttributeCollectionKind.Array,
+                        MinItems: 1))
+            },
+            AttributeValueShapes: new Dictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>
+            {
+                ["runtime:healthCheck"] = new(
+                    new(
+                        ResourceAttributeValueKind.Object,
+                        Fields:
+                        [
+                            new("name", new(ResourceAttributeValueKind.String), Required: true),
+                            new("path", new(ResourceAttributeValueKind.String)),
+                            new("intervalSeconds", new(ResourceAttributeValueKind.Integer))
+                        ]),
+                    "Reusable health-check declaration shape.")
+            });
+
+        var json = JsonSerializer.Serialize(typeDefinition, JsonSerializerOptions.Web);
+        var roundTrip = JsonSerializer.Deserialize<ResourceTypeDefinition>(json, JsonSerializerOptions.Web);
+
+        Assert.NotNull(roundTrip);
+        var (_, attribute) = Assert.Single(roundTrip.Attributes!);
+        Assert.Equal("runtime:healthCheck", attribute.ValueShapeId?.ToString());
+        Assert.NotNull(attribute.Collection);
+        Assert.Equal(ResourceAttributeCollectionKind.Array, attribute.Collection.Kind);
+        Assert.Equal(1, attribute.Collection.MinItems);
+        var (shapeId, shapeDefinition) = Assert.Single(roundTrip.AttributeValueShapes!);
+        Assert.Equal("runtime:healthCheck", shapeId);
+        Assert.Equal(ResourceAttributeValueKind.Object, shapeDefinition.Shape.Kind);
+        Assert.Contains(
+            shapeDefinition.Shape.Fields ?? [],
+            field => field.Name == "name" &&
+                field.Required &&
+                field.ValueShape.Kind == ResourceAttributeValueKind.String);
+    }
+
+    [Fact]
     public void ResourceTypeDefinition_SerializesAttributesAsDefinitionMap()
     {
         var typeDefinition = new ResourceTypeDefinition(

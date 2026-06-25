@@ -7,7 +7,8 @@ public sealed record ResourceClassDefinition(
     IReadOnlyList<ResourceAttributeRequirement>? RequiredAttributes = null,
     IReadOnlyList<ResourceCapabilityDeclaration>? Capabilities = null,
     IReadOnlyList<ResourceOperationDeclaration>? Operations = null,
-    IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? Attributes = null);
+    IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? Attributes = null,
+    IReadOnlyDictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>? AttributeValueShapes = null);
 
 public sealed record ResourceTypeDefinition(
     ResourceTypeId TypeId,
@@ -16,7 +17,8 @@ public sealed record ResourceTypeDefinition(
     IReadOnlyList<ResourceAttributeRequirement>? RequiredAttributes = null,
     IReadOnlyList<ResourceCapabilityDeclaration>? Capabilities = null,
     IReadOnlyList<ResourceOperationDeclaration>? Operations = null,
-    IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? Attributes = null);
+    IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? Attributes = null,
+    IReadOnlyDictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>? AttributeValueShapes = null);
 
 public sealed record ResourceAttributeDefinition(
     ResourceAttributeValue? DefaultValue = null,
@@ -24,8 +26,27 @@ public sealed record ResourceAttributeDefinition(
     string? RequiredMessage = null,
     string? Description = null,
     ResourceAttributeValueShape? ValueShape = null,
+    ResourceAttributeValueShapeId? ValueShapeId = null,
+    ResourceAttributeCollectionDefinition? Collection = null,
     bool? ReadOnly = null,
     ResourceAttributeMutability? Mutability = null);
+
+public sealed record ResourceAttributeValueShapeDefinition(
+    ResourceAttributeValueShape Shape,
+    string? Description = null);
+
+public sealed record ResourceAttributeCollectionDefinition(
+    ResourceAttributeCollectionKind Kind,
+    int? MinItems = null,
+    int? MaxItems = null,
+    bool UniqueItems = false);
+
+public enum ResourceAttributeCollectionKind
+{
+    Array,
+    List,
+    Set
+}
 
 public sealed record ResourceAttributeValueShape(
     ResourceAttributeValueKind Kind,
