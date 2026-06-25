@@ -136,6 +136,15 @@ builder.Services
             ResourceId: graphApiResourceId,
             ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
             DisplayName: "Graph Settings and Secrets API",
+            DependsOn:
+            [
+                ResourceReference.DependsOnResourceId(
+                    graphSettingsResourceId,
+                    typeId: ConfigurationStoreResourceTypeProvider.ResourceTypeId),
+                ResourceReference.DependsOnResourceId(
+                    graphSecretsResourceId,
+                    typeId: SecretsVaultResourceTypeProvider.ResourceTypeId)
+            ],
             Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
                 [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] =

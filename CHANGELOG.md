@@ -53,6 +53,10 @@ on `git blame --follow`, and then by the broad type of change.
   API resource that consumes the graph-backed Configuration Store and Secrets
   Vault services, proving a side-by-side graph-backed app/settings/secrets
   vertical slice.
+- The SettingsAndSecrets graph-backed API now declares typed startup
+  dependencies on the graph-backed Configuration Store and Secrets Vault
+  resources, keeping the projected Resource Manager dependency view aligned
+  with the graph.
 - Docker container reference resources now mark `endpoints.count` as read-only
   provider-projected state, so deployment definitions cannot author endpoint
   counts while resolved Resource projections still expose the default count.

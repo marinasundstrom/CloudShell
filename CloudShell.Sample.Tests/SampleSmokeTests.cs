@@ -1472,6 +1472,11 @@ public sealed class SampleSmokeTests
             .EnumerateArray()
             .Select(item => item.GetString())
             .ToArray();
+        var graphApiDependsOn = graphApi
+            .GetProperty("dependsOn")
+            .EnumerateArray()
+            .Select(item => item.GetString())
+            .ToArray();
         var identity = api.GetProperty("identity");
 
         Assert.Equal("configuration.store", settings.GetProperty("typeId").GetString());
@@ -1504,6 +1509,8 @@ public sealed class SampleSmokeTests
         Assert.Equal(
             graphApiEndpoint,
             GetPrimaryEndpointAddress(graphApi));
+        Assert.Contains("configuration.store:graph-sample-app", graphApiDependsOn);
+        Assert.Contains("secrets.vault:graph-sample-app", graphApiDependsOn);
 
         var graphSettingsInspectAction = graphSettings
             .GetProperty("resourceActions")
