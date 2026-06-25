@@ -132,6 +132,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Container application and SQL Server reference providers now accept typed
   Docker host references as container-host bindings when the resolved host
   advertises the required container-image capability.
+- Container application reference resources now model `container.registry`,
+  and integration coverage includes a ContainerAppDeployment-inspired Docker
+  host, registry container, and container app graph.
 
 ### 2026-06-24
 

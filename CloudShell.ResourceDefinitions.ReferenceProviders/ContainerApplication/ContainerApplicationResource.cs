@@ -9,6 +9,10 @@ public sealed class ContainerApplicationResource(
         Resource.Attributes.GetString(
             ContainerApplicationResourceTypeProvider.Attributes.ContainerImage);
 
+    public string? Registry =>
+        Resource.Attributes.GetString(
+            ContainerApplicationResourceTypeProvider.Attributes.ContainerRegistry);
+
     public int Replicas =>
         int.TryParse(
             Resource.Attributes.GetString(

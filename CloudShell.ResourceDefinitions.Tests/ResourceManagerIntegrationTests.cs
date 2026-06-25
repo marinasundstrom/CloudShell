@@ -1087,6 +1087,114 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesContainerAppDeploymentSampleGraph()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddDockerHostResourceType();
+        services.AddDockerContainerResourceType();
+        services.AddContainerApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        const string registryAddress = "localhost:5023";
+        var host = new ResourceDefinition(
+            "sample",
+            DockerHostResourceTypeProvider.ResourceTypeId,
+            ProviderId: DockerHostResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [DockerHostResourceTypeProvider.Attributes.Registry] = registryAddress
+            });
+        var registry = new ResourceDefinition(
+            "sample-registry",
+            DockerContainerResourceTypeProvider.ResourceTypeId,
+            ProviderId: DockerContainerResourceTypeProvider.ProviderId,
+            DependsOn:
+            [
+                ResourceReference.ResourceId(
+                    host.EffectiveResourceId,
+                    typeId: DockerHostResourceTypeProvider.ResourceTypeId)
+            ],
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [DockerContainerResourceTypeProvider.Attributes.ContainerImage] = "registry:2",
+                [DockerContainerResourceTypeProvider.Attributes.ContainerRegistry] = "docker.io"
+            });
+        var app = new ResourceDefinition(
+            "sample-api",
+            ContainerApplicationResourceTypeProvider.ResourceTypeId,
+            ProviderId: ContainerApplicationResourceTypeProvider.ProviderId,
+            DependsOn:
+            [
+                ResourceReference.ResourceId(
+                    host.EffectiveResourceId,
+                    typeId: DockerHostResourceTypeProvider.ResourceTypeId),
+                ResourceReference.ResourceId(
+                    registry.EffectiveResourceId,
+                    typeId: DockerContainerResourceTypeProvider.ResourceTypeId)
+            ],
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [ContainerApplicationResourceTypeProvider.Attributes.ContainerImage] =
+                    "cloudshell/mock-api:20260608.1",
+                [ContainerApplicationResourceTypeProvider.Attributes.ContainerRegistry] =
+                    registryAddress
+            });
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "container-app-deployment",
+                [host, registry, app],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 21, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedResources = provider.GetResources().ToArray();
+        var projectedRegistry = Assert.Single(projectedResources, resource =>
+            resource.Id == registry.EffectiveResourceId);
+        var projectedApp = Assert.Single(projectedResources, resource =>
+            resource.Id == app.EffectiveResourceId);
+
+        Assert.Equal([host.EffectiveResourceId], projectedRegistry.DependsOn);
+        Assert.Equal([host.EffectiveResourceId, registry.EffectiveResourceId], projectedApp.DependsOn);
+        Assert.Equal(registryAddress, projectedApp.ResourceAttributes["container.registry"]);
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveWithDependenciesAsync(app.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors, FormatDiagnostics(resolution.Diagnostics));
+        var resolvedResourceIds = resolution.Resources
+            .Select(resource => resource.EffectiveResourceId)
+            .ToArray();
+        Assert.Contains(app.EffectiveResourceId, resolvedResourceIds);
+        Assert.Contains(registry.EffectiveResourceId, resolvedResourceIds);
+        Assert.Contains(host.EffectiveResourceId, resolvedResourceIds);
+
+        var appProjection = Assert.IsType<ContainerApplicationResource>(
+            await serviceProvider
+                .GetRequiredService<ResourceProjectionResolver>()
+                .GetResourceProjectionAsync(
+                    resolution.Target!,
+                    new ResourceProjectionContext("local", "developer")));
+
+        Assert.Equal("cloudshell/mock-api:20260608.1", appProjection.Image);
+        Assert.Equal(registryAddress, appProjection.Registry);
+        Assert.Equal(host.EffectiveResourceId, appProjection.ContainerHostResourceId);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesAspNetCoreProjectAcrossProviderBoundaries()
     {
         var services = new ServiceCollection();

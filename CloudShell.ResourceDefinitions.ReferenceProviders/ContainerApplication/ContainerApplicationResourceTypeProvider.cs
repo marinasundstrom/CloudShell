@@ -14,6 +14,7 @@ public sealed class ContainerApplicationResourceTypeProvider :
     public static class Attributes
     {
         public static readonly ResourceAttributeId ContainerImage = "container.image";
+        public static readonly ResourceAttributeId ContainerRegistry = "container.registry";
         public static readonly ResourceAttributeId ContainerReplicas = "container.replicas";
     }
 
@@ -35,6 +36,9 @@ public sealed class ContainerApplicationResourceTypeProvider :
             [Attributes.ContainerImage] = new(
                 Required: true,
                 RequiredMessage: "Container image is required.",
+                ValueShape: new(ResourceAttributeValueKind.String)),
+            [Attributes.ContainerRegistry] = new(
+                DefaultValue: "docker.io",
                 ValueShape: new(ResourceAttributeValueKind.String)),
             [Attributes.ContainerReplicas] = new(
                 DefaultValue: 1,

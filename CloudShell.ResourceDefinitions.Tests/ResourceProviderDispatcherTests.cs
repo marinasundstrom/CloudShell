@@ -1289,6 +1289,7 @@ public sealed class ResourceProviderDispatcherTests
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
                 [ContainerApplicationResourceTypeProvider.Attributes.ContainerImage] = "ghcr.io/example/api:latest",
+                [ContainerApplicationResourceTypeProvider.Attributes.ContainerRegistry] = "registry.local",
                 [ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas] = "2"
             },
             Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
@@ -1312,6 +1313,8 @@ public sealed class ResourceProviderDispatcherTests
         Assert.Equal(ContainerApplicationResourceTypeProvider.ClassId, containerValidation.Resource.Class.ClassId);
         Assert.Equal("ghcr.io/example/api:latest", containerValidation.Resource.Attributes.GetString(
             ContainerApplicationResourceTypeProvider.Attributes.ContainerImage));
+        Assert.Equal("registry.local", containerValidation.Resource.Attributes.GetString(
+            ContainerApplicationResourceTypeProvider.Attributes.ContainerRegistry));
         Assert.Equal("2", containerValidation.Resource.Attributes.GetString(
             ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas));
         Assert.True(containerValidation.Resource.Capabilities.Has(
@@ -1333,6 +1336,7 @@ public sealed class ResourceProviderDispatcherTests
 
         Assert.NotNull(projection);
         Assert.Equal("ghcr.io/example/api:latest", projection.Image);
+        Assert.Equal("registry.local", projection.Registry);
         Assert.Equal(2, projection.Replicas);
         Assert.Equal(host.EffectiveResourceId, projection.ContainerHostResourceId);
         Assert.Equal(volume.EffectiveResourceId, Assert.Single(await projection.GetVolumesAsync()).Volume);
