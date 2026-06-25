@@ -116,6 +116,8 @@ on `git blame --follow`, and then by the broad type of change.
   `Runtime/`.
 - Host configuration source operation code now lives under `Operations/`, and
   the runtime inspector seam lives under the provider `Runtime/` folder.
+- Identity provisioning operation code now lives under `Operations/`, and the
+  runtime setup-handler seam lives under the provider `Runtime/` folder.
 - Resource graph records now have test coverage proving typed
   `ResourceReference` dependencies survive the record persistence projection.
 - `ResourceReference` now has JSON round-trip coverage for expected resource
