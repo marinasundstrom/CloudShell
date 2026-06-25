@@ -2090,6 +2090,13 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal("store", projectedStore.ResourceAttributes["configuration.kind"]);
         Assert.Equal("http://localhost:5138", projectedStore.ResourceAttributes["configuration.endpoint"]);
         Assert.Equal("0", projectedStore.ResourceAttributes["configuration.entries.count"]);
+        Assert.Contains(projectedStore.ResourceCapabilities, capability =>
+            capability.Id == ResourceHealthCheckCapabilityIds.HealthChecks.ToString());
+        var healthCheck = Assert.Single(projectedStore.ResourceHealthChecks);
+        Assert.Equal("health", healthCheck.Name);
+        Assert.Equal(ResourceProbeType.Health, healthCheck.Type);
+        Assert.Equal("/healthz", healthCheck.Path);
+        Assert.Equal("entries", healthCheck.EndpointName);
         var inspect = Assert.Single(projectedStore.ResourceActions, action =>
             action.Id == ConfigurationStoreResourceTypeProvider.Operations.Inspect.ToString());
 
@@ -3562,6 +3569,13 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal("vault", projectedVault.ResourceAttributes["secrets.kind"]);
         Assert.Equal("http://localhost:6138", projectedVault.ResourceAttributes["secrets.endpoint"]);
         Assert.Equal("0", projectedVault.ResourceAttributes["secrets.entries.count"]);
+        Assert.Contains(projectedVault.ResourceCapabilities, capability =>
+            capability.Id == ResourceHealthCheckCapabilityIds.HealthChecks.ToString());
+        var healthCheck = Assert.Single(projectedVault.ResourceHealthChecks);
+        Assert.Equal("health", healthCheck.Name);
+        Assert.Equal(ResourceProbeType.Health, healthCheck.Type);
+        Assert.Equal("/healthz", healthCheck.Path);
+        Assert.Equal("secrets", healthCheck.EndpointName);
         var inspect = Assert.Single(projectedVault.ResourceActions, action =>
             action.Id == SecretsVaultResourceTypeProvider.Operations.Inspect.ToString());
 
@@ -4398,6 +4412,9 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(ResourceManagerClass.Infrastructure, projectedIdentity.ResourceClass);
         Assert.Equal(ResourceManagerClass.Configuration, projectedSettings.ResourceClass);
         Assert.Equal(ResourceManagerClass.SecretsVault, projectedSecrets.ResourceClass);
+        var settingsHealthCheck = Assert.Single(projectedSettings.ResourceHealthChecks);
+        Assert.Equal("/healthz", settingsHealthCheck.Path);
+        Assert.Equal("entries", settingsHealthCheck.EndpointName);
         var settingsEndpoint = Assert.Single(projectedSettings.Endpoints);
         Assert.Equal("entries", settingsEndpoint.Name);
         Assert.Equal("http", settingsEndpoint.Protocol);
@@ -4405,6 +4422,9 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(
             $"http://localhost:5138/api/configuration/stores/{Uri.EscapeDataString(settings.EffectiveResourceId)}/entries",
             Assert.Single(projectedSettings.ResourceEndpointNetworkMappings).Address);
+        var secretsHealthCheck = Assert.Single(projectedSecrets.ResourceHealthChecks);
+        Assert.Equal("/healthz", secretsHealthCheck.Path);
+        Assert.Equal("secrets", secretsHealthCheck.EndpointName);
         var secretsEndpoint = Assert.Single(projectedSecrets.Endpoints);
         Assert.Equal("secrets", secretsEndpoint.Name);
         Assert.Equal("http", secretsEndpoint.Protocol);

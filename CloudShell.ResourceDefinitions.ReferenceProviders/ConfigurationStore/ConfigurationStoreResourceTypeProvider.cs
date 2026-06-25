@@ -42,6 +42,17 @@ public sealed class ConfigurationStoreResourceTypeProvider :
                 ReadOnly: true,
                 Mutability: ResourceAttributeMutability.ProviderManaged)
         },
+        Capabilities:
+        [
+            new(
+                ResourceHealthCheckCapabilityIds.HealthChecks,
+                ResourceDefinitionJson.FromValue(new ResourceHealthCheckDefinitionSet(
+                [
+                    ResourceHealthCheckDefinition.Http(
+                        "/healthz",
+                        endpointName: "entries")
+                ])))
+        ],
         Operations:
         [
             new(Operations.Inspect)

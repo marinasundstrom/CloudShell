@@ -42,6 +42,17 @@ public sealed class SecretsVaultResourceTypeProvider :
                 ReadOnly: true,
                 Mutability: ResourceAttributeMutability.ProviderManaged)
         },
+        Capabilities:
+        [
+            new(
+                ResourceHealthCheckCapabilityIds.HealthChecks,
+                ResourceDefinitionJson.FromValue(new ResourceHealthCheckDefinitionSet(
+                [
+                    ResourceHealthCheckDefinition.Http(
+                        "/healthz",
+                        endpointName: "secrets")
+                ])))
+        ],
         Operations:
         [
             new(Operations.Inspect)

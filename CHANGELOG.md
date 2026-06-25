@@ -25,6 +25,10 @@ on `git blame --follow`, and then by the broad type of change.
   Store and Secrets Vault inspect operations through Resource Manager action
   links, proving those reference providers are projected and dispatched beyond
   endpoint and count-summary projection.
+- Graph-backed Configuration Store and Secrets Vault reference providers now
+  declare `/healthz` health checks on their projected service endpoints, with
+  Resource Manager integration coverage confirming those checks stay
+  declarative graph data.
 - Docker container reference resources now mark `endpoints.count` as read-only
   provider-projected state, so deployment definitions cannot author endpoint
   counts while resolved Resource projections still expose the default count.
