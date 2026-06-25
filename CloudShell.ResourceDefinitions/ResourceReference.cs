@@ -3,6 +3,7 @@ namespace CloudShell.ResourceDefinitions;
 public static class ResourceReferenceRelationships
 {
     public static readonly ResourceReferenceRelationship DependsOn = "dependsOn";
+    public static readonly ResourceReferenceRelationship BelongsTo = "belongsTo";
 }
 
 public static class ResourceReferenceAddressingModes

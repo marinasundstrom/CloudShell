@@ -99,11 +99,11 @@ on `git blame --follow`, and then by the broad type of change.
   `ResourceReference` into structurally navigable attribute values and back
   again.
 - The SQL database reference provider now declares `database.server` as a
-  built-in `ResourceReference` attribute type while continuing to use
-  `DependsOn` as the runtime reference source for the current POC.
-- SQL database validation now rejects caller-authored string values for the
-  future `database.server` typed reference attribute so the POC keeps
-  `DependsOn` as the supported relationship authoring path.
+  read-only, provider-managed `ResourceReference` attribute for the owning SQL
+  Server relationship.
+- SQL database validation now rejects caller-authored values for
+  `database.server`; the current POC still uses existing `DependsOn` inputs as
+  temporary validation plumbing, but not as the long-term ownership model.
 - Resource Manager store projection tests now cover persisted Resource model
   records for an ApplicationTopology-shaped graph, proving the bridge can
   project stored graph records alongside Resource Manager registrations.

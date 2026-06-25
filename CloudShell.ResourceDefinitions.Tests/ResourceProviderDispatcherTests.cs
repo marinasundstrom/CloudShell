@@ -1503,6 +1503,8 @@ public sealed class ResourceProviderDispatcherTests
         Assert.NotNull(databaseAttributeDefinitions);
         var serverAttribute = databaseAttributeDefinitions[SqlDatabaseResourceTypeProvider.Attributes.Server];
         Assert.Equal(ResourceAttributeValueType.ResourceReference, serverAttribute.ValueType);
+        Assert.True(serverAttribute.ReadOnly);
+        Assert.Equal(ResourceAttributeMutability.ProviderManaged, serverAttribute.Mutability);
         Assert.Equal("declared", databaseValidation.Resource.Attributes.GetString(
             SqlDatabaseResourceTypeProvider.Attributes.Source));
         Assert.True(databaseValidation.Resource.Operations.Has(
@@ -1541,7 +1543,7 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
-    public async Task AddSqlDatabaseResourceType_RejectsServerAttributeUntilTypedAttributesArePromoted()
+    public async Task AddSqlDatabaseResourceType_RejectsCallerAuthoredServerAttribute()
     {
         var services = new ServiceCollection();
         services.AddSqlServerResourceType();
@@ -1554,6 +1556,12 @@ public sealed class ResourceProviderDispatcherTests
         var definition = new ResourceDefinition(
             "appdb",
             SqlDatabaseResourceTypeProvider.ResourceTypeId,
+            DependsOn:
+            [
+                ResourceReference.ResourceId(
+                    server.EffectiveResourceId,
+                    typeId: SqlServerResourceTypeProvider.ResourceTypeId)
+            ],
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
                 [SqlDatabaseResourceTypeProvider.Attributes.DatabaseName] = "appdb",

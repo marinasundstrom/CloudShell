@@ -38,8 +38,10 @@ public sealed class SqlDatabaseResourceTypeProvider :
                 RequiredMessage: "SQL database name is required.",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.Server] = new(
-                Description: "SQL Server resource reference.",
-                ValueType: ResourceAttributeValueType.ResourceReference),
+                Description: "Owning SQL Server resource reference.",
+                ValueType: ResourceAttributeValueType.ResourceReference,
+                ReadOnly: true,
+                Mutability: ResourceAttributeMutability.ProviderManaged),
             [Attributes.Source] = new(
                 DefaultValue: "declared",
                 ValueType: ResourceAttributeValueType.String),
@@ -198,7 +200,7 @@ public sealed class SqlDatabaseResourceTypeProvider :
 
         diagnostics.Add(ResourceDefinitionDiagnostic.Error(
             "application.sqlDatabase.serverAttributeUnsupported",
-            "SQL database server references must be declared through DependsOn until typed ResourceReference attributes are promoted to the interchange model.",
+            "SQL database server ownership is provider-managed and cannot be authored directly.",
             Attributes.Server));
     }
 

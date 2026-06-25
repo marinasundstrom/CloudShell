@@ -873,7 +873,7 @@ not mean the existing operational provider can be turned off yet.
 | Container application (`application.container-app`) | Modeled as a narrow reference provider | Image, registry, and replica attributes, optional typed generic/Docker container-host reference validation/projection, shared volume-consumer capability, start/restart/image-update operations, typed wrapper, ContainerAppDeployment sample-inspired graph coverage, Resource Manager bridge projection and execution | Actual container host orchestration, endpoints, revisions, replica runtime state, monitoring, and UI operations |
 | ASP.NET Core project (`application.aspnet-core-project`) | Modeled as a narrow reference provider | Project path, arguments, hot reload, launch-settings attributes, shared volume-consumer capability, start/restart operations, typed wrapper, Resource Manager bridge projection and execution, ApplicationTopology and SettingsAndSecrets sample-inspired graph coverage | Launch settings parsing, endpoints, local process or container build behavior, UI registration/update flow |
 | SQL Server (`application.sql-server`) | Modeled as a narrow reference provider | Service class and type defaults, version/edition attributes, optional typed generic/Docker container-host reference validation/projection, declared database configuration, shared volume-consumer capability over direct and storage-backed volumes, reconcile-access operation, typed wrapper, ContainerHost sample-inspired graph coverage, Resource Manager bridge projection and execution | Real SQL runtime integration, default/preferred container-host resolution, credential/grant reconciliation, database child projections, endpoints, and UI tabs |
-| SQL database child (`application.sql-database`) | Modeled as a narrow reference provider | Database name/source/ensure-created attributes, built-in `database.server` `ResourceReference` attribute type declaration, server `ResourceReference` validation through `DependsOn`, ensure-created operation, typed wrapper, Resource Manager bridge projection and execution | Promoting `database.server` to the runtime/interchange reference value, real SQL database materialization, credential/grant reconciliation, provider-managed child ownership metadata, and UI tabs |
+| SQL database child (`application.sql-database`) | Modeled as a narrow reference provider | Database name/source/ensure-created attributes, provider-managed read-only `database.server` `ResourceReference` attribute declaration for the owning SQL Server, temporary server `ResourceReference` validation through current `DependsOn` inputs, ensure-created operation, typed wrapper, Resource Manager bridge projection and execution | Provider projection of `database.server` when SQL database children are materialized by the SQL provider, real SQL database materialization, credential/grant reconciliation, provider-managed child ownership metadata, and UI tabs |
 | Container host (`cloudshell.container-host`) | Modeled as a narrow reference provider | Infrastructure class/type defaults, host kind/endpoint/registry/default attributes, passive container image/build/filesystem-mount capability markers, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real Docker/container host runtime integration, host resolution, placement behavior, credentials, and runtime diagnostics |
 | Docker host (`docker.host`) | Modeled as a narrow reference provider | Infrastructure class/type defaults, Docker host kind/endpoint/registry/default attributes, passive container image/build/filesystem-mount capability markers, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real Docker runtime integration, discovery, health, logs, container child projections, credentials, and UI registration/update flow |
 | Docker container (`docker.container`) | Modeled as a narrow reference provider | Container class/type defaults, workload/image/registry/replica attributes, read-only endpoint-count attribute, passive monitoring and log-source capability markers, lifecycle operation projections, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Real Docker API integration, runtime discovery, container state, state-sensitive action availability, log streaming, endpoint projection, and hidden/runtime-managed Resource Manager behavior |
@@ -983,10 +983,11 @@ inside that primitive, not the relationship model itself. `DependsOn` is the
 graph-level collection of `ResourceReference` values. A typed resource
 attribute may also carry a `ResourceReference` when the relationship belongs
 to the resource's own shape. For example, the former
-`database.serverResourceId` string attribute should become `database.server`,
-with a complex `ResourceReference` value, rather than duplicating the target
-identity as a plain string. The POC currently keeps attributes string-backed,
-so this belongs with the broader typed/complex attribute-value work.
+`database.serverResourceId` string attribute is represented as
+`database.server`, with the built-in `ResourceReference` value type, rather
+than duplicating the target identity as a plain string. For SQL database
+resources this is provider-managed ownership state, not user-authored desired
+state.
 References may also carry optional expectations, such as expected resource
 type or provider id, so validation can reject a reference that resolves to the
 wrong kind of target. The current POC resolves `resourceId` references with an
@@ -1005,7 +1006,7 @@ shape like the serialized `ResourceReference` record:
   "attributes": {
     "database.server": {
       "value": "application.sql-server:server",
-      "relationship": "dependsOn",
+      "relationship": "belongsTo",
       "addressingMode": "resourceId",
       "typeId": "application.sql-server",
       "providerId": "applications.sql-server"
@@ -1434,14 +1435,28 @@ arbitrary complex provider object. Projection wrappers may still deserialize
 the value to the concrete `ResourceReference` record when that object-oriented
 API is appropriate.
 
-For the immediate POC, resource graph relationships still use `DependsOn`
-because `ResourceDefinition` and persisted resource state remain string-backed
-for authored attributes. Providers may declare future typed reference
-attributes, but they should reject caller-authored string values for those
-attributes until typed attribute values are promoted to the interchange and
-persistence model. For example, `application.sql-database` declares
-`database.server` as a built-in `ResourceReference` attribute type but still
-requires the SQL Server relationship through `DependsOn`.
+`DependsOn` should keep its historical meaning: a startup or ordering
+dependency. It is not the general relationship model. For the immediate POC,
+some reference providers still use `DependsOn` as a temporary input because
+`ResourceDefinition` and persisted resource state remain string-backed for
+authored attributes. That should not become the desired long-term model for
+all relationships.
+
+`DependsOn` should remain a first-class optional collection on the resource
+record and interchange definition, not a normal inherited attribute. It is
+instance-specific graph metadata that gives an orchestrator a startup-order
+hint. Resource classes and resource types may eventually declare validation
+rules or expectations for dependencies, but they should not inherit concrete
+dependency values as attribute defaults because those values normally point at
+specific resource instances.
+
+For example, an `application.sql-database` resource belongs
+to an owning SQL Server resource. The SQL database type declares
+`database.server` as a built-in `ResourceReference` attribute type for that
+relationship, but the attribute is read-only and provider-managed. A SQL
+provider that materializes database children can set the `belongsTo`
+relationship when the database is created or projected. Users should not
+author or change it directly.
 
 When code sets or reads a typed attribute, the preferred API should allow the
 concrete CLR type, for example `ResourceReference`, rather than forcing every
