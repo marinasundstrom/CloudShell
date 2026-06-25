@@ -97,6 +97,10 @@ on `git blame --follow`, and then by the broad type of change.
 - The ProjectReference sample smoke test now stops the graph-backed ASP.NET
   Core project through the Control Plane action API and verifies the Resource
   Manager projection reports the stopped state.
+- The ProjectReference sample now exposes a sample-local ResourceDefinition
+  apply seam for the graph-backed ASP.NET Core project, and its smoke test
+  verifies a running graph resource can commit a configuration change while
+  returning the provider-owned restart-required diagnostic.
 - The graph-backed ASP.NET Core project runtime now retains a bounded
   provider-local process output buffer, and the ProjectReference sample adapts
   that output into a Control Plane `ILogProvider` so graph-declared log sources

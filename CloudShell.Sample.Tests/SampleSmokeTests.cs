@@ -203,6 +203,29 @@ public sealed class SampleSmokeTests
             check.GetProperty("check").GetProperty("type").GetInt32() == (int)ResourceProbeType.Liveness &&
             check.GetProperty("status").GetInt32() == (int)ResourceHealthStatus.Healthy);
 
+        var graphApplyJson = await host.SendJsonAsync(
+            HttpMethod.Post,
+            $"/project-reference/resource-graph/resources/{Uri.EscapeDataString(graphApiResourceId)}/environment-variables",
+            """
+            {
+              "name": "POC_GRAPH_UPDATE_MARKER",
+              "value": "applied"
+            }
+            """);
+        using var graphApplyDocument = JsonDocument.Parse(graphApplyJson);
+        var graphApply = graphApplyDocument.RootElement;
+        Assert.True(graphApply.GetProperty("committed").GetBoolean());
+        Assert.False(graphApply.GetProperty("hasErrors").GetBoolean());
+        Assert.Equal("Committed", graphApply.GetProperty("status").GetString());
+        Assert.True(graphApply.GetProperty("resultVersion").GetInt64() >
+            graphApply.GetProperty("baseVersion").GetInt64());
+        Assert.Contains(
+            graphApply.GetProperty("diagnostics").EnumerateArray(),
+            diagnostic =>
+                diagnostic.GetProperty("severity").GetString() == "Warning" &&
+                diagnostic.GetProperty("code").GetString() ==
+                    "application.aspNetCoreProject.restartRequired");
+
         var graphApiDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString(graphApiResourceId)}/details");
         Assert.Contains("Graph Project Reference API", graphApiDetailsHtml);
