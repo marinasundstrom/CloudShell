@@ -32,7 +32,9 @@ public static class ExecutableApplicationResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceDefinitionGraphValidator, VolumeConsumerGraphValidator>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceGraphDependencyProvider, VolumeConsumerGraphDependencyProvider>());
-        services.TryAddSingleton<IExecutableApplicationRuntimeController, NoopExecutableApplicationRuntimeController>();
+        services.TryAddSingleton<
+            IExecutableApplicationRuntimeController,
+            ExecutableApplicationProcessRuntimeController>();
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProvider, ExecutableStartOperationProvider>());
         services.TryAddEnumerable(

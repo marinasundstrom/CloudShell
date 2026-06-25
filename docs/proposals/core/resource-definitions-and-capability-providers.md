@@ -613,6 +613,25 @@ the pain and either remove it in the slice or add a concrete cleanup task. The
 Resource model should be compatible with Control Plane needs, but it should not
 be limited to Control Plane as its only possible consumer.
 
+Log sources are a good next concept to pull through this path. The existing
+Control Plane model is already source-first: resources can declare
+`ResourceLogSource` metadata, contributors can add `LogSource` records, and
+`ILogProvider` opens source-addressed read or stream sessions. The graph model
+should therefore model log-source declarations as provider-owned graph
+metadata or capability-shaped complex values, while live file handles, process
+streams, container log readers, retention, authorization filtering, and
+`ILogProvider` sessions remain Control Plane concerns.
+
+After log sources, health checks and liveness should be the next fundamental
+services to pull through the same boundary. They are used by the orchestrator
+and recovery flows, so the graph model should be able to declare health and
+liveness intent in a portable way. The Control Plane should still own polling,
+execution, observed snapshots, degradation policy, recovery decisions, and
+orchestrator inputs. In other words, the graph declares what can be observed
+and how a resource participates in liveness; Control Plane services decide
+when to observe it, how to store observations, and how those observations
+affect lifecycle or orchestration.
+
 Working plan and progress:
 
 | Step | Status | Notes |
@@ -627,6 +646,8 @@ Working plan and progress:
 | Decide minimal runtime state projection | Done | The bridge can accept an optional runtime-state resolver. `null` remains the neutral no-status case, lifecycle-capable graph resources fall back to `Unknown`, and observed runtime state can enable actions such as Restart without putting runtime loops into the graph model. |
 | Re-evaluate redundant or premature model concepts | Pending | `ResolvedResourceDefinition`, broad graph contexts/transactions, and compatibility adapters should be removed, renamed, or deferred if provider ports do not prove them necessary. Attribute value-state naming now has initial POC coverage for defined/unset and undefined/custom attributes. |
 | Use provider ports to find architectural baggage | Pending | After the ASP.NET Core vertical slice works, port the next providers in focused slices and record any old-provider baggage, compatibility pain, duplicated terminology, or model seams that do not help the graph/configuration model integrate with Control Plane runtime concerns. |
+| Pull log-source declarations into the graph model | Pending | Model source metadata as provider-owned graph declarations or capability-shaped complex values, then project them into Resource Manager `ResourceLogSource`/`LogSource` surfaces while keeping read/stream sessions in Control Plane `ILogProvider` implementations. |
+| Pull health and liveness declarations into the graph model | Pending | Model health-check and liveness intent as graph declarations that the orchestrator and Control Plane can resolve, while keeping polling, observed snapshots, degradation policy, and recovery decisions in Control Plane services. |
 | Port the next provider | Deferred | Continue only after the ASP.NET Core vertical slice proves the provider seam and exposes any needed model changes. Provider selection should favor the next concrete integration question over broad type-count coverage. |
 
 Attribute value-state naming needs one cleanup pass before the model is
@@ -1146,7 +1167,7 @@ not mean the existing operational provider can be turned off yet.
 
 | Provider or resource type | Status | New-model coverage | Remaining outside the POC |
 | --- | --- | --- | --- |
-| Executable application (`application.executable`) | Modeled as a reference provider | Type and class defaults, executable path validation and configuration, shared volume-consumer capability, start operation with an injected runtime-controller seam, typed wrapper, Resource Manager bridge projection and execution | Real local-process runtime integration, logs, endpoints, templates, and UI registration/update flow |
+| Executable application (`application.executable`) | Modeled as a reference provider | Type and class defaults, executable path validation and configuration, shared volume-consumer capability, start operation with an injected provider-owned process runtime controller, typed wrapper, Resource Manager bridge projection and execution | Command-shape attributes such as arguments and working directory, logs, endpoints, templates, and UI registration/update flow |
 | Local volume (`storage.volume`) | Modeled as a reference provider | Storage class and type defaults, medium validation, provision operation with an injected provider-owned provisioner seam, typed wrapper, apply planning, Resource Manager bridge projection | Provider-backed storage materialization, usage tracking, health, and monitoring |
 | Storage (`cloudshell.storage`) | Modeled as a narrow reference provider | Storage class/type defaults, provider/medium/location attributes, passive storage-provider and mount-provider capability markers, inspect operation with an injected provider-owned inspector seam, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Volume collection payloads, runtime filesystem availability and volume counts as capability members or operation plans, provider-backed storage materialization, health, monitoring, and UI registration/update flow |
 | CloudShell volume (`cloudshell.volume`) | Modeled as a narrow reference provider | Storage class/type defaults, provider/medium/location/subpath/access-mode/persistence attributes, passive storage-volume capability marker, typed `ResourceReference` storage dependencies, storage-reference graph validation, type-specific `storage.volume.provision` operation provider with an injected provider-owned provisioner seam, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Runtime filesystem availability as capability members or operation plans, provider-backed volume materialization, health, monitoring, and UI registration/update flow |
@@ -1777,6 +1798,16 @@ type. The same pattern can model health-check declarations, log-source
 declarations, endpoint declarations, and other structured provider-owned
 configuration without tying those declarations to JSON-specific schema
 constructs.
+
+Log-source declarations should follow that serializer-neutral shape pattern
+rather than becoming scalar attributes. A resource type may declare a default
+console source, or a specific resource may declare additional sources with
+source id, display name, kind, format, capabilities, origin, purpose,
+availability, and optional provider-specific configuration. The graph model
+only needs enough state to declare and project the source metadata. Control
+Plane `ILogSourceCatalog`, `ILogProvider`, and `ILogSourceSession` stay
+responsible for resolving the source into readable or streamable operational
+data.
 
 The POC resolver uses local reusable shape references when it validates
 definition defaults and actual resource attribute values, including nested
@@ -3574,6 +3605,12 @@ the Resource model becomes a replacement path:
   bridge layer that appears during provider ports. If it mostly translates old
   concepts into new ones, prefer replacing it with a provider-local service
   shaped around the new resource type.
+- Add missing command-shape attributes to the executable application graph
+  type when a concrete scenario needs them. The old application definition
+  supported arguments and working directory; the new executable process
+  controller deliberately starts from the current `executable.path` only so
+  the next slice can add those attributes intentionally instead of copying the
+  old record wholesale.
 
 ## Open Questions
 

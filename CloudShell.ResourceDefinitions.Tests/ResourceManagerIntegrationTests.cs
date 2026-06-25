@@ -438,6 +438,7 @@ public sealed class ResourceManagerIntegrationTests
     public async Task ResourceModelGraphResourceResolver_ResolvesResourceManagerActionToOperationProjection()
     {
         var services = new ServiceCollection();
+        services.AddSingleton<IExecutableApplicationRuntimeController, NoopExecutableApplicationRuntimeController>();
         services.AddInMemoryResourceModelGraph([CreateLocalVolumeState(), CreateExecutableState()]);
         services.AddLocalVolumeResourceType();
         services.AddExecutableApplicationResourceType();
@@ -512,6 +513,7 @@ public sealed class ResourceManagerIntegrationTests
     public async Task ResourceModelGraphProcedureProvider_ExecutesExecutableOperationProjection()
     {
         var services = new ServiceCollection();
+        services.AddSingleton<IExecutableApplicationRuntimeController, NoopExecutableApplicationRuntimeController>();
         services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
         services.AddExecutableApplicationResourceType();
         services.AddResourceModelGraphServices();

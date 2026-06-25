@@ -56,8 +56,21 @@ on `git blame --follow`, and then by the broad type of change.
 - Graph dependency resolution now lets provider-produced typed references
   refine older untyped dependency declarations for the same resource ID.
 - The executable application start operation now delegates runtime-facing start
-  behavior to an injected provider-owned runtime controller with a no-op POC
-  default.
+  behavior to an injected provider-owned process runtime controller by default,
+  with tests for missing command diagnostics and no-op controller overrides for
+  unit-level bridge dispatch.
+- The Resource model proposal now records the executable provider port finding
+  that command-shape attributes such as executable arguments and working
+  directory should be added intentionally when needed instead of copying the old
+  application definition record wholesale.
+- The Resource model proposal now records log-source declarations as a next
+  POC concept to pull into the graph model as provider-owned metadata or
+  capability-shaped complex values, while keeping log reads, streams, and
+  sessions in Control Plane `ILogProvider` implementations.
+- The Resource model proposal now records health checks and liveness as the
+  next fundamental service concepts after log sources, with graph declarations
+  feeding orchestrator and Control Plane services while polling, snapshots,
+  degradation policy, and recovery decisions remain Control Plane-owned.
 - ASP.NET Core project start/restart operations now use a provider-owned
   process runtime controller by default, keeping runtime execution behind the
   new provider seam without adapting old application-provider concepts into the
