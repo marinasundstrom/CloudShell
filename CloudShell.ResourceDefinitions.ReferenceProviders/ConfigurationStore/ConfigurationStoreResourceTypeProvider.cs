@@ -33,12 +33,12 @@ public sealed class ConfigurationStoreResourceTypeProvider :
         {
             [Attributes.ConfigurationKind] = new(
                 DefaultValue: "store",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.Endpoint] = new(
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.EntryCount] = new(
                 DefaultValue: 0,
-                ValueShape: new(ResourceAttributeValueKind.Integer),
+                ValueType: ResourceAttributeValueType.Integer,
                 ReadOnly: true,
                 Mutability: ResourceAttributeMutability.ProviderManaged)
         },

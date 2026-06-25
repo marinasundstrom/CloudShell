@@ -33,12 +33,12 @@ public sealed class SecretsVaultResourceTypeProvider :
         {
             [Attributes.SecretsKind] = new(
                 DefaultValue: "vault",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.Endpoint] = new(
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.SecretCount] = new(
                 DefaultValue: 0,
-                ValueShape: new(ResourceAttributeValueKind.Integer),
+                ValueType: ResourceAttributeValueType.Integer,
                 ReadOnly: true,
                 Mutability: ResourceAttributeMutability.ProviderManaged)
         },

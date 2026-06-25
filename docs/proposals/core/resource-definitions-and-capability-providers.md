@@ -1257,6 +1257,7 @@ class and type definitions carry attributes as a map keyed by
   "attributes": {
     "container:replicas": {
       "defaultValue": 1,
+      "valueType": "integer",
       "required": false,
       "readOnly": false,
       "mutability": "callerManaged"
@@ -1279,13 +1280,15 @@ resource-owned state or interchange value map, keyed by attribute ID directly:
 The attribute definition carries an optional default value,
 required-attribute intent, optional read-only intent, optional mutability
 intent, an optional required message, a description, and an optional
-serializer-neutral
-`ResourceAttributeValueShape`. Those definitions participate in normal
-resource resolution: class defaults are applied first, type defaults refine
-them, and resource-owned state still wins when the attribute is writable.
-Custom validation rules remain provider or platform validator hooks over the
-resolved `Resource`; the attribute definition is not intended to become a full
-provider configuration schema.
+serializer-neutral value type. The primitive value type set should stay small:
+`string`, `boolean`, `integer`, `floatingPoint`, and `complexType`.
+`ResourceAttributeValueKind` remains an implementation detail for parsed
+values, where document formats can still produce object and array values.
+Those definitions participate in normal resource resolution: class defaults
+are applied first, type defaults refine them, and resource-owned state still
+wins when the attribute is writable. Custom validation rules remain provider
+or platform validator hooks over the resolved `Resource`; the attribute
+definition is not intended to become a full provider configuration schema.
 
 `ReadOnly` should describe whether callers may set or change an attribute
 through authored `ResourceDefinition` input or graph change application.
@@ -1365,12 +1368,16 @@ would still apply to caller-authored resource state; class/type definition
 overrides would be definition-level model composition, not normal resource
 state mutation.
 
-When a class or type definition declares both `defaultValue` and
-`valueShape`, the resolver should validate that the default value matches the
-shape before treating the resolved resource as valid. This includes checking
-scalar kinds, object fields, required object fields, and array element shape.
-That validation proves the definition contract is internally coherent; it does
-not replace provider-owned validation of resource state or behavior.
+When a class or type definition declares both `defaultValue` and `valueType`,
+the resolver should validate that the default value matches the declared type
+before treating the resolved resource as valid. For `complexType` attributes,
+`valueShape` describes nested attributes by using the same
+`ResourceAttributeDefinition` model as top-level attributes. This keeps nested
+defaults, required flags, read-only intent, mutability, complex sub-shapes, and
+collection metadata on one definition contract instead of introducing a
+parallel field model. The validation proves the definition contract is
+internally coherent; it does not replace provider-owned validation of resource
+state or behavior.
 
 The current POC still keeps resolved attribute values and defaults
 string-based to avoid prematurely building the full value system. The intended
@@ -1378,22 +1385,31 @@ model should support scalar and complex attribute values, including structured
 object and collection values that can be rendered as JSON objects, YAML
 mappings, XML elements, or other document targets. `ResourceClassDefinition`
 and `ResourceTypeDefinition` should therefore describe attribute value shape in
-serializer-neutral CloudShell terms such as value kind, object fields, and
-array element shape, not by embedding `JsonElement` or another format-specific
-DOM as the definition contract. Format adapters can map the value object and
-shape descriptors to JSON, YAML, XML, database records, or compact persistence
-records at the boundary.
+serializer-neutral CloudShell terms such as value type and complex nested
+attribute definitions, not by embedding `JsonElement` or another
+format-specific DOM as the definition contract. Format adapters can map the
+value object and shape descriptors to JSON, YAML, XML, database records, or
+compact persistence records at the boundary.
+
 An attribute definition may define its complex value shape inline or reference
-a reusable shape declared separately by the class or type definition. Reusable
-shape definitions should describe the value/item shape, while the attribute
-definition separately declares collection semantics such as array, list, set,
-minimum item count, maximum item count, or uniqueness. For example, a
-`runtime:healthChecks` attribute can reference a reusable
-`runtime:healthCheck` object shape and declare `collection.kind = array`
-instead of defining a separate "array of health checks" type. The same pattern
-can model health-check declarations, log-source declarations, endpoint
-declarations, and other structured provider-owned configuration without
-tying those declarations to JSON-specific schema constructs.
+a reusable shape declared locally by the owning `ResourceClassDefinition` or
+`ResourceTypeDefinition`. Shared/common shape catalogs may become useful
+later, but the POC should keep reusable shapes local to the provider boundary
+so the model does not create another shared schema layer too early. A reusable
+shape definition is basically a named container of nested
+`ResourceAttributeDefinition` entries. The attribute definition separately
+declares collection intent and collection expectations. For now that means
+`isCollection` plus optional `collection.minSize` and `collection.maxSize`.
+The model deliberately does not distinguish array, list, set, or uniqueness
+semantics yet; those are future refinements if provider implementation work
+proves they matter. For example, a `runtime:healthChecks` attribute can
+declare `valueType = complexType`, reference a local reusable
+`runtime:healthCheck` shape, and set `isCollection = true` with
+`collection.minSize = 1` instead of defining a separate JSON-array-specific
+type. The same pattern can model health-check declarations, log-source
+declarations, endpoint declarations, and other structured provider-owned
+configuration without tying those declarations to JSON-specific schema
+constructs.
 
 Stable IDs should use `:` as the namespace separator and `.` for local
 hierarchy inside that namespace. For example, `container:replicas`,

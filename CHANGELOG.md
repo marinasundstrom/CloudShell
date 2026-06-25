@@ -88,10 +88,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager store projection tests now report persisted
   SettingsAndSecrets graph-record diagnostics and omit invalid typed identity
   dependencies from actionable Resource Manager dependency lists.
-- Resource attribute definitions can now reference reusable complex value
-  shape definitions and declare collection semantics separately from the item
-  shape, with descriptor coverage for health-check-style attribute
-  declarations.
+- Resource attribute definitions now separate a small `ValueType` contract
+  from complex `ValueShape` metadata, keep reusable shapes local to the owning
+  class/type definition, and declare collection intent with optional min/max
+  size expectations.
 - Resource Manager store projection tests now cover persisted Resource model
   records for an ApplicationTopology-shaped graph, proving the bridge can
   project stored graph records alongside Resource Manager registrations.
@@ -539,9 +539,9 @@ on `git blame --follow`, and then by the broad type of change.
   `ResourceTypeDefinition` carry `ResourceAttributeDefinition` declarations
   for scalar default values and required-attribute rules, while keeping custom
   validation in provider or platform validator hooks.
-- The resource definitions POC now adds serializer-neutral
+- The resource definitions POC now adds serializer-neutral value type and
   `ResourceAttributeValueShape` metadata so attribute definitions can describe
-  scalar values, object fields, and array element shapes without making JSON
+  primitive values and complex nested attribute definitions without making JSON
   the core definition contract.
 - The resource definitions POC now represents `ResourceClassDefinition` and
   `ResourceTypeDefinition` attributes as definition maps keyed by attribute

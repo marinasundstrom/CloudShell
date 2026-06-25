@@ -46,33 +46,33 @@ public sealed class LoadBalancerResourceTypeProvider :
         {
             [Attributes.Provider] = new(
                 DefaultValue: "logical",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.HostResourceId] = new(
                 DefaultValue: "default",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.EntrypointCount] = new(
                 DefaultValue: 0,
-                ValueShape: new(ResourceAttributeValueKind.Integer),
+                ValueType: ResourceAttributeValueType.Integer,
                 ReadOnly: true,
                 Mutability: ResourceAttributeMutability.ProviderManaged),
             [Attributes.RouteCount] = new(
                 DefaultValue: 0,
-                ValueShape: new(ResourceAttributeValueKind.Integer),
+                ValueType: ResourceAttributeValueType.Integer,
                 ReadOnly: true,
                 Mutability: ResourceAttributeMutability.ProviderManaged),
             [Attributes.HttpRouteCount] = new(
                 DefaultValue: 0,
-                ValueShape: new(ResourceAttributeValueKind.Integer),
+                ValueType: ResourceAttributeValueType.Integer,
                 ReadOnly: true,
                 Mutability: ResourceAttributeMutability.ProviderManaged),
             [Attributes.TcpRouteCount] = new(
                 DefaultValue: 0,
-                ValueShape: new(ResourceAttributeValueKind.Integer),
+                ValueType: ResourceAttributeValueType.Integer,
                 ReadOnly: true,
                 Mutability: ResourceAttributeMutability.ProviderManaged),
             [Attributes.EndpointCount] = new(
                 DefaultValue: 0,
-                ValueShape: new(ResourceAttributeValueKind.Integer),
+                ValueType: ResourceAttributeValueType.Integer,
                 ReadOnly: true,
                 Mutability: ResourceAttributeMutability.ProviderManaged)
         },

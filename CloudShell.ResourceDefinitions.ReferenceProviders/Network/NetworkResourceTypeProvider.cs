@@ -40,12 +40,12 @@ public sealed class NetworkResourceTypeProvider :
         {
             [Attributes.NetworkKind] = new(
                 DefaultValue: "Logical",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.HostReadiness] = new(
                 DefaultValue: "logicalOnly",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.MappingProviders] = new(
-                ValueShape: new(ResourceAttributeValueKind.String))
+                ValueType: ResourceAttributeValueType.String)
         },
         Capabilities:
         [

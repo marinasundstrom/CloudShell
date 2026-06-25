@@ -14,7 +14,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using DefinitionAttributeDefinition = CloudShell.ResourceDefinitions.ResourceAttributeDefinition;
 using DefinitionAttributeId = CloudShell.ResourceDefinitions.ResourceAttributeId;
-using DefinitionAttributeValueKind = CloudShell.ResourceDefinitions.ResourceAttributeValueKind;
+using DefinitionAttributeValueType = CloudShell.ResourceDefinitions.ResourceAttributeValueType;
 using DefinitionDiagnosticCodes = CloudShell.ResourceDefinitions.ResourceDefinitionDiagnosticCodes;
 using DefinitionCapabilityId = CloudShell.ResourceDefinitions.ResourceCapabilityId;
 using DefinitionGraphSnapshot = CloudShell.ResourceDefinitions.ResourceGraphSnapshot;
@@ -587,7 +587,7 @@ public sealed class ResourceManagerStoreProjectionTests
                         {
                             ["container:replicas"] = new(
                                 DefaultValue: "one",
-                                ValueShape: new(DefinitionAttributeValueKind.Integer))
+                                ValueType: DefinitionAttributeValueType.Integer)
                         })
                 ]));
         var store = new ResourceManagerStore(

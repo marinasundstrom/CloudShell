@@ -38,13 +38,13 @@ public sealed class IdentityProvisioningResourceTypeProvider :
         {
             [Attributes.InfrastructureKind] = new(
                 DefaultValue: "identity-provisioning",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.IdentityProvider] = new(
                 Required: true,
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.ProviderKind] = new(
                 DefaultValue: "oidc",
-                ValueShape: new(ResourceAttributeValueKind.String))
+                ValueType: ResourceAttributeValueType.String)
         },
         Capabilities:
         [

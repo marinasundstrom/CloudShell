@@ -40,19 +40,19 @@ public sealed class StorageResourceTypeProvider :
         {
             [Attributes.StorageKind] = new(
                 DefaultValue: "provider",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.Provider] = new(
                 DefaultValue: "Local Storage",
                 Required: true,
                 RequiredMessage: "Storage provider is required.",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.Medium] = new(
                 DefaultValue: "FileSystem",
                 Required: true,
                 RequiredMessage: "Storage medium is required.",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.Location] = new(
-                ValueShape: new(ResourceAttributeValueKind.String))
+                ValueType: ResourceAttributeValueType.String)
         },
         Capabilities:
         [

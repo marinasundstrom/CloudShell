@@ -25,8 +25,10 @@ public sealed record ResourceAttributeDefinition(
     bool Required = false,
     string? RequiredMessage = null,
     string? Description = null,
+    ResourceAttributeValueType? ValueType = null,
     ResourceAttributeValueShape? ValueShape = null,
     ResourceAttributeValueShapeId? ValueShapeId = null,
+    bool IsCollection = false,
     ResourceAttributeCollectionDefinition? Collection = null,
     bool? ReadOnly = null,
     ResourceAttributeMutability? Mutability = null);
@@ -36,28 +38,20 @@ public sealed record ResourceAttributeValueShapeDefinition(
     string? Description = null);
 
 public sealed record ResourceAttributeCollectionDefinition(
-    ResourceAttributeCollectionKind Kind,
-    int? MinItems = null,
-    int? MaxItems = null,
-    bool UniqueItems = false);
-
-public enum ResourceAttributeCollectionKind
-{
-    Array,
-    List,
-    Set
-}
+    int? MinSize = null,
+    int? MaxSize = null);
 
 public sealed record ResourceAttributeValueShape(
-    ResourceAttributeValueKind Kind,
-    IReadOnlyList<ResourceAttributeFieldDefinition>? Fields = null,
-    ResourceAttributeValueShape? ElementShape = null);
+    IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? Attributes = null);
 
-public sealed record ResourceAttributeFieldDefinition(
-    string Name,
-    ResourceAttributeValueShape ValueShape,
-    bool Required = false,
-    string? Description = null);
+public enum ResourceAttributeValueType
+{
+    String,
+    Boolean,
+    Integer,
+    FloatingPoint,
+    ComplexType
+}
 
 public enum ResourceAttributeValueKind
 {

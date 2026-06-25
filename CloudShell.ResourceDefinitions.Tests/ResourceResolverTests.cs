@@ -166,7 +166,7 @@ public sealed class ResourceResolverTests
                     Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
                     {
                         ["endpoints.count"] = new(
-                            ValueShape: new(ResourceAttributeValueKind.Integer),
+                            ValueType: ResourceAttributeValueType.Integer,
                             ReadOnly: true,
                             Mutability: ResourceAttributeMutability.ProviderManaged)
                     })
@@ -201,7 +201,7 @@ public sealed class ResourceResolverTests
                     Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
                     {
                         ["endpoints.count"] = new(
-                            ValueShape: new(ResourceAttributeValueKind.Integer),
+                            ValueType: ResourceAttributeValueType.Integer,
                             ReadOnly: true,
                             Mutability: ResourceAttributeMutability.ProviderManaged)
                     })
@@ -239,7 +239,7 @@ public sealed class ResourceResolverTests
                     {
                         ["container:replicas"] = new(
                             DefaultValue: "one",
-                            ValueShape: new(ResourceAttributeValueKind.Integer))
+                            ValueType: ResourceAttributeValueType.Integer)
                     })
             ]);
         var definition = new ResourceDefinition(
@@ -270,15 +270,14 @@ public sealed class ResourceResolverTests
                         ["identity:principal"] = new(
                             DefaultValue: ResourceAttributeValue.Object(
                                 new Dictionary<string, ResourceAttributeValue>()),
+                            ValueType: ResourceAttributeValueType.ComplexType,
                             ValueShape: new(
-                                ResourceAttributeValueKind.Object,
-                                Fields:
-                                [
-                                    new(
-                                        "subject",
-                                        new(ResourceAttributeValueKind.String),
+                                new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                                {
+                                    ["subject"] = new(
+                                        ValueType: ResourceAttributeValueType.String,
                                         Required: true)
-                                ]))
+                                }))
                     })
             ]);
         var definition = new ResourceDefinition(

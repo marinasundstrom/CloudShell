@@ -42,27 +42,27 @@ public sealed class CloudShellVolumeResourceTypeProvider :
         {
             [Attributes.StorageKind] = new(
                 DefaultValue: "volume",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.Provider] = new(
                 DefaultValue: "Local Storage",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.StorageMedium] = new(
                 DefaultValue: "FileSystem",
                 Required: true,
                 RequiredMessage: "Volume storage medium is required.",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.Location] = new(
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.SubPath] = new(
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.AccessMode] = new(
                 DefaultValue: "ReadWriteOnce",
                 Required: true,
                 RequiredMessage: "Volume access mode is required.",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.Persistent] = new(
                 DefaultValue: true,
-                ValueShape: new(ResourceAttributeValueKind.Boolean))
+                ValueType: ResourceAttributeValueType.Boolean)
         },
         Capabilities:
         [

@@ -43,15 +43,15 @@ public sealed class VirtualNetworkResourceTypeProvider :
         {
             [Attributes.NetworkKind] = new(
                 DefaultValue: "Virtual",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.IsDefault] = new(
                 DefaultValue: false,
-                ValueShape: new(ResourceAttributeValueKind.Boolean)),
+                ValueType: ResourceAttributeValueType.Boolean),
             [Attributes.HostReadiness] = new(
                 DefaultValue: "logicalOnly",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.MappingProviders] = new(
-                ValueShape: new(ResourceAttributeValueKind.String))
+                ValueType: ResourceAttributeValueType.String)
         },
         Capabilities:
         [

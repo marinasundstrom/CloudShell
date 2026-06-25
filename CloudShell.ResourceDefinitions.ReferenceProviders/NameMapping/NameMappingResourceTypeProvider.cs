@@ -34,13 +34,13 @@ public sealed class NameMappingResourceTypeProvider :
             [Attributes.HostName] = new(
                 Required: true,
                 RequiredMessage: "Name-mapping host name is required.",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.TargetEndpointName] = new(
                 DefaultValue: "default",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.Exposure] = new(
                 DefaultValue: "Public",
-                ValueShape: new(ResourceAttributeValueKind.String))
+                ValueType: ResourceAttributeValueType.String)
         },
         Capabilities:
         [

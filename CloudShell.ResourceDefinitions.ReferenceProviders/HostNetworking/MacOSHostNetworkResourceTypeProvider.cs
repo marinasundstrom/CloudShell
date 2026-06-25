@@ -43,16 +43,16 @@ public sealed class MacOSHostNetworkResourceTypeProvider :
         {
             [Attributes.InfrastructureKind] = new(
                 DefaultValue: "hostNetworking",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.HostReadiness] = new(
                 DefaultValue: "ready",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.HostOperatingSystem] = new(
                 DefaultValue: "macos",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.NetworkingMode] = new(
                 DefaultValue: "localProxy",
-                ValueShape: new(ResourceAttributeValueKind.String))
+                ValueType: ResourceAttributeValueType.String)
         },
         Capabilities:
         [

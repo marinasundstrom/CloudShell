@@ -42,23 +42,23 @@ public sealed class DockerHostResourceTypeProvider :
         {
             [Attributes.InfrastructureKind] = new(
                 DefaultValue: "containerHost",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.HostKind] = new(
                 DefaultValue: "local",
                 Required: true,
                 RequiredMessage: "Docker host kind is required.",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.Endpoint] = new(
                 DefaultValue: "unix:///var/run/docker.sock",
                 Required: true,
                 RequiredMessage: "Docker host endpoint is required.",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.Registry] = new(
                 DefaultValue: "docker.io",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.IsDefault] = new(
                 DefaultValue: true,
-                ValueShape: new(ResourceAttributeValueKind.Boolean))
+                ValueType: ResourceAttributeValueType.Boolean)
         },
         Capabilities:
         [

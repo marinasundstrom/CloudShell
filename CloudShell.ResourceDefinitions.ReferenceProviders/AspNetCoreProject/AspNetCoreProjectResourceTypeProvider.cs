@@ -37,15 +37,15 @@ public sealed class AspNetCoreProjectResourceTypeProvider :
             [Attributes.ProjectPath] = new(
                 Required: true,
                 RequiredMessage: "ASP.NET Core project path is required.",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.ProjectArguments] = new(
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.HotReload] = new(
                 DefaultValue: true,
-                ValueShape: new(ResourceAttributeValueKind.Boolean)),
+                ValueType: ResourceAttributeValueType.Boolean),
             [Attributes.UseLaunchSettings] = new(
                 DefaultValue: true,
-                ValueShape: new(ResourceAttributeValueKind.Boolean))
+                ValueType: ResourceAttributeValueType.Boolean)
         },
         Operations:
         [

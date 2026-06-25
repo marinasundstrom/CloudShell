@@ -544,7 +544,7 @@ public sealed class ResourceResolver
         foreach (var (name, attributeDefinition) in attributeDefinitions)
         {
             if (attributeDefinition.DefaultValue is null ||
-                attributeDefinition.ValueShape is null)
+                attributeDefinition.ValueType is null)
             {
                 continue;
             }
@@ -553,7 +553,7 @@ public sealed class ResourceResolver
                 name.ToString(),
                 name,
                 attributeDefinition.DefaultValue,
-                attributeDefinition.ValueShape,
+                attributeDefinition,
                 source,
                 diagnostics);
         }
@@ -563,76 +563,136 @@ public sealed class ResourceResolver
         string path,
         ResourceAttributeId target,
         ResourceAttributeValue value,
-        ResourceAttributeValueShape shape,
+        ResourceAttributeDefinition definition,
         ResourceDefinitionValueSource source,
         List<ResourceDefinitionDiagnostic> diagnostics)
     {
-        if (!AttributeValueMatchesShape(value, shape))
+        if (definition.ValueType is null)
+        {
+            return;
+        }
+
+        if (definition.IsCollection)
+        {
+            ValidateAttributeDefinitionCollectionDefault(
+                path,
+                target,
+                value,
+                definition,
+                source,
+                diagnostics);
+            return;
+        }
+
+        if (!AttributeValueMatchesType(value, definition.ValueType.Value))
         {
             diagnostics.Add(ResourceDefinitionDiagnostic.Error(
                 ResourceDefinitionDiagnosticCodes.AttributeDefinitionDefaultInvalid,
-                $"Attribute default '{path}' from {source} has value kind '{value.Kind}' but declares shape '{shape.Kind}'.",
+                $"Attribute default '{path}' from {source} has value kind '{value.Kind}' but declares type '{definition.ValueType}'.",
                 target));
             return;
         }
 
-        if (shape.Kind == ResourceAttributeValueKind.Object &&
-            shape.Fields is not null)
+        if (definition.ValueType == ResourceAttributeValueType.ComplexType &&
+            definition.ValueShape?.Attributes is not null)
         {
             var objectValue = value.ObjectValue ?? new Dictionary<string, ResourceAttributeValue>();
 
-            foreach (var field in shape.Fields)
+            foreach (var (fieldName, fieldDefinition) in definition.ValueShape.Attributes)
             {
-                if (!objectValue.TryGetValue(field.Name, out var fieldValue))
+                if (!objectValue.TryGetValue(fieldName.ToString(), out var fieldValue))
                 {
-                    if (field.Required)
+                    if (fieldDefinition.Required)
                     {
                         diagnostics.Add(ResourceDefinitionDiagnostic.Error(
                             ResourceDefinitionDiagnosticCodes.AttributeDefinitionDefaultInvalid,
-                            $"Attribute default '{path}' from {source} is missing required field '{field.Name}'.",
-                            $"{target}.{field.Name}"));
+                            $"Attribute default '{path}' from {source} is missing required field '{fieldName}'.",
+                            $"{target}.{fieldName}"));
                     }
 
                     continue;
                 }
 
                 ValidateAttributeDefinitionDefault(
-                    $"{path}.{field.Name}",
+                    $"{path}.{fieldName}",
                     target,
                     fieldValue,
-                    field.ValueShape,
+                    fieldDefinition,
                     source,
                     diagnostics);
-            }
-        }
-
-        if (shape.Kind == ResourceAttributeValueKind.Array &&
-            shape.ElementShape is not null)
-        {
-            var index = 0;
-
-            foreach (var element in value.ArrayValue ?? [])
-            {
-                ValidateAttributeDefinitionDefault(
-                    $"{path}[{index}]",
-                    target,
-                    element,
-                    shape.ElementShape,
-                    source,
-                    diagnostics);
-                index++;
             }
         }
     }
 
-    private static bool AttributeValueMatchesShape(
+    private static void ValidateAttributeDefinitionCollectionDefault(
+        string path,
+        ResourceAttributeId target,
         ResourceAttributeValue value,
-        ResourceAttributeValueShape shape) =>
-        shape.Kind switch
+        ResourceAttributeDefinition definition,
+        ResourceDefinitionValueSource source,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        if (value.Kind != ResourceAttributeValueKind.Array)
         {
-            ResourceAttributeValueKind.Decimal => value.Kind is
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                ResourceDefinitionDiagnosticCodes.AttributeDefinitionDefaultInvalid,
+                $"Attribute default '{path}' from {source} has value kind '{value.Kind}' but declares a collection.",
+                target));
+            return;
+        }
+
+        var values = value.ArrayValue ?? [];
+
+        if (definition.Collection?.MinSize is not null &&
+            values.Count < definition.Collection.MinSize.Value)
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                ResourceDefinitionDiagnosticCodes.AttributeDefinitionDefaultInvalid,
+                $"Attribute default '{path}' from {source} has {values.Count} item(s) but requires at least {definition.Collection.MinSize.Value}.",
+                target));
+        }
+
+        if (definition.Collection?.MaxSize is not null &&
+            values.Count > definition.Collection.MaxSize.Value)
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                ResourceDefinitionDiagnosticCodes.AttributeDefinitionDefaultInvalid,
+                $"Attribute default '{path}' from {source} has {values.Count} item(s) but allows at most {definition.Collection.MaxSize.Value}.",
+                target));
+        }
+
+        var itemDefinition = definition with
+        {
+            IsCollection = false,
+            Collection = null
+        };
+        var index = 0;
+
+        foreach (var element in values)
+        {
+            ValidateAttributeDefinitionDefault(
+                $"{path}[{index}]",
+                target,
+                element,
+                itemDefinition,
+                source,
+                diagnostics);
+            index++;
+        }
+    }
+
+    private static bool AttributeValueMatchesType(
+        ResourceAttributeValue value,
+        ResourceAttributeValueType valueType) =>
+        valueType switch
+        {
+            ResourceAttributeValueType.String => value.Kind == ResourceAttributeValueKind.String,
+            ResourceAttributeValueType.Boolean => value.Kind == ResourceAttributeValueKind.Boolean,
+            ResourceAttributeValueType.Integer => value.Kind == ResourceAttributeValueKind.Integer,
+            ResourceAttributeValueType.FloatingPoint => value.Kind is
                 ResourceAttributeValueKind.Decimal or ResourceAttributeValueKind.Integer,
-            _ => value.Kind == shape.Kind
+            ResourceAttributeValueType.ComplexType => value.Kind == ResourceAttributeValueKind.Object,
+            _ => false
         };
 
     private static void ValidateRequiredCapabilities(

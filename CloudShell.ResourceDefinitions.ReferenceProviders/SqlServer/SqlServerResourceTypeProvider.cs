@@ -36,10 +36,10 @@ public sealed class SqlServerResourceTypeProvider :
                 DefaultValue: "2022",
                 Required: true,
                 RequiredMessage: "SQL Server version is required.",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.Edition] = new(
                 DefaultValue: "Developer",
-                ValueShape: new(ResourceAttributeValueKind.String))
+                ValueType: ResourceAttributeValueType.String)
         },
         Operations:
         [

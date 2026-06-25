@@ -39,7 +39,7 @@ public sealed class LocalVolumeResourceTypeProvider :
                 DefaultValue: "local",
                 Required: true,
                 RequiredMessage: "Storage medium is required.",
-                ValueShape: new(ResourceAttributeValueKind.String))
+                ValueType: ResourceAttributeValueType.String)
         },
         Operations:
         [

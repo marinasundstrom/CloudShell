@@ -37,10 +37,10 @@ public sealed class ServiceResourceTypeProvider :
         {
             [Attributes.ServiceKind] = new(
                 DefaultValue: "service",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.RoutingMode] = new(
                 DefaultValue: "logical",
-                ValueShape: new(ResourceAttributeValueKind.String))
+                ValueType: ResourceAttributeValueType.String)
         },
         Capabilities:
         [

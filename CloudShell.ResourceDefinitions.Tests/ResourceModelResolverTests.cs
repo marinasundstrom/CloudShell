@@ -62,9 +62,9 @@ public sealed class ResourceModelResolverTests
                     "container",
                     Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
                     {
-                        ["container.image"] = new(ValueShape: new(ResourceAttributeValueKind.String)),
+                        ["container.image"] = new(ValueType: ResourceAttributeValueType.String),
                         ["endpoints.count"] = new(
-                            ValueShape: new(ResourceAttributeValueKind.Integer),
+                            ValueType: ResourceAttributeValueType.Integer,
                             ReadOnly: true,
                             Mutability: ResourceAttributeMutability.ProviderManaged)
                     })

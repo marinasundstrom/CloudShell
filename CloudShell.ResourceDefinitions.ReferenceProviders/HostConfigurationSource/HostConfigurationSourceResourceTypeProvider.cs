@@ -33,13 +33,13 @@ public sealed class HostConfigurationSourceResourceTypeProvider :
         {
             [Attributes.ConfigurationKind] = new(
                 DefaultValue: "host",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.Source] = new(
                 DefaultValue: "host",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.EntryCount] = new(
                 DefaultValue: 0,
-                ValueShape: new(ResourceAttributeValueKind.Integer),
+                ValueType: ResourceAttributeValueType.Integer,
                 ReadOnly: true,
                 Mutability: ResourceAttributeMutability.ProviderManaged)
         },

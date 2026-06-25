@@ -35,13 +35,13 @@ public sealed class SqlDatabaseResourceTypeProvider :
             [Attributes.DatabaseName] = new(
                 Required: true,
                 RequiredMessage: "SQL database name is required.",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.Source] = new(
                 DefaultValue: "declared",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.EnsureCreated] = new(
                 DefaultValue: false,
-                ValueShape: new(ResourceAttributeValueKind.Boolean))
+                ValueType: ResourceAttributeValueType.Boolean)
         },
         Operations:
         [

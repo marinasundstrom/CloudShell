@@ -36,13 +36,13 @@ public sealed class ContainerApplicationResourceTypeProvider :
             [Attributes.ContainerImage] = new(
                 Required: true,
                 RequiredMessage: "Container image is required.",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.ContainerRegistry] = new(
                 DefaultValue: "docker.io",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.ContainerReplicas] = new(
                 DefaultValue: 1,
-                ValueShape: new(ResourceAttributeValueKind.Integer))
+                ValueType: ResourceAttributeValueType.Integer)
         },
         Operations:
         [

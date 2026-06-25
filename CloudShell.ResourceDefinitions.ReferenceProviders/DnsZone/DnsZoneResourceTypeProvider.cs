@@ -38,10 +38,10 @@ public sealed class DnsZoneResourceTypeProvider :
             [Attributes.ZoneName] = new(
                 Required: true,
                 RequiredMessage: "DNS zone name is required.",
-                ValueShape: new(ResourceAttributeValueKind.String)),
+                ValueType: ResourceAttributeValueType.String),
             [Attributes.Provider] = new(
                 DefaultValue: "logical",
-                ValueShape: new(ResourceAttributeValueKind.String))
+                ValueType: ResourceAttributeValueType.String)
         },
         Capabilities:
         [

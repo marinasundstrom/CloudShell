@@ -17,42 +17,38 @@ public sealed class ResourceDefinitionDescriptorTests
                     Required: true,
                     RequiredMessage: "Principal is required.",
                     Description: "Identity information used by the identity capability.",
+                    ValueType: ResourceAttributeValueType.ComplexType,
                     ValueShape: new(
-                        ResourceAttributeValueKind.Object,
-                        Fields:
-                        [
-                            new(
-                                "subject",
-                                new(ResourceAttributeValueKind.String),
+                        new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                        {
+                            ["subject"] = new(
+                                ValueType: ResourceAttributeValueType.String,
                                 Required: true),
-                            new(
-                                "claims",
-                                new(
-                                    ResourceAttributeValueKind.Array,
-                                    ElementShape: new(
-                                        ResourceAttributeValueKind.Object,
-                                        Fields:
-                                        [
-                                            new(
-                                                "type",
-                                                new(ResourceAttributeValueKind.String),
-                                                Required: true),
-                                            new(
-                                                "value",
-                                                new(ResourceAttributeValueKind.String),
-                                                Required: true)
-                                        ])))
-                        ]))
+                            ["claims"] = new(
+                                ValueType: ResourceAttributeValueType.ComplexType,
+                                ValueShape: new(
+                                    new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                                    {
+                                        ["type"] = new(
+                                            ValueType: ResourceAttributeValueType.String,
+                                            Required: true),
+                                        ["value"] = new(
+                                            ValueType: ResourceAttributeValueType.String,
+                                            Required: true)
+                                    }),
+                                IsCollection: true)
+                        }))
             });
 
         var (attributeName, attribute) = Assert.Single(typeDefinition.Attributes!);
         Assert.Equal("principal", attributeName);
+        Assert.Equal(ResourceAttributeValueType.ComplexType, attribute.ValueType);
         Assert.NotNull(attribute.ValueShape);
-        Assert.Equal(ResourceAttributeValueKind.Object, attribute.ValueShape.Kind);
 
-        var claims = Assert.Single(attribute.ValueShape.Fields!, field => field.Name == "claims");
-        Assert.Equal(ResourceAttributeValueKind.Array, claims.ValueShape.Kind);
-        Assert.Equal(ResourceAttributeValueKind.Object, claims.ValueShape.ElementShape?.Kind);
+        var claims = attribute.ValueShape.Attributes!["claims"];
+        Assert.Equal(ResourceAttributeValueType.ComplexType, claims.ValueType);
+        Assert.True(claims.IsCollection);
+        Assert.NotNull(claims.ValueShape);
     }
 
     [Fact]
@@ -64,12 +60,14 @@ public sealed class ResourceDefinitionDescriptorTests
             Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
             {
                 ["principal"] = new(
+                    ValueType: ResourceAttributeValueType.ComplexType,
                     ValueShape: new(
-                        ResourceAttributeValueKind.Object,
-                        Fields:
-                        [
-                            new("subject", new(ResourceAttributeValueKind.String), Required: true)
-                        ]))
+                        new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                        {
+                            ["subject"] = new(
+                                ValueType: ResourceAttributeValueType.String,
+                                Required: true)
+                        }))
             });
 
         var json = JsonSerializer.Serialize(typeDefinition, JsonSerializerOptions.Web);
@@ -78,11 +76,11 @@ public sealed class ResourceDefinitionDescriptorTests
         Assert.NotNull(roundTrip);
         var (attributeName, attribute) = Assert.Single(roundTrip.Attributes!);
         Assert.Equal("principal", attributeName);
+        Assert.Equal(ResourceAttributeValueType.ComplexType, attribute.ValueType);
         Assert.NotNull(attribute.ValueShape);
-        Assert.Equal(ResourceAttributeValueKind.Object, attribute.ValueShape.Kind);
-        var field = Assert.Single(attribute.ValueShape.Fields!);
-        Assert.Equal("subject", field.Name);
-        Assert.Equal(ResourceAttributeValueKind.String, field.ValueShape.Kind);
+        var (fieldName, field) = Assert.Single(attribute.ValueShape.Attributes!);
+        Assert.Equal("subject", fieldName);
+        Assert.Equal(ResourceAttributeValueType.String, field.ValueType);
         Assert.True(field.Required);
     }
 
@@ -96,22 +94,23 @@ public sealed class ResourceDefinitionDescriptorTests
             {
                 ["runtime:healthChecks"] = new(
                     Description: "Declared health checks evaluated by the runtime provider.",
+                    ValueType: ResourceAttributeValueType.ComplexType,
                     ValueShapeId: "runtime:healthCheck",
-                    Collection: new(
-                        ResourceAttributeCollectionKind.Array,
-                        MinItems: 1))
+                    IsCollection: true,
+                    Collection: new(MinSize: 1))
             },
             AttributeValueShapes: new Dictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>
             {
                 ["runtime:healthCheck"] = new(
                     new(
-                        ResourceAttributeValueKind.Object,
-                        Fields:
-                        [
-                            new("name", new(ResourceAttributeValueKind.String), Required: true),
-                            new("path", new(ResourceAttributeValueKind.String)),
-                            new("intervalSeconds", new(ResourceAttributeValueKind.Integer))
-                        ]),
+                        new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                        {
+                            ["name"] = new(
+                                ValueType: ResourceAttributeValueType.String,
+                                Required: true),
+                            ["path"] = new(ValueType: ResourceAttributeValueType.String),
+                            ["intervalSeconds"] = new(ValueType: ResourceAttributeValueType.Integer)
+                        }),
                     "Reusable health-check declaration shape.")
             });
 
@@ -120,18 +119,16 @@ public sealed class ResourceDefinitionDescriptorTests
 
         Assert.NotNull(roundTrip);
         var (_, attribute) = Assert.Single(roundTrip.Attributes!);
+        Assert.Equal(ResourceAttributeValueType.ComplexType, attribute.ValueType);
         Assert.Equal("runtime:healthCheck", attribute.ValueShapeId?.ToString());
+        Assert.True(attribute.IsCollection);
         Assert.NotNull(attribute.Collection);
-        Assert.Equal(ResourceAttributeCollectionKind.Array, attribute.Collection.Kind);
-        Assert.Equal(1, attribute.Collection.MinItems);
+        Assert.Equal(1, attribute.Collection.MinSize);
         var (shapeId, shapeDefinition) = Assert.Single(roundTrip.AttributeValueShapes!);
         Assert.Equal("runtime:healthCheck", shapeId);
-        Assert.Equal(ResourceAttributeValueKind.Object, shapeDefinition.Shape.Kind);
-        Assert.Contains(
-            shapeDefinition.Shape.Fields ?? [],
-            field => field.Name == "name" &&
-                field.Required &&
-                field.ValueShape.Kind == ResourceAttributeValueKind.String);
+        var name = shapeDefinition.Shape.Attributes!["name"];
+        Assert.True(name.Required);
+        Assert.Equal(ResourceAttributeValueType.String, name.ValueType);
     }
 
     [Fact]
@@ -145,7 +142,7 @@ public sealed class ResourceDefinitionDescriptorTests
                 ["container.replicas"] = new(
                     DefaultValue: 1,
                     Required: false,
-                    ValueShape: new(ResourceAttributeValueKind.Integer))
+                    ValueType: ResourceAttributeValueType.Integer)
             });
 
         var json = JsonSerializer.Serialize(typeDefinition, JsonSerializerOptions.Web);
