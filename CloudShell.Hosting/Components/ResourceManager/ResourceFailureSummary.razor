@@ -47,7 +47,7 @@
                     ResourceId: Resource.Id,
                     MaxEvents: MaxEvents));
 
-            Failure = ResourceFailureSignalResolver.GetActiveFailure(events);
+            Failure = ResourceFailureSignalResolver.GetActiveFailure(Resource, events);
         }
         catch (Exception exception)
         {

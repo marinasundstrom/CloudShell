@@ -17,6 +17,10 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Fixed
 
+- Replica aggregate liveness no longer reports a parent application as stopped
+  from transient no-response checks, and Resource Manager suppresses stale
+  liveness failure banners when the current resource state no longer matches
+  the activity event.
 - Container app stop now removes replicated project container instances and
   clears the parent application runtime state, preventing stopped replicas from
   remaining as discovered Docker resources in the current environment.
