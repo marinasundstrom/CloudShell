@@ -1520,7 +1520,15 @@ public sealed class ResourceProviderDispatcherTests
 
         Assert.NotNull(projection);
         Assert.Equal("appdb", projection.DatabaseName);
+        Assert.Equal(server.EffectiveResourceId, projection.OwningServerResourceId);
         Assert.Equal(server.EffectiveResourceId, projection.ServerResourceId);
+        Assert.NotNull(projection.OwningServerReference);
+        Assert.Equal(
+            ResourceReferenceRelationships.BelongsTo,
+            projection.OwningServerReference.Relationship);
+        Assert.Equal(
+            SqlServerResourceTypeProvider.ResourceTypeId,
+            projection.OwningServerReference.TypeId);
         Assert.True(projection.EnsureCreated);
         Assert.Equal("declared", projection.Source);
 

@@ -9,7 +9,7 @@ public sealed class SqlDatabaseGraphDependencyProvider : IResourceGraphDependenc
     {
         ArgumentNullException.ThrowIfNull(resource);
 
-        return SqlDatabaseResourceTypeProvider.TryGetServerResourceId(
+        return SqlDatabaseResourceTypeProvider.TryGetServerDependencyResourceId(
             resource.State,
             out var serverResourceId)
             ? [ResourceReference.ResourceId(

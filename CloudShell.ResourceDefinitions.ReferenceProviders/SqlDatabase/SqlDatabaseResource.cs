@@ -9,12 +9,16 @@ public sealed class SqlDatabaseResource(
         Resource.Attributes.GetString(
             SqlDatabaseResourceTypeProvider.Attributes.DatabaseName);
 
-    public string? ServerResourceId =>
-        SqlDatabaseResourceTypeProvider.TryGetServerResourceId(
+    public ResourceReference? OwningServerReference =>
+        SqlDatabaseResourceTypeProvider.TryGetServerDependencyResourceId(
             Resource.State,
             out var serverResourceId)
-            ? serverResourceId
+            ? SqlDatabaseResourceTypeProvider.CreateOwningServerReference(serverResourceId)
             : null;
+
+    public string? OwningServerResourceId => OwningServerReference?.Value;
+
+    public string? ServerResourceId => OwningServerResourceId;
 
     public string? Source =>
         Resource.Attributes.GetString(

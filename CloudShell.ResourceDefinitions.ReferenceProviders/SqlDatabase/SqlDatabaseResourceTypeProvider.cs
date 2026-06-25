@@ -162,18 +162,18 @@ public sealed class SqlDatabaseResourceTypeProvider :
         ResourceState state,
         List<ResourceDefinitionDiagnostic> diagnostics)
     {
-        if (TryGetServerResourceId(state, out _))
+        if (TryGetServerDependencyResourceId(state, out _))
         {
             return;
         }
 
         diagnostics.Add(ResourceDefinitionDiagnostic.Error(
             "application.sqlDatabase.serverReferenceRequired",
-            "SQL database server reference is required.",
+            "SQL database owning server reference is required; the current POC supplies it through DependsOn.",
             "dependsOn"));
     }
 
-    internal static bool TryGetServerResourceId(
+    internal static bool TryGetServerDependencyResourceId(
         ResourceState state,
         out string serverResourceId)
     {
@@ -188,6 +188,13 @@ public sealed class SqlDatabaseResourceTypeProvider :
         serverResourceId = string.Empty;
         return false;
     }
+
+    internal static ResourceReference CreateOwningServerReference(string serverResourceId) =>
+        ResourceReference.ResourceId(
+            serverResourceId,
+            ResourceReferenceRelationships.BelongsTo,
+            SqlServerResourceTypeProvider.ResourceTypeId,
+            SqlServerResourceTypeProvider.ProviderId);
 
     private static void ValidateUnsupportedServerAttribute(
         ResourceState state,

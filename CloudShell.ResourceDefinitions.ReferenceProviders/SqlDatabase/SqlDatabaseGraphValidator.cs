@@ -13,7 +13,7 @@ public sealed class SqlDatabaseGraphValidator : IResourceDefinitionGraphValidato
         foreach (var resource in context.Resources.Where(resource =>
             resource.Type.TypeId == SqlDatabaseResourceTypeProvider.ResourceTypeId))
         {
-            if (!SqlDatabaseResourceTypeProvider.TryGetServerResourceId(
+            if (!SqlDatabaseResourceTypeProvider.TryGetServerDependencyResourceId(
                     resource.State,
                     out var serverResourceId))
             {

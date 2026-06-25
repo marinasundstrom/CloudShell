@@ -104,6 +104,9 @@ on `git blame --follow`, and then by the broad type of change.
 - SQL database validation now rejects caller-authored values for
   `database.server`; the current POC still uses existing `DependsOn` inputs as
   temporary validation plumbing, but not as the long-term ownership model.
+- The SQL database typed wrapper now projects its owning server as a
+  `belongsTo` `ResourceReference`, keeping ownership separate from startup
+  dependency traversal.
 - Resource references now distinguish generic `resourceId` addressing from
   `dependsOn` dependency semantics so future `belongsTo` references can be
   resolved without becoming startup dependencies.
