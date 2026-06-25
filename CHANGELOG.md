@@ -62,6 +62,10 @@ on `git blame --follow`, and then by the broad type of change.
   process runtime controller by default, keeping runtime execution behind the
   new provider seam without adapting old application-provider concepts into the
   Resource model.
+- The ProjectReference sample now registers a graph-backed ASP.NET Core
+  project resource through the Resource model bridge provider, giving the POC a
+  concrete host path for starting a project resource through the new provider
+  model.
 - The local host networking reconcile operation now delegates endpoint-mapping
   work to an injected provider-owned reconciler with a no-op POC default,
   matching the provider-integration pattern without moving runtime logic into

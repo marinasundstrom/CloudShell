@@ -547,6 +547,11 @@ runtime controller that reads `project.path`, `project.arguments`, and
 `project.hotReload` directly from the resolved Resource projection. It should
 not adapt the old application-provider definition/store terminology back into
 the new provider model.
+The ProjectReference sample now includes a graph-backed ASP.NET Core project
+resource registered through the Resource Manager bridge provider. That sample
+path is intentionally narrow: it proves Resource Manager can list and dispatch
+operations to a resolved graph resource while the concrete process behavior is
+owned by the ASP.NET Core reference provider.
 
 The bridge project should own registration helpers for this integration seam.
 Hosts can register a graph-backed Resource model provider as an existing

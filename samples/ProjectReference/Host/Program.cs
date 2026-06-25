@@ -6,6 +6,10 @@ using CloudShell.Hosting.Components;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
 using CloudShell.Providers.Applications;
+using CloudShell.ResourceDefinitions;
+using CloudShell.ResourceDefinitions.ReferenceProviders;
+using CloudShell.ResourceDefinitions.ResourceManager;
+using ResourceGraphState = CloudShell.ResourceDefinitions.ResourceState;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 
@@ -19,9 +23,38 @@ var metricIngestEndpoint = builder.Configuration["Observability:MetricIngestEndp
     ?? $"{cloudShellEndpoint}/api/control-plane/v1/metrics/ingest";
 var frontendEndpoint = builder.Configuration["ProjectReference:FrontendEndpoint"]
     ?? "http://localhost:5218";
+var graphApiResourceId = "application.aspnet-core-project:graph-project-reference-api";
+var graphApiProjectPath = Path.GetFullPath(
+    "../Api/CloudShell.ProjectReferenceApi.csproj",
+    builder.Environment.ContentRootPath);
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
+builder.Services
+    .AddInMemoryResourceModelGraph(
+    [
+        new ResourceGraphState(
+            "graph-project-reference-api",
+            AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
+            ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
+            DisplayName: "Graph Project Reference API",
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] =
+                    graphApiProjectPath,
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectArguments] =
+                    "--urls http://localhost:5229",
+                [AspNetCoreProjectResourceTypeProvider.Attributes.HotReload] =
+                    bool.FalseString.ToLowerInvariant(),
+                [AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings] =
+                    bool.FalseString.ToLowerInvariant()
+            })
+    ])
+    .AddAspNetCoreProjectResourceType()
+    .AddResourceModelGraphServices()
+    .AddResourceModelGraphProcedureProvider(
+        ResourceModelResourceProvider.DefaultProviderId,
+        "Resource model");
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()
@@ -58,6 +91,10 @@ cloudShell.Resources(resources =>
         .WithServiceDiscovery()
         .WithReference(api)
         .DependsOn(api);
+
+    resources.Declare(
+        ResourceModelResourceProvider.DefaultProviderId,
+        graphApiResourceId);
 });
 
 var app = builder.Build();
