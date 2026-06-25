@@ -59,6 +59,11 @@ on `git blame --follow`, and then by the broad type of change.
   behavior to an injected provider-owned process runtime controller by default,
   with tests for missing command diagnostics and no-op controller overrides for
   unit-level bridge dispatch.
+- ResourceDefinitions now include a serializer-neutral `logs.sources`
+  capability payload for graph-declared log-source metadata, and executable
+  application plus ASP.NET Core project providers project their default console
+  source into Resource Manager `ResourceLogSource` metadata while leaving log
+  read/stream sessions in Control Plane providers.
 - The Resource model proposal now records the executable provider port finding
   that command-shape attributes such as executable arguments and working
   directory should be added intentionally when needed instead of copying the old

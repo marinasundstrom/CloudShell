@@ -35,6 +35,12 @@ public sealed class ExecutableApplicationResourceTypeProvider :
                 RequiredMessage: "Executable path is required.",
                 ValueType: ResourceAttributeValueType.String)
         },
+        Capabilities:
+        [
+            new(
+                ResourceLogSourceCapabilityIds.LogSources,
+                ResourceDefinitionJson.FromValue(ResourceLogSourceDefinitionSet.DefaultConsole()))
+        ],
         Operations:
         [
             new(Operations.Start)

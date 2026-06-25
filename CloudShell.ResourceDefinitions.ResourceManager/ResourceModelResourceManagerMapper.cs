@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using ResourceManagerClass = CloudShell.Abstractions.ResourceManager.ResourceClass;
 using ResourceManagerState = CloudShell.Abstractions.ResourceManager.ResourceState;
@@ -58,7 +59,8 @@ public static class ResourceModelResourceManagerMapper
                 .ToArray(),
             Source: ResourceSource.User,
             ManagementMode: ResourceManagementMode.UserManaged,
-            DisplayName: resource.State.DisplayName);
+            DisplayName: resource.State.DisplayName,
+            LogSources: ToResourceManagerLogSources(resource));
     }
 
     public static IReadOnlyList<ResourceModelDiagnostic> ToResourceModelDiagnostics(
@@ -125,6 +127,66 @@ public static class ResourceModelResourceManagerMapper
                 ToDisplayName(id),
                 Description: "Resolved Resource model operation.")
         };
+
+    private static IReadOnlyList<ResourceLogSource> ToResourceManagerLogSources(
+        ResourceModelResource resource)
+    {
+        var definitions = resource.Capabilities.Get<ResourceLogSourceDefinitionSet>(
+            ResourceLogSourceCapabilityIds.LogSources);
+
+        if (definitions?.Sources is not { Count: > 0 } sources)
+        {
+            return [];
+        }
+
+        return sources
+            .Where(source =>
+                !string.IsNullOrWhiteSpace(source.Id) &&
+                !string.IsNullOrWhiteSpace(source.Name))
+            .Select(ToResourceManagerLogSource)
+            .ToArray();
+    }
+
+    private static ResourceLogSource ToResourceManagerLogSource(
+        ResourceLogSourceDefinition definition) =>
+        new(
+            definition.Id,
+            definition.Name,
+            ParseEnum(definition.Kind, ResourceLogSourceKind.ProviderDefined),
+            Format: ParseEnum(definition.Format, LogFormat.PlainText),
+            Capabilities: ToLogSourceCapabilities(definition.Capabilities),
+            Location: definition.Location,
+            ProducerResourceId: definition.ProducerResourceId,
+            Description: definition.Description,
+            Origin: ParseEnum(definition.Origin, ResourceLogSourceOrigin.ProviderDefault),
+            Purpose: ParseEnum(definition.Purpose, ResourceLogSourcePurpose.Discovery),
+            Availability: ParseEnum(definition.Availability, LogSourceAvailability.Unknown));
+
+    private static LogSourceCapabilities ToLogSourceCapabilities(
+        IReadOnlyList<string>? values)
+    {
+        if (values is null || values.Count == 0)
+        {
+            return LogSourceCapabilities.Read;
+        }
+
+        var capabilities = LogSourceCapabilities.None;
+        foreach (var value in values)
+        {
+            capabilities |= ParseEnum(value, LogSourceCapabilities.None);
+        }
+
+        return capabilities == LogSourceCapabilities.None
+            ? LogSourceCapabilities.Read
+            : capabilities;
+    }
+
+    private static TEnum ParseEnum<TEnum>(string? value, TEnum fallback)
+        where TEnum : struct, Enum =>
+        !string.IsNullOrWhiteSpace(value) &&
+        Enum.TryParse<TEnum>(value, ignoreCase: true, out var parsed)
+            ? parsed
+            : fallback;
 
     private static string ToDisplayName(string operationId) =>
         string.Join(

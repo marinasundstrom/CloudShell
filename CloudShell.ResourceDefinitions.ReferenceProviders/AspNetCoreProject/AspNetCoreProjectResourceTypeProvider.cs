@@ -55,6 +55,12 @@ public sealed class AspNetCoreProjectResourceTypeProvider(
                 itemType: ResourceAttributeValueType.ComplexType,
                 itemShapeId: NetworkingEndpointShapeIds.EndpointRequest)
         },
+        Capabilities:
+        [
+            new(
+                ResourceLogSourceCapabilityIds.LogSources,
+                ResourceDefinitionJson.FromValue(ResourceLogSourceDefinitionSet.DefaultConsole()))
+        ],
         Operations:
         [
             new(Operations.Start),

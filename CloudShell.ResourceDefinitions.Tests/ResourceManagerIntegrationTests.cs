@@ -1,4 +1,5 @@
 using System.Text.Json;
+using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using CloudShell.ResourceDefinitions.ResourceManager;
@@ -42,6 +43,20 @@ public sealed class ResourceManagerIntegrationTests
             projected.ResourceAttributes[ResourceModelResourceManagerAttributeNames.BridgeProviderId]);
         Assert.Contains(projected.ResourceCapabilities, capability =>
             capability.Id == VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString());
+        Assert.Contains(projected.ResourceCapabilities, capability =>
+            capability.Id == ResourceLogSourceCapabilityIds.LogSources.ToString());
+        var logSource = Assert.Single(projected.ResourceLogSources);
+        Assert.Equal("console", logSource.Id);
+        Assert.Equal("Console logs", logSource.Name);
+        Assert.Equal(ResourceLogSourceKind.ProcessOutput, logSource.Kind);
+        Assert.Equal(LogFormat.PlainText, logSource.Format);
+        Assert.Equal(
+            LogSourceCapabilities.Read | LogSourceCapabilities.Stream,
+            logSource.Capabilities);
+        Assert.Equal(ResourceLogSourceOrigin.ProviderDefault, logSource.Origin);
+        Assert.Equal(ResourceLogSourcePurpose.Default, logSource.Purpose);
+        Assert.Equal(LogSourceAvailability.ResourceRunning, logSource.Availability);
+        Assert.True(projected.SupportsLogSources);
         Assert.Contains(projected.ResourceActions, action =>
             action.Id == ResourceActionIds.Start && action.Kind == ResourceActionKind.Start);
     }
@@ -1474,6 +1489,15 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal([volume.EffectiveResourceId], projectedProject.DependsOn);
         Assert.Contains(projectedProject.ResourceCapabilities, capability =>
             capability.Id == VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString());
+        Assert.Contains(projectedProject.ResourceCapabilities, capability =>
+            capability.Id == ResourceLogSourceCapabilityIds.LogSources.ToString());
+        var logSource = Assert.Single(projectedProject.ResourceLogSources);
+        Assert.Equal("console", logSource.Id);
+        Assert.Equal(ResourceLogSourceKind.ProcessOutput, logSource.Kind);
+        Assert.Equal(
+            LogSourceCapabilities.Read | LogSourceCapabilities.Stream,
+            logSource.Capabilities);
+        Assert.True(projectedProject.SupportsLogSources);
         Assert.Contains(projectedProject.ResourceActions, action =>
             action.Id == AspNetCoreProjectResourceTypeProvider.Operations.Start.ToString());
         var restart = Assert.Single(projectedProject.ResourceActions, action =>
