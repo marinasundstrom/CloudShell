@@ -1435,13 +1435,17 @@ public sealed class SampleSmokeTests
         var apiPort = await GetFreePortAsync();
         var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:sample-app");
         var secretsServiceBasePort = await GetServiceBasePortAsync("secrets-vault:sample-app");
+        var graphConfigurationEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
+        var graphSecretsEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
         using var host = await SampleProcess.StartAsync(
             "samples/SettingsAndSecrets/CloudShell.SettingsAndSecrets.csproj",
             await GetFreePortAsync(),
             [
                 ("Samples__SettingsAndSecrets__ApiEndpoint", $"http://localhost:{apiPort}"),
                 ("Samples__SettingsAndSecrets__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
-                ("Samples__SettingsAndSecrets__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture))
+                ("Samples__SettingsAndSecrets__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture)),
+                ("Samples__SettingsAndSecrets__GraphConfigurationServiceEndpoint", graphConfigurationEndpoint),
+                ("Samples__SettingsAndSecrets__GraphSecretsServiceEndpoint", graphSecretsEndpoint)
             ]);
 
         await host.WaitForHttpOkAsync("/", StartupTimeout);
@@ -1480,8 +1484,16 @@ public sealed class SampleSmokeTests
             "/api/configuration/stores/configuration.store%3Agraph-sample-app/entries",
             GetEndpointAddress(graphSettings, "entries"),
             StringComparison.Ordinal);
+        Assert.StartsWith(
+            graphConfigurationEndpoint,
+            GetEndpointAddress(graphSettings, "entries"),
+            StringComparison.Ordinal);
         Assert.EndsWith(
             "/api/secrets/vaults/secrets.vault%3Agraph-sample-app/secrets",
+            GetEndpointAddress(graphSecrets, "secrets"),
+            StringComparison.Ordinal);
+        Assert.StartsWith(
+            graphSecretsEndpoint,
             GetEndpointAddress(graphSecrets, "secrets"),
             StringComparison.Ordinal);
 
@@ -1508,6 +1520,43 @@ public sealed class SampleSmokeTests
         Assert.Contains(
             "Executed Secrets Vault Inspect",
             graphSecretsInspectDocument.RootElement.GetProperty("message").GetString());
+
+        await StartGraphResourceIfAvailableAsync(host, graphSettings, "configuration store");
+        await StartGraphResourceIfAvailableAsync(host, graphSecrets, "Secrets Vault");
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"{graphConfigurationEndpoint}/healthz",
+            bearerToken: null,
+            StartupTimeout);
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"{graphSecretsEndpoint}/healthz",
+            bearerToken: null,
+            StartupTimeout);
+
+        var runningGraphResourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var runningGraphResourcesDocument = JsonDocument.Parse(runningGraphResourcesJson);
+        var runningGraphResources = runningGraphResourcesDocument.RootElement.EnumerateArray().ToArray();
+        graphSettings = Assert.Single(runningGraphResources, resource =>
+            resource.GetProperty("id").GetString() == "configuration.store:graph-sample-app");
+        graphSecrets = Assert.Single(runningGraphResources, resource =>
+            resource.GetProperty("id").GetString() == "secrets.vault:graph-sample-app");
+        Assert.Equal((int)ResourceState.Running, graphSettings.GetProperty("state").GetInt32());
+        Assert.Equal((int)ResourceState.Running, graphSecrets.GetProperty("state").GetInt32());
+
+        var graphSettingsHealthJson = await host.SendAsync(
+            HttpMethod.Post,
+            "/api/control-plane/v1/resources/configuration.store%3Agraph-sample-app/health/refresh");
+        using var graphSettingsHealthDocument = JsonDocument.Parse(graphSettingsHealthJson);
+        AssertGraphHealthRefreshSucceeded(
+            graphSettingsHealthDocument.RootElement,
+            "configuration.store:graph-sample-app");
+
+        var graphSecretsHealthJson = await host.SendAsync(
+            HttpMethod.Post,
+            "/api/control-plane/v1/resources/secrets.vault%3Agraph-sample-app/health/refresh");
+        using var graphSecretsHealthDocument = JsonDocument.Parse(graphSecretsHealthJson);
+        AssertGraphHealthRefreshSucceeded(
+            graphSecretsHealthDocument.RootElement,
+            "secrets.vault:graph-sample-app");
 
         Assert.Contains("configuration:sample-app", dependsOn);
         Assert.Contains("secrets-vault:sample-app", dependsOn);
@@ -1683,6 +1732,47 @@ public sealed class SampleSmokeTests
         Assert.Equal(
             "local-development-api-key",
             apiSecretDocument.RootElement.GetProperty("value").GetString());
+    }
+
+    private static void AssertGraphHealthRefreshSucceeded(
+        JsonElement health,
+        string resourceId)
+    {
+        Assert.Equal(resourceId, health.GetProperty("resourceId").GetString());
+        Assert.Equal((int)ResourceHealthStatus.Healthy, health.GetProperty("status").GetInt32());
+        Assert.Contains(
+            health.GetProperty("checks").EnumerateArray(),
+            check =>
+                check.GetProperty("status").GetInt32() == (int)ResourceHealthStatus.Healthy &&
+                check.GetProperty("check").GetProperty("type").GetInt32() == (int)ResourceProbeType.Health);
+        Assert.Contains(
+            health.GetProperty("checks").EnumerateArray(),
+            check =>
+                check.GetProperty("status").GetInt32() == (int)ResourceHealthStatus.Healthy &&
+                check.GetProperty("check").GetProperty("type").GetInt32() == (int)ResourceProbeType.Liveness);
+    }
+
+    private static async Task StartGraphResourceIfAvailableAsync(
+        SampleProcess host,
+        JsonElement resource,
+        string label)
+    {
+        if (resource.TryGetProperty("state", out var state) &&
+            state.ValueKind == JsonValueKind.Number &&
+            state.GetInt32() == (int)ResourceState.Running)
+        {
+            return;
+        }
+
+        if (resource.GetProperty("resourceActions").TryGetProperty("start", out var startAction))
+        {
+            var href = startAction.GetProperty("href").GetString() ??
+                throw new InvalidOperationException($"The graph {label} start action did not include an href.");
+            await host.SendAsync(HttpMethod.Post, href);
+            return;
+        }
+
+        Assert.Equal((int)ResourceState.Running, resource.GetProperty("state").GetInt32());
     }
 
     [Fact]

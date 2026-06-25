@@ -25,11 +25,26 @@ public static class SecretsVaultResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceDefinitionApplyProvider, SecretsVaultResourceTypeProvider>());
         services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOperationProvider, SecretsVaultStartOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOperationProvider, SecretsVaultStopOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOperationProvider, SecretsVaultRestartOperationProvider>());
+        services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProvider, SecretsVaultInspectOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOperationProjector, SecretsVaultStartOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOperationProjector, SecretsVaultStopOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOperationProjector, SecretsVaultRestartOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProjector, SecretsVaultInspectOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, SecretsVaultResourceProjectionProvider>());
+        services.TryAddSingleton<SecretsVaultProcessRuntimeController>();
+        services.TryAddSingleton<ISecretsVaultRuntimeController>(
+            serviceProvider => serviceProvider.GetRequiredService<SecretsVaultProcessRuntimeController>());
         services.TryAddSingleton<ISecretsVaultInspector, NoopSecretsVaultInspector>();
 
         return services;

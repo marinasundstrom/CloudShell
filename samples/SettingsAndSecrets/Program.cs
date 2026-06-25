@@ -39,6 +39,10 @@ var configurationServiceBasePort = builder.Configuration.GetValue<int?>(
     "Samples:SettingsAndSecrets:ConfigurationServiceBasePort") ?? 5138;
 var secretsServiceBasePort = builder.Configuration.GetValue<int?>(
     "Samples:SettingsAndSecrets:SecretsServiceBasePort") ?? 6138;
+var graphConfigurationServiceEndpoint = builder.Configuration["Samples:SettingsAndSecrets:GraphConfigurationServiceEndpoint"] ??
+    $"http://localhost:{configurationServiceBasePort}";
+var graphSecretsServiceEndpoint = builder.Configuration["Samples:SettingsAndSecrets:GraphSecretsServiceEndpoint"] ??
+    $"http://localhost:{secretsServiceBasePort}";
 const string graphSettingsResourceId = "configuration.store:graph-sample-app";
 const string graphSecretsResourceId = "secrets.vault:graph-sample-app";
 builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
@@ -52,6 +56,16 @@ builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
 builder.Services
+    .AddSingleton(new ConfigurationStoreRuntimeOptions
+    {
+        ServiceProjectPath = configurationStoreServiceProjectPath,
+        ServiceWorkingDirectory = repositoryRootPath
+    })
+    .AddSingleton(new SecretsVaultRuntimeOptions
+    {
+        ServiceProjectPath = secretsVaultServiceProjectPath,
+        ServiceWorkingDirectory = repositoryRootPath
+    })
     .AddInMemoryResourceModelGraph(
     [
         new ResourceGraphState(
@@ -63,7 +77,7 @@ builder.Services
             Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
                 [ConfigurationStoreResourceTypeProvider.Attributes.Endpoint] =
-                    $"http://localhost:{configurationServiceBasePort}",
+                    graphConfigurationServiceEndpoint,
                 [ConfigurationStoreResourceTypeProvider.Attributes.EntryCount] =
                     2
             }),
@@ -76,7 +90,7 @@ builder.Services
             Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
                 [SecretsVaultResourceTypeProvider.Attributes.Endpoint] =
-                    $"http://localhost:{secretsServiceBasePort}",
+                    graphSecretsServiceEndpoint,
                 [SecretsVaultResourceTypeProvider.Attributes.SecretCount] =
                     1
             })

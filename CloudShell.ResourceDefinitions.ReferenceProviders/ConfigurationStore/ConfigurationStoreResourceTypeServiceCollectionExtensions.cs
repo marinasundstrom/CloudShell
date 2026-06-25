@@ -25,11 +25,26 @@ public static class ConfigurationStoreResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceDefinitionApplyProvider, ConfigurationStoreResourceTypeProvider>());
         services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOperationProvider, ConfigurationStoreStartOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOperationProvider, ConfigurationStoreStopOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOperationProvider, ConfigurationStoreRestartOperationProvider>());
+        services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProvider, ConfigurationStoreInspectOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOperationProjector, ConfigurationStoreStartOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOperationProjector, ConfigurationStoreStopOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOperationProjector, ConfigurationStoreRestartOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProjector, ConfigurationStoreInspectOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, ConfigurationStoreResourceProjectionProvider>());
+        services.TryAddSingleton<ConfigurationStoreProcessRuntimeController>();
+        services.TryAddSingleton<IConfigurationStoreRuntimeController>(
+            serviceProvider => serviceProvider.GetRequiredService<ConfigurationStoreProcessRuntimeController>());
         services.TryAddSingleton<
             IConfigurationStoreInspector,
             NoopConfigurationStoreInspector>();

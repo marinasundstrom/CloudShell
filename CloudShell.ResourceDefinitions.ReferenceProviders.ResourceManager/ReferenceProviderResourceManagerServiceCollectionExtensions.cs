@@ -19,6 +19,14 @@ public static class ReferenceProviderResourceManagerServiceCollectionExtensions
             ServiceDescriptor.Singleton<
                 IResourceModelResourceManagerEndpointProjectionProvider,
                 SecretsVaultResourceManagerEndpointProjectionProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IResourceModelResourceManagerStateProvider,
+                ConfigurationStoreResourceManagerStateProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IResourceModelResourceManagerStateProvider,
+                SecretsVaultResourceManagerStateProvider>());
 
         return services;
     }

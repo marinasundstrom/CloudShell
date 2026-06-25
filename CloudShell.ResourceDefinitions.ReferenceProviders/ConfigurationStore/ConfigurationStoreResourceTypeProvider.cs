@@ -20,6 +20,9 @@ public sealed class ConfigurationStoreResourceTypeProvider :
 
     public static class Operations
     {
+        public static readonly ResourceOperationId Start = "start";
+        public static readonly ResourceOperationId Stop = "stop";
+        public static readonly ResourceOperationId Restart = "restart";
         public static readonly ResourceOperationId Inspect = "configuration.store.inspect";
     }
 
@@ -50,11 +53,17 @@ public sealed class ConfigurationStoreResourceTypeProvider :
                 [
                     ResourceHealthCheckDefinition.Http(
                         "/healthz",
+                        endpointName: "entries"),
+                    ResourceHealthCheckDefinition.HttpLiveness(
+                        "/healthz",
                         endpointName: "entries")
                 ])))
         ],
         Operations:
         [
+            new(Operations.Start),
+            new(Operations.Stop),
+            new(Operations.Restart),
             new(Operations.Inspect)
         ]);
 

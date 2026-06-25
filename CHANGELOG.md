@@ -26,9 +26,13 @@ on `git blame --follow`, and then by the broad type of change.
   links, proving those reference providers are projected and dispatched beyond
   endpoint and count-summary projection.
 - Graph-backed Configuration Store and Secrets Vault reference providers now
-  declare `/healthz` health checks on their projected service endpoints, with
-  Resource Manager integration coverage confirming those checks stay
-  declarative graph data.
+  declare `/healthz` health and liveness checks on their projected service
+  endpoints, with Resource Manager integration coverage confirming those checks
+  stay declarative graph data.
+- Graph-backed Configuration Store and Secrets Vault resources now expose
+  start, stop, and restart operations backed by provider-local process
+  controllers that run the existing service web apps, with SettingsAndSecrets
+  smoke coverage proving backing-service startup and health/liveness refresh.
 - Docker container reference resources now mark `endpoints.count` as read-only
   provider-projected state, so deployment definitions cannot author endpoint
   counts while resolved Resource projections still expose the default count.

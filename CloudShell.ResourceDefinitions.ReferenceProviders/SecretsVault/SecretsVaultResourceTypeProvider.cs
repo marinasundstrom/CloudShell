@@ -20,6 +20,9 @@ public sealed class SecretsVaultResourceTypeProvider :
 
     public static class Operations
     {
+        public static readonly ResourceOperationId Start = "start";
+        public static readonly ResourceOperationId Stop = "stop";
+        public static readonly ResourceOperationId Restart = "restart";
         public static readonly ResourceOperationId Inspect = "secrets.vault.inspect";
     }
 
@@ -50,11 +53,17 @@ public sealed class SecretsVaultResourceTypeProvider :
                 [
                     ResourceHealthCheckDefinition.Http(
                         "/healthz",
+                        endpointName: "secrets"),
+                    ResourceHealthCheckDefinition.HttpLiveness(
+                        "/healthz",
                         endpointName: "secrets")
                 ])))
         ],
         Operations:
         [
+            new(Operations.Start),
+            new(Operations.Stop),
+            new(Operations.Restart),
             new(Operations.Inspect)
         ]);
 
