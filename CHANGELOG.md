@@ -142,6 +142,10 @@ on `git blame --follow`, and then by the broad type of change.
 - ASP.NET Core project graph resources can now declare provider-owned typed
   endpoint requests, and the process runtime derives `dotnet run --urls` from
   those requests when explicit project arguments are not supplied.
+- ResourceDefinitions integration coverage now starts the ProjectReference API
+  from typed ASP.NET Core endpoint request attributes and verifies those complex
+  attributes survive graph apply/projection without being flattened into scalar
+  Resource Manager attributes.
 - The local host networking reconcile operation now delegates endpoint-mapping
   work to an injected provider-owned reconciler with a no-op POC default,
   matching the provider-integration pattern without moving runtime logic into

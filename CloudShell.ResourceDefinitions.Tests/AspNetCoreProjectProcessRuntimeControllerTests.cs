@@ -134,7 +134,7 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
 
     [Fact]
     [Trait("Category", "Integration")]
-    public async Task ExecuteAsync_StartsProjectReferenceApiFromGraphAttributes()
+    public async Task ExecuteAsync_StartsProjectReferenceApiFromEndpointRequestAttributes()
     {
         var port = GetFreeTcpPort();
         var projectPath = Path.Combine(
@@ -145,9 +145,17 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
             "CloudShell.ProjectReferenceApi.csproj");
         var resource = CreateResource(
             projectPath,
-            arguments: $"--urls http://127.0.0.1:{port}",
             hotReload: false,
-            useLaunchSettings: false);
+            useLaunchSettings: false,
+            endpointRequests:
+            [
+                new(
+                    "http",
+                    "http",
+                    Host: "127.0.0.1",
+                    Port: port,
+                    Exposure: "Local")
+            ]);
 
         await using var controller = new AspNetCoreProjectProcessRuntimeController();
 

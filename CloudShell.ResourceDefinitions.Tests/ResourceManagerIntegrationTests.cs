@@ -1290,12 +1290,21 @@ public sealed class ResourceManagerIntegrationTests
             "api",
             AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
             ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
-            Attributes: new Dictionary<ResourceAttributeId, string>
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
                 [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] = "src/Api/Api.csproj",
-                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectArguments] = "--urls http://localhost:5010",
-                [AspNetCoreProjectResourceTypeProvider.Attributes.HotReload] = bool.TrueString.ToLowerInvariant(),
-                [AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings] = bool.FalseString.ToLowerInvariant()
+                [AspNetCoreProjectResourceTypeProvider.Attributes.HotReload] = true,
+                [AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings] = false,
+                [AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        new NetworkingEndpointRequestValue(
+                            "http",
+                            "http",
+                            Host: "localhost",
+                            Port: 5010,
+                            Exposure: "Local")
+                    })
             },
             Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
             {
@@ -1329,8 +1338,9 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(ResourceManagerClass.Project, projectedProject.ResourceClass);
         Assert.Equal(AspNetCoreProjectResourceTypeProvider.ProviderId, projectedProject.Provider);
         Assert.Equal("src/Api/Api.csproj", projectedProject.ResourceAttributes["project.path"]);
-        Assert.Equal("--urls http://localhost:5010", projectedProject.ResourceAttributes["project.arguments"]);
         Assert.Equal(bool.TrueString.ToLowerInvariant(), projectedProject.ResourceAttributes["project.hotReload"]);
+        Assert.False(projectedProject.ResourceAttributes.ContainsKey(
+            AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests));
         Assert.Equal([volume.EffectiveResourceId], projectedProject.DependsOn);
         Assert.Contains(projectedProject.ResourceCapabilities, capability =>
             capability.Id == VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString());
@@ -1350,6 +1360,16 @@ public sealed class ResourceManagerIntegrationTests
         var capability = Assert.IsType<VolumeConsumerCapability>(
             resolution.Target!.Capabilities.Get<VolumeConsumerCapability>());
         Assert.Equal(volume.EffectiveResourceId, Assert.Single(capability.Mounts).Volume);
+        var projectProjection = Assert.IsType<AspNetCoreProjectResource>(
+            await serviceProvider
+                .GetRequiredService<ResourceProjectionResolver>()
+                .GetResourceProjectionAsync(
+                    resolution.Target,
+                    new ResourceProjectionContext("local", "developer")));
+        Assert.Null(projectProjection.Arguments);
+        var endpointRequest = Assert.Single(projectProjection.EndpointRequests);
+        Assert.Equal("http", endpointRequest.Name);
+        Assert.Equal(5010, endpointRequest.Port);
 
         var procedure = new ResourceProcedureContext(
             projectedProject,
