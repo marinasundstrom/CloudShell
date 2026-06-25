@@ -622,6 +622,10 @@ stored beside operational Resource Manager records. The Resource Manager
 procedure bridge should be able to route declared operations on those stored
 records, proving that identity setup and configuration/secrets inspection
 remain provider-owned operation projections over the resolved graph state.
+Wrong typed identity references in that stored graph should block operation
+availability through the same bridge diagnostics, so Resource Manager does not
+execute provider-owned operations over a relationship that no longer resolves
+to the expected resource type.
 
 Porting a provider means implementing the complete Resource model support that
 the resource type needs to work, not only mapping an existing provider to a new

@@ -1052,6 +1052,63 @@ public sealed class ResourceManagerStoreProjectionTests
     }
 
     [Fact]
+    public async Task GetActionUnavailableReasonAsync_BlocksPersistedSettingsAndSecretsOperationForWrongIdentityReference()
+    {
+        var states = CreateSettingsAndSecretsGraphStatesWithInvalidIdentityReference();
+        var services = new ServiceCollection();
+        services.AddIdentityProvisioningResourceType();
+        services.AddConfigurationStoreResourceType();
+        services.AddSecretsVaultResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddInMemoryResourceModelGraphRecords(
+            states.Select(DefinitionResourceRecord.FromState).ToArray());
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var providers = serviceProvider
+            .GetServices<IResourceProvider>()
+            .ToArray();
+        var actionAvailabilityProviders = serviceProvider
+            .GetServices<IResourceActionAvailabilityProvider>()
+            .ToArray();
+        var registrations = new TestResourceRegistrationStore(
+            states
+                .Select(state => new ResourceRegistration(
+                    state.EffectiveResourceId,
+                    "resource-model",
+                    null,
+                    DateTimeOffset.UtcNow,
+                    []))
+                .ToArray());
+        var store = new ResourceManagerStore(
+            providers,
+            new TestResourceGroupStore([]),
+            registrations,
+            new ResourceDeclarationStore(),
+            new ResourceIdentityProviderCatalog(),
+            new CloudShellExtensionRegistry(),
+            new InMemoryCloudShellExtensionActivationStore());
+        var orchestration = new ResourceOrchestrationService(
+            [new DefaultResourceOrchestrator()],
+            [],
+            store,
+            registrations,
+            new ResourceDeclarationStore(),
+            CreateSelectionStore(),
+            actionAvailabilityProviders: actionAvailabilityProviders);
+        var settings = Assert.Single(store.GetResources(), resource =>
+            resource.Id == "configuration.store:settings-secrets-settings");
+        var inspect = Assert.Single(settings.ResourceActions, action =>
+            action.Id == ConfigurationStoreResourceTypeProvider.Operations.Inspect.ToString());
+
+        var reason = await orchestration.GetActionUnavailableReasonAsync(settings, inspect);
+
+        Assert.NotNull(reason);
+        Assert.Contains("resolved to resource type", reason, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(ConfigurationStoreResourceTypeProvider.ResourceTypeId.ToString(), reason, StringComparison.Ordinal);
+        Assert.Contains(IdentityProvisioningResourceTypeProvider.ResourceTypeId.ToString(), reason, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task GetActionUnavailableReasonAsync_ReportsGraphOperationProjectionDiagnostics()
     {
         var services = new ServiceCollection();
@@ -1332,6 +1389,30 @@ public sealed class ResourceManagerStoreProjectionTests
             });
 
         return [identity, settings, secrets, api];
+    }
+
+    private static IReadOnlyList<DefinitionResourceState> CreateSettingsAndSecretsGraphStatesWithInvalidIdentityReference()
+    {
+        var wrongIdentity = new DefinitionResourceState(
+            "settings-secrets-identity",
+            ConfigurationStoreResourceTypeProvider.ResourceTypeId,
+            ProviderId: ConfigurationStoreResourceTypeProvider.ProviderId);
+        var settings = new DefinitionResourceState(
+            "settings-secrets-settings",
+            ConfigurationStoreResourceTypeProvider.ResourceTypeId,
+            ProviderId: ConfigurationStoreResourceTypeProvider.ProviderId,
+            DependsOn:
+            [
+                DefinitionResourceReference.ResourceId(
+                    wrongIdentity.EffectiveResourceId,
+                    typeId: IdentityProvisioningResourceTypeProvider.ResourceTypeId)
+            ],
+            Attributes: new Dictionary<DefinitionAttributeId, string>
+            {
+                [ConfigurationStoreResourceTypeProvider.Attributes.Endpoint] = "http://localhost:5138"
+            });
+
+        return [wrongIdentity, settings];
     }
 
     private static ResourceOrchestratorSelectionStore CreateSelectionStore() =>
