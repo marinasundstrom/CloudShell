@@ -70,6 +70,9 @@ on `git blame --follow`, and then by the broad type of change.
   `--no-launch-profile` when launch settings are disabled.
 - The ASP.NET Core project process runtime controller now cleans up tracked
   child processes when the DI container or host disposes the provider service.
+- ResourceDefinitions integration tests now prove the graph-backed ASP.NET
+  Core project provider can start the ProjectReference API and reach its
+  `/health` endpoint through provider-owned runtime behavior.
 - The ProjectReference sample now registers a graph-backed ASP.NET Core
   project resource through the Resource model bridge provider, giving the POC a
   concrete host path for starting a project resource through the new provider
