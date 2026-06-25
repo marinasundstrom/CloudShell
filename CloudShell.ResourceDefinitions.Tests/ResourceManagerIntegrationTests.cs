@@ -176,6 +176,28 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public void ResourceModelGraphResourceProvider_UsesRegisteredStateProvider()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
+        services.AddSingleton<IResourceModelResourceManagerStateProvider>(
+            new StaticResourceModelStateProvider(
+                "application.executable:api",
+                ResourceManagerResourceState.Running));
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphResourceProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .Single();
+
+        var projected = Assert.Single(provider.GetResources());
+
+        Assert.Equal(ResourceManagerResourceState.Running, projected.State);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphResourceResolver_ResolvesBoundResourceFromGraph()
     {
         var services = new ServiceCollection();
@@ -4524,5 +4546,18 @@ public sealed class ResourceManagerIntegrationTests
 
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }
+    }
+
+    private sealed class StaticResourceModelStateProvider(
+        string resourceId,
+        ResourceManagerResourceState state) : IResourceModelResourceManagerStateProvider
+    {
+        public ResourceManagerResourceState? GetState(Resource resource) =>
+            string.Equals(
+                resource.EffectiveResourceId,
+                resourceId,
+                StringComparison.OrdinalIgnoreCase)
+                ? state
+                : null;
     }
 }

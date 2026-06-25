@@ -555,9 +555,10 @@ case, while `Unknown` means the resource participates in lifecycle/status
 projection but the current provider or bridge cannot determine the value. The
 Resource model bridge therefore needs a small runtime-state projection seam,
 not a graph-owned runtime loop. Hosts or runtime adapters can provide an
-observed state for a graph resource; when they do not, lifecycle-capable graph
-resources fall back to `Unknown` and resources without lifecycle operations
-fall back to no state.
+observed state for a graph resource through bridge-registered state providers
+or projection options; when they do not, lifecycle-capable graph resources
+fall back to `Unknown` and resources without lifecycle operations fall back to
+no state.
 Runtime-facing operation implementations should sit behind provider-owned
 services that are injected into the operation provider or projector. The
 reference executable start operation demonstrates this with a no-op default

@@ -84,6 +84,9 @@ on `git blame --follow`, and then by the broad type of change.
   resolver, preserving `null` as the neutral no-status case while allowing
   runtime adapters to project observed graph resource state for actions such
   as Restart.
+- Resource Manager bridge services can now compose registered graph
+  runtime-state providers, letting hosts supply observed Resource Manager
+  state through DI without storing runtime status in graph resource records.
 - The Resource model proposal now records the POC objective that existing
   providers are behavioral references, while the new model should resolve old
   inconsistencies through consistent graph attributes, provider-owned

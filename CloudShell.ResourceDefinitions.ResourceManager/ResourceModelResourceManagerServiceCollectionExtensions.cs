@@ -1,6 +1,8 @@
 using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using ResourceManagerState = CloudShell.Abstractions.ResourceManager.ResourceState;
+using ResourceModelResource = CloudShell.ResourceDefinitions.Resource;
 
 namespace CloudShell.ResourceDefinitions.ResourceManager;
 
@@ -255,5 +257,50 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
             serviceProvider.GetRequiredService<ResourceResolver>(),
             serviceProvider.GetServices<IResourceGraphDependencyProvider>(),
             resolutionContext,
-            projectionOptions);
+            ComposeProjectionOptions(serviceProvider, projectionOptions));
+
+    private static ResourceModelResourceManagerProjectionOptions ComposeProjectionOptions(
+        IServiceProvider serviceProvider,
+        ResourceModelResourceManagerProjectionOptions? projectionOptions)
+    {
+        var options = projectionOptions ?? new ResourceModelResourceManagerProjectionOptions();
+        var stateProviders = serviceProvider
+            .GetServices<IResourceModelResourceManagerStateProvider>()
+            .ToArray();
+
+        if (stateProviders.Length == 0)
+        {
+            return options;
+        }
+
+        var stateResolver = options.StateResolver;
+        return options with
+        {
+            StateResolver = resource =>
+                ResolveState(resource, stateResolver, stateProviders)
+        };
+    }
+
+    private static ResourceManagerState? ResolveState(
+        ResourceModelResource resource,
+        ResourceModelResourceManagerStateResolver? stateResolver,
+        IReadOnlyList<IResourceModelResourceManagerStateProvider> stateProviders)
+    {
+        var state = stateResolver?.Invoke(resource);
+        if (state is not null)
+        {
+            return state;
+        }
+
+        foreach (var stateProvider in stateProviders)
+        {
+            state = stateProvider.GetState(resource);
+            if (state is not null)
+            {
+                return state;
+            }
+        }
+
+        return null;
+    }
 }
