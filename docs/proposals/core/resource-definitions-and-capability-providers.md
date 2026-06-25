@@ -833,6 +833,15 @@ payload together, resolve a short-lived `Resource` working projection for a
 read, operation, or commit flow, then persist accepted graph-state changes
 back to the stored payload and revision.
 
+The current POC should prove that flow before naming a broader control
+service abstraction: begin from the latest graph snapshot or transaction,
+resolve a `Resource` working projection, stage changes through that projection
+or its capability/operation projections, run provider apply validation, and
+commit accepted changes through `ResourceGraphModel`. A future
+ResourceManager-owned control service can wrap those steps and add locking,
+authorization, retries, or operational side effects, but those policies should
+remain above the Resource model.
+
 The state ownership rule should be explicit: persistent Resource graph state
 must be represented through the graph state primitives. If a value is part of
 the versioned graph, it belongs in resource identity, references, attributes,

@@ -82,6 +82,10 @@ on `git blame --follow`, and then by the broad type of change.
 - The resource definitions proposal now clarifies that a Resource graph record
   may be stored beside the Control Plane resource record, while the resolved
   `Resource` remains a short-lived working projection over stored graph state.
+- Resource graph transaction tests now cover the intended control-service
+  flow: resolve a short-lived `Resource` projection from a transaction
+  snapshot, stage a graph-state change through it, validate through the
+  provider apply path, and commit through `ResourceGraphModel`.
 - The resource definitions proposal now records the near-term POC path:
   stabilize the current model enough to port real provider behavior, and
   propose new abstractions only when provider ports expose concrete gaps.
