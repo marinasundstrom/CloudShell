@@ -755,7 +755,7 @@ public sealed class ResourceGraphChangeTrackingTests
 
     private static IReadOnlyList<ResourceReference>? ToReferences(
         IReadOnlyList<string>? resourceIds) =>
-        resourceIds?.Select(resourceId => ResourceReference.ResourceId(resourceId)).ToArray();
+        resourceIds?.Select(resourceId => ResourceReference.DependsOnResourceId(resourceId)).ToArray();
 
     private sealed record ResourceManagerResourceRow(
         string ResourceId,

@@ -89,7 +89,7 @@ public sealed class ResourceRecordTests
             SqlDatabaseResourceTypeProvider.ResourceTypeId,
             DependsOn:
             [
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     "application.sql-server:server",
                     typeId: SqlServerResourceTypeProvider.ResourceTypeId,
                     providerId: SqlServerResourceTypeProvider.ProviderId)

@@ -132,7 +132,7 @@ public sealed class ResourceManagerIntegrationTests
             {
                 DependsOn =
                 [
-                    ResourceReference.ResourceId(
+                    ResourceReference.DependsOnResourceId(
                         worker.EffectiveResourceId,
                         typeId: LocalVolumeResourceTypeProvider.ResourceTypeId)
                 ]
@@ -276,7 +276,7 @@ public sealed class ResourceManagerIntegrationTests
 
         var resolution = await serviceProvider
             .GetRequiredService<ResourceModelGraphResourceResolver>()
-            .ResolveReferenceAsync(ResourceReference.ResourceId(volume.EffectiveResourceId));
+            .ResolveReferenceAsync(ResourceReference.DependsOnResourceId(volume.EffectiveResourceId));
 
         Assert.True(resolution.IsResolved);
         Assert.False(resolution.HasErrors);
@@ -301,7 +301,7 @@ public sealed class ResourceManagerIntegrationTests
 
         var resolution = await serviceProvider
             .GetRequiredService<ResourceModelGraphResourceResolver>()
-            .ResolveReferenceAsync(ResourceReference.ResourceId(
+            .ResolveReferenceAsync(ResourceReference.DependsOnResourceId(
                 worker.EffectiveResourceId,
                 typeId: LocalVolumeResourceTypeProvider.ResourceTypeId));
 
@@ -534,7 +534,7 @@ public sealed class ResourceManagerIntegrationTests
             {
                 DependsOn =
                 [
-                    ResourceReference.ResourceId(
+                    ResourceReference.DependsOnResourceId(
                         worker.EffectiveResourceId,
                         typeId: LocalVolumeResourceTypeProvider.ResourceTypeId)
                 ]
@@ -863,7 +863,7 @@ public sealed class ResourceManagerIntegrationTests
             "api",
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
             ProviderId: ExecutableApplicationResourceTypeProvider.ProviderId,
-            DependsOn: [ResourceReference.ResourceId(volume.EffectiveResourceId)],
+            DependsOn: [ResourceReference.DependsOnResourceId(volume.EffectiveResourceId)],
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
                 [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
@@ -1050,7 +1050,7 @@ public sealed class ResourceManagerIntegrationTests
             ProviderId: ContainerApplicationResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     host.EffectiveResourceId,
                     typeId: DockerHostResourceTypeProvider.ResourceTypeId)
             ],
@@ -1064,7 +1064,7 @@ public sealed class ResourceManagerIntegrationTests
             ProviderId: SqlServerResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     host.EffectiveResourceId,
                     typeId: DockerHostResourceTypeProvider.ResourceTypeId)
             ]);
@@ -1143,7 +1143,7 @@ public sealed class ResourceManagerIntegrationTests
             ProviderId: DockerContainerResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     host.EffectiveResourceId,
                     typeId: DockerHostResourceTypeProvider.ResourceTypeId)
             ],
@@ -1158,10 +1158,10 @@ public sealed class ResourceManagerIntegrationTests
             ProviderId: ContainerApplicationResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     host.EffectiveResourceId,
                     typeId: DockerHostResourceTypeProvider.ResourceTypeId),
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     registry.EffectiveResourceId,
                     typeId: DockerContainerResourceTypeProvider.ResourceTypeId)
             ],
@@ -1759,10 +1759,10 @@ public sealed class ResourceManagerIntegrationTests
             ProviderId: LoadBalancerResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     host.EffectiveResourceId,
                     typeId: DockerHostResourceTypeProvider.ResourceTypeId),
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     target.EffectiveResourceId,
                     typeId: ContainerApplicationResourceTypeProvider.ResourceTypeId)
             ],
@@ -1850,7 +1850,7 @@ public sealed class ResourceManagerIntegrationTests
             ProviderId: LoadBalancerResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     network.EffectiveResourceId,
                     typeId: ContainerApplicationResourceTypeProvider.ResourceTypeId)
             ],
@@ -2146,10 +2146,10 @@ public sealed class ResourceManagerIntegrationTests
             ProviderId: VirtualNetworkResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     hostNetworking.EffectiveResourceId,
                     typeId: LocalHostNetworkResourceTypeProvider.ResourceTypeId),
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     api.EffectiveResourceId,
                     typeId: AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
             ],
@@ -2396,10 +2396,10 @@ public sealed class ResourceManagerIntegrationTests
             ProviderId: NameMappingResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     zone.EffectiveResourceId,
                     typeId: DnsZoneResourceTypeProvider.ResourceTypeId),
-                ResourceReference.ResourceId(target.EffectiveResourceId)
+                ResourceReference.DependsOnResourceId(target.EffectiveResourceId)
             ],
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
@@ -2475,7 +2475,7 @@ public sealed class ResourceManagerIntegrationTests
             ProviderId: NameMappingResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                ResourceReference.ResourceId(target.EffectiveResourceId)
+                ResourceReference.DependsOnResourceId(target.EffectiveResourceId)
             ],
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
@@ -2532,10 +2532,10 @@ public sealed class ResourceManagerIntegrationTests
             ProviderId: ServiceResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     api.EffectiveResourceId,
                     typeId: ContainerApplicationResourceTypeProvider.ResourceTypeId),
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     network.EffectiveResourceId,
                     typeId: NetworkResourceTypeProvider.ResourceTypeId)
             ],
@@ -2558,10 +2558,10 @@ public sealed class ResourceManagerIntegrationTests
             ProviderId: NameMappingResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     zone.EffectiveResourceId,
                     typeId: DnsZoneResourceTypeProvider.ResourceTypeId),
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     apiService.EffectiveResourceId,
                     typeId: ServiceResourceTypeProvider.ResourceTypeId)
             ],
@@ -2732,7 +2732,7 @@ public sealed class ResourceManagerIntegrationTests
             ProviderId: CloudShellVolumeResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     storage.EffectiveResourceId,
                     typeId: StorageResourceTypeProvider.ResourceTypeId)
             ],
@@ -2829,7 +2829,7 @@ public sealed class ResourceManagerIntegrationTests
             ProviderId: CloudShellVolumeResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     localVolume.EffectiveResourceId,
                     typeId: StorageResourceTypeProvider.ResourceTypeId)
             ],
@@ -2886,10 +2886,10 @@ public sealed class ResourceManagerIntegrationTests
             ProviderId: ServiceResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     target.EffectiveResourceId,
                     typeId: ContainerApplicationResourceTypeProvider.ResourceTypeId),
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     network.EffectiveResourceId,
                     typeId: NetworkResourceTypeProvider.ResourceTypeId)
             ],
@@ -2987,10 +2987,10 @@ public sealed class ResourceManagerIntegrationTests
             ProviderId: ServiceResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     target.EffectiveResourceId,
                     typeId: ContainerApplicationResourceTypeProvider.ResourceTypeId),
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     notNetwork.EffectiveResourceId,
                     typeId: NetworkResourceTypeProvider.ResourceTypeId)
             ],
@@ -3280,7 +3280,7 @@ public sealed class ResourceManagerIntegrationTests
             ProviderId: SqlDatabaseResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     server.EffectiveResourceId,
                     typeId: SqlServerResourceTypeProvider.ResourceTypeId)
             ],
@@ -3380,7 +3380,7 @@ public sealed class ResourceManagerIntegrationTests
             ProviderId: CloudShellVolumeResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     storage.EffectiveResourceId,
                     typeId: StorageResourceTypeProvider.ResourceTypeId)
             ],
@@ -3398,7 +3398,7 @@ public sealed class ResourceManagerIntegrationTests
             ProviderId: SqlServerResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     host.EffectiveResourceId,
                     typeId: ContainerHostResourceTypeProvider.ResourceTypeId)
             ],
@@ -3528,7 +3528,7 @@ public sealed class ResourceManagerIntegrationTests
             ProviderId: SqlDatabaseResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     sqlServer.EffectiveResourceId,
                     typeId: SqlServerResourceTypeProvider.ResourceTypeId)
             ],
@@ -3560,13 +3560,13 @@ public sealed class ResourceManagerIntegrationTests
             ProviderId: ExecutableApplicationResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     database.EffectiveResourceId,
                     typeId: SqlDatabaseResourceTypeProvider.ResourceTypeId),
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     settings.EffectiveResourceId,
                     typeId: ConfigurationStoreResourceTypeProvider.ResourceTypeId),
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     secrets.EffectiveResourceId,
                     typeId: SecretsVaultResourceTypeProvider.ResourceTypeId)
             ],
@@ -3674,7 +3674,7 @@ public sealed class ResourceManagerIntegrationTests
             ProviderId: SqlDatabaseResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     sqlServer.EffectiveResourceId,
                     typeId: SqlServerResourceTypeProvider.ResourceTypeId)
             ],
@@ -3697,13 +3697,13 @@ public sealed class ResourceManagerIntegrationTests
             ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     database.EffectiveResourceId,
                     typeId: SqlDatabaseResourceTypeProvider.ResourceTypeId),
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     settings.EffectiveResourceId,
                     typeId: ConfigurationStoreResourceTypeProvider.ResourceTypeId),
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     secrets.EffectiveResourceId,
                     typeId: SecretsVaultResourceTypeProvider.ResourceTypeId)
             ],
@@ -3796,7 +3796,7 @@ public sealed class ResourceManagerIntegrationTests
             ProviderId: ConfigurationStoreResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     identity.EffectiveResourceId,
                     typeId: IdentityProvisioningResourceTypeProvider.ResourceTypeId)
             ],
@@ -3810,7 +3810,7 @@ public sealed class ResourceManagerIntegrationTests
             ProviderId: SecretsVaultResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     identity.EffectiveResourceId,
                     typeId: IdentityProvisioningResourceTypeProvider.ResourceTypeId)
             ],
@@ -3824,13 +3824,13 @@ public sealed class ResourceManagerIntegrationTests
             ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     identity.EffectiveResourceId,
                     typeId: IdentityProvisioningResourceTypeProvider.ResourceTypeId),
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     settings.EffectiveResourceId,
                     typeId: ConfigurationStoreResourceTypeProvider.ResourceTypeId),
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     secrets.EffectiveResourceId,
                     typeId: SecretsVaultResourceTypeProvider.ResourceTypeId)
             ],
@@ -4013,7 +4013,7 @@ public sealed class ResourceManagerIntegrationTests
 
     private static IReadOnlyList<ResourceReference>? ToReferences(
         IReadOnlyList<string>? resourceIds) =>
-        resourceIds?.Select(resourceId => ResourceReference.ResourceId(resourceId)).ToArray();
+        resourceIds?.Select(resourceId => ResourceReference.DependsOnResourceId(resourceId)).ToArray();
 
     private static ResourceState CreateLocalVolumeState(
         string name = "data") =>

@@ -46,7 +46,7 @@ public sealed class ResourceGraphResolverTests
 
         var result = resolver.ResolveReference(
             snapshot,
-            ResourceReference.ResourceId(worker.EffectiveResourceId));
+            ResourceReference.DependsOnResourceId(worker.EffectiveResourceId));
 
         Assert.True(result.IsResolved);
         Assert.False(result.HasErrors);
@@ -83,7 +83,7 @@ public sealed class ResourceGraphResolverTests
 
         var result = resolver.ResolveReference(
             snapshot,
-            ResourceReference.ResourceId(
+            ResourceReference.DependsOnResourceId(
                 worker.EffectiveResourceId,
                 typeId: SqlServerResourceTypeProvider.ResourceTypeId));
 
@@ -179,7 +179,7 @@ public sealed class ResourceGraphResolverTests
             {
                 DependsOn =
                 [
-                    ResourceReference.ResourceId(
+                    ResourceReference.DependsOnResourceId(
                         worker.EffectiveResourceId,
                         typeId: LocalVolumeResourceTypeProvider.ResourceTypeId)
                 ]
@@ -218,7 +218,7 @@ public sealed class ResourceGraphResolverTests
                             "provider-native-worker",
                             ResourceReferenceRelationships.DependsOn,
                             ResourceReferenceAddressingModes.ProviderNative),
-                        ResourceReference.ResourceId(worker.EffectiveResourceId)
+                        ResourceReference.DependsOnResourceId(worker.EffectiveResourceId)
                     ])
             ]);
         var snapshot = new ResourceGraphSnapshot(ResourceGraphVersion.Initial, [api, worker]);
@@ -329,7 +329,7 @@ public sealed class ResourceGraphResolverTests
 
     private static IReadOnlyList<ResourceReference>? ToReferences(
         IReadOnlyList<string>? resourceIds) =>
-        resourceIds?.Select(resourceId => ResourceReference.ResourceId(resourceId)).ToArray();
+        resourceIds?.Select(resourceId => ResourceReference.DependsOnResourceId(resourceId)).ToArray();
 
     private static ResourceState CreateLocalVolumeState(
         string name) =>

@@ -219,7 +219,7 @@ public sealed class ResourceDefinitionGraphValidationPipelineTests
 
     private static IReadOnlyList<ResourceReference>? ToReferences(
         IReadOnlyList<string>? resourceIds) =>
-        resourceIds?.Select(resourceId => ResourceReference.ResourceId(resourceId)).ToArray();
+        resourceIds?.Select(resourceId => ResourceReference.DependsOnResourceId(resourceId)).ToArray();
 
     private sealed class ExecutableStartOperationProvider : IResourceOperationProvider
     {

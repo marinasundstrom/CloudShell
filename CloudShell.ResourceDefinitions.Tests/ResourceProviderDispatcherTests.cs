@@ -61,7 +61,7 @@ public sealed class ResourceProviderDispatcherTests
         var definition = new ResourceDefinition(
             "api",
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
-            DependsOn: [ResourceReference.ResourceId(volume.EffectiveResourceId)],
+            DependsOn: [ResourceReference.DependsOnResourceId(volume.EffectiveResourceId)],
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
                 [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
@@ -338,7 +338,7 @@ public sealed class ResourceProviderDispatcherTests
         var definition = new ResourceDefinition(
             "data",
             CloudShellVolumeResourceTypeProvider.ResourceTypeId,
-            DependsOn: [ResourceReference.ResourceId(storage.EffectiveResourceId)],
+            DependsOn: [ResourceReference.DependsOnResourceId(storage.EffectiveResourceId)],
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
                 [CloudShellVolumeResourceTypeProvider.Attributes.Provider] = "Local Storage",
@@ -399,8 +399,8 @@ public sealed class ResourceProviderDispatcherTests
             ServiceResourceTypeProvider.ResourceTypeId,
             DependsOn:
             [
-                ResourceReference.ResourceId("application.container-app:api"),
-                ResourceReference.ResourceId("cloudshell.network:default")
+                ResourceReference.DependsOnResourceId("application.container-app:api"),
+                ResourceReference.DependsOnResourceId("cloudshell.network:default")
             ],
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
@@ -1105,8 +1105,8 @@ public sealed class ResourceProviderDispatcherTests
             NameMappingResourceTypeProvider.ResourceTypeId,
             DependsOn:
             [
-                ResourceReference.ResourceId("cloudshell.dnsZone:local"),
-                ResourceReference.ResourceId("application.executable:api")
+                ResourceReference.DependsOnResourceId("cloudshell.dnsZone:local"),
+                ResourceReference.DependsOnResourceId("application.executable:api")
             ],
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
@@ -1477,7 +1477,7 @@ public sealed class ResourceProviderDispatcherTests
             SqlDatabaseResourceTypeProvider.ResourceTypeId,
             DependsOn:
             [
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     server.EffectiveResourceId,
                     typeId: SqlServerResourceTypeProvider.ResourceTypeId)
             ],
@@ -1566,7 +1566,7 @@ public sealed class ResourceProviderDispatcherTests
             SqlDatabaseResourceTypeProvider.ResourceTypeId,
             DependsOn:
             [
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     server.EffectiveResourceId,
                     typeId: SqlServerResourceTypeProvider.ResourceTypeId)
             ],

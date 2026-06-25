@@ -339,7 +339,7 @@ public sealed class ResourceResolverTests
     public void Resolve_ReportsInvalidResourceReferenceAttributeDefinitionDefault()
     {
         var referenceValue = ResourceAttributeValue.FromObject(
-            ResourceReference.ResourceId(
+            ResourceReference.DependsOnResourceId(
                 "application.sql-server:server",
                 typeId: "application.sql-server"));
         var invalidReferenceValue = ResourceAttributeValue.Object(

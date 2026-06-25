@@ -153,7 +153,7 @@ public sealed class ResourceDefinitionDescriptorTests
     [Fact]
     public void ResourceReferenceAttributeValueMapsConcreteTypeAndSupportsStructuralNavigation()
     {
-        var reference = ResourceReference.ResourceId(
+        var reference = ResourceReference.DependsOnResourceId(
             "application.sql-server:server",
             typeId: SqlServerResourceTypeProvider.ResourceTypeId,
             providerId: SqlServerResourceTypeProvider.ProviderId);
@@ -230,7 +230,7 @@ public sealed class ResourceDefinitionDescriptorTests
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
             DependsOn:
             [
-                ResourceReference.ResourceId(
+                ResourceReference.DependsOnResourceId(
                     "storage.volume:data",
                     typeId: CloudShellVolumeResourceTypeProvider.ResourceTypeId)
             ]);
@@ -250,7 +250,7 @@ public sealed class ResourceDefinitionDescriptorTests
     [Fact]
     public void ResourceReference_RoundTripsExpectedTypeAndProviderAsJsonTarget()
     {
-        var reference = ResourceReference.ResourceId(
+        var reference = ResourceReference.DependsOnResourceId(
             "application.sql-server:server",
             typeId: SqlServerResourceTypeProvider.ResourceTypeId,
             providerId: SqlServerResourceTypeProvider.ProviderId);

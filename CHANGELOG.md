@@ -113,6 +113,9 @@ on `git blame --follow`, and then by the broad type of change.
 - `ResourceReference` now has explicit `DependsOnResourceId` and
   `BelongsToResourceId` factories so relationship intent is visible at call
   sites.
+- Current dependency providers and tests now use the explicit
+  `DependsOnResourceId` factory instead of relying on the generic
+  `ResourceReference` default relationship.
 - The Resource Manager graph resource provider now projects only `dependsOn`
   references into Resource Manager dependency lists, leaving ownership
   references out of startup-order metadata.
