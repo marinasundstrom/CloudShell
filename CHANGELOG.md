@@ -109,6 +109,10 @@ on `git blame --follow`, and then by the broad type of change.
   tracker covering ProjectReference, SettingsAndSecrets, ApplicationTopology,
   ContainerAppDeployment, HostVirtualNetwork, and LoadBalancer as the next
   lenses for deciding provider ports.
+- Configuration Store, Host Configuration Source, and Secrets Vault reference
+  providers now use explicit `*.entries.count` read-only attributes for
+  provider-projected service entry summaries, while keeping actual entries and
+  secret values in provider/runtime state.
 - The graph-backed ASP.NET Core project runtime now retains a bounded
   provider-local process output buffer, and the ProjectReference sample adapts
   that output into a Control Plane `ILogProvider` so graph-declared log sources

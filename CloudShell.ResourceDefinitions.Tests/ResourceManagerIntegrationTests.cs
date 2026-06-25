@@ -2089,7 +2089,7 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(ConfigurationStoreResourceTypeProvider.ProviderId, projectedStore.Provider);
         Assert.Equal("store", projectedStore.ResourceAttributes["configuration.kind"]);
         Assert.Equal("http://localhost:5138", projectedStore.ResourceAttributes["configuration.endpoint"]);
-        Assert.Equal("0", projectedStore.ResourceAttributes["configuration.entries"]);
+        Assert.Equal("0", projectedStore.ResourceAttributes["configuration.entries.count"]);
         var inspect = Assert.Single(projectedStore.ResourceActions, action =>
             action.Id == ConfigurationStoreResourceTypeProvider.Operations.Inspect.ToString());
 
@@ -2162,7 +2162,7 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(HostConfigurationSourceResourceTypeProvider.ProviderId, projectedSource.Provider);
         Assert.Equal("host", projectedSource.ResourceAttributes["configuration.kind"]);
         Assert.Equal("host", projectedSource.ResourceAttributes["configuration.source"]);
-        Assert.Equal("0", projectedSource.ResourceAttributes["configuration.entries"]);
+        Assert.Equal("0", projectedSource.ResourceAttributes["configuration.entries.count"]);
         var inspect = Assert.Single(projectedSource.ResourceActions, action =>
             action.Id == HostConfigurationSourceResourceTypeProvider.Operations.Inspect.ToString());
 
@@ -3561,7 +3561,7 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(SecretsVaultResourceTypeProvider.ProviderId, projectedVault.Provider);
         Assert.Equal("vault", projectedVault.ResourceAttributes["secrets.kind"]);
         Assert.Equal("http://localhost:6138", projectedVault.ResourceAttributes["secrets.endpoint"]);
-        Assert.Equal("0", projectedVault.ResourceAttributes["secrets.count"]);
+        Assert.Equal("0", projectedVault.ResourceAttributes["secrets.entries.count"]);
         var inspect = Assert.Single(projectedVault.ResourceActions, action =>
             action.Id == SecretsVaultResourceTypeProvider.Operations.Inspect.ToString());
 

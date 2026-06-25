@@ -15,7 +15,7 @@ public sealed class HostConfigurationSourceResourceTypeProvider :
     {
         public static readonly ResourceAttributeId ConfigurationKind = "configuration.kind";
         public static readonly ResourceAttributeId Source = "configuration.source";
-        public static readonly ResourceAttributeId EntryCount = "configuration.entries";
+        public static readonly ResourceAttributeId EntryCount = "configuration.entries.count";
     }
 
     public static class Operations

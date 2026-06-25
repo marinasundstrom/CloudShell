@@ -15,7 +15,7 @@ public sealed class SecretsVaultResourceTypeProvider :
     {
         public static readonly ResourceAttributeId SecretsKind = "secrets.kind";
         public static readonly ResourceAttributeId Endpoint = "secrets.endpoint";
-        public static readonly ResourceAttributeId SecretCount = "secrets.count";
+        public static readonly ResourceAttributeId SecretCount = "secrets.entries.count";
     }
 
     public static class Operations
