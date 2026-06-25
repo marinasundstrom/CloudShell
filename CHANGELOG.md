@@ -111,11 +111,14 @@ on `git blame --follow`, and then by the broad type of change.
   `dependsOn` dependency semantics so future `belongsTo` references can be
   resolved without becoming startup dependencies.
 - `ResourceReference` now has explicit `DependsOnResourceId` and
-  `BelongsToResourceId` factories so relationship intent is visible at call
-  sites.
+  `BelongsToResourceId` factories so the current POC qualifier is visible at
+  call sites.
 - Current dependency providers, Resource model tests, and Control Plane
   projection tests now use the explicit `DependsOnResourceId` factory instead
   of relying on the generic `ResourceReference` default relationship.
+- The resource definitions proposal now clarifies that `ResourceReference` is
+  an addressing primitive that may carry a relationship qualifier in the POC,
+  not a complete relationship model on its own.
 - The Resource Manager graph resource provider now projects only `dependsOn`
   references into Resource Manager dependency lists, leaving ownership
   references out of startup-order metadata.

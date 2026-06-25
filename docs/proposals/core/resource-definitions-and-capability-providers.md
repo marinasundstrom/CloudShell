@@ -974,15 +974,20 @@ The POC supports that lookup shape with a small Resource model graph resolver
 that can resolve a target resource and its dependency closure from a
 `ResourceGraphSnapshot`. Explicit `DependsOn` entries are `ResourceReference`
 objects, not raw resource ID strings. A reference carries the target value, the
-relationship, and the addressing mode. The current resolver only resolves
-`dependsOn` references addressed by `resourceId`, but the document shape can
-later represent references to projected resources or provider-native
-addresses. `ResourceReference` is the primitive for saying that one model
-element references a resource. A plain resource ID is only one addressing value
-inside that primitive, not the relationship model itself. `DependsOn` is the
-graph-level collection of `ResourceReference` values. A typed resource
-attribute may also carry a `ResourceReference` when the relationship belongs
-to the resource's own shape. For example, the former
+current POC relationship qualifier, and the addressing mode. The current
+resolver only resolves `dependsOn` references addressed by `resourceId`, but
+the document shape can later represent references to projected resources or
+provider-native addresses. `ResourceReference` is the primitive for saying
+that one model element references a resource. A plain resource ID is only one
+addressing value
+inside that primitive, not the relationship model itself. The qualifier is
+used by the POC to distinguish startup dependencies from ownership
+references, but a reference is not inherently the same thing as a
+relationship and future providers may introduce references where no
+relationship semantics are needed. `DependsOn` is the graph-level collection
+of `ResourceReference` values. A typed resource attribute may also carry a
+`ResourceReference` when the reference belongs to the resource's own shape.
+For example, the former
 `database.serverResourceId` string attribute is represented as
 `database.server`, with the built-in `ResourceReference` value type, rather
 than duplicating the target identity as a plain string. For SQL database
@@ -1015,11 +1020,13 @@ shape like the serialized `ResourceReference` record:
 }
 ```
 
-`value` is the address being referenced. `relationship` describes how the
-source relates to the target. `addressingMode` identifies the addressing
-family; the current graph resolver supports `resourceId`, while later modes
-can represent projected resources or provider-native references. `typeId` is
-optional expectation metadata: the attribute definition on the
+`value` is the address being referenced. In the current POC, `relationship`
+is a qualifier used by dependency traversal and the SQL database ownership
+projection; it should not be treated as proof that every reference is a
+domain relationship. `addressingMode` identifies the addressing family; the
+current graph resolver supports `resourceId`, while later modes can represent
+projected resources or provider-native references. `typeId` is optional
+expectation metadata: the attribute definition on the
 `ResourceTypeDefinition` or `ResourceClassDefinition` may constrain the
 expected type, while the resource value may also declare an expected type when
 the definition leaves it unconstrained and the author knows the target shape.
@@ -1033,7 +1040,7 @@ knows the required target shape, so graph resolution can reject a dependency
 that points at an existing resource of the wrong type instead of silently
 following it. When a provider-produced typed reference targets the same
 resource ID as an older untyped dependency declaration, the typed reference
-should refine the relationship for resolution so transition-era declarations
+should refine the reference for resolution so transition-era declarations
 do not bypass provider-owned validation.
 Resolving a `ResourceReference` is a first-class graph operation:
 when the reference can be resolved, the result carries the projected
@@ -1041,7 +1048,7 @@ when the reference can be resolved, the result carries the projected
 diagnostics. Direct lookup by resource ID remains supported for consumers that
 already have a graph resource address and only need the corresponding
 projection. The dependency-closure result also exposes the reference
-resolutions it followed, so consumers can distinguish the declared relationship
+resolutions it followed, so consumers can distinguish the followed reference
 from the target resource projection. The Resource Manager bridge can resolve a
 `ResourceReference` directly and binds capability and operation projections on
 the target when the reference resolves to a graph resource. Direct bridge
@@ -1442,16 +1449,16 @@ some reference providers still use `DependsOn` as a temporary input because
 authored attributes. That should not become the desired long-term model for
 all relationships.
 
-The `ResourceReference` primitive separates addressing mode from relationship
-semantics. A `resourceId`-addressed reference can be resolved directly even
-when its relationship is `belongsTo`, but dependency closure and dependency
-ID projection should only follow references whose relationship is
+The `ResourceReference` primitive separates addressing mode from the current
+POC relationship qualifier. A `resourceId`-addressed reference can be resolved
+directly even when its qualifier is `belongsTo`, but dependency closure and
+dependency ID projection should only follow references whose qualifier is
 `dependsOn`. The Resource Manager bridge follows the same rule when projecting
 Resource model records into Resource Manager `DependsOn` lists. This keeps
 ownership, targeting, and future projected-resource references from
 accidentally becoming startup-order dependencies. Code should prefer explicit
-relationship factories such as `DependsOnResourceId` and `BelongsToResourceId`
-when constructing resource-id references.
+factories such as `DependsOnResourceId` and `BelongsToResourceId` when
+constructing resource-id references with those qualifiers.
 
 `DependsOn` should remain a first-class optional collection on the resource
 record and interchange definition, not a normal inherited attribute. It is
