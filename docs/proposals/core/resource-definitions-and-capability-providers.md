@@ -618,7 +618,10 @@ projections compose without moving grants, secret values, configuration
 entries, or runtime credential provisioning into the Resource graph. The same
 shape should also be projected from persisted `ResourceRecord` values through
 Resource Manager, matching the likely integration path where graph state is
-stored beside operational Resource Manager records.
+stored beside operational Resource Manager records. The Resource Manager
+procedure bridge should be able to route declared operations on those stored
+records, proving that identity setup and configuration/secrets inspection
+remain provider-owned operation projections over the resolved graph state.
 
 Porting a provider means implementing the complete Resource model support that
 the resource type needs to work, not only mapping an existing provider to a new

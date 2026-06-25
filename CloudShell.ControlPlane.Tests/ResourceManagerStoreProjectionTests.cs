@@ -970,6 +970,88 @@ public sealed class ResourceManagerStoreProjectionTests
     }
 
     [Fact]
+    public async Task ExecuteActionAsync_RoutesPersistedSettingsAndSecretsOperationsThroughProcedureCapableBridgeProvider()
+    {
+        var states = CreateSettingsAndSecretsGraphStates();
+        var services = new ServiceCollection();
+        services.AddIdentityProvisioningResourceType();
+        services.AddConfigurationStoreResourceType();
+        services.AddSecretsVaultResourceType();
+        services.AddAspNetCoreProjectResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddInMemoryResourceModelGraphRecords(
+            states.Select(DefinitionResourceRecord.FromState).ToArray());
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var providers = serviceProvider
+            .GetServices<IResourceProvider>()
+            .ToArray();
+        var actionAvailabilityProviders = serviceProvider
+            .GetServices<IResourceActionAvailabilityProvider>()
+            .ToArray();
+        var registrations = new TestResourceRegistrationStore(
+            states
+                .Select(state => new ResourceRegistration(
+                    state.EffectiveResourceId,
+                    "resource-model",
+                    null,
+                    DateTimeOffset.UtcNow,
+                    []))
+                .ToArray());
+        var store = new ResourceManagerStore(
+            providers,
+            new TestResourceGroupStore([]),
+            registrations,
+            new ResourceDeclarationStore(),
+            new ResourceIdentityProviderCatalog(),
+            new CloudShellExtensionRegistry(),
+            new InMemoryCloudShellExtensionActivationStore());
+        var orchestration = new ResourceOrchestrationService(
+            [new DefaultResourceOrchestrator()],
+            [],
+            store,
+            registrations,
+            new ResourceDeclarationStore(),
+            CreateSelectionStore(),
+            actionAvailabilityProviders: actionAvailabilityProviders);
+        var resources = store.GetResources().ToDictionary(
+            resource => resource.Id,
+            StringComparer.OrdinalIgnoreCase);
+        var identity = resources["cloudshell.identity-provisioning:settings-secrets-identity"];
+        var settings = resources["configuration.store:settings-secrets-settings"];
+        var secrets = resources["secrets.vault:settings-secrets-secrets"];
+        var identitySetup = Assert.Single(identity.ResourceActions, action =>
+            action.Id == IdentityProvisioningResourceTypeProvider.Operations.Setup.ToString());
+        var settingsInspect = Assert.Single(settings.ResourceActions, action =>
+            action.Id == ConfigurationStoreResourceTypeProvider.Operations.Inspect.ToString());
+        var secretsInspect = Assert.Single(secrets.ResourceActions, action =>
+            action.Id == SecretsVaultResourceTypeProvider.Operations.Inspect.ToString());
+
+        Assert.Null(await orchestration.GetActionUnavailableReasonAsync(identity, identitySetup));
+        Assert.Null(await orchestration.GetActionUnavailableReasonAsync(settings, settingsInspect));
+        Assert.Null(await orchestration.GetActionUnavailableReasonAsync(secrets, secretsInspect));
+        var identityResult = await orchestration.ExecuteActionAsync(
+            identity,
+            identitySetup,
+            startDependencies: false,
+            new AllowAllAuthorizationService());
+        var settingsResult = await orchestration.ExecuteActionAsync(
+            settings,
+            settingsInspect,
+            startDependencies: false,
+            new AllowAllAuthorizationService());
+        var secretsResult = await orchestration.ExecuteActionAsync(
+            secrets,
+            secretsInspect,
+            startDependencies: false,
+            new AllowAllAuthorizationService());
+
+        Assert.Equal("Executed Identity Provisioning Setup for settings-secrets-identity.", identityResult.Message);
+        Assert.Equal("Executed Configuration Store Inspect for settings-secrets-settings.", settingsResult.Message);
+        Assert.Equal("Executed Secrets Vault Inspect for settings-secrets-secrets.", secretsResult.Message);
+    }
+
+    [Fact]
     public async Task GetActionUnavailableReasonAsync_ReportsGraphOperationProjectionDiagnostics()
     {
         var services = new ServiceCollection();

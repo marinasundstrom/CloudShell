@@ -79,6 +79,9 @@ on `git blame --follow`, and then by the broad type of change.
   records for the SettingsAndSecrets-shaped graph, proving the bridge can
   project identity, configuration, secrets, and project resources from stored
   graph records.
+- Resource Manager orchestration tests now route persisted SettingsAndSecrets
+  graph-record operations through the Resource model procedure bridge for
+  identity setup and configuration/secrets inspection.
 - Resource Manager store projection tests now cover persisted Resource model
   records for an ApplicationTopology-shaped graph, proving the bridge can
   project stored graph records alongside Resource Manager registrations.
