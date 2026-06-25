@@ -62,6 +62,8 @@ on `git blame --follow`, and then by the broad type of change.
   process runtime controller by default, keeping runtime execution behind the
   new provider seam without adapting old application-provider concepts into the
   Resource model.
+- The ASP.NET Core project process runtime controller now cleans up tracked
+  child processes when the DI container or host disposes the provider service.
 - The ProjectReference sample now registers a graph-backed ASP.NET Core
   project resource through the Resource model bridge provider, giving the POC a
   concrete host path for starting a project resource through the new provider

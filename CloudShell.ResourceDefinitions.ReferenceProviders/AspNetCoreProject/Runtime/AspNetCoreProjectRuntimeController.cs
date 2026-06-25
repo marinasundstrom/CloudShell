@@ -14,7 +14,9 @@ public interface IAspNetCoreProjectRuntimeController
 }
 
 public sealed class AspNetCoreProjectProcessRuntimeController :
-    IAspNetCoreProjectRuntimeController
+    IAspNetCoreProjectRuntimeController,
+    IDisposable,
+    IAsyncDisposable
 {
     private readonly ConcurrentDictionary<string, Process> _processes = new(
         StringComparer.OrdinalIgnoreCase);
@@ -170,6 +172,35 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
             return;
         }
 
+        await StopProcessAsync(process, cancellationToken);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        foreach (var resourceId in _processes.Keys.ToArray())
+        {
+            if (_processes.TryRemove(resourceId, out var process))
+            {
+                await StopProcessAsync(process, CancellationToken.None);
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        foreach (var resourceId in _processes.Keys.ToArray())
+        {
+            if (_processes.TryRemove(resourceId, out var process))
+            {
+                StopProcess(process);
+            }
+        }
+    }
+
+    private static async ValueTask StopProcessAsync(
+        Process process,
+        CancellationToken cancellationToken)
+    {
         try
         {
             if (process.HasExited)
@@ -193,6 +224,24 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
                     process.Kill(entireProcessTree: true);
                 }
             }
+        }
+        finally
+        {
+            DisposeProcess(process);
+        }
+    }
+
+    private static void StopProcess(Process process)
+    {
+        try
+        {
+            if (process.HasExited)
+            {
+                return;
+            }
+
+            process.Kill(entireProcessTree: true);
+            process.WaitForExit(TimeSpan.FromSeconds(5));
         }
         finally
         {
