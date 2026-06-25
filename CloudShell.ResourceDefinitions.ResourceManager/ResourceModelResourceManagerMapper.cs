@@ -10,7 +10,11 @@ public sealed record ResourceModelResourceManagerProjectionOptions(
     string DefaultProviderId = ResourceModelResourceProvider.DefaultProviderId,
     string DefaultRegion = ResourceModelResourceProvider.DefaultRegion,
     DateTimeOffset? DefaultLastUpdated = null,
-    string BridgeProviderId = ResourceModelResourceProvider.DefaultProviderId);
+    string BridgeProviderId = ResourceModelResourceProvider.DefaultProviderId,
+    ResourceModelResourceManagerStateResolver? StateResolver = null);
+
+public delegate ResourceManagerState? ResourceModelResourceManagerStateResolver(
+    ResourceModelResource resource);
 
 public static class ResourceModelResourceManagerAttributeNames
 {
@@ -37,7 +41,7 @@ public static class ResourceModelResourceManagerMapper
             resource.Type.TypeId.ToString(),
             resource.State.ProviderId ?? resource.Type.Definition.DefaultProviderId ?? options.DefaultProviderId,
             options.DefaultRegion,
-            State: ToResourceManagerState(resource),
+            State: ToResourceManagerState(resource, options),
             Endpoints: [],
             resource.Version ?? resource.Revision.ToString(),
             resource.LastModifiedAt ?? resource.CreatedAt ?? options.DefaultLastUpdated ?? DateTimeOffset.UnixEpoch,
@@ -92,10 +96,13 @@ public static class ResourceModelResourceManagerMapper
             ? resourceClass
             : ResourceManagerClass.Generic;
 
-    private static ResourceManagerState? ToResourceManagerState(ResourceModelResource resource) =>
-        resource.Operations.Any(operation => IsLifecycleOperation(operation.Id))
+    private static ResourceManagerState? ToResourceManagerState(
+        ResourceModelResource resource,
+        ResourceModelResourceManagerProjectionOptions options) =>
+        options.StateResolver?.Invoke(resource) ??
+        (resource.Operations.Any(operation => IsLifecycleOperation(operation.Id))
             ? ResourceManagerState.Unknown
-            : null;
+            : null);
 
     private static bool IsLifecycleOperation(ResourceOperationId operationId) =>
         operationId.ToString() is

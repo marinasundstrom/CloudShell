@@ -47,6 +47,25 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public void ResourceModelResourceProvider_UsesProjectionStateResolver()
+    {
+        var resolved = CreateResolver().Resolve(CreateExecutableState());
+        var provider = new ResourceModelResourceProvider(
+            "resource-model",
+            "Resource model",
+            () => [resolved],
+            new ResourceModelResourceManagerProjectionOptions(
+                StateResolver: resource =>
+                    resource.EffectiveResourceId == resolved.EffectiveResourceId
+                        ? ResourceManagerResourceState.Running
+                        : null));
+
+        var projected = Assert.Single(provider.GetResources());
+
+        Assert.Equal(ResourceManagerResourceState.Running, projected.State);
+    }
+
+    [Fact]
     public void ResourceModelGraphResourceProvider_ResolvesSnapshotIntoResourceManagerShape()
     {
         var provider = new ResourceModelGraphResourceProvider(

@@ -549,6 +549,15 @@ This currently proves Start dispatch, not full lifecycle parity. Resource
 Manager still blocks Restart while state is `Unknown`, so graph-backed
 resources that need Restart must either project provider-observed runtime
 state or wait for an explicit Resource Manager policy decision.
+The existing Resource Manager status semantics still apply: a missing
+resource state is the neutral "no lifecycle or status indication is exposed"
+case, while `Unknown` means the resource participates in lifecycle/status
+projection but the current provider or bridge cannot determine the value. The
+Resource model bridge therefore needs a small runtime-state projection seam,
+not a graph-owned runtime loop. Hosts or runtime adapters can provide an
+observed state for a graph resource; when they do not, lifecycle-capable graph
+resources fall back to `Unknown` and resources without lifecycle operations
+fall back to no state.
 Runtime-facing operation implementations should sit behind provider-owned
 services that are injected into the operation provider or projector. The
 reference executable start operation demonstrates this with a no-op default
@@ -584,7 +593,7 @@ Working plan and progress:
 | Dispatch Resource Manager Start to a resolved graph operation | Done | Registered graph resources with lifecycle operations project `Unknown` state so Start reaches `ResourceModelGraphProcedureProvider`. |
 | Keep ASP.NET Core runtime behavior provider-local | Done | The runtime controller starts from resolved graph attributes, and command construction now honors project path, arguments, hot reload, launch-settings, environment, process lifetime, and diagnostics inside the ASP.NET Core provider boundary. |
 | Prove the graph-backed project can actually run | Done | An executable-backed integration test starts the ProjectReference API through the graph ASP.NET Core provider seam and verifies its `/health` endpoint. |
-| Decide minimal runtime state projection | Pending | Restart is blocked while state is `Unknown`; runtime state projection or a deliberate Resource Manager policy change is needed before restart parity. |
+| Decide minimal runtime state projection | Done | The bridge can accept an optional runtime-state resolver. `null` remains the neutral no-status case, lifecycle-capable graph resources fall back to `Unknown`, and observed runtime state can enable actions such as Restart without putting runtime loops into the graph model. |
 | Re-evaluate redundant or premature model concepts | Pending | `ResolvedResourceDefinition`, broad graph contexts/transactions, and compatibility adapters should be removed or deferred if provider ports do not prove them necessary. |
 | Port the next provider | Deferred | Continue only after the ASP.NET Core vertical slice proves the provider seam and exposes any needed model changes. |
 

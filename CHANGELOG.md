@@ -80,6 +80,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager bridge projections now mark graph resources with lifecycle
   operations as `Unknown` lifecycle state, allowing registered graph-backed
   resources to dispatch Start through the graph procedure provider.
+- Resource Manager bridge projections can now accept an optional runtime-state
+  resolver, preserving `null` as the neutral no-status case while allowing
+  runtime adapters to project observed graph resource state for actions such
+  as Restart.
 - The Resource model proposal now records the POC objective that existing
   providers are behavioral references, while the new model should resolve old
   inconsistencies through consistent graph attributes, provider-owned

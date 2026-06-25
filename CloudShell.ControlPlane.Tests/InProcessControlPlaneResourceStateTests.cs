@@ -1028,6 +1028,55 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task ExecuteResourceActionAsync_DispatchesRegisteredResourceModelGraphResourceRestartWhenRuntimeStateIsRunning()
+    {
+        var runtimeController = new RecordingAspNetCoreProjectRuntimeController();
+        var graphState = new GraphResourceState(
+            "graph-project-reference-api",
+            AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
+            ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<GraphResourceAttributeId, string>
+            {
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] =
+                    "samples/ProjectReference/Api/CloudShell.ProjectReferenceApi.csproj",
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectArguments] =
+                    "--urls http://localhost:5229",
+                [AspNetCoreProjectResourceTypeProvider.Attributes.HotReload] =
+                    bool.FalseString.ToLowerInvariant()
+            });
+        var services = new ServiceCollection();
+        services.AddSingleton<IAspNetCoreProjectRuntimeController>(runtimeController);
+        services.AddInMemoryResourceModelGraph([graphState]);
+        services.AddAspNetCoreProjectResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider(
+            ResourceModelResourceProvider.DefaultProviderId,
+            "Resource model",
+            projectionOptions: new ResourceModelResourceManagerProjectionOptions(
+                StateResolver: resource =>
+                    string.Equals(
+                        resource.EffectiveResourceId,
+                        graphState.EffectiveResourceId,
+                        StringComparison.OrdinalIgnoreCase)
+                        ? ResourceState.Running
+                        : null));
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<ResourceModelGraphProcedureProvider>();
+        var projectedResource = Assert.Single(provider.GetResources());
+        var controlPlane = CreateControlPlane([projectedResource], provider);
+
+        var result = await controlPlane.ExecuteResourceActionAsync(
+            new ExecuteResourceActionCommand(
+                projectedResource.Id,
+                ResourceActionIds.Restart));
+
+        Assert.Equal("Executed Restart for graph-project-reference-api.", result.Message);
+        Assert.Equal(
+            [(graphState.EffectiveResourceId, AspNetCoreProjectResourceTypeProvider.Operations.Restart)],
+            runtimeController.ExecutedOperations);
+    }
+
+    [Fact]
     public async Task ExecuteResourceActionAsync_NotifiesResourceChanges()
     {
         var provider = new TestResourceProvider();
