@@ -105,6 +105,10 @@ on `git blame --follow`, and then by the broad type of change.
   companion Resource Manager bridge package that projects their endpoint
   attributes into Resource Manager endpoints and endpoint-network mappings,
   with SettingsAndSecrets-inspired graph coverage.
+- The Resource model proposal now includes a sample-driven provider migration
+  tracker covering ProjectReference, SettingsAndSecrets, ApplicationTopology,
+  ContainerAppDeployment, HostVirtualNetwork, and LoadBalancer as the next
+  lenses for deciding provider ports.
 - The graph-backed ASP.NET Core project runtime now retains a bounded
   provider-local process output buffer, and the ProjectReference sample adapts
   that output into a Control Plane `ILogProvider` so graph-declared log sources

@@ -602,6 +602,22 @@ path is intentionally narrow: it proves Resource Manager can list and dispatch
 operations to a resolved graph resource while the concrete process behavior is
 owned by the ASP.NET Core reference provider.
 
+### Sample-Driven Provider Migration Tracker
+
+Provider ports should now be selected from supported samples instead of from a
+generic provider inventory. A sample gives each port a concrete runtime seam,
+dependency shape, and smoke-test target. It also prevents the POC from
+extracting an application-resource toolkit before multiple ports prove the
+same concept belongs in shared code.
+
+| Sample lens | Current graph-model coverage | Next migration question |
+| --- | --- | --- |
+| ProjectReference | One graph-backed ASP.NET Core API runs side-by-side with old application-provider resources and now proves start, stop, logs, traces, metrics, health, endpoint projection, state projection, and ResourceDefinition apply diagnostics. | Replacing the old API resource requires a stable graph-backed service-discovery identity for the frontend and updated smoke coverage for dependency links that currently expect `application:project-reference-api`. |
+| SettingsAndSecrets | Configuration Store, Secrets Vault, identity provisioning, and ASP.NET Core project graph definitions can be applied together; Configuration Store and Secrets Vault now project Resource Manager endpoints through a provider-bridge package. | Decide how graph-backed configuration/secrets resources hand off entries, secrets, grants, and protected backing services to Control Plane-owned runtime handlers without storing secret values in graph state. |
+| ApplicationTopology | The inspired graph composes storage, SQL Server/database, configuration, secrets, and ASP.NET Core resources across provider boundaries. | Use it after SettingsAndSecrets to validate multi-provider dependencies, SQL child ownership, volume materialization, and application-level discovery without reintroducing application-provider terminology. |
+| ContainerAppDeployment | The inspired graph covers Docker/container host references and container app definitions; old sample runtime still owns deployment, registry, and Docker behavior. | Port only when the graph-to-Resource Manager runtime apply boundary for container app deployment can be tested against registry and container-host seams. |
+| HostVirtualNetwork and LoadBalancer | Network, virtual network, host networking, DNS zone, name mapping, service, and load-balancer graph providers have definition/projection coverage. | Use these samples to validate endpoint mapping operations and provider-owned network reconciliation after application and settings dependencies are stable. |
+
 ### Revised POC Plan
 
 The POC should now optimize for one clean end-to-end provider replacement
