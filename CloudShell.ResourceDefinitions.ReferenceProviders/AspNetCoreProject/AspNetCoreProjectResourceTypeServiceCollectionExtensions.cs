@@ -44,7 +44,7 @@ public static class AspNetCoreProjectResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceProjectionProvider, AspNetCoreProjectResourceProjectionProvider>());
         services.TryAddSingleton<
             IAspNetCoreProjectRuntimeController,
-            NoopAspNetCoreProjectRuntimeController>();
+            AspNetCoreProjectProcessRuntimeController>();
 
         return services;
     }

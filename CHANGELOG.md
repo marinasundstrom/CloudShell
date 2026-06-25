@@ -58,6 +58,10 @@ on `git blame --follow`, and then by the broad type of change.
 - The executable application start operation now delegates runtime-facing start
   behavior to an injected provider-owned runtime controller with a no-op POC
   default.
+- ASP.NET Core project start/restart operations now use a provider-owned
+  process runtime controller by default, keeping runtime execution behind the
+  new provider seam without adapting old application-provider concepts into the
+  Resource model.
 - The local host networking reconcile operation now delegates endpoint-mapping
   work to an injected provider-owned reconciler with a no-op POC default,
   matching the provider-integration pattern without moving runtime logic into
