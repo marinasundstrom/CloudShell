@@ -1805,6 +1805,109 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesHostVirtualNetworkInspiredGraphAcrossProviderBoundaries()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddLocalHostNetworkResourceType();
+        services.AddVirtualNetworkResourceType();
+        services.AddAspNetCoreProjectResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var hostNetworking = new ResourceDefinition(
+            "host-local",
+            LocalHostNetworkResourceTypeProvider.ResourceTypeId,
+            ProviderId: LocalHostNetworkResourceTypeProvider.ProviderId);
+        var api = new ResourceDefinition(
+            "vnet-api",
+            AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
+            ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] =
+                    "../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj",
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectArguments] =
+                    "--urls http://localhost:5291",
+                [AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings] =
+                    bool.FalseString.ToLowerInvariant()
+            });
+        var network = new ResourceDefinition(
+            "sample-vnet",
+            VirtualNetworkResourceTypeProvider.ResourceTypeId,
+            ProviderId: VirtualNetworkResourceTypeProvider.ProviderId,
+            DependsOn:
+            [
+                ResourceReference.ResourceId(
+                    hostNetworking.EffectiveResourceId,
+                    typeId: LocalHostNetworkResourceTypeProvider.ResourceTypeId),
+                ResourceReference.ResourceId(
+                    api.EffectiveResourceId,
+                    typeId: AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
+            ],
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [VirtualNetworkResourceTypeProvider.Attributes.IsDefault] =
+                    bool.TrueString.ToLowerInvariant(),
+                [VirtualNetworkResourceTypeProvider.Attributes.HostReadiness] =
+                    "providerRequired",
+                [VirtualNetworkResourceTypeProvider.Attributes.MappingProviders] =
+                    hostNetworking.EffectiveResourceId
+            });
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "host-virtual-network",
+                [hostNetworking, api, network],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 16, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+        Assert.Equal(3, result.Commit.Summary.AcceptedResourceCount);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedResources = provider.GetResources().ToArray();
+        var projectedNetwork = Assert.Single(projectedResources, resource =>
+            resource.Id == network.EffectiveResourceId);
+        var projectedHost = Assert.Single(projectedResources, resource =>
+            resource.Id == hostNetworking.EffectiveResourceId);
+        var projectedApi = Assert.Single(projectedResources, resource =>
+            resource.Id == api.EffectiveResourceId);
+
+        Assert.Equal(ResourceManagerClass.Network, projectedNetwork.ResourceClass);
+        Assert.Equal(ResourceManagerClass.Infrastructure, projectedHost.ResourceClass);
+        Assert.Equal(ResourceManagerClass.Project, projectedApi.ResourceClass);
+        Assert.Equal(
+            [hostNetworking.EffectiveResourceId, api.EffectiveResourceId],
+            projectedNetwork.DependsOn);
+        Assert.Equal(bool.TrueString.ToLowerInvariant(), projectedNetwork.ResourceAttributes[
+            VirtualNetworkResourceTypeProvider.Attributes.IsDefault]);
+        Assert.Equal(hostNetworking.EffectiveResourceId, projectedNetwork.ResourceAttributes[
+            VirtualNetworkResourceTypeProvider.Attributes.MappingProviders]);
+        Assert.Contains(projectedNetwork.ResourceActions, action =>
+            action.Id == VirtualNetworkResourceTypeProvider.Operations.ReconcileEndpointMappings.ToString());
+        Assert.Contains(projectedHost.ResourceCapabilities, capability =>
+            capability.Id == LocalHostNetworkResourceTypeProvider.Capabilities.NetworkingHostNetwork.ToString());
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveWithDependenciesAsync(network.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors, FormatDiagnostics(resolution.Diagnostics));
+        Assert.Equal(
+            [network.EffectiveResourceId, hostNetworking.EffectiveResourceId, api.EffectiveResourceId],
+            resolution.Resources.Select(resource => resource.EffectiveResourceId));
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesMacOSHostNetworkAcrossProviderBoundaries()
     {
         var services = new ServiceCollection();

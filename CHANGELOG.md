@@ -97,6 +97,10 @@ on `git blame --follow`, and then by the broad type of change.
   exclusive-lock APIs, keeping graph versions, change tracking, and commit
   contexts as the minimal write boundary while the proposal refocuses
   integration on custom projection from Resource Manager operational records.
+- Resource model provider integration tests now include a HostVirtualNetwork
+  sample-inspired graph across local host networking, virtual network, and
+  ASP.NET Core project reference providers, keeping the next POC path focused
+  on simpler networking resources before container app orchestration.
 
 ### 2026-06-24
 

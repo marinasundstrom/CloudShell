@@ -570,6 +570,12 @@ provider. The same sample-shaped graph should also be projected from persisted
 `ResourceRecord` values through Resource Manager, because the likely
 integration path is to let Resource Manager keep its own operational resource
 records while storing the Resource model graph state alongside them.
+The Host Virtual Network sample is the simpler networking-oriented scenario
+for early provider replacement work. It should prove that local host
+networking, virtual network, and ASP.NET Core project resources can compose
+through typed graph references and Resource Manager projection before the POC
+tries to model richer endpoint-mapping payloads, load-balancer routes, or
+container-app orchestration.
 
 Porting a provider means implementing the complete Resource model support that
 the resource type needs to work, not only mapping an existing provider to a new
