@@ -774,10 +774,13 @@ A narrow DNS Zone reference provider covers the declarative
 `cloudshell.dnsZone` graph resource. It owns the DNS zone name and selected
 DNS provider attributes, the passive DNS-zone capability marker, a reconcile
 name-mappings operation, a typed projection wrapper, and Resource Manager
-bridge coverage. The POC intentionally does not copy record-count, conflict,
-or materialization-status attributes from the old platform provider because
-those are derived or observed views that should be exposed through resolved
-capability members or operation plans.
+bridge coverage. The reconcile operation delegates to a provider-owned name
+mapping reconciler with a no-op POC default, keeping hosts-file or other DNS
+materialization behind the Resource Manager/provider boundary. The POC
+intentionally does not copy record-count, conflict, or materialization-status
+attributes from the old platform provider because those are derived or
+observed views that should be exposed through resolved capability members or
+operation plans.
 
 A narrow name-mapping reference provider covers the declarative
 `cloudshell.nameMapping` graph resource. It owns host name, target endpoint,

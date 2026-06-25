@@ -1,9 +1,35 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
+public interface IDnsZoneNameMappingReconciler
+{
+    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileNameMappingsAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed class NoopDnsZoneNameMappingReconciler :
+    IDnsZoneNameMappingReconciler
+{
+    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileNameMappingsAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+}
+
 public sealed class DnsZoneReconcileNameMappingsOperationProvider :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
+    private readonly IDnsZoneNameMappingReconciler _nameMappingReconciler =
+        new NoopDnsZoneNameMappingReconciler();
+
+    public DnsZoneReconcileNameMappingsOperationProvider(
+        IDnsZoneNameMappingReconciler? nameMappingReconciler = null)
+    {
+        _nameMappingReconciler =
+            nameMappingReconciler ?? new NoopDnsZoneNameMappingReconciler();
+    }
+
     public ResourceOperationId OperationId =>
         DnsZoneResourceTypeProvider.Operations.ReconcileNameMappings;
 
@@ -36,14 +62,19 @@ public sealed class DnsZoneReconcileNameMappingsOperationProvider :
         ValueTask.FromResult<IResourceOperationProjection>(
             new DnsZoneReconcileNameMappingsOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
-                operation));
+                operation,
+                _nameMappingReconciler));
 }
 
 public sealed class DnsZoneReconcileNameMappingsOperation(
     ResourceProjectionExecutionContext context,
-    ResourceOperationResolution operation) : IResourceOperationExecutorProjection
+    ResourceOperationResolution operation,
+    IDnsZoneNameMappingReconciler nameMappingReconciler) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
+
+    private readonly IDnsZoneNameMappingReconciler _nameMappingReconciler =
+        nameMappingReconciler;
 
     public Resource Resource => Context.Resource;
 
@@ -81,10 +112,14 @@ public sealed class DnsZoneReconcileNameMappingsOperation(
                 ]);
         }
 
+        var diagnostics = await _nameMappingReconciler.ReconcileNameMappingsAsync(
+            Resource,
+            cancellationToken);
+
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            []);
+            diagnostics);
     }
 }
 

@@ -30,6 +30,9 @@ public static class DnsZoneResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, DnsZoneReconcileNameMappingsOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, DnsZoneResourceProjectionProvider>());
+        services.TryAddSingleton<
+            IDnsZoneNameMappingReconciler,
+            NoopDnsZoneNameMappingReconciler>();
 
         return services;
     }
