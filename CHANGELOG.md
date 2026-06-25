@@ -17,6 +17,10 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- The Resource definitions proposal has been reframed as the Resource Graph
+  and Runtime Separation proposal, making the graph/configuration contract,
+  `ResourceDefinition` interchange role, and Control Plane runtime boundary
+  explicit for the POC.
 - Docker container reference resources now mark `endpoints.count` as read-only
   provider-projected state, so deployment definitions cannot author endpoint
   counts while resolved Resource projections still expose the default count.

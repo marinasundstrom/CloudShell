@@ -1,4 +1,4 @@
-# Resource Definitions, Capability Providers, and Operation Providers Proposal
+# Resource Graph and Runtime Separation Proposal
 
 ## Status
 
@@ -7,28 +7,91 @@ POC in progress.
 CloudShell already distinguishes projected resources from declared resources in
 the resource model documentation, and several providers already carry typed
 definition records such as application, storage, volume, network, service, DNS,
-and load-balancer definitions. This proposal tracks the next model step:
-formalizing a resource graph and configuration model, formalizing
-`ResourceDefinition` as its interchange model/format, and formalizing
-capability providers and operation providers as integration points for
-behavior over resolved resource graph state.
+and load-balancer definitions. This proposal narrows that work into one core
+architecture: the Resource model is the durable resource graph and
+configuration contract, while the Control Plane and Resource Manager own
+runtime behavior and operational state.
 
-The POC should primarily be read as a resource graph and configuration model.
-It stores the basic data that defines a resource graph: resource identity,
-type/class membership, relationships, dependencies, declared attributes,
-configuration values, declared capabilities, declared operations, metadata, and
-accepted provider-managed state. It does not own runtime lifecycle execution or
-Control Plane operational state. Capabilities and operations are the behavior
-integration points over that graph/configuration state: they can declare what a
-resource supports and can attach provider-owned behavior that interprets or
-updates the resolved resource view.
+## Core Clarification
+
+The Resource model owns the durable, declarative description of the system:
+
+- resource identity
+- resource types and classes
+- attributes
+- relationships and references
+- declared capabilities
+- declared operations
+- metadata
+- accepted graph state
+
+The graph describes what CloudShell should know about the system. It does not
+describe how the system is currently executing. Runtime lifecycle, orchestration,
+process state, health snapshots, logs, traces, metrics, runtime handles, locks,
+provider caches, and operational history belong to the Control Plane and
+Resource Manager.
+
+The boundary can be summarized as:
+
+```mermaid
+flowchart TD
+    definition["ResourceDefinition<br/>interchange format"]
+    graph["Resource graph<br/>durable configuration contract"]
+    resolved["Resolved Resource<br/>effective graph view"]
+    declarations["Capabilities and operations<br/>resolved declarations"]
+    manager["Resource Manager<br/>Control Plane operational model"]
+    runtime["Runtime integrations<br/>handlers and provider services"]
+    infrastructure["Running infrastructure"]
+
+    definition --> graph
+    graph --> resolved
+    resolved --> declarations
+    declarations --> manager
+    manager --> runtime
+    runtime --> infrastructure
+```
+
+`ResourceDefinition` is the interchange format for graph state. It is used for
+authoring, deployments, templates, imports, exports, debug views, and applying
+changes. Applying a `ResourceDefinition` produces graph-state changes that are
+validated and accepted by the owning resource type before they become part of
+the graph.
+
+`ResourceTypeDefinition` and `ResourceClassDefinition` define configuration
+shape: attributes, defaults, validation rules, supported capabilities, and
+supported operations. They do not implement runtime behavior. Their
+responsibility ends when proposed configuration changes have been validated,
+normalized, and accepted into the graph.
+
+Capabilities and operations are declarations in the graph. Their
+implementations are resolved by the runtime layer. The graph owns what exists;
+the runtime owns how it behaves. Capability providers and operation providers
+are integration points, not background runtime systems.
+
+The Resource Manager composes the resolved graph with its own operational
+records, provider state, authorization, orchestration, logs, traces, health,
+and lifecycle state into the operational view exposed through the API and UI.
+The graph remains the contract; the runtime remains the implementation.
+
+Storage is intentionally an implementation detail. The same graph model should
+support in-memory graphs, Resource Manager-owned records with embedded graph
+payloads, document stores, cached projections, and future distributed Control
+Plane deployments without changing the model primitives.
+
+## POC Scope
 
 The first implementation slice is isolated in `CloudShell.ResourceDefinitions`
 with tests in `CloudShell.ResourceDefinitions.Tests`. It proves the
 interchange envelope, class/type inheritance, effective
-attribute/capability/operation resolution, diagnostics, and provider-dispatch
-contracts without changing the Control Plane pipeline, persistence, API
-projection, or existing provider definition stores.
+attribute/capability/operation resolution, diagnostics, apply seams, and
+provider-dispatch contracts without replacing the current Control Plane
+pipeline, API projection, Resource Manager persistence, or existing provider
+definition stores.
+
+The POC should stay focused on the lower graph/configuration model and the
+bridge into Resource Manager. It should prove that existing providers can be
+ported onto a consistent graph contract, while runtime behavior remains behind
+Control Plane-owned integrations.
 
 ## Problem
 
@@ -186,6 +249,12 @@ The expected benefits are:
   volumes, databases, networks, services, or other resource types.
 - Do not make projected `Resource.Attributes` a structured provider
   configuration schema.
+- Do not make the Resource graph the operational database for lifecycle,
+  health, logs, traces, runtime handles, orchestration progress, or provider
+  caches.
+- Do not put background execution, reconciliation loops, or runtime lifecycle
+  systems inside resource type definitions, capability providers, operation
+  providers, or graph resources.
 - Do not require every provider-owned runtime artifact to be authorable as a
   resource definition.
 - Do not require lossless round-tripping from every provider projection back
@@ -204,15 +273,18 @@ The expected benefits are:
 
 ## Proposed Model
 
-At the highest level, the core runtime model should center on three
-concepts: `Resource`, `ResourceTypeDefinition`, and
-`ResourceClassDefinition`.
-`Resource` represents the low-level projected state of a resource:
-identity, type, attributes, capability declarations, operation declarations,
-dependencies, provider-owned payloads, and actual resource state observed or
-accepted by providers. `ResourceTypeDefinition` and
-`ResourceClassDefinition` define shapes, presets, and expectations for
-valid `Resource` instances.
+At the highest level, the graph/configuration model centers on three concrete
+domain concepts: `Resource`, `ResourceTypeDefinition`, and
+`ResourceClassDefinition`. `ResourceDefinition` remains in the model with one
+specific purpose: it is the interchange format used to render or apply graph
+state.
+
+`Resource` represents the resolved graph projection of a resource: identity,
+type, attributes, capability declarations, operation declarations,
+dependencies, references, metadata, and accepted graph state. It is not the
+Resource Manager's operational resource object and it is not a live runtime
+handle. `ResourceTypeDefinition` and `ResourceClassDefinition` define shapes,
+presets, and expectations for valid `Resource` instances.
 
 The composition of a `Resource` is based on its `ResourceTypeDefinition`,
 which is based on its `ResourceClassDefinition`, plus the resource's declared
@@ -220,8 +292,9 @@ attribute values, capabilities, and operations. Those inputs are merged by the
 resource resolution rules. That is why `Resource` is a projection: callers see
 the resolved `.Type`, `.Attributes`, `.Capabilities`, and `.Operations`, not
 only the raw declarations. Some resolved values may still be lazy or queried
-through resolvers when they depend on provider state, related resources, or
-runtime observations.
+through resolvers when they depend on related graph resources,
+provider-managed accepted graph state, or integration-specific projection
+rules.
 
 CloudShell may also need `ResourceType` and `ResourceClass` views.
 `ResourceTypeDefinition` resolves to `ResourceType`, and
@@ -234,24 +307,23 @@ provider requirements. `ResourceClass` would be the resolved view of a
 `.Type` and `.Class` views instead of forcing callers to inspect raw
 definition objects.
 
-The reason for having the `*Definition` classes is that they are the
-declaration classes for interchange. `ResourceDefinition`,
+The reason for having the `*Definition` classes is that they are declaration
+classes for interchange and provider/package metadata. `ResourceDefinition`,
 `ResourceTypeDefinition`, and `ResourceClassDefinition` can be rendered to and
 loaded from JSON, YAML, XML, templates, imports, or provider package
 manifests, while `Resource`, `ResourceType`, and `ResourceClass` remain the
-resolved runtime views used by normal domain code.
+resolved graph views used by normal domain code.
 
 `ResourceDefinition` is still part of the model, but with a specific purpose:
 it is the interchange model/format for a `Resource`, not another runtime
 state container. The direction is explicit: take a `Resource` projection and
 render it as a `ResourceDefinition` for interchange, review, deployment input,
 import, or export; take a `ResourceDefinition` and apply it to a `Resource`
-through provider-owned validation, planning, and behavior. Applying a
-`ResourceDefinition` changes resource-owned state, not
-`ResourceTypeDefinition` or `ResourceClassDefinition`. Capability providers
-and operation providers interpret the resolved resource projection as
-behavior: they can validate it, project helper data or command affordances
-from it, resolve related resources, and produce changes.
+through provider-owned validation and planning. Applying a
+`ResourceDefinition` changes resource-owned graph state, not
+`ResourceTypeDefinition` or `ResourceClassDefinition`. Runtime effects caused
+by accepted graph changes are handled above the graph layer by Control
+Plane-owned integrations.
 
 Raw `ResourceDefinition` validation is a separate interchange/document
 concern. It can check whether an authored document is well formed, references
