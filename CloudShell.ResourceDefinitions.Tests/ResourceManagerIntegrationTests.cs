@@ -81,6 +81,48 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public void ResourceModelResourceProvider_UsesProjectionEndpointResolver()
+    {
+        var resolved = CreateResolver().Resolve(CreateExecutableState());
+        var provider = new ResourceModelResourceProvider(
+            "resource-model",
+            "Resource model",
+            () => [resolved],
+            new ResourceModelResourceManagerProjectionOptions(
+                EndpointProjectionResolver: resource =>
+                    resource.EffectiveResourceId == resolved.EffectiveResourceId
+                        ? new ResourceModelResourceManagerEndpointProjection(
+                            Endpoints:
+                            [
+                                ResourceEndpoint.Contract(
+                                    "http",
+                                    "http",
+                                    ResourceExposureScope.Local,
+                                    5010)
+                            ],
+                            EndpointNetworkMappings:
+                            [
+                                ResourceEndpointNetworkMapping.ForEndpoint(
+                                    resource.EffectiveResourceId,
+                                    "http",
+                                    "http://localhost:5010")
+                            ])
+                        : null));
+
+        var projected = Assert.Single(provider.GetResources());
+
+        var endpoint = Assert.Single(projected.Endpoints);
+        Assert.Equal("http", endpoint.Name);
+        Assert.Equal("http", endpoint.Protocol);
+        Assert.Equal(5010, endpoint.TargetPort);
+        var endpointNetworkMapping = Assert.Single(projected.ResourceEndpointNetworkMappings);
+        Assert.Equal("http://localhost:5010", endpointNetworkMapping.Address);
+        Assert.Equal(resolved.EffectiveResourceId, endpointNetworkMapping.Target.ResourceId);
+        Assert.Equal("http", endpointNetworkMapping.Target.EndpointName);
+        Assert.Equal("http://localhost:5010", projected.PrimaryEndpoint);
+    }
+
+    [Fact]
     public void ResourceModelGraphResourceProvider_ResolvesSnapshotIntoResourceManagerShape()
     {
         var provider = new ResourceModelGraphResourceProvider(

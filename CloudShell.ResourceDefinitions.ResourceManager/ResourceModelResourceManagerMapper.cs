@@ -12,10 +12,30 @@ public sealed record ResourceModelResourceManagerProjectionOptions(
     string DefaultRegion = ResourceModelResourceProvider.DefaultRegion,
     DateTimeOffset? DefaultLastUpdated = null,
     string BridgeProviderId = ResourceModelResourceProvider.DefaultProviderId,
-    ResourceModelResourceManagerStateResolver? StateResolver = null);
+    ResourceModelResourceManagerStateResolver? StateResolver = null,
+    ResourceModelResourceManagerEndpointProjectionResolver? EndpointProjectionResolver = null);
 
 public delegate ResourceManagerState? ResourceModelResourceManagerStateResolver(
     ResourceModelResource resource);
+
+public delegate ResourceModelResourceManagerEndpointProjection? ResourceModelResourceManagerEndpointProjectionResolver(
+    ResourceModelResource resource);
+
+public sealed record ResourceModelResourceManagerEndpointProjection(
+    IReadOnlyList<ResourceEndpoint>? Endpoints = null,
+    IReadOnlyList<ResourceEndpointMappingDefinition>? EndpointMappings = null,
+    IReadOnlyList<ResourceEndpointNetworkMapping>? EndpointNetworkMappings = null)
+{
+    public static ResourceModelResourceManagerEndpointProjection Empty { get; } = new();
+
+    public IReadOnlyList<ResourceEndpoint> ResourceEndpoints => Endpoints ?? [];
+
+    public IReadOnlyList<ResourceEndpointMappingDefinition> ResourceEndpointMappings =>
+        EndpointMappings ?? [];
+
+    public IReadOnlyList<ResourceEndpointNetworkMapping> ResourceEndpointNetworkMappings =>
+        EndpointNetworkMappings ?? [];
+}
 
 public static class ResourceModelResourceManagerAttributeNames
 {
@@ -36,6 +56,7 @@ public static class ResourceModelResourceManagerMapper
         attributes[ResourceModelResourceManagerAttributeNames.BridgeProviderId] =
             options.BridgeProviderId;
         var healthChecks = ToResourceManagerHealthChecks(resource);
+        var endpointProjection = ToResourceManagerEndpointProjection(resource, options);
 
         return new ResourceManagerResource(
             resource.EffectiveResourceId,
@@ -44,7 +65,7 @@ public static class ResourceModelResourceManagerMapper
             resource.State.ProviderId ?? resource.Type.Definition.DefaultProviderId ?? options.DefaultProviderId,
             options.DefaultRegion,
             State: ToResourceManagerState(resource, options),
-            Endpoints: [],
+            Endpoints: endpointProjection.ResourceEndpoints,
             resource.Version ?? resource.Revision.ToString(),
             resource.LastModifiedAt ?? resource.CreatedAt ?? options.DefaultLastUpdated ?? DateTimeOffset.UnixEpoch,
             dependencyIds ?? resource.State.StartupDependencyIds,
@@ -60,6 +81,8 @@ public static class ResourceModelResourceManagerMapper
             Source: ResourceSource.User,
             ManagementMode: ResourceManagementMode.UserManaged,
             DisplayName: resource.State.DisplayName,
+            EndpointMappings: endpointProjection.ResourceEndpointMappings,
+            EndpointNetworkMappings: endpointProjection.ResourceEndpointNetworkMappings,
             LogSources: ToResourceManagerLogSources(resource));
     }
 
@@ -107,6 +130,12 @@ public static class ResourceModelResourceManagerMapper
         (resource.Operations.Any(operation => IsLifecycleOperation(operation.Id))
             ? ResourceManagerState.Unknown
             : null);
+
+    private static ResourceModelResourceManagerEndpointProjection ToResourceManagerEndpointProjection(
+        ResourceModelResource resource,
+        ResourceModelResourceManagerProjectionOptions options) =>
+        options.EndpointProjectionResolver?.Invoke(resource) ??
+        ResourceModelResourceManagerEndpointProjection.Empty;
 
     private static bool IsLifecycleOperation(ResourceOperationId operationId) =>
         operationId.ToString() is

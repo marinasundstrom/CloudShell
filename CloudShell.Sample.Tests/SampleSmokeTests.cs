@@ -135,6 +135,19 @@ public sealed class SampleSmokeTests
             resource.GetProperty("id").GetString() == "application:project-reference-api");
         Assert.Contains(resources, resource =>
             resource.GetProperty("id").GetString() == "application:project-reference-frontend");
+        var graphApi = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.aspnet-core-project:graph-project-reference-api");
+        var graphApiEndpoint = Assert.Single(graphApi.GetProperty("endpoints").EnumerateArray());
+        Assert.Equal("http", graphApiEndpoint.GetProperty("name").GetString());
+        Assert.Equal("http", graphApiEndpoint.GetProperty("protocol").GetString());
+        Assert.Equal(5229, graphApiEndpoint.GetProperty("targetPort").GetInt32());
+        Assert.Equal("http://localhost:5229", graphApi.GetProperty("primaryEndpoint").GetString());
+        var graphApiEndpointMapping = Assert.Single(
+            graphApi.GetProperty("endpointNetworkMappings").EnumerateArray());
+        Assert.Equal("http://localhost:5229", graphApiEndpointMapping.GetProperty("address").GetString());
+        Assert.Equal(
+            "http",
+            graphApiEndpointMapping.GetProperty("target").GetProperty("endpointName").GetString());
 
         await host.WaitForAbsoluteHttpOkAsync(
             $"{frontendEndpoint}/upstream",

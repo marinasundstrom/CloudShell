@@ -81,7 +81,9 @@ builder.Services
     .AddResourceModelGraphServices()
     .AddResourceModelGraphProcedureProvider(
         ResourceModelResourceProvider.DefaultProviderId,
-        "Resource model");
+        "Resource model",
+        projectionOptions: new ResourceModelResourceManagerProjectionOptions(
+            EndpointProjectionResolver: ProjectAspNetCoreProjectEndpoints));
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()
@@ -174,6 +176,100 @@ static string? FirstHttpEndpoint(string? value)
         if (uri.Scheme is "http" or "https")
         {
             return uri.GetLeftPart(UriPartial.Authority);
+        }
+    }
+
+    return null;
+}
+
+static ResourceModelResourceManagerEndpointProjection ProjectAspNetCoreProjectEndpoints(
+    CloudShell.ResourceDefinitions.Resource resource)
+{
+    if (resource.Type.TypeId != AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
+    {
+        return ResourceModelResourceManagerEndpointProjection.Empty;
+    }
+
+    var requests = resource.Attributes
+        .GetObject<NetworkingEndpointRequestValue[]>(
+            AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests) ?? [];
+
+    if (requests.Length == 0)
+    {
+        return ResourceModelResourceManagerEndpointProjection.Empty;
+    }
+
+    var endpoints = requests
+        .Where(request =>
+            !string.IsNullOrWhiteSpace(request.Name) &&
+            !string.IsNullOrWhiteSpace(request.Protocol))
+        .Select(request => new ResourceEndpoint(
+            request.Name.Trim(),
+            NormalizeProtocol(request.Protocol),
+            ParseExposure(request.Exposure),
+            request.TargetPort ?? request.Port))
+        .ToArray();
+    var endpointNetworkMappings = requests
+        .Select(request => CreateEndpointNetworkMapping(resource, request))
+        .Where(mapping => mapping is not null)
+        .Cast<ResourceEndpointNetworkMapping>()
+        .ToArray();
+
+    return endpoints.Length == 0 && endpointNetworkMappings.Length == 0
+        ? ResourceModelResourceManagerEndpointProjection.Empty
+        : new ResourceModelResourceManagerEndpointProjection(
+            endpoints,
+            EndpointNetworkMappings: endpointNetworkMappings);
+}
+
+static ResourceEndpointNetworkMapping? CreateEndpointNetworkMapping(
+    CloudShell.ResourceDefinitions.Resource resource,
+    NetworkingEndpointRequestValue request)
+{
+    if (string.IsNullOrWhiteSpace(request.Name) ||
+        string.IsNullOrWhiteSpace(request.Protocol) ||
+        request.Port is not > 0)
+    {
+        return null;
+    }
+
+    var host = FirstNonEmpty(request.Host, request.IpAddress);
+    if (host is null)
+    {
+        return null;
+    }
+
+    var protocol = NormalizeProtocol(request.Protocol);
+    var address = protocol is "http" or "https"
+        ? $"{protocol}://{host}:{request.Port.Value}"
+        : $"{host}:{request.Port.Value}";
+
+    return ResourceEndpointNetworkMapping.ForEndpoint(
+        resource.EffectiveResourceId,
+        request.Name,
+        address,
+        ParseExposure(request.Exposure),
+        request.Network?.TryGetResourceId(out var networkResourceId) == true
+            ? networkResourceId
+            : null);
+}
+
+static string NormalizeProtocol(string protocol) =>
+    protocol.Trim().ToLowerInvariant();
+
+static ResourceExposureScope ParseExposure(string? exposure) =>
+    !string.IsNullOrWhiteSpace(exposure) &&
+    Enum.TryParse<ResourceExposureScope>(exposure, ignoreCase: true, out var parsed)
+        ? parsed
+        : ResourceExposureScope.Local;
+
+static string? FirstNonEmpty(params string?[] values)
+{
+    foreach (var value in values)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            return value.Trim();
         }
     }
 

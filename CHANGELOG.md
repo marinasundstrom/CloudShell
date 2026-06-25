@@ -73,6 +73,10 @@ on `git blame --follow`, and then by the broad type of change.
   declares `/health` and `/alive` through the Resource model `health.checks`
   payload, and the sample smoke test verifies it appears in Resource Manager's
   health inventory.
+- Resource Manager bridge projections can now accept a provider-owned endpoint
+  projection resolver, and the ProjectReference graph-backed ASP.NET Core
+  project maps its typed endpoint request into Resource Manager endpoint and
+  endpoint-network-mapping projections.
 - The Resource model proposal now records the executable provider port finding
   that command-shape attributes such as executable arguments and working
   directory should be added intentionally when needed instead of copying the old
