@@ -2649,6 +2649,8 @@ public sealed class ResourceManagerIntegrationTests
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph();
+        var inspector = new RecordingStorageInspector();
+        services.AddSingleton<IStorageInspector>(inspector);
         services.AddStorageResourceType();
         services.AddResourceModelGraphServices();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
@@ -2725,6 +2727,7 @@ public sealed class ResourceManagerIntegrationTests
         var procedureResult = await provider.ExecuteActionAsync(procedure, inspect);
 
         Assert.Equal("Executed Storage Inspect for local.", procedureResult.Message);
+        Assert.Equal([storage.EffectiveResourceId], inspector.InspectedResourceIds);
     }
 
     [Fact]
@@ -4296,6 +4299,23 @@ public sealed class ResourceManagerIntegrationTests
             CancellationToken cancellationToken = default)
         {
             _provisionedResourceIds.Add(resource.EffectiveResourceId);
+
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+    }
+
+    private sealed class RecordingStorageInspector :
+        IStorageInspector
+    {
+        private readonly List<string> _inspectedResourceIds = [];
+
+        public IReadOnlyList<string> InspectedResourceIds => _inspectedResourceIds;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> InspectAsync(
+            Resource resource,
+            CancellationToken cancellationToken = default)
+        {
+            _inspectedResourceIds.Add(resource.EffectiveResourceId);
 
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }

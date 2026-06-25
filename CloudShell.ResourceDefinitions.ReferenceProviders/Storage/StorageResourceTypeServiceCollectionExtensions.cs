@@ -30,6 +30,7 @@ public static class StorageResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, StorageInspectOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, StorageResourceProjectionProvider>());
+        services.TryAddSingleton<IStorageInspector, NoopStorageInspector>();
 
         return services;
     }

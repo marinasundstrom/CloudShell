@@ -1,9 +1,29 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
-public sealed class StorageInspectOperationProvider :
+public interface IStorageInspector
+{
+    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> InspectAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed class NoopStorageInspector :
+    IStorageInspector
+{
+    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> InspectAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+}
+
+public sealed class StorageInspectOperationProvider(
+    IStorageInspector? inspector = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
+    private readonly IStorageInspector _inspector =
+        inspector ?? new NoopStorageInspector();
+
     public ResourceOperationId OperationId =>
         StorageResourceTypeProvider.Operations.Inspect;
 
@@ -36,14 +56,18 @@ public sealed class StorageInspectOperationProvider :
         ValueTask.FromResult<IResourceOperationProjection>(
             new StorageInspectOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
-                operation));
+                operation,
+                _inspector));
 }
 
 public sealed class StorageInspectOperation(
     ResourceProjectionExecutionContext context,
-    ResourceOperationResolution operation) : IResourceOperationExecutorProjection
+    ResourceOperationResolution operation,
+    IStorageInspector inspector) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
+
+    private readonly IStorageInspector _inspector = inspector;
 
     public Resource Resource => Context.Resource;
 
@@ -82,10 +106,14 @@ public sealed class StorageInspectOperation(
                 ]);
         }
 
+        var diagnostics = await _inspector.InspectAsync(
+            Resource,
+            cancellationToken);
+
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            []);
+            diagnostics);
     }
 }
 
