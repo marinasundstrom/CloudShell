@@ -979,12 +979,13 @@ the early POC names suggest:
 - **Graph apply hooks** validate, normalize, and stage changes to graph state.
   They should be treated as configuration-state apply hooks, not runtime
   procedure owners. When applying a graph resource change requires runtime
-  behavior, the graph-facing provider should delegate to a Resource
-  Manager-owned apply handler or secondary provider for that resource type.
-  That handler performs the operational work with Control Plane services and
-  may return accepted graph-state updates, such as provider-managed read-only
-  attributes projected from runtime state. Those updates still flow through the
-  graph apply/commit boundary instead of mutating persistence directly.
+  behavior, the graph layer should dispatch a typed apply command through a
+  graph-owned dispatcher contract. Resource Manager or another runtime layer
+  registers the handler implementation for that command. The handler performs
+  the operational work with Control Plane services and may return accepted
+  graph-state updates, such as provider-managed read-only attributes projected
+  from runtime state. Those updates still flow through the graph apply/commit
+  boundary instead of mutating persistence directly.
 - **Resource model / graph layer** owns the graph representation, resolved
   graph projections, and graph-state primitives. The current POC `Resource`
   class belongs here: it is the resolved graph resource projection, not the
@@ -1786,13 +1787,18 @@ durable persistence or cascading changes through the graph remains a Resource
 Manager/persistence concern outside this low-level projection model.
 Some resource types will need more than validation and normalization when a
 change is applied. In those cases the graph-facing apply provider should stay
-as the declaration/configuration-state boundary and delegate runtime work to a
-Resource Manager-owned apply handler or secondary provider. For example, a
-container-app graph provider can validate and stage requested image or replica
-configuration, then delegate materialization to a container-app apply handler
-inside Resource Manager. That handler can call runtime services,
-orchestrators, local process runners, endpoint-mapping provisioners, or
-provider SDKs, then return diagnostics and accepted graph-state updates.
+as the declaration/configuration-state boundary and dispatch runtime work
+through a graph-owned handler abstraction. The handler concept and dispatcher
+belong to the graph layer because the graph provider is the caller, but the
+handler implementation is registered by Resource Manager or the runtime
+integration layer. For example, a container-app graph provider can validate
+and stage requested image or replica configuration, then dispatch an
+`ApplyResourceChanges<ContainerAppResource>` command. A Resource Manager-owned
+handler registered as something like
+`IResourceOperationHandler<ApplyResourceChanges<ContainerAppResource>>` can
+handle that command with runtime services, orchestrators, local process
+runners, endpoint-mapping provisioners, or provider SDKs, then return
+diagnostics and accepted graph-state updates.
 Provider-managed read-only attributes that summarize observed runtime state
 are updated this way: the handler produces the accepted value, but the graph
 layer still applies it to `ResourceState` through the normal graph
@@ -1808,6 +1814,41 @@ status as failed. Unexpected programmer errors can still surface as
 exceptions, but provider/runtime failures should normally be modeled as result
 diagnostics so Resource Manager, the graph commit summary, and callers can
 explain what happened without corrupting configuration state.
+
+The conceptual shape is:
+
+```csharp
+public interface IResourceOperationHandler<in TCommand>
+    where TCommand : IResourceOperationCommand
+{
+    ValueTask<ResourceOperationHandlerResult> HandleAsync(
+        TCommand command,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IResourceOperationDispatcher
+{
+    ValueTask<ResourceOperationHandlerResult> DispatchAsync<TCommand>(
+        TCommand command,
+        CancellationToken cancellationToken = default)
+        where TCommand : IResourceOperationCommand;
+}
+
+public sealed record ApplyResourceChanges<TResource>(
+    TResource Resource,
+    ResourceChangeSet Changes,
+    IReadOnlyDictionary<string, object?>? ProviderData = null)
+    : IResourceOperationCommand;
+```
+
+`ApplyResourceChanges<TResource>` may carry provider-specific data from the
+graph resource type provider when the handler needs more context than the
+generic `ResourceChangeSet` contains. The command type should stay specific
+enough for Resource Manager to register focused handlers per resource type
+without turning the graph dispatcher into a broad runtime service locator. The
+result should carry diagnostics, status, optional accepted graph-state updates,
+and enough information for the graph-facing provider to decide how to complete
+the apply result.
 `ResourceDefinitionGraphChangeApplier` lifts that behavior to a graph
 snapshot: it resolves each incoming `ResourceDefinition` overlay against the
 current `ResourceState`, builds resource-local changes, runs the type-owned
@@ -2925,11 +2966,11 @@ flowchart TD
     integrations["Other integrations<br/>orchestrators, APIs, UI, tools"]
     domain["Resource Manager domain projection<br/>managed resource, runtime state, liveness, orchestration"]
     behavior["Capability and operation implementations<br/>provider-owned behavior hosted by Resource Manager"]
-    applyHandlers["Resource Manager apply handlers<br/>runtime effects and accepted graph-state updates"]
+    applyHandlers["Resource Manager apply handlers<br/>runtime implementations registered with dispatcher"]
     graph["Resource graph<br/>in-memory graph representation or cache"]
     projections["Graph Resource projection<br/>resolved effective attributes, capabilities, and operations"]
     state["ResourceState and ResourceRecord<br/>versioned graph declarations and metadata"]
-    changes["Configuration-state apply<br/>change tracking, graph apply hooks, commit results"]
+    changes["Configuration-state apply<br/>change tracking, graph apply hooks, dispatcher, commit results"]
     interchange["Interchange formats<br/>ResourceDefinition and serialized documents"]
     coordination["Transaction or lock coordination<br/>future Resource Manager concern"]
     persistence["Persistence<br/>operational records plus graph payloads or records"]
