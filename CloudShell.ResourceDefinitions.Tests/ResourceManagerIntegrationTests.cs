@@ -4414,10 +4414,29 @@ public sealed class ResourceManagerIntegrationTests
             Assert.Single(projectedSecrets.ResourceEndpointNetworkMappings).Address);
         Assert.Contains(projectedIdentity.ResourceCapabilities, capability =>
             capability.Id == IdentityProvisioningResourceTypeProvider.Capabilities.IdentityProvisioning.ToString());
+        var settingsInspect = Assert.Single(projectedSettings.ResourceActions, action =>
+            action.Id == ConfigurationStoreResourceTypeProvider.Operations.Inspect.ToString());
+        var secretsInspect = Assert.Single(projectedSecrets.ResourceActions, action =>
+            action.Id == SecretsVaultResourceTypeProvider.Operations.Inspect.ToString());
         Assert.Contains(projectedApi.ResourceActions, action =>
             action.Id == AspNetCoreProjectResourceTypeProvider.Operations.Start.ToString());
         Assert.Contains(projectedApi.ResourceActions, action =>
             action.Id == AspNetCoreProjectResourceTypeProvider.Operations.Stop.ToString());
+
+        Assert.Null(await provider.GetActionUnavailableReasonAsync(
+            new ResourceProcedureContext(
+                projectedSettings,
+                null,
+                null,
+                new EmptyResourceRegistrationStore()),
+            settingsInspect));
+        Assert.Null(await provider.GetActionUnavailableReasonAsync(
+            new ResourceProcedureContext(
+                projectedSecrets,
+                null,
+                null,
+                new EmptyResourceRegistrationStore()),
+            secretsInspect));
 
         var resolution = await serviceProvider
             .GetRequiredService<ResourceModelGraphResourceResolver>()
