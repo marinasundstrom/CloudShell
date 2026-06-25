@@ -3060,6 +3060,8 @@ public sealed class ResourceManagerIntegrationTests
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph();
+        var inspector = new RecordingSecretsVaultInspector();
+        services.AddSingleton<ISecretsVaultInspector>(inspector);
         services.AddSecretsVaultResourceType();
         services.AddResourceModelGraphServices();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
@@ -3126,6 +3128,7 @@ public sealed class ResourceManagerIntegrationTests
         var procedureResult = await provider.ExecuteActionAsync(procedure, inspect);
 
         Assert.Equal("Executed Secrets Vault Inspect for vault.", procedureResult.Message);
+        Assert.Equal([vault.EffectiveResourceId], inspector.InspectedResourceIds);
     }
 
     [Fact]
@@ -4366,6 +4369,23 @@ public sealed class ResourceManagerIntegrationTests
 
     private sealed class RecordingConfigurationStoreInspector :
         IConfigurationStoreInspector
+    {
+        private readonly List<string> _inspectedResourceIds = [];
+
+        public IReadOnlyList<string> InspectedResourceIds => _inspectedResourceIds;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> InspectAsync(
+            Resource resource,
+            CancellationToken cancellationToken = default)
+        {
+            _inspectedResourceIds.Add(resource.EffectiveResourceId);
+
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+    }
+
+    private sealed class RecordingSecretsVaultInspector :
+        ISecretsVaultInspector
     {
         private readonly List<string> _inspectedResourceIds = [];
 

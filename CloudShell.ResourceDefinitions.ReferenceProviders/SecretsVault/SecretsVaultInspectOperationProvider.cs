@@ -1,9 +1,29 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
-public sealed class SecretsVaultInspectOperationProvider :
+public interface ISecretsVaultInspector
+{
+    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> InspectAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed class NoopSecretsVaultInspector :
+    ISecretsVaultInspector
+{
+    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> InspectAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+}
+
+public sealed class SecretsVaultInspectOperationProvider(
+    ISecretsVaultInspector? inspector = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
+    private readonly ISecretsVaultInspector _inspector =
+        inspector ?? new NoopSecretsVaultInspector();
+
     public ResourceOperationId OperationId =>
         SecretsVaultResourceTypeProvider.Operations.Inspect;
 
@@ -36,14 +56,18 @@ public sealed class SecretsVaultInspectOperationProvider :
         ValueTask.FromResult<IResourceOperationProjection>(
             new SecretsVaultInspectOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
-                operation));
+                operation,
+                _inspector));
 }
 
 public sealed class SecretsVaultInspectOperation(
     ResourceProjectionExecutionContext context,
-    ResourceOperationResolution operation) : IResourceOperationExecutorProjection
+    ResourceOperationResolution operation,
+    ISecretsVaultInspector inspector) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
+
+    private readonly ISecretsVaultInspector _inspector = inspector;
 
     public Resource Resource => Context.Resource;
 
@@ -81,10 +105,14 @@ public sealed class SecretsVaultInspectOperation(
                 ]);
         }
 
+        var diagnostics = await _inspector.InspectAsync(
+            Resource,
+            cancellationToken);
+
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            []);
+            diagnostics);
     }
 
     private static int GetSecretCount(Resource resource) =>

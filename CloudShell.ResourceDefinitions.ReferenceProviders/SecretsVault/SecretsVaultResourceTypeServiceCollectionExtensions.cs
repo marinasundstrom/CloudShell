@@ -30,6 +30,7 @@ public static class SecretsVaultResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, SecretsVaultInspectOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, SecretsVaultResourceProjectionProvider>());
+        services.TryAddSingleton<ISecretsVaultInspector, NoopSecretsVaultInspector>();
 
         return services;
     }
