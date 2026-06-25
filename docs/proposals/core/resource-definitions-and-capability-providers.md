@@ -977,10 +977,12 @@ the early POC names suggest:
   Implementations can inject Control Plane services and delegate graph-state
   changes through Resource Manager commit services.
 - **Graph apply hooks** validate, normalize, and stage changes to graph state.
-  When applying a change requires runtime behavior, the graph-facing provider
-  can delegate to a Resource Manager-owned handler or secondary provider. That
-  handler performs the operational work with Control Plane services and may
-  return accepted graph-state updates, such as provider-managed read-only
+  They should be treated as configuration-state apply hooks, not runtime
+  procedure owners. When applying a graph resource change requires runtime
+  behavior, the graph-facing provider should delegate to a Resource
+  Manager-owned apply handler or secondary provider for that resource type.
+  That handler performs the operational work with Control Plane services and
+  may return accepted graph-state updates, such as provider-managed read-only
   attributes projected from runtime state. Those updates still flow through the
   graph apply/commit boundary instead of mutating persistence directly.
 - **Resource model / graph layer** owns the graph representation, resolved
@@ -1784,15 +1786,18 @@ durable persistence or cascading changes through the graph remains a Resource
 Manager/persistence concern outside this low-level projection model.
 Some resource types will need more than validation and normalization when a
 change is applied. In those cases the graph-facing apply provider should stay
-as the declaration/state boundary and delegate runtime work to a Resource
-Manager-owned handler or secondary provider. That handler can call runtime
-services, orchestrators, local process runners, endpoint-mapping provisioners,
-or provider SDKs, then return diagnostics and accepted graph-state updates.
-For example, a runtime handler may update provider-managed read-only
-attributes that summarize observed state. The graph layer still owns applying
-those accepted values to `ResourceState`; the runtime handler does not become
-the persistence boundary and the graph model does not become the runtime
-owner.
+as the declaration/configuration-state boundary and delegate runtime work to a
+Resource Manager-owned apply handler or secondary provider. For example, a
+container-app graph provider can validate and stage requested image or replica
+configuration, then delegate materialization to a container-app apply handler
+inside Resource Manager. That handler can call runtime services,
+orchestrators, local process runners, endpoint-mapping provisioners, or
+provider SDKs, then return diagnostics and accepted graph-state updates.
+Provider-managed read-only attributes that summarize observed runtime state
+are updated this way: the handler produces the accepted value, but the graph
+layer still applies it to `ResourceState` through the normal graph
+apply/commit boundary. The runtime handler does not become the persistence
+boundary and the graph model does not become the runtime owner.
 `ResourceDefinitionGraphChangeApplier` lifts that behavior to a graph
 snapshot: it resolves each incoming `ResourceDefinition` overlay against the
 current `ResourceState`, builds resource-local changes, runs the type-owned
@@ -2910,18 +2915,21 @@ flowchart TD
     integrations["Other integrations<br/>orchestrators, APIs, UI, tools"]
     domain["Resource Manager domain projection<br/>managed resource, runtime state, liveness, orchestration"]
     behavior["Capability and operation implementations<br/>provider-owned behavior hosted by Resource Manager"]
+    applyHandlers["Resource Manager apply handlers<br/>runtime effects and accepted graph-state updates"]
     graph["Resource graph<br/>in-memory graph representation or cache"]
     projections["Graph Resource projection<br/>resolved effective attributes, capabilities, and operations"]
     state["ResourceState and ResourceRecord<br/>versioned graph declarations and metadata"]
-    changes["Versioning and applying changes<br/>change tracking, apply providers, commit results"]
+    changes["Configuration-state apply<br/>change tracking, graph apply hooks, commit results"]
     interchange["Interchange formats<br/>ResourceDefinition and serialized documents"]
     coordination["Transaction or lock coordination<br/>future Resource Manager concern"]
     persistence["Persistence<br/>operational records plus graph payloads or records"]
 
     integrations --> domain
     domain --> behavior
+    domain --> applyHandlers
     domain --> graph
     behavior --> projections
+    applyHandlers --> changes
     graph --> projections
     projections --> state
     state --> changes
