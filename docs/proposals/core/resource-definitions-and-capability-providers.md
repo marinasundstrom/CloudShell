@@ -949,6 +949,47 @@ then refreshes, invalidates, or advances the in-memory projection. This would
 let the server expose a live Resource model view without letting projection
 objects bypass versioning, persistence, or provider validation.
 
+The longer-term Resource Manager shape therefore has a clearer hierarchy than
+the early POC names suggest:
+
+- **Control Plane / Resource Manager domain layer** owns the live managed
+  resource object. That object may be named `ManagedResource`,
+  `ResourceManagerResource`, or another domain-specific name. It owns runtime
+  state, liveness, orchestration state, locks, authorization context, and
+  operational actions. It is also an operational projection over the graph
+  model: it can compose or fetch the matching graph projection when declared
+  state, dependencies, capabilities, or operations are needed, while keeping
+  Resource Manager-specific state and behavior outside the graph primitives.
+  It persists only the graph-backed facts that belong in the graph resource
+  representation; liveness, orchestration progress, locks, provider runtime
+  handles, and other operational facts remain Control Plane state.
+- **Capability and operation implementations** are hosted by the domain layer
+  but remain provider or integration owned. A managed resource should expose
+  or compose capability/operation projections; it should not become a
+  monolithic class that implements every possible provider behavior itself.
+  Implementations can inject Control Plane services and delegate graph-state
+  changes through Resource Manager commit services.
+- **Resource model / graph layer** owns the graph representation, resolved
+  graph projections, and graph-state primitives. The current POC `Resource`
+  class belongs here: it is the resolved graph resource projection, not the
+  full Resource Manager domain object.
+- **Persistence** stores Resource Manager operational records and graph-state
+  records or payloads. The graph payload may live beside the operational
+  resource row, for example as a JSON column, while still being projected into
+  graph `ResourceState` values for resolution.
+
+This means the Resource Manager can keep its working state in memory while
+loading and persisting graph data as needed, either on demand or through a
+periodic refresh/reconciliation path. The in-memory domain object may cache
+the latest graph projection and version, but graph consistency, version
+checks, conflict handling, and commits should be coordinated by Resource
+Manager services rather than by each individual managed resource instance.
+This makes the Control Plane domain model another projection layer of the
+graph model, but with different responsibilities: it is behavior-rich,
+operational, and server-owned, while the graph model remains the versioned
+declaration and configuration state that can be rendered, applied, and
+persisted.
+
 The state ownership rule should be explicit: persistent Resource graph state
 must be represented through the graph state primitives. If a value is part of
 the versioned graph, it belongs in resource identity, references, attributes,
@@ -1901,6 +1942,14 @@ ResourceChangeSet changes = changeContext.ApplyChanges();
 
 The exact source-generated shape is open, but property setters should not
 silently commit provider-visible state or trigger graph-wide consequences.
+For the first integration slices, generated or hand-written typed wrappers
+should target the graph projection layer: they are strongly typed facades over
+the resolved graph `Resource`. A later Resource Manager domain wrapper can
+compose both the managed resource and the graph projection when a workflow
+needs runtime state, liveness, authorization, and provider services together.
+Keeping those wrapper targets separate prevents generated graph-state
+properties from bypassing the Resource Manager's operational state and commit
+coordination.
 
 The POC can keep these resource-type projection wrappers hand-written, but the
 expected mature implementation is source-generated wrappers from the resource
@@ -2827,24 +2876,29 @@ data representation:
 
 ```mermaid
 flowchart TD
-    integrations["Other integrations<br/>Resource Manager, orchestrators, APIs, UI, tools"]
-    behavior["Capability and operation implementations<br/>provider-owned behavior over resolved resources"]
-    projections["Resource projections<br/>resolved model with effective attributes, capabilities, and operations"]
-    context["Context and snapshot handling<br/>optional caller or Resource Manager concern"]
+    integrations["Other integrations<br/>orchestrators, APIs, UI, tools"]
+    domain["Resource Manager domain projection<br/>managed resource, runtime state, liveness, orchestration"]
+    behavior["Capability and operation implementations<br/>provider-owned behavior hosted by Resource Manager"]
+    graph["Resource graph<br/>in-memory graph representation or cache"]
+    projections["Graph Resource projection<br/>resolved effective attributes, capabilities, and operations"]
+    state["ResourceState and ResourceRecord<br/>versioned graph declarations and metadata"]
     changes["Versioning and applying changes<br/>change tracking, apply providers, commit results"]
     interchange["Interchange formats<br/>ResourceDefinition and serialized documents"]
-    stateRecord["Resource state record<br/>versioned declarations of attributes, capabilities, operations, references"]
-    transactions["Transaction handling<br/>possible future operational concern"]
-    persistence["Persistence<br/>store-optimized data representation"]
+    coordination["Transaction or lock coordination<br/>future Resource Manager concern"]
+    persistence["Persistence<br/>operational records plus graph payloads or records"]
 
-    integrations --> behavior
+    integrations --> domain
+    domain --> behavior
+    domain --> graph
     behavior --> projections
-    projections --> context
-    context --> changes
+    graph --> projections
+    projections --> state
+    state --> changes
     changes --> interchange
-    interchange --> stateRecord
-    stateRecord --> transactions
-    transactions --> persistence
+    changes --> persistence
+    interchange --> state
+    domain --> coordination
+    coordination --> persistence
 ```
 
 This layer stack is conceptual rather than a mandate that every host needs all
