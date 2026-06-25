@@ -596,7 +596,7 @@ Working plan and progress:
 | Keep the graph model and Resource Manager operational model separate | Done | Graph resources carry configuration and declarations; Resource Manager owns operational state and dispatch. |
 | Use existing providers as behavior references only | Done | The POC should not adapt `ApplicationResourceDefinition`, application stores, or old application-provider terminology into the new provider seams. |
 | Register a graph-backed ASP.NET Core resource in a real host/sample | Done | ProjectReference declares `Graph Project Reference API` through the Resource Manager bridge provider. |
-| Apply changed `ResourceDefinition` inputs to existing resources | Done | Deployment-style creation and later `ResourceDefinition` overlays now prove the same apply/commit path can update existing graph resources with resource revision and graph version changes. |
+| Apply changed `ResourceDefinition` inputs to existing resources | Done | Deployment-style creation and later `ResourceDefinition` overlays now prove the same apply/commit path can update existing graph resources with resource revision and graph version changes. Provider/Control Plane apply policy can still reject a proposed update or accept the saved graph change while reporting that the resource needs a restart to materialize it. |
 | Dispatch Resource Manager Start to a resolved graph operation | Done | Registered graph resources with lifecycle operations project `Unknown` state so Start reaches `ResourceModelGraphProcedureProvider`. |
 | Keep ASP.NET Core runtime behavior provider-local | Done | The runtime controller starts from resolved graph attributes, and command construction now honors project path, arguments, typed endpoint requests, hot reload, launch-settings, environment, process lifetime, and diagnostics inside the ASP.NET Core provider boundary. |
 | Prove the graph-backed project can actually run | Done | An executable-backed integration test starts the ProjectReference API through typed endpoint request attributes on the graph ASP.NET Core provider seam and verifies its `/health` endpoint. |
@@ -2011,10 +2011,10 @@ ResourceDefinition incrementalChange = changes.ToIncrementalDefinition();
 ```
 
 `ApplyChanges()` in this model does not mean the graph has been mutated or
-that provider/runtime consequences have cascaded. It creates an explicit
+that provider or Control Plane consequences have cascaded. It creates an explicit
 change set that can be validated, planned, accepted, rejected, persisted, or
 projected as a full or incremental `ResourceDefinition`. A provider or future
-resource manager commit pipeline owns the actual application of those changes
+Control Plane commit pipeline owns the actual application of those changes
 to resource state and the surrounding resource graph.
 
 When an existing `ResourceState` applies a `ResourceDefinition`, the
@@ -2039,6 +2039,18 @@ The current POC adds that first provider-owned boundary through
 dispatcher resolves the provider for the resource type in the
 `ResourceChangeSet`, and the provider returns a `ResourceChangeApplyResult`
 with diagnostics and an accepted `ResourceState` when the change is allowed.
+That acceptance is intentionally policy-bearing. The Resource model computes
+the proposed state and local diff; the provider and/or Control Plane decides
+whether the graph state change can be saved now, and whether anything else is
+needed for the live resource to match it. Some resource types may save changes
+while running, some may reject them until the resource is stopped, and some may
+save them while returning diagnostics or provider-managed state that tells
+Resource Manager a restart, reprovision, or other materialization step is
+needed. Deciding that a restart is required after accepting/saving a graph
+change is a per-resource-type Control Plane policy, not a generic graph rule.
+The graph layer should not hard-code those lifecycle rules because they depend
+on the resource type, provider implementation, and Control Plane operational
+state.
 The apply context can request commit behavior, but committing accepted state to
 durable persistence or cascading changes through the graph remains a Resource
 Manager/persistence concern outside this low-level projection model.
@@ -2651,7 +2663,12 @@ Resource type providers should be able to respond before staged projection
 changes are accepted as resource state. The provider receives a
 `ResourceChangeSet`, which contains the current `Resource`, proposed
 `ResourceState`, and attribute/capability diffs. It can return diagnostics,
-accept the proposed state, or reject the change.
+accept the proposed state, or reject the change. The decision can be purely
+provider-local validation, or it can be delegated to Control Plane-owned
+behavior when the decision depends on operational state such as whether the
+resource is running, whether saving the change should mark the resource as
+requiring restart, or whether the current Resource Manager policy allows the
+change.
 
 The current POC shape is intentionally small:
 

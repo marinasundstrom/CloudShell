@@ -907,6 +907,72 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_LeavesApplyPolicyToProviderOrControlPlane()
+    {
+        var provider = new RuntimePolicyResourceTypeProvider();
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph(
+        [
+            new(
+                "api",
+                RuntimePolicyResourceTypeProvider.ResourceTypeId,
+                Attributes: new Dictionary<ResourceAttributeId, string>
+                {
+                    [RuntimePolicyResourceTypeProvider.Attributes.Value] = "v1"
+                })
+        ]);
+        services.AddSingleton(RuntimePolicyResourceTypeProvider.ClassDefinition);
+        services.AddSingleton<IResourceTypeProvider>(provider);
+        services.AddSingleton<IResourceChangeApplyProvider>(provider);
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var changedDefinition = new ResourceDefinition(
+            "api",
+            RuntimePolicyResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [RuntimePolicyResourceTypeProvider.Attributes.Value] = "v2"
+            });
+
+        provider.IsRunning = true;
+        var rejected = await service.ApplyDefinitionsAsync(
+            [changedDefinition],
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 22, 0, 0, TimeSpan.Zero)));
+
+        Assert.True(rejected.HasErrors);
+        Assert.False(rejected.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Rejected, rejected.Commit.Summary.Status);
+        Assert.Equal("policy.changeRequiresStoppedResource", Assert.Single(rejected.Diagnostics).Code);
+
+        var graphModel = serviceProvider.GetRequiredService<ResourceGraphModel>();
+        var rejectedSnapshot = await graphModel.GetSnapshotAsync();
+        var unchanged = Assert.Single(rejectedSnapshot.Resources);
+        Assert.Equal(ResourceGraphVersion.Initial, rejectedSnapshot.Version);
+        Assert.Equal("v1", unchanged.ResourceAttributes[RuntimePolicyResourceTypeProvider.Attributes.Value]);
+
+        provider.AcceptRunningChangesWithRestart = true;
+        var accepted = await service.ApplyDefinitionsAsync(
+            [changedDefinition],
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 22, 5, 0, TimeSpan.Zero)));
+
+        Assert.False(accepted.HasErrors, FormatDiagnostics(accepted.Diagnostics));
+        Assert.True(accepted.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, accepted.Commit.Summary.Status);
+        Assert.Equal(new ResourceGraphVersion(1), accepted.Commit.Version);
+        var warning = Assert.Single(accepted.Diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticSeverity.Warning, warning.Severity);
+        Assert.Equal("policy.restartRequired", warning.Code);
+
+        var committed = Assert.Single(accepted.Commit.Snapshot!.Resources);
+        Assert.Equal("v2", committed.ResourceAttributes[RuntimePolicyResourceTypeProvider.Attributes.Value]);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_CanCommitThroughCustomResourceManagerRecordProjector()
     {
         var services = new ServiceCollection();
@@ -4639,6 +4705,82 @@ public sealed class ResourceManagerIntegrationTests
             _executedOperations.Add((resource.EffectiveResourceId, operationId));
 
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+    }
+
+    private sealed class RuntimePolicyResourceTypeProvider :
+        IResourceTypeProvider,
+        IResourceChangeApplyProvider
+    {
+        public static readonly ResourceClassId ClassId = "policy";
+        public static readonly ResourceTypeId ResourceTypeId = "policy.resource";
+
+        public static ResourceClassDefinition ClassDefinition { get; } = new(ClassId);
+
+        public static class Attributes
+        {
+            public static readonly ResourceAttributeId Value = "policy.value";
+        }
+
+        public bool IsRunning { get; set; }
+
+        public bool AcceptRunningChangesWithRestart { get; set; }
+
+        public ResourceTypeId TypeId => ResourceTypeId;
+
+        public ResourceTypeDefinition TypeDefinition { get; } = new(
+            ResourceTypeId,
+            ClassId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+            {
+                [Attributes.Value] = new(ValueType: ResourceAttributeValueType.String)
+            });
+
+        public bool CanValidate(Resource resource) =>
+            resource.Type.TypeId == ResourceTypeId;
+
+        public ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
+            Resource resource,
+            ResourceProviderContext context,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(ResourceDefinitionValidationResult.Success);
+
+        public bool CanApply(ResourceChangeSet changes) =>
+            changes.Resource.Type.TypeId == ResourceTypeId;
+
+        public ValueTask<ResourceChangeApplyResult> ApplyChangesAsync(
+            ResourceChangeSet changes,
+            ResourceChangeApplyContext context,
+            CancellationToken cancellationToken = default)
+        {
+            var changesValue = changes.AttributeChanges.Any(change => change.AttributeId == Attributes.Value);
+
+            if (IsRunning && changesValue && !AcceptRunningChangesWithRestart)
+            {
+                return ValueTask.FromResult(ResourceChangeApplyResult.Rejected(
+                    changes,
+                    [
+                        ResourceDefinitionDiagnostic.Error(
+                            "policy.changeRequiresStoppedResource",
+                            "The Control Plane policy for this resource requires it to be stopped before changing 'policy.value'.",
+                            Attributes.Value)
+                    ]));
+            }
+
+            if (IsRunning && changesValue)
+            {
+                return ValueTask.FromResult(new ResourceChangeApplyResult(
+                    changes,
+                    changes.ProposedState,
+                    [
+                        ResourceDefinitionDiagnostic.Warning(
+                            "policy.restartRequired",
+                            "The Control Plane accepted the graph change, but this resource type requires a restart to materialize it.",
+                            changes.Resource.EffectiveResourceId)
+                    ]));
+            }
+
+            return ValueTask.FromResult(ResourceChangeApplyResult.Accepted(changes));
         }
     }
 

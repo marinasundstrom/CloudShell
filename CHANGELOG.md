@@ -670,6 +670,11 @@ on `git blame --follow`, and then by the broad type of change.
 - The Resource Manager bridge now exposes a definition apply service that
   applies incoming `ResourceDefinition` overlays through the graph model and
   returns staged changes plus the graph commit result for integration callers.
+- ResourceDefinitions integration tests now prove provider or Control
+  Plane-owned apply policy can reject a `ResourceDefinition` overlay while a
+  resource is running, or save the same proposed graph change while reporting
+  that the resource type requires restart before the live resource
+  materializes it.
 - The resource definitions POC now supports explicit create-missing behavior
   for deployment-definition apply flows, representing new resources as graph
   change sets and routing their initial state through type-owned apply
