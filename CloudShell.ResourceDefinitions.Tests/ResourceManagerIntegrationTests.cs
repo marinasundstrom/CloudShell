@@ -3739,6 +3739,167 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesSettingsAndSecretsInspiredGraphAcrossProviderBoundaries()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddIdentityProvisioningResourceType();
+        services.AddConfigurationStoreResourceType();
+        services.AddSecretsVaultResourceType();
+        services.AddAspNetCoreProjectResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var identity = new ResourceDefinition(
+            "settings-secrets-identity",
+            IdentityProvisioningResourceTypeProvider.ResourceTypeId,
+            ProviderId: IdentityProvisioningResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [IdentityProvisioningResourceTypeProvider.Attributes.IdentityProvider] = "Built-in Identity",
+                [IdentityProvisioningResourceTypeProvider.Attributes.ProviderKind] = "built-in"
+            });
+        var settings = new ResourceDefinition(
+            "settings-secrets-settings",
+            ConfigurationStoreResourceTypeProvider.ResourceTypeId,
+            ProviderId: ConfigurationStoreResourceTypeProvider.ProviderId,
+            DependsOn:
+            [
+                ResourceReference.ResourceId(
+                    identity.EffectiveResourceId,
+                    typeId: IdentityProvisioningResourceTypeProvider.ResourceTypeId)
+            ],
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [ConfigurationStoreResourceTypeProvider.Attributes.Endpoint] = "http://localhost:5138"
+            });
+        var secrets = new ResourceDefinition(
+            "settings-secrets-secrets",
+            SecretsVaultResourceTypeProvider.ResourceTypeId,
+            ProviderId: SecretsVaultResourceTypeProvider.ProviderId,
+            DependsOn:
+            [
+                ResourceReference.ResourceId(
+                    identity.EffectiveResourceId,
+                    typeId: IdentityProvisioningResourceTypeProvider.ResourceTypeId)
+            ],
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [SecretsVaultResourceTypeProvider.Attributes.Endpoint] = "http://localhost:6138"
+            });
+        var api = new ResourceDefinition(
+            "settings-secrets-api",
+            AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
+            ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
+            DependsOn:
+            [
+                ResourceReference.ResourceId(
+                    identity.EffectiveResourceId,
+                    typeId: IdentityProvisioningResourceTypeProvider.ResourceTypeId),
+                ResourceReference.ResourceId(
+                    settings.EffectiveResourceId,
+                    typeId: ConfigurationStoreResourceTypeProvider.ResourceTypeId),
+                ResourceReference.ResourceId(
+                    secrets.EffectiveResourceId,
+                    typeId: SecretsVaultResourceTypeProvider.ResourceTypeId)
+            ],
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] =
+                    "../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj",
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectArguments] =
+                    "--urls http://localhost:5227",
+                [AspNetCoreProjectResourceTypeProvider.Attributes.HotReload] =
+                    bool.FalseString.ToLowerInvariant(),
+                [AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings] =
+                    bool.FalseString.ToLowerInvariant()
+            });
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "settings-and-secrets",
+                [identity, settings, secrets, api],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 22, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+        Assert.Equal(4, result.Commit.Summary.AcceptedResourceCount);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedResources = provider.GetResources().ToArray();
+        var projectedApi = Assert.Single(projectedResources, resource =>
+            resource.Id == api.EffectiveResourceId);
+        var projectedIdentity = Assert.Single(projectedResources, resource =>
+            resource.Id == identity.EffectiveResourceId);
+        var projectedSettings = Assert.Single(projectedResources, resource =>
+            resource.Id == settings.EffectiveResourceId);
+        var projectedSecrets = Assert.Single(projectedResources, resource =>
+            resource.Id == secrets.EffectiveResourceId);
+
+        Assert.Equal(ResourceManagerClass.Project, projectedApi.ResourceClass);
+        Assert.Equal(AspNetCoreProjectResourceTypeProvider.ProviderId, projectedApi.Provider);
+        Assert.Equal(
+            [identity.EffectiveResourceId, settings.EffectiveResourceId, secrets.EffectiveResourceId],
+            projectedApi.DependsOn);
+        Assert.Equal(ResourceManagerClass.Infrastructure, projectedIdentity.ResourceClass);
+        Assert.Equal(ResourceManagerClass.Configuration, projectedSettings.ResourceClass);
+        Assert.Equal(ResourceManagerClass.SecretsVault, projectedSecrets.ResourceClass);
+        Assert.Contains(projectedIdentity.ResourceCapabilities, capability =>
+            capability.Id == IdentityProvisioningResourceTypeProvider.Capabilities.IdentityProvisioning.ToString());
+        Assert.Contains(projectedApi.ResourceActions, action =>
+            action.Id == AspNetCoreProjectResourceTypeProvider.Operations.Start.ToString());
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveWithDependenciesAsync(api.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors, FormatDiagnostics(resolution.Diagnostics));
+        var resolvedResourceIds = resolution.Resources
+            .Select(resource => resource.EffectiveResourceId)
+            .ToArray();
+        Assert.Equal(4, resolvedResourceIds.Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.Contains(api.EffectiveResourceId, resolvedResourceIds);
+        Assert.Contains(identity.EffectiveResourceId, resolvedResourceIds);
+        Assert.Contains(settings.EffectiveResourceId, resolvedResourceIds);
+        Assert.Contains(secrets.EffectiveResourceId, resolvedResourceIds);
+
+        var projectionResolver = serviceProvider.GetRequiredService<ResourceProjectionResolver>();
+        var context = new ResourceProjectionContext("local", "developer");
+        var resolvedApi = Assert.Single(resolution.Resources, resource =>
+            resource.EffectiveResourceId == api.EffectiveResourceId);
+        var resolvedIdentity = Assert.Single(resolution.Resources, resource =>
+            resource.EffectiveResourceId == identity.EffectiveResourceId);
+        var resolvedSettings = Assert.Single(resolution.Resources, resource =>
+            resource.EffectiveResourceId == settings.EffectiveResourceId);
+        var resolvedSecrets = Assert.Single(resolution.Resources, resource =>
+            resource.EffectiveResourceId == secrets.EffectiveResourceId);
+        var apiProjection = Assert.IsType<AspNetCoreProjectResource>(
+            await projectionResolver.GetResourceProjectionAsync(resolvedApi, context));
+        var identityProjection = Assert.IsType<IdentityProvisioningResource>(
+            await projectionResolver.GetResourceProjectionAsync(resolvedIdentity, context));
+        var settingsProjection = Assert.IsType<ConfigurationStoreResource>(
+            await projectionResolver.GetResourceProjectionAsync(resolvedSettings, context));
+        var secretsProjection = Assert.IsType<SecretsVaultResource>(
+            await projectionResolver.GetResourceProjectionAsync(resolvedSecrets, context));
+
+        Assert.Equal("../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj", apiProjection.ProjectPath);
+        Assert.Equal("--urls http://localhost:5227", apiProjection.Arguments);
+        Assert.False(apiProjection.HotReload);
+        Assert.False(apiProjection.UseLaunchSettings);
+        Assert.Equal("Built-in Identity", identityProjection.IdentityProvider);
+        Assert.Equal("http://localhost:5138", settingsProjection.Endpoint);
+        Assert.Equal("http://localhost:6138", secretsProjection.Endpoint);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_RejectsInvalidCapabilityReference()
     {
         var services = new ServiceCollection();
