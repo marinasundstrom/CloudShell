@@ -103,9 +103,8 @@ public sealed class ResourceManagerIntegrationTests
             {
                 DependsOn =
                 [
-                    ResourceReference.ResourceId(
-                        server.EffectiveResourceId,
-                        ResourceReferenceRelationships.BelongsTo)
+                    ResourceReference.BelongsToResourceId(
+                        server.EffectiveResourceId)
                 ]
             };
         var provider = new ResourceModelGraphResourceProvider(

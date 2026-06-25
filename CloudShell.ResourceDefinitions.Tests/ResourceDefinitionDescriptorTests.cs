@@ -269,9 +269,8 @@ public sealed class ResourceDefinitionDescriptorTests
     [Fact]
     public void ResourceReference_DistinguishesResourceIdAddressingFromDependsOnSemantics()
     {
-        var reference = ResourceReference.ResourceId(
+        var reference = ResourceReference.BelongsToResourceId(
             "application.sql-server:server",
-            ResourceReferenceRelationships.BelongsTo,
             SqlServerResourceTypeProvider.ResourceTypeId);
 
         Assert.True(reference.TryGetResourceId(out var resourceId));

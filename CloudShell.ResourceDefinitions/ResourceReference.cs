@@ -36,6 +36,26 @@ public sealed record ResourceReference(
             providerId);
     }
 
+    public static ResourceReference DependsOnResourceId(
+        string resourceId,
+        ResourceTypeId? typeId = null,
+        string? providerId = null) =>
+        ResourceId(
+            resourceId,
+            ResourceReferenceRelationships.DependsOn,
+            typeId,
+            providerId);
+
+    public static ResourceReference BelongsToResourceId(
+        string resourceId,
+        ResourceTypeId? typeId = null,
+        string? providerId = null) =>
+        ResourceId(
+            resourceId,
+            ResourceReferenceRelationships.BelongsTo,
+            typeId,
+            providerId);
+
     public bool TryGetResourceId(out string resourceId)
     {
         if (AddressingMode == ResourceReferenceAddressingModes.ResourceId &&

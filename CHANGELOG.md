@@ -110,6 +110,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource references now distinguish generic `resourceId` addressing from
   `dependsOn` dependency semantics so future `belongsTo` references can be
   resolved without becoming startup dependencies.
+- `ResourceReference` now has explicit `DependsOnResourceId` and
+  `BelongsToResourceId` factories so relationship intent is visible at call
+  sites.
 - The Resource Manager graph resource provider now projects only `dependsOn`
   references into Resource Manager dependency lists, leaving ownership
   references out of startup-order metadata.

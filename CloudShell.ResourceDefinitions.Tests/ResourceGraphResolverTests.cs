@@ -63,9 +63,9 @@ public sealed class ResourceGraphResolverTests
 
         var result = resolver.ResolveReference(
             snapshot,
-            ResourceReference.ResourceId(
+            ResourceReference.BelongsToResourceId(
                 server.EffectiveResourceId,
-                ResourceReferenceRelationships.BelongsTo));
+                ExecutableApplicationResourceTypeProvider.ResourceTypeId));
 
         Assert.True(result.IsResolved);
         Assert.False(result.HasErrors);
@@ -240,9 +240,8 @@ public sealed class ResourceGraphResolverTests
         {
             DependsOn =
             [
-                ResourceReference.ResourceId(
-                    server.EffectiveResourceId,
-                    ResourceReferenceRelationships.BelongsTo)
+                ResourceReference.BelongsToResourceId(
+                    server.EffectiveResourceId)
             ]
         };
         var resolver = new ResourceGraphResolver(CreateResourceResolver());

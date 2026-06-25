@@ -190,9 +190,8 @@ public sealed class SqlDatabaseResourceTypeProvider :
     }
 
     internal static ResourceReference CreateOwningServerReference(string serverResourceId) =>
-        ResourceReference.ResourceId(
+        ResourceReference.BelongsToResourceId(
             serverResourceId,
-            ResourceReferenceRelationships.BelongsTo,
             SqlServerResourceTypeProvider.ResourceTypeId,
             SqlServerResourceTypeProvider.ProviderId);
 

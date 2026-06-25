@@ -1449,7 +1449,9 @@ ID projection should only follow references whose relationship is
 `dependsOn`. The Resource Manager bridge follows the same rule when projecting
 Resource model records into Resource Manager `DependsOn` lists. This keeps
 ownership, targeting, and future projected-resource references from
-accidentally becoming startup-order dependencies.
+accidentally becoming startup-order dependencies. Code should prefer explicit
+relationship factories such as `DependsOnResourceId` and `BelongsToResourceId`
+when constructing resource-id references.
 
 `DependsOn` should remain a first-class optional collection on the resource
 record and interchange definition, not a normal inherited attribute. It is
