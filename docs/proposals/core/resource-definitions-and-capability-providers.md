@@ -625,7 +625,9 @@ remain provider-owned operation projections over the resolved graph state.
 Wrong typed identity references in that stored graph should block operation
 availability through the same bridge diagnostics, so Resource Manager does not
 execute provider-owned operations over a relationship that no longer resolves
-to the expected resource type.
+to the expected resource type. Resource Manager listing should surface the
+same diagnostic and omit the invalid target from actionable dependencies,
+keeping projection and procedure behavior aligned.
 
 Porting a provider means implementing the complete Resource model support that
 the resource type needs to work, not only mapping an existing provider to a new

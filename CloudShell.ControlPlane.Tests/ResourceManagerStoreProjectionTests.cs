@@ -859,6 +859,48 @@ public sealed class ResourceManagerStoreProjectionTests
     }
 
     [Fact]
+    public void GetResources_ReportsPersistedSettingsAndSecretsWrongIdentityReferenceDiagnostics()
+    {
+        var states = CreateSettingsAndSecretsGraphStatesWithInvalidIdentityReference();
+        var services = new ServiceCollection();
+        services.AddIdentityProvisioningResourceType();
+        services.AddConfigurationStoreResourceType();
+        services.AddSecretsVaultResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddInMemoryResourceModelGraphRecords(
+            states.Select(DefinitionResourceRecord.FromState).ToArray());
+        services.AddResourceModelGraphResourceProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var registrations = new TestResourceRegistrationStore(
+            states
+                .Select(state => new ResourceRegistration(
+                    state.EffectiveResourceId,
+                    "resource-model",
+                    null,
+                    DateTimeOffset.UtcNow,
+                    []))
+                .ToArray());
+        var store = new ResourceManagerStore(
+            serviceProvider.GetServices<IResourceProvider>().ToArray(),
+            new TestResourceGroupStore([]),
+            registrations,
+            new ResourceDeclarationStore(),
+            new ResourceIdentityProviderCatalog(),
+            new CloudShellExtensionRegistry(),
+            new InMemoryCloudShellExtensionActivationStore());
+
+        var settings = Assert.Single(store.GetResources(), resource =>
+            resource.Id == "configuration.store:settings-secrets-settings");
+        var diagnostic = Assert.Single(store.GetResourceModelDiagnostics());
+
+        Assert.Empty(settings.DependsOn);
+        Assert.Equal(DefinitionDiagnosticCodes.ResourceReferenceTypeMismatch, diagnostic.Code);
+        Assert.Equal("configuration.store:settings-secrets-settings", diagnostic.ResourceId);
+        Assert.Contains(ConfigurationStoreResourceTypeProvider.ResourceTypeId.ToString(), diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains(IdentityProvisioningResourceTypeProvider.ResourceTypeId.ToString(), diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ExecuteActionAsync_RoutesGraphResourceThroughProcedureCapableBridgeProvider()
     {
         var services = new ServiceCollection();

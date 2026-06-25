@@ -85,6 +85,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager orchestration tests now block persisted SettingsAndSecrets
   graph-record operations when a typed identity dependency resolves to the
   wrong resource type.
+- Resource Manager store projection tests now report persisted
+  SettingsAndSecrets graph-record diagnostics and omit invalid typed identity
+  dependencies from actionable Resource Manager dependency lists.
 - Resource Manager store projection tests now cover persisted Resource model
   records for an ApplicationTopology-shaped graph, proving the bridge can
   project stored graph records alongside Resource Manager registrations.
