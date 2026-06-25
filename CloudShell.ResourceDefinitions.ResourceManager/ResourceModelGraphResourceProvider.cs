@@ -81,7 +81,7 @@ public sealed class ResourceModelGraphResourceProvider :
 
         foreach (var reference in GetDependencyReferences(resource))
         {
-            if (!reference.TryGetResourceId(out var dependency))
+            if (!reference.TryGetDependsOnResourceId(out var dependency))
             {
                 continue;
             }
@@ -112,7 +112,9 @@ public sealed class ResourceModelGraphResourceProvider :
 
     private IReadOnlyList<ResourceReference> GetDependencyReferences(Resource resource)
     {
-        var references = new List<ResourceReference>(resource.State.ResourceDependencies);
+        var references = resource.State.ResourceDependencies
+            .Where(reference => reference.TryGetDependsOnResourceId(out _))
+            .ToList();
         var dependencyIds = new HashSet<string>(
             resource.State.ResourceDependencyIds,
             StringComparer.OrdinalIgnoreCase);
@@ -126,7 +128,7 @@ public sealed class ResourceModelGraphResourceProvider :
 
             foreach (var reference in provider.GetDependencies(resource))
             {
-                if (reference.TryGetResourceId(out var dependency) &&
+                if (reference.TryGetDependsOnResourceId(out var dependency) &&
                     (dependencyIds.Add(dependency) || HasReferenceExpectations(reference)))
                 {
                     references.Add(reference);

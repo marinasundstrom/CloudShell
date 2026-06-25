@@ -1446,8 +1446,10 @@ The `ResourceReference` primitive separates addressing mode from relationship
 semantics. A `resourceId`-addressed reference can be resolved directly even
 when its relationship is `belongsTo`, but dependency closure and dependency
 ID projection should only follow references whose relationship is
-`dependsOn`. This keeps ownership, targeting, and future projected-resource
-references from accidentally becoming startup-order dependencies.
+`dependsOn`. The Resource Manager bridge follows the same rule when projecting
+Resource model records into Resource Manager `DependsOn` lists. This keeps
+ownership, targeting, and future projected-resource references from
+accidentally becoming startup-order dependencies.
 
 `DependsOn` should remain a first-class optional collection on the resource
 record and interchange definition, not a normal inherited attribute. It is

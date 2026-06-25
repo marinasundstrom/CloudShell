@@ -110,6 +110,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource references now distinguish generic `resourceId` addressing from
   `dependsOn` dependency semantics so future `belongsTo` references can be
   resolved without becoming startup dependencies.
+- The Resource Manager graph resource provider now projects only `dependsOn`
+  references into Resource Manager dependency lists, leaving ownership
+  references out of startup-order metadata.
 - Resource Manager store projection tests now cover persisted Resource model
   records for an ApplicationTopology-shaped graph, proving the bridge can
   project stored graph records alongside Resource Manager registrations.

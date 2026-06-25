@@ -90,6 +90,37 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public void ResourceModelGraphResourceProvider_DoesNotProjectBelongsToReferenceAsDependency()
+    {
+        var server = CreateExecutableState(
+            "server",
+            dependsOn: [],
+            includeVolumeConsumer: false);
+        var database = CreateExecutableState(
+            "appdb",
+            dependsOn: [],
+            includeVolumeConsumer: false) with
+            {
+                DependsOn =
+                [
+                    ResourceReference.ResourceId(
+                        server.EffectiveResourceId,
+                        ResourceReferenceRelationships.BelongsTo)
+                ]
+            };
+        var provider = new ResourceModelGraphResourceProvider(
+            "resource-model",
+            "Resource model",
+            () => new ResourceGraphSnapshot(ResourceGraphVersion.Initial, [database, server]),
+            CreateResolver());
+
+        var projected = provider.GetResources()
+            .Single(resource => resource.Id == database.EffectiveResourceId);
+
+        Assert.Empty(projected.DependsOn);
+    }
+
+    [Fact]
     public void ResourceModelGraphResourceProvider_DoesNotProjectInvalidTypedDependency()
     {
         var worker = CreateExecutableState(
