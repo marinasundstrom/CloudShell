@@ -39,20 +39,13 @@ public sealed class SqlDatabaseResourceTypeProvider :
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.Server] = new(
                 Description: "SQL Server resource reference.",
-                ValueType: ResourceAttributeValueType.ComplexType,
-                ValueShapeId: ResourceReference.AttributeValueShapeId),
+                ValueType: ResourceAttributeValueType.ResourceReference),
             [Attributes.Source] = new(
                 DefaultValue: "declared",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.EnsureCreated] = new(
                 DefaultValue: false,
                 ValueType: ResourceAttributeValueType.Boolean)
-        },
-        AttributeValueShapes: new Dictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>
-        {
-            [ResourceReference.AttributeValueShapeId] =
-                ResourceReference.CreateAttributeValueShapeDefinition(
-                    "SQL database resource reference.")
         },
         Operations:
         [

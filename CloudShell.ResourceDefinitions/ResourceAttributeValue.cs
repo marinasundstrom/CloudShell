@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -99,6 +100,32 @@ public sealed record ResourceAttributeValue
             .Deserialize<TValue>(serializerOptions);
     }
 
+    public bool TryGetResourceReference(
+        [NotNullWhen(true)] out ResourceReference? reference)
+    {
+        if (Kind != ResourceAttributeValueKind.Object ||
+            ObjectValue is null ||
+            !TryGetObjectString(ObjectValue, "value", out var value) ||
+            !TryGetObjectString(ObjectValue, "relationship", out var relationship) ||
+            !TryGetObjectString(ObjectValue, "addressingMode", out var addressingMode))
+        {
+            reference = null;
+            return false;
+        }
+
+        reference = new(
+            value,
+            ResourceReferenceRelationship.Create(relationship),
+            ResourceReferenceAddressingMode.Create(addressingMode),
+            TryGetObjectString(ObjectValue, "typeId", out var typeId)
+                ? ResourceTypeId.Create(typeId)
+                : (ResourceTypeId?)null,
+            TryGetObjectString(ObjectValue, "providerId", out var providerId)
+                ? providerId
+                : null);
+        return true;
+    }
+
     public bool TryGetScalarString(out string value)
     {
         switch (Kind)
@@ -121,6 +148,23 @@ public sealed record ResourceAttributeValue
                 value = string.Empty;
                 return false;
         }
+    }
+
+    private static bool TryGetObjectString(
+        IReadOnlyDictionary<string, ResourceAttributeValue> value,
+        string propertyName,
+        [NotNullWhen(true)] out string? propertyValue)
+    {
+        if (value.TryGetValue(propertyName, out var attributeValue) &&
+            attributeValue.Kind == ResourceAttributeValueKind.String &&
+            !string.IsNullOrWhiteSpace(attributeValue.StringValue))
+        {
+            propertyValue = attributeValue.StringValue;
+            return true;
+        }
+
+        propertyValue = null;
+        return false;
     }
 }
 

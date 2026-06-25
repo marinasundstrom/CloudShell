@@ -19,8 +19,6 @@ public sealed record ResourceReference(
     ResourceTypeId? TypeId = null,
     string? ProviderId = null)
 {
-    public static readonly ResourceAttributeValueShapeId AttributeValueShapeId = "resource:reference";
-
     public static ResourceReference ResourceId(
         string resourceId,
         ResourceReferenceRelationship? relationship = null,
@@ -50,31 +48,4 @@ public sealed record ResourceReference(
         resourceId = string.Empty;
         return false;
     }
-
-    public static ResourceAttributeValueShapeDefinition CreateAttributeValueShapeDefinition(
-        string? description = null) =>
-        new(
-            new(
-                new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
-                {
-                    ["value"] = new(
-                        ValueType: ResourceAttributeValueType.String,
-                        Required: true,
-                        Description: "Reference address value."),
-                    ["relationship"] = new(
-                        ValueType: ResourceAttributeValueType.String,
-                        Required: true,
-                        Description: "Reference relationship."),
-                    ["addressingMode"] = new(
-                        ValueType: ResourceAttributeValueType.String,
-                        Required: true,
-                        Description: "Reference addressing mode."),
-                    ["typeId"] = new(
-                        ValueType: ResourceAttributeValueType.String,
-                        Description: "Optional expected resource type."),
-                    ["providerId"] = new(
-                        ValueType: ResourceAttributeValueType.String,
-                        Description: "Optional expected provider.")
-                }),
-            description ?? "Resource reference value.");
 }

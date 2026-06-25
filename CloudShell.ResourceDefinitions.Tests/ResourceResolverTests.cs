@@ -360,13 +360,7 @@ public sealed class ResourceResolverTests
                     {
                         ["database.server"] = new(
                             DefaultValue: invalidReferenceValue,
-                            ValueType: ResourceAttributeValueType.ComplexType,
-                            ValueShapeId: ResourceReference.AttributeValueShapeId)
-                    },
-                    AttributeValueShapes: new Dictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>
-                    {
-                        [ResourceReference.AttributeValueShapeId] =
-                            ResourceReference.CreateAttributeValueShapeDefinition()
+                            ValueType: ResourceAttributeValueType.ResourceReference)
                     })
             ]);
         var definition = new ResourceDefinition(

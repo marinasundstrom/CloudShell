@@ -132,7 +132,7 @@ public sealed class ResourceDefinitionDescriptorTests
     }
 
     [Fact]
-    public void ResourceTypeDefinition_CanDeclareResourceReferenceAttributeShape()
+    public void ResourceTypeDefinition_CanDeclareResourceReferenceAttributeType()
     {
         var typeDefinition = new ResourceTypeDefinition(
             "application.sql-database",
@@ -140,34 +140,18 @@ public sealed class ResourceDefinitionDescriptorTests
             Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
             {
                 ["database.server"] = new(
-                    ValueType: ResourceAttributeValueType.ComplexType,
-                    ValueShapeId: ResourceReference.AttributeValueShapeId,
+                    ValueType: ResourceAttributeValueType.ResourceReference,
                     Required: true)
-            },
-            AttributeValueShapes: new Dictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>
-            {
-                [ResourceReference.AttributeValueShapeId] =
-                    ResourceReference.CreateAttributeValueShapeDefinition()
             });
 
         var (attributeName, attribute) = Assert.Single(typeDefinition.Attributes!);
         Assert.Equal("database.server", attributeName);
-        Assert.Equal(ResourceAttributeValueType.ComplexType, attribute.ValueType);
-        Assert.Equal(ResourceReference.AttributeValueShapeId, attribute.ValueShapeId);
+        Assert.Equal(ResourceAttributeValueType.ResourceReference, attribute.ValueType);
         Assert.True(attribute.Required);
-
-        var (shapeId, shapeDefinition) = Assert.Single(typeDefinition.AttributeValueShapes!);
-        Assert.Equal(ResourceReference.AttributeValueShapeId, shapeId);
-        Assert.Equal(
-            ["value", "relationship", "addressingMode", "typeId", "providerId"],
-            shapeDefinition.Shape.Attributes!.Keys.Select(key => key.ToString()).ToArray());
-        Assert.True(shapeDefinition.Shape.Attributes["value"].Required);
-        Assert.True(shapeDefinition.Shape.Attributes["relationship"].Required);
-        Assert.True(shapeDefinition.Shape.Attributes["addressingMode"].Required);
     }
 
     [Fact]
-    public void ResourceReferenceAttributeShapeMatchesJsonTarget()
+    public void ResourceReferenceAttributeValueMapsConcreteTypeAndSupportsStructuralNavigation()
     {
         var reference = ResourceReference.ResourceId(
             "application.sql-server:server",
@@ -176,24 +160,25 @@ public sealed class ResourceDefinitionDescriptorTests
         var json = JsonSerializer.Serialize(reference, JsonSerializerOptions.Web);
         using var document = JsonDocument.Parse(json);
 
-        var shape = ResourceReference.CreateAttributeValueShapeDefinition().Shape;
         var attributeValue = ResourceAttributeValue.FromObject(reference);
         var mappedReference = attributeValue.ToObject<ResourceReference>();
 
-        foreach (var attributeId in shape.Attributes!.Keys)
+        foreach (var propertyName in new[] { "value", "relationship", "addressingMode", "typeId", "providerId" })
         {
             Assert.True(
-                document.RootElement.TryGetProperty(attributeId.ToString(), out _),
-                $"Expected ResourceReference JSON to include '{attributeId}'.");
+                document.RootElement.TryGetProperty(propertyName, out _),
+                $"Expected ResourceReference JSON to include '{propertyName}'.");
             Assert.True(
-                attributeValue.ObjectValue?.ContainsKey(attributeId.ToString()),
-                $"Expected ResourceReference attribute value to include '{attributeId}'.");
+                attributeValue.ObjectValue?.ContainsKey(propertyName),
+                $"Expected ResourceReference attribute value to include '{propertyName}'.");
         }
 
+        Assert.True(attributeValue.TryGetResourceReference(out var navigatedReference));
         var roundTrip = JsonSerializer.Deserialize<ResourceReference>(json, JsonSerializerOptions.Web);
 
         Assert.Equal(reference, roundTrip);
         Assert.Equal(reference, mappedReference);
+        Assert.Equal(reference, navigatedReference);
     }
 
     [Fact]

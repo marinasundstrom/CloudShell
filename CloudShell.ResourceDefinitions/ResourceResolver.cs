@@ -590,6 +590,17 @@ public sealed class ResourceResolver
             return;
         }
 
+        if (definition.ValueType == ResourceAttributeValueType.ResourceReference)
+        {
+            ValidateResourceReferenceAttributeDefinitionDefault(
+                path,
+                target,
+                value,
+                source,
+                diagnostics);
+            return;
+        }
+
         if (!AttributeValueMatchesType(value, definition.ValueType.Value))
         {
             diagnostics.Add(ResourceDefinitionDiagnostic.Error(
@@ -711,6 +722,50 @@ public sealed class ResourceResolver
         return null;
     }
 
+    private static void ValidateResourceReferenceAttributeDefinitionDefault(
+        string path,
+        ResourceAttributeId target,
+        ResourceAttributeValue value,
+        ResourceDefinitionValueSource source,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        if (value.Kind != ResourceAttributeValueKind.Object ||
+            value.ObjectValue is null)
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                ResourceDefinitionDiagnosticCodes.AttributeDefinitionDefaultInvalid,
+                $"Attribute default '{path}' from {source} has value kind '{value.Kind}' but declares type '{ResourceAttributeValueType.ResourceReference}'.",
+                target));
+            return;
+        }
+
+        ValidateResourceReferenceRequiredField(path, target, value, "value", source, diagnostics);
+        ValidateResourceReferenceRequiredField(path, target, value, "relationship", source, diagnostics);
+        ValidateResourceReferenceRequiredField(path, target, value, "addressingMode", source, diagnostics);
+    }
+
+    private static void ValidateResourceReferenceRequiredField(
+        string path,
+        ResourceAttributeId target,
+        ResourceAttributeValue value,
+        string fieldName,
+        ResourceDefinitionValueSource source,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        if (value.ObjectValue is not null &&
+            value.ObjectValue.TryGetValue(fieldName, out var fieldValue) &&
+            fieldValue.Kind == ResourceAttributeValueKind.String &&
+            !string.IsNullOrWhiteSpace(fieldValue.StringValue))
+        {
+            return;
+        }
+
+        diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+            ResourceDefinitionDiagnosticCodes.AttributeDefinitionDefaultInvalid,
+            $"Attribute default '{path}' from {source} is missing required resource reference field '{fieldName}'.",
+            $"{target}.{fieldName}"));
+    }
+
     private static bool AttributeValueMatchesType(
         ResourceAttributeValue value,
         ResourceAttributeValueType valueType) =>
@@ -722,6 +777,7 @@ public sealed class ResourceResolver
             ResourceAttributeValueType.FloatingPoint => value.Kind is
                 ResourceAttributeValueKind.Decimal or ResourceAttributeValueKind.Integer,
             ResourceAttributeValueType.ComplexType => value.Kind == ResourceAttributeValueKind.Object,
+            ResourceAttributeValueType.ResourceReference => value.TryGetResourceReference(out _),
             _ => false
         };
 

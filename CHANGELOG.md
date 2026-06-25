@@ -96,11 +96,11 @@ on `git blame --follow`, and then by the broad type of change.
   attribute value shapes when checking complex defaults and collection size
   expectations.
 - `ResourceAttributeValue` can now map concrete CLR objects such as
-  `ResourceReference` into shape-validated complex attribute values and back
+  `ResourceReference` into structurally navigable attribute values and back
   again.
 - The SQL database reference provider now declares `database.server` as a
-  local `ResourceReference` attribute shape while continuing to use `DependsOn`
-  as the runtime reference source for the current POC.
+  built-in `ResourceReference` attribute type while continuing to use
+  `DependsOn` as the runtime reference source for the current POC.
 - Resource Manager store projection tests now cover persisted Resource model
   records for an ApplicationTopology-shaped graph, proving the bridge can
   project stored graph records alongside Resource Manager registrations.
@@ -338,7 +338,7 @@ on `git blame --follow`, and then by the broad type of change.
 - The container application reference provider now validates optional
   container-host placement references declared as typed `ResourceReference`
   dependencies, and the proposal records `database.server` as the future
-  complex `ResourceReference` attribute shape replacing
+  structured `ResourceReference` attribute replacing
   `database.serverResourceId`.
 - The resource definitions reference providers now include a narrow
   configuration store resource type with endpoint and entry-count attributes,

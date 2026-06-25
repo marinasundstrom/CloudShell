@@ -873,7 +873,7 @@ not mean the existing operational provider can be turned off yet.
 | Container application (`application.container-app`) | Modeled as a narrow reference provider | Image, registry, and replica attributes, optional typed generic/Docker container-host reference validation/projection, shared volume-consumer capability, start/restart/image-update operations, typed wrapper, ContainerAppDeployment sample-inspired graph coverage, Resource Manager bridge projection and execution | Actual container host orchestration, endpoints, revisions, replica runtime state, monitoring, and UI operations |
 | ASP.NET Core project (`application.aspnet-core-project`) | Modeled as a narrow reference provider | Project path, arguments, hot reload, launch-settings attributes, shared volume-consumer capability, start/restart operations, typed wrapper, Resource Manager bridge projection and execution, ApplicationTopology and SettingsAndSecrets sample-inspired graph coverage | Launch settings parsing, endpoints, local process or container build behavior, UI registration/update flow |
 | SQL Server (`application.sql-server`) | Modeled as a narrow reference provider | Service class and type defaults, version/edition attributes, optional typed generic/Docker container-host reference validation/projection, declared database configuration, shared volume-consumer capability over direct and storage-backed volumes, reconcile-access operation, typed wrapper, ContainerHost sample-inspired graph coverage, Resource Manager bridge projection and execution | Real SQL runtime integration, default/preferred container-host resolution, credential/grant reconciliation, database child projections, endpoints, and UI tabs |
-| SQL database child (`application.sql-database`) | Modeled as a narrow reference provider | Database name/source/ensure-created attributes, local `database.server` `ResourceReference` attribute shape declaration, server `ResourceReference` validation through `DependsOn`, ensure-created operation, typed wrapper, Resource Manager bridge projection and execution | Promoting `database.server` to the runtime/interchange reference value, real SQL database materialization, credential/grant reconciliation, provider-managed child ownership metadata, and UI tabs |
+| SQL database child (`application.sql-database`) | Modeled as a narrow reference provider | Database name/source/ensure-created attributes, built-in `database.server` `ResourceReference` attribute type declaration, server `ResourceReference` validation through `DependsOn`, ensure-created operation, typed wrapper, Resource Manager bridge projection and execution | Promoting `database.server` to the runtime/interchange reference value, real SQL database materialization, credential/grant reconciliation, provider-managed child ownership metadata, and UI tabs |
 | Container host (`cloudshell.container-host`) | Modeled as a narrow reference provider | Infrastructure class/type defaults, host kind/endpoint/registry/default attributes, passive container image/build/filesystem-mount capability markers, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real Docker/container host runtime integration, host resolution, placement behavior, credentials, and runtime diagnostics |
 | Docker host (`docker.host`) | Modeled as a narrow reference provider | Infrastructure class/type defaults, Docker host kind/endpoint/registry/default attributes, passive container image/build/filesystem-mount capability markers, inspect operation, typed wrapper, Resource Manager bridge projection and execution | Real Docker runtime integration, discovery, health, logs, container child projections, credentials, and UI registration/update flow |
 | Docker container (`docker.container`) | Modeled as a narrow reference provider | Container class/type defaults, workload/image/registry/replica attributes, read-only endpoint-count attribute, passive monitoring and log-source capability markers, lifecycle operation projections, typed wrapper, apply planning, and Resource Manager bridge projection/execution | Real Docker API integration, runtime discovery, container state, state-sensitive action availability, log streaming, endpoint projection, and hidden/runtime-managed Resource Manager behavior |
@@ -1423,23 +1423,25 @@ be reported by descriptor validation, but that diagnostic is deferred until
 the POC has a broader descriptor-validation pass instead of overloading
 default-value validation.
 
-`ResourceReference` is the first named complex value that should define its
-own attribute value shape. Providers can include
-`ResourceReference.AttributeValueShapeId` and
-`ResourceReference.CreateAttributeValueShapeDefinition()` in their local
-`AttributeValueShapes` maps when an attribute such as `database.server`
-stores a reference. The serialized/deserialized object mapping target remains
-the `ResourceReference` record itself; the shape only describes the attribute
-contract in serializer-neutral model terms.
+`ResourceReference` proves that not every structured value belongs in the
+provider-local complex-shape mechanism. It is core graph semantics, so the POC
+should treat it as a built-in structured value type:
+`ResourceAttributeValueType.ResourceReference`. A provider can declare an
+attribute such as `database.server` with that value type without registering a
+local `ValueShape`. The model can then navigate and validate the reference
+structure directly from `ResourceAttributeValue` without deserializing an
+arbitrary complex provider object. Projection wrappers may still deserialize
+the value to the concrete `ResourceReference` record when that object-oriented
+API is appropriate.
 
 When code sets or reads a typed attribute, the preferred API should allow the
 concrete CLR type, for example `ResourceReference`, rather than forcing every
-caller to construct a shape-specific dictionary. The resource model can map
-that concrete object to the internal `ResourceAttributeValue` representation,
-validate that representation against the declared shape, and let format
+caller to construct a dictionary. The resource model can map that concrete
+object to the internal `ResourceAttributeValue` representation, validate that
+representation against the built-in reference contract, and let format
 adapters serialize or deserialize it as JSON, YAML, XML, database records, or
-another target. The shape is the validation contract; it should not become a
-separate DTO that replaces the concrete model type.
+another target. Core graph values can have built-in structural contracts;
+provider-owned structured values should continue to use `ComplexType` shapes.
 
 Stable IDs should use `:` as the namespace separator and `.` for local
 hierarchy inside that namespace. For example, `container:replicas`,

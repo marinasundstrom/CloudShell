@@ -50,7 +50,8 @@ public enum ResourceAttributeValueType
     Boolean,
     Integer,
     FloatingPoint,
-    ComplexType
+    ComplexType,
+    ResourceReference
 }
 
 public enum ResourceAttributeValueKind
