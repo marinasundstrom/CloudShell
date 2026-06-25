@@ -71,6 +71,14 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager bridge projections now mark graph resources with lifecycle
   operations as `Unknown` lifecycle state, allowing registered graph-backed
   resources to dispatch Start through the graph procedure provider.
+- The Resource model proposal now records the POC objective that existing
+  providers are behavioral references, while the new model should resolve old
+  inconsistencies through consistent graph attributes, provider-owned
+  capabilities/operations, apply hooks, and Resource Manager dispatch.
+- The Resource model proposal now tracks future cleanup work for redundant
+  resolved-model concepts, old-provider adapter leakage, graph lifecycle-state
+  projection, premature graph context/transaction APIs, and compatibility
+  bridge layers that do not fit the new provider seams.
 - The local host networking reconcile operation now delegates endpoint-mapping
   work to an injected provider-owned reconciler with a no-op POC default,
   matching the provider-integration pattern without moving runtime logic into

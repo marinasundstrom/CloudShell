@@ -114,6 +114,11 @@ implementation for that behavior in the current environment.
 - Separate resource-type validation from cross-cutting capability validation.
 - Preserve provider ownership over runtime behavior, apply/update/delete
   behavior, and provider-specific configuration.
+- Use existing providers as behavioral references, not as boundaries or
+  terminology that the new model must preserve. When the old model is
+  inconsistent, make the new Resource model internally consistent around graph
+  attributes, provider-owned capabilities, provider-owned operations, explicit
+  apply hooks, and Resource Manager dispatch.
 - Prevent secrets from being serialized into resource definitions, projected
   attributes, diagnostics, logs, templates, or generated code.
 
@@ -3334,6 +3339,32 @@ availability are incomplete.
    providers, projection validation, and diagnostics.
 13. Add API/client projection only after the in-process definition model is
    stable enough to expose.
+
+## Future Cleanup Work
+
+The POC has exposed a few model cleanup items that should be addressed before
+the Resource model becomes a replacement path:
+
+- Re-evaluate and likely remove `ResolvedResourceDefinition` as a public
+  concept. The resolved `Resource` projection already combines accepted
+  resource state, type/class definitions, attributes, capabilities,
+  operations, and diagnostics.
+- Keep old provider records and terminology out of the new provider seams.
+  Existing providers should guide behavior, but new capabilities, operations,
+  and apply hooks should be shaped around the Resource model's graph
+  attributes and provider-owned runtime services.
+- Clarify lifecycle-state projection for graph-backed resources. Projecting
+  `Unknown` lets Resource Manager dispatch Start, but Restart remains blocked
+  until runtime state is projected or Resource Manager lifecycle policy is
+  deliberately changed.
+- Avoid adding broad graph contexts, transaction/session APIs, or generic
+  control-service layers until concrete provider ports show they are needed.
+  The current seams are capabilities, operations, apply hooks, and Resource
+  Manager dispatch.
+- Audit any second resolved-model, compatibility adapter, or old-provider
+  bridge layer that appears during provider ports. If it mostly translates old
+  concepts into new ones, prefer replacing it with a provider-local service
+  shaped around the new resource type.
 
 ## Open Questions
 
