@@ -42,11 +42,11 @@ public sealed class SqlServerGraphValidator : IResourceDefinitionGraphValidator
             return;
         }
 
-        if (host.Type.TypeId != ContainerHostResourceTypeProvider.ResourceTypeId)
+        if (!SqlServerResourceTypeProvider.IsContainerHostResourceType(host.Type.TypeId))
         {
             diagnostics.Add(ResourceDefinitionDiagnostic.Error(
                 ResourceDefinitionDiagnosticCodes.ResourceCapabilityReferenceInvalid,
-                $"SQL Server '{resource.EffectiveResourceId}' references resource type '{host.Type.TypeId}', expected '{ContainerHostResourceTypeProvider.ResourceTypeId}'.",
+                $"SQL Server '{resource.EffectiveResourceId}' references resource type '{host.Type.TypeId}', expected a container host resource.",
                 resource.EffectiveResourceId));
             return;
         }

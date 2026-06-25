@@ -999,6 +999,94 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AcceptsDockerHostForContainerBackedWorkloads()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddDockerHostResourceType();
+        services.AddContainerApplicationResourceType();
+        services.AddSqlServerResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var host = new ResourceDefinition(
+            "engine",
+            DockerHostResourceTypeProvider.ResourceTypeId,
+            ProviderId: DockerHostResourceTypeProvider.ProviderId);
+        var container = new ResourceDefinition(
+            "api",
+            ContainerApplicationResourceTypeProvider.ResourceTypeId,
+            ProviderId: ContainerApplicationResourceTypeProvider.ProviderId,
+            DependsOn:
+            [
+                ResourceReference.ResourceId(
+                    host.EffectiveResourceId,
+                    typeId: DockerHostResourceTypeProvider.ResourceTypeId)
+            ],
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [ContainerApplicationResourceTypeProvider.Attributes.ContainerImage] = "example/api:1.0"
+            });
+        var sqlServer = new ResourceDefinition(
+            "sql",
+            SqlServerResourceTypeProvider.ResourceTypeId,
+            ProviderId: SqlServerResourceTypeProvider.ProviderId,
+            DependsOn:
+            [
+                ResourceReference.ResourceId(
+                    host.EffectiveResourceId,
+                    typeId: DockerHostResourceTypeProvider.ResourceTypeId)
+            ]);
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "docker-host-workloads",
+                [host, container, sqlServer],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 20, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedResources = provider.GetResources().ToArray();
+        var projectedContainer = Assert.Single(projectedResources, resource =>
+            resource.Id == container.EffectiveResourceId);
+        var projectedSqlServer = Assert.Single(projectedResources, resource =>
+            resource.Id == sqlServer.EffectiveResourceId);
+
+        Assert.Equal([host.EffectiveResourceId], projectedContainer.DependsOn);
+        Assert.Equal([host.EffectiveResourceId], projectedSqlServer.DependsOn);
+
+        var resolver = serviceProvider.GetRequiredService<ResourceModelGraphResourceResolver>();
+        var containerResolution = await resolver.ResolveAsync(container.EffectiveResourceId);
+        var sqlResolution = await resolver.ResolveAsync(sqlServer.EffectiveResourceId);
+
+        Assert.False(containerResolution.HasErrors, FormatDiagnostics(containerResolution.Diagnostics));
+        Assert.False(sqlResolution.HasErrors, FormatDiagnostics(sqlResolution.Diagnostics));
+
+        var projectionResolver = serviceProvider.GetRequiredService<ResourceProjectionResolver>();
+        var containerProjection = Assert.IsType<ContainerApplicationResource>(
+            await projectionResolver.GetResourceProjectionAsync(
+                containerResolution.Target!,
+                new ResourceProjectionContext("local", "developer")));
+        var sqlProjection = Assert.IsType<SqlServerResource>(
+            await projectionResolver.GetResourceProjectionAsync(
+                sqlResolution.Target!,
+                new ResourceProjectionContext("local", "developer")));
+
+        Assert.Equal(host.EffectiveResourceId, containerProjection.ContainerHostResourceId);
+        Assert.Equal(host.EffectiveResourceId, sqlProjection.ContainerHostResourceId);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesAspNetCoreProjectAcrossProviderBoundaries()
     {
         var services = new ServiceCollection();

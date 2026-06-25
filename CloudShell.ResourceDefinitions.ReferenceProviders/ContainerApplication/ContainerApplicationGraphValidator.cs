@@ -30,11 +30,11 @@ public sealed class ContainerApplicationGraphValidator : IResourceDefinitionGrap
                 continue;
             }
 
-            if (host.Type.TypeId != ContainerHostResourceTypeProvider.ResourceTypeId)
+            if (!ContainerApplicationResourceTypeProvider.IsContainerHostResourceType(host.Type.TypeId))
             {
                 diagnostics.Add(ResourceDefinitionDiagnostic.Error(
                     ResourceDefinitionDiagnosticCodes.ResourceCapabilityReferenceInvalid,
-                    $"Container application '{resource.EffectiveResourceId}' references resource type '{host.Type.TypeId}', expected '{ContainerHostResourceTypeProvider.ResourceTypeId}'.",
+                    $"Container application '{resource.EffectiveResourceId}' references resource type '{host.Type.TypeId}', expected a container host resource.",
                     resource.EffectiveResourceId));
                 continue;
             }

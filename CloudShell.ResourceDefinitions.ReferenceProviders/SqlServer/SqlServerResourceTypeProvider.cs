@@ -146,7 +146,8 @@ public sealed class SqlServerResourceTypeProvider :
     {
         foreach (var reference in state.ResourceDependencies)
         {
-            if (reference.TypeId == ContainerHostResourceTypeProvider.ResourceTypeId &&
+            if (reference.TypeId is { } typeId &&
+                IsContainerHostResourceType(typeId) &&
                 reference.TryGetResourceId(out containerHostResourceId))
             {
                 return true;
@@ -156,4 +157,8 @@ public sealed class SqlServerResourceTypeProvider :
         containerHostResourceId = string.Empty;
         return false;
     }
+
+    internal static bool IsContainerHostResourceType(ResourceTypeId typeId) =>
+        typeId == ContainerHostResourceTypeProvider.ResourceTypeId ||
+        typeId == DockerHostResourceTypeProvider.ResourceTypeId;
 }

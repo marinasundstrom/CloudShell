@@ -129,6 +129,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The resource definitions proposal now records centralized versus
   distributed graph storage as a future projection concern, keeping the POC
   focused on the logical Resource model and provider integration contracts.
+- Container application and SQL Server reference providers now accept typed
+  Docker host references as container-host bindings when the resolved host
+  advertises the required container-image capability.
 
 ### 2026-06-24
 
