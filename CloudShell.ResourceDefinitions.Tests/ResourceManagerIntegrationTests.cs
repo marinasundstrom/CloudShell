@@ -1498,25 +1498,48 @@ public sealed class ResourceManagerIntegrationTests
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph();
+        services.AddContainerApplicationResourceType();
+        services.AddDockerHostResourceType();
         services.AddLoadBalancerResourceType();
         services.AddResourceModelGraphServices();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var host = new ResourceDefinition(
+            "engine",
+            DockerHostResourceTypeProvider.ResourceTypeId,
+            ProviderId: DockerHostResourceTypeProvider.ProviderId);
+        var target = new ResourceDefinition(
+            "api",
+            ContainerApplicationResourceTypeProvider.ResourceTypeId,
+            ProviderId: ContainerApplicationResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [ContainerApplicationResourceTypeProvider.Attributes.ContainerImage] = "example/api:1.0"
+            });
         var loadBalancer = new ResourceDefinition(
             "edge",
             LoadBalancerResourceTypeProvider.ResourceTypeId,
             ProviderId: LoadBalancerResourceTypeProvider.ProviderId,
+            DependsOn:
+            [
+                ResourceReference.ResourceId(
+                    host.EffectiveResourceId,
+                    typeId: DockerHostResourceTypeProvider.ResourceTypeId),
+                ResourceReference.ResourceId(
+                    target.EffectiveResourceId,
+                    typeId: ContainerApplicationResourceTypeProvider.ResourceTypeId)
+            ],
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
                 [LoadBalancerResourceTypeProvider.Attributes.Provider] = "traefik",
-                [LoadBalancerResourceTypeProvider.Attributes.HostResourceId] = "docker:engine"
+                [LoadBalancerResourceTypeProvider.Attributes.HostResourceId] = host.EffectiveResourceId
             });
 
         var result = await service.ApplyDeploymentAsync(
             new ResourceDeploymentDefinition(
                 "load-balancer",
-                [loadBalancer],
+                [host, target, loadBalancer],
                 EnvironmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
@@ -1536,8 +1559,9 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(ResourceManagerClass.Network, projectedLoadBalancer.ResourceClass);
         Assert.Equal(LoadBalancerResourceTypeProvider.ProviderId, projectedLoadBalancer.Provider);
         Assert.Equal("traefik", projectedLoadBalancer.ResourceAttributes["loadBalancer.provider"]);
-        Assert.Equal("docker:engine", projectedLoadBalancer.ResourceAttributes["loadBalancer.hostResourceId"]);
+        Assert.Equal(host.EffectiveResourceId, projectedLoadBalancer.ResourceAttributes["loadBalancer.hostResourceId"]);
         Assert.Equal("0", projectedLoadBalancer.ResourceAttributes["loadBalancer.routes"]);
+        Assert.Equal([host.EffectiveResourceId, target.EffectiveResourceId], projectedLoadBalancer.DependsOn);
         Assert.Contains(projectedLoadBalancer.ResourceCapabilities, capability =>
             capability.Id == LoadBalancerResourceTypeProvider.Capabilities.NetworkingLoadBalancer.ToString());
         var apply = Assert.Single(projectedLoadBalancer.ResourceActions, action =>
@@ -1555,6 +1579,7 @@ public sealed class ResourceManagerIntegrationTests
                     resolution.Target!,
                     new ResourceProjectionContext("local", "developer")));
         Assert.Equal(0, projection.RouteCount);
+        Assert.Equal([host.EffectiveResourceId, target.EffectiveResourceId], projection.References.Select(reference => reference.Value));
 
         var procedure = new ResourceProcedureContext(
             projectedLoadBalancer,
@@ -1567,6 +1592,52 @@ public sealed class ResourceManagerIntegrationTests
         var procedureResult = await provider.ExecuteActionAsync(procedure, apply);
 
         Assert.Equal("Executed ApplyLoadBalancerConfiguration for edge.", procedureResult.Message);
+    }
+
+    [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_RejectsLoadBalancerWithNetworkBackendTarget()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddLoadBalancerResourceType();
+        services.AddNetworkResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var network = new ResourceDefinition(
+            "default",
+            NetworkResourceTypeProvider.ResourceTypeId,
+            ProviderId: NetworkResourceTypeProvider.ProviderId);
+        var loadBalancer = new ResourceDefinition(
+            "edge",
+            LoadBalancerResourceTypeProvider.ResourceTypeId,
+            ProviderId: LoadBalancerResourceTypeProvider.ProviderId,
+            DependsOn:
+            [
+                ResourceReference.ResourceId(
+                    network.EffectiveResourceId,
+                    typeId: ContainerApplicationResourceTypeProvider.ResourceTypeId)
+            ],
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [LoadBalancerResourceTypeProvider.Attributes.Provider] = "traefik"
+            });
+
+        var result = await service.ApplyDeploymentAsync(
+            new ResourceDeploymentDefinition(
+                "invalid-load-balancer",
+                [network, loadBalancer],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 25, 18, 0, 0, TimeSpan.Zero)));
+
+        Assert.True(result.HasErrors);
+        Assert.False(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Rejected, result.Commit.Summary.Status);
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Code == ResourceDefinitionDiagnosticCodes.ResourceCapabilityReferenceInvalid &&
+            diagnostic.Message.Contains("cannot use resource type 'cloudshell.network'", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

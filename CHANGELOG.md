@@ -115,6 +115,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Service reference-provider validation now treats typed network dependencies
   as provider-owned graph semantics and rejects service definitions whose
   network reference resolves to a non-network resource.
+- Load balancer reference-provider validation now keeps declared host/backend
+  dependencies as typed `ResourceReference` entries and rejects network or
+  infrastructure provider resources when they are used as backend targets.
 
 ### 2026-06-24
 
