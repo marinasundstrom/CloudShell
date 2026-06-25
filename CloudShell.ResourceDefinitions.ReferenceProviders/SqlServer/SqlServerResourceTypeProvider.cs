@@ -148,7 +148,7 @@ public sealed class SqlServerResourceTypeProvider :
         {
             if (reference.TypeId is { } typeId &&
                 IsContainerHostResourceType(typeId) &&
-                reference.TryGetResourceId(out containerHostResourceId))
+                reference.TryGetDependsOnResourceId(out containerHostResourceId))
             {
                 return true;
             }

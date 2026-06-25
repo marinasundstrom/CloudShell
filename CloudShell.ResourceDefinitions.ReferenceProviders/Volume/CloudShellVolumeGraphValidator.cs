@@ -27,7 +27,7 @@ public sealed class CloudShellVolumeGraphValidator : IResourceDefinitionGraphVal
     {
         foreach (var reference in resource.State.ResourceDependencies)
         {
-            if (!reference.TryGetResourceId(out var resourceId))
+            if (!reference.TryGetDependsOnResourceId(out var resourceId))
             {
                 continue;
             }

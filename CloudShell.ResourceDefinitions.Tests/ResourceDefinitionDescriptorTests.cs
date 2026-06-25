@@ -265,4 +265,17 @@ public sealed class ResourceDefinitionDescriptorTests
         Assert.Equal(reference.TypeId, roundTrip.TypeId);
         Assert.Equal(reference.ProviderId, roundTrip.ProviderId);
     }
+
+    [Fact]
+    public void ResourceReference_DistinguishesResourceIdAddressingFromDependsOnSemantics()
+    {
+        var reference = ResourceReference.ResourceId(
+            "application.sql-server:server",
+            ResourceReferenceRelationships.BelongsTo,
+            SqlServerResourceTypeProvider.ResourceTypeId);
+
+        Assert.True(reference.TryGetResourceId(out var resourceId));
+        Assert.False(reference.TryGetDependsOnResourceId(out _));
+        Assert.Equal("application.sql-server:server", resourceId);
+    }
 }

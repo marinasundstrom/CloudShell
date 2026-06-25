@@ -142,7 +142,7 @@ public sealed class NameMappingResourceTypeProvider :
         IReadOnlyList<ResourceReference> references,
         List<ResourceDefinitionDiagnostic> diagnostics)
     {
-        if (!references.Any(reference => reference.TryGetResourceId(out _)))
+        if (!references.Any(reference => reference.TryGetDependsOnResourceId(out _)))
         {
             diagnostics.Add(ResourceDefinitionDiagnostic.Error(
                 "dns.nameMapping.targetRequired",

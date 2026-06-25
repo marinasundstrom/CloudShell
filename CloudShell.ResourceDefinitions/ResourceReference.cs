@@ -38,11 +38,22 @@ public sealed record ResourceReference(
 
     public bool TryGetResourceId(out string resourceId)
     {
-        if (Relationship == ResourceReferenceRelationships.DependsOn &&
-            AddressingMode == ResourceReferenceAddressingModes.ResourceId &&
+        if (AddressingMode == ResourceReferenceAddressingModes.ResourceId &&
             !string.IsNullOrWhiteSpace(Value))
         {
             resourceId = Value.Trim();
+            return true;
+        }
+
+        resourceId = string.Empty;
+        return false;
+    }
+
+    public bool TryGetDependsOnResourceId(out string resourceId)
+    {
+        if (Relationship == ResourceReferenceRelationships.DependsOn &&
+            TryGetResourceId(out resourceId))
+        {
             return true;
         }
 

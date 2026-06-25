@@ -1442,6 +1442,13 @@ some reference providers still use `DependsOn` as a temporary input because
 authored attributes. That should not become the desired long-term model for
 all relationships.
 
+The `ResourceReference` primitive separates addressing mode from relationship
+semantics. A `resourceId`-addressed reference can be resolved directly even
+when its relationship is `belongsTo`, but dependency closure and dependency
+ID projection should only follow references whose relationship is
+`dependsOn`. This keeps ownership, targeting, and future projected-resource
+references from accidentally becoming startup-order dependencies.
+
 `DependsOn` should remain a first-class optional collection on the resource
 record and interchange definition, not a normal inherited attribute. It is
 instance-specific graph metadata that gives an orchestrator a startup-order

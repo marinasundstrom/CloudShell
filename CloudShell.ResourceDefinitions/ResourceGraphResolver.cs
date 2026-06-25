@@ -215,7 +215,9 @@ public sealed class ResourceGraphResolver(
         ResourceState state,
         Resource resource)
     {
-        var dependencies = new List<ResourceReference>(state.ResourceDependencies);
+        var dependencies = state.ResourceDependencies
+            .Where(reference => reference.TryGetDependsOnResourceId(out _))
+            .ToList();
         var dependencyIds = new HashSet<string>(
             state.ResourceDependencyIds,
             StringComparer.OrdinalIgnoreCase);
@@ -229,7 +231,7 @@ public sealed class ResourceGraphResolver(
 
             foreach (var reference in provider.GetDependencies(resource))
             {
-                if (reference.TryGetResourceId(out var dependency))
+                if (reference.TryGetDependsOnResourceId(out var dependency))
                 {
                     if (dependencyIds.Add(dependency))
                     {
@@ -238,7 +240,7 @@ public sealed class ResourceGraphResolver(
                     else if (HasReferenceExpectations(reference))
                     {
                         dependencies.RemoveAll(existing =>
-                            existing.TryGetResourceId(out var existingDependency) &&
+                            existing.TryGetDependsOnResourceId(out var existingDependency) &&
                             string.Equals(
                                 existingDependency,
                                 dependency,

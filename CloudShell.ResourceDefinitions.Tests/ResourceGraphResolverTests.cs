@@ -55,6 +55,26 @@ public sealed class ResourceGraphResolverTests
     }
 
     [Fact]
+    public void ResolveReference_ReturnsResourceForBelongsToResourceIdReference()
+    {
+        var resolver = new ResourceGraphResolver(CreateResourceResolver());
+        var server = CreateExecutableState("server");
+        var snapshot = new ResourceGraphSnapshot(ResourceGraphVersion.Initial, [server]);
+
+        var result = resolver.ResolveReference(
+            snapshot,
+            ResourceReference.ResourceId(
+                server.EffectiveResourceId,
+                ResourceReferenceRelationships.BelongsTo));
+
+        Assert.True(result.IsResolved);
+        Assert.False(result.HasErrors);
+        Assert.Empty(result.Diagnostics);
+        Assert.Equal(server.EffectiveResourceId, result.Resource?.EffectiveResourceId);
+        Assert.Equal(ResourceReferenceRelationships.BelongsTo, result.Reference.Relationship);
+    }
+
+    [Fact]
     public void ResolveReference_ReportsDiagnosticForExpectedResourceTypeMismatch()
     {
         var resolver = new ResourceGraphResolver(CreateResourceResolver());
@@ -210,6 +230,32 @@ public sealed class ResourceGraphResolverTests
         Assert.Equal(
             [api.EffectiveResourceId, worker.EffectiveResourceId],
             result.Resources.Select(resource => resource.EffectiveResourceId));
+    }
+
+    [Fact]
+    public void ResolveResourceAndDependencies_OnlyFollowsDependsOnResourceIdReferences()
+    {
+        var server = CreateExecutableState("server");
+        var api = CreateExecutableState("api", dependsOn: []) with
+        {
+            DependsOn =
+            [
+                ResourceReference.ResourceId(
+                    server.EffectiveResourceId,
+                    ResourceReferenceRelationships.BelongsTo)
+            ]
+        };
+        var resolver = new ResourceGraphResolver(CreateResourceResolver());
+        var snapshot = new ResourceGraphSnapshot(ResourceGraphVersion.Initial, [api, server]);
+
+        var result = resolver.ResolveResourceAndDependencies(snapshot, api.EffectiveResourceId);
+
+        Assert.False(result.HasErrors);
+        Assert.Empty(result.Diagnostics);
+        Assert.Equal(
+            [api.EffectiveResourceId],
+            result.Resources.Select(resource => resource.EffectiveResourceId));
+        Assert.Empty(result.ResolvedReferences);
     }
 
     [Fact]

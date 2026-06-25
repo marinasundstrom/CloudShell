@@ -179,7 +179,7 @@ public sealed class SqlDatabaseResourceTypeProvider :
     {
         foreach (var reference in state.ResourceDependencies)
         {
-            if (reference.TryGetResourceId(out serverResourceId))
+            if (reference.TryGetDependsOnResourceId(out serverResourceId))
             {
                 return true;
             }

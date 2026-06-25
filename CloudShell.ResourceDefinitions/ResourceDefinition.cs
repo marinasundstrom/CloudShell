@@ -32,10 +32,10 @@ public sealed record ResourceDefinition(
     public IReadOnlyList<ResourceReference> ResourceDependencies => DependsOn ?? EmptyReferences;
 
     public IReadOnlyList<string> ResourceDependencyIds => ResourceDependencies
-        .Where(dependency => dependency.TryGetResourceId(out _))
+        .Where(dependency => dependency.TryGetDependsOnResourceId(out _))
         .Select(dependency =>
         {
-            dependency.TryGetResourceId(out var resourceId);
+            dependency.TryGetDependsOnResourceId(out var resourceId);
             return resourceId;
         })
         .ToArray();
