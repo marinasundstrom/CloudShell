@@ -1484,6 +1484,31 @@ public sealed class SampleSmokeTests
             "/api/secrets/vaults/secrets.vault%3Agraph-sample-app/secrets",
             GetEndpointAddress(graphSecrets, "secrets"),
             StringComparison.Ordinal);
+
+        var graphSettingsInspectAction = graphSettings
+            .GetProperty("resourceActions")
+            .GetProperty("configuration.store.inspect");
+        Assert.Equal("Configuration Store Inspect", graphSettingsInspectAction.GetProperty("displayName").GetString());
+        var graphSettingsInspectHref = graphSettingsInspectAction.GetProperty("href").GetString() ??
+            throw new InvalidOperationException("The graph configuration store inspect action did not include an href.");
+        var graphSettingsInspectJson = await host.SendAsync(HttpMethod.Post, graphSettingsInspectHref);
+        using var graphSettingsInspectDocument = JsonDocument.Parse(graphSettingsInspectJson);
+        Assert.Contains(
+            "Executed Configuration Store Inspect",
+            graphSettingsInspectDocument.RootElement.GetProperty("message").GetString());
+
+        var graphSecretsInspectAction = graphSecrets
+            .GetProperty("resourceActions")
+            .GetProperty("secrets.vault.inspect");
+        Assert.Equal("Secrets Vault Inspect", graphSecretsInspectAction.GetProperty("displayName").GetString());
+        var graphSecretsInspectHref = graphSecretsInspectAction.GetProperty("href").GetString() ??
+            throw new InvalidOperationException("The graph Secrets Vault inspect action did not include an href.");
+        var graphSecretsInspectJson = await host.SendAsync(HttpMethod.Post, graphSecretsInspectHref);
+        using var graphSecretsInspectDocument = JsonDocument.Parse(graphSecretsInspectJson);
+        Assert.Contains(
+            "Executed Secrets Vault Inspect",
+            graphSecretsInspectDocument.RootElement.GetProperty("message").GetString());
+
         Assert.Contains("configuration:sample-app", dependsOn);
         Assert.Contains("secrets-vault:sample-app", dependsOn);
         Assert.Equal("identity:development", identity.GetProperty("providerId").GetString());
