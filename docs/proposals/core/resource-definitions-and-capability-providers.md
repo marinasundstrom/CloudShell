@@ -823,6 +823,27 @@ model graph, or from both when a workflow needs graph-aware information. The
 Resource model becomes the declaration and graph-behavior boundary; Resource
 Manager remains the operational entry point that composes the view it needs.
 
+The state ownership rule should be explicit: persistent Resource graph state
+must be represented through the graph state primitives. If a value is part of
+the versioned graph, it belongs in resource identity, references, attributes,
+configuration sections, declared capabilities, declared operations, or graph
+metadata such as revision and timestamps. `Resource`, typed wrappers,
+capability projections, and operation projections may expose convenient
+properties and methods, but persisted graph-backed properties should map back
+to those primitives. A generated wrapper property such as
+`ContainerReplicas` should therefore stage an attribute change internally
+rather than creating a second hidden state system.
+
+Values that do not map to graph state should be treated as projection,
+derived information, runtime-only state, or Control Plane operational state.
+For example, liveness observations, process handles, provider runtime caches,
+logs, traces, and orchestration progress belong to Resource Manager or
+provider-owned operational records unless the model deliberately promotes a
+summary value into a provider-managed Resource attribute. This keeps the
+resolved `Resource` projection behavior-rich without letting random
+provider-specific properties bypass graph versioning, persistence, and apply
+validation.
+
 Graph locking, graph update coordination, and transaction policy belong at
 the Resource Manager or Control Plane coordination layer. The Resource model
 can provide change sets, resolved projections, diagnostics, and commit-shaped
@@ -1209,6 +1230,18 @@ The provider boundary can still receive injected services when it is the
 right integration point; the important POC constraint is that recurring tasks,
 watchers, polling loops, and runtime reconciliation processes stay outside the
 type provider contract until we have a concrete execution model for them.
+
+This gives the graph one state-write model with different ownership policies.
+External callers can apply declarative changes, capability and operation
+projections can propose resource-local changes, and trusted runtime
+integrations can report provider-managed values. If any of those paths writes
+Resource graph state, it should produce graph-state changes that pass through
+the normal apply, validation, and commit boundary. The difference is who is
+authorized to set the value and which provider validates it, not whether the
+value bypasses graph versioning. Type providers may participate by validating
+or accepting proposed state and by delegating to runtime-facing services, but
+they should not themselves become the background runtime system that keeps
+the value fresh.
 When inherited definitions are resolved, an unset read-only value should
 inherit the class-level policy. A type-level `false` should be treated as an
 explicit definition-level decision to clear inherited read-only behavior, not
