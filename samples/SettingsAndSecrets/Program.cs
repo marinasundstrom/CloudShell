@@ -14,7 +14,9 @@ using CloudShell.ResourceDefinitions.ReferenceProviders;
 using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
 using CloudShell.ResourceDefinitions.ResourceManager;
 using System.Security.Cryptography;
+using System.Text.Json;
 using ResourceGraphState = CloudShell.ResourceDefinitions.ResourceState;
+using ResourceManagerState = CloudShell.Abstractions.ResourceManager.ResourceState;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 var repositoryRootPath = Path.GetFullPath("../..", builder.Environment.ContentRootPath);
@@ -43,8 +45,17 @@ var graphConfigurationServiceEndpoint = builder.Configuration["Samples:SettingsA
     $"http://localhost:{configurationServiceBasePort}";
 var graphSecretsServiceEndpoint = builder.Configuration["Samples:SettingsAndSecrets:GraphSecretsServiceEndpoint"] ??
     $"http://localhost:{secretsServiceBasePort}";
+var graphApiEndpoint = builder.Configuration["Samples:SettingsAndSecrets:GraphApiEndpoint"] ??
+    "http://localhost:5228";
+var graphApiEndpointUri = new Uri(graphApiEndpoint);
 const string graphSettingsResourceId = "configuration.store:graph-sample-app";
 const string graphSecretsResourceId = "secrets.vault:graph-sample-app";
+const string graphApiResourceId = "application.aspnet-core-project:graph-settings-secrets-api";
+var graphApiProjectPath = Path.Combine(
+    repositoryRootPath,
+    "samples",
+    "CloudShell.ExampleWebApi",
+    "CloudShell.ExampleWebApi.csproj");
 var graphConfigurationEntriesEndpoint =
     $"{graphConfigurationServiceEndpoint.TrimEnd('/')}/api/configuration/stores/{Uri.EscapeDataString(graphSettingsResourceId)}/entries";
 var graphSecretsEndpoint =
@@ -60,6 +71,12 @@ builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
 builder.Services
+    .AddSingleton<
+        IResourceModelResourceManagerStateProvider,
+        AspNetCoreProjectResourceManagerStateProvider>()
+    .AddSingleton<
+        IResourceModelResourceManagerEndpointProjectionProvider,
+        AspNetCoreProjectResourceManagerEndpointProjectionProvider>()
     .AddSingleton(new ConfigurationStoreRuntimeOptions
     {
         ServiceProjectPath = configurationStoreServiceProjectPath,
@@ -112,10 +129,83 @@ builder.Services
                     graphSecretsServiceEndpoint,
                 [SecretsVaultResourceTypeProvider.Attributes.SecretCount] =
                     1
+            }),
+        new ResourceGraphState(
+            "graph-settings-secrets-api",
+            AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
+            ResourceId: graphApiResourceId,
+            ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
+            DisplayName: "Graph Settings and Secrets API",
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] =
+                    graphApiProjectPath,
+                [AspNetCoreProjectResourceTypeProvider.Attributes.HotReload] =
+                    false,
+                [AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings] =
+                    false,
+                [AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        new NetworkingEndpointRequestValue(
+                            "http",
+                            graphApiEndpointUri.Scheme,
+                            Host: graphApiEndpointUri.Host,
+                            Port: graphApiEndpointUri.Port,
+                            Exposure: "Local")
+                    }),
+                [AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "CLOUDSHELL_APPLICATION",
+                            "Graph Settings and Secrets API"),
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT",
+                            identityTokenEndpoint),
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "CLOUDSHELL_IDENTITY_CLIENT_ID",
+                            "application:settings-secrets-api/settings-secrets-api"),
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "CLOUDSHELL_IDENTITY_CLIENT_SECRET",
+                            "local-development-settings-secrets-api-secret"),
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "CLOUDSHELL_IDENTITY_SCOPE",
+                            "ControlPlane.Access"),
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "CLOUDSHELL_CONFIGURATION_SERVICE_NAME",
+                            "graph-sample-app"),
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "CLOUDSHELL_CONFIGURATION_GRAPH_SAMPLE_APP_STORE_ID",
+                            graphSettingsResourceId),
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "CLOUDSHELL_CONFIGURATION_GRAPH_SAMPLE_APP_ENDPOINT",
+                            graphConfigurationEntriesEndpoint),
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "CLOUDSHELL_SECRETS_VAULT_NAME",
+                            "graph-sample-app"),
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "CLOUDSHELL_SECRETS_GRAPH_SAMPLE_APP_VAULT_ID",
+                            graphSecretsResourceId),
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "CLOUDSHELL_SECRETS_GRAPH_SAMPLE_APP_ENDPOINT",
+                            graphSecretsEndpoint)
+                    })
+            },
+            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
+            {
+                [ResourceHealthCheckCapabilityIds.HealthChecks] =
+                    ResourceDefinitionJson.FromValue(new ResourceHealthCheckDefinitionSet(
+                    [
+                        ResourceHealthCheckDefinition.Http(
+                            "/health",
+                            endpointName: "http")
+                    ]))
             })
     ])
     .AddConfigurationStoreResourceType()
     .AddSecretsVaultResourceType()
+    .AddAspNetCoreProjectResourceType()
     .AddResourceModelGraphServices()
     .AddReferenceProviderResourceManagerProjections()
     .AddResourceModelGraphProcedureProvider(
@@ -207,6 +297,9 @@ cloudShell.Resources(resources =>
     var graphSecrets = resources.Declare(
         ResourceModelResourceProvider.DefaultProviderId,
         graphSecretsResourceId);
+    resources.Declare(
+        ResourceModelResourceProvider.DefaultProviderId,
+        graphApiResourceId);
     graphSettings.Allow(api.Principal, ConfigurationStoreResourceOperationPermissions.ReadEntries);
     graphSecrets.Allow(api.Principal, SecretsVaultResourceOperationPermissions.ReadSecrets);
 });
@@ -232,3 +325,120 @@ static string ResolveFirstUrl(string urls) =>
         .FirstOrDefault()
         ?.TrimEnd('/') ??
     "http://localhost:5047";
+
+internal sealed class AspNetCoreProjectResourceManagerStateProvider(
+    IAspNetCoreProjectRuntimeController runtimeController) :
+    IResourceModelResourceManagerStateProvider
+{
+    public ResourceManagerState? GetState(CloudShell.ResourceDefinitions.Resource resource)
+    {
+        if (resource.Type.TypeId != AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
+        {
+            return null;
+        }
+
+        return runtimeController.GetStatus(resource) switch
+        {
+            AspNetCoreProjectRuntimeStatus.Running => ResourceManagerState.Running,
+            AspNetCoreProjectRuntimeStatus.Stopped => ResourceManagerState.Stopped,
+            _ => null
+        };
+    }
+}
+
+internal sealed class AspNetCoreProjectResourceManagerEndpointProjectionProvider :
+    IResourceModelResourceManagerEndpointProjectionProvider
+{
+    public ResourceModelResourceManagerEndpointProjection? GetEndpointProjection(
+        CloudShell.ResourceDefinitions.Resource resource)
+    {
+        if (resource.Type.TypeId != AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
+        {
+            return null;
+        }
+
+        var requests = resource.Attributes
+            .GetObject<NetworkingEndpointRequestValue[]>(
+                AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests) ?? [];
+        if (requests.Length == 0)
+        {
+            return ResourceModelResourceManagerEndpointProjection.Empty;
+        }
+
+        var endpoints = requests
+            .Where(request =>
+                !string.IsNullOrWhiteSpace(request.Name) &&
+                !string.IsNullOrWhiteSpace(request.Protocol))
+            .Select(request => new ResourceEndpoint(
+                request.Name.Trim(),
+                NormalizeProtocol(request.Protocol),
+                ParseExposure(request.Exposure),
+                request.TargetPort ?? request.Port))
+            .ToArray();
+        var endpointNetworkMappings = requests
+            .Select(request => CreateEndpointNetworkMapping(resource, request))
+            .Where(mapping => mapping is not null)
+            .Cast<ResourceEndpointNetworkMapping>()
+            .ToArray();
+
+        return endpoints.Length == 0 && endpointNetworkMappings.Length == 0
+            ? ResourceModelResourceManagerEndpointProjection.Empty
+            : new ResourceModelResourceManagerEndpointProjection(
+                endpoints,
+                EndpointNetworkMappings: endpointNetworkMappings);
+    }
+
+    private static ResourceEndpointNetworkMapping? CreateEndpointNetworkMapping(
+        CloudShell.ResourceDefinitions.Resource resource,
+        NetworkingEndpointRequestValue request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name) ||
+            string.IsNullOrWhiteSpace(request.Protocol) ||
+            request.Port is not > 0)
+        {
+            return null;
+        }
+
+        var host = FirstNonEmpty(request.Host, request.IpAddress);
+        if (host is null)
+        {
+            return null;
+        }
+
+        var protocol = NormalizeProtocol(request.Protocol);
+        var address = protocol is "http" or "https"
+            ? $"{protocol}://{host}:{request.Port.Value}"
+            : $"{host}:{request.Port.Value}";
+
+        return ResourceEndpointNetworkMapping.ForEndpoint(
+            resource.EffectiveResourceId,
+            request.Name,
+            address,
+            ParseExposure(request.Exposure),
+            request.Network?.TryGetResourceId(out var networkResourceId) == true
+                ? networkResourceId
+                : null);
+    }
+
+    private static string NormalizeProtocol(string protocol) =>
+        protocol.Trim().ToLowerInvariant();
+
+    private static ResourceExposureScope ParseExposure(string? exposure) =>
+        !string.IsNullOrWhiteSpace(exposure) &&
+        Enum.TryParse<ResourceExposureScope>(exposure, ignoreCase: true, out var parsed)
+            ? parsed
+            : ResourceExposureScope.Local;
+
+    private static string? FirstNonEmpty(params string?[] values)
+    {
+        foreach (var value in values)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return value.Trim();
+            }
+        }
+
+        return null;
+    }
+}

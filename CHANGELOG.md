@@ -49,6 +49,10 @@ on `git blame --follow`, and then by the broad type of change.
   entries and Secrets Vault secrets into the backing services, grants the
   sample API identity access to those graph resources, and verifies the API can
   read configuration and secrets through the graph-backed endpoints.
+- SettingsAndSecrets now also declares and starts a graph-backed ASP.NET Core
+  API resource that consumes the graph-backed Configuration Store and Secrets
+  Vault services, proving a side-by-side graph-backed app/settings/secrets
+  vertical slice.
 - Docker container reference resources now mark `endpoints.count` as read-only
   provider-projected state, so deployment definitions cannot author endpoint
   counts while resolved Resource projections still expose the default count.
