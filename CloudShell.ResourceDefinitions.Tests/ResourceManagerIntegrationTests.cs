@@ -4537,6 +4537,9 @@ public sealed class ResourceManagerIntegrationTests
         public IReadOnlyList<(string ResourceId, ResourceOperationId OperationId)> ExecutedOperations =>
             _executedOperations;
 
+        public AspNetCoreProjectRuntimeStatus GetStatus(Resource resource) =>
+            AspNetCoreProjectRuntimeStatus.Running;
+
         public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(
             Resource resource,
             ResourceOperationId operationId,

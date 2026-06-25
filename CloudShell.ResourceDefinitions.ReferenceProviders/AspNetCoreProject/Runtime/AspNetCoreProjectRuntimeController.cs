@@ -6,10 +6,19 @@ namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
 public interface IAspNetCoreProjectRuntimeController
 {
+    AspNetCoreProjectRuntimeStatus GetStatus(Resource resource);
+
     ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(
         Resource resource,
         ResourceOperationId operationId,
         CancellationToken cancellationToken = default);
+}
+
+public enum AspNetCoreProjectRuntimeStatus
+{
+    Unknown,
+    Stopped,
+    Running
 }
 
 public sealed class AspNetCoreProjectProcessRuntimeController :
@@ -20,6 +29,16 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
     private readonly ConcurrentDictionary<string, Process> _processes = new(
         StringComparer.OrdinalIgnoreCase);
     private readonly AspNetCoreProjectProcessCommandFactory _commands = new();
+
+    public AspNetCoreProjectRuntimeStatus GetStatus(Resource resource)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+
+        return _processes.TryGetValue(resource.EffectiveResourceId, out var process) &&
+            !process.HasExited
+                ? AspNetCoreProjectRuntimeStatus.Running
+                : AspNetCoreProjectRuntimeStatus.Stopped;
+    }
 
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(
         Resource resource,
@@ -210,6 +229,9 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
 public sealed class NoopAspNetCoreProjectRuntimeController :
     IAspNetCoreProjectRuntimeController
 {
+    public AspNetCoreProjectRuntimeStatus GetStatus(Resource resource) =>
+        AspNetCoreProjectRuntimeStatus.Unknown;
+
     public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(
         Resource resource,
         ResourceOperationId operationId,

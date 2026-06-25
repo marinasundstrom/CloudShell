@@ -10,6 +10,7 @@ using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using CloudShell.ResourceDefinitions.ResourceManager;
 using ResourceGraphState = CloudShell.ResourceDefinitions.ResourceState;
+using ResourceManagerState = CloudShell.Abstractions.ResourceManager.ResourceState;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 
@@ -30,6 +31,9 @@ var graphApiProjectPath = Path.GetFullPath(
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
+builder.Services.AddSingleton<
+    IResourceModelResourceManagerStateProvider,
+    AspNetCoreProjectResourceManagerStateProvider>();
 builder.Services
     .AddInMemoryResourceModelGraph(
     [
@@ -151,4 +155,24 @@ static string? FirstHttpEndpoint(string? value)
     }
 
     return null;
+}
+
+internal sealed class AspNetCoreProjectResourceManagerStateProvider(
+    IAspNetCoreProjectRuntimeController runtimeController) :
+    IResourceModelResourceManagerStateProvider
+{
+    public ResourceManagerState? GetState(CloudShell.ResourceDefinitions.Resource resource)
+    {
+        if (resource.Type.TypeId != AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
+        {
+            return null;
+        }
+
+        return runtimeController.GetStatus(resource) switch
+        {
+            AspNetCoreProjectRuntimeStatus.Running => ResourceManagerState.Running,
+            AspNetCoreProjectRuntimeStatus.Stopped => ResourceManagerState.Stopped,
+            _ => null
+        };
+    }
 }

@@ -62,6 +62,28 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
     }
 
     [Fact]
+    public void GetStatus_ReturnsStoppedWhenProcessIsNotTracked()
+    {
+        var resource = CreateResource("src/Api/Api.csproj");
+        var controller = new AspNetCoreProjectProcessRuntimeController();
+
+        var status = controller.GetStatus(resource);
+
+        Assert.Equal(AspNetCoreProjectRuntimeStatus.Stopped, status);
+    }
+
+    [Fact]
+    public void NoopRuntimeController_ReturnsUnknownStatus()
+    {
+        var resource = CreateResource("src/Api/Api.csproj");
+        var controller = new NoopAspNetCoreProjectRuntimeController();
+
+        var status = controller.GetStatus(resource);
+
+        Assert.Equal(AspNetCoreProjectRuntimeStatus.Unknown, status);
+    }
+
+    [Fact]
     [Trait("Category", "Integration")]
     public async Task ExecuteAsync_StartsProjectReferenceApiFromGraphAttributes()
     {
@@ -85,6 +107,7 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
             AspNetCoreProjectResourceTypeProvider.Operations.Start);
 
         Assert.Empty(diagnostics);
+        Assert.Equal(AspNetCoreProjectRuntimeStatus.Running, controller.GetStatus(resource));
 
         using var httpClient = new HttpClient
         {

@@ -87,6 +87,13 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager bridge services can now compose registered graph
   runtime-state providers, letting hosts supply observed Resource Manager
   state through DI without storing runtime status in graph resource records.
+- The ASP.NET Core project process runtime now exposes provider-local runtime
+  status, and the ProjectReference sample adapts that status into the Resource
+  Manager bridge so graph-backed project resources can project running/stopped
+  lifecycle state without persisting process status in the graph.
+- The Resource model proposal now tracks a value-state naming cleanup:
+  `Undefined` should mean no attribute definition exists, while a defined
+  attribute with no value remains a separate unset/absent state.
 - The Resource model proposal now records the POC objective that existing
   providers are behavioral references, while the new model should resolve old
   inconsistencies through consistent graph attributes, provider-owned

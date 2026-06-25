@@ -4476,6 +4476,9 @@ public sealed class InProcessControlPlaneResourceStateTests
         public IReadOnlyList<(string ResourceId, GraphResourceOperationId OperationId)> ExecutedOperations =>
             _executedOperations;
 
+        public AspNetCoreProjectRuntimeStatus GetStatus(GraphResource resource) =>
+            AspNetCoreProjectRuntimeStatus.Running;
+
         public ValueTask<IReadOnlyList<GraphResourceDefinitionDiagnostic>> ExecuteAsync(
             GraphResource resource,
             GraphResourceOperationId operationId,

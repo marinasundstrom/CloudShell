@@ -559,6 +559,11 @@ observed state for a graph resource through bridge-registered state providers
 or projection options; when they do not, lifecycle-capable graph resources
 fall back to `Unknown` and resources without lifecycle operations fall back to
 no state.
+The ProjectReference sample adapts the ASP.NET Core provider-local process
+runtime status into this bridge seam. That proves the intended boundary:
+process tracking remains provider-owned, Resource Manager receives the
+projected state it needs for lifecycle policy, and the graph record does not
+store live process status.
 Runtime-facing operation implementations should sit behind provider-owned
 services that are injected into the operation provider or projector. The
 reference executable start operation demonstrates this with a no-op default
@@ -595,8 +600,17 @@ Working plan and progress:
 | Keep ASP.NET Core runtime behavior provider-local | Done | The runtime controller starts from resolved graph attributes, and command construction now honors project path, arguments, hot reload, launch-settings, environment, process lifetime, and diagnostics inside the ASP.NET Core provider boundary. |
 | Prove the graph-backed project can actually run | Done | An executable-backed integration test starts the ProjectReference API through the graph ASP.NET Core provider seam and verifies its `/health` endpoint. |
 | Decide minimal runtime state projection | Done | The bridge can accept an optional runtime-state resolver. `null` remains the neutral no-status case, lifecycle-capable graph resources fall back to `Unknown`, and observed runtime state can enable actions such as Restart without putting runtime loops into the graph model. |
-| Re-evaluate redundant or premature model concepts | Pending | `ResolvedResourceDefinition`, broad graph contexts/transactions, and compatibility adapters should be removed or deferred if provider ports do not prove them necessary. |
+| Re-evaluate redundant or premature model concepts | Pending | `ResolvedResourceDefinition`, broad graph contexts/transactions, compatibility adapters, and attribute value-state naming should be removed, renamed, or deferred if provider ports do not prove them necessary. |
 | Port the next provider | Deferred | Continue only after the ASP.NET Core vertical slice proves the provider seam and exposes any needed model changes. |
+
+Attribute value-state naming needs one cleanup pass before the model is
+considered stable. `Undefined` should mean "there is no attribute definition
+for this attribute id." A separate state should represent "the attribute is
+defined, but no resource value has been set and no default value applies."
+That separation matters for validation, ResourceDefinition rendering, typed
+wrappers, and provider logic because an unknown attribute id is a schema
+problem, while an unset value may be valid, defaultable, required, or
+provider-managed depending on the resolved `ResourceAttributeDefinition`.
 
 The bridge project should own registration helpers for this integration seam.
 Hosts can register a graph-backed Resource model provider as an existing
