@@ -223,6 +223,61 @@ public sealed class ResourceDefinitionDescriptorTests
     }
 
     [Fact]
+    public void ResourceDefinition_RoundTripsComplexAttributeValuesAsJsonTarget()
+    {
+        var endpoint = new EndpointDeclaration(
+            "http",
+            "http",
+            8080,
+            "Local");
+        var definition = new ResourceDefinition(
+            "api",
+            "application.aspnet-core-project",
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                ["endpoints"] = ResourceAttributeValue.FromObject(new[] { endpoint })
+            });
+
+        var json = JsonSerializer.Serialize(definition, JsonSerializerOptions.Web);
+        var roundTrip = JsonSerializer.Deserialize<ResourceDefinition>(json, JsonSerializerOptions.Web);
+
+        Assert.NotNull(roundTrip);
+        var endpoints = roundTrip.ResourceAttributeValues["endpoints"];
+        Assert.Equal(ResourceAttributeValueKind.Array, endpoints.Kind);
+        var projected = Assert.Single(endpoints.ToObject<EndpointDeclaration[]>()!);
+        Assert.Equal(endpoint, projected);
+        Assert.DoesNotContain("\"targetPort\":\"8080\"", json);
+    }
+
+    [Fact]
+    public void ResourceAttributeValue_ProjectsConcreteClrTypeAndBack()
+    {
+        var mapping = new EndpointMappingDeclaration(
+            new EndpointReferenceDeclaration(
+                ResourceReference.DependsOnResourceId(
+                    "cloudshell.network:default",
+                    typeId: "cloudshell.network"),
+                "public-http"),
+            new EndpointReferenceDeclaration(
+                ResourceReference.DependsOnResourceId(
+                    "application.aspnet-core-project:api",
+                    typeId: "application.aspnet-core-project"),
+                "http"));
+
+        var value = ResourceAttributeValue.FromObject(mapping);
+        var projected = value.ToObject<EndpointMappingDeclaration>();
+        var roundTrip = ResourceAttributeValue.FromObject(projected!);
+
+        Assert.NotNull(projected);
+        Assert.Equal(mapping.Target.EndpointName, projected.Target.EndpointName);
+        Assert.True(projected.Target.Resource.TryGetDependsOnResourceId(out var targetResourceId));
+        Assert.Equal("application.aspnet-core-project:api", targetResourceId);
+        Assert.Equal(
+            JsonSerializer.Serialize(value, JsonSerializerOptions.Web),
+            JsonSerializer.Serialize(roundTrip, JsonSerializerOptions.Web));
+    }
+
+    [Fact]
     public void ResourceDefinition_SerializesDependenciesAsResourceReferences()
     {
         var definition = new ResourceDefinition(
@@ -277,4 +332,18 @@ public sealed class ResourceDefinitionDescriptorTests
         Assert.False(reference.TryGetDependsOnResourceId(out _));
         Assert.Equal("application.sql-server:server", resourceId);
     }
+
+    private sealed record EndpointDeclaration(
+        string Name,
+        string Protocol,
+        int TargetPort,
+        string Exposure);
+
+    private sealed record EndpointReferenceDeclaration(
+        ResourceReference Resource,
+        string EndpointName);
+
+    private sealed record EndpointMappingDeclaration(
+        EndpointReferenceDeclaration Source,
+        EndpointReferenceDeclaration Target);
 }

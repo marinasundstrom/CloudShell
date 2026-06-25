@@ -120,6 +120,12 @@ on `git blame --follow`, and then by the broad type of change.
   complex graph/configuration values, with `ResourceReference` used inside
   endpoint-mapping values and runtime observations kept behind provider
   projections.
+- Resource definitions and resource records now carry typed
+  `ResourceAttributeValue` maps, allowing complex object and collection
+  attributes to serialize through ResourceDefinition, resolve through Resource
+  projections, validate against complex shapes, and project into concrete CLR
+  types for provider/runtime consumers while preserving scalar compatibility
+  for existing provider ports.
 - The local host networking reconcile operation now delegates endpoint-mapping
   work to an injected provider-owned reconciler with a no-op POC default,
   matching the provider-integration pattern without moving runtime logic into

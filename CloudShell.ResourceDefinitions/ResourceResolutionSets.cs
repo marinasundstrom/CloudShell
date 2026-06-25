@@ -19,6 +19,9 @@ public sealed class ResourceAttributeSet : IReadOnlyCollection<ResourceAttribute
     public string? GetString(ResourceAttributeId name) =>
         _attributes.TryGetValue(name, out var attribute) ? attribute.Value : null;
 
+    public ResourceAttributeValue? GetValue(ResourceAttributeId name) =>
+        _attributes.TryGetValue(name, out var attribute) ? attribute.AttributeValue : null;
+
     public ResourceAttributeResolution? Resolve(ResourceAttributeId name) =>
         _attributes.GetValueOrDefault(name);
 
@@ -31,13 +34,19 @@ public sealed class ResourceAttributeSet : IReadOnlyCollection<ResourceAttribute
 
 public sealed record ResourceAttributeResolution(
     ResourceAttributeId Name,
-    string? Value,
+    ResourceAttributeValue? AttributeValue,
     ResourceDefinitionValueSource Source,
     bool ReadOnly = false,
     ResourceAttributeMutability Mutability = ResourceAttributeMutability.CallerManaged,
     bool IsDefined = true)
 {
-    public bool IsSet => Value is not null;
+    public string? Value =>
+        AttributeValue is not null &&
+        AttributeValue.TryGetScalarString(out var value)
+            ? value
+            : null;
+
+    public bool IsSet => AttributeValue is not null;
 }
 
 public sealed class ResourceCapabilitySet : IReadOnlyCollection<ResourceCapabilityResolution>

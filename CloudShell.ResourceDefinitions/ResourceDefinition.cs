@@ -10,15 +10,15 @@ public sealed record ResourceDefinition(
     string? DisplayName = null,
     string? Version = null,
     IReadOnlyList<ResourceReference>? DependsOn = null,
-    IReadOnlyDictionary<ResourceAttributeId, string>? Attributes = null,
+    ResourceAttributeValueMap? Attributes = null,
     IReadOnlyDictionary<string, JsonElement>? Configuration = null,
     IReadOnlyDictionary<ResourceCapabilityId, JsonElement>? Capabilities = null,
     IReadOnlyDictionary<ResourceOperationId, JsonElement>? Operations = null,
     IReadOnlyDictionary<string, string>? Metadata = null)
 {
     private static readonly IReadOnlyList<ResourceReference> EmptyReferences = [];
-    private static readonly IReadOnlyDictionary<ResourceAttributeId, string> EmptyAttributes =
-        new Dictionary<ResourceAttributeId, string>();
+    private static readonly ResourceAttributeValueMap EmptyAttributeValues =
+        new(new Dictionary<ResourceAttributeId, ResourceAttributeValue>());
     private static readonly IReadOnlyDictionary<string, JsonElement> EmptyConfigurationPayloads =
         new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
     private static readonly IReadOnlyDictionary<ResourceCapabilityId, JsonElement> EmptyCapabilityPayloads =
@@ -44,7 +44,11 @@ public sealed record ResourceDefinition(
 
     public IReadOnlyList<string> ResourceDependencyIds => StartupDependencyIds;
 
-    public IReadOnlyDictionary<ResourceAttributeId, string> ResourceAttributes => Attributes ?? EmptyAttributes;
+    public ResourceAttributeValueMap ResourceAttributeValues =>
+        Attributes ?? EmptyAttributeValues;
+
+    public IReadOnlyDictionary<ResourceAttributeId, string> ResourceAttributes =>
+        ResourceAttributeValueMaps.ToScalars(Attributes);
 
     public IReadOnlyDictionary<string, JsonElement> ConfigurationPayloads => Configuration ?? EmptyConfigurationPayloads;
 

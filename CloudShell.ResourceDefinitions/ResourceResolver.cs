@@ -74,6 +74,11 @@ public sealed class ResourceResolver
             ValidateReadOnlyDefinitionAttributes(state, attributes, diagnostics);
         }
 
+        ValidateResourceAttributeValues(
+            state,
+            classDefinition,
+            typeDefinition,
+            diagnostics);
         ValidateAttributes(
             state,
             classDefinition,
@@ -97,7 +102,7 @@ public sealed class ResourceResolver
         ResourceAttributeSet attributes,
         List<ResourceDefinitionDiagnostic> diagnostics)
     {
-        foreach (var attributeId in state.ResourceAttributes.Keys)
+        foreach (var attributeId in state.ResourceAttributeValues.Keys)
         {
             if (attributes.Resolve(attributeId)?.ReadOnly == true)
             {
@@ -237,7 +242,7 @@ public sealed class ResourceResolver
 
         MergeAttributes(
             attributes,
-            state.ResourceAttributes,
+            state.ResourceAttributeValues,
             ResourceDefinitionValueSource.ResourceState,
             readOnlyAttributes,
             attributeMutability);
@@ -256,7 +261,7 @@ public sealed class ResourceResolver
 
     private static void MergeAttributes(
         Dictionary<ResourceAttributeId, ResourceAttributeResolution> target,
-        IReadOnlyDictionary<ResourceAttributeId, string>? attributes,
+        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeValue>? attributes,
         ResourceDefinitionValueSource source,
         IReadOnlySet<ResourceAttributeId>? readOnlyAttributes = null,
         IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeMutability>? attributeMutability = null)
@@ -351,12 +356,7 @@ public sealed class ResourceResolver
 
         foreach (var (name, attributeDefinition) in attributeDefinitions)
         {
-            string? value = null;
-            if (attributeDefinition.DefaultValue is not null &&
-                attributeDefinition.DefaultValue.TryGetScalarString(out var defaultValue))
-            {
-                value = defaultValue;
-            }
+            var value = attributeDefinition.DefaultValue;
 
             var valueSource =
                 value is null &&
@@ -365,7 +365,7 @@ public sealed class ResourceResolver
                     ? inherited.Source
                     : source;
             value ??= target.TryGetValue(name, out inherited)
-                ? inherited.Value
+                ? inherited.AttributeValue
                 : null;
 
             target[name] = new(
@@ -583,6 +583,84 @@ public sealed class ResourceResolver
         }
     }
 
+    private static void ValidateResourceAttributeValues(
+        ResourceState state,
+        ResourceClassDefinition classDefinition,
+        ResourceTypeDefinition typeDefinition,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        var shapeDefinitions = MergeAttributeValueShapeDefinitions(
+            classDefinition.AttributeValueShapes,
+            typeDefinition.AttributeValueShapes);
+
+        foreach (var (name, value) in state.ResourceAttributeValues)
+        {
+            var definition = ResolveAttributeDefinition(
+                name,
+                classDefinition.Attributes,
+                typeDefinition.Attributes);
+            if (definition is null)
+            {
+                continue;
+            }
+
+            ValidateAttributeValue(
+                name.ToString(),
+                name,
+                value,
+                definition,
+                shapeDefinitions,
+                ResourceDefinitionDiagnosticCodes.AttributeValueInvalid,
+                "Attribute value",
+                diagnostics);
+        }
+    }
+
+    private static ResourceAttributeDefinition? ResolveAttributeDefinition(
+        ResourceAttributeId name,
+        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? classAttributes,
+        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeDefinition>? typeAttributes)
+    {
+        if (typeAttributes is not null &&
+            typeAttributes.TryGetValue(name, out var typeDefinition))
+        {
+            return typeDefinition;
+        }
+
+        if (classAttributes is not null &&
+            classAttributes.TryGetValue(name, out var classDefinition))
+        {
+            return classDefinition;
+        }
+
+        return null;
+    }
+
+    private static IReadOnlyDictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>?
+        MergeAttributeValueShapeDefinitions(
+            IReadOnlyDictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>? classShapes,
+            IReadOnlyDictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>? typeShapes)
+    {
+        if (classShapes is null && typeShapes is null)
+        {
+            return null;
+        }
+
+        var shapes = classShapes is null
+            ? new Dictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>()
+            : new Dictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>(classShapes);
+
+        if (typeShapes is not null)
+        {
+            foreach (var (id, shape) in typeShapes)
+            {
+                shapes[id] = shape;
+            }
+        }
+
+        return shapes;
+    }
+
     private static void ValidateAttributeDefinitionDefault(
         string path,
         ResourceAttributeId target,
@@ -592,6 +670,27 @@ public sealed class ResourceResolver
         ResourceDefinitionValueSource source,
         List<ResourceDefinitionDiagnostic> diagnostics)
     {
+        ValidateAttributeValue(
+            path,
+            target,
+            value,
+            definition,
+            shapeDefinitions,
+            ResourceDefinitionDiagnosticCodes.AttributeDefinitionDefaultInvalid,
+            $"Attribute default from {source}",
+            diagnostics);
+    }
+
+    private static void ValidateAttributeValue(
+        string path,
+        ResourceAttributeId target,
+        ResourceAttributeValue value,
+        ResourceAttributeDefinition definition,
+        IReadOnlyDictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>? shapeDefinitions,
+        string diagnosticCode,
+        string diagnosticSubject,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
         if (definition.ValueType is null)
         {
             return;
@@ -599,24 +698,26 @@ public sealed class ResourceResolver
 
         if (definition.IsCollection)
         {
-            ValidateAttributeDefinitionCollectionDefault(
+            ValidateAttributeValueCollection(
                 path,
                 target,
                 value,
                 definition,
                 shapeDefinitions,
-                source,
+                diagnosticCode,
+                diagnosticSubject,
                 diagnostics);
             return;
         }
 
         if (definition.ValueType == ResourceAttributeValueType.ResourceReference)
         {
-            ValidateResourceReferenceAttributeDefinitionDefault(
+            ValidateResourceReferenceAttributeValue(
                 path,
                 target,
                 value,
-                source,
+                diagnosticCode,
+                diagnosticSubject,
                 diagnostics);
             return;
         }
@@ -624,8 +725,8 @@ public sealed class ResourceResolver
         if (!AttributeValueMatchesType(value, definition.ValueType.Value))
         {
             diagnostics.Add(ResourceDefinitionDiagnostic.Error(
-                ResourceDefinitionDiagnosticCodes.AttributeDefinitionDefaultInvalid,
-                $"Attribute default '{path}' from {source} has value kind '{value.Kind}' but declares type '{definition.ValueType}'.",
+                diagnosticCode,
+                $"{diagnosticSubject} '{path}' has value kind '{value.Kind}' but declares type '{definition.ValueType}'.",
                 target));
             return;
         }
@@ -644,40 +745,42 @@ public sealed class ResourceResolver
                     if (fieldDefinition.Required)
                     {
                         diagnostics.Add(ResourceDefinitionDiagnostic.Error(
-                            ResourceDefinitionDiagnosticCodes.AttributeDefinitionDefaultInvalid,
-                            $"Attribute default '{path}' from {source} is missing required field '{fieldName}'.",
+                            diagnosticCode,
+                            $"{diagnosticSubject} '{path}' is missing required field '{fieldName}'.",
                             $"{target}.{fieldName}"));
                     }
 
                     continue;
                 }
 
-                ValidateAttributeDefinitionDefault(
+                ValidateAttributeValue(
                     $"{path}.{fieldName}",
                     target,
                     fieldValue,
                     fieldDefinition,
                     shapeDefinitions,
-                    source,
+                    diagnosticCode,
+                    diagnosticSubject,
                     diagnostics);
             }
         }
     }
 
-    private static void ValidateAttributeDefinitionCollectionDefault(
+    private static void ValidateAttributeValueCollection(
         string path,
         ResourceAttributeId target,
         ResourceAttributeValue value,
         ResourceAttributeDefinition definition,
         IReadOnlyDictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>? shapeDefinitions,
-        ResourceDefinitionValueSource source,
+        string diagnosticCode,
+        string diagnosticSubject,
         List<ResourceDefinitionDiagnostic> diagnostics)
     {
         if (value.Kind != ResourceAttributeValueKind.Array)
         {
             diagnostics.Add(ResourceDefinitionDiagnostic.Error(
-                ResourceDefinitionDiagnosticCodes.AttributeDefinitionDefaultInvalid,
-                $"Attribute default '{path}' from {source} has value kind '{value.Kind}' but declares a collection.",
+                diagnosticCode,
+                $"{diagnosticSubject} '{path}' has value kind '{value.Kind}' but declares a collection.",
                 target));
             return;
         }
@@ -688,8 +791,8 @@ public sealed class ResourceResolver
             values.Count < definition.Collection.MinSize.Value)
         {
             diagnostics.Add(ResourceDefinitionDiagnostic.Error(
-                ResourceDefinitionDiagnosticCodes.AttributeDefinitionDefaultInvalid,
-                $"Attribute default '{path}' from {source} has {values.Count} item(s) but requires at least {definition.Collection.MinSize.Value}.",
+                diagnosticCode,
+                $"{diagnosticSubject} '{path}' has {values.Count} item(s) but requires at least {definition.Collection.MinSize.Value}.",
                 target));
         }
 
@@ -697,8 +800,8 @@ public sealed class ResourceResolver
             values.Count > definition.Collection.MaxSize.Value)
         {
             diagnostics.Add(ResourceDefinitionDiagnostic.Error(
-                ResourceDefinitionDiagnosticCodes.AttributeDefinitionDefaultInvalid,
-                $"Attribute default '{path}' from {source} has {values.Count} item(s) but allows at most {definition.Collection.MaxSize.Value}.",
+                diagnosticCode,
+                $"{diagnosticSubject} '{path}' has {values.Count} item(s) but allows at most {definition.Collection.MaxSize.Value}.",
                 target));
         }
 
@@ -711,13 +814,14 @@ public sealed class ResourceResolver
 
         foreach (var element in values)
         {
-            ValidateAttributeDefinitionDefault(
+            ValidateAttributeValue(
                 $"{path}[{index}]",
                 target,
                 element,
                 itemDefinition,
                 shapeDefinitions,
-                source,
+                diagnosticCode,
+                diagnosticSubject,
                 diagnostics);
             index++;
         }
@@ -742,26 +846,27 @@ public sealed class ResourceResolver
         return null;
     }
 
-    private static void ValidateResourceReferenceAttributeDefinitionDefault(
+    private static void ValidateResourceReferenceAttributeValue(
         string path,
         ResourceAttributeId target,
         ResourceAttributeValue value,
-        ResourceDefinitionValueSource source,
+        string diagnosticCode,
+        string diagnosticSubject,
         List<ResourceDefinitionDiagnostic> diagnostics)
     {
         if (value.Kind != ResourceAttributeValueKind.Object ||
             value.ObjectValue is null)
         {
             diagnostics.Add(ResourceDefinitionDiagnostic.Error(
-                ResourceDefinitionDiagnosticCodes.AttributeDefinitionDefaultInvalid,
-                $"Attribute default '{path}' from {source} has value kind '{value.Kind}' but declares type '{ResourceAttributeValueType.ResourceReference}'.",
+                diagnosticCode,
+                $"{diagnosticSubject} '{path}' has value kind '{value.Kind}' but declares type '{ResourceAttributeValueType.ResourceReference}'.",
                 target));
             return;
         }
 
-        ValidateResourceReferenceRequiredField(path, target, value, "value", source, diagnostics);
-        ValidateResourceReferenceRequiredField(path, target, value, "relationship", source, diagnostics);
-        ValidateResourceReferenceRequiredField(path, target, value, "addressingMode", source, diagnostics);
+        ValidateResourceReferenceRequiredField(path, target, value, "value", diagnosticCode, diagnosticSubject, diagnostics);
+        ValidateResourceReferenceRequiredField(path, target, value, "relationship", diagnosticCode, diagnosticSubject, diagnostics);
+        ValidateResourceReferenceRequiredField(path, target, value, "addressingMode", diagnosticCode, diagnosticSubject, diagnostics);
     }
 
     private static void ValidateResourceReferenceRequiredField(
@@ -769,7 +874,8 @@ public sealed class ResourceResolver
         ResourceAttributeId target,
         ResourceAttributeValue value,
         string fieldName,
-        ResourceDefinitionValueSource source,
+        string diagnosticCode,
+        string diagnosticSubject,
         List<ResourceDefinitionDiagnostic> diagnostics)
     {
         if (value.ObjectValue is not null &&
@@ -781,8 +887,8 @@ public sealed class ResourceResolver
         }
 
         diagnostics.Add(ResourceDefinitionDiagnostic.Error(
-            ResourceDefinitionDiagnosticCodes.AttributeDefinitionDefaultInvalid,
-            $"Attribute default '{path}' from {source} is missing required resource reference field '{fieldName}'.",
+            diagnosticCode,
+            $"{diagnosticSubject} '{path}' is missing required resource reference field '{fieldName}'.",
             $"{target}.{fieldName}"));
     }
 
@@ -792,14 +898,35 @@ public sealed class ResourceResolver
         valueType switch
         {
             ResourceAttributeValueType.String => value.Kind == ResourceAttributeValueKind.String,
-            ResourceAttributeValueType.Boolean => value.Kind == ResourceAttributeValueKind.Boolean,
-            ResourceAttributeValueType.Integer => value.Kind == ResourceAttributeValueKind.Integer,
+            ResourceAttributeValueType.Boolean => value.Kind == ResourceAttributeValueKind.Boolean ||
+                TryParseString<bool>(value, bool.TryParse, out _),
+            ResourceAttributeValueType.Integer => value.Kind == ResourceAttributeValueKind.Integer ||
+                TryParseString<long>(value, long.TryParse, out _),
             ResourceAttributeValueType.FloatingPoint => value.Kind is
-                ResourceAttributeValueKind.Decimal or ResourceAttributeValueKind.Integer,
+                ResourceAttributeValueKind.Decimal or ResourceAttributeValueKind.Integer ||
+                TryParseString<decimal>(value, decimal.TryParse, out _),
             ResourceAttributeValueType.ComplexType => value.Kind == ResourceAttributeValueKind.Object,
             ResourceAttributeValueType.ResourceReference => value.TryGetResourceReference(out _),
             _ => false
         };
+
+    private static bool TryParseString<TValue>(
+        ResourceAttributeValue value,
+        TryParse<TValue> tryParse,
+        out TValue parsed)
+    {
+        if (value.Kind == ResourceAttributeValueKind.String &&
+            value.StringValue is not null &&
+            tryParse(value.StringValue, out parsed!))
+        {
+            return true;
+        }
+
+        parsed = default!;
+        return false;
+    }
+
+    private delegate bool TryParse<TValue>(string value, out TValue parsed);
 
     private static void ValidateRequiredCapabilities(
         ResourceCapabilitySet capabilities,
@@ -872,6 +999,7 @@ public static class ResourceDefinitionDiagnosticCodes
     public const string ResourceCapabilityProjectionMissing = "resourceDefinition.capabilityProjectionMissing";
     public const string ResourceOperationProjectionMissing = "resourceDefinition.operationProjectionMissing";
     public const string AttributeDefinitionDefaultInvalid = "resourceDefinition.attributeDefinitionDefaultInvalid";
+    public const string AttributeValueInvalid = "resourceDefinition.attributeValueInvalid";
     public const string ReadOnlyAttributeChange = "resourceDefinition.readOnlyAttributeChange";
     public const string ResourceDefinitionTargetMismatch = "resourceDefinition.targetMismatch";
 }

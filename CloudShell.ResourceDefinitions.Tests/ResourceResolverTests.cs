@@ -216,6 +216,119 @@ public sealed class ResourceResolverTests
     }
 
     [Fact]
+    public void Resolve_ValidatesComplexResourceAttributeValueAgainstShape()
+    {
+        var resolver = new ResourceResolver(
+            [
+                new(ExecutableApplicationResourceTypeProvider.ClassId)
+            ],
+            [
+                new(
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    ExecutableApplicationResourceTypeProvider.ClassId,
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                    {
+                        ["endpoints"] = new(
+                            ValueType: ResourceAttributeValueType.ComplexType,
+                            ValueShapeId: "networking.endpoint",
+                            IsCollection: true)
+                    },
+                    AttributeValueShapes: new Dictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>
+                    {
+                        ["networking.endpoint"] = new(
+                            new(
+                                new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                                {
+                                    ["name"] = new(
+                                        ValueType: ResourceAttributeValueType.String,
+                                        Required: true),
+                                    ["protocol"] = new(
+                                        ValueType: ResourceAttributeValueType.String,
+                                        Required: true),
+                                    ["targetPort"] = new(
+                                        ValueType: ResourceAttributeValueType.Integer)
+                                }))
+                    })
+            ]);
+        var definition = new ResourceDefinition(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                ["endpoints"] = ResourceAttributeValue.Array(
+                    [
+                        ResourceAttributeValue.Object(
+                            new Dictionary<string, ResourceAttributeValue>
+                            {
+                                ["name"] = "http",
+                                ["protocol"] = "http",
+                                ["targetPort"] = 8080
+                            })
+                    ])
+            });
+
+        var resolved = resolver.Resolve(definition);
+
+        Assert.Empty(resolved.Diagnostics);
+        var endpoints = resolved.Attributes.GetValue("endpoints");
+        Assert.NotNull(endpoints);
+        Assert.Equal(ResourceAttributeValueKind.Array, endpoints.Kind);
+    }
+
+    [Fact]
+    public void Resolve_ReportsComplexResourceAttributeValueShapeDiagnostics()
+    {
+        var resolver = new ResourceResolver(
+            [
+                new(ExecutableApplicationResourceTypeProvider.ClassId)
+            ],
+            [
+                new(
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    ExecutableApplicationResourceTypeProvider.ClassId,
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                    {
+                        ["endpoints"] = new(
+                            ValueType: ResourceAttributeValueType.ComplexType,
+                            ValueShape: new(
+                                new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                                {
+                                    ["name"] = new(
+                                        ValueType: ResourceAttributeValueType.String,
+                                        Required: true),
+                                    ["targetPort"] = new(
+                                        ValueType: ResourceAttributeValueType.Integer,
+                                        Required: true)
+                                }),
+                            IsCollection: true)
+                    })
+            ]);
+        var definition = new ResourceDefinition(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                ["endpoints"] = ResourceAttributeValue.Array(
+                    [
+                        ResourceAttributeValue.Object(
+                            new Dictionary<string, ResourceAttributeValue>
+                            {
+                                ["name"] = "http",
+                                ["targetPort"] = ResourceAttributeValue.Object(
+                                    new Dictionary<string, ResourceAttributeValue>())
+                            })
+                    ])
+            });
+
+        var resolved = resolver.Resolve(definition);
+
+        var diagnostic = Assert.Single(resolved.Diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.AttributeValueInvalid, diagnostic.Code);
+        Assert.Equal("endpoints", diagnostic.Target);
+        Assert.Contains("endpoints[0].targetPort", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Resolve_ReportsReadOnlyAttributeDeclaredInResourceDefinition()
     {
         var resolver = new ResourceResolver(

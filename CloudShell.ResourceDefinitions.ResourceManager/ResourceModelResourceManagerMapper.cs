@@ -82,7 +82,7 @@ public static class ResourceModelResourceManagerMapper
         ResourceModelResource resource)
     {
         var attributes = resource.Attributes
-            .Where(attribute => attribute.IsSet)
+            .Where(attribute => attribute.Value is not null)
             .ToDictionary(
                 attribute => attribute.Name.ToString(),
                 attribute => attribute.Value!,

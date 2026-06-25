@@ -11,7 +11,7 @@ public sealed record ResourceState(
     string? DisplayName = null,
     string? Version = null,
     IReadOnlyList<ResourceReference>? DependsOn = null,
-    IReadOnlyDictionary<ResourceAttributeId, string>? Attributes = null,
+    ResourceAttributeValueMap? Attributes = null,
     IReadOnlyDictionary<string, JsonElement>? Configuration = null,
     IReadOnlyDictionary<ResourceCapabilityId, JsonElement>? Capabilities = null,
     IReadOnlyDictionary<ResourceOperationId, JsonElement>? Operations = null,
@@ -20,8 +20,8 @@ public sealed record ResourceState(
     DateTimeOffset? LastModifiedAt = null)
 {
     private static readonly IReadOnlyList<ResourceReference> EmptyReferences = [];
-    private static readonly IReadOnlyDictionary<ResourceAttributeId, string> EmptyAttributes =
-        new Dictionary<ResourceAttributeId, string>();
+    private static readonly ResourceAttributeValueMap EmptyAttributeValues =
+        new(new Dictionary<ResourceAttributeId, ResourceAttributeValue>());
     private static readonly IReadOnlyDictionary<string, JsonElement> EmptyConfigurationPayloads =
         new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
     private static readonly IReadOnlyDictionary<ResourceCapabilityId, JsonElement> EmptyCapabilityPayloads =
@@ -47,7 +47,10 @@ public sealed record ResourceState(
 
     public IReadOnlyList<string> ResourceDependencyIds => StartupDependencyIds;
 
-    public IReadOnlyDictionary<ResourceAttributeId, string> ResourceAttributes => Attributes ?? EmptyAttributes;
+    public ResourceAttributeValueMap ResourceAttributeValues => Attributes ?? EmptyAttributeValues;
+
+    public IReadOnlyDictionary<ResourceAttributeId, string> ResourceAttributes =>
+        ResourceAttributeValueMaps.ToScalars(Attributes);
 
     public IReadOnlyDictionary<string, JsonElement> ConfigurationPayloads => Configuration ?? EmptyConfigurationPayloads;
 
@@ -94,7 +97,7 @@ public sealed record ResourceState(
             DisplayName = definition.DisplayName ?? DisplayName,
             Version = definition.Version ?? Version,
             DependsOn = definition.DependsOn ?? DependsOn,
-            Attributes = Merge(ResourceAttributes, definition.Attributes),
+            Attributes = Merge(ResourceAttributeValues, definition.Attributes),
             Configuration = MergePayloads(ConfigurationPayloads, definition.Configuration),
             Capabilities = MergePayloads(CapabilityPayloads, definition.Capabilities),
             Operations = MergePayloads(OperationPayloads, definition.Operations),
@@ -113,7 +116,7 @@ public sealed record ResourceState(
             DisplayName,
             Version,
             StartupDependencies,
-            ResourceAttributes,
+            ResourceAttributeValues,
             ConfigurationPayloads,
             CapabilityPayloads,
             OperationPayloads,
@@ -159,6 +162,14 @@ public sealed record ResourceState(
         }
 
         return merged;
+    }
+
+    private static ResourceAttributeValueMap? Merge(
+        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeValue>? current,
+        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeValue>? changes)
+    {
+        var merged = Merge<ResourceAttributeId, ResourceAttributeValue>(current, changes);
+        return merged is null ? null : new ResourceAttributeValueMap(merged);
     }
 
     private static IReadOnlyDictionary<TKey, JsonElement>? MergePayloads<TKey>(
@@ -250,12 +261,17 @@ public sealed record Resource(
     public void SetAttribute(
         ResourceAttributeId name,
         string value) =>
-        PendingChanges.SetAttribute(name, value);
+        SetAttribute(name, ResourceAttributeValue.String(value));
 
     public void SetAttribute(
         ResourceAttributeId name,
         int value) =>
-        SetAttribute(name, value.ToString(CultureInfo.InvariantCulture));
+        SetAttribute(name, ResourceAttributeValue.Integer(value));
+
+    public void SetAttribute(
+        ResourceAttributeId name,
+        ResourceAttributeValue value) =>
+        PendingChanges.SetAttribute(name, value);
 
     public ResourceChangeSet GetPendingChanges() =>
         _pendingChanges?.GetChanges() ?? ResourceChangeSet.Empty(this);
@@ -297,7 +313,7 @@ public sealed record Resource(
     private ResourceDefinition ToDefinition(ResourceState state) =>
         state.ToDefinition() with
         {
-            Attributes = FilterInterchangeAttributes(state.ResourceAttributes)
+            Attributes = FilterInterchangeAttributes(state.ResourceAttributeValues)
         };
 
     internal bool IsReadOnlyAttribute(ResourceAttributeId attributeId) =>
@@ -309,14 +325,14 @@ public sealed record Resource(
         Attributes.Resolve(attributeId)?.Mutability ??
         ResourceAttributeMutability.CallerManaged;
 
-    internal IReadOnlyDictionary<ResourceAttributeId, string>? FilterInterchangeAttributes(
-        IReadOnlyDictionary<ResourceAttributeId, string> attributes)
+    internal ResourceAttributeValueMap? FilterInterchangeAttributes(
+        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeValue> attributes)
     {
         var filtered = attributes
             .Where(attribute => !IsReadOnlyAttribute(attribute.Key))
             .ToDictionary(attribute => attribute.Key, attribute => attribute.Value);
 
-        return filtered.Count == 0 ? null : filtered;
+        return filtered.Count == 0 ? null : new ResourceAttributeValueMap(filtered);
     }
 
     private bool? GetReadOnlyAttributePolicy(ResourceAttributeId attributeId)
@@ -355,7 +371,7 @@ public sealed record Resource(
 public sealed class ResourceChangeContext(
     Resource resource) : IDisposable
 {
-    private readonly Dictionary<ResourceAttributeId, string> _attributeChanges = [];
+    private readonly Dictionary<ResourceAttributeId, ResourceAttributeValue> _attributeChanges = [];
     private readonly Dictionary<ResourceCapabilityId, JsonElement> _capabilityChanges = [];
     private bool _isDisposed;
 
@@ -368,13 +384,21 @@ public sealed class ResourceChangeContext(
         string value)
     {
         ObjectDisposedException.ThrowIf(_isDisposed, this);
+        _attributeChanges[name] = ResourceAttributeValue.String(value);
+    }
+
+    public void SetAttribute(
+        ResourceAttributeId name,
+        ResourceAttributeValue value)
+    {
+        ObjectDisposedException.ThrowIf(_isDisposed, this);
         _attributeChanges[name] = value;
     }
 
     public void SetAttribute(
         ResourceAttributeId name,
         int value) =>
-        SetAttribute(name, value.ToString(CultureInfo.InvariantCulture));
+        SetAttribute(name, ResourceAttributeValue.Integer(value));
 
     public void SetCapability(
         ResourceCapabilityId capabilityId,
@@ -396,8 +420,8 @@ public sealed class ResourceChangeContext(
     {
         ObjectDisposedException.ThrowIf(_isDisposed, this);
 
-        var attributes = new Dictionary<ResourceAttributeId, string>(
-            Resource.State.ResourceAttributes);
+        var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeValue>(
+            Resource.State.ResourceAttributeValues);
         var capabilities = Resource.State.CapabilityPayloads.ToDictionary(
             pair => pair.Key,
             pair => ResourceDefinitionJson.Clone(pair.Value));
@@ -427,7 +451,7 @@ public sealed class ResourceChangeContext(
             Resource,
             Resource.State with
             {
-                Attributes = attributes,
+                Attributes = new ResourceAttributeValueMap(attributes),
                 Capabilities = capabilities
             },
             attributeChanges,
@@ -458,7 +482,7 @@ public sealed record ResourceChangeSet(
     public ResourceDefinition ToDefinition() =>
         ProposedState.ToDefinition() with
         {
-            Attributes = Resource.FilterInterchangeAttributes(ProposedState.ResourceAttributes)
+            Attributes = Resource.FilterInterchangeAttributes(ProposedState.ResourceAttributeValues)
         };
 
     public ResourceDefinition ToIncrementalDefinition() =>
@@ -490,7 +514,7 @@ public sealed record ResourceChangeSet(
         return new(
             resource,
             resource.State,
-            resource.State.ResourceAttributes
+            resource.State.ResourceAttributeValues
                 .Select(change => new ResourceAttributeChange(
                     change.Key,
                     PreviousValue: null,
@@ -535,11 +559,11 @@ public sealed record ResourceChangeSet(
             ? Array.Empty<ResourceAttributeChange>()
             : definition.Attributes
                 .Where(change =>
-                    !resource.State.ResourceAttributes.TryGetValue(change.Key, out var currentValue) ||
-                    !string.Equals(currentValue, change.Value, StringComparison.Ordinal))
+                    !resource.State.ResourceAttributeValues.TryGetValue(change.Key, out var currentValue) ||
+                    !ResourceAttributeValueEquals(currentValue, change.Value))
                 .Select(change =>
                 {
-                    resource.State.ResourceAttributes.TryGetValue(change.Key, out var previousValue);
+                    resource.State.ResourceAttributeValues.TryGetValue(change.Key, out var previousValue);
                     return new ResourceAttributeChange(
                         change.Key,
                         previousValue,
@@ -580,6 +604,14 @@ public sealed record ResourceChangeSet(
         JsonElement right) =>
         string.Equals(left.GetRawText(), right.GetRawText(), StringComparison.Ordinal);
 
+    private static bool ResourceAttributeValueEquals(
+        ResourceAttributeValue left,
+        ResourceAttributeValue right) =>
+        string.Equals(
+            JsonSerializer.Serialize(left, JsonSerializerOptions.Web),
+            JsonSerializer.Serialize(right, JsonSerializerOptions.Web),
+            StringComparison.Ordinal);
+
     private static bool IsDefinitionTarget(
         Resource resource,
         ResourceDefinition definition) =>
@@ -589,8 +621,8 @@ public sealed record ResourceChangeSet(
 
 public sealed record ResourceAttributeChange(
     ResourceAttributeId AttributeId,
-    string? PreviousValue,
-    string NewValue);
+    ResourceAttributeValue? PreviousValue,
+    ResourceAttributeValue NewValue);
 
 public sealed record ResourceCapabilityChange(
     ResourceCapabilityId CapabilityId,

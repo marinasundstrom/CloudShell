@@ -1039,9 +1039,9 @@ provider needs to persist observed endpoint-network mappings, those attributes
 should be read-only/provider-managed so they can be resolved on `Resource`
 without being authored into deployment `ResourceDefinition` documents.
 
-For the POC, the next useful implementation step is not to add another
-endpoint-specific store. It is to finish moving resource attributes from
-string-only state to `ResourceAttributeValue`, then declare endpoint and
+For the POC, this should not introduce another endpoint-specific store.
+Resource attributes now have a typed `ResourceAttributeValue` representation,
+so the next endpoint-specific slice is to declare endpoint and
 endpoint-mapping attribute definitions with shared/common shapes. Provider
 ports can then replace scalar summary attributes such as endpoint counts with
 typed endpoint collections only when a concrete provider needs that data.
@@ -1704,14 +1704,19 @@ parallel field model. The validation proves the definition contract is
 internally coherent; it does not replace provider-owned validation of resource
 state or behavior.
 
-The current POC still keeps resolved attribute values and defaults
-string-based to avoid prematurely building the full value system. The intended
-model should support scalar and complex attribute values, including structured
-object and collection values that can be rendered as JSON objects, YAML
-mappings, XML elements, or other document targets. `ResourceClassDefinition`
-and `ResourceTypeDefinition` should therefore describe attribute value shape in
-serializer-neutral CloudShell terms such as value type and complex nested
-attribute definitions, not by embedding `JsonElement` or another
+The current POC represents resource attributes with `ResourceAttributeValue`, a
+small serializer-neutral value tree for scalar, object, and collection values.
+It is not intended to become a parallel `JsonObject` API or a JSON-specific DOM;
+it is the Resource model's own value representation that JSON, YAML, XML,
+database records, or compact persistence records can map at the boundary.
+Scalar string compatibility remains for existing provider ports, and parseable
+string values can still satisfy scalar boolean/integer/floating-point
+definitions during migration. New structured resource state should use typed
+`ResourceAttributeValue` object and array values.
+
+`ResourceClassDefinition` and `ResourceTypeDefinition` describe attribute value
+shape in serializer-neutral CloudShell terms such as value type and complex
+nested attribute definitions, not by embedding `JsonElement` or another
 format-specific DOM as the definition contract. Format adapters can map the
 value object and shape descriptors to JSON, YAML, XML, database records, or
 compact persistence records at the boundary.
@@ -1737,11 +1742,11 @@ configuration without tying those declarations to JSON-specific schema
 constructs.
 
 The POC resolver uses local reusable shape references when it validates
-definition defaults, including nested required attributes and collection
-minimum/maximum size expectations. A missing `valueShapeId` should eventually
-be reported by descriptor validation, but that diagnostic is deferred until
-the POC has a broader descriptor-validation pass instead of overloading
-default-value validation.
+definition defaults and actual resource attribute values, including nested
+required attributes and collection minimum/maximum size expectations. A missing
+`valueShapeId` should eventually be reported by descriptor validation, but that
+diagnostic is deferred until the POC has a broader descriptor-validation pass
+instead of overloading default-value validation.
 
 `ResourceReference` proves that not every structured value belongs in the
 provider-local complex-shape mechanism. It is core graph semantics, so the POC
@@ -1791,14 +1796,17 @@ provider that materializes database children can set the `belongsTo`
 relationship when the database is created or projected. Users should not
 author or change it directly.
 
-When code sets or reads a typed attribute, the preferred API should allow the
-concrete CLR type, for example `ResourceReference`, rather than forcing every
-caller to construct a dictionary. The resource model can map that concrete
-object to the internal `ResourceAttributeValue` representation, validate that
-representation against the built-in reference contract, and let format
+When code sets or reads a typed attribute, the preferred API allows a concrete
+CLR type, for example `ResourceReference` or a provider-owned endpoint
+declaration record, rather than forcing every caller to construct a dictionary.
+The resource model can map that concrete object to the internal
+`ResourceAttributeValue` representation, validate that representation against
+the built-in reference contract or a declared complex shape, and let format
 adapters serialize or deserialize it as JSON, YAML, XML, database records, or
-another target. Core graph values can have built-in structural contracts;
-provider-owned structured values should continue to use `ComplexType` shapes.
+another target. Runtime integrations and typed wrappers can project the
+structured value back into concrete CLR records when that is easier to consume.
+Core graph values can have built-in structural contracts; provider-owned
+structured values should continue to use `ComplexType` shapes.
 
 Stable IDs should use `:` as the namespace separator and `.` for local
 hierarchy inside that namespace. For example, `container:replicas`,

@@ -33,7 +33,7 @@ public sealed record ResourceChangeApplyResult(
             : AcceptedState.ToDefinition() with
             {
                 Attributes = ChangeSet.Resource.FilterInterchangeAttributes(
-                    AcceptedState.ResourceAttributes)
+                    AcceptedState.ResourceAttributeValues)
             };
 
     public static ResourceChangeApplyResult Accepted(ResourceChangeSet changeSet) =>
@@ -139,13 +139,13 @@ public sealed class ResourceChangeApplyDispatcher(
         }
 
         var diagnostics = new List<ResourceDefinitionDiagnostic>();
-        foreach (var attributeId in changes.ProposedState.ResourceAttributes.Keys
-            .Concat(result.AcceptedState.ResourceAttributes.Keys)
+        foreach (var attributeId in changes.ProposedState.ResourceAttributeValues.Keys
+            .Concat(result.AcceptedState.ResourceAttributeValues.Keys)
             .Distinct())
         {
-            changes.ProposedState.ResourceAttributes.TryGetValue(attributeId, out var proposedValue);
-            result.AcceptedState.ResourceAttributes.TryGetValue(attributeId, out var acceptedValue);
-            if (string.Equals(proposedValue, acceptedValue, StringComparison.Ordinal))
+            changes.ProposedState.ResourceAttributeValues.TryGetValue(attributeId, out var proposedValue);
+            result.AcceptedState.ResourceAttributeValues.TryGetValue(attributeId, out var acceptedValue);
+            if (ResourceAttributeValueEquals(proposedValue, acceptedValue))
             {
                 continue;
             }
@@ -162,6 +162,17 @@ public sealed class ResourceChangeApplyDispatcher(
 
         return diagnostics;
     }
+
+    private static bool ResourceAttributeValueEquals(
+        ResourceAttributeValue? left,
+        ResourceAttributeValue? right) =>
+        left is null && right is null ||
+        left is not null &&
+        right is not null &&
+        string.Equals(
+            System.Text.Json.JsonSerializer.Serialize(left, System.Text.Json.JsonSerializerOptions.Web),
+            System.Text.Json.JsonSerializer.Serialize(right, System.Text.Json.JsonSerializerOptions.Web),
+            StringComparison.Ordinal);
 }
 
 public sealed class ResourceDefinitionGraphChangeApplier(

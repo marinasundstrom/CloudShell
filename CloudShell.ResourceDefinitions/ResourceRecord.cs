@@ -10,7 +10,7 @@ public sealed record ResourceRecord(
     string? DisplayName = null,
     string? Version = null,
     IReadOnlyList<ResourceReference>? Dependencies = null,
-    IReadOnlyDictionary<string, string>? Attributes = null,
+    IReadOnlyDictionary<string, ResourceAttributeValue>? Attributes = null,
     IReadOnlyDictionary<string, JsonElement>? Configuration = null,
     IReadOnlyDictionary<string, JsonElement>? Capabilities = null,
     IReadOnlyDictionary<string, JsonElement>? Operations = null,
@@ -30,7 +30,7 @@ public sealed record ResourceRecord(
             state.DisplayName,
             state.Version,
             state.StartupDependencies.ToArray(),
-            state.ResourceAttributes.ToDictionary(
+            state.ResourceAttributeValues.ToDictionary(
                 attribute => attribute.Key.ToString(),
                 attribute => attribute.Value,
                 StringComparer.OrdinalIgnoreCase),
@@ -59,7 +59,9 @@ public sealed record ResourceRecord(
             Dependencies,
             Attributes?.ToDictionary(
                 attribute => ResourceAttributeId.Create(attribute.Key),
-                attribute => attribute.Value),
+                attribute => attribute.Value) is { } attributes
+                    ? new ResourceAttributeValueMap(attributes)
+                    : null,
             Configuration is null
                 ? null
                 : new Dictionary<string, JsonElement>(

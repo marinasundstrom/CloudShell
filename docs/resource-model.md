@@ -88,6 +88,13 @@ those attributes. Resource Manager should not hard-code executable-specific
 attribute semantics, but it can store, compare, version, reference, and project
 resource definitions once the owning provider accepts them.
 
+Complex attribute values are represented by the Resource model value tree, not
+by a JSON-specific DOM. JSON, YAML, XML, database rows, and compact persistence
+records are serializer or store projections over the same value model.
+Consumers that implement provider/runtime behavior should be able to project a
+complex value into a concrete CLR type, work with that type, and map it back to
+the model value before validation, serialization, or persistence.
+
 A resource projection is made from these groups:
 
 | Group | Purpose |
