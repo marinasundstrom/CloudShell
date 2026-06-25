@@ -303,6 +303,11 @@ public sealed partial class ApplicationResourceRuntimeOperations(
                 }
                 return;
             case ResourceActionKind.Stop:
+                if (context.Instance.ReplicaOrdinal == 1)
+                {
+                    MarkStopping(application.Id);
+                }
+
                 await StopContainerApplicationInstanceAsync(
                     application,
                     context.ResourceContext.ResourceManager,
@@ -310,6 +315,17 @@ public sealed partial class ApplicationResourceRuntimeOperations(
                     context.Instance,
                     removeContainer: true,
                     cancellationToken);
+                if (context.Instance.ReplicaOrdinal >= context.Instance.ReplicaCount)
+                {
+                    CompleteContainerApplicationStop(
+                        application,
+                        application.Id,
+                        force: true,
+                        _containerProcesses.GetProcessLog(application.Id),
+                        cancellationToken,
+                        context.ResourceContext);
+                }
+
                 return;
             default:
                 throw new NotSupportedException(
@@ -909,6 +925,23 @@ public sealed partial class ApplicationResourceRuntimeOperations(
             }
         }
 
+        CompleteContainerApplicationStop(
+            application,
+            applicationId,
+            force,
+            log,
+            cancellationToken,
+            procedureContext);
+    }
+
+    private void CompleteContainerApplicationStop(
+        ApplicationResourceDefinition? application,
+        string applicationId,
+        bool force,
+        ApplicationProcessLog log,
+        CancellationToken cancellationToken,
+        ResourceProcedureContext? procedureContext = null)
+    {
         if (!_containerProcesses.TryGetRunningProcess(application, out var process))
         {
             ClearStopping(applicationId);
@@ -966,7 +999,7 @@ public sealed partial class ApplicationResourceRuntimeOperations(
                 engine,
                 log,
                 instance,
-                removeContainer: false,
+                removeContainer: true,
                 cancellationToken,
                 procedureContext);
         }

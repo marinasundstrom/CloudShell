@@ -13,6 +13,14 @@ link to ADR entries when a change depends on a recorded decision.
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
+### 2026-06-26
+
+#### Fixed
+
+- Container app stop now removes replicated project container instances and
+  clears the parent application runtime state, preventing stopped replicas from
+  remaining as discovered Docker resources in the current environment.
+
 ### 2026-06-24
 
 #### Changed
