@@ -1,9 +1,29 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
-public sealed class ServiceReconcileOperationProvider :
+public interface IServiceReconciler
+{
+    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed class NoopServiceReconciler :
+    IServiceReconciler
+{
+    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+}
+
+public sealed class ServiceReconcileOperationProvider(
+    IServiceReconciler? reconciler = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
+    private readonly IServiceReconciler _reconciler =
+        reconciler ?? new NoopServiceReconciler();
+
     public ResourceOperationId OperationId =>
         ServiceResourceTypeProvider.Operations.Reconcile;
 
@@ -36,14 +56,18 @@ public sealed class ServiceReconcileOperationProvider :
         ValueTask.FromResult<IResourceOperationProjection>(
             new ServiceReconcileOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
-                operation));
+                operation,
+                _reconciler));
 }
 
 public sealed class ServiceReconcileOperation(
     ResourceProjectionExecutionContext context,
-    ResourceOperationResolution operation) : IResourceOperationExecutorProjection
+    ResourceOperationResolution operation,
+    IServiceReconciler reconciler) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
+
+    private readonly IServiceReconciler _reconciler = reconciler;
 
     public Resource Resource => Context.Resource;
 
@@ -81,10 +105,14 @@ public sealed class ServiceReconcileOperation(
                 ]);
         }
 
+        var diagnostics = await _reconciler.ReconcileAsync(
+            Resource,
+            cancellationToken);
+
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            []);
+            diagnostics);
     }
 }
 

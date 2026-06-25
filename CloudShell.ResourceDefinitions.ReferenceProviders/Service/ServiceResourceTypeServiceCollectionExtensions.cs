@@ -32,6 +32,7 @@ public static class ServiceResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, ServiceReconcileOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, ServiceResourceProjectionProvider>());
+        services.TryAddSingleton<IServiceReconciler, NoopServiceReconciler>();
 
         return services;
     }
