@@ -98,6 +98,11 @@ on `git blame --follow`, and then by the broad type of change.
   networking, ASP.NET Core target API, and virtual-network resources in the
   sample host, with smoke coverage verifying their Resource Manager projection
   and typed graph dependency shape.
+- LoadBalancer now declares side-by-side graph-backed Docker host,
+  container-app target, and load-balancer resources in the sample host, with
+  smoke coverage verifying Resource Manager projection, typed graph
+  dependencies, and load-balancer count/operation shape while the old Traefik
+  path still proves runtime materialization.
 - The Resource Graph proposal now documents the lifecycle of porting tests,
   distinguishing temporary old/new parity tests from graph-contract tests,
   runtime seam tests, and smoke tests that should be simplified after a sample

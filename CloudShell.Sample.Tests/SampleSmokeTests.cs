@@ -2772,12 +2772,20 @@ public sealed class SampleSmokeTests
             resource.GetProperty("id").GetString() == "dns:cloudshell-local:name:app-cloudshell-local");
         var apiName = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "dns:cloudshell-local:name:api-cloudshell-local");
+        var graphDockerHost = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "docker:graph-sample-host");
+        var graphApi = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.container-app:graph-api");
+        var graphLoadBalancer = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "load-balancer:graph-public");
         var attributes = loadBalancer.GetProperty("attributes");
         var apiAttributes = api.GetProperty("attributes");
         var postgresAttributes = postgres.GetProperty("attributes");
         var dnsAttributes = dnsZone.GetProperty("attributes");
         var appNameAttributes = appName.GetProperty("attributes");
         var apiNameAttributes = apiName.GetProperty("attributes");
+        var graphApiAttributes = graphApi.GetProperty("attributes");
+        var graphLoadBalancerAttributes = graphLoadBalancer.GetProperty("attributes");
 
         Assert.Equal("cloudshell.loadBalancer", loadBalancer.GetProperty("typeId").GetString());
         Assert.Equal("traefik", attributes.GetProperty("loadBalancer.provider").GetString());
@@ -2797,6 +2805,28 @@ public sealed class SampleSmokeTests
         Assert.Equal("api.cloudshell.local", apiNameAttributes.GetProperty("nameMapping.hostName").GetString());
         Assert.Equal("load-balancer:public", apiNameAttributes.GetProperty("nameMapping.targetResourceId").GetString());
         Assert.Equal("ProviderSelected", apiNameAttributes.GetProperty("nameMapping.materializationStatus").GetString());
+        Assert.Equal("docker.host", graphDockerHost.GetProperty("typeId").GetString());
+        Assert.Equal("application.container-app", graphApi.GetProperty("typeId").GetString());
+        Assert.Equal("traefik/whoami:v1.10", graphApiAttributes.GetProperty("container.image").GetString());
+        Assert.Equal("3", graphApiAttributes.GetProperty("container.replicas").GetString());
+        Assert.Contains(
+            "docker:graph-sample-host",
+            graphApi.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal("cloudshell.loadBalancer", graphLoadBalancer.GetProperty("typeId").GetString());
+        Assert.Equal("traefik", graphLoadBalancerAttributes.GetProperty("loadBalancer.provider").GetString());
+        Assert.Equal("docker:graph-sample-host", graphLoadBalancerAttributes.GetProperty("loadBalancer.hostResourceId").GetString());
+        Assert.Equal("3", graphLoadBalancerAttributes.GetProperty("loadBalancer.routes").GetString());
+        Assert.Equal("2", graphLoadBalancerAttributes.GetProperty("loadBalancer.routes.http").GetString());
+        Assert.Equal("1", graphLoadBalancerAttributes.GetProperty("loadBalancer.routes.tcp").GetString());
+        Assert.Contains(
+            "docker:graph-sample-host",
+            graphLoadBalancer.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+        Assert.Contains(
+            "application.container-app:graph-api",
+            graphLoadBalancer.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+        Assert.True(graphLoadBalancer
+            .GetProperty("resourceActions")
+            .TryGetProperty("applyLoadBalancerConfiguration", out _));
 
         var apiEndpointsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Endpoints.Value)}");

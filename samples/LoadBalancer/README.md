@@ -55,3 +55,19 @@ CLOUDSHELL_LOCAL_HOSTS_FILE=samples/LoadBalancer/Data/cloudshell.hosts \
 ```
 
 The sample exposes Postgres through the TCP entrypoint on `localhost:5432`.
+
+## Resource Graph POC coverage
+
+The sample also declares side-by-side graph-backed resources through the
+Resource Definitions bridge:
+
+- `docker:graph-sample-host`: graph-backed Docker host.
+- `application.container-app:graph-web`: graph-backed web target.
+- `application.container-app:graph-api`: graph-backed replicated API target.
+- `application.container-app:graph-postgres`: graph-backed TCP target.
+- `load-balancer:graph-public`: graph-backed load balancer with typed startup
+  dependencies on the graph host and target resources.
+
+Those resources prove projection, dependency, count-summary, and operation
+shape while the existing Traefik provider path remains responsible for runtime
+container management and dynamic configuration materialization.
