@@ -21,6 +21,9 @@
 - ApplicationTopology sample-local graph SQL credential endpoint that validates
   graph resource identity grants and materializes SQL login/user access for
   the graph API `/database` path.
+- Manual `ResourceDefinitionGraphBuilder.AddSqlServer(...)` builder for
+  code-first SQL Server definition authoring, declared database configuration,
+  and volume mount capability setup.
 
 ## Remaining
 

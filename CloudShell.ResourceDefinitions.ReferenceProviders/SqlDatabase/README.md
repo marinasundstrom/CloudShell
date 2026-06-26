@@ -16,6 +16,8 @@
   handler seam that receives both the database resource and its resolved owning
   SQL Server resource.
 - Resource Manager bridge projection and execution.
+- Manual `ResourceDefinitionGraphBuilder.AddSqlDatabase(...)` builder for
+  code-first SQL database definition authoring with typed server dependencies.
 
 ## Remaining
 

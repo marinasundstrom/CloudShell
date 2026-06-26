@@ -208,4 +208,79 @@ public sealed class ResourceDefinitionGraphBuilderTests
         Assert.False(result.HasErrors, string.Join(" ", result.Diagnostics.Select(diagnostic => diagnostic.Message)));
         Assert.True(result.IsCommitted);
     }
+
+    [Fact]
+    public async Task ResourceDefinitionGraphBuilder_BuildsSqlServerAndDatabaseDefinitions()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddStorageResourceType();
+        services.AddCloudShellVolumeResourceType();
+        services.AddSqlServerResourceType();
+        services.AddSqlDatabaseResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var graph = new ResourceDefinitionGraphBuilder();
+        var storage = graph
+            .AddStorage("local")
+            .UseLocalFileSystem();
+        var volume = graph
+            .AddCloudShellVolume("sql-data")
+            .UseStorage(storage)
+            .UseLocalFileSystemVolume("sql-server");
+        var server = graph
+            .AddSqlServer("sql")
+            .WithVersion("2022")
+            .WithEdition("Developer")
+            .MountVolume(volume, "/var/opt/mssql")
+            .DeclareDatabase("appdb", "Application DB", ensureCreated: true);
+
+        graph
+            .AddSqlDatabase("appdb")
+            .BelongsToServer(server)
+            .EnsureCreated();
+
+        var deployment = graph.BuildDeployment("sql-app", environmentId: "local");
+
+        Assert.Equal(4, deployment.Resources.Count);
+        var sqlServer = Assert.Single(deployment.Resources, resource =>
+            resource.TypeId == SqlServerResourceTypeProvider.ResourceTypeId);
+        var sqlDatabase = Assert.Single(deployment.Resources, resource =>
+            resource.TypeId == SqlDatabaseResourceTypeProvider.ResourceTypeId);
+        Assert.Equal("application.sql-server:sql", sqlServer.EffectiveResourceId);
+        Assert.Equal("2022", sqlServer.ResourceAttributeValues[
+            SqlServerResourceTypeProvider.Attributes.Version].StringValue);
+        var sqlConfiguration = sqlServer.GetConfiguration<SqlServerConfiguration>(
+            SqlServerResourceTypeProvider.ConfigurationSection);
+        var databaseConfiguration = Assert.Single(sqlConfiguration!.Databases);
+        Assert.Equal("appdb", databaseConfiguration.Name);
+        Assert.Equal("Application DB", databaseConfiguration.DisplayName);
+        Assert.True(databaseConfiguration.EnsureCreated);
+        var volumeConsumer = sqlServer.GetCapability<VolumeConsumerDefinition>(
+            VolumeConsumerCapabilityProvider.CapabilityIdValue);
+        var mount = Assert.Single(volumeConsumer!.Mounts);
+        Assert.Equal(volume.EffectiveResourceId, mount.Volume);
+        Assert.Equal("/var/opt/mssql", mount.TargetPath);
+
+        Assert.Equal("application.sql-database:appdb", sqlDatabase.EffectiveResourceId);
+        Assert.Equal("appdb", sqlDatabase.ResourceAttributeValues[
+            SqlDatabaseResourceTypeProvider.Attributes.DatabaseName].StringValue);
+        Assert.Equal(true, sqlDatabase.ResourceAttributeValues[
+            SqlDatabaseResourceTypeProvider.Attributes.EnsureCreated].BooleanValue);
+        var dependency = Assert.Single(sqlDatabase.StartupDependencies);
+        Assert.True(dependency.TryGetDependsOnResourceId(out var dependencyId));
+        Assert.Equal(server.EffectiveResourceId, dependencyId);
+        Assert.Equal(SqlServerResourceTypeProvider.ResourceTypeId, dependency.TypeId);
+
+        var result = await serviceProvider
+            .GetRequiredService<ResourceModelGraphDefinitionApplyService>()
+            .ApplyDeploymentAsync(
+                deployment,
+                new ResourceGraphCommitContext(
+                    PrincipalId: "developer",
+                    Timestamp: new DateTimeOffset(2026, 6, 26, 15, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, string.Join(" ", result.Diagnostics.Select(diagnostic => diagnostic.Message)));
+        Assert.True(result.IsCommitted);
+    }
 }

@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace CloudShell.ResourceDefinitions;
 
 public interface IResourceDefinitionBuilder
@@ -13,6 +15,9 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
 {
     private readonly Dictionary<ResourceAttributeId, ResourceAttributeValue> _attributes = [];
     private readonly List<ResourceReference> _dependencies = [];
+    private readonly Dictionary<string, JsonElement> _configuration = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<ResourceCapabilityId, JsonElement> _capabilities = [];
+    private readonly Dictionary<ResourceOperationId, JsonElement> _operations = [];
     private string? _resourceId;
     private string? _displayName;
 
@@ -26,6 +31,12 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
         _attributes;
 
     protected IReadOnlyList<ResourceReference> Dependencies => _dependencies;
+
+    protected IReadOnlyDictionary<string, JsonElement> Configuration => _configuration;
+
+    protected IReadOnlyDictionary<ResourceCapabilityId, JsonElement> Capabilities => _capabilities;
+
+    protected IReadOnlyDictionary<ResourceOperationId, JsonElement> Operations => _operations;
 
     public string EffectiveResourceId =>
         string.IsNullOrWhiteSpace(_resourceId) ? $"{TypeId}:{Name}" : _resourceId;
@@ -74,7 +85,16 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
                 : _dependencies.ToArray(),
             Attributes: _attributes.Count == 0
                 ? null
-                : new ResourceAttributeValueMap(_attributes));
+                : new ResourceAttributeValueMap(_attributes),
+            Configuration: _configuration.Count == 0
+                ? null
+                : new Dictionary<string, JsonElement>(_configuration, StringComparer.OrdinalIgnoreCase),
+            Capabilities: _capabilities.Count == 0
+                ? null
+                : new Dictionary<ResourceCapabilityId, JsonElement>(_capabilities),
+            Operations: _operations.Count == 0
+                ? null
+                : new Dictionary<ResourceOperationId, JsonElement>(_operations));
 
     protected TBuilder SetScalarAttribute(
         ResourceAttributeId attributeId,
@@ -107,6 +127,37 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
         ArgumentNullException.ThrowIfNull(reference);
 
         _dependencies.Add(reference);
+        return Self;
+    }
+
+    protected TBuilder SetConfiguration<TConfiguration>(
+        string sectionName,
+        TConfiguration configuration)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sectionName);
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        _configuration[sectionName.Trim()] = ResourceDefinitionJson.FromValue(configuration);
+        return Self;
+    }
+
+    protected TBuilder SetCapability<TCapability>(
+        ResourceCapabilityId capabilityId,
+        TCapability capability)
+    {
+        ArgumentNullException.ThrowIfNull(capability);
+
+        _capabilities[capabilityId] = ResourceDefinitionJson.FromValue(capability);
+        return Self;
+    }
+
+    protected TBuilder SetOperation<TOperation>(
+        ResourceOperationId operationId,
+        TOperation operation)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+
+        _operations[operationId] = ResourceDefinitionJson.FromValue(operation);
         return Self;
     }
 

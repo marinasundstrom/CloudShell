@@ -3871,40 +3871,20 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var graph = new ResourceDefinitionGraphBuilder();
         var volume = new ResourceDefinition(
             "sql-data",
             LocalVolumeResourceTypeProvider.ResourceTypeId);
-        var sql = new ResourceDefinition(
-            "sql",
-            SqlServerResourceTypeProvider.ResourceTypeId,
-            ProviderId: SqlServerResourceTypeProvider.ProviderId,
-            Attributes: new Dictionary<ResourceAttributeId, string>
-            {
-                [SqlServerResourceTypeProvider.Attributes.Version] = "2022",
-                [SqlServerResourceTypeProvider.Attributes.Edition] = "Developer"
-            },
-            Configuration: new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
-            {
-                [SqlServerResourceTypeProvider.ConfigurationSection] =
-                    ResourceDefinitionJson.FromValue(new SqlServerConfiguration(
-                    [
-                        new("appdb", "Application DB", EnsureCreated: true)
-                    ]))
-            },
-            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
-            {
-                [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
-                    ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
-                    [
-                        new(volume.EffectiveResourceId, "/var/opt/mssql")
-                    ]))
-            });
+        graph.Add(volume);
+        var sql = graph
+            .AddSqlServer("sql")
+            .WithVersion("2022")
+            .WithEdition("Developer")
+            .MountVolume(volume.EffectiveResourceId, "/var/opt/mssql")
+            .DeclareDatabase("appdb", "Application DB", ensureCreated: true);
 
         var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
-                "sql-app",
-                [volume, sql],
-                EnvironmentId: "local"),
+            graph.BuildDeployment("sql-app", environmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 24, 20, 0, 0, TimeSpan.Zero)));
@@ -3967,31 +3947,15 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var server = new ResourceDefinition(
-            "sql",
-            SqlServerResourceTypeProvider.ResourceTypeId,
-            ProviderId: SqlServerResourceTypeProvider.ProviderId);
-        var database = new ResourceDefinition(
-            "appdb",
-            SqlDatabaseResourceTypeProvider.ResourceTypeId,
-            ProviderId: SqlDatabaseResourceTypeProvider.ProviderId,
-            DependsOn:
-            [
-                ResourceReference.DependsOnResourceId(
-                    server.EffectiveResourceId,
-                    typeId: SqlServerResourceTypeProvider.ResourceTypeId)
-            ],
-            Attributes: new Dictionary<ResourceAttributeId, string>
-            {
-                [SqlDatabaseResourceTypeProvider.Attributes.DatabaseName] = "appdb",
-                [SqlDatabaseResourceTypeProvider.Attributes.EnsureCreated] = bool.TrueString.ToLowerInvariant()
-            });
+        var graph = new ResourceDefinitionGraphBuilder();
+        var server = graph.AddSqlServer("sql");
+        var database = graph
+            .AddSqlDatabase("appdb")
+            .BelongsToServer(server)
+            .EnsureCreated();
 
         var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
-                "sql-database-app",
-                [server, database],
-                EnvironmentId: "local"),
+            graph.BuildDeployment("sql-database-app", environmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 24, 22, 0, 0, TimeSpan.Zero)));

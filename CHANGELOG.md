@@ -107,6 +107,9 @@ on `git blame --follow`, and then by the broad type of change.
   builders, including typed storage references, and the storage provider
   integration tests now use builders instead of raw ResourceDefinition
   dictionaries.
+- SQL Server and SQL Database now have provider-owned Resource Graph builders,
+  including declared database configuration, volume mount capability payloads,
+  and typed server dependencies, and SQL provider tests now use those builders.
 
 #### Fixed
 
