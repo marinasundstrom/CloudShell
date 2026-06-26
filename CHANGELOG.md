@@ -81,6 +81,8 @@ on `git blame --follow`, and then by the broad type of change.
 - ASP.NET Core graph project startup now derives Aspire-style service-discovery
   environment variables from provider-owned graph references, target endpoint
   request attributes, and an optional provider-owned `project.serviceDiscoveryName`.
+  It emits aliases for the configured service-discovery name, resource name,
+  and resource id to match the existing application-provider behavior.
 - ProjectReference smoke coverage now verifies logs plus health/liveness
   refresh for both graph-backed ASP.NET Core project resources.
 - ProjectReference documentation and the resource graph proposal now describe

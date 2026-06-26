@@ -42,12 +42,6 @@ public sealed class AspNetCoreProjectServiceDiscoveryEnvironmentResolver(
         ResourceState resource,
         Dictionary<string, string> variables)
     {
-        var serviceName = ResolveServiceDiscoveryName(resource);
-        if (serviceName is null)
-        {
-            return;
-        }
-
         var endpoints = resource.ResourceAttributeValues
             .GetObject<NetworkingEndpointRequestValue[]>(
                 AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests) ?? [];
@@ -62,12 +56,15 @@ public sealed class AspNetCoreProjectServiceDiscoveryEnvironmentResolver(
 
             foreach (var endpointKey in GetEndpointKeys(endpoint))
             {
-                variables[$"services__{serviceName}__{endpointKey}__0"] = address;
+                foreach (var serviceName in ResolveServiceDiscoveryNames(resource))
+                {
+                    variables[$"services__{serviceName}__{endpointKey}__0"] = address;
+                }
             }
         }
     }
 
-    private static string? ResolveServiceDiscoveryName(ResourceState resource)
+    private static IReadOnlyList<string> ResolveServiceDiscoveryNames(ResourceState resource)
     {
         var configured = resource.ResourceAttributeValues.TryGetValue(
             AspNetCoreProjectResourceTypeProvider.Attributes.ServiceDiscoveryName,
@@ -76,7 +73,17 @@ public sealed class AspNetCoreProjectServiceDiscoveryEnvironmentResolver(
                 ? serviceDiscoveryName
                 : null;
 
-        return CreateConfigurationSegment(configured ?? resource.Name);
+        return new[]
+            {
+                configured,
+                resource.Name,
+                resource.EffectiveResourceId
+            }
+            .Select(CreateConfigurationSegment)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Cast<string>()
+            .ToArray();
     }
 
     private static IReadOnlyList<string> GetEndpointKeys(NetworkingEndpointRequestValue endpoint)

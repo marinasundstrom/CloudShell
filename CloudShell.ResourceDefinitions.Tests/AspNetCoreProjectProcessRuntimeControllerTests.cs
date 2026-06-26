@@ -146,6 +146,12 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
         Assert.Equal(
             "http://127.0.0.1:5229",
             variables["services__project-reference-api__http__0"]);
+        Assert.Equal(
+            "http://127.0.0.1:5229",
+            variables["services__graph-project-reference-api__http__0"]);
+        Assert.Equal(
+            "http://127.0.0.1:5229",
+            variables["services__application.aspnet-core-project-graph-project-reference-api__http__0"]);
     }
 
     [Fact]
