@@ -4,9 +4,12 @@ using ResourceManagerState = CloudShell.Abstractions.ResourceManager.ResourceSta
 namespace CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
 
 public sealed class ConfigurationStoreResourceManagerStateProvider(
-    IConfigurationStoreRuntimeController runtimeController) :
+    IConfigurationStoreRuntimeController? runtimeController = null) :
     IResourceModelResourceManagerStateProvider
 {
+    private readonly IConfigurationStoreRuntimeController _runtimeController =
+        runtimeController ?? new NoopConfigurationStoreRuntimeController();
+
     public ResourceManagerState? GetState(Resource resource)
     {
         if (resource.Type.TypeId != ConfigurationStoreResourceTypeProvider.ResourceTypeId)
@@ -14,7 +17,7 @@ public sealed class ConfigurationStoreResourceManagerStateProvider(
             return null;
         }
 
-        return runtimeController.GetStatus(resource) switch
+        return _runtimeController.GetStatus(resource) switch
         {
             ResourceWebAppRuntimeStatus.Running => ResourceManagerState.Running,
             ResourceWebAppRuntimeStatus.Stopped => ResourceManagerState.Stopped,
@@ -24,9 +27,12 @@ public sealed class ConfigurationStoreResourceManagerStateProvider(
 }
 
 public sealed class SecretsVaultResourceManagerStateProvider(
-    ISecretsVaultRuntimeController runtimeController) :
+    ISecretsVaultRuntimeController? runtimeController = null) :
     IResourceModelResourceManagerStateProvider
 {
+    private readonly ISecretsVaultRuntimeController _runtimeController =
+        runtimeController ?? new NoopSecretsVaultRuntimeController();
+
     public ResourceManagerState? GetState(Resource resource)
     {
         if (resource.Type.TypeId != SecretsVaultResourceTypeProvider.ResourceTypeId)
@@ -34,7 +40,7 @@ public sealed class SecretsVaultResourceManagerStateProvider(
             return null;
         }
 
-        return runtimeController.GetStatus(resource) switch
+        return _runtimeController.GetStatus(resource) switch
         {
             ResourceWebAppRuntimeStatus.Running => ResourceManagerState.Running,
             ResourceWebAppRuntimeStatus.Stopped => ResourceManagerState.Stopped,
