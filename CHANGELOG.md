@@ -40,6 +40,9 @@ on `git blame --follow`, and then by the broad type of change.
   an API feedback path for the `ResourceDefinition` interchange shape.
 - Resource definition docs now clarify that capabilities can contribute
   attribute definitions and validation rules for the graph state they need.
+- Resource definition docs now clarify that future deployment and template
+  container names remain open, while their resource payloads should stay based
+  on `ResourceDefinition` instead of parallel resource-state models.
 
 #### Fixed
 

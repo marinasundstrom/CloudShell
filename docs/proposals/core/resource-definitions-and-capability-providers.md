@@ -3771,12 +3771,13 @@ That is separate from the Resource Manager orchestration types such as
 `ResourceOrchestratorDeploymentDefinition`, which describe operational runtime
 deployment state.
 
-A fuller deployment artifact or specification remains a future concern. It
-should be able to contain `ResourceDefinition` entries as interchange inputs
-for resource state. In that flow, the deployment-level artifact tells
-CloudShell which resource state changes an actor wants applied, while each
-resource type provider validates, plans, and applies the definition to the
-resource type it owns.
+A fuller deployment interchange artifact remains a future concern. The concept
+will likely be named either `DeploymentDefinition` or
+`DeploymentSpecification`, and it should be able to contain
+`ResourceDefinition` entries as interchange inputs for resource state. In that
+flow, the deployment-level artifact tells CloudShell which resource state
+changes an actor wants applied, while each resource type provider validates,
+plans, and applies the definition to the resource type it owns.
 
 This makes resource definitions useful before a resource has been persisted as
 accepted inventory. The same interchange envelope can describe a new resource
@@ -3797,6 +3798,12 @@ with `providerConfigurationVersion = resource-definition.v1` and a JSON
 `ResourceDefinition` payload. YAML remains a future authoring/interchange
 target; the model should stay serializer-neutral while the existing API path
 uses JSON.
+The name and shape of the outer container for exported and imported resource
+templates remains undecided. That container may remain close to the existing
+Resource Manager template API or evolve, but it should still carry
+`ResourceDefinition` payloads for resource state so templates, deployments,
+imports, exports, and incremental apply all share the same resource-shaped
+model instead of separate infrastructures.
 
 ### Projected resources
 

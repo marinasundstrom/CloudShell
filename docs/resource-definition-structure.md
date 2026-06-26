@@ -72,18 +72,21 @@ The graph POC currently has `ResourceDeploymentDefinition` as a small grouping
 of `ResourceDefinition` values that can be validated and applied together. It
 is intentionally narrow.
 
-A fuller deployment artifact or specification is a separate future concern. It
-may group resource definitions with other deployment-centered artifacts,
-parameters, environment data, resource group placement, or rollout policy. It
-should also stay distinct from the existing Resource Manager orchestration
-types such as `ResourceOrchestratorDeploymentSpec` and
+A fuller deployment interchange artifact is a separate future concern. The
+concept will likely be named either `DeploymentDefinition` or
+`DeploymentSpecification`, and it may group resource definitions with other
+deployment-centered artifacts, parameters, environment data, resource group
+placement, or rollout policy. It should also stay distinct from the existing
+Resource Manager orchestration types such as
+`ResourceOrchestratorDeploymentSpec` and
 `ResourceOrchestratorDeploymentDefinition`, which describe operational runtime
 deployment state.
 
 The important boundary is that `ResourceDefinition` remains the resource
-interchange unit, while a deployment grouping or future deployment
-specification describes how a set of those resource definitions is authored,
-grouped, ordered, parameterized, or applied together.
+interchange unit. A deployment grouping or future deployment specification
+describes how a set of resource definitions is authored, grouped, ordered,
+parameterized, or applied together; it should not invent a second resource
+state model.
 
 ## Template Export
 
@@ -92,6 +95,12 @@ existing resource group template export API. A graph resource is exported as a
 template resource whose provider is `resource-model`, whose provider
 configuration version is `resource-definition.v1`, and whose `configuration`
 payload is a JSON `ResourceDefinition`.
+
+The name and shape of the outer container for exported and imported resource
+templates remains undecided. It may stay close to the current Resource Manager
+template API or evolve into another artifact shape. The inner resource payload
+should still be based on `ResourceDefinition`, because that format is tied to
+resource shape, validation, and incremental apply semantics.
 
 Template import/apply is intentionally not part of this bridge yet. Applying
 resource definitions remains owned by the graph apply path so each resource
