@@ -66,6 +66,9 @@ on `git blame --follow`, and then by the broad type of change.
 - ProjectReference now uses the same reference-provider bridge package for
   graph-backed ASP.NET Core state and endpoint projection, leaving only its
   sample-specific observability/log integrations local to the sample.
+- ASP.NET Core graph observability and process-output log projection now live
+  in the reference-provider bridge package, removing the remaining
+  ProjectReference sample-local Resource Manager bridge implementations.
 - Docker container reference resources now mark `endpoints.count` as read-only
   provider-projected state, so deployment definitions cannot author endpoint
   counts while resolved Resource projections still expose the default count.

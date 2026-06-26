@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Logs;
 using CloudShell.ResourceDefinitions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -35,6 +36,14 @@ public static class ReferenceProviderResourceManagerServiceCollectionExtensions
             ServiceDescriptor.Singleton<
                 IResourceModelResourceManagerStateProvider,
                 SecretsVaultResourceManagerStateProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IResourceModelResourceManagerObservabilityProvider,
+                AspNetCoreProjectResourceManagerObservabilityProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                ILogProvider,
+                AspNetCoreProjectResourceManagerLogProvider>());
 
         return services;
     }

@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ResourceDefinitions.ResourceManager;
 using ResourceManagerState = CloudShell.Abstractions.ResourceManager.ResourceState;
@@ -5,9 +6,12 @@ using ResourceManagerState = CloudShell.Abstractions.ResourceManager.ResourceSta
 namespace CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
 
 public sealed class AspNetCoreProjectResourceManagerStateProvider(
-    IAspNetCoreProjectRuntimeController runtimeController) :
+    IAspNetCoreProjectRuntimeController? runtimeController = null) :
     IResourceModelResourceManagerStateProvider
 {
+    private readonly IAspNetCoreProjectRuntimeController _runtimeController =
+        runtimeController ?? new NoopAspNetCoreProjectRuntimeController();
+
     public ResourceManagerState? GetState(Resource resource)
     {
         ArgumentNullException.ThrowIfNull(resource);
@@ -17,7 +21,7 @@ public sealed class AspNetCoreProjectResourceManagerStateProvider(
             return null;
         }
 
-        return runtimeController.GetStatus(resource) switch
+        return _runtimeController.GetStatus(resource) switch
         {
             AspNetCoreProjectRuntimeStatus.Running => ResourceManagerState.Running,
             AspNetCoreProjectRuntimeStatus.Stopped => ResourceManagerState.Stopped,
@@ -124,4 +128,121 @@ public sealed class AspNetCoreProjectResourceManagerEndpointProjectionProvider :
 
         return null;
     }
+}
+
+public sealed class AspNetCoreProjectResourceManagerObservabilityProvider :
+    IResourceModelResourceManagerObservabilityProvider
+{
+    public ResourceObservability? GetObservability(
+        Resource resource)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+
+        return resource.Type.TypeId == AspNetCoreProjectResourceTypeProvider.ResourceTypeId
+            ? new ResourceObservability(
+                Logs: true,
+                Traces: true,
+                Metrics: true,
+                ServiceName: resource.Name)
+            : null;
+    }
+}
+
+public sealed class AspNetCoreProjectResourceManagerLogProvider(
+    IAspNetCoreProjectRuntimeOutputReader? outputReader = null) : ILogProvider
+{
+    private readonly IAspNetCoreProjectRuntimeOutputReader _outputReader =
+        outputReader ?? new NoopAspNetCoreProjectRuntimeController();
+
+    public string Id => "resource-model.aspnet-core-project.logs";
+
+    public string DisplayName => "ASP.NET Core project logs";
+
+    public IReadOnlyList<LogSource> GetLogSources() => [];
+
+    public bool CanOpenLogSource(LogSource source) =>
+        IsAspNetCoreProjectLogSource(source);
+
+    public ValueTask<ILogSourceSession?> OpenLogSourceAsync(
+        LogSource source,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return ValueTask.FromResult<ILogSourceSession?>(
+            IsAspNetCoreProjectLogSource(source) && source.ResourceId is not null
+                ? new AspNetCoreProjectResourceManagerLogSourceSession(_outputReader, source)
+                : null);
+    }
+
+    public Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
+        string logSourceId,
+        int maxEntries = 200,
+        DateTimeOffset? before = null,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult<IReadOnlyList<LogEntry>>([]);
+    }
+
+    private static bool IsAspNetCoreProjectLogSource(LogSource source) =>
+        source.ResourceId?.StartsWith(
+            $"{AspNetCoreProjectResourceTypeProvider.ResourceTypeId}:",
+            StringComparison.OrdinalIgnoreCase) == true &&
+        source.Kind is ResourceLogSourceKind.ProcessOutput
+            or ResourceLogSourceKind.ProcessStdout
+            or ResourceLogSourceKind.ProcessStderr;
+}
+
+public sealed class AspNetCoreProjectResourceManagerLogSourceSession(
+    IAspNetCoreProjectRuntimeOutputReader outputReader,
+    LogSource source) : ILogSourceSession
+{
+    public string Id { get; } = Guid.NewGuid().ToString("N");
+
+    public string SourceId => source.Id;
+
+    public LogSourceSessionStatus Status { get; private set; } = LogSourceSessionStatus.Active;
+
+    public Task<IReadOnlyList<LogEntry>> ReadAsync(
+        int maxEntries = 200,
+        DateTimeOffset? before = null,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        IReadOnlyList<LogEntry> entries = source.ResourceId is null
+            ? []
+            : outputReader
+                .ReadOutput(source.ResourceId, maxEntries, before)
+                .Select(ToLogEntry)
+                .ToArray();
+
+        return Task.FromResult(entries);
+    }
+
+    public async IAsyncEnumerable<LogEntry> StreamAsync(
+        int initialEntries = 50,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var entries = await ReadAsync(initialEntries, cancellationToken: cancellationToken);
+        foreach (var entry in entries)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            yield return entry;
+        }
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        Status = LogSourceSessionStatus.Closed;
+        return ValueTask.CompletedTask;
+    }
+
+    private static LogEntry ToLogEntry(AspNetCoreProjectRuntimeOutputEntry entry) =>
+        new(
+            entry.Timestamp,
+            entry.Message,
+            entry.Severity,
+            entry.Stream);
 }
