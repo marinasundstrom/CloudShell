@@ -105,15 +105,19 @@ public sealed class SampleSmokeTests
     {
         var frontendPort = await GetFreePortAsync();
         var graphApiPort = await GetFreePortAsync();
+        var graphFrontendPort = await GetFreePortAsync();
         var frontendEndpoint = $"http://127.0.0.1:{frontendPort}";
         var graphApiEndpoint = $"http://127.0.0.1:{graphApiPort}";
+        var graphFrontendEndpoint = $"http://127.0.0.1:{graphFrontendPort}";
         const string graphApiResourceId = "application.aspnet-core-project:graph-project-reference-api";
+        const string graphFrontendResourceId = "application.aspnet-core-project:graph-project-reference-frontend";
         using var host = await SampleProcess.StartAsync(
             "samples/ProjectReference/Host/CloudShell.ProjectReferenceHost.csproj",
             await GetFreePortAsync(),
             [
                 ("ProjectReference__FrontendEndpoint", frontendEndpoint),
-                ("ProjectReference__GraphApiEndpoint", graphApiEndpoint)
+                ("ProjectReference__GraphApiEndpoint", graphApiEndpoint),
+                ("ProjectReference__GraphFrontendEndpoint", graphFrontendEndpoint)
             ]);
 
         await host.WaitForHttpOkAsync("/", StartupTimeout);
@@ -141,6 +145,8 @@ public sealed class SampleSmokeTests
             resource.GetProperty("id").GetString() == "application:project-reference-frontend");
         var graphApi = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == graphApiResourceId);
+        var graphFrontend = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == graphFrontendResourceId);
         var graphApiEndpointElement = Assert.Single(graphApi.GetProperty("endpoints").EnumerateArray());
         Assert.Equal("http", graphApiEndpointElement.GetProperty("name").GetString());
         Assert.Equal("http", graphApiEndpointElement.GetProperty("protocol").GetString());
@@ -152,6 +158,17 @@ public sealed class SampleSmokeTests
         Assert.Equal(
             "http",
             graphApiEndpointMapping.GetProperty("target").GetProperty("endpointName").GetString());
+        var graphFrontendEndpointElement = Assert.Single(graphFrontend.GetProperty("endpoints").EnumerateArray());
+        Assert.Equal("http", graphFrontendEndpointElement.GetProperty("name").GetString());
+        Assert.Equal("http", graphFrontendEndpointElement.GetProperty("protocol").GetString());
+        Assert.Equal(graphFrontendPort, graphFrontendEndpointElement.GetProperty("targetPort").GetInt32());
+        Assert.Equal(graphFrontendEndpoint, graphFrontend.GetProperty("primaryEndpoint").GetString());
+        Assert.Contains(
+            graphApiResourceId,
+            graphFrontend
+                .GetProperty("dependsOn")
+                .EnumerateArray()
+                .Select(item => item.GetString() ?? string.Empty));
 
         if (!HasResourceState(graphApi, ResourceState.Running))
         {
@@ -159,11 +176,43 @@ public sealed class SampleSmokeTests
                 HttpMethod.Post,
                 $"/api/control-plane/v1/resources/{Uri.EscapeDataString(graphApiResourceId)}/actions/start?startDependencies=false&ignoreDependentWarning=true");
         }
+        if (!HasResourceState(graphFrontend, ResourceState.Running))
+        {
+            await host.SendAsync(
+                HttpMethod.Post,
+                $"/api/control-plane/v1/resources/{Uri.EscapeDataString(graphFrontendResourceId)}/actions/start?startDependencies=false&ignoreDependentWarning=true");
+        }
 
         await host.WaitForAbsoluteHttpOkAsync(
             $"{graphApiEndpoint}/health",
             bearerToken: null,
             StartupTimeout);
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"{graphFrontendEndpoint}/healthz",
+            bearerToken: null,
+            StartupTimeout);
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"{graphFrontendEndpoint}/upstream",
+            bearerToken: null,
+            StartupTimeout);
+        var graphFrontendUpstreamJson = await host.GetAbsoluteStringAsync($"{graphFrontendEndpoint}/upstream");
+        using var graphFrontendUpstreamDocument = JsonDocument.Parse(graphFrontendUpstreamJson);
+        Assert.Contains(
+            "Project Reference Frontend",
+            graphFrontendUpstreamJson);
+        var graphFrontendResolvedApiEndpoint = graphFrontendUpstreamDocument.RootElement
+            .GetProperty("resolvedApiEndpoint")
+            .GetString() ?? string.Empty;
+        Assert.StartsWith(
+            graphApiEndpoint,
+            graphFrontendResolvedApiEndpoint,
+            StringComparison.Ordinal);
+        Assert.Equal(
+            "Hello from the referenced API project.",
+            graphFrontendUpstreamDocument.RootElement
+                .GetProperty("upstream")
+                .GetProperty("message")
+                .GetString());
         var graphApiLogSourceId = await WaitForLogSourceAsync(host, graphApiResourceId);
         var graphApiLogEntries = await WaitForLogEntriesAsync(host, graphApiLogSourceId);
         Assert.NotEmpty(graphApiLogEntries);
@@ -188,6 +237,14 @@ public sealed class SampleSmokeTests
                 span.GetProperty("name").GetString() == "api.prepare-message" &&
                 span.GetProperty("resourceId").GetString() == graphApiResourceId));
         Assert.NotEmpty(graphApiTraceSpans);
+        var graphFrontendTraceSpans = await WaitForTraceSpansByResourceAsync(
+            host,
+            graphFrontendResourceId,
+            StartupTimeout,
+            spans => spans.Any(span =>
+                span.GetProperty("name").GetString() == "frontend.call-project-reference-api" &&
+                span.GetProperty("resourceId").GetString() == graphFrontendResourceId));
+        Assert.NotEmpty(graphFrontendTraceSpans);
         var graphApiHealthJson = await host.SendAsync(
             HttpMethod.Post,
             $"/api/control-plane/v1/resources/{Uri.EscapeDataString(graphApiResourceId)}/health/refresh");
@@ -390,11 +447,12 @@ public sealed class SampleSmokeTests
 
         var allTraceListHtml = await host.GetStringAsync("/observability/traces");
         Assert.Contains("All sources", allTraceListHtml);
-        Assert.Contains("3 trace resources", allTraceListHtml);
+        Assert.Contains("4 trace resources", allTraceListHtml);
         Assert.Contains("GET /upstream", allTraceListHtml);
         Assert.Contains("project-reference-frontend", allTraceListHtml);
         Assert.Contains("project-reference-api", allTraceListHtml);
         Assert.Contains("graph-project-reference-api", allTraceListHtml);
+        Assert.Contains("graph-project-reference-frontend", allTraceListHtml);
         Assert.Contains("recent-trace-item attention", allTraceListHtml);
         Assert.Contains("Needs attention: 1 error span(s)", allTraceListHtml);
         Assert.Contains(

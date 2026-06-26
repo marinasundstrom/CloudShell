@@ -9,16 +9,20 @@ through the existing application provider:
 - `Project Reference API` with an auto-assigned HTTP endpoint
 - `Project Reference Frontend` on `http://localhost:5218`
 
-It also registers one graph-backed ASP.NET Core project resource through the
+It also registers two graph-backed ASP.NET Core project resources through the
 new Resource model bridge provider:
 
 - `Graph Project Reference API` on `http://localhost:5229`
+- `Graph Project Reference Frontend` on `http://localhost:5230`
 
-That resource uses the new `application.aspnet-core-project` resource type
-provider and provider-owned process runtime controller. It is intentionally
-narrow: it proves Resource Manager can list a Resource model graph resource
-and dispatch Start to the new provider seam without adapting the old
-application-provider definition/store concepts.
+Those resources use the new `application.aspnet-core-project` resource type
+provider and provider-owned process runtime controller. The graph-backed
+frontend keeps the same frontend code but receives an Aspire-style
+`services__project-reference-api__http__0` configuration entry that points at
+the graph-backed API endpoint. This intentionally stays narrow: it proves
+Resource Manager can list graph resources, dispatch Start to the new provider
+seam, and compose one graph-backed project with another without adapting the
+old application-provider definition/store concepts.
 
 The frontend resource uses:
 
@@ -136,6 +140,14 @@ API` resource and open:
 ```text
 http://localhost:5229/health
 ```
+
+Then start the `Graph Project Reference Frontend` resource and open:
+
+```text
+http://localhost:5230/upstream
+```
+
+The frontend response should resolve and call the graph-backed API endpoint.
 
 Restart is still a model gap for this graph-backed resource. The bridge
 projects lifecycle-capable graph resources with `Unknown` state so Resource

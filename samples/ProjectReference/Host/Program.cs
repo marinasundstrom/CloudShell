@@ -27,10 +27,17 @@ var frontendEndpoint = builder.Configuration["ProjectReference:FrontendEndpoint"
     ?? "http://localhost:5218";
 var graphApiEndpoint = builder.Configuration["ProjectReference:GraphApiEndpoint"]
     ?? "http://localhost:5229";
+var graphFrontendEndpoint = builder.Configuration["ProjectReference:GraphFrontendEndpoint"]
+    ?? "http://localhost:5230";
 var graphApiEndpointUri = new Uri(graphApiEndpoint);
+var graphFrontendEndpointUri = new Uri(graphFrontendEndpoint);
 var graphApiResourceId = "application.aspnet-core-project:graph-project-reference-api";
+var graphFrontendResourceId = "application.aspnet-core-project:graph-project-reference-frontend";
 var graphApiProjectPath = Path.GetFullPath(
     "../Api/CloudShell.ProjectReferenceApi.csproj",
+    builder.Environment.ContentRootPath);
+var graphFrontendProjectPath = Path.GetFullPath(
+    "../Frontend/CloudShell.ProjectReferenceFrontend.csproj",
     builder.Environment.ContentRootPath);
 
 var cloudShell = builder.AddCloudShellControlPlane();
@@ -88,6 +95,67 @@ builder.Services
                             endpointName: "http",
                             name: "alive")
                     ]))
+            }),
+        new ResourceGraphState(
+            "graph-project-reference-frontend",
+            AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
+            ResourceId: graphFrontendResourceId,
+            ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
+            DisplayName: "Graph Project Reference Frontend",
+            DependsOn:
+            [
+                ResourceReference.DependsOnResourceId(
+                    graphApiResourceId,
+                    typeId: AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
+            ],
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] =
+                    graphFrontendProjectPath,
+                [AspNetCoreProjectResourceTypeProvider.Attributes.HotReload] =
+                    false,
+                [AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings] =
+                    false,
+                [AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        new NetworkingEndpointRequestValue(
+                            "http",
+                            graphFrontendEndpointUri.Scheme,
+                            Host: graphFrontendEndpointUri.Host,
+                            Port: graphFrontendEndpointUri.Port,
+                            Exposure: "Local")
+                    }),
+                [AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
+                            traceIngestEndpoint ?? string.Empty),
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "CLOUDSHELL_METRIC_INGEST_ENDPOINT",
+                            metricIngestEndpoint ?? string.Empty),
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "OTEL_SERVICE_NAME",
+                            "graph-project-reference-frontend"),
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "services__project-reference-api__http__0",
+                            graphApiEndpoint)
+                    })
+            },
+            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
+            {
+                [ResourceHealthCheckCapabilityIds.HealthChecks] =
+                    ResourceDefinitionJson.FromValue(new ResourceHealthCheckDefinitionSet(
+                    [
+                        ResourceHealthCheckDefinition.Http(
+                            "/healthz",
+                            endpointName: "http"),
+                        ResourceHealthCheckDefinition.HttpLiveness(
+                            "/alive",
+                            endpointName: "http",
+                            name: "alive")
+                    ]))
             })
     ])
     .AddAspNetCoreProjectResourceType()
@@ -136,6 +204,9 @@ cloudShell.Resources(resources =>
     resources.Declare(
         ResourceModelResourceProvider.DefaultProviderId,
         graphApiResourceId);
+    resources.Declare(
+        ResourceModelResourceProvider.DefaultProviderId,
+        graphFrontendResourceId);
 });
 
 var app = builder.Build();
