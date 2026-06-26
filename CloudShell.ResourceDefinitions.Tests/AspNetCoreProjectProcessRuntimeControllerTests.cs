@@ -155,6 +155,63 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
     }
 
     [Fact]
+    public async Task ServiceDiscoveryResolver_DerivesVariablesFromReferencedGraphServiceEndpoints()
+    {
+        const string configurationResourceId = "configuration.store:graph-settings";
+        const string secretsResourceId = "secrets.vault:graph-secrets";
+        var configurationState = new ResourceGraphState(
+            "graph-settings",
+            ConfigurationStoreResourceTypeProvider.ResourceTypeId,
+            ResourceId: configurationResourceId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                [ConfigurationStoreResourceTypeProvider.Attributes.Endpoint] =
+                    "http://127.0.0.1:5138"
+            });
+        var secretsState = new ResourceGraphState(
+            "graph-secrets",
+            SecretsVaultResourceTypeProvider.ResourceTypeId,
+            ResourceId: secretsResourceId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                [SecretsVaultResourceTypeProvider.Attributes.Endpoint] =
+                    "http://127.0.0.1:6138"
+            });
+        var api = CreateResource(
+            "src/Api/Api.csproj",
+            references:
+            [
+                ResourceReference.ReferenceResourceId(
+                    configurationResourceId,
+                    typeId: ConfigurationStoreResourceTypeProvider.ResourceTypeId),
+                ResourceReference.ReferenceResourceId(
+                    secretsResourceId,
+                    typeId: SecretsVaultResourceTypeProvider.ResourceTypeId)
+            ]);
+        var resolver = new AspNetCoreProjectServiceDiscoveryEnvironmentResolver(
+            new ResourceGraphModel(new InMemoryResourceStateProvider(
+            [
+                configurationState,
+                secretsState
+            ])));
+
+        var variables = await resolver.ResolveAsync(api);
+
+        Assert.Equal(
+            "http://127.0.0.1:5138",
+            variables["services__graph-settings__entries__0"]);
+        Assert.Equal(
+            "http://127.0.0.1:5138",
+            variables["services__configuration.store-graph-settings__entries__0"]);
+        Assert.Equal(
+            "http://127.0.0.1:6138",
+            variables["services__graph-secrets__secrets__0"]);
+        Assert.Equal(
+            "http://127.0.0.1:6138",
+            variables["services__secrets.vault-graph-secrets__secrets__0"]);
+    }
+
+    [Fact]
     public void CommandFactory_PrefersExplicitProjectArgumentsOverEndpointRequests()
     {
         var resource = CreateResource(

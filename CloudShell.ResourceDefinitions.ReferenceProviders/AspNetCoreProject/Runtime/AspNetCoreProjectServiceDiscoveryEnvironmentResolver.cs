@@ -42,11 +42,11 @@ public sealed class AspNetCoreProjectServiceDiscoveryEnvironmentResolver(
         ResourceState resource,
         Dictionary<string, string> variables)
     {
-        var endpoints = resource.ResourceAttributeValues
+        var endpointRequests = resource.ResourceAttributeValues
             .GetObject<NetworkingEndpointRequestValue[]>(
                 AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests) ?? [];
 
-        foreach (var endpoint in endpoints)
+        foreach (var endpoint in endpointRequests)
         {
             var address = CreateEndpointAddress(endpoint);
             if (address is null)
@@ -60,6 +60,43 @@ public sealed class AspNetCoreProjectServiceDiscoveryEnvironmentResolver(
                 {
                     variables[$"services__{serviceName}__{endpointKey}__0"] = address;
                 }
+            }
+        }
+
+        AddEndpointAttribute(
+            resource,
+            variables,
+            ConfigurationStoreResourceTypeProvider.ResourceTypeId,
+            ConfigurationStoreResourceTypeProvider.Attributes.Endpoint,
+            "entries");
+        AddEndpointAttribute(
+            resource,
+            variables,
+            SecretsVaultResourceTypeProvider.ResourceTypeId,
+            SecretsVaultResourceTypeProvider.Attributes.Endpoint,
+            "secrets");
+    }
+
+    private static void AddEndpointAttribute(
+        ResourceState resource,
+        Dictionary<string, string> variables,
+        ResourceTypeId typeId,
+        ResourceAttributeId attributeId,
+        string endpointName)
+    {
+        if (resource.TypeId != typeId ||
+            !resource.ResourceAttributeValues.TryGetValue(attributeId, out var value) ||
+            !value.TryGetScalarString(out var address) ||
+            !Uri.TryCreate(address, UriKind.Absolute, out var endpointUri))
+        {
+            return;
+        }
+
+        foreach (var endpointKey in GetEndpointKeys(endpointName, endpointUri.Scheme))
+        {
+            foreach (var serviceName in ResolveServiceDiscoveryNames(resource))
+            {
+                variables[$"services__{serviceName}__{endpointKey}__0"] = address;
             }
         }
     }
@@ -91,6 +128,16 @@ public sealed class AspNetCoreProjectServiceDiscoveryEnvironmentResolver(
         var keys = new List<string>();
         AddIfValid(keys, endpoint.Name);
         AddIfValid(keys, endpoint.Protocol);
+        return keys.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+    }
+
+    private static IReadOnlyList<string> GetEndpointKeys(
+        string endpointName,
+        string protocol)
+    {
+        var keys = new List<string>();
+        AddIfValid(keys, endpointName);
+        AddIfValid(keys, protocol);
         return keys.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
     }
 

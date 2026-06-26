@@ -89,6 +89,9 @@ on `git blame --follow`, and then by the broad type of change.
 - ASP.NET Core project graph validation now checks provider-owned service
   references for missing targets and expected resource type mismatches without
   treating those references as startup dependencies.
+- ASP.NET Core graph project startup can now derive service-discovery
+  environment variables from referenced graph Configuration Store and Secrets
+  Vault endpoint attributes, keeping those endpoint shapes provider-owned.
 - ProjectReference smoke coverage now verifies logs plus health/liveness
   refresh for both graph-backed ASP.NET Core project resources.
 - ProjectReference documentation and the resource graph proposal now describe
