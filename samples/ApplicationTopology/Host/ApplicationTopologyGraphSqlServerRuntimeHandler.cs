@@ -9,16 +9,18 @@ namespace CloudShell.ApplicationTopologyHost;
 internal sealed class ApplicationTopologyGraphSqlServerRuntimeHandler(
     IServiceScopeFactory scopeFactory) : ISqlServerRuntimeHandler
 {
+    private SqlServerRuntimeStatus _status = SqlServerRuntimeStatus.Unknown;
+
     private const string GraphSqlServerResourceId =
         "application.sql-server:graph-application-topology-sql-server";
 
     private const string RuntimeSqlServerResourceId =
         "application:application-topology-sql-server";
 
-    // Status projection runs while Resource Manager is composing resources, so
-    // this adapter cannot query Resource Manager without recursing.
-    public SqlServerRuntimeStatus GetStatus(GraphResource resource)
-        => SqlServerRuntimeStatus.Unknown;
+    public SqlServerRuntimeStatus GetStatus(GraphResource resource) =>
+        IsGraphSqlServer(resource)
+            ? _status
+            : SqlServerRuntimeStatus.Unknown;
 
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
         GraphResource resource,
@@ -51,6 +53,14 @@ internal sealed class ApplicationTopologyGraphSqlServerRuntimeHandler(
                     cancellationToken),
                 _ => throw new NotSupportedException(
                     $"The ApplicationTopology sample does not map graph SQL operation '{operationId}' to runtime SQL.")
+            };
+            _status = operationId.ToString() switch
+            {
+                ResourceActionIds.Start or ResourceActionIds.Restart =>
+                    SqlServerRuntimeStatus.Running,
+                ResourceActionIds.Stop =>
+                    SqlServerRuntimeStatus.Stopped,
+                _ => _status
             };
 
             return ToDiagnostics(result, resource.EffectiveResourceId);

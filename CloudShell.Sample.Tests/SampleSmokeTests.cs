@@ -1717,6 +1717,11 @@ public sealed class SampleSmokeTests
                 "application:application-topology-sql-server",
                 ResourceState.Running,
                 StartupTimeout);
+            await WaitForResourceStateAsync(
+                host,
+                "application.sql-server:graph-application-topology-sql-server",
+                ResourceState.Running,
+                StartupTimeout);
 
             await host.SendAsync(
                 HttpMethod.Post,

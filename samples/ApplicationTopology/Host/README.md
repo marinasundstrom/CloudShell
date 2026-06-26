@@ -48,7 +48,8 @@ coverage also starts the graph API and frontend against the existing SQL
 Server runtime and verifies the graph frontend `/upstream` path through graph
 settings and graph SQL credentials. The host registers a sample-local graph SQL
 lifecycle adapter so the graph SQL Server start/stop/restart operations drive
-the existing SQL runtime resource for this sample, and a graph SQL database
+the existing SQL runtime resource for this sample and project cached graph SQL
+state after those operations. It also registers a graph SQL database
 ensure-created handler that can materialize the graph database against the
 configured SQL Server endpoint without storing administrator credentials in
 graph state. The graph API has a declared built-in resource identity, read
