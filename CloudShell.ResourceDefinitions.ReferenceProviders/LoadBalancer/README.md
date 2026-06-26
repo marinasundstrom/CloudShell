@@ -15,6 +15,9 @@
 - Temporary typed host/backend `ResourceReference` dependencies and backend-target graph validation.
 - Apply configuration operation with an injected provider-owned applier seam.
 - Typed wrapper plus Resource Manager bridge projection and execution.
+- Manual `ResourceDefinitionGraphBuilder.AddLoadBalancer(...)` builder for
+  code-first load balancer definition authoring with typed host and backend
+  dependencies.
 
 ## Remaining
 

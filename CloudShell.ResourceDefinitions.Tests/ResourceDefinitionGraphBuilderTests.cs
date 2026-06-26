@@ -632,4 +632,61 @@ public sealed class ResourceDefinitionGraphBuilderTests
         Assert.False(result.HasErrors, string.Join(" ", result.Diagnostics.Select(diagnostic => diagnostic.Message)));
         Assert.True(result.IsCommitted);
     }
+
+    [Fact]
+    public async Task ResourceDefinitionGraphBuilder_BuildsLoadBalancerAndHostConfigurationDefinitions()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddDockerHostResourceType();
+        services.AddContainerApplicationResourceType();
+        services.AddLoadBalancerResourceType();
+        services.AddHostConfigurationSourceResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var graph = new ResourceDefinitionGraphBuilder();
+        var host = graph.AddDockerHost("engine");
+        var target = graph
+            .AddContainerApplication("api")
+            .WithImage("example/api:1.0");
+
+        graph
+            .AddLoadBalancer("edge")
+            .UseHost(host)
+            .AddBackendTarget(target, ContainerApplicationResourceTypeProvider.ResourceTypeId)
+            .WithProvider("traefik");
+        graph
+            .AddHostConfigurationSource("host-settings")
+            .WithSource("host");
+
+        var deployment = graph.BuildDeployment("infrastructure", environmentId: "local");
+
+        Assert.Equal(4, deployment.Resources.Count);
+        var loadBalancer = Assert.Single(deployment.Resources, resource =>
+            resource.TypeId == LoadBalancerResourceTypeProvider.ResourceTypeId);
+        var hostConfiguration = Assert.Single(deployment.Resources, resource =>
+            resource.TypeId == HostConfigurationSourceResourceTypeProvider.ResourceTypeId);
+        Assert.Equal("cloudshell.loadBalancer:edge", loadBalancer.EffectiveResourceId);
+        Assert.Equal("traefik", loadBalancer.ResourceAttributeValues[
+            LoadBalancerResourceTypeProvider.Attributes.Provider].StringValue);
+        Assert.Equal(host.EffectiveResourceId, loadBalancer.ResourceAttributeValues[
+            LoadBalancerResourceTypeProvider.Attributes.HostResourceId].StringValue);
+        Assert.Equal(
+            [host.EffectiveResourceId, target.EffectiveResourceId],
+            loadBalancer.StartupDependencies.Select(reference => reference.Value));
+        Assert.Equal("configuration.host:host-settings", hostConfiguration.EffectiveResourceId);
+        Assert.Equal("host", hostConfiguration.ResourceAttributeValues[
+            HostConfigurationSourceResourceTypeProvider.Attributes.Source].StringValue);
+
+        var result = await serviceProvider
+            .GetRequiredService<ResourceModelGraphDefinitionApplyService>()
+            .ApplyDeploymentAsync(
+                deployment,
+                new ResourceGraphCommitContext(
+                    PrincipalId: "developer",
+                    Timestamp: new DateTimeOffset(2026, 6, 26, 21, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, string.Join(" ", result.Diagnostics.Select(diagnostic => diagnostic.Message)));
+        Assert.True(result.IsCommitted);
+    }
 }

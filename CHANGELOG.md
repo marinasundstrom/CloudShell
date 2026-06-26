@@ -128,6 +128,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Docker Container and Local Volume now have provider-owned Resource Graph
   builders, and the Docker container plus executable deployment provider tests
   now use those builders.
+- Load Balancer and Host Configuration Source now have provider-owned Resource
+  Graph builders, and their provider tests now use those builders.
 
 #### Fixed
 

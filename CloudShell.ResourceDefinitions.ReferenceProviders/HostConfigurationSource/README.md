@@ -12,6 +12,8 @@
 - Source and read-only entry-count attributes.
 - Inspect operation with an injected provider-owned inspector seam.
 - Typed wrapper plus Resource Manager bridge projection and execution.
+- Manual `ResourceDefinitionGraphBuilder.AddHostConfigurationSource(...)`
+  builder for code-first host configuration source definition authoring.
 
 ## Remaining
 

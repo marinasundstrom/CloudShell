@@ -2220,17 +2220,11 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var hostConfiguration = new ResourceDefinition(
-            "host-settings",
-            HostConfigurationSourceResourceTypeProvider.ResourceTypeId,
-            ProviderId: HostConfigurationSourceResourceTypeProvider.ProviderId,
-            Attributes: new Dictionary<ResourceAttributeId, string>());
+        var graph = new ResourceDefinitionGraphBuilder();
+        var hostConfiguration = graph.AddHostConfigurationSource("host-settings");
 
         var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
-                "host-configuration",
-                [hostConfiguration],
-                EnvironmentId: "local"),
+            graph.BuildDeployment("host-configuration", environmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 25, 2, 0, 0, TimeSpan.Zero)));
@@ -2295,42 +2289,19 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var host = new ResourceDefinition(
-            "engine",
-            DockerHostResourceTypeProvider.ResourceTypeId,
-            ProviderId: DockerHostResourceTypeProvider.ProviderId);
-        var target = new ResourceDefinition(
-            "api",
-            ContainerApplicationResourceTypeProvider.ResourceTypeId,
-            ProviderId: ContainerApplicationResourceTypeProvider.ProviderId,
-            Attributes: new Dictionary<ResourceAttributeId, string>
-            {
-                [ContainerApplicationResourceTypeProvider.Attributes.ContainerImage] = "example/api:1.0"
-            });
-        var loadBalancer = new ResourceDefinition(
-            "edge",
-            LoadBalancerResourceTypeProvider.ResourceTypeId,
-            ProviderId: LoadBalancerResourceTypeProvider.ProviderId,
-            DependsOn:
-            [
-                ResourceReference.DependsOnResourceId(
-                    host.EffectiveResourceId,
-                    typeId: DockerHostResourceTypeProvider.ResourceTypeId),
-                ResourceReference.DependsOnResourceId(
-                    target.EffectiveResourceId,
-                    typeId: ContainerApplicationResourceTypeProvider.ResourceTypeId)
-            ],
-            Attributes: new Dictionary<ResourceAttributeId, string>
-            {
-                [LoadBalancerResourceTypeProvider.Attributes.Provider] = "traefik",
-                [LoadBalancerResourceTypeProvider.Attributes.HostResourceId] = host.EffectiveResourceId
-            });
+        var graph = new ResourceDefinitionGraphBuilder();
+        var host = graph.AddDockerHost("engine");
+        var target = graph
+            .AddContainerApplication("api")
+            .WithImage("example/api:1.0");
+        var loadBalancer = graph
+            .AddLoadBalancer("edge")
+            .UseHost(host)
+            .AddBackendTarget(target, ContainerApplicationResourceTypeProvider.ResourceTypeId)
+            .WithProvider("traefik");
 
         var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
-                "load-balancer",
-                [host, target, loadBalancer],
-                EnvironmentId: "local"),
+            graph.BuildDeployment("load-balancer", environmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 25, 4, 0, 0, TimeSpan.Zero)));
