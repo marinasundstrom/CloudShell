@@ -24,6 +24,18 @@ macOS, Linux, and Windows. Use the virtual network's
 `Reconcile endpoint mappings` action to start a local TCP proxy from
 `localhost:5290` to `localhost:5291`.
 
+The sample also carries side-by-side graph-backed POC resources through the
+Resource Definitions bridge:
+
+- `networking:graph-host-local`: graph-backed local host networking.
+- `application.aspnet-core-project:graph-vnet-api`: graph-backed ASP.NET Core
+  target API projection for the same project and local endpoint.
+- `network:graph-sample-vnet`: graph-backed virtual network with typed startup
+  dependencies on the graph host-networking and API resources.
+
+Those graph-backed resources are comparison/projection coverage while the
+sample still runs through the existing provider path.
+
 This provider is the portable MVP baseline. It does not create OS-native
 virtual adapters, firewall rules, NAT rules, or network isolation. Future
 OS-specific providers can materialize the same endpoint mapping model through

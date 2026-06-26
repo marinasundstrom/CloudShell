@@ -94,6 +94,10 @@ on `git blame --follow`, and then by the broad type of change.
   Server/database, Configuration Store, Secrets Vault, and ASP.NET Core API
   resources in the sample host, with smoke coverage verifying their Resource
   Manager projection and graph dependency/discovery shape.
+- HostVirtualNetwork now declares side-by-side graph-backed local host
+  networking, ASP.NET Core target API, and virtual-network resources in the
+  sample host, with smoke coverage verifying their Resource Manager projection
+  and typed graph dependency shape.
 - The Resource Graph proposal now documents the lifecycle of porting tests,
   distinguishing temporary old/new parity tests from graph-contract tests,
   runtime seam tests, and smoke tests that should be simplified after a sample

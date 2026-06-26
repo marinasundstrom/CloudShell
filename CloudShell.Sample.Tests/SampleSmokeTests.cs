@@ -2661,6 +2661,7 @@ public sealed class SampleSmokeTests
     [Fact]
     public async Task HostVirtualNetworkSample_ProjectsVirtualNetworkAndHostProvider()
     {
+        const int targetPort = 5291;
         using var host = await SampleProcess.StartAsync(
             "samples/HostVirtualNetwork/CloudShell.HostVirtualNetwork.csproj",
             await GetFreePortAsync());
@@ -2672,6 +2673,12 @@ public sealed class SampleSmokeTests
         var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
         var network = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "network:sample-vnet");
+        var graphHost = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "networking:graph-host-local");
+        var graphApi = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.aspnet-core-project:graph-vnet-api");
+        var graphNetwork = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "network:graph-sample-vnet");
         var attributes = network.GetProperty("attributes");
 
         Assert.Equal("cloudshell.virtualNetwork", network.GetProperty("typeId").GetString());
@@ -2714,6 +2721,21 @@ public sealed class SampleSmokeTests
 
         Assert.Contains(resources, resource =>
             resource.GetProperty("id").GetString() == "networking:host-local");
+        Assert.Equal("cloudshell.hostNetworking.local", graphHost.GetProperty("typeId").GetString());
+        Assert.Equal("application.aspnet-core-project", graphApi.GetProperty("typeId").GetString());
+        Assert.Equal($"http://localhost:{targetPort}", GetPrimaryEndpointAddress(graphApi));
+        Assert.Equal("cloudshell.virtualNetwork", graphNetwork.GetProperty("typeId").GetString());
+        Assert.Equal("providerRequired", graphNetwork.GetProperty("attributes").GetProperty("network.hostReadiness").GetString());
+        Assert.Equal(
+            "networking:graph-host-local",
+            graphNetwork.GetProperty("attributes").GetProperty("network.mappingProviders").GetString());
+        Assert.Contains(
+            "networking:graph-host-local",
+            graphNetwork.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+        Assert.Contains(
+            "application.aspnet-core-project:graph-vnet-api",
+            graphNetwork.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+
         Assert.True(reconcileCapability.GetProperty("canExecute").GetBoolean());
         Assert.Equal(JsonValueKind.Null, reconcileCapability.GetProperty("reason").ValueKind);
     }
