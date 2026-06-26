@@ -86,6 +86,10 @@ on `git blame --follow`, and then by the broad type of change.
   Resource Manager bridge as endpoint contracts and concrete network mappings,
   giving SQL graph resources the same endpoint surface used by service
   discovery.
+- ApplicationTopology-inspired graph coverage now gives the ASP.NET Core API
+  explicit `project.references` for SQL Server, Configuration Store, and Secrets
+  Vault service discovery while keeping `DependsOn` focused on startup
+  ordering.
 - Ported Resource Definitions reference providers now keep provider-local
   `README.md` files that summarize the provider purpose, ported POC behavior,
   runtime seams, and remaining work before the old provider path can be turned

@@ -4249,11 +4249,19 @@ public sealed class ResourceManagerIntegrationTests
         var settings = new ResourceDefinition(
             "application-topology-settings",
             ConfigurationStoreResourceTypeProvider.ResourceTypeId,
-            ProviderId: ConfigurationStoreResourceTypeProvider.ProviderId);
+            ProviderId: ConfigurationStoreResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [ConfigurationStoreResourceTypeProvider.Attributes.Endpoint] = "http://localhost:5138"
+            });
         var secrets = new ResourceDefinition(
             "application-topology-secrets",
             SecretsVaultResourceTypeProvider.ResourceTypeId,
-            ProviderId: SecretsVaultResourceTypeProvider.ProviderId);
+            ProviderId: SecretsVaultResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [SecretsVaultResourceTypeProvider.Attributes.Endpoint] = "http://localhost:6138"
+            });
         var api = new ResourceDefinition(
             "application-topology-api",
             AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
@@ -4270,7 +4278,7 @@ public sealed class ResourceManagerIntegrationTests
                     secrets.EffectiveResourceId,
                     typeId: SecretsVaultResourceTypeProvider.ResourceTypeId)
             ],
-            Attributes: new Dictionary<ResourceAttributeId, string>
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
                 [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] =
                     "../Api/CloudShell.ApplicationTopologyApi.csproj",
@@ -4279,7 +4287,20 @@ public sealed class ResourceManagerIntegrationTests
                 [AspNetCoreProjectResourceTypeProvider.Attributes.HotReload] =
                     bool.TrueString.ToLowerInvariant(),
                 [AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings] =
-                    bool.FalseString.ToLowerInvariant()
+                    bool.FalseString.ToLowerInvariant(),
+                [AspNetCoreProjectResourceTypeProvider.Attributes.References] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        ResourceReference.ReferenceResourceId(
+                            sqlServer.EffectiveResourceId,
+                            typeId: SqlServerResourceTypeProvider.ResourceTypeId),
+                        ResourceReference.ReferenceResourceId(
+                            settings.EffectiveResourceId,
+                            typeId: ConfigurationStoreResourceTypeProvider.ResourceTypeId),
+                        ResourceReference.ReferenceResourceId(
+                            secrets.EffectiveResourceId,
+                            typeId: SecretsVaultResourceTypeProvider.ResourceTypeId)
+                    })
             });
 
         var result = await service.ApplyDeploymentAsync(
@@ -4325,6 +4346,8 @@ public sealed class ResourceManagerIntegrationTests
             action.Id == AspNetCoreProjectResourceTypeProvider.Operations.Stop.ToString());
         Assert.Contains(projectedApi.ResourceActions, action =>
             action.Id == AspNetCoreProjectResourceTypeProvider.Operations.Restart.ToString());
+        Assert.False(projectedApi.ResourceAttributes.ContainsKey(
+            AspNetCoreProjectResourceTypeProvider.Attributes.References));
 
         var resolution = await serviceProvider
             .GetRequiredService<ResourceModelGraphResourceResolver>()
@@ -4341,6 +4364,20 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Contains(volume.EffectiveResourceId, resolvedResourceIds);
         Assert.Contains(settings.EffectiveResourceId, resolvedResourceIds);
         Assert.Contains(secrets.EffectiveResourceId, resolvedResourceIds);
+
+        var serviceDiscoveryVariables = await new AspNetCoreProjectServiceDiscoveryEnvironmentResolver(
+            serviceProvider.GetRequiredService<ResourceGraphModel>())
+            .ResolveAsync(resolution.Target!);
+
+        Assert.Equal(
+            "localhost:14334",
+            serviceDiscoveryVariables["services__application-topology-sql-server__tds__0"]);
+        Assert.Equal(
+            "http://localhost:5138",
+            serviceDiscoveryVariables["services__application-topology-settings__entries__0"]);
+        Assert.Equal(
+            "http://localhost:6138",
+            serviceDiscoveryVariables["services__application-topology-secrets__secrets__0"]);
     }
 
     [Fact]
