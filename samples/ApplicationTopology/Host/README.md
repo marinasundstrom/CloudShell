@@ -133,7 +133,9 @@ resources. In side-by-side mode, the graph SQL Server lifecycle adapter still
 delegates to the old sample SQL runtime resource through
 `IApplicationTopologyGraphSqlServerRuntimeBridge`. In graph-only mode, the
 same bridge is wired to a sample-local Docker-backed SQL runtime so graph SQL
-lifecycle operations do not require the old SQL resource declaration.
+lifecycle operations do not require the old SQL resource declaration. Docker
+smoke coverage verifies the graph-only SQL-backed API and frontend path
+without declaring `application:application-topology-sql-server`.
 
 ## Run
 

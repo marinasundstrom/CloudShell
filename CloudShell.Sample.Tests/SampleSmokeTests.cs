@@ -8,6 +8,7 @@ using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ApplicationTopologyHost;
 using CloudShell.ApplicationTopology.ServiceDefaults;
 using CloudShell.ContainerHost;
 using CloudShell.ControlPlane.ResourceManager;
@@ -1817,6 +1818,155 @@ public sealed class SampleSmokeTests
             $"http://localhost:{graphFrontendPort}/healthz",
             bearerToken: null,
             StartupTimeout);
+    }
+
+    [Fact]
+    [Trait("Category", "DockerIntegration")]
+    public async Task ApplicationTopologyHost_GraphOnlyModeRunsSqlBackedWorkload()
+    {
+        var sqlContainerName = ApplicationTopologyGraphSqlServerDockerBridge.GraphSqlServerContainerName;
+        if (!await DockerComposeStack.IsAvailableAsync() ||
+            !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.DefaultSqlServerImage) ||
+            await DockerComposeStack.ContainerExistsAsync(sqlContainerName))
+        {
+            return;
+        }
+
+        var apiPort = await GetFreePortAsync();
+        var frontendPort = await GetFreePortAsync();
+        var graphApiPort = await GetFreePortAsync();
+        var graphFrontendPort = await GetFreePortAsync();
+        var graphConfigurationEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
+        var graphSecretsEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
+        var sqlPort = await GetFreePortAsync();
+        var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:application-topology");
+        var secretsServiceBasePort = await GetServiceBasePortAsync("secrets-vault:application-topology");
+        var shouldCleanupSqlContainer = true;
+        using var host = await SampleProcess.StartAsync(
+            "samples/ApplicationTopology/Host/CloudShell.ApplicationTopologyHost.csproj",
+            await GetFreePortAsync(),
+            [
+                ("ApplicationTopology__GraphOnly", "true"),
+                ("ApplicationTopology__ApiEndpoint", $"http://localhost:{apiPort}"),
+                ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
+                ("ApplicationTopology__GraphApiEndpoint", $"http://localhost:{graphApiPort}"),
+                ("ApplicationTopology__GraphFrontendEndpoint", $"http://localhost:{graphFrontendPort}"),
+                ("ApplicationTopology__GraphConfigurationServiceEndpoint", graphConfigurationEndpoint),
+                ("ApplicationTopology__GraphSecretsServiceEndpoint", graphSecretsEndpoint),
+                ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
+                ("ApplicationTopology__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
+                ("ApplicationTopology__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture))
+            ]);
+
+        try
+        {
+            await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+            var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+            using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+            var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+            Assert.DoesNotContain(
+                resources,
+                resource => resource.GetProperty("id").GetString() == "application:application-topology-sql-server");
+            var graphSqlServer = Assert.Single(
+                resources,
+                resource => resource.GetProperty("id").GetString() ==
+                    "application.sql-server:graph-application-topology-sql-server");
+            var graphDatabase = Assert.Single(
+                resources,
+                resource => resource.GetProperty("id").GetString() ==
+                    "application.sql-database:graph-application-topology-db");
+            var graphSettings = Assert.Single(
+                resources,
+                resource => resource.GetProperty("id").GetString() ==
+                    "configuration.store:graph-application-topology-settings");
+            var graphSecrets = Assert.Single(
+                resources,
+                resource => resource.GetProperty("id").GetString() ==
+                    "secrets.vault:graph-application-topology-secrets");
+            var graphApi = Assert.Single(
+                resources,
+                resource => resource.GetProperty("id").GetString() ==
+                    "application.aspnet-core-project:graph-application-topology-api");
+            var graphFrontend = Assert.Single(
+                resources,
+                resource => resource.GetProperty("id").GetString() ==
+                    "application.aspnet-core-project:graph-application-topology-frontend");
+
+            await StartGraphResourceIfAvailableAsync(host, graphSqlServer, "ApplicationTopology graph-only SQL Server");
+            await WaitForResourceStateAsync(
+                host,
+                "application.sql-server:graph-application-topology-sql-server",
+                ResourceState.Running,
+                StartupTimeout);
+            Assert.True(
+                await WaitForDockerContainerExistsAsync(sqlContainerName, StartupTimeout),
+                $"Expected Docker container '{sqlContainerName}' to be created.");
+
+            var ensureCreatedHref = graphDatabase
+                .GetProperty("resourceActions")
+                .GetProperty(SqlDatabaseResourceTypeProvider.Operations.EnsureCreated.Value)
+                .GetProperty("href")
+                .GetString() ?? throw new InvalidOperationException("The graph SQL database ensure-created action did not include an href.");
+            await host.SendAsync(HttpMethod.Post, ensureCreatedHref);
+
+            await StartGraphResourceIfAvailableAsync(host, graphSettings, "ApplicationTopology graph-only settings");
+            await StartGraphResourceIfAvailableAsync(host, graphSecrets, "ApplicationTopology graph-only secrets");
+            await StartGraphResourceIfAvailableAsync(host, graphApi, "ApplicationTopology graph-only API");
+            await host.WaitForAbsoluteHttpOkAsync(
+                $"http://localhost:{graphApiPort}/health",
+                bearerToken: null,
+                StartupTimeout);
+            var graphDatabaseJson = await host.WaitForAbsoluteHttpOkAndGetStringAsync(
+                $"http://localhost:{graphApiPort}/database",
+                StartupTimeout);
+            using var graphDatabaseDocument = JsonDocument.Parse(graphDatabaseJson);
+            Assert.Equal("ok", graphDatabaseDocument.RootElement.GetProperty("status").GetString());
+            Assert.Equal("mssql", graphDatabaseDocument.RootElement.GetProperty("provider").GetString());
+            Assert.Equal("application_topology", graphDatabaseDocument.RootElement.GetProperty("database").GetString());
+
+            await StartGraphResourceIfAvailableAsync(host, graphFrontend, "ApplicationTopology graph-only frontend");
+            await host.WaitForAbsoluteHttpOkAsync(
+                $"http://localhost:{graphFrontendPort}/healthz",
+                bearerToken: null,
+                StartupTimeout);
+            var graphUpstreamJson = await host.WaitForAbsoluteHttpOkAndGetStringAsync(
+                $"http://localhost:{graphFrontendPort}/upstream",
+                StartupTimeout);
+            using var graphUpstreamDocument = JsonDocument.Parse(graphUpstreamJson);
+            var graphUpstream = graphUpstreamDocument.RootElement;
+            Assert.Equal("Application Topology Frontend", graphUpstream.GetProperty("frontend").GetString());
+            Assert.Equal("https+http://application-topology-api", graphUpstream.GetProperty("logicalApiEndpoint").GetString());
+            Assert.Equal("Hello from the referenced API project.", graphUpstream.GetProperty("upstream").GetProperty("message").GetString());
+            Assert.Equal("Graph", graphUpstream.GetProperty("settings").GetProperty("mode").GetString());
+            Assert.True(graphUpstream.GetProperty("settings").GetProperty("externalApiKeyConfigured").GetBoolean());
+            Assert.Equal("ok", graphUpstream.GetProperty("database").GetProperty("status").GetString());
+            Assert.Equal("mssql", graphUpstream.GetProperty("database").GetProperty("provider").GetString());
+            Assert.Equal("application_topology", graphUpstream.GetProperty("database").GetProperty("database").GetString());
+
+            await StopResourceIfRunningAsync(host, "application.aspnet-core-project:graph-application-topology-frontend");
+            await StopResourceIfRunningAsync(host, "application.aspnet-core-project:graph-application-topology-api");
+            await StopResourceIfRunningAsync(host, "application.sql-server:graph-application-topology-sql-server");
+            await WaitForResourceStateAsync(
+                host,
+                "application.sql-server:graph-application-topology-sql-server",
+                ResourceState.Stopped,
+                StartupTimeout);
+            Assert.True(
+                await WaitForDockerContainerRemovedAsync(sqlContainerName, StartupTimeout),
+                $"Expected Docker container '{sqlContainerName}' to be removed after graph SQL stop.");
+            shouldCleanupSqlContainer = false;
+        }
+        finally
+        {
+            await StopResourceIfRunningAsync(host, "application.aspnet-core-project:graph-application-topology-frontend");
+            await StopResourceIfRunningAsync(host, "application.aspnet-core-project:graph-application-topology-api");
+            await StopResourceIfRunningAsync(host, "application.sql-server:graph-application-topology-sql-server");
+            if (shouldCleanupSqlContainer)
+            {
+                await DockerComposeStack.RemoveContainerIfExistsAsync(sqlContainerName);
+            }
+        }
     }
 
     [Fact]
