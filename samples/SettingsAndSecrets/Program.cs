@@ -151,25 +151,7 @@ builder.Services
                             resourceIdentityClientSecret),
                         new AspNetCoreProjectEnvironmentVariableValue(
                             "CLOUDSHELL_IDENTITY_SCOPE",
-                            "ControlPlane.Access"),
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "CLOUDSHELL_CONFIGURATION_SERVICE_NAME",
-                            "graph-sample-app"),
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "CLOUDSHELL_CONFIGURATION_GRAPH_SAMPLE_APP_STORE_ID",
-                            graphSettingsResourceId),
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "CLOUDSHELL_CONFIGURATION_GRAPH_SAMPLE_APP_ENDPOINT",
-                            graphConfigurationEntriesEndpoint),
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "CLOUDSHELL_SECRETS_VAULT_NAME",
-                            "graph-sample-app"),
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "CLOUDSHELL_SECRETS_GRAPH_SAMPLE_APP_VAULT_ID",
-                            graphSecretsResourceId),
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "CLOUDSHELL_SECRETS_GRAPH_SAMPLE_APP_ENDPOINT",
-                            graphSecretsEndpoint)
+                            "ControlPlane.Access")
                     }),
                 [AspNetCoreProjectResourceTypeProvider.Attributes.References] =
                     ResourceAttributeValue.FromObject(new[]

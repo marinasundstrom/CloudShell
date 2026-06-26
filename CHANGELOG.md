@@ -128,6 +128,10 @@ on `git blame --follow`, and then by the broad type of change.
   identity-provisioning resource, with non-Docker smoke coverage verifying
   Resource Manager projection and setup operation shape while the Docker-backed
   sample path still owns real Keycloak provisioning.
+- ASP.NET Core graph resources now derive CloudShell Configuration Store and
+  Secrets Vault client environment from explicit graph references, allowing the
+  SettingsAndSecrets graph-backed API to consume graph-backed settings and
+  secrets without duplicating those variables in the resource declaration.
 - ApplicationTopology now includes a side-by-side graph-backed frontend project
   paired with the graph-backed API project, using separate configurable graph
   endpoints, runtime-ready absolute project paths, health/liveness declarations,

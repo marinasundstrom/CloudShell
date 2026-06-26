@@ -204,11 +204,35 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
             "http://127.0.0.1:5138",
             variables["services__configuration.store-graph-settings__entries__0"]);
         Assert.Equal(
+            "graph-settings",
+            variables["CLOUDSHELL_CONFIGURATION_SERVICE_NAME"]);
+        Assert.Equal(
+            configurationResourceId,
+            variables["CLOUDSHELL_CONFIGURATION_GRAPH_SETTINGS_STORE_ID"]);
+        Assert.Equal(
+            "http://127.0.0.1:5138/api/configuration/stores/configuration.store%3Agraph-settings/entries",
+            variables["CLOUDSHELL_CONFIGURATION_GRAPH_SETTINGS_ENDPOINT"]);
+        Assert.Equal(
+            "http://127.0.0.1:5138/api/configuration/stores/configuration.store%3Agraph-settings/entries",
+            variables["CLOUDSHELL_CONFIGURATION_CONFIGURATION_STORE_GRAPH_SETTINGS_ENDPOINT"]);
+        Assert.Equal(
             "http://127.0.0.1:6138",
             variables["services__graph-secrets__secrets__0"]);
         Assert.Equal(
             "http://127.0.0.1:6138",
             variables["services__secrets.vault-graph-secrets__secrets__0"]);
+        Assert.Equal(
+            "graph-secrets",
+            variables["CLOUDSHELL_SECRETS_VAULT_NAME"]);
+        Assert.Equal(
+            secretsResourceId,
+            variables["CLOUDSHELL_SECRETS_GRAPH_SECRETS_VAULT_ID"]);
+        Assert.Equal(
+            "http://127.0.0.1:6138/api/secrets/vaults/secrets.vault%3Agraph-secrets/secrets",
+            variables["CLOUDSHELL_SECRETS_GRAPH_SECRETS_ENDPOINT"]);
+        Assert.Equal(
+            "http://127.0.0.1:6138/api/secrets/vaults/secrets.vault%3Agraph-secrets/secrets",
+            variables["CLOUDSHELL_SECRETS_SECRETS_VAULT_GRAPH_SECRETS_ENDPOINT"]);
     }
 
     [Fact]

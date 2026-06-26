@@ -67,12 +67,14 @@ public sealed class AspNetCoreProjectServiceDiscoveryEnvironmentResolver(
             ConfigurationStoreResourceTypeProvider.ResourceTypeId,
             ConfigurationStoreResourceTypeProvider.Attributes.Endpoint,
             "entries");
+        AddConfigurationStoreClientVariables(resource, variables);
         AddEndpointAttribute(
             resource,
             variables,
             SecretsVaultResourceTypeProvider.ResourceTypeId,
             SecretsVaultResourceTypeProvider.Attributes.Endpoint,
             "secrets");
+        AddSecretsVaultClientVariables(resource, variables);
     }
 
     private static IReadOnlyList<NetworkingEndpointRequestValue> GetEndpointRequests(
@@ -107,6 +109,73 @@ public sealed class AspNetCoreProjectServiceDiscoveryEnvironmentResolver(
         }
     }
 
+    private static void AddConfigurationStoreClientVariables(
+        ResourceState resource,
+        Dictionary<string, string> variables)
+    {
+        if (resource.TypeId != ConfigurationStoreResourceTypeProvider.ResourceTypeId ||
+            !TryGetAbsoluteEndpoint(
+                resource,
+                ConfigurationStoreResourceTypeProvider.Attributes.Endpoint,
+                out var baseEndpoint))
+        {
+            return;
+        }
+
+        var entriesEndpoint =
+            $"{baseEndpoint.ToString().TrimEnd('/')}/api/configuration/stores/{Uri.EscapeDataString(resource.EffectiveResourceId)}/entries";
+        variables.TryAdd("CLOUDSHELL_CONFIGURATION_SERVICE_NAME", resource.Name);
+        foreach (var segment in ResolveCloudShellClientEnvironmentSegments(resource))
+        {
+            variables[$"CLOUDSHELL_CONFIGURATION_{segment}_STORE_ID"] =
+                resource.EffectiveResourceId;
+            variables[$"CLOUDSHELL_CONFIGURATION_{segment}_ENDPOINT"] =
+                entriesEndpoint;
+        }
+    }
+
+    private static void AddSecretsVaultClientVariables(
+        ResourceState resource,
+        Dictionary<string, string> variables)
+    {
+        if (resource.TypeId != SecretsVaultResourceTypeProvider.ResourceTypeId ||
+            !TryGetAbsoluteEndpoint(
+                resource,
+                SecretsVaultResourceTypeProvider.Attributes.Endpoint,
+                out var baseEndpoint))
+        {
+            return;
+        }
+
+        var secretsEndpoint =
+            $"{baseEndpoint.ToString().TrimEnd('/')}/api/secrets/vaults/{Uri.EscapeDataString(resource.EffectiveResourceId)}/secrets";
+        variables.TryAdd("CLOUDSHELL_SECRETS_VAULT_NAME", resource.Name);
+        foreach (var segment in ResolveCloudShellClientEnvironmentSegments(resource))
+        {
+            variables[$"CLOUDSHELL_SECRETS_{segment}_VAULT_ID"] =
+                resource.EffectiveResourceId;
+            variables[$"CLOUDSHELL_SECRETS_{segment}_ENDPOINT"] =
+                secretsEndpoint;
+        }
+    }
+
+    private static bool TryGetAbsoluteEndpoint(
+        ResourceState resource,
+        ResourceAttributeId attributeId,
+        out Uri endpoint)
+    {
+        endpoint = null!;
+        if (resource.ResourceAttributeValues.TryGetValue(attributeId, out var value) &&
+            value.TryGetScalarString(out var address) &&
+            Uri.TryCreate(address, UriKind.Absolute, out var parsedEndpoint))
+        {
+            endpoint = parsedEndpoint;
+            return true;
+        }
+
+        return false;
+    }
+
     private static IReadOnlyList<string> ResolveServiceDiscoveryNames(ResourceState resource)
     {
         var configured = resource.ResourceAttributeValues.TryGetValue(
@@ -128,6 +197,19 @@ public sealed class AspNetCoreProjectServiceDiscoveryEnvironmentResolver(
             .Cast<string>()
             .ToArray();
     }
+
+    private static IReadOnlyList<string> ResolveCloudShellClientEnvironmentSegments(
+        ResourceState resource) =>
+        new[]
+            {
+                resource.Name,
+                resource.EffectiveResourceId
+            }
+            .Select(CreateEnvironmentSegment)
+            .Where(segment => !string.IsNullOrWhiteSpace(segment))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Cast<string>()
+            .ToArray();
 
     private static IReadOnlyList<string> GetEndpointKeys(NetworkingEndpointRequestValue endpoint)
     {
@@ -207,5 +289,20 @@ public sealed class AspNetCoreProjectServiceDiscoveryEnvironmentResolver(
             .ToArray();
 
         return new string(characters).Trim('-');
+    }
+
+    private static string? CreateEnvironmentSegment(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var characters = value
+            .Trim()
+            .Select(character => char.IsLetterOrDigit(character) ? char.ToUpperInvariant(character) : '_')
+            .ToArray();
+
+        return new string(characters).Trim('_');
     }
 }
