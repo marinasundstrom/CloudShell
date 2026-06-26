@@ -973,7 +973,8 @@ implementations visible instead of mixing them into type definition files.
 The intended provider-local structure is:
 
 ```text
-<ProviderName>/
+  <ProviderName>/
+  README.md
   <ProviderName>ResourceTypeProvider.cs
   <ProviderName>ResourceProjectionProvider.cs
   <ProviderName>ResourceTypeServiceCollectionExtensions.cs
@@ -1003,6 +1004,13 @@ volume consumption, should live in a shared capability folder rather than
 inside whichever provider used them first. The same applies to dependency
 providers that are owned by a shared capability rather than by one resource
 type.
+
+Each ported resource provider should keep a provider-local `README.md`. The
+README should identify the resource type and provider id, summarize what the
+provider owns, list the POC behavior that has been ported, and list what remains
+before the old provider path can be turned off. This keeps the central proposal
+useful as the architecture record while keeping provider-specific status and
+cleanup notes near the code that owns them.
 
 A narrow configuration store reference provider extends the proof outside the
 old application-provider group. It owns `configuration.store`, configuration

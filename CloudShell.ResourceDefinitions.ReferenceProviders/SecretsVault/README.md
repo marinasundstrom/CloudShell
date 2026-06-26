@@ -1,0 +1,22 @@
+# Secrets Vault Reference Provider
+
+## Overview
+
+- Resource type: `secrets.vault`
+- Provider id: `secrets-vault`
+- Purpose: declares a graph-backed Secrets Vault service without storing secret values in the Resource Graph.
+
+## Ported
+
+- Secrets Vault class/type defaults, endpoint attribute, and read-only secret-count summary attribute.
+- Health and liveness declarations for the `/healthz` endpoint.
+- Start, stop, and restart operations backed by a provider-local process controller that runs the existing service web app.
+- Provider-owned runtime secret seed options.
+- Inspect operation with a runtime-backed inspector that reports configured counts without exposing values.
+- Typed wrapper plus Resource Manager bridge projection and execution.
+- SettingsAndSecrets smoke coverage for endpoint projection, inspect execution, authorized secret reads, and API consumption through the graph-backed endpoint.
+
+## Remaining
+
+- Durable secret storage.
+- Logs, templates, and UI registration/update flow.
