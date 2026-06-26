@@ -129,6 +129,47 @@ app.MapGet("/service-discovery/configuration", async (
     });
 });
 
+app.MapGet("/service-discovery/graph-configuration", async (
+    IHttpClientFactory httpClientFactory,
+    CloudShellResourceCredential credential,
+    CancellationToken cancellationToken) =>
+{
+    var storeId = Environment.GetEnvironmentVariable(
+        "CLOUDSHELL_CONFIGURATION_GRAPH_SAMPLE_APP_STORE_ID");
+    if (string.IsNullOrWhiteSpace(storeId))
+    {
+        return Results.Problem(
+            "The graph configuration store id is not configured.",
+            statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+
+    var logicalEndpoint =
+        $"https+http://configuration.store-graph-sample-app/api/configuration/stores/{Uri.EscapeDataString(storeId)}/entries";
+    var token = await credential.GetTokenAsync(
+        new CloudShellResourceTokenRequest([ConfigurationStoreClient.DefaultScope]),
+        cancellationToken);
+    using var request = new HttpRequestMessage(HttpMethod.Get, logicalEndpoint);
+    request.Headers.Authorization = new("Bearer", token.Token);
+
+    var httpClient = httpClientFactory.CreateClient();
+    using var response = await httpClient.SendAsync(request, cancellationToken);
+    response.EnsureSuccessStatusCode();
+    var entries = await response.Content.ReadFromJsonAsync<IReadOnlyList<CloudShellConfigurationEntry>>(
+        cancellationToken: cancellationToken) ?? [];
+
+    return Results.Ok(new
+    {
+        status = "connected",
+        source = logicalEndpoint,
+        entries = entries.Select(entry => new
+        {
+            entry.Name,
+            Value = entry.IsSecret ? "Secret" : entry.Value,
+            entry.IsSecret
+        })
+    });
+});
+
 app.MapGet("/secrets/{name}", async (
     string name,
     CloudShellServiceClients clients,

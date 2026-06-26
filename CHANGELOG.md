@@ -92,6 +92,9 @@ on `git blame --follow`, and then by the broad type of change.
 - ASP.NET Core graph project startup can now derive service-discovery
   environment variables from referenced graph Configuration Store and Secrets
   Vault endpoint attributes, keeping those endpoint shapes provider-owned.
+- SettingsAndSecrets now proves that the graph-backed ASP.NET Core API can call
+  the graph-backed Configuration Store through service discovery derived from
+  `project.references`.
 - ProjectReference smoke coverage now verifies logs plus health/liveness
   refresh for both graph-backed ASP.NET Core project resources.
 - ProjectReference documentation and the resource graph proposal now describe

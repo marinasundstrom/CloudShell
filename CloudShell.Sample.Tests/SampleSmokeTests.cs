@@ -1893,6 +1893,21 @@ public sealed class SampleSmokeTests
                 entry.GetProperty("name").GetString() == "Sample:Message" &&
                 entry.GetProperty("value").GetString() == "Hello from a graph configuration entry");
 
+        var graphServiceDiscoveryJson = await host.GetAbsoluteStringAsync(
+            $"{graphApiEndpoint.TrimEnd('/')}/service-discovery/graph-configuration");
+        using var graphServiceDiscoveryDocument = JsonDocument.Parse(graphServiceDiscoveryJson);
+        Assert.Equal(
+            "connected",
+            graphServiceDiscoveryDocument.RootElement.GetProperty("status").GetString());
+        Assert.Equal(
+            $"https+http://configuration.store-graph-sample-app/api/configuration/stores/{Uri.EscapeDataString("configuration.store:graph-sample-app")}/entries",
+            graphServiceDiscoveryDocument.RootElement.GetProperty("source").GetString());
+        Assert.Contains(
+            graphServiceDiscoveryDocument.RootElement.GetProperty("entries").EnumerateArray(),
+            entry =>
+                entry.GetProperty("name").GetString() == "Sample:Message" &&
+                entry.GetProperty("value").GetString() == "Hello from a graph configuration entry");
+
         var graphApiSecretJson = await host.GetAbsoluteStringAsync(
             $"{graphApiEndpoint.TrimEnd('/')}/secrets/sample-api-key");
         using var graphApiSecretDocument = JsonDocument.Parse(graphApiSecretJson);

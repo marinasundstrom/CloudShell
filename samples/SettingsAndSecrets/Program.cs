@@ -195,6 +195,16 @@ builder.Services
                         new AspNetCoreProjectEnvironmentVariableValue(
                             "CLOUDSHELL_SECRETS_GRAPH_SAMPLE_APP_ENDPOINT",
                             graphSecretsEndpoint)
+                    }),
+                [AspNetCoreProjectResourceTypeProvider.Attributes.References] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        ResourceReference.ReferenceResourceId(
+                            graphSettingsResourceId,
+                            typeId: ConfigurationStoreResourceTypeProvider.ResourceTypeId),
+                        ResourceReference.ReferenceResourceId(
+                            graphSecretsResourceId,
+                            typeId: SecretsVaultResourceTypeProvider.ResourceTypeId)
                     })
             },
             Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
