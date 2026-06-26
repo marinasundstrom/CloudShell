@@ -17,14 +17,14 @@
 - ProjectReference and SettingsAndSecrets sample coverage for runtime startup, graph-to-graph calls, logs, metrics, traces, health, and ResourceDefinition apply/update.
 - ApplicationTopology-inspired graph coverage for explicit SQL Server, Configuration Store, and Secrets Vault service-discovery references without using `DependsOn` for discovery.
 - ApplicationTopology graph API identity declaration and SQL read/write grant setup through Resource Manager declarations.
+- ApplicationTopology graph API `/database` coverage through a sample-local
+  graph SQL credential endpoint.
 
 ## Remaining
 
 - Launch settings parsing and richer process diagnostics.
 - Reusable service-discovery/environment-variable conventions if more providers prove the need.
-- Graph SQL credential/grant reconciliation. ASP.NET Core graph resources can
-  declare and consume a graph SQL Server service-discovery target, but the
-  current brokered credential path still depends on the old SQL Server
-  provider runtime model.
+- Reusable graph SQL credential/grant integration outside the
+  ApplicationTopology sample-local endpoint.
 - First-class graph identity/provisioning projection if the POC proves it belongs in the graph model.
 - Container build behavior and UI registration/update flow.

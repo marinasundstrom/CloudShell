@@ -18,12 +18,14 @@
 - ASP.NET Core service-discovery environment projection from explicit SQL Server `project.references`.
 - Resource Manager bridge projection, including endpoint contract/network mapping projection, and execution.
 - ApplicationTopology graph API read/write grant declaration against a graph SQL Server resource.
+- ApplicationTopology sample-local graph SQL credential endpoint that validates
+  graph resource identity grants and materializes SQL login/user access for
+  the graph API `/database` path.
 
 ## Remaining
 
 - Real SQL runtime integration.
 - Default/preferred container-host resolution.
-- Credential/grant reconciliation for graph-backed SQL Server resources. The
-  current CloudShell SQL credential broker still resolves the old application
-  provider resource model and grants.
+- Reusable provider-owned credential/grant reconciliation for graph-backed SQL
+  Server resources outside the ApplicationTopology sample-local endpoint.
 - Database child projections and UI tabs.

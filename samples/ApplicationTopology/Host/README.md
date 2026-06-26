@@ -42,12 +42,12 @@ frontend, verifies the graph API settings endpoint, and exercises
 frontend-to-API discovery through `/upstream/failure`. The host also registers
 a sample-local graph SQL database ensure-created handler that can materialize
 the graph database against the configured SQL Server endpoint without storing
-administrator credentials in graph state. The full graph `/upstream` path still
-waits for graph-backed SQL Server credential materialization and broader
-SQL Server lifecycle/runtime ownership. The graph API already has a declared
-built-in resource identity and a read/write grant to the graph SQL Server so
-the credential runtime slice can validate against the same Control Plane grant
-model as the old provider path.
+administrator credentials in graph state. The graph API has a declared
+built-in resource identity and a read/write grant to the graph SQL Server, and
+the host maps a sample-local graph SQL credential endpoint so the graph API can
+exercise `/database` through the same CloudShell SQL client flow as the old
+provider path. A reusable graph SQL credential broker and broader SQL Server
+lifecycle/runtime ownership remain provider work.
 
 Both projects use the shared `ServiceDefaults` project for health endpoints,
 HTTP client service discovery, JSON console logs, OpenTelemetry tracing, and
@@ -272,7 +272,8 @@ Already covered by the sample:
   fields that point back to the failing resources.
 - Optional smoke-tested SQL-inclusive runtime path, gated on Docker and the
   local SQL Server image, that starts the frontend with dependencies and
-  verifies frontend-to-API, settings, secrets, and API-to-SQL connectivity.
+  verifies frontend-to-API, settings, secrets, old-provider API-to-SQL
+  connectivity, and graph API-to-graph-SQL credential connectivity.
 
 Remaining useful additions:
 

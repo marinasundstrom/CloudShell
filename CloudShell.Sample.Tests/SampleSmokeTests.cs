@@ -1448,6 +1448,7 @@ public sealed class SampleSmokeTests
     {
         var apiPort = await GetFreePortAsync();
         var frontendPort = await GetFreePortAsync();
+        var graphApiPort = await GetFreePortAsync();
         var sqlPort = await GetFreePortAsync();
         var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:application-topology");
         var secretsServiceBasePort = await GetServiceBasePortAsync("secrets-vault:application-topology");
@@ -1457,6 +1458,7 @@ public sealed class SampleSmokeTests
             [
                 ("ApplicationTopology__ApiEndpoint", $"http://localhost:{apiPort}"),
                 ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
+                ("ApplicationTopology__GraphApiEndpoint", $"http://localhost:{graphApiPort}"),
                 ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
                 ("ApplicationTopology__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
                 ("ApplicationTopology__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture))
@@ -1564,6 +1566,7 @@ public sealed class SampleSmokeTests
 
         var apiPort = await GetFreePortAsync();
         var frontendPort = await GetFreePortAsync();
+        var graphApiPort = await GetFreePortAsync();
         var sqlPort = await GetFreePortAsync();
         var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:application-topology");
         var secretsServiceBasePort = await GetServiceBasePortAsync("secrets-vault:application-topology");
@@ -1573,6 +1576,7 @@ public sealed class SampleSmokeTests
             [
                 ("ApplicationTopology__ApiEndpoint", $"http://localhost:{apiPort}"),
                 ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
+                ("ApplicationTopology__GraphApiEndpoint", $"http://localhost:{graphApiPort}"),
                 ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
                 ("ApplicationTopology__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
                 ("ApplicationTopology__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture))
@@ -1605,12 +1609,29 @@ public sealed class SampleSmokeTests
                 resourcesDocument.RootElement.EnumerateArray(),
                 resource => resource.GetProperty("id").GetString() ==
                     "application.sql-database:graph-application-topology-db");
+            var graphApi = Assert.Single(
+                resourcesDocument.RootElement.EnumerateArray(),
+                resource => resource.GetProperty("id").GetString() ==
+                    "application.aspnet-core-project:graph-application-topology-api");
             var ensureCreatedHref = graphDatabase
                 .GetProperty("resourceActions")
                 .GetProperty(SqlDatabaseResourceTypeProvider.Operations.EnsureCreated.Value)
                 .GetProperty("href")
                 .GetString() ?? throw new InvalidOperationException("The graph SQL database ensure-created action did not include an href.");
             await host.SendAsync(HttpMethod.Post, ensureCreatedHref);
+
+            await StartGraphResourceIfAvailableAsync(host, graphApi, "ApplicationTopology API");
+            await host.WaitForAbsoluteHttpOkAsync(
+                $"http://localhost:{graphApiPort}/health",
+                bearerToken: null,
+                StartupTimeout);
+            var graphDatabaseJson = await host.WaitForAbsoluteHttpOkAndGetStringAsync(
+                $"http://localhost:{graphApiPort}/database",
+                StartupTimeout);
+            using var graphDatabaseDocument = JsonDocument.Parse(graphDatabaseJson);
+            Assert.Equal("ok", graphDatabaseDocument.RootElement.GetProperty("status").GetString());
+            Assert.Equal("mssql", graphDatabaseDocument.RootElement.GetProperty("provider").GetString());
+            Assert.Equal("application_topology", graphDatabaseDocument.RootElement.GetProperty("database").GetString());
 
             var eventsJson = await host.GetStringAsync(
                 "/api/control-plane/v1/resource-events?resourceId=application%3Aapplication-topology-sql-server");
@@ -1631,6 +1652,26 @@ public sealed class SampleSmokeTests
             Assert.DoesNotContain(
                 "Password=",
                 credentialEvent.GetProperty("message").GetString() ?? string.Empty,
+                StringComparison.OrdinalIgnoreCase);
+            var graphEventsJson = await host.GetStringAsync(
+                "/api/control-plane/v1/resource-events?resourceId=application.sql-server%3Agraph-application-topology-sql-server");
+            using var graphEventsDocument = JsonDocument.Parse(graphEventsJson);
+            var graphCredentialEvent = Assert.Single(
+                graphEventsDocument.RootElement.EnumerateArray(),
+                resourceEvent => string.Equals(
+                    resourceEvent.GetProperty("eventType").GetString(),
+                    "event.provider.applications.sql-server.credential.resolved",
+                    StringComparison.OrdinalIgnoreCase));
+            Assert.Equal(
+                "application.sql-server:graph-application-topology-sql-server",
+                graphCredentialEvent.GetProperty("resourceId").GetString());
+            Assert.Equal("Information", graphCredentialEvent.GetProperty("severity").GetString());
+            Assert.Contains(
+                "application_topology",
+                graphCredentialEvent.GetProperty("message").GetString() ?? string.Empty);
+            Assert.DoesNotContain(
+                "Password=",
+                graphCredentialEvent.GetProperty("message").GetString() ?? string.Empty,
                 StringComparison.OrdinalIgnoreCase);
 
             var databasesTabId = new ResourceViewId(ResourceTabGroupIds.Application, "databases");
@@ -1655,6 +1696,7 @@ public sealed class SampleSmokeTests
         {
             await StopResourceIfRunningAsync(host, "application:application-topology-frontend");
             await StopResourceIfRunningAsync(host, "application:application-topology-api");
+            await StopResourceIfRunningAsync(host, "application.aspnet-core-project:graph-application-topology-api");
             await StopResourceIfRunningAsync(host, "application:application-topology-sql-server");
         }
     }

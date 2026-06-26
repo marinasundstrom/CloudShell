@@ -2,17 +2,12 @@ using CloudShell.Providers.Applications;
 using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using Microsoft.Data.SqlClient;
-using System.Diagnostics;
-using System.Globalization;
 
 namespace CloudShell.ApplicationTopologyHost;
 
 internal sealed class GraphSqlDatabaseCreationHandler(
     IConfiguration configuration) : ISqlDatabaseCreationHandler
 {
-    private static readonly TimeSpan ConnectionRetryTimeout = TimeSpan.FromSeconds(90);
-    private static readonly TimeSpan ConnectionRetryDelay = TimeSpan.FromSeconds(1);
-
     private readonly IConfiguration _configuration =
         configuration ?? throw new ArgumentNullException(nameof(configuration));
 
@@ -48,8 +43,10 @@ internal sealed class GraphSqlDatabaseCreationHandler(
                 ];
             }
 
-            if (!TryCreateMasterConnectionString(
+            if (!GraphSqlServerConnectionSupport.TryCreateAdministratorConnectionString(
                     context.Server,
+                    _configuration,
+                    "master",
                     out var connectionString))
             {
                 return
@@ -61,7 +58,7 @@ internal sealed class GraphSqlDatabaseCreationHandler(
                 ];
             }
 
-            await using var connection = await OpenWithRetryAsync(
+            await using var connection = await GraphSqlServerConnectionSupport.OpenWithRetryAsync(
                 context.Server,
                 connectionString,
                 cancellationToken);
@@ -88,98 +85,5 @@ internal sealed class GraphSqlDatabaseCreationHandler(
                     context.Database.EffectiveResourceId)
             ];
         }
-    }
-
-    private bool TryCreateMasterConnectionString(
-        Resource server,
-        out string connectionString)
-    {
-        connectionString = string.Empty;
-
-        var endpoint = server.Attributes
-            .GetObject<NetworkingEndpointRequestValue[]>(
-                SqlServerResourceTypeProvider.Attributes.EndpointRequests)?
-            .FirstOrDefault(endpoint =>
-                string.Equals(endpoint.Name, "tds", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(endpoint.Protocol, "tcp", StringComparison.OrdinalIgnoreCase));
-        if (endpoint is null ||
-            string.IsNullOrWhiteSpace(endpoint.Host) ||
-            endpoint.Port is not > 0)
-        {
-            return false;
-        }
-
-        var password = _configuration["ApplicationTopology:SqlServer:Password"] ??
-            ApplicationProviderServiceCollectionExtensions.DefaultSqlServerAdministratorPassword;
-        if (string.IsNullOrWhiteSpace(password))
-        {
-            return false;
-        }
-
-        connectionString = new SqlConnectionStringBuilder
-        {
-            DataSource = $"{endpoint.Host.Trim()},{endpoint.Port.Value.ToString(CultureInfo.InvariantCulture)}",
-            InitialCatalog = "master",
-            UserID = "sa",
-            Password = password,
-            Encrypt = false,
-            TrustServerCertificate = true,
-            ConnectTimeout = 5
-        }.ConnectionString;
-        return true;
-    }
-
-    private static async Task<SqlConnection> OpenWithRetryAsync(
-        Resource server,
-        string connectionString,
-        CancellationToken cancellationToken)
-    {
-        var stopwatch = Stopwatch.StartNew();
-        Exception? lastError = null;
-
-        while (stopwatch.Elapsed < ConnectionRetryTimeout)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var connection = new SqlConnection(connectionString);
-            try
-            {
-                await connection.OpenAsync(cancellationToken);
-                return connection;
-            }
-            catch (SqlException exception) when (ShouldRetryConnection(exception))
-            {
-                lastError = exception;
-                await connection.DisposeAsync();
-            }
-
-            var remaining = ConnectionRetryTimeout - stopwatch.Elapsed;
-            if (remaining <= TimeSpan.Zero)
-            {
-                break;
-            }
-
-            await Task.Delay(
-                remaining < ConnectionRetryDelay
-                    ? remaining
-                    : ConnectionRetryDelay,
-                cancellationToken);
-        }
-
-        throw new InvalidOperationException(
-            $"Graph SQL Server resource '{server.Name}' did not accept connections within {ConnectionRetryTimeout.TotalSeconds.ToString(CultureInfo.InvariantCulture)} seconds.",
-            lastError);
-    }
-
-    private static bool ShouldRetryConnection(SqlException exception)
-    {
-        foreach (SqlError error in exception.Errors)
-        {
-            if (error.Number == 4060)
-            {
-                return false;
-            }
-        }
-
-        return true;
     }
 }

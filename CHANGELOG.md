@@ -75,6 +75,10 @@ on `git blame --follow`, and then by the broad type of change.
 - ApplicationTopology now declares a built-in resource identity for the
   graph-backed API resource and grants it read/write access to the graph SQL
   Server resource, preparing the graph SQL credential runtime slice.
+- ApplicationTopology now maps a sample-local graph SQL credential endpoint
+  that validates graph resource identity grants, creates SQL login/user access,
+  and lets the graph-backed API exercise `/database` against the graph SQL
+  Server target in the Docker-backed smoke path.
 
 #### Fixed
 

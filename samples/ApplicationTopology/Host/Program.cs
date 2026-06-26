@@ -215,7 +215,7 @@ builder.Services
                             metricIngestEndpoint ?? string.Empty),
                         new AspNetCoreProjectEnvironmentVariableValue(
                             "CLOUDSHELL_SQL_CREDENTIAL_ENDPOINT",
-                            $"{cloudShellEndpoint}/api/sql-server/v1/credentials"),
+                            $"{cloudShellEndpoint}/api/application-topology/sql-server/v1/credentials"),
                         new AspNetCoreProjectEnvironmentVariableValue(
                             "CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT",
                             identityTokenEndpoint),
@@ -563,6 +563,7 @@ await app.UseCloudShellControlPlaneAsync();
 await app.UseCloudShellAsync();
 app.MapCloudShellControlPlane();
 app.MapCloudShellSqlServerCredentialApi();
+app.MapApplicationTopologyGraphSqlCredentialApi();
 app.MapCloudShell<App>();
 
 app.Run();
