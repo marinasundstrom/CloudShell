@@ -9,13 +9,14 @@
 ## Ported
 
 - Image, registry, and replica attributes.
+- Endpoint request attributes using the shared networking endpoint request shape.
 - Optional typed generic/Docker container-host reference validation and projection.
 - Shared volume-consumer capability.
 - Start, restart, and image-update operations.
-- Typed wrapper plus Resource Manager bridge projection and execution.
-- ContainerAppDeployment sample-inspired graph coverage.
+- Typed wrapper plus Resource Manager bridge projection, endpoint projection, and execution.
+- ContainerAppDeployment and ReplicatedContainerHealth sample-inspired graph coverage.
 
 ## Remaining
 
 - Actual container host orchestration.
-- Endpoints, revisions, replica runtime state, monitoring, and UI operations.
+- Revisions, replica runtime state, monitoring, and UI operations.

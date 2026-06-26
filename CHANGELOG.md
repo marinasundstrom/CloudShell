@@ -111,8 +111,12 @@ on `git blame --follow`, and then by the broad type of change.
 - ReplicatedContainerHealth now declares side-by-side graph-backed Docker host
   and replicated container-app resources in the sample host, with smoke
   coverage verifying Resource Manager projection, replica-count attributes,
-  and typed graph dependencies while the old runtime path still owns replica
-  materialization and telemetry.
+  endpoint projection, health/liveness capability declarations, and typed graph
+  dependencies while the old runtime path still owns replica materialization
+  and telemetry.
+- Container application graph resources now support `container.endpointRequests`
+  using the shared networking endpoint request shape, plus Resource Manager
+  endpoint and endpoint-network-mapping projection.
 - ContainerHost now declares side-by-side graph-backed storage, volume, and SQL
   Server resources in the sample host, with service-level coverage verifying
   Resource Manager projection, storage/volume attributes, typed storage

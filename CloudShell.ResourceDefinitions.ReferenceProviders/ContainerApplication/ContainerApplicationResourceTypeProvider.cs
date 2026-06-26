@@ -16,6 +16,7 @@ public sealed class ContainerApplicationResourceTypeProvider :
         public static readonly ResourceAttributeId ContainerImage = "container.image";
         public static readonly ResourceAttributeId ContainerRegistry = "container.registry";
         public static readonly ResourceAttributeId ContainerReplicas = "container.replicas";
+        public static readonly ResourceAttributeId EndpointRequests = "container.endpointRequests";
     }
 
     public static class Operations
@@ -42,7 +43,10 @@ public sealed class ContainerApplicationResourceTypeProvider :
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.ContainerReplicas] = new(
                 DefaultValue: 1,
-                ValueType: ResourceAttributeValueType.Integer)
+                ValueType: ResourceAttributeValueType.Integer),
+            [Attributes.EndpointRequests] = ResourceAttributeDefinition.Collection(
+                itemType: ResourceAttributeValueType.ComplexType,
+                itemShapeId: NetworkingEndpointShapeIds.EndpointRequest)
         },
         Operations:
         [

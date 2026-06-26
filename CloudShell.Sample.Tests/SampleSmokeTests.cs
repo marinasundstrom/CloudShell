@@ -24,6 +24,7 @@ using ResourceAttributeValue = CloudShell.ResourceDefinitions.ResourceAttributeV
 using ResourceCapabilityId = CloudShell.ResourceDefinitions.ResourceCapabilityId;
 using ResourceDefinitionJson = CloudShell.ResourceDefinitions.ResourceDefinitionJson;
 using ResourceGraphState = CloudShell.ResourceDefinitions.ResourceState;
+using ResourceHealthCheckCapabilityIds = CloudShell.ResourceDefinitions.ResourceHealthCheckCapabilityIds;
 using ResourceReference = CloudShell.ResourceDefinitions.ResourceReference;
 using SqlServerResources = CloudShell.Providers.Applications.ApplicationProviderServiceCollectionExtensions;
 
@@ -2711,6 +2712,19 @@ public sealed class SampleSmokeTests
         Assert.Equal("application.container-app", graphApp.GetProperty("typeId").GetString());
         Assert.Equal("cloudshell-application-api:20260622.2", graphAppAttributes.GetProperty("container.image").GetString());
         Assert.Equal("3", graphAppAttributes.GetProperty("container.replicas").GetString());
+        Assert.Equal("http://localhost:5092", GetPrimaryEndpointAddress(graphApp));
+        Assert.Equal("8080", graphApp.GetProperty("endpoints")
+            .EnumerateArray()
+            .Single(endpoint => endpoint.GetProperty("name").GetString() == "http")
+            .GetProperty("targetPort")
+            .GetInt32()
+            .ToString(CultureInfo.InvariantCulture));
+        Assert.Contains(
+            graphApp.GetProperty("capabilities").EnumerateArray(),
+            capability => capability.GetProperty("id").GetString() == ResourceHealthCheckCapabilityIds.HealthChecks.ToString());
+        Assert.Contains(
+            graphApp.GetProperty("capabilities").EnumerateArray(),
+            capability => capability.GetProperty("id").GetString() == ResourceHealthCheckCapabilityIds.Liveness.ToString());
         Assert.Contains(
             "docker:graph-sample",
             graphApp.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));

@@ -1395,11 +1395,22 @@ public sealed class ResourceProviderDispatcherTests
                     ResourceReferenceAddressingModes.ResourceId,
                     TypeId: ContainerHostResourceTypeProvider.ResourceTypeId)
             ],
-            Attributes: new Dictionary<ResourceAttributeId, string>
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
                 [ContainerApplicationResourceTypeProvider.Attributes.ContainerImage] = "ghcr.io/example/api:latest",
                 [ContainerApplicationResourceTypeProvider.Attributes.ContainerRegistry] = "registry.local",
-                [ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas] = "2"
+                [ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas] = "2",
+                [ContainerApplicationResourceTypeProvider.Attributes.EndpointRequests] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        new NetworkingEndpointRequestValue(
+                            "http",
+                            "http",
+                            TargetPort: 8080,
+                            Host: "localhost",
+                            Port: 5092,
+                            Exposure: "Local")
+                    })
             },
             Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
             {
@@ -1426,6 +1437,11 @@ public sealed class ResourceProviderDispatcherTests
             ContainerApplicationResourceTypeProvider.Attributes.ContainerRegistry));
         Assert.Equal("2", containerValidation.Resource.Attributes.GetString(
             ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas));
+        var endpointRequest = Assert.Single(containerValidation.Resource.Attributes
+            .GetObject<NetworkingEndpointRequestValue[]>(
+                ContainerApplicationResourceTypeProvider.Attributes.EndpointRequests) ?? []);
+        Assert.Equal("http", endpointRequest.Name);
+        Assert.Equal(8080, endpointRequest.TargetPort);
         Assert.True(containerValidation.Resource.Capabilities.Has(
             VolumeConsumerCapabilityProvider.CapabilityIdValue));
         Assert.True(containerValidation.Resource.Operations.Has(
@@ -1447,6 +1463,7 @@ public sealed class ResourceProviderDispatcherTests
         Assert.Equal("ghcr.io/example/api:latest", projection.Image);
         Assert.Equal("registry.local", projection.Registry);
         Assert.Equal(2, projection.Replicas);
+        Assert.Equal(5092, Assert.Single(projection.EndpointRequests).Port);
         Assert.Equal(host.EffectiveResourceId, projection.ContainerHostResourceId);
         Assert.Equal(volume.EffectiveResourceId, Assert.Single(await projection.GetVolumesAsync()).Volume);
         Assert.True(await (await projection.GetStartOperationAsync())!.CanExecuteAsync());

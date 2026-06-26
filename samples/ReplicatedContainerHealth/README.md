@@ -44,12 +44,13 @@ Resource Definitions bridge:
 - `docker:graph-sample`: graph-backed Docker host.
 - `application.container-app:graph-api`: graph-backed replicated container app
   projection with a replica count of `3` and a typed startup dependency on the
-  graph Docker host.
+  graph Docker host. It also declares the local `http` endpoint request plus
+  health and liveness checks for `/health` and `/alive`.
 
-Those resources prove projection, replica-count attributes, and dependency
-shape while the existing application/Docker provider path remains responsible
-for replica materialization, runtime health aggregation, logs, traces, and
-metrics.
+Those resources prove projection, replica-count attributes, endpoint mapping,
+health/liveness declarations, and dependency shape while the existing
+application/Docker provider path remains responsible for replica
+materialization, runtime health aggregation, logs, traces, and metrics.
 
 When running the replica health path against Docker, start the `api` resource.
 The app start builds the project container image into the local Docker image

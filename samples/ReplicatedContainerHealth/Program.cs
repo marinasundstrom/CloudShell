@@ -12,6 +12,7 @@ using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
 using CloudShell.ResourceDefinitions.ResourceManager;
+using System.Text.Json;
 using ResourceGraphState = CloudShell.ResourceDefinitions.ResourceState;
 
 var builder = CloudShellApplication.CreateBuilder(args);
@@ -59,7 +60,32 @@ builder.Services
                 [ContainerApplicationResourceTypeProvider.Attributes.ContainerImage] =
                     $"cloudshell-application-api:{sampleImageTag}",
                 [ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas] =
-                    3
+                    3,
+                [ContainerApplicationResourceTypeProvider.Attributes.EndpointRequests] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        new NetworkingEndpointRequestValue(
+                            "http",
+                            "http",
+                            TargetPort: 8080,
+                            Host: "localhost",
+                            Port: 5092,
+                            Exposure: "Local")
+                    })
+            },
+            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
+            {
+                [ResourceHealthCheckCapabilityIds.HealthChecks] =
+                    ResourceDefinitionJson.FromValue(new ResourceHealthCheckDefinitionSet(
+                    [
+                        ResourceHealthCheckDefinition.Http(
+                            "/health",
+                            endpointName: "http"),
+                        ResourceHealthCheckDefinition.HttpLiveness(
+                            "/alive",
+                            endpointName: "http",
+                            name: "alive")
+                    ]))
             })
     ])
     .AddDockerHostResourceType()

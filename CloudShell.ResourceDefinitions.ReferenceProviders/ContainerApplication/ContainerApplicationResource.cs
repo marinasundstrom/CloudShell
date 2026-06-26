@@ -21,6 +21,10 @@ public sealed class ContainerApplicationResource(
                 ? replicas
                 : 1;
 
+    public IReadOnlyList<NetworkingEndpointRequestValue> EndpointRequests =>
+        Resource.Attributes.GetObject<NetworkingEndpointRequestValue[]>(
+            ContainerApplicationResourceTypeProvider.Attributes.EndpointRequests) ?? [];
+
     public string? ContainerHostResourceId =>
         ContainerApplicationResourceTypeProvider.TryGetContainerHostResourceId(
             Resource.State,

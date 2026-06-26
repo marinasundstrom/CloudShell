@@ -1269,6 +1269,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddContainerHostResourceType();
         services.AddContainerApplicationResourceType();
         services.AddResourceModelGraphServices();
+        services.AddReferenceProviderResourceManagerProjections();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
@@ -1290,10 +1291,21 @@ public sealed class ResourceManagerIntegrationTests
                     ResourceReferenceAddressingModes.ResourceId,
                     TypeId: ContainerHostResourceTypeProvider.ResourceTypeId)
             ],
-            Attributes: new Dictionary<ResourceAttributeId, string>
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
                 [ContainerApplicationResourceTypeProvider.Attributes.ContainerImage] = "ghcr.io/example/api:latest",
-                [ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas] = "2"
+                [ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas] = "2",
+                [ContainerApplicationResourceTypeProvider.Attributes.EndpointRequests] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        new NetworkingEndpointRequestValue(
+                            "http",
+                            "http",
+                            TargetPort: 8080,
+                            Host: "localhost",
+                            Port: 5092,
+                            Exposure: "Local")
+                    })
             },
             Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
             {
@@ -1329,6 +1341,8 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(ContainerApplicationResourceTypeProvider.ProviderId, projectedContainer.Provider);
         Assert.Equal("ghcr.io/example/api:latest", projectedContainer.ResourceAttributes["container.image"]);
         Assert.Equal("2", projectedContainer.ResourceAttributes["container.replicas"]);
+        Assert.Equal("http://localhost:5092", projectedContainer.PrimaryEndpoint);
+        Assert.Equal(8080, Assert.Single(projectedContainer.Endpoints).TargetPort);
         Assert.Equal([host.EffectiveResourceId, volume.EffectiveResourceId], projectedContainer.DependsOn);
         Assert.Contains(projectedContainer.ResourceCapabilities, capability =>
             capability.Id == VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString());
