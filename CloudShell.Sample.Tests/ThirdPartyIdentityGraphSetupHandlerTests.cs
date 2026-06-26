@@ -12,7 +12,7 @@ namespace CloudShell.Sample.Tests;
 public sealed class ThirdPartyIdentityGraphSetupHandlerTests
 {
     [Fact]
-    public async Task GraphIdentityProvisioningSetupHandler_DelegatesToAttachedIdentityProviderSetup()
+    public async Task ResourceManagerBridge_DelegatesToAttachedIdentityProviderSetup()
     {
         var declarations = new ResourceDeclarationStore();
         declarations.AddIdentityProvider(new ResourceIdentityProviderDefinition(
@@ -30,10 +30,10 @@ public sealed class ThirdPartyIdentityGraphSetupHandlerTests
             new ResourceIdentityProviderCatalog(),
             [setupHandler]);
         using var services = CreateServices(setupService);
-        var handler = new GraphIdentityProvisioningSetupHandler(
+        var bridge = new ThirdPartyIdentityGraphResourceManagerIdentitySetupBridge(
             services.GetRequiredService<IServiceScopeFactory>());
 
-        var diagnostics = await handler.SetupAsync(CreateGraphIdentityProvisioningResource(
+        var diagnostics = await bridge.SetupAsync(CreateGraphIdentityProvisioningResource(
             includeProviderId: true));
 
         Assert.Equal("identity:graph-keycloak", setupHandler.SetupProviderId);
@@ -45,23 +45,36 @@ public sealed class ThirdPartyIdentityGraphSetupHandlerTests
     }
 
     [Fact]
-    public async Task GraphIdentityProvisioningSetupHandler_WarnsWhenNoProviderIsAttached()
+    public async Task ResourceManagerBridge_WarnsWhenNoProviderIsAttached()
     {
         var setupService = new ResourceIdentityProviderSetupService(
             new ResourceDeclarationStore(),
             new ResourceIdentityProviderCatalog(),
             []);
         using var services = CreateServices(setupService);
-        var handler = new GraphIdentityProvisioningSetupHandler(
+        var bridge = new ThirdPartyIdentityGraphResourceManagerIdentitySetupBridge(
             services.GetRequiredService<IServiceScopeFactory>());
 
-        var diagnostics = await handler.SetupAsync(CreateGraphIdentityProvisioningResource(
+        var diagnostics = await bridge.SetupAsync(CreateGraphIdentityProvisioningResource(
             includeProviderId: false));
 
         var diagnostic = Assert.Single(diagnostics);
         Assert.Equal(ResourceDefinitionDiagnosticSeverity.Warning, diagnostic.Severity);
         Assert.Equal("identity.provisioning.providerMissing", diagnostic.Code);
         Assert.Contains("identity-provisioning:graph-keycloak", diagnostic.Message);
+    }
+
+    [Fact]
+    public async Task GraphIdentityProvisioningSetupHandler_DelegatesToBridge()
+    {
+        var bridge = new RecordingGraphIdentityProvisioningSetupBridge();
+        var handler = new GraphIdentityProvisioningSetupHandler(bridge);
+        var resource = CreateGraphIdentityProvisioningResource(includeProviderId: true);
+
+        var diagnostics = await handler.SetupAsync(resource);
+
+        Assert.Empty(diagnostics);
+        Assert.Equal("identity-provisioning:graph-keycloak", bridge.SetupResourceId);
     }
 
     private static GraphResource CreateGraphIdentityProvisioningResource(
@@ -119,6 +132,20 @@ public sealed class ThirdPartyIdentityGraphSetupHandlerTests
                         "Configured graph identity provider.",
                         ProviderId: request.Provider.Id)
                 ]));
+        }
+    }
+
+    private sealed class RecordingGraphIdentityProvisioningSetupBridge :
+        IThirdPartyIdentityGraphIdentityProvisioningSetupBridge
+    {
+        public string? SetupResourceId { get; private set; }
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> SetupAsync(
+            GraphResource resource,
+            CancellationToken cancellationToken = default)
+        {
+            SetupResourceId = resource.EffectiveResourceId;
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }
     }
 }

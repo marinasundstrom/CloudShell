@@ -81,6 +81,9 @@ builder.Services.TryAddEnumerable(
     ServiceDescriptor.Singleton<IResourceIdentityProviderSetupHandler, KeycloakResourceIdentityProvisioner>());
 builder.Services.TryAddEnumerable(
     ServiceDescriptor.Singleton<IResourceIdentityCredentialEnvironmentProvider, KeycloakResourceIdentityProvisioner>());
+builder.Services.AddSingleton<
+    IThirdPartyIdentityGraphIdentityProvisioningSetupBridge,
+    ThirdPartyIdentityGraphResourceManagerIdentitySetupBridge>();
 builder.Services.AddSingleton<IIdentityProvisioningSetupHandler, GraphIdentityProvisioningSetupHandler>();
 
 cloudShell.Resources(resources =>

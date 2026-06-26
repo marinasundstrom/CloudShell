@@ -8,8 +8,21 @@ using GraphResource = CloudShell.ResourceDefinitions.Resource;
 namespace CloudShell.ThirdPartyIdentity;
 
 public sealed class GraphIdentityProvisioningSetupHandler(
-    IServiceScopeFactory scopeFactory) :
+    IThirdPartyIdentityGraphIdentityProvisioningSetupBridge bridge) :
     IIdentityProvisioningSetupHandler
+{
+    public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> SetupAsync(
+        GraphResource resource,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+
+        return await bridge.SetupAsync(resource, cancellationToken);
+    }
+}
+
+public sealed class ThirdPartyIdentityGraphResourceManagerIdentitySetupBridge(
+    IServiceScopeFactory scopeFactory) : IThirdPartyIdentityGraphIdentityProvisioningSetupBridge
 {
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> SetupAsync(
         GraphResource resource,
