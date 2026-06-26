@@ -24,6 +24,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Provider README guidance now treats concrete `ResourceDefinition` examples
   as feedback on whether the interchange format is suitable for deployments,
   templates, imports, exports, and external tooling.
+- Added a Resource Definition Structure document that records the common
+  interchange shape for references, attributes, endpoint requests, endpoint
+  mappings, health/liveness checks, volumes, log sources, and operations while
+  the provider ports refine the API.
 
 #### Fixed
 

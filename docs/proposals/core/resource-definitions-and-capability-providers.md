@@ -93,6 +93,13 @@ bridge into Resource Manager. It should prove that existing providers can be
 ported onto a consistent graph contract, while runtime behavior remains behind
 Control Plane-owned integrations.
 
+Common `ResourceDefinition` interchange structure is documented separately in
+[Resource Definition Structure](../../resource-definition-structure.md). This
+keeps the proposal focused on architecture while giving shared constructs such
+as references, endpoint requests, endpoint mappings, health checks, liveness,
+volumes, log sources, attributes, capabilities, and operations a concrete
+place to evolve as provider ports expose usability issues.
+
 ## Problem
 
 `Resource` is the current known projection of a managed artifact. It is what
