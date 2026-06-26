@@ -28,6 +28,13 @@ on `git blame --follow`, and then by the broad type of change.
   interchange shape for references, attributes, endpoint requests, endpoint
   mappings, health/liveness checks, volumes, log sources, and operations while
   the provider ports refine the API.
+- The Resource Definition Structure document now clarifies the implicit
+  root/common contract, class/type definition inheritance, and how a
+  `ResourceDefinition` can be either a full resource rendition or an
+  incremental update overlay.
+- The Resource Definition Structure document now treats deployment definitions
+  as a future higher-level artifact and, for the POC, describes deployment
+  inputs as groupings of `ResourceDefinition` values.
 
 #### Fixed
 

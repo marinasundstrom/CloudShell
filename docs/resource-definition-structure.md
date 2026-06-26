@@ -10,6 +10,74 @@ Control Plane and Resource Manager own runtime state, operational records,
 live endpoint observations, logs, traces, metrics, orchestration, and provider
 runtime caches.
 
+## Definition Layers
+
+`ResourceDefinition` is not resolved by itself. It is interpreted through
+definition layers:
+
+```text
+Implicit root/common resource contract
+    -> ResourceClassDefinition
+        -> ResourceTypeDefinition
+            -> ResourceDefinition
+                -> resolved Resource
+```
+
+The root/common resource contract is a conceptual layer for fields and
+expectations that apply to all graph resources, such as identity, metadata,
+startup dependency references, attributes, capabilities, and operations. The
+POC does not need a concrete `RootResourceDefinition` type yet, but the model
+should treat these common fields as inherited by every class, type, and
+resource.
+
+`ResourceClassDefinition` defines broad shared expectations for a class of
+resources, such as infrastructure, storage, configuration, network, service,
+or container resources. It may declare shared attributes, default values,
+capabilities, operations, validation expectations, and common value shapes.
+
+`ResourceTypeDefinition` refines the class contract for a concrete resource
+type, such as `application.container-app` or `configuration.store`. It may add
+or override type-specific attributes, declare supported capabilities and
+operations, provide defaults, and attach validation rules.
+
+`ResourceDefinition` then represents resource-owned state in interchange form.
+It can be:
+
+- a full rendition of a resource state suitable for export, review, or
+  template/deployment input
+- an authored declaration for creating a resource
+- an incremental update overlay applied to an existing resource
+
+This distinction matters for capabilities and operations. They are often
+declared on `ResourceClassDefinition` or `ResourceTypeDefinition`, while the
+resource definition may only provide resource-specific payloads for those
+capabilities or operations. For example, a container-like class or type may
+declare the `storage.volumeConsumer` capability, and a specific
+`ResourceDefinition` supplies the mount payload for the resolved resource to
+consume.
+
+Resolution combines the implicit root/common contract, class definition, type
+definition, and resource-owned state into a resolved `Resource`. That resolved
+`Resource` is the effective graph view consumers normally use. Rendering a
+`Resource` back to `ResourceDefinition` produces an interchange document for
+the resource; it should not be treated as a dump of every inherited or
+runtime-observed value. Provider-managed or read-only attributes may be
+filtered from interchange output unless a provider explicitly makes them part
+of the authored contract.
+
+## Deployment Definitions
+
+A deployment definition is a separate future artifact. It will likely use
+`ResourceDefinition` values and other deployment-centered artifact definitions,
+but that higher-level model is not defined by the current POC.
+
+For now, treat deployment inputs as an envelope or grouping of resource
+definitions plus contextual metadata such as environment, resource group, or
+deployment name. The important boundary is that `ResourceDefinition` remains
+the resource interchange unit, while a deployment definition describes how a
+set of those resource definitions is authored, grouped, ordered,
+parameterized, or applied together.
+
 ## Core Envelope
 
 A `ResourceDefinition` describes a resource state snapshot or an incremental
