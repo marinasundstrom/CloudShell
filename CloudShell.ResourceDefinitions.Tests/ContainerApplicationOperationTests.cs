@@ -12,7 +12,8 @@ public sealed class ContainerApplicationOperationTests
         var stopProvider = new ContainerApplicationStopOperationProvider(runtimeHandler);
         var restartProvider = new ContainerApplicationRestartOperationProvider(runtimeHandler);
         var imageProvider = new ContainerApplicationImageUpdateOperationProvider(runtimeHandler);
-        var pipeline = CreatePipeline(startProvider, stopProvider, restartProvider, imageProvider);
+        var replicasProvider = new ContainerApplicationReplicasUpdateOperationProvider(runtimeHandler);
+        var pipeline = CreatePipeline(startProvider, stopProvider, restartProvider, imageProvider, replicasProvider);
 
         var result = await pipeline.ValidateAsync(
             CreateDefinition(),
@@ -54,7 +55,8 @@ public sealed class ContainerApplicationOperationTests
         var stopProvider = new ContainerApplicationStopOperationProvider(runtimeHandler);
         var restartProvider = new ContainerApplicationRestartOperationProvider(runtimeHandler);
         var imageProvider = new ContainerApplicationImageUpdateOperationProvider(runtimeHandler);
-        var pipeline = CreatePipeline(startProvider, stopProvider, restartProvider, imageProvider);
+        var replicasProvider = new ContainerApplicationReplicasUpdateOperationProvider(runtimeHandler);
+        var pipeline = CreatePipeline(startProvider, stopProvider, restartProvider, imageProvider, replicasProvider);
 
         var result = await pipeline.ValidateAsync(
             CreateDefinition(),
@@ -83,18 +85,55 @@ public sealed class ContainerApplicationOperationTests
         Assert.Same(result.Resource, Assert.Single(runtimeHandler.ImageApplyInvocations));
     }
 
+    [Fact]
+    public async Task ReplicasUpdateOperation_UpdatesGraphStateAndDelegatesRuntimeApply()
+    {
+        var runtimeHandler = new TestContainerApplicationRuntimeHandler();
+        var startProvider = new ContainerApplicationStartOperationProvider(runtimeHandler);
+        var stopProvider = new ContainerApplicationStopOperationProvider(runtimeHandler);
+        var restartProvider = new ContainerApplicationRestartOperationProvider(runtimeHandler);
+        var imageProvider = new ContainerApplicationImageUpdateOperationProvider(runtimeHandler);
+        var replicasProvider = new ContainerApplicationReplicasUpdateOperationProvider(runtimeHandler);
+        var pipeline = CreatePipeline(startProvider, stopProvider, restartProvider, imageProvider, replicasProvider);
+
+        var result = await pipeline.ValidateAsync(
+            CreateDefinition(),
+            new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.False(result.HasErrors);
+
+        var replicasOperation = result.Resource.Operations.Get(
+            ContainerApplicationResourceTypeProvider.Operations.UpdateReplicas) as ContainerApplicationReplicasUpdateOperation;
+
+        Assert.NotNull(replicasOperation);
+
+        var changes = replicasOperation.UpdateReplicas(4);
+        var execution = await replicasOperation.ExecuteAsync();
+
+        Assert.True(changes.HasChanges);
+        Assert.Equal(
+            "4",
+            changes.ProposedState.ResourceAttributes[
+                ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas]);
+        Assert.False(execution.HasErrors);
+        Assert.Same(result.Resource, Assert.Single(runtimeHandler.ReplicasApplyInvocations));
+        Assert.Empty(runtimeHandler.ImageApplyInvocations);
+    }
+
     private static ResourceDefinitionValidationPipeline CreatePipeline(
         ContainerApplicationStartOperationProvider startProvider,
         ContainerApplicationStopOperationProvider stopProvider,
         ContainerApplicationRestartOperationProvider restartProvider,
-        ContainerApplicationImageUpdateOperationProvider imageProvider)
+        ContainerApplicationImageUpdateOperationProvider imageProvider,
+        ContainerApplicationReplicasUpdateOperationProvider replicasProvider)
     {
         IResourceOperationProvider[] operationProviders =
         [
             startProvider,
             stopProvider,
             restartProvider,
-            imageProvider
+            imageProvider,
+            replicasProvider
         ];
 
         return new(
@@ -123,6 +162,8 @@ public sealed class ContainerApplicationOperationTests
 
         public List<Resource> ImageApplyInvocations { get; } = [];
 
+        public List<Resource> ReplicasApplyInvocations { get; } = [];
+
         public ContainerApplicationRuntimeStatus GetStatus(Resource resource) =>
             ContainerApplicationRuntimeStatus.Unknown;
 
@@ -140,6 +181,14 @@ public sealed class ContainerApplicationOperationTests
             CancellationToken cancellationToken = default)
         {
             ImageApplyInvocations.Add(resource);
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyReplicasAsync(
+            Resource resource,
+            CancellationToken cancellationToken = default)
+        {
+            ReplicasApplyInvocations.Add(resource);
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }
     }

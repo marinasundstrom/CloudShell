@@ -48,6 +48,8 @@ public static class ContainerApplicationResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProvider, ContainerApplicationImageUpdateOperationProvider>());
         services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOperationProvider, ContainerApplicationReplicasUpdateOperationProvider>());
+        services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProjector, ContainerApplicationStartOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProjector, ContainerApplicationStopOperationProvider>());
@@ -55,6 +57,8 @@ public static class ContainerApplicationResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, ContainerApplicationRestartOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProjector, ContainerApplicationImageUpdateOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOperationProjector, ContainerApplicationReplicasUpdateOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, ContainerApplicationResourceProjectionProvider>());
 

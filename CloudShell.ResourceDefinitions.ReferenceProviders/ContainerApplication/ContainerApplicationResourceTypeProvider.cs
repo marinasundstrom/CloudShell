@@ -25,6 +25,7 @@ public sealed class ContainerApplicationResourceTypeProvider :
         public static readonly ResourceOperationId Stop = "stop";
         public static readonly ResourceOperationId Restart = "restart";
         public static readonly ResourceOperationId UpdateImage = "container.image.update";
+        public static readonly ResourceOperationId UpdateReplicas = "container.replicas.update";
     }
 
     public ResourceTypeId TypeId => ResourceTypeId;
@@ -54,7 +55,8 @@ public sealed class ContainerApplicationResourceTypeProvider :
             new(Operations.Start),
             new(Operations.Stop),
             new(Operations.Restart),
-            new(Operations.UpdateImage)
+            new(Operations.UpdateImage),
+            new(Operations.UpdateReplicas)
         ]);
 
     public bool CanValidate(Resource resource) =>

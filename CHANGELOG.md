@@ -17,10 +17,10 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
-- Graph-backed container app start, restart, and image-update operations now
-  delegate through an injected provider-owned runtime handler seam, keeping
-  runtime orchestration outside the Resource Graph while leaving the default
-  POC behavior no-op.
+- Graph-backed container app start, restart, image-update, and replica-update
+  operations now delegate through an injected provider-owned runtime handler
+  seam, keeping runtime orchestration outside the Resource Graph while leaving
+  the default POC behavior no-op.
 - ReplicatedContainerHealth now wires the graph container-app lifecycle seam to
   a sample-local runtime adapter that starts and restarts the existing
   `application:api` runtime app, projects graph container-app state from that
@@ -70,6 +70,9 @@ on `git blame --follow`, and then by the broad type of change.
   sample-local adapter over the existing `application:sample-api` runtime path,
   so graph image and replica updates are applied to both graph state and the
   running sample resource model.
+- Container app replica updates now have their own graph operation
+  (`container.replicas.update`) and runtime-handler method, so direct scale
+  requests no longer reuse the image-update operation seam.
 - ContainerAppDeployment now declares its graph Docker host, registry
   container, and container app through provider-owned graph builders instead
   of raw graph state dictionaries.

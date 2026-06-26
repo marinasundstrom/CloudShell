@@ -12,14 +12,14 @@
 - Endpoint request attributes using the shared networking endpoint request shape.
 - Optional typed generic/Docker container-host reference validation and projection.
 - Shared volume-consumer capability.
-- Start, stop, restart, and image-update operations with an injected
+- Start, stop, restart, image-update, and replica-update operations with an injected
   provider-owned runtime handler seam.
 - Typed wrapper plus Resource Manager bridge projection, endpoint projection, and execution.
 - ContainerAppDeployment and ReplicatedContainerHealth sample-inspired graph coverage,
   including ContainerAppDeployment image/replica update delegation and
   ReplicatedContainerHealth smoke coverage where graph start, stop, restart,
-  and image-update actions delegate to sample-local runtime adapters and stop
-  verifies Docker runtime container cleanup.
+  image-update, and replica-update actions delegate to sample-local runtime
+  adapters and stop verifies Docker runtime container cleanup.
 - Manual `ResourceDefinitionGraphBuilder.AddContainerApplication(...)`
   builder for code-first container app definition authoring with typed host
   dependencies, endpoint requests, replicas, and volume mount capability setup.
@@ -49,8 +49,9 @@ sample-local adapter that maps `application.container-app:graph-api` to the
 existing `application:api` runtime resource. It covers start, stop, and
 restart delegation, projects graph state from the runtime app through the
 provider bridge so Resource Manager action availability can evaluate lifecycle
-commands, and applies an accepted graph `container.image` change through the graph
-`container.image.update` operation. That adapter is intentionally not a
+commands, and applies accepted graph `container.image` and
+`container.replicas` changes through the graph `container.image.update` and
+`container.replicas.update` operations. That adapter is intentionally not a
 reusable provider toolkit yet; it exists to validate the graph-to-runtime
 boundary while the old application-provider runtime still owns replica
 materialization. The Docker smoke verifies that graph restart recreates the
@@ -60,8 +61,9 @@ graph start created.
 The ContainerAppDeployment sample also wires this seam to a sample-local
 adapter. It maps `application.container-app:graph-sample-api` to the existing
 `application:sample-api` runtime resource so graph image and replica updates can
-be applied through the existing Resource Manager deployment and replicas APIs
-while the durable container runtime provider remains future work.
+be applied through the existing Resource Manager deployment and replicas APIs,
+using distinct graph operations for image and scale changes, while the durable
+container runtime provider remains future work.
 
 ## Example ResourceDefinition
 

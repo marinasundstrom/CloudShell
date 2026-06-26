@@ -133,7 +133,7 @@ PUT /api/container-apps/v1/{containerAppId}/replicas
 ```
 
 route, which applies `container.replicas` into the graph before executing the
-same runtime seam. In a real build-server flow, the image upload or push to the
+graph replica-update operation seam. In a real build-server flow, the image upload or push to the
 registry happens before the deployment call. The deployment request names the
 immutable uploaded image tag, then the orchestrator materializes runtime
 replicas for the produced revision and records the routing-remap milestones

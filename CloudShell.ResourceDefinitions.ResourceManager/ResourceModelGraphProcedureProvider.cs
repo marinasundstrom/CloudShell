@@ -17,6 +17,7 @@ public sealed class ResourceModelGraphProcedureProvider :
 
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerOptions.Web);
     private static readonly ResourceOperationId ContainerImageUpdateOperationId = "container.image.update";
+    private static readonly ResourceOperationId ContainerReplicasUpdateOperationId = "container.replicas.update";
     private static readonly ResourceAttributeId ContainerImageAttributeId = "container.image";
     private static readonly ResourceAttributeId ContainerReplicasAttributeId = "container.replicas";
 
@@ -227,6 +228,7 @@ public sealed class ResourceModelGraphProcedureProvider :
         await ApplyContainerUpdateAttributesAsync(
             context,
             attributes,
+            ContainerImageUpdateOperationId,
             triggeredBy,
             cancellationToken);
 
@@ -236,7 +238,7 @@ public sealed class ResourceModelGraphProcedureProvider :
 
     public bool CanUpdateReplicas(ResourceManagerResource resource) =>
         IsBridgeResource(resource) &&
-        resource.HasAction(ContainerImageUpdateOperationId.ToString());
+        resource.HasAction(ContainerReplicasUpdateOperationId.ToString());
 
     public async Task<ResourceProcedureResult> UpdateReplicasAsync(
         ResourceProcedureContext context,
@@ -266,6 +268,7 @@ public sealed class ResourceModelGraphProcedureProvider :
             {
                 [ContainerReplicasAttributeId] = replicas
             },
+            ContainerReplicasUpdateOperationId,
             triggeredBy,
             cancellationToken);
 
@@ -366,6 +369,7 @@ public sealed class ResourceModelGraphProcedureProvider :
     private async Task ApplyContainerUpdateAttributesAsync(
         ResourceProcedureContext context,
         IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeValue> attributes,
+        ResourceOperationId operationId,
         string? triggeredBy,
         CancellationToken cancellationToken)
     {
@@ -404,7 +408,7 @@ public sealed class ResourceModelGraphProcedureProvider :
 
         var operation = await ResolveExecutableOperationAsync(
             context.Resource.Id,
-            ContainerImageUpdateOperationId,
+            operationId,
             cancellationToken);
         if (operation.Diagnostics.Count > 0)
         {

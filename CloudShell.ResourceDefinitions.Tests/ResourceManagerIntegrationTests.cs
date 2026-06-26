@@ -5255,6 +5255,11 @@ public sealed class ResourceManagerIntegrationTests
             Resource resource,
             CancellationToken cancellationToken = default) =>
             ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyReplicasAsync(
+            Resource resource,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
     }
 
     private sealed class StaticResourceModelEndpointProjectionProvider(

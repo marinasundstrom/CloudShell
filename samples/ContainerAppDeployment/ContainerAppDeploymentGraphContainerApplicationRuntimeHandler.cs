@@ -129,6 +129,54 @@ internal sealed class ContainerAppDeploymentGraphContainerApplicationRuntimeHand
         }
     }
 
+    public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyReplicasAsync(
+        GraphResource resource,
+        CancellationToken cancellationToken = default)
+    {
+        if (!IsGraphApp(resource))
+        {
+            return [];
+        }
+
+        if (!int.TryParse(
+                resource.Attributes.GetString(
+                    ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas),
+                out var replicas))
+        {
+            return
+            [
+                ResourceDefinitionDiagnostic.Error(
+                    "containerAppDeployment.containerApp.replicasRequired",
+                    "The graph container app replicas attribute must be set before the sample runtime replicas can be updated.",
+                    ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas)
+            ];
+        }
+
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var resourceManager = scope.ServiceProvider.GetRequiredService<IResourceManager>();
+            var result = await resourceManager.UpdateResourceReplicasAsync(
+                RuntimeAppResourceId,
+                replicas,
+                restartIfRunning: false,
+                triggeredBy: "resource-graph",
+                cancellationToken);
+
+            return ToDiagnostics(result, resource.EffectiveResourceId);
+        }
+        catch (Exception exception)
+        {
+            return
+            [
+                ResourceDefinitionDiagnostic.Error(
+                    "containerAppDeployment.containerApp.runtimeReplicasUpdateFailed",
+                    exception.Message,
+                    resource.EffectiveResourceId)
+            ];
+        }
+    }
+
     private static bool IsGraphApp(GraphResource resource) =>
         string.Equals(resource.EffectiveResourceId, GraphAppResourceId, StringComparison.OrdinalIgnoreCase);
 
