@@ -745,6 +745,29 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task ConfigurationStoreRuntimeInspector_ReportsConfiguredRuntimeEntryCount()
+    {
+        var options = new ConfigurationStoreRuntimeOptions();
+        options.Entries.Add(new("Sample:Message", "Hello from graph"));
+        options.Entries.Add(new("Sample:Mode", "Graph"));
+        var resource = new ResourceResolver(
+            [ConfigurationStoreResourceTypeProvider.ClassDefinition],
+            [new ConfigurationStoreResourceTypeProvider().TypeDefinition])
+            .Resolve(new ResourceState(
+                "settings",
+                ConfigurationStoreResourceTypeProvider.ResourceTypeId));
+        var inspector = new ConfigurationStoreRuntimeInspector(options);
+
+        var diagnostics = await inspector.InspectAsync(resource);
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticSeverity.Information, diagnostic.Severity);
+        Assert.Equal("configuration.store.inspect.runtimeEntries", diagnostic.Code);
+        Assert.Equal(resource.EffectiveResourceId, diagnostic.Target);
+        Assert.Contains("2 configured entries", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task AddHostConfigurationSourceResourceType_RegistersCompleteResourceTypeBoundary()
     {
         var services = new ServiceCollection();
@@ -1266,6 +1289,29 @@ public sealed class ResourceProviderDispatcherTests
         Assert.Equal("sample-api-key", secret.Name);
         Assert.Equal("secret-value", secret.Value);
         Assert.Equal("v1", secret.Version);
+    }
+
+    [Fact]
+    public async Task SecretsVaultRuntimeInspector_ReportsConfiguredRuntimeSecretCount()
+    {
+        var options = new SecretsVaultRuntimeOptions();
+        options.Secrets.Add(new("sample-api-key", "secret-value"));
+        var resource = new ResourceResolver(
+            [SecretsVaultResourceTypeProvider.ClassDefinition],
+            [new SecretsVaultResourceTypeProvider().TypeDefinition])
+            .Resolve(new ResourceState(
+                "vault",
+                SecretsVaultResourceTypeProvider.ResourceTypeId));
+        var inspector = new SecretsVaultRuntimeInspector(options);
+
+        var diagnostics = await inspector.InspectAsync(resource);
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticSeverity.Information, diagnostic.Severity);
+        Assert.Equal("secrets.vault.inspect.runtimeSecrets", diagnostic.Code);
+        Assert.Equal(resource.EffectiveResourceId, diagnostic.Target);
+        Assert.Contains("1 configured secret", diagnostic.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("secret-value", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]

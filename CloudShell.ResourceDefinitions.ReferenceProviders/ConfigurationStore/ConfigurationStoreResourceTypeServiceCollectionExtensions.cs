@@ -47,7 +47,7 @@ public static class ConfigurationStoreResourceTypeServiceCollectionExtensions
             serviceProvider => serviceProvider.GetRequiredService<ConfigurationStoreProcessRuntimeController>());
         services.TryAddSingleton<
             IConfigurationStoreInspector,
-            NoopConfigurationStoreInspector>();
+            ConfigurationStoreRuntimeInspector>();
 
         return services;
     }

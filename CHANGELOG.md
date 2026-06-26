@@ -98,6 +98,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Configuration Store and Secrets Vault graph provider registration now accepts
   provider-owned runtime options, letting SettingsAndSecrets configure backing
   service projects and seeded runtime data through the provider boundary.
+- Configuration Store and Secrets Vault graph inspect operations now have
+  default runtime-backed inspectors that report configured entry/secret counts
+  without exposing values.
 - ProjectReference smoke coverage now verifies logs plus health/liveness
   refresh for both graph-backed ASP.NET Core project resources.
 - ProjectReference documentation and the resource graph proposal now describe
