@@ -1582,6 +1582,19 @@ public sealed class SampleSmokeTests
             Assert.Equal("mssql", upstream.GetProperty("database").GetProperty("provider").GetString());
             Assert.Equal("application_topology", upstream.GetProperty("database").GetProperty("database").GetString());
 
+            var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+            using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+            var graphDatabase = Assert.Single(
+                resourcesDocument.RootElement.EnumerateArray(),
+                resource => resource.GetProperty("id").GetString() ==
+                    "application.sql-database:graph-application-topology-db");
+            var ensureCreatedHref = graphDatabase
+                .GetProperty("resourceActions")
+                .GetProperty(SqlDatabaseResourceTypeProvider.Operations.EnsureCreated.Value)
+                .GetProperty("href")
+                .GetString() ?? throw new InvalidOperationException("The graph SQL database ensure-created action did not include an href.");
+            await host.SendAsync(HttpMethod.Post, ensureCreatedHref);
+
             var eventsJson = await host.GetStringAsync(
                 "/api/control-plane/v1/resource-events?resourceId=application%3Aapplication-topology-sql-server");
             using var eventsDocument = JsonDocument.Parse(eventsJson);

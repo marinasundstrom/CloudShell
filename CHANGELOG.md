@@ -65,6 +65,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource model operation projections now receive the current resolved
   resource scope, and SQL database ensure-created handlers receive both the
   database resource and its resolved owning SQL Server resource.
+- ApplicationTopology now registers a sample-local graph SQL database
+  ensure-created handler that uses the resolved graph SQL Server endpoint and
+  host configuration for administrator credentials, keeping secrets out of
+  graph state while proving the provider-owned runtime hook.
 
 #### Fixed
 

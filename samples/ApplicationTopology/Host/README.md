@@ -39,9 +39,11 @@ service discovery, separate configurable graph endpoints
 new ASP.NET Core graph runtime controller can start them without relying on the
 old application provider. Current graph smoke coverage starts the graph API and
 frontend, verifies the graph API settings endpoint, and exercises
-frontend-to-API discovery through `/upstream/failure`. The full graph
-`/upstream` path still waits for graph-backed SQL Server/database
-materialization.
+frontend-to-API discovery through `/upstream/failure`. The host also registers
+a sample-local graph SQL database ensure-created handler that can materialize
+the graph database against the configured SQL Server endpoint without storing
+administrator credentials in graph state. The full graph `/upstream` path still
+waits for graph-backed SQL Server lifecycle/runtime ownership.
 
 Both projects use the shared `ServiceDefaults` project for health endpoints,
 HTTP client service discovery, JSON console logs, OpenTelemetry tracing, and

@@ -1,6 +1,7 @@
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ApplicationTopologyHost;
 using CloudShell.ControlPlane.Authentication;
 using CloudShell.ControlPlane.Hosting;
 using CloudShell.ControlPlane.ResourceManager;
@@ -85,6 +86,7 @@ builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
 builder.Services
+    .AddSingleton<ISqlDatabaseCreationHandler, GraphSqlDatabaseCreationHandler>()
     .AddInMemoryResourceModelGraph(
     [
         new ResourceGraphState(

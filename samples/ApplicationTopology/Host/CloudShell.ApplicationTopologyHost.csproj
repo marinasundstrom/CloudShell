@@ -7,6 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\..\CloudShell.ControlPlane\CloudShell.ControlPlane.csproj" />
     <ProjectReference Include="..\..\..\CloudShell.Hosting\CloudShell.Hosting.csproj" />
     <ProjectReference Include="..\..\..\CloudShell.Providers.Applications\CloudShell.Providers.Applications.csproj" />
