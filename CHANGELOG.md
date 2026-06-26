@@ -113,6 +113,10 @@ on `git blame --follow`, and then by the broad type of change.
   coverage verifying Resource Manager projection, replica-count attributes,
   and typed graph dependencies while the old runtime path still owns replica
   materialization and telemetry.
+- ContainerHost now declares side-by-side graph-backed storage, volume, and SQL
+  Server resources in the sample host, with service-level coverage verifying
+  Resource Manager projection, storage/volume attributes, typed storage
+  dependency, and SQL Server volume-consumer capability.
 - The Resource Graph proposal now documents the lifecycle of porting tests,
   distinguishing temporary old/new parity tests from graph-contract tests,
   runtime seam tests, and smoke tests that should be simplified after a sample

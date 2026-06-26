@@ -13,9 +13,18 @@ using CloudShell.ContainerHost;
 using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager.Platform;
 using CloudShell.Providers.Applications;
+using CloudShell.ResourceDefinitions.ReferenceProviders;
+using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
+using CloudShell.ResourceDefinitions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
+using ResourceAttributeId = CloudShell.ResourceDefinitions.ResourceAttributeId;
+using ResourceAttributeValue = CloudShell.ResourceDefinitions.ResourceAttributeValue;
+using ResourceCapabilityId = CloudShell.ResourceDefinitions.ResourceCapabilityId;
+using ResourceDefinitionJson = CloudShell.ResourceDefinitions.ResourceDefinitionJson;
+using ResourceGraphState = CloudShell.ResourceDefinitions.ResourceState;
+using ResourceReference = CloudShell.ResourceDefinitions.ResourceReference;
 using SqlServerResources = CloudShell.Providers.Applications.ApplicationProviderServiceCollectionExtensions;
 
 namespace CloudShell.Sample.Tests;
@@ -35,9 +44,69 @@ public sealed class SampleSmokeTests
     [Fact]
     public async Task ContainerHostSample_DeclaresLocalStorageBackedSqlServerVolume()
     {
+        const string graphStorageResourceId = "cloudshell.storage:graph-local";
+        const string graphVolumeResourceId = "cloudshell.volume:graph-sql-data";
+        const string graphSqlServerResourceId = "application.sql-server:graph-sql-server";
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         var services = new ServiceCollection();
         services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddInMemoryResourceModelGraph(
+            [
+                new ResourceGraphState(
+                    "graph-local",
+                    StorageResourceTypeProvider.ResourceTypeId,
+                    ResourceId: graphStorageResourceId,
+                    ProviderId: StorageResourceTypeProvider.ProviderId,
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+                    {
+                        [StorageResourceTypeProvider.Attributes.Provider] = "local",
+                        [StorageResourceTypeProvider.Attributes.Medium] = "FileSystem",
+                        [StorageResourceTypeProvider.Attributes.Location] = "./Data/storage"
+                    }),
+                new ResourceGraphState(
+                    "graph-sql-data",
+                    CloudShellVolumeResourceTypeProvider.ResourceTypeId,
+                    ResourceId: graphVolumeResourceId,
+                    ProviderId: CloudShellVolumeResourceTypeProvider.ProviderId,
+                    DisplayName: "Graph SQL Server Data",
+                    DependsOn:
+                    [
+                        ResourceReference.DependsOnResourceId(
+                            graphStorageResourceId,
+                            typeId: StorageResourceTypeProvider.ResourceTypeId)
+                    ],
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+                    {
+                        [CloudShellVolumeResourceTypeProvider.Attributes.Provider] = "local",
+                        [CloudShellVolumeResourceTypeProvider.Attributes.StorageMedium] = "FileSystem",
+                        [CloudShellVolumeResourceTypeProvider.Attributes.SubPath] = "sql-server",
+                        [CloudShellVolumeResourceTypeProvider.Attributes.AccessMode] = "ReadWriteOnce",
+                        [CloudShellVolumeResourceTypeProvider.Attributes.Persistent] = true
+                    }),
+                new ResourceGraphState(
+                    "graph-sql-server",
+                    SqlServerResourceTypeProvider.ResourceTypeId,
+                    ResourceId: graphSqlServerResourceId,
+                    ProviderId: SqlServerResourceTypeProvider.ProviderId,
+                    DisplayName: "Graph SQL Server",
+                    Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
+                    {
+                        [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
+                            ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
+                            [
+                                new(graphVolumeResourceId, "/var/opt/mssql")
+                            ]))
+                    })
+            ])
+            .AddStorageResourceType()
+            .AddCloudShellVolumeResourceType()
+            .AddSqlServerResourceType()
+            .AddResourceModelGraphServices()
+            .AddReferenceProviderResourceManagerProjections()
+            .AddResourceModelGraphProcedureProvider(
+                ResourceModelResourceProvider.DefaultProviderId,
+                "Resource model");
         services
             .AddControlPlane()
             .AddApplicationProvider()
@@ -58,6 +127,13 @@ public sealed class SampleSmokeTests
             .ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
         var applicationResources = serviceProvider.GetRequiredService<ApplicationResourceProjectionSource>();
         var descriptors = serviceProvider.GetRequiredService<IApplicationResourceDescriptorOperations>();
+        var graphProvider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var graphResources = graphProvider
+            .GetResources()
+            .ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
         var sqlServer = Assert.Single(applicationResources.GetResources(), resource =>
             resource.Id == "application:sql-server");
         var descriptor = await descriptors.DescribeAsync(
@@ -91,6 +167,22 @@ public sealed class SampleSmokeTests
         Assert.Equal(ResourceClass.Service, sqlServer.ResourceClass);
         Assert.True(sqlServer.HasCapability(ResourceCapabilityIds.StorageVolumeConsumer));
         Assert.Equal("1", sqlServer.ResourceAttributes[ResourceAttributeNames.VolumeMountCount]);
+        var graphStorage = graphResources[graphStorageResourceId];
+        Assert.Equal("cloudshell.storage", graphStorage.EffectiveTypeId);
+        Assert.Equal("local", graphStorage.ResourceAttributes[StorageResourceTypeProvider.Attributes.Provider]);
+        Assert.Equal("FileSystem", graphStorage.ResourceAttributes[StorageResourceTypeProvider.Attributes.Medium]);
+        Assert.Equal("./Data/storage", graphStorage.ResourceAttributes[StorageResourceTypeProvider.Attributes.Location]);
+        var graphVolume = graphResources[graphVolumeResourceId];
+        Assert.Equal("cloudshell.volume", graphVolume.EffectiveTypeId);
+        Assert.Equal([graphStorageResourceId], graphVolume.DependsOn);
+        Assert.Equal("FileSystem", graphVolume.ResourceAttributes[
+            CloudShellVolumeResourceTypeProvider.Attributes.StorageMedium]);
+        Assert.Equal("sql-server", graphVolume.ResourceAttributes[
+            CloudShellVolumeResourceTypeProvider.Attributes.SubPath]);
+        var graphSqlServer = graphResources[graphSqlServerResourceId];
+        Assert.Equal("application.sql-server", graphSqlServer.EffectiveTypeId);
+        Assert.Contains(graphSqlServer.ResourceCapabilities, capability =>
+            capability.Id == VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString());
 
         var mount = Assert.Single(workload?.WorkloadVolumeMounts ?? []);
         Assert.Equal("volume:sql-data", mount.VolumeReference);

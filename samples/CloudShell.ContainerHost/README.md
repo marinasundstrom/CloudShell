@@ -52,3 +52,19 @@ The storage graph is intentionally explicit. The Local Storage resource is a
 volume is a sub-item of that storage resource and projects the same medium.
 The default local Docker runner materializes that `FileSystem` volume as a bind
 mount when SQL Server starts.
+
+## Resource Graph POC coverage
+
+The sample also declares side-by-side graph-backed resources through the
+Resource Definitions bridge:
+
+- `cloudshell.storage:graph-local`: graph-backed local storage projection.
+- `cloudshell.volume:graph-sql-data`: graph-backed SQL data volume with a
+  typed startup dependency on the graph storage resource.
+- `application.sql-server:graph-sql-server`: graph-backed SQL Server resource
+  with a volume-consumer capability for `/var/opt/mssql`.
+
+Those resources prove projection, storage/volume attributes, typed storage
+dependency, and volume-consumer capability shape while the existing
+application/Docker provider path remains responsible for local SQL Server
+runtime materialization.
