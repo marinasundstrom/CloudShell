@@ -783,6 +783,7 @@ public sealed class SampleSmokeTests
         var settingsIdentity = settings.GetProperty("identity");
         var secretsIdentity = secrets.GetProperty("identity");
         var apiIdentity = api.GetProperty("identity");
+        var graphApiIdentity = graphApi.GetProperty("identity");
 
         Assert.Equal((int)ResourceState.Stopped, sqlServer.GetProperty("state").GetInt32());
         Assert.Equal((int)ResourceState.Stopped, api.GetProperty("state").GetInt32());
@@ -843,6 +844,8 @@ public sealed class SampleSmokeTests
             GetEndpointAddress(graphSecrets, "secrets"));
         Assert.Equal("application.aspnet-core-project", graphApi.GetProperty("typeId").GetString());
         Assert.Equal($"http://localhost:{graphApiPort}", GetPrimaryEndpointAddress(graphApi));
+        Assert.Equal("identity:development", graphApiIdentity.GetProperty("providerId").GetString());
+        Assert.Equal("graph-application-topology-api", graphApiIdentity.GetProperty("name").GetString());
         Assert.Equal(
             "application-topology-api",
             graphApiAttributes
@@ -958,9 +961,21 @@ public sealed class SampleSmokeTests
             grant =>
                 grant.GetProperty("targetResourceId").GetString() == "application:application-topology-sql-server" &&
                 grant.GetProperty("permission").GetString() == DatabaseResourceOperationPermissions.ReadWrite);
+        var graphGrantsJson = await host.GetStringAsync(
+            "/api/control-plane/v1/resource-permission-grants" +
+            $"?principalKind={(int)ResourcePrincipalKind.ResourceIdentity}" +
+            $"&principalId={Uri.EscapeDataString("application.aspnet-core-project:graph-application-topology-api/identities/graph-application-topology-api")}");
+        using var graphGrantsDocument = JsonDocument.Parse(graphGrantsJson);
+        var graphGrants = graphGrantsDocument.RootElement.EnumerateArray().ToArray();
+        Assert.Contains(
+            graphGrants,
+            grant =>
+                grant.GetProperty("targetResourceId").GetString() == "application.sql-server:graph-application-topology-sql-server" &&
+                grant.GetProperty("permission").GetString() == DatabaseResourceOperationPermissions.ReadWrite);
 
         await AssertProvisionedIdentityStatusAsync(host, "application:application-topology-api");
         await AssertProvisionedIdentityStatusAsync(host, "application:application-topology-sql-server");
+        await AssertProvisionedIdentityStatusAsync(host, "application.aspnet-core-project:graph-application-topology-api");
         await AssertProvisionedIdentityStatusAsync(host, "configuration:application-topology");
         await AssertProvisionedIdentityStatusAsync(host, "secrets-vault:application-topology");
 

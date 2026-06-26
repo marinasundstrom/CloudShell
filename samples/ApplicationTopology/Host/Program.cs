@@ -75,6 +75,8 @@ const string graphSettingsResourceId = "configuration.store:graph-application-to
 const string graphSecretsResourceId = "secrets.vault:graph-application-topology-secrets";
 const string graphApiResourceId = "application.aspnet-core-project:graph-application-topology-api";
 const string graphFrontendResourceId = "application.aspnet-core-project:graph-application-topology-frontend";
+const string graphApiIdentityName = "graph-application-topology-api";
+var graphApiIdentityClientId = $"{graphApiResourceId}/{graphApiIdentityName}";
 builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 {
     ["Authentication:BuiltInAuthority:Enabled"] = "true",
@@ -214,6 +216,18 @@ builder.Services
                         new AspNetCoreProjectEnvironmentVariableValue(
                             "CLOUDSHELL_SQL_CREDENTIAL_ENDPOINT",
                             $"{cloudShellEndpoint}/api/sql-server/v1/credentials"),
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT",
+                            identityTokenEndpoint),
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "CLOUDSHELL_IDENTITY_CLIENT_ID",
+                            graphApiIdentityClientId),
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "CLOUDSHELL_IDENTITY_CLIENT_SECRET",
+                            "local-development-application-topology-api-secret"),
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "CLOUDSHELL_IDENTITY_SCOPE",
+                            "ControlPlane.Access"),
                         new AspNetCoreProjectEnvironmentVariableValue(
                             "ApplicationTopology__SqlServer__Authentication",
                             "CloudShell"),
@@ -494,7 +508,7 @@ cloudShell.Resources(resources =>
     resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphSqlVolumeResourceId)
         .WithResourceGroup(groupId);
-    resources
+    var graphSqlServer = resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphSqlServerResourceId)
         .WithResourceGroup(groupId);
     resources
@@ -506,12 +520,16 @@ cloudShell.Resources(resources =>
     resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphSecretsResourceId)
         .WithResourceGroup(groupId);
-    resources
+    var graphApi = resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphApiResourceId)
-        .WithResourceGroup(groupId);
+        .WithIdentity(identityProvider, name: graphApiIdentityName)
+        .WithResourceGroup(groupId)
+        .ProvisionIdentityOnStartup();
     resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphFrontendResourceId)
         .WithResourceGroup(groupId);
+
+    graphSqlServer.Allow(graphApi.Principal, DatabaseResourceOperationPermissions.ReadWrite);
 
     var frontend = resources
         .AddAspNetCoreProject(

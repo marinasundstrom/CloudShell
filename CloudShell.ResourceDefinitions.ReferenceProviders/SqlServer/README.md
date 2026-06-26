@@ -17,6 +17,7 @@
 - Typed wrapper plus ContainerHost sample-inspired graph coverage.
 - ASP.NET Core service-discovery environment projection from explicit SQL Server `project.references`.
 - Resource Manager bridge projection, including endpoint contract/network mapping projection, and execution.
+- ApplicationTopology graph API read/write grant declaration against a graph SQL Server resource.
 
 ## Remaining
 

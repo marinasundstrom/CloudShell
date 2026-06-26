@@ -43,7 +43,11 @@ frontend-to-API discovery through `/upstream/failure`. The host also registers
 a sample-local graph SQL database ensure-created handler that can materialize
 the graph database against the configured SQL Server endpoint without storing
 administrator credentials in graph state. The full graph `/upstream` path still
-waits for graph-backed SQL Server lifecycle/runtime ownership.
+waits for graph-backed SQL Server credential materialization and broader
+SQL Server lifecycle/runtime ownership. The graph API already has a declared
+built-in resource identity and a read/write grant to the graph SQL Server so
+the credential runtime slice can validate against the same Control Plane grant
+model as the old provider path.
 
 Both projects use the shared `ServiceDefaults` project for health endpoints,
 HTTP client service discovery, JSON console logs, OpenTelemetry tracing, and

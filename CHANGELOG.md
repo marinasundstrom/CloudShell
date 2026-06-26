@@ -72,6 +72,9 @@ on `git blame --follow`, and then by the broad type of change.
 - ApplicationTopology API SQL access now reads the target SQL Server resource
   name from configuration, allowing the old-provider API path and graph-backed
   API path to declare different SQL service-discovery targets.
+- ApplicationTopology now declares a built-in resource identity for the
+  graph-backed API resource and grants it read/write access to the graph SQL
+  Server resource, preparing the graph SQL credential runtime slice.
 
 #### Fixed
 

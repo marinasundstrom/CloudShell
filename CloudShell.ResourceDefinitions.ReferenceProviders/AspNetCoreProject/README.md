@@ -16,6 +16,7 @@
 - Resource Manager bridge projection for state, endpoints, observability links, and process-output logs.
 - ProjectReference and SettingsAndSecrets sample coverage for runtime startup, graph-to-graph calls, logs, metrics, traces, health, and ResourceDefinition apply/update.
 - ApplicationTopology-inspired graph coverage for explicit SQL Server, Configuration Store, and Secrets Vault service-discovery references without using `DependsOn` for discovery.
+- ApplicationTopology graph API identity declaration and SQL read/write grant setup through Resource Manager declarations.
 
 ## Remaining
 
