@@ -734,7 +734,7 @@ replacement work explicitly.
 | ThirdPartyIdentity | The sample host now declares a side-by-side graph-backed identity provisioning resource for Keycloak through the provider-owned identity builder. Non-Docker smoke coverage verifies Resource Manager projection and setup operation shape, focused adapter coverage verifies that graph setup delegates to the attached Resource Manager identity provider setup service, and the Docker-backed sample path executes graph setup through the Keycloak runtime integration with returned provider diagnostics before the old Resource Manager path provisions the workload identity and protected configuration access. | Use this sample later to decide whether individual resource identity declarations should remain Resource Manager-owned for the POC or gain first-class graph declarations after more provider ports need that shape. |
 | ContainerHost | The sample host now declares side-by-side graph-backed storage, volume, and SQL Server resources. Service-level coverage verifies Resource Manager projection, storage/volume attributes, typed storage dependency, and SQL Server volume-consumer capability while the old sample still owns local Docker materialization. | Use this sample to keep validating storage-backed volume semantics before runtime storage materialization moves behind graph-backed provider seams. |
 | ApplicationTopology | The sample host now declares side-by-side graph-backed storage, SQL Server/database, configuration, secrets, API, and frontend ASP.NET Core resources across provider boundaries. Smoke coverage verifies their Resource Manager projection, SQL endpoint mapping, settings/secrets endpoints, typed startup dependencies, graph frontend-to-API service discovery through `project.serviceDiscoveryName` and `project.references`, health/liveness declarations, and explicit separation from `DependsOn`. The graph Configuration Store and Secrets Vault now use separate configurable service endpoints, provider-owned runtime option registration, seeded provider-owned runtime data, Resource Manager-declared graph API identity grants, backing-service startup, authenticated entry/secret reads through the new provider runtime controllers, and graph API consumption through the CloudShell Configuration Store and Secrets Vault client integrations derived from `project.references`. The graph ASP.NET Core resources now use runtime-ready absolute project paths, separate configurable graph endpoints, and runtime smoke coverage for graph API settings, frontend-to-API discovery through the intentional failure route, graph API `/database`, and the Docker-backed graph frontend `/upstream` path. The API project can target either the old or graph SQL Server service-discovery name through configuration, and the graph API declares the graph SQL target, built-in identity, SQL read/write grant, sample-local graph SQL lifecycle adapter with cached status projection, graph SQL start/restart/stop smoke coverage, SQL container create/recreate/remove assertions, and sample-local graph SQL credential endpoint for `/database`. | Use this sample to keep validating multi-provider dependencies, SQL child ownership, volume materialization, graph SQL credential flow, and application-level discovery before replacing the old application-provider path. Reusable graph SQL credential brokering and provider-owned SQL runtime implementation remain provider work. |
-| ContainerAppDeployment | The sample host now declares side-by-side graph-backed Docker host, registry container, and container-app resources through provider-owned graph builders. Smoke coverage verifies Resource Manager projection, registry attributes, and typed graph dependencies. Graph Docker container lifecycle operations now have a provider-owned runtime handler seam with Resource Manager state projection and status-aware action availability. The sample carries an opt-in registry materializer for `docker.container:graph-sample-registry`, disabled by default so normal projection does not shell out to Docker. The materializer uses a sample-local Docker command runner with deterministic status and lifecycle command coverage. The Resource Model bridge can now satisfy the existing deployment image-update API and replica update API for graph-backed container apps by applying `container.image` and/or `container.replicas` changes into the graph before executing the graph image-update or replica-update operation seam. The sample wires those graph container-app seams to a sample-local adapter over the existing `application:sample-api` runtime path, and smoke coverage verifies graph updates affect both graph state and the runtime app declaration next to the old app deployment flow. The old sample runtime still owns deployment, registry, and Docker behavior until a durable Docker handler is plugged in. | Port runtime deployment only when the graph-to-Resource Manager runtime apply boundary can be tested against registry and container-host seams without reintroducing the old application-provider aggregate. Full graph registry lifecycle smoke coverage remains deferred until the Docker materializer can run without slowing or racing normal sample projection tests. |
+| ContainerAppDeployment | The sample host now declares side-by-side graph-backed Docker host, registry container, and container-app resources through provider-owned graph builders. Smoke coverage verifies Resource Manager projection, registry attributes, and typed graph dependencies. Graph Docker container lifecycle operations now have a provider-owned runtime handler seam with Resource Manager state projection and status-aware action availability. The sample carries an opt-in registry materializer for `docker.container:graph-sample-registry`, disabled by default so normal projection does not shell out to Docker. The materializer uses a sample-local Docker command runner with deterministic status and lifecycle command coverage. The Resource Model bridge can now satisfy the existing deployment image-update API and replica update API for graph-backed container apps by applying `container.image` and/or `container.replicas` changes into the graph before executing temporary graph image-update or replica-update operation seams. Those seams are POC adapter hooks for accepted graph changes because the current API still models image deployment and scaling as Control Plane workflows; they do not decide whether image upload, deployment, or non-lifecycle scale workflows should later become explicit resource operations. The sample wires the seams to a sample-local adapter over the existing `application:sample-api` runtime path, and smoke coverage verifies graph updates affect both graph state and the runtime app declaration next to the old app deployment flow. The old sample runtime still owns deployment, registry, and Docker behavior until a durable Docker handler is plugged in. | Port runtime deployment only when the graph-to-Resource Manager runtime apply boundary can be tested against registry and container-host seams without reintroducing the old application-provider aggregate. Full graph registry lifecycle smoke coverage remains deferred until the Docker materializer can run without slowing or racing normal sample projection tests. |
 | ReplicatedContainerHealth | The sample host now declares side-by-side graph-backed Docker host and replicated container-app resources. Smoke coverage verifies Resource Manager projection, replica-count attributes, typed graph dependencies, container endpoint requests, endpoint/network mapping projection, health/liveness capability declarations, and resource group template export of graph resources as `resource-definition.v1` payloads. Container-app start/stop/restart/image-update/replica-update graph operations now delegate through a provider-owned runtime handler seam, and the sample wires that seam to a sample-local adapter that starts, stops, and restarts the existing `application:api` runtime app from the graph `application.container-app:graph-api` lifecycle actions, projects graph container-app state from the runtime app through the Resource Manager bridge state provider, and applies graph `container.image` or `container.replicas` changes into the existing runtime app configuration through the graph operations. Docker smoke coverage verifies the graph start/restart actions publish the replicated API health endpoint, graph restart recreates the revision-scoped runtime containers, graph stop projects stopped state, and graph stop removes the revision-scoped runtime containers created by graph start. The old sample runtime still owns replica materialization, aggregate health observations, logs, traces, and metrics. | Use this sample later to decide which health/telemetry declarations belong in graph configuration and which remain operational projections from Resource Manager runtime state. |
 | HostVirtualNetwork and LoadBalancer | Network, virtual network, host networking, DNS zone, name mapping, service, and load-balancer graph providers have definition/projection coverage. HostVirtualNetwork carries side-by-side graph-backed local host networking, ASP.NET Core target API, and virtual-network resources in the sample host. LoadBalancer carries side-by-side graph-backed Docker host, container-app targets, and load-balancer resources. Smoke coverage verifies Resource Manager projection, typed graph dependencies, and load-balancer count/operation shape. | Continue validating endpoint mapping operations, route payloads, and provider-owned network/load-balancer reconciliation as the graph model starts carrying richer route and backend configuration. |
 
@@ -1803,19 +1803,39 @@ domain-level behavior declaration. Operation declarations are resolved into
 `.Operations`; the provider implementation for that declaration may vary by
 resource class, resource type, provider, or resource instance.
 
-An operation declaration names an operation surface on a resource. It is closer
-to an interface method or Web API endpoint declaration than to the execution
-implementation itself. A caller can discover that the resource has a named
-operation, check whether it can execute, and invoke the matching operation
-projection when one is registered. The implementation may live in an operation
-provider, in the resource type provider boundary, or in a higher Control Plane
-integration that maps the operation ID to its own behavior.
+An operation declaration names an operation surface on a resource. It is the
+graph-model successor to the previous resource action concept: a domain
+operation that Resource Manager can discover and, when appropriate, expose as
+a resource action in the CloudShell UI or Control Plane API. Lifecycle
+operations such as start, stop, and restart can still get default UI
+affordances. Other operations should be added to the UI only through explicit
+Resource Manager UI integrations that decide placement, wording,
+authorization affordances, and any required workflow shape.
+
+Resource operations are not meant to enumerate every action that can be taken
+against a resource by accident. They should be deliberate, resource-facing
+verbs that make sense to discover from the resolved graph. Type-specific
+workflows with richer contracts, such as image upload, build/publish flows,
+deployment creation, or other Control Plane API workflows, may become resource
+operations later if the graph, Resource Manager API, and UI integration model
+explicitly choose that shape. Until then, those workflows can still apply
+validated graph changes or call provider seams without automatically becoming
+graph resource operations. The current container-app image and replica
+operation seams are POC adapters for accepted graph changes and should be
+revisited before the operation surface is stabilized.
+
+A caller can discover that the resource has a named operation, check whether
+it can execute, and invoke the matching operation projection when one is
+registered. The implementation may live in an operation provider, in the
+resource type provider boundary, or in a higher Control Plane integration that
+maps the operation ID to its own behavior.
 
 Examples:
 
 - `start`: start the resource using the appropriate provider behavior.
 - `restart`: restart or reconcile the running resource.
-- `deployImage`: apply a new container image to a container application.
+- `scaleReplicas`: request a standard scale change when the resource type
+  decides this should be discoverable as a resource-facing operation.
 - `reconcileDatabaseAccess`: reconcile declared database grants.
 
 The same operation ID can have different implementations for different
@@ -3315,6 +3335,10 @@ orchestration state, procedure dispatch, activity logging, or provider runtime
 coordination. The Resource model should define the operation declaration and
 make it resolvable on the resource graph; it should not require the operation
 implementation to live beside the resource type definition.
+The UI projection remains explicit: lifecycle operations can be surfaced by
+default as standard CloudShell resource actions, but non-lifecycle operations
+should appear in the CloudShell UI only when a Resource Manager UI integration
+chooses to expose them.
 This is the same separation used for apply hooks: the graph declares that the
 operation exists and can resolve a resource-bound work unit, while the
 Resource Manager or provider integration implements the runtime behavior. If

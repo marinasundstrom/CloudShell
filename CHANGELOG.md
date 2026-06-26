@@ -70,6 +70,12 @@ on `git blame --follow`, and then by the broad type of change.
   sample-local adapter over the existing `application:sample-api` runtime path,
   so graph image and replica updates are applied to both graph state and the
   running sample resource model.
+- ContainerAppDeployment now has deterministic coverage for the graph
+  container-app runtime adapter, verifying status projection and
+  lifecycle/image/replica delegation into the existing runtime app resource
+  without starting Docker. The Resource Graph proposal now clarifies that
+  non-lifecycle operations are exposed through CloudShell UI only when an
+  explicit Resource Manager UI integration chooses to surface them.
 - Container app replica updates now have their own graph operation
   (`container.replicas.update`) and runtime-handler method, so direct scale
   requests no longer reuse the image-update operation seam.
