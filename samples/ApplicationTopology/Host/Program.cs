@@ -55,6 +55,10 @@ var graphApiEndpoint = builder.Configuration["ApplicationTopology:GraphApiEndpoi
     ?? apiEndpoint;
 var graphFrontendEndpoint = builder.Configuration["ApplicationTopology:GraphFrontendEndpoint"]
     ?? frontendEndpoint;
+var graphConfigurationEndpoint = builder.Configuration["ApplicationTopology:GraphConfigurationServiceEndpoint"]
+    ?? $"http://localhost:{builder.Configuration.GetValue<int?>("ApplicationTopology:GraphConfigurationServiceBasePort") ?? 5139}";
+var graphSecretsEndpoint = builder.Configuration["ApplicationTopology:GraphSecretsServiceEndpoint"]
+    ?? $"http://localhost:{builder.Configuration.GetValue<int?>("ApplicationTopology:GraphSecretsServiceBasePort") ?? 6139}";
 var graphApiEndpointUri = new Uri(graphApiEndpoint);
 var graphFrontendEndpointUri = new Uri(graphFrontendEndpoint);
 var graphApiProjectPath = Path.Combine(
@@ -149,7 +153,7 @@ builder.Services
             Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
                 [ConfigurationStoreResourceTypeProvider.Attributes.Endpoint] =
-                    $"http://localhost:{builder.Configuration.GetValue<int?>("ApplicationTopology:ConfigurationServiceBasePort") ?? 5138}",
+                    graphConfigurationEndpoint,
                 [ConfigurationStoreResourceTypeProvider.Attributes.EntryCount] =
                     2
             }),
@@ -162,7 +166,7 @@ builder.Services
             Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
                 [SecretsVaultResourceTypeProvider.Attributes.Endpoint] =
-                    $"http://localhost:{builder.Configuration.GetValue<int?>("ApplicationTopology:SecretsServiceBasePort") ?? 6138}",
+                    graphSecretsEndpoint,
                 [SecretsVaultResourceTypeProvider.Attributes.SecretCount] =
                     1
             }),
@@ -353,8 +357,25 @@ builder.Services
     .AddLocalVolumeResourceType()
     .AddSqlServerResourceType()
     .AddSqlDatabaseResourceType()
-    .AddConfigurationStoreResourceType()
-    .AddSecretsVaultResourceType()
+    .AddConfigurationStoreResourceType(options =>
+    {
+        options.ServiceProjectPath = configurationStoreServiceProjectPath;
+        options.ServiceWorkingDirectory = repositoryRootPath;
+        options.ServiceAuthenticationIssuer = identityIssuer;
+        options.ServiceAuthenticationAudience = identityAudience;
+        options.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
+        options.Entries.Add(new("ApplicationTopology:Message", "Hello from CloudShell graph configuration."));
+        options.Entries.Add(new("ApplicationTopology:Mode", "Graph"));
+    })
+    .AddSecretsVaultResourceType(options =>
+    {
+        options.ServiceProjectPath = secretsVaultServiceProjectPath;
+        options.ServiceWorkingDirectory = repositoryRootPath;
+        options.ServiceAuthenticationIssuer = identityIssuer;
+        options.ServiceAuthenticationAudience = identityAudience;
+        options.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
+        options.Secrets.Add(new("external-api-key", "graph-local-development-api-key"));
+    })
     .AddAspNetCoreProjectResourceType()
     .AddResourceModelGraphServices()
     .AddReferenceProviderResourceManagerProjections()
@@ -514,10 +535,10 @@ cloudShell.Resources(resources =>
     resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphDatabaseResourceId)
         .WithResourceGroup(groupId);
-    resources
+    var graphSettings = resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphSettingsResourceId)
         .WithResourceGroup(groupId);
-    resources
+    var graphSecrets = resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphSecretsResourceId)
         .WithResourceGroup(groupId);
     var graphApi = resources
@@ -530,6 +551,8 @@ cloudShell.Resources(resources =>
         .WithResourceGroup(groupId);
 
     graphSqlServer.Allow(graphApi.Principal, DatabaseResourceOperationPermissions.ReadWrite);
+    graphSettings.Allow(graphApi.Principal, ConfigurationStoreResourceOperationPermissions.ReadEntries);
+    graphSecrets.Allow(graphApi.Principal, SecretsVaultResourceOperationPermissions.ReadSecrets);
 
     var frontend = resources
         .AddAspNetCoreProject(

@@ -37,19 +37,22 @@ service discovery, separate configurable graph endpoints
 (`ApplicationTopology:GraphApiEndpoint` and
 `ApplicationTopology:GraphFrontendEndpoint`), and absolute project paths so the
 new ASP.NET Core graph runtime controller can start them without relying on the
-old application provider. Current graph smoke coverage starts the graph API and
-frontend, verifies the graph API settings endpoint, and exercises
+old application provider. Current graph smoke coverage starts the graph-backed
+Configuration Store and Secrets Vault through the new provider runtime
+controllers, verifies authenticated reads from their service APIs, starts the
+graph API and frontend, verifies the graph API settings endpoint, and exercises
 frontend-to-API discovery through `/upstream/failure`. Docker-backed smoke
 coverage also starts the graph API and frontend against the existing SQL
 Server runtime and verifies the graph frontend `/upstream` path through graph
 settings and graph SQL credentials. The host registers a sample-local graph SQL
 database ensure-created handler that can materialize the graph database against
 the configured SQL Server endpoint without storing administrator credentials in
-graph state. The graph API has a declared built-in resource identity and a
-read/write grant to the graph SQL Server, and the host maps a sample-local
-graph SQL credential endpoint so the graph API can exercise `/database` through
-the same CloudShell SQL client flow as the old provider path. A reusable graph
-SQL credential broker and broader SQL Server lifecycle/runtime ownership remain
+graph state. The graph API has a declared built-in resource identity, read
+grants to the graph Configuration Store and Secrets Vault, and a read/write
+grant to the graph SQL Server. The host maps a sample-local graph SQL
+credential endpoint so the graph API can exercise `/database` through the same
+CloudShell SQL client flow as the old provider path. A reusable graph SQL
+credential broker and broader SQL Server lifecycle/runtime ownership remain
 provider work.
 
 Both projects use the shared `ServiceDefaults` project for health endpoints,
@@ -168,7 +171,9 @@ You can override the SQL Server development password with:
 {
   "ApplicationTopology": {
     "ConfigurationServiceBasePort": 5138,
+    "GraphConfigurationServiceBasePort": 5139,
     "SecretsServiceBasePort": 6138,
+    "GraphSecretsServiceBasePort": 6139,
     "SqlServer": {
       "Password": "Your-strong-dev-password!",
       "Port": 14334
@@ -263,6 +268,9 @@ Already covered by the sample:
   declared database child, and a local container-backed runtime.
 - Configuration Store and Secrets Vault references injected into the API
   without leaking secret values.
+- Side-by-side graph-backed Configuration Store and Secrets Vault runtime
+  services with seeded provider-owned data and Resource Manager-declared graph
+  identity grants for the graph API.
 - Built-in development resource identity and access grants for settings,
   secrets, and SQL Server database access.
 - Local DNS/name mapping through the `local-hostnames` publisher.

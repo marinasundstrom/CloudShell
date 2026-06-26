@@ -91,6 +91,14 @@ on `git blame --follow`, and then by the broad type of change.
 - ApplicationTopology Docker smoke coverage now starts the graph-backed
   frontend and verifies its `/upstream` path through the graph API, graph
   settings, and graph SQL credential flow.
+- ApplicationTopology graph-backed Configuration Store and Secrets Vault
+  resources now use separate provider-owned runtime service endpoints, seeded
+  graph runtime data, Resource Manager-declared graph API identity grants, and
+  smoke coverage for starting the backing services and reading entries/secrets
+  through the new provider runtime path.
+- The Resource Graph proposal now clarifies that selected samples should
+  become runnable through graph-backed providers, with adapters used only as
+  temporary bridges into focused Control Plane or Resource Manager services.
 - Resource Manager graph operation execution now preserves successful
   provider diagnostics in the returned procedure message, so runtime-backed
   operations such as ThirdPartyIdentity Keycloak setup expose their provider

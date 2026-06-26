@@ -1557,6 +1557,100 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
+    public async Task ApplicationTopologyHost_GraphBackingServicesRunThroughResourceModelRuntime()
+    {
+        var apiPort = await GetFreePortAsync();
+        var frontendPort = await GetFreePortAsync();
+        var graphApiPort = await GetFreePortAsync();
+        var graphFrontendPort = await GetFreePortAsync();
+        var graphConfigurationEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
+        var graphSecretsEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
+        var sqlPort = await GetFreePortAsync();
+        var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:application-topology");
+        var secretsServiceBasePort = await GetServiceBasePortAsync("secrets-vault:application-topology");
+        using var host = await SampleProcess.StartAsync(
+            "samples/ApplicationTopology/Host/CloudShell.ApplicationTopologyHost.csproj",
+            await GetFreePortAsync(),
+            [
+                ("ApplicationTopology__ApiEndpoint", $"http://localhost:{apiPort}"),
+                ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
+                ("ApplicationTopology__GraphApiEndpoint", $"http://localhost:{graphApiPort}"),
+                ("ApplicationTopology__GraphFrontendEndpoint", $"http://localhost:{graphFrontendPort}"),
+                ("ApplicationTopology__GraphConfigurationServiceEndpoint", graphConfigurationEndpoint),
+                ("ApplicationTopology__GraphSecretsServiceEndpoint", graphSecretsEndpoint),
+                ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
+                ("ApplicationTopology__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
+                ("ApplicationTopology__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture))
+            ]);
+
+        await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+        var graphSettings = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "configuration.store:graph-application-topology-settings");
+        var graphSecrets = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "secrets.vault:graph-application-topology-secrets");
+
+        var graphSettingsEndpoint = GetEndpointAddress(graphSettings, "entries");
+        var graphSecretsEndpointAddress = GetEndpointAddress(graphSecrets, "secrets");
+        Assert.StartsWith(
+            graphConfigurationEndpoint,
+            graphSettingsEndpoint,
+            StringComparison.Ordinal);
+        Assert.EndsWith(
+            $"/api/configuration/stores/{Uri.EscapeDataString("configuration.store:graph-application-topology-settings")}/entries",
+            graphSettingsEndpoint,
+            StringComparison.Ordinal);
+        Assert.StartsWith(
+            graphSecretsEndpoint,
+            graphSecretsEndpointAddress,
+            StringComparison.Ordinal);
+        Assert.EndsWith(
+            $"/api/secrets/vaults/{Uri.EscapeDataString("secrets.vault:graph-application-topology-secrets")}/secrets",
+            graphSecretsEndpointAddress,
+            StringComparison.Ordinal);
+        await StartGraphResourceIfAvailableAsync(host, graphSettings, "ApplicationTopology graph settings");
+        await StartGraphResourceIfAvailableAsync(host, graphSecrets, "ApplicationTopology graph secrets");
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"{graphConfigurationEndpoint}/healthz",
+            bearerToken: null,
+            StartupTimeout);
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"{graphSecretsEndpoint}/healthz",
+            bearerToken: null,
+            StartupTimeout);
+
+        var graphResourceToken = await host.GetClientCredentialsTokenAsync(
+            "application.aspnet-core-project:graph-application-topology-api/graph-application-topology-api",
+            "local-development-application-topology-api-secret",
+            "ControlPlane.Access");
+        var graphSettingsJson = await host.GetAbsoluteStringAsync(
+            graphSettingsEndpoint,
+            graphResourceToken);
+        using var graphSettingsDocument = JsonDocument.Parse(graphSettingsJson);
+        Assert.Contains(
+            graphSettingsDocument.RootElement.EnumerateArray(),
+            entry =>
+                entry.GetProperty("name").GetString() == "ApplicationTopology:Message" &&
+                entry.GetProperty("value").GetString() == "Hello from CloudShell graph configuration.");
+        Assert.Contains(
+            graphSettingsDocument.RootElement.EnumerateArray(),
+            entry =>
+                entry.GetProperty("name").GetString() == "ApplicationTopology:Mode" &&
+                entry.GetProperty("value").GetString() == "Graph");
+
+        var graphSecretJson = await host.GetAbsoluteStringAsync(
+            $"{graphSecretsEndpointAddress.TrimEnd('/')}/external-api-key",
+            graphResourceToken);
+        using var graphSecretDocument = JsonDocument.Parse(graphSecretJson);
+        Assert.Equal(
+            "graph-local-development-api-key",
+            graphSecretDocument.RootElement.GetProperty("value").GetString());
+    }
+
+    [Fact]
     [Trait("Category", "DockerIntegration")]
     public async Task ApplicationTopologyHost_SqlInclusiveRuntimePathConnectsFrontendApiAndDatabase()
     {
