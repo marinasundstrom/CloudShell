@@ -19,6 +19,8 @@
 - ApplicationTopology graph API identity declaration and SQL read/write grant setup through Resource Manager declarations.
 - ApplicationTopology graph API `/database` coverage through a sample-local
   graph SQL credential endpoint.
+- ApplicationTopology Docker-backed graph frontend `/upstream` coverage through
+  the graph API, graph settings, and graph SQL credential flow.
 
 ## Remaining
 

@@ -79,6 +79,9 @@ on `git blame --follow`, and then by the broad type of change.
   that validates graph resource identity grants, creates SQL login/user access,
   and lets the graph-backed API exercise `/database` against the graph SQL
   Server target in the Docker-backed smoke path.
+- ApplicationTopology Docker smoke coverage now starts the graph-backed
+  frontend and verifies its `/upstream` path through the graph API, graph
+  settings, and graph SQL credential flow.
 
 #### Fixed
 
