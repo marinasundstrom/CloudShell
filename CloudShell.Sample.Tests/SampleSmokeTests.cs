@@ -3059,6 +3059,47 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
+    [Trait("Category", "DockerIntegration")]
+    public async Task ReplicatedContainerHealthSample_GraphContainerAppStartDelegatesToRuntimeApp()
+    {
+        if (!await DockerComposeStack.IsAvailableAsync())
+        {
+            return;
+        }
+
+        var apiPort = await GetFreePortAsync();
+        using var host = await SampleProcess.StartAsync(
+            "samples/ReplicatedContainerHealth/CloudShell.ReplicatedContainerHealth.csproj",
+            await GetFreePortAsync(),
+            [
+                ("ReplicatedContainerHealth__ApiPort", apiPort.ToString(CultureInfo.InvariantCulture))
+            ]);
+
+        try
+        {
+            await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+            var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+            using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+            var graphApp = Assert.Single(
+                resourcesDocument.RootElement.EnumerateArray(),
+                resource => resource.GetProperty("id").GetString() == "application.container-app:graph-api");
+
+            Assert.Equal($"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}", GetPrimaryEndpointAddress(graphApp));
+
+            await StartGraphResourceIfAvailableAsync(host, graphApp, "ReplicatedContainerHealth API");
+            await host.WaitForAbsoluteHttpOkAsync(
+                $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}/health",
+                bearerToken: null,
+                StartupTimeout);
+        }
+        finally
+        {
+            await StopResourceIfRunningAsync(host, "application:api");
+        }
+    }
+
+    [Fact]
     public async Task HostVirtualNetworkSample_ProjectsVirtualNetworkAndHostProvider()
     {
         const int targetPort = 5291;

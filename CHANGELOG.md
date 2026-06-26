@@ -21,6 +21,10 @@ on `git blame --follow`, and then by the broad type of change.
   delegate through an injected provider-owned runtime handler seam, keeping
   runtime orchestration outside the Resource Graph while leaving the default
   POC behavior no-op.
+- ReplicatedContainerHealth now wires the graph container-app lifecycle seam to
+  a sample-local runtime adapter that starts the existing `application:api`
+  runtime app, and Docker smoke coverage verifies the graph start action
+  publishes the replicated API health endpoint.
 - Provider README guidance now treats concrete `ResourceDefinition` examples
   as feedback on whether the interchange format is suitable for deployments,
   templates, imports, exports, and external tooling.

@@ -34,7 +34,8 @@ The sample keeps the app stopped by default so the resource model, Health tab,
 and Control Plane health endpoints can be tested without requiring Docker to
 start the containers. Start the Docker host and then the `api` resource to
 publish the app ingress on `http://localhost:5092` and separate probe-only
-ports for each runtime replica.
+ports for each runtime replica. Set `ReplicatedContainerHealth:ApiPort` when
+the sample should publish the app ingress on a different local port.
 
 ## Resource Graph POC coverage
 
@@ -51,6 +52,10 @@ Those resources prove projection, replica-count attributes, endpoint mapping,
 health/liveness declarations, and dependency shape while the existing
 application/Docker provider path remains responsible for replica
 materialization, runtime health aggregation, logs, traces, and metrics.
+The sample now wires the graph container-app lifecycle operation to a
+sample-local runtime adapter, so starting `application.container-app:graph-api`
+delegates to the existing `application:api` runtime app while the POC provider
+port is still being refined.
 
 When running the replica health path against Docker, start the `api` resource.
 The app start builds the project container image into the local Docker image

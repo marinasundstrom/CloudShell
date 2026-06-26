@@ -22,6 +22,7 @@ const string graphResourceGroupId = "replicated-container-health-graph-poc";
 const string graphDockerResourceId = "docker:graph-sample";
 const string graphApiResourceId = "application.container-app:graph-api";
 
+var apiEndpointPort = builder.Configuration.GetValue<int?>("ReplicatedContainerHealth:ApiPort") ?? 5092;
 var cloudShellEndpoint = ResolveCloudShellEndpoint(builder.Configuration);
 var runtimeControlPlaneEndpoint = builder.Configuration["Observability:RuntimeEndpoint"]
     ?? ResolveDockerReachableEndpoint(cloudShellEndpoint);
@@ -36,6 +37,7 @@ var metricIngestEndpoint = builder.Configuration["Observability:MetricIngestEndp
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
 builder.Services
+    .AddSingleton<IContainerApplicationRuntimeHandler, ReplicatedContainerHealthGraphRuntimeHandler>()
     .AddInMemoryResourceModelGraph(
     [
         new ResourceGraphState(
@@ -69,7 +71,7 @@ builder.Services
                             "http",
                             TargetPort: 8080,
                             Host: "localhost",
-                            Port: 5092,
+                            Port: apiEndpointPort,
                             Exposure: "Local")
                     })
             },
@@ -132,7 +134,7 @@ cloudShell.Resources(resources =>
         .WithEndpointPort(
             "http",
             targetPort: 8080,
-            port: 5092,
+            port: apiEndpointPort,
             protocol: "http",
             exposure: ResourceExposureScope.Local)
         .WithHttpHealthCheck("/health", "http")
