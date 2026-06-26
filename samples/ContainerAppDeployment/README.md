@@ -53,7 +53,7 @@ startup declarations.
 ## Resource Graph POC coverage
 
 The sample also declares side-by-side graph-backed resources through the
-Resource Definitions bridge:
+Resource Definitions bridge and provider-owned graph builders:
 
 - `docker:graph-sample`: graph-backed Docker host with the configured registry
   address.

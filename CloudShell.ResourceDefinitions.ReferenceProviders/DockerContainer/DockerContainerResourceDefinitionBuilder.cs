@@ -20,6 +20,23 @@ public sealed class DockerContainerResourceDefinitionBuilder(string name) :
 
     public DockerContainerResourceDefinitionBuilder WithWorkloadKind(string workloadKind) =>
         SetScalarAttribute(DockerContainerResourceTypeProvider.Attributes.WorkloadKind, workloadKind);
+
+    public DockerContainerResourceDefinitionBuilder UseDockerHost(
+        IResourceDefinitionBuilder host)
+    {
+        ArgumentNullException.ThrowIfNull(host);
+
+        return UseDockerHost(host.EffectiveResourceId);
+    }
+
+    public DockerContainerResourceDefinitionBuilder UseDockerHost(string hostResourceId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(hostResourceId);
+
+        return AddDependency(ResourceReference.DependsOnResourceId(
+            hostResourceId,
+            DockerHostResourceTypeProvider.ResourceTypeId));
+    }
 }
 
 public static class DockerContainerResourceDefinitionBuilderExtensions

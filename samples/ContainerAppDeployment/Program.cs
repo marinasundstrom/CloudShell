@@ -11,7 +11,7 @@ using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
 using CloudShell.ResourceDefinitions.ResourceManager;
-using ResourceGraphState = CloudShell.ResourceDefinitions.ResourceState;
+using GraphResourceState = CloudShell.ResourceDefinitions.ResourceState;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 
@@ -26,6 +26,27 @@ const string graphDockerResourceId = "docker:graph-sample";
 const string graphRegistryResourceId = "docker.container:graph-sample-registry";
 const string graphContainerAppResourceId = "application.container-app:graph-sample-api";
 
+var graph = new ResourceDefinitionGraphBuilder();
+var graphDocker = graph
+    .AddDockerHost("graph-sample")
+    .WithResourceId(graphDockerResourceId)
+    .WithRegistry(registryAddress);
+var graphRegistry = graph
+    .AddDockerContainer("graph-sample-registry")
+    .WithResourceId(graphRegistryResourceId)
+    .WithDisplayName("Graph Sample Registry")
+    .UseDockerHost(graphDocker)
+    .WithImage("registry:2")
+    .WithRegistry(registryAddress);
+graph
+    .AddContainerApplication("graph-sample-api")
+    .WithResourceId(graphContainerAppResourceId)
+    .WithDisplayName("Graph Sample API")
+    .UseDockerHost(graphDocker)
+    .DependsOn(graphRegistry)
+    .WithImage(sampleImage)
+    .WithRegistry(registryAddress);
+
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
 if (builder.Configuration.GetValue("ContainerAppDeployment:EnableGraphDockerRuntime", false))
@@ -36,61 +57,9 @@ if (builder.Configuration.GetValue("ContainerAppDeployment:EnableGraphDockerRunt
 
 builder.Services
     .AddInMemoryResourceModelGraph(
-    [
-        new ResourceGraphState(
-            "graph-sample",
-            DockerHostResourceTypeProvider.ResourceTypeId,
-            ResourceId: graphDockerResourceId,
-            ProviderId: DockerHostResourceTypeProvider.ProviderId,
-            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
-            {
-                [DockerHostResourceTypeProvider.Attributes.Registry] =
-                    registryAddress
-            }),
-        new ResourceGraphState(
-            "graph-sample-registry",
-            DockerContainerResourceTypeProvider.ResourceTypeId,
-            ResourceId: graphRegistryResourceId,
-            ProviderId: DockerContainerResourceTypeProvider.ProviderId,
-            DisplayName: "Graph Sample Registry",
-            DependsOn:
-            [
-                ResourceReference.DependsOnResourceId(
-                    graphDockerResourceId,
-                    typeId: DockerHostResourceTypeProvider.ResourceTypeId)
-            ],
-            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
-            {
-                [DockerContainerResourceTypeProvider.Attributes.ContainerImage] =
-                    "registry:2",
-                [DockerContainerResourceTypeProvider.Attributes.ContainerRegistry] =
-                    registryAddress,
-                [DockerContainerResourceTypeProvider.Attributes.EndpointCount] =
-                    1
-            }),
-        new ResourceGraphState(
-            "graph-sample-api",
-            ContainerApplicationResourceTypeProvider.ResourceTypeId,
-            ResourceId: graphContainerAppResourceId,
-            ProviderId: ContainerApplicationResourceTypeProvider.ProviderId,
-            DisplayName: "Graph Sample API",
-            DependsOn:
-            [
-                ResourceReference.DependsOnResourceId(
-                    graphDockerResourceId,
-                    typeId: DockerHostResourceTypeProvider.ResourceTypeId),
-                ResourceReference.DependsOnResourceId(
-                    graphRegistryResourceId,
-                    typeId: DockerContainerResourceTypeProvider.ResourceTypeId)
-            ],
-            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
-            {
-                [ContainerApplicationResourceTypeProvider.Attributes.ContainerImage] =
-                    sampleImage,
-                [ContainerApplicationResourceTypeProvider.Attributes.ContainerRegistry] =
-                    registryAddress
-            })
-    ])
+        graph.BuildDeployment("container-app-deployment", environmentId: "local")
+            .Resources
+            .Select(GraphResourceState.FromDefinition))
     .AddDockerHostResourceType()
     .AddDockerContainerResourceType()
     .AddContainerApplicationResourceType()

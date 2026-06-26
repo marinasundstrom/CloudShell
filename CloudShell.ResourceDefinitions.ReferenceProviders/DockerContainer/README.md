@@ -16,7 +16,8 @@
 - Resource Manager bridge state projection through the runtime handler seam.
 - Typed wrapper plus apply planning and Resource Manager bridge projection/execution.
 - Manual `ResourceDefinitionGraphBuilder.AddDockerContainer(...)` builder for
-  code-first Docker container definition authoring.
+  code-first Docker container definition authoring with typed Docker host
+  dependencies.
 
 ## Runtime Integration
 
@@ -43,6 +44,9 @@ graph registry container behind
 the runtime boundary without making normal sample projection shell out to
 Docker on every Resource Manager state projection. A durable Docker handler and
 full lifecycle smoke coverage remain provider work.
+The same sample now uses the Docker host, Docker container, and container app
+builders for its side-by-side graph declarations instead of raw graph state
+dictionaries.
 
 ## Remaining
 

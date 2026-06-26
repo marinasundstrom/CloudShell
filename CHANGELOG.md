@@ -52,6 +52,9 @@ on `git blame --follow`, and then by the broad type of change.
   default sample path keeps the materializer disabled so normal projection
   smoke coverage does not shell out to Docker during Resource Manager state
   projection.
+- ContainerAppDeployment now declares its graph Docker host, registry
+  container, and container app through provider-owned graph builders instead
+  of raw graph state dictionaries.
 - ReplicatedContainerHealth now exposes a sample-local ResourceDefinition
   overlay endpoint for the graph container image, and smoke coverage verifies
   that executing the graph `container.image.update` operation delegates the
