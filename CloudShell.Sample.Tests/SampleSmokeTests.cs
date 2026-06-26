@@ -713,6 +713,8 @@ public sealed class SampleSmokeTests
         var frontendPort = await GetFreePortAsync();
         var graphApiPort = await GetFreePortAsync();
         var graphFrontendPort = await GetFreePortAsync();
+        var graphConfigurationEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
+        var graphSecretsEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
         var sqlPort = await GetFreePortAsync();
         var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:application-topology");
         var secretsServiceBasePort = await GetServiceBasePortAsync("secrets-vault:application-topology");
@@ -724,6 +726,8 @@ public sealed class SampleSmokeTests
                 ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
                 ("ApplicationTopology__GraphApiEndpoint", $"http://localhost:{graphApiPort}"),
                 ("ApplicationTopology__GraphFrontendEndpoint", $"http://localhost:{graphFrontendPort}"),
+                ("ApplicationTopology__GraphConfigurationServiceEndpoint", graphConfigurationEndpoint),
+                ("ApplicationTopology__GraphSecretsServiceEndpoint", graphSecretsEndpoint),
                 ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
                 ("ApplicationTopology__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
                 ("ApplicationTopology__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture))
@@ -835,11 +839,11 @@ public sealed class SampleSmokeTests
             "application.sql-server:graph-application-topology-sql-server",
             graphDatabase.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
         Assert.Equal("configuration.store", graphSettings.GetProperty("typeId").GetString());
-        Assert.Equal("http://localhost:" + configurationServiceBasePort.ToString(CultureInfo.InvariantCulture) +
+        Assert.Equal(graphConfigurationEndpoint +
             "/api/configuration/stores/configuration.store%3Agraph-application-topology-settings/entries",
             GetEndpointAddress(graphSettings, "entries"));
         Assert.Equal("secrets.vault", graphSecrets.GetProperty("typeId").GetString());
-        Assert.Equal("http://localhost:" + secretsServiceBasePort.ToString(CultureInfo.InvariantCulture) +
+        Assert.Equal(graphSecretsEndpoint +
             "/api/secrets/vaults/secrets.vault%3Agraph-application-topology-secrets/secrets",
             GetEndpointAddress(graphSecrets, "secrets"));
         Assert.Equal("application.aspnet-core-project", graphApi.GetProperty("typeId").GetString());
@@ -873,6 +877,8 @@ public sealed class SampleSmokeTests
                 .GetProperty(AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath.Value)
                 .GetString());
 
+        await StartGraphResourceIfAvailableAsync(host, graphSettings, "ApplicationTopology settings");
+        await StartGraphResourceIfAvailableAsync(host, graphSecrets, "ApplicationTopology secrets");
         await StartGraphResourceIfAvailableAsync(host, graphApi, "ApplicationTopology API");
         await host.WaitForAbsoluteHttpOkAsync(
             $"http://localhost:{graphApiPort}/health",

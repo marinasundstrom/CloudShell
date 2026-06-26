@@ -100,6 +100,10 @@ on `git blame --follow`, and then by the broad type of change.
   through the CloudShell Configuration Store and Secrets Vault client
   integrations derived from `project.references`, removing direct graph API
   environment-value injection for those values.
+- ApplicationTopology topology smoke coverage now uses explicit graph
+  Configuration Store and Secrets Vault runtime endpoints and starts those
+  graph backing services before the graph API, keeping the broader sample
+  test aligned with the new provider-backed runtime path.
 - The Resource Graph proposal now clarifies that selected samples should
   become runnable through graph-backed providers, with adapters used only as
   temporary bridges into focused Control Plane or Resource Manager services.
