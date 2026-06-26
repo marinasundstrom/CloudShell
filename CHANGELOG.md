@@ -95,6 +95,10 @@ on `git blame --follow`, and then by the broad type of change.
   provider diagnostics in the returned procedure message, so runtime-backed
   operations such as ThirdPartyIdentity Keycloak setup expose their provider
   result through the existing action API.
+- Resource Graph programmatic authoring now starts with a manual
+  `ResourceDefinitionGraphBuilder` and a provider-owned Network builder that
+  emits `ResourceDefinition` and `ResourceDeploymentDefinition` values for the
+  same apply pipeline used by interchange documents.
 
 #### Fixed
 

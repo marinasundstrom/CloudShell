@@ -13,6 +13,8 @@
 - Passive networking capability markers.
 - Reconcile endpoint mappings operation with an injected provider-owned reconciler seam.
 - Typed wrapper plus Resource Manager bridge projection and execution.
+- Manual `ResourceDefinitionGraphBuilder.AddNetwork(...)` builder for
+  code-first `ResourceDefinition` and deployment authoring.
 
 ## Remaining
 

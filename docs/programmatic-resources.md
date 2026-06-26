@@ -139,6 +139,26 @@ String IDs remain available as lower-level references for existing resources
 and advanced scenarios, but new declarations should treat the authored value
 as a resource name unless the API explicitly asks for a resource ID.
 
+The Resource Graph POC is adding a separate `ResourceDefinitionGraphBuilder`
+for code-first authoring of graph resources and deployment inputs. These
+builders emit `ResourceDefinition` values, not Resource Manager declarations,
+so the same authored graph can be serialized, imported, applied as a
+deployment, or used by tests. Provider builders should start as small manual
+implementations next to the resource type provider they target. Source
+generation remains a future option once several manual builders show the
+stable conventions and the customization points providers need.
+
+```csharp
+var graph = new ResourceDefinitionGraphBuilder();
+
+graph
+    .AddNetwork("app")
+    .WithDisplayName("App Network")
+    .WithHostReadiness("logicalOnly");
+
+var deployment = graph.BuildDeployment("local-app", environmentId: "local");
+```
+
 Display names are optional presentation labels. Use `.WithDisplayName(...)`
 when a local development dashboard or sample benefits from a friendlier label.
 
