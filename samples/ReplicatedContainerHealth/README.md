@@ -36,6 +36,21 @@ start the containers. Start the Docker host and then the `api` resource to
 publish the app ingress on `http://localhost:5092` and separate probe-only
 ports for each runtime replica.
 
+## Resource Graph POC coverage
+
+The sample also declares side-by-side graph-backed resources through the
+Resource Definitions bridge:
+
+- `docker:graph-sample`: graph-backed Docker host.
+- `application.container-app:graph-api`: graph-backed replicated container app
+  projection with a replica count of `3` and a typed startup dependency on the
+  graph Docker host.
+
+Those resources prove projection, replica-count attributes, and dependency
+shape while the existing application/Docker provider path remains responsible
+for replica materialization, runtime health aggregation, logs, traces, and
+metrics.
+
 When running the replica health path against Docker, start the `api` resource.
 The app start builds the project container image into the local Docker image
 store before creating the replicas.

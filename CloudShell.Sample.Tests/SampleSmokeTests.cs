@@ -2535,12 +2535,25 @@ public sealed class SampleSmokeTests
         var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
         var app = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "application:api");
+        var graphDocker = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "docker:graph-sample");
+        var graphApp = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.container-app:graph-api");
         var appAttributes = app.GetProperty("attributes");
+        var graphAppAttributes = graphApp.GetProperty("attributes");
 
         Assert.Equal("true", appAttributes.GetProperty(ResourceAttributeNames.ContainerReplicasEnabled).GetString());
         Assert.Equal("3", appAttributes.GetProperty(ResourceAttributeNames.ContainerReplicas).GetString());
         Assert.Equal("3", appAttributes.GetProperty(ResourceAttributeNames.DeploymentMaterializedReplicas).GetString());
         Assert.Equal("3", appAttributes.GetProperty(ResourceAttributeNames.DeploymentProjectedReplicas).GetString());
+        Assert.Equal("docker.host", graphDocker.GetProperty("typeId").GetString());
+        Assert.Equal("application.container-app", graphApp.GetProperty("typeId").GetString());
+        Assert.Equal("cloudshell-application-api:20260622.2", graphAppAttributes.GetProperty("container.image").GetString());
+        Assert.Equal("3", graphAppAttributes.GetProperty("container.replicas").GetString());
+        Assert.Contains(
+            "docker:graph-sample",
+            graphApp.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+
         var observability = app.GetProperty("observability");
         Assert.True(observability.GetProperty("logs").GetBoolean());
         Assert.True(observability.GetProperty("traces").GetBoolean());

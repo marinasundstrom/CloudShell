@@ -8,10 +8,18 @@ using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
 using CloudShell.Providers.Applications;
 using CloudShell.Providers.Docker;
+using CloudShell.ResourceDefinitions;
+using CloudShell.ResourceDefinitions.ReferenceProviders;
+using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
+using CloudShell.ResourceDefinitions.ResourceManager;
+using ResourceGraphState = CloudShell.ResourceDefinitions.ResourceState;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 
 const string sampleImageTag = "20260622.2";
+const string graphResourceGroupId = "replicated-container-health-graph-poc";
+const string graphDockerResourceId = "docker:graph-sample";
+const string graphApiResourceId = "application.container-app:graph-api";
 
 var cloudShellEndpoint = ResolveCloudShellEndpoint(builder.Configuration);
 var runtimeControlPlaneEndpoint = builder.Configuration["Observability:RuntimeEndpoint"]
@@ -26,6 +34,41 @@ var metricIngestEndpoint = builder.Configuration["Observability:MetricIngestEndp
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
+builder.Services
+    .AddInMemoryResourceModelGraph(
+    [
+        new ResourceGraphState(
+            "graph-sample",
+            DockerHostResourceTypeProvider.ResourceTypeId,
+            ResourceId: graphDockerResourceId,
+            ProviderId: DockerHostResourceTypeProvider.ProviderId),
+        new ResourceGraphState(
+            "graph-api",
+            ContainerApplicationResourceTypeProvider.ResourceTypeId,
+            ResourceId: graphApiResourceId,
+            ProviderId: ContainerApplicationResourceTypeProvider.ProviderId,
+            DisplayName: "Graph Replicated API",
+            DependsOn:
+            [
+                ResourceReference.DependsOnResourceId(
+                    graphDockerResourceId,
+                    typeId: DockerHostResourceTypeProvider.ResourceTypeId)
+            ],
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                [ContainerApplicationResourceTypeProvider.Attributes.ContainerImage] =
+                    $"cloudshell-application-api:{sampleImageTag}",
+                [ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas] =
+                    3
+            })
+    ])
+    .AddDockerHostResourceType()
+    .AddContainerApplicationResourceType()
+    .AddResourceModelGraphServices()
+    .AddReferenceProviderResourceManagerProjections()
+    .AddResourceModelGraphProcedureProvider(
+        ResourceModelResourceProvider.DefaultProviderId,
+        "Resource model");
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()
@@ -39,9 +82,21 @@ cloudShell
 
 cloudShell.Resources(resources =>
 {
+    resources.AddResourceGroup(
+        graphResourceGroupId,
+        "Replicated Container Health graph POC",
+        "Side-by-side graph-backed resources used while porting the ReplicatedContainerHealth sample.");
+
     var docker = resources
         .AddDocker("sample")
         .Persist(overwrite: true);
+
+    resources
+        .Declare(ResourceModelResourceProvider.DefaultProviderId, graphDockerResourceId)
+        .WithResourceGroup(graphResourceGroupId);
+    resources
+        .Declare(ResourceModelResourceProvider.DefaultProviderId, graphApiResourceId)
+        .WithResourceGroup(graphResourceGroupId);
 
     resources
         .AddAspNetCoreProject(

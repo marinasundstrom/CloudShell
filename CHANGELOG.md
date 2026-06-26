@@ -108,6 +108,11 @@ on `git blame --follow`, and then by the broad type of change.
   smoke coverage verifying Resource Manager projection, registry attributes,
   and typed graph dependencies while the old deployment API path still owns
   runtime image updates.
+- ReplicatedContainerHealth now declares side-by-side graph-backed Docker host
+  and replicated container-app resources in the sample host, with smoke
+  coverage verifying Resource Manager projection, replica-count attributes,
+  and typed graph dependencies while the old runtime path still owns replica
+  materialization and telemetry.
 - The Resource Graph proposal now documents the lifecycle of porting tests,
   distinguishing temporary old/new parity tests from graph-contract tests,
   runtime seam tests, and smoke tests that should be simplified after a sample
