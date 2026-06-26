@@ -82,6 +82,10 @@ on `git blame --follow`, and then by the broad type of change.
   values using the shared networking endpoint shape, and ASP.NET Core graph
   project service discovery can derive `services__...` variables from explicit
   SQL Server `project.references` without using `DependsOn` for discovery.
+- SQL Server graph endpoint requests now project through the reference-provider
+  Resource Manager bridge as endpoint contracts and concrete network mappings,
+  giving SQL graph resources the same endpoint surface used by service
+  discovery.
 - Ported Resource Definitions reference providers now keep provider-local
   `README.md` files that summarize the provider purpose, ported POC behavior,
   runtime seams, and remaining work before the old provider path can be turned

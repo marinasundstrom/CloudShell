@@ -26,6 +26,10 @@ public static class ReferenceProviderResourceManagerServiceCollectionExtensions
                 SecretsVaultResourceManagerEndpointProjectionProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
+                IResourceModelResourceManagerEndpointProjectionProvider,
+                SqlServerResourceManagerEndpointProjectionProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
                 IResourceModelResourceManagerStateProvider,
                 AspNetCoreProjectResourceManagerStateProvider>());
         services.TryAddEnumerable(

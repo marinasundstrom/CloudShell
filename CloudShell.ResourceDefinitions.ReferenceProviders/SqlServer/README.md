@@ -16,10 +16,10 @@
 - Reconcile-access operation with an injected provider-owned runtime reconciler seam.
 - Typed wrapper plus ContainerHost sample-inspired graph coverage.
 - ASP.NET Core service-discovery environment projection from explicit SQL Server `project.references`.
-- Resource Manager bridge projection and execution.
+- Resource Manager bridge projection, including endpoint contract/network mapping projection, and execution.
 
 ## Remaining
 
 - Real SQL runtime integration.
 - Default/preferred container-host resolution.
-- Credential/grant reconciliation, database child projections, endpoint projection through Resource Manager, and UI tabs.
+- Credential/grant reconciliation, database child projections, and UI tabs.

@@ -4209,6 +4209,20 @@ public sealed class ResourceManagerIntegrationTests
             "application-topology-sql-server",
             SqlServerResourceTypeProvider.ResourceTypeId,
             ProviderId: SqlServerResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                [SqlServerResourceTypeProvider.Attributes.EndpointRequests] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        new NetworkingEndpointRequestValue(
+                            "tds",
+                            "tcp",
+                            TargetPort: 1433,
+                            Host: "localhost",
+                            Port: 14334,
+                            Exposure: "Local")
+                    })
+            },
             Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
             {
                 [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
@@ -4285,8 +4299,18 @@ public sealed class ResourceManagerIntegrationTests
             .GetServices<IResourceProvider>()
             .OfType<ResourceModelGraphProcedureProvider>()
             .Single();
+        var projectedSqlServer = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == sqlServer.EffectiveResourceId);
         var projectedApi = Assert.Single(provider.GetResources(), resource =>
             resource.Id == api.EffectiveResourceId);
+
+        var sqlEndpoint = Assert.Single(projectedSqlServer.Endpoints);
+        Assert.Equal("tds", sqlEndpoint.Name);
+        Assert.Equal("tcp", sqlEndpoint.Protocol);
+        Assert.Equal(1433, sqlEndpoint.TargetPort);
+        var sqlEndpointMapping = Assert.Single(projectedSqlServer.ResourceEndpointNetworkMappings);
+        Assert.Equal("tds", sqlEndpointMapping.Target.EndpointName);
+        Assert.Equal("localhost:14334", sqlEndpointMapping.Address);
 
         Assert.Equal(ResourceManagerClass.Project, projectedApi.ResourceClass);
         Assert.Equal(AspNetCoreProjectResourceTypeProvider.ProviderId, projectedApi.Provider);
