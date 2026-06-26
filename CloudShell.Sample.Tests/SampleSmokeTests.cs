@@ -870,6 +870,40 @@ public sealed class SampleSmokeTests
                 .GetProperty(AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath.Value)
                 .GetString());
 
+        await StartGraphResourceIfAvailableAsync(host, graphApi, "ApplicationTopology API");
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"http://localhost:{graphApiPort}/health",
+            bearerToken: null,
+            StartupTimeout);
+        var graphApiSettingsJson = await host.GetAbsoluteStringAsync(
+            $"http://localhost:{graphApiPort}/settings");
+        using var graphApiSettingsDocument = JsonDocument.Parse(graphApiSettingsJson);
+        var graphApiSettings = graphApiSettingsDocument.RootElement;
+        Assert.Equal(
+            "Hello from CloudShell graph configuration.",
+            graphApiSettings.GetProperty("message").GetString());
+        Assert.Equal("Graph", graphApiSettings.GetProperty("mode").GetString());
+        Assert.True(graphApiSettings.GetProperty("externalApiKeyConfigured").GetBoolean());
+
+        await StartGraphResourceIfAvailableAsync(host, graphFrontend, "ApplicationTopology Frontend");
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"http://localhost:{graphFrontendPort}/healthz",
+            bearerToken: null,
+            StartupTimeout);
+        var graphFrontendFailureJson = await host.WaitForAbsoluteHttpStatusAsync(
+            $"http://localhost:{graphFrontendPort}/upstream/failure",
+            HttpStatusCode.BadGateway,
+            StartupTimeout);
+        Assert.Contains("Intentional upstream failure", graphFrontendFailureJson);
+        Assert.Contains("Application Topology API failure endpoint returned 500", graphFrontendFailureJson);
+
+        await host.SendAsync(
+            HttpMethod.Post,
+            $"/api/control-plane/v1/resources/{Uri.EscapeDataString("application.aspnet-core-project:graph-application-topology-frontend")}/actions/stop?ignoreDependentWarning=true");
+        await host.SendAsync(
+            HttpMethod.Post,
+            $"/api/control-plane/v1/resources/{Uri.EscapeDataString("application.aspnet-core-project:graph-application-topology-api")}/actions/stop?ignoreDependentWarning=true");
+
         Assert.Equal(ApplicationResourceTypes.AspNetCoreProject, api.GetProperty("typeId").GetString());
         Assert.Equal("../Api/CloudShell.ApplicationTopologyApi.csproj", apiAttributes.GetProperty(ResourceAttributeNames.ProjectPath).GetString());
         Assert.Equal(

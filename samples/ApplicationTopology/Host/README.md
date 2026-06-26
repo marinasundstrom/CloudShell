@@ -36,8 +36,12 @@ frontend through the Resource Definitions bridge. Those graph resources use
 service discovery, separate configurable graph endpoints
 (`ApplicationTopology:GraphApiEndpoint` and
 `ApplicationTopology:GraphFrontendEndpoint`), and absolute project paths so the
-new ASP.NET Core graph runtime controller can start them later without relying
-on the old application provider.
+new ASP.NET Core graph runtime controller can start them without relying on the
+old application provider. Current graph smoke coverage starts the graph API and
+frontend, verifies the graph API settings endpoint, and exercises
+frontend-to-API discovery through `/upstream/failure`. The full graph
+`/upstream` path still waits for graph-backed SQL Server/database
+materialization.
 
 Both projects use the shared `ServiceDefaults` project for health endpoints,
 HTTP client service discovery, JSON console logs, OpenTelemetry tracing, and

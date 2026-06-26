@@ -132,7 +132,9 @@ on `git blame --follow`, and then by the broad type of change.
   paired with the graph-backed API project, using separate configurable graph
   endpoints, runtime-ready absolute project paths, health/liveness declarations,
   and `project.serviceDiscoveryName` plus `project.references` for frontend to
-  API service discovery.
+  API service discovery. Smoke coverage now starts those graph-backed projects
+  and verifies graph API settings plus frontend-to-API discovery through the
+  intentional failure route without requiring graph SQL materialization.
 - The Resource Graph proposal now records that programmatic builders over the
   new declaration model are deferred authoring work that may be generated,
   partially generated, or reused by UI flows after provider ports stabilize.

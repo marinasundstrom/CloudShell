@@ -185,7 +185,7 @@ builder.Services
                 [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] =
                     graphApiProjectPath,
                 [AspNetCoreProjectResourceTypeProvider.Attributes.HotReload] =
-                    true,
+                    false,
                 [AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings] =
                     false,
                 [AspNetCoreProjectResourceTypeProvider.Attributes.ServiceDiscoveryName] =
@@ -224,6 +224,15 @@ builder.Services
                         new AspNetCoreProjectEnvironmentVariableValue(
                             "ApplicationTopology__SqlServer__Database",
                             "application_topology"),
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "ApplicationTopology__Message",
+                            "Hello from CloudShell graph configuration."),
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "ApplicationTopology__Mode",
+                            "Graph"),
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "ApplicationTopology__ExternalApiKey",
+                            "configured"),
                         new AspNetCoreProjectEnvironmentVariableValue(
                             "OTEL_SERVICE_NAME",
                             "graph-application-topology-api")
@@ -273,7 +282,7 @@ builder.Services
                 [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] =
                     graphFrontendProjectPath,
                 [AspNetCoreProjectResourceTypeProvider.Attributes.HotReload] =
-                    true,
+                    false,
                 [AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings] =
                     false,
                 [AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests] =
