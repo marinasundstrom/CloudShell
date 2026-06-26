@@ -24,6 +24,9 @@ public static class DockerContainerResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceChangeApplyProvider, DockerContainerResourceTypeProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceDefinitionApplyProvider, DockerContainerResourceTypeProvider>());
+        services.TryAddSingleton<
+            IDockerContainerRuntimeHandler,
+            NoopDockerContainerRuntimeHandler>();
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProvider, DockerContainerStartOperationProvider>());
         services.TryAddEnumerable(

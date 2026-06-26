@@ -3,8 +3,11 @@ namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 public sealed class DockerContainerStartOperationProvider :
     DockerContainerLifecycleOperationProvider
 {
-    public DockerContainerStartOperationProvider()
-        : base(DockerContainerResourceTypeProvider.Operations.Start)
+    public DockerContainerStartOperationProvider(
+        IDockerContainerRuntimeHandler? runtimeHandler = null)
+        : base(
+            DockerContainerResourceTypeProvider.Operations.Start,
+            runtimeHandler)
     {
     }
 }
@@ -12,8 +15,11 @@ public sealed class DockerContainerStartOperationProvider :
 public sealed class DockerContainerStopOperationProvider :
     DockerContainerLifecycleOperationProvider
 {
-    public DockerContainerStopOperationProvider()
-        : base(DockerContainerResourceTypeProvider.Operations.Stop)
+    public DockerContainerStopOperationProvider(
+        IDockerContainerRuntimeHandler? runtimeHandler = null)
+        : base(
+            DockerContainerResourceTypeProvider.Operations.Stop,
+            runtimeHandler)
     {
     }
 }
@@ -21,8 +27,11 @@ public sealed class DockerContainerStopOperationProvider :
 public sealed class DockerContainerPauseOperationProvider :
     DockerContainerLifecycleOperationProvider
 {
-    public DockerContainerPauseOperationProvider()
-        : base(DockerContainerResourceTypeProvider.Operations.Pause)
+    public DockerContainerPauseOperationProvider(
+        IDockerContainerRuntimeHandler? runtimeHandler = null)
+        : base(
+            DockerContainerResourceTypeProvider.Operations.Pause,
+            runtimeHandler)
     {
     }
 }
@@ -30,8 +39,11 @@ public sealed class DockerContainerPauseOperationProvider :
 public sealed class DockerContainerRestartOperationProvider :
     DockerContainerLifecycleOperationProvider
 {
-    public DockerContainerRestartOperationProvider()
-        : base(DockerContainerResourceTypeProvider.Operations.Restart)
+    public DockerContainerRestartOperationProvider(
+        IDockerContainerRuntimeHandler? runtimeHandler = null)
+        : base(
+            DockerContainerResourceTypeProvider.Operations.Restart,
+            runtimeHandler)
     {
     }
 }
@@ -39,17 +51,24 @@ public sealed class DockerContainerRestartOperationProvider :
 public sealed class DockerContainerUnpauseOperationProvider :
     DockerContainerLifecycleOperationProvider
 {
-    public DockerContainerUnpauseOperationProvider()
-        : base(DockerContainerResourceTypeProvider.Operations.Unpause)
+    public DockerContainerUnpauseOperationProvider(
+        IDockerContainerRuntimeHandler? runtimeHandler = null)
+        : base(
+            DockerContainerResourceTypeProvider.Operations.Unpause,
+            runtimeHandler)
     {
     }
 }
 
 public abstract class DockerContainerLifecycleOperationProvider(
-    ResourceOperationId operationId) :
+    ResourceOperationId operationId,
+    IDockerContainerRuntimeHandler? runtimeHandler = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
+    private readonly IDockerContainerRuntimeHandler _runtimeHandler =
+        runtimeHandler ?? new NoopDockerContainerRuntimeHandler();
+
     public ResourceOperationId OperationId { get; } = operationId;
 
     public ResourceDefinitionValueSource ResolutionLevel =>
@@ -81,14 +100,18 @@ public abstract class DockerContainerLifecycleOperationProvider(
         ValueTask.FromResult<IResourceOperationProjection>(
             new DockerContainerLifecycleOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
-                operation));
+                operation,
+                _runtimeHandler));
 }
 
 public sealed class DockerContainerLifecycleOperation(
     ResourceProjectionExecutionContext context,
-    ResourceOperationResolution operation) : IResourceOperationExecutorProjection
+    ResourceOperationResolution operation,
+    IDockerContainerRuntimeHandler runtimeHandler) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
+
+    private readonly IDockerContainerRuntimeHandler _runtimeHandler = runtimeHandler;
 
     public Resource Resource => Context.Resource;
 
@@ -102,7 +125,8 @@ public sealed class DockerContainerLifecycleOperation(
 
     public ValueTask<bool> CanExecuteAsync(
         CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult(IsAvailable);
+        ValueTask.FromResult(IsAvailable && CanExecuteForStatus(
+            _runtimeHandler.GetStatus(Resource)));
 
     public async ValueTask<ResourceOperationExecutionResult> ExecuteAsync(
         CancellationToken cancellationToken = default)
@@ -120,9 +144,30 @@ public sealed class DockerContainerLifecycleOperation(
                 ]);
         }
 
+        var diagnostics = await _runtimeHandler.ExecuteLifecycleAsync(
+            Resource,
+            OperationId,
+            cancellationToken);
+
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            []);
+            diagnostics);
     }
+
+    private bool CanExecuteForStatus(DockerContainerRuntimeStatus status) =>
+        status switch
+        {
+            DockerContainerRuntimeStatus.Running =>
+                OperationId == DockerContainerResourceTypeProvider.Operations.Stop ||
+                OperationId == DockerContainerResourceTypeProvider.Operations.Pause ||
+                OperationId == DockerContainerResourceTypeProvider.Operations.Restart,
+            DockerContainerRuntimeStatus.Paused =>
+                OperationId == DockerContainerResourceTypeProvider.Operations.Stop ||
+                OperationId == DockerContainerResourceTypeProvider.Operations.Restart ||
+                OperationId == DockerContainerResourceTypeProvider.Operations.Unpause,
+            DockerContainerRuntimeStatus.Stopped =>
+                OperationId == DockerContainerResourceTypeProvider.Operations.Start,
+            _ => true
+        };
 }

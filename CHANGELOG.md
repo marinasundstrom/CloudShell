@@ -44,6 +44,9 @@ on `git blame --follow`, and then by the broad type of change.
   resource through the provider-owned `ResourceDefinitionGraphBuilder`
   identity builder instead of raw graph state, keeping the sample on the same
   programmatic authoring path as provider tests.
+- Graph-backed Docker container lifecycle operations now delegate through an
+  injected provider-owned runtime handler seam with status-aware action
+  availability, keeping real Docker materialization outside the graph model.
 - ReplicatedContainerHealth now exposes a sample-local ResourceDefinition
   overlay endpoint for the graph container image, and smoke coverage verifies
   that executing the graph `container.image.update` operation delegates the
