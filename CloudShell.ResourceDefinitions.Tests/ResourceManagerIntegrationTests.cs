@@ -3683,21 +3683,14 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var identity = new ResourceDefinition(
-            "built-in",
-            IdentityProvisioningResourceTypeProvider.ResourceTypeId,
-            ProviderId: IdentityProvisioningResourceTypeProvider.ProviderId,
-            Attributes: new Dictionary<ResourceAttributeId, string>
-            {
-                [IdentityProvisioningResourceTypeProvider.Attributes.IdentityProvider] = "Built-in Identity",
-                [IdentityProvisioningResourceTypeProvider.Attributes.ProviderKind] = "built-in"
-            });
+        var graph = new ResourceDefinitionGraphBuilder();
+        var identity = graph
+            .AddIdentityProvisioning("built-in")
+            .WithIdentityProvider("Built-in Identity")
+            .WithProviderKind("built-in");
 
         var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
-                "identity-provisioning",
-                [identity],
-                EnvironmentId: "local"),
+            graph.BuildDeployment("identity-provisioning", environmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 25, 2, 0, 0, TimeSpan.Zero)));

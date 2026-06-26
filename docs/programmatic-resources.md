@@ -167,20 +167,21 @@ var deployment = graph.BuildDeployment("local-app", environmentId: "local");
 The initial manual builders cover generic networks, Configuration Store,
 Secrets Vault, storage, CloudShell storage-backed volume, SQL Server, SQL
 Database, generic container hosts, Docker hosts, container application,
-executable application, and ASP.NET Core project graph resources. They are
-useful for test setup as well as host authoring because provider tests can
-compose realistic deployment definitions without repeating raw attribute
-dictionaries, configuration payloads, capability payloads, and typed
-`ResourceReference` values. The SQL builders cover declared database
+executable application, ASP.NET Core project, and identity provisioning graph
+resources. They are useful for test setup as well as host authoring because
+provider tests can compose realistic deployment definitions without repeating
+raw attribute dictionaries, configuration payloads, capability payloads, and
+typed `ResourceReference` values. The SQL builders cover declared database
 configuration, typed server dependencies, and volume mount capability setup.
 The container builders cover host dependencies, endpoint requests, replicas,
 image settings, and volume mount capability setup. The executable and project
 builders cover command/project settings, endpoint requests, environment
 variables, service-discovery references, volume mounts, and health-check
-payloads. The configuration and secrets builders can declare service endpoints
-and participate in dependencies, but they intentionally do not author
-configuration entries or secret values as graph attributes. Those values remain
-provider/runtime data.
+payloads. The identity provisioning builder covers the provider identity and
+provider-kind attributes used by the runtime setup seam. The configuration and
+secrets builders can declare service endpoints and participate in dependencies,
+but they intentionally do not author configuration entries or secret values as
+graph attributes. Those values remain provider/runtime data.
 
 Display names are optional presentation labels. Use `.WithDisplayName(...)`
 when a local development dashboard or sample benefits from a friendlier label.

@@ -470,4 +470,44 @@ public sealed class ResourceDefinitionGraphBuilderTests
         Assert.False(result.HasErrors, string.Join(" ", result.Diagnostics.Select(diagnostic => diagnostic.Message)));
         Assert.True(result.IsCommitted);
     }
+
+    [Fact]
+    public async Task ResourceDefinitionGraphBuilder_BuildsIdentityProvisioningDefinitions()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddIdentityProvisioningResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var graph = new ResourceDefinitionGraphBuilder();
+
+        graph
+            .AddIdentityProvisioning("built-in")
+            .WithIdentityProvider("Built-in Identity")
+            .WithIdentityProviderId("built-in")
+            .WithProviderKind("built-in");
+
+        var deployment = graph.BuildDeployment("identity", environmentId: "local");
+
+        var identity = Assert.Single(deployment.Resources);
+        Assert.Equal("cloudshell.identity-provisioning:built-in", identity.EffectiveResourceId);
+        Assert.Equal(IdentityProvisioningResourceTypeProvider.ProviderId, identity.ProviderId);
+        Assert.Equal("Built-in Identity", identity.ResourceAttributeValues[
+            IdentityProvisioningResourceTypeProvider.Attributes.IdentityProvider].StringValue);
+        Assert.Equal("built-in", identity.ResourceAttributeValues[
+            IdentityProvisioningResourceTypeProvider.Attributes.IdentityProviderId].StringValue);
+        Assert.Equal("built-in", identity.ResourceAttributeValues[
+            IdentityProvisioningResourceTypeProvider.Attributes.ProviderKind].StringValue);
+
+        var result = await serviceProvider
+            .GetRequiredService<ResourceModelGraphDefinitionApplyService>()
+            .ApplyDeploymentAsync(
+                deployment,
+                new ResourceGraphCommitContext(
+                    PrincipalId: "developer",
+                    Timestamp: new DateTimeOffset(2026, 6, 26, 18, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, string.Join(" ", result.Diagnostics.Select(diagnostic => diagnostic.Message)));
+        Assert.True(result.IsCommitted);
+    }
 }

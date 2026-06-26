@@ -118,6 +118,9 @@ on `git blame --follow`, and then by the broad type of change.
   Resource Graph builders covering command/project settings, endpoint
   requests, environment variables, service-discovery references, volume mounts,
   and health-check payloads, and their provider tests now use those builders.
+- Identity Provisioning now has a provider-owned Resource Graph builder
+  covering provider identity and provider-kind attributes, and the identity
+  provider test now uses that builder.
 
 #### Fixed
 
