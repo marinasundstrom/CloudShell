@@ -80,6 +80,9 @@ on `git blame --follow`, and then by the broad type of change.
   proving graph project resources can compose with each other at runtime.
 - ProjectReference smoke coverage now verifies logs plus health/liveness
   refresh for both graph-backed ASP.NET Core project resources.
+- ProjectReference documentation and the resource graph proposal now describe
+  the current ASP.NET Core graph runtime-state projection path instead of the
+  earlier `Unknown`-state restart gap.
 - Docker container reference resources now mark `endpoints.count` as read-only
   provider-projected state, so deployment definitions cannot author endpoint
   counts while resolved Resource projections still expose the default count.

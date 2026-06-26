@@ -637,10 +637,10 @@ bridge should project an initial lifecycle state such as `Unknown` instead of
 leaving lifecycle state empty. Resource Manager has generic action guards
 before provider dispatch; a lifecycle-capable graph resource with no lifecycle
 state would otherwise be blocked before the operation provider can execute.
-This currently proves Start dispatch, not full lifecycle parity. Resource
-Manager still blocks Restart while state is `Unknown`, so graph-backed
-resources that need Restart must either project provider-observed runtime
-state or wait for an explicit Resource Manager policy decision.
+`Unknown` proves Start dispatch when no runtime state provider is available;
+graph-backed resources that need full state-sensitive lifecycle parity should
+project provider-observed runtime state through the bridge instead of putting
+runtime loops into the graph model.
 The existing Resource Manager status semantics still apply: a missing
 resource state is the neutral "no lifecycle or status indication is exposed"
 case, while `Unknown` means the resource participates in lifecycle/status
@@ -736,7 +736,7 @@ Working plan and progress:
 | Use existing providers as behavior references only | Done | The POC should not adapt `ApplicationResourceDefinition`, application stores, or old application-provider terminology into the new provider seams. |
 | Register a graph-backed ASP.NET Core resource in a real host/sample | Done | ProjectReference declares `Graph Project Reference API` through the Resource Manager bridge provider. |
 | Apply changed `ResourceDefinition` inputs to existing resources | Done | Deployment-style creation and later `ResourceDefinition` overlays now prove the same apply/commit path can update existing graph resources with resource revision and graph version changes. Provider/Control Plane apply policy can still reject a proposed update or accept the saved graph change while reporting that the resource needs a restart to materialize it. The ASP.NET Core project slice now uses this policy for running project configuration changes, and ProjectReference exposes a sample-local host seam that applies a changed graph definition through the running sample process. |
-| Dispatch Resource Manager Start to a resolved graph operation | Done | Registered graph resources with lifecycle operations project `Unknown` state so Start reaches `ResourceModelGraphProcedureProvider`. |
+| Dispatch Resource Manager Start to a resolved graph operation | Done | Registered graph resources with lifecycle operations can fall back to `Unknown` state so Start reaches `ResourceModelGraphProcedureProvider`, while provider-observed state projection enables the normal state-sensitive action path. |
 | Keep ASP.NET Core runtime behavior provider-local | Done | The runtime controller starts from resolved graph attributes, and command construction now honors project path, arguments, typed endpoint requests, hot reload, launch-settings, environment, process lifetime, and diagnostics inside the ASP.NET Core provider boundary. |
 | Prove the graph-backed project can actually run | Done | An executable-backed integration test starts the ProjectReference API through typed endpoint request attributes on the graph ASP.NET Core provider seam and verifies its `/health` endpoint. |
 | Decide minimal runtime state projection | Done | The bridge can accept an optional runtime-state resolver. `null` remains the neutral no-status case, lifecycle-capable graph resources fall back to `Unknown`, and observed runtime state can enable actions such as Restart without putting runtime loops into the graph model. |
@@ -3741,9 +3741,9 @@ the Resource model becomes a replacement path:
   and apply hooks should be shaped around the Resource model's graph
   attributes and provider-owned runtime services.
 - Clarify lifecycle-state projection for graph-backed resources. Projecting
-  `Unknown` lets Resource Manager dispatch Start, but Restart remains blocked
-  until runtime state is projected or Resource Manager lifecycle policy is
-  deliberately changed.
+  `Unknown` lets Resource Manager dispatch Start when no runtime state is
+  available; provider-observed state projection is the preferred path for
+  resources that need normal state-sensitive lifecycle parity.
 - Avoid adding broad graph contexts, transaction/session APIs, or generic
   control-service layers until concrete provider ports show they are needed.
   The current seams are capabilities, operations, apply hooks, and Resource

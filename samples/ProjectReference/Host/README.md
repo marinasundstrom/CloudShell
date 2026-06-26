@@ -149,11 +149,11 @@ http://localhost:5230/upstream
 
 The frontend response should resolve and call the graph-backed API endpoint.
 
-Restart is still a model gap for this graph-backed resource. The bridge
-projects lifecycle-capable graph resources with `Unknown` state so Resource
-Manager allows Start to dispatch, but Resource Manager blocks Restart while
-state is `Unknown`. A later slice should either project provider-observed
-runtime state or deliberately change Resource Manager restart policy.
+The ASP.NET Core reference-provider bridge projects provider-observed runtime
+state for these graph-backed resources. `Unknown` remains the generic fallback
+for lifecycle-capable graph resources when no runtime state provider is
+registered, but this sample now exercises the provider-local state projection
+path for start/stop and health/liveness checks.
 
 Runtime state is stored under `samples/ProjectReference/Host/Data/`
 and is ignored by git.
