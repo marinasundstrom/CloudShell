@@ -724,6 +724,27 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public void AddConfigurationStoreResourceType_ConfiguresProviderOwnedRuntimeOptions()
+    {
+        var services = new ServiceCollection();
+        services.AddConfigurationStoreResourceType(options =>
+        {
+            options.ServiceProjectPath = "services/configuration-store.csproj";
+            options.ServiceWorkingDirectory = "/repo";
+            options.Entries.Add(new("Sample:Message", "Hello from graph"));
+        });
+        using var serviceProvider = services.BuildServiceProvider();
+
+        var options = serviceProvider.GetRequiredService<ConfigurationStoreRuntimeOptions>();
+
+        Assert.Equal("services/configuration-store.csproj", options.ServiceProjectPath);
+        Assert.Equal("/repo", options.ServiceWorkingDirectory);
+        var entry = Assert.Single(options.Entries);
+        Assert.Equal("Sample:Message", entry.Name);
+        Assert.Equal("Hello from graph", entry.Value);
+    }
+
+    [Fact]
     public async Task AddHostConfigurationSourceResourceType_RegistersCompleteResourceTypeBoundary()
     {
         var services = new ServiceCollection();
@@ -1223,6 +1244,28 @@ public sealed class ResourceProviderDispatcherTests
         Assert.NotNull(inspect);
         Assert.True(await inspect.CanExecuteAsync());
         Assert.Equal(0, inspect.PlanInspection().SecretCount);
+    }
+
+    [Fact]
+    public void AddSecretsVaultResourceType_ConfiguresProviderOwnedRuntimeOptions()
+    {
+        var services = new ServiceCollection();
+        services.AddSecretsVaultResourceType(options =>
+        {
+            options.ServiceProjectPath = "services/secrets-vault.csproj";
+            options.ServiceWorkingDirectory = "/repo";
+            options.Secrets.Add(new("sample-api-key", "secret-value", "v1"));
+        });
+        using var serviceProvider = services.BuildServiceProvider();
+
+        var options = serviceProvider.GetRequiredService<SecretsVaultRuntimeOptions>();
+
+        Assert.Equal("services/secrets-vault.csproj", options.ServiceProjectPath);
+        Assert.Equal("/repo", options.ServiceWorkingDirectory);
+        var secret = Assert.Single(options.Secrets);
+        Assert.Equal("sample-api-key", secret.Name);
+        Assert.Equal("secret-value", secret.Value);
+        Assert.Equal("v1", secret.Version);
     }
 
     [Fact]

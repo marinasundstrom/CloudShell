@@ -95,6 +95,9 @@ on `git blame --follow`, and then by the broad type of change.
 - SettingsAndSecrets now proves that the graph-backed ASP.NET Core API can call
   the graph-backed Configuration Store through service discovery derived from
   `project.references`.
+- Configuration Store and Secrets Vault graph provider registration now accepts
+  provider-owned runtime options, letting SettingsAndSecrets configure backing
+  service projects and seeded runtime data through the provider boundary.
 - ProjectReference smoke coverage now verifies logs plus health/liveness
   refresh for both graph-backed ASP.NET Core project resources.
 - ProjectReference documentation and the resource graph proposal now describe

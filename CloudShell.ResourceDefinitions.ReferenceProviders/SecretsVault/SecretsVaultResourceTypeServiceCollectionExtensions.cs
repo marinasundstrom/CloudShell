@@ -49,4 +49,18 @@ public static class SecretsVaultResourceTypeServiceCollectionExtensions
 
         return services;
     }
+
+    public static IServiceCollection AddSecretsVaultResourceType(
+        this IServiceCollection services,
+        Action<SecretsVaultRuntimeOptions> configureRuntime)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configureRuntime);
+
+        var options = new SecretsVaultRuntimeOptions();
+        configureRuntime(options);
+
+        services.AddSingleton(options);
+        return services.AddSecretsVaultResourceType();
+    }
 }

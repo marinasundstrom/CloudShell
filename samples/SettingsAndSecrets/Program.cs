@@ -73,31 +73,6 @@ builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
 builder.Services
-    .AddSingleton(new ConfigurationStoreRuntimeOptions
-    {
-        ServiceProjectPath = configurationStoreServiceProjectPath,
-        ServiceWorkingDirectory = repositoryRootPath,
-        ServiceAuthenticationIssuer = identityIssuer,
-        ServiceAuthenticationAudience = identityAudience,
-        ServiceAuthenticationSigningKeyPem = identitySigningKeyPem,
-        Entries =
-        {
-            new("Sample:Message", "Hello from a graph configuration entry"),
-            new("Sample:Mode", "Graph")
-        }
-    })
-    .AddSingleton(new SecretsVaultRuntimeOptions
-    {
-        ServiceProjectPath = secretsVaultServiceProjectPath,
-        ServiceWorkingDirectory = repositoryRootPath,
-        ServiceAuthenticationIssuer = identityIssuer,
-        ServiceAuthenticationAudience = identityAudience,
-        ServiceAuthenticationSigningKeyPem = identitySigningKeyPem,
-        Secrets =
-        {
-            new("sample-api-key", "graph-local-development-api-key")
-        }
-    })
     .AddInMemoryResourceModelGraph(
     [
         new ResourceGraphState(
@@ -218,8 +193,25 @@ builder.Services
                     ]))
             })
     ])
-    .AddConfigurationStoreResourceType()
-    .AddSecretsVaultResourceType()
+    .AddConfigurationStoreResourceType(options =>
+    {
+        options.ServiceProjectPath = configurationStoreServiceProjectPath;
+        options.ServiceWorkingDirectory = repositoryRootPath;
+        options.ServiceAuthenticationIssuer = identityIssuer;
+        options.ServiceAuthenticationAudience = identityAudience;
+        options.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
+        options.Entries.Add(new("Sample:Message", "Hello from a graph configuration entry"));
+        options.Entries.Add(new("Sample:Mode", "Graph"));
+    })
+    .AddSecretsVaultResourceType(options =>
+    {
+        options.ServiceProjectPath = secretsVaultServiceProjectPath;
+        options.ServiceWorkingDirectory = repositoryRootPath;
+        options.ServiceAuthenticationIssuer = identityIssuer;
+        options.ServiceAuthenticationAudience = identityAudience;
+        options.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
+        options.Secrets.Add(new("sample-api-key", "graph-local-development-api-key"));
+    })
     .AddAspNetCoreProjectResourceType()
     .AddResourceModelGraphServices()
     .AddReferenceProviderResourceManagerProjections()

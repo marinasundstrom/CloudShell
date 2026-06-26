@@ -51,4 +51,18 @@ public static class ConfigurationStoreResourceTypeServiceCollectionExtensions
 
         return services;
     }
+
+    public static IServiceCollection AddConfigurationStoreResourceType(
+        this IServiceCollection services,
+        Action<ConfigurationStoreRuntimeOptions> configureRuntime)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configureRuntime);
+
+        var options = new ConfigurationStoreRuntimeOptions();
+        configureRuntime(options);
+
+        services.AddSingleton(options);
+        return services.AddConfigurationStoreResourceType();
+    }
 }
