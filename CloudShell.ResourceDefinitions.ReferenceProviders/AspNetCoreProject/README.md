@@ -21,5 +21,9 @@
 
 - Launch settings parsing and richer process diagnostics.
 - Reusable service-discovery/environment-variable conventions if more providers prove the need.
+- Graph SQL credential/grant reconciliation. ASP.NET Core graph resources can
+  declare and consume a graph SQL Server service-discovery target, but the
+  current brokered credential path still depends on the old SQL Server
+  provider runtime model.
 - First-class graph identity/provisioning projection if the POC proves it belongs in the graph model.
 - Container build behavior and UI registration/update flow.

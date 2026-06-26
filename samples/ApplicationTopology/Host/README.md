@@ -79,6 +79,9 @@ frontend-to-API and API-to-SQL dependencies.
 The backend API also receives Configuration Store and Secrets Vault references
 as environment variables. `/settings` returns the configured message, mode,
 and whether the secret value was injected without returning the secret itself.
+The API reads `ApplicationTopology:SqlServer:ResourceName` so the same project
+can target the old provider-owned SQL Server resource or the graph-backed SQL
+Server resource through service discovery.
 The sample provisions the backend API and SQL Server built-in development
 resource identities on startup. It grants the API identity read access to the
 Configuration Store and Secrets Vault resources, and records a database

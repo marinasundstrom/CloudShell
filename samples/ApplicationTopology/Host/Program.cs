@@ -218,6 +218,9 @@ builder.Services
                             "ApplicationTopology__SqlServer__Authentication",
                             "CloudShell"),
                         new AspNetCoreProjectEnvironmentVariableValue(
+                            "ApplicationTopology__SqlServer__ResourceName",
+                            "graph-application-topology-sql-server"),
+                        new AspNetCoreProjectEnvironmentVariableValue(
                             "ApplicationTopology__SqlServer__User",
                             "sa"),
                         new AspNetCoreProjectEnvironmentVariableValue(
@@ -469,6 +472,7 @@ cloudShell.Resources(resources =>
         .WithEnvironment("CLOUDSHELL_METRIC_INGEST_ENDPOINT", metricIngestEndpoint ?? string.Empty)
         .WithEnvironment("CLOUDSHELL_SQL_CREDENTIAL_ENDPOINT", $"{cloudShellEndpoint}/api/sql-server/v1/credentials")
         .WithEnvironment("ApplicationTopology__SqlServer__Authentication", "CloudShell")
+        .WithEnvironment("ApplicationTopology__SqlServer__ResourceName", "application-topology-sql-server")
         .WithEnvironment("ApplicationTopology__SqlServer__User", "sa")
         .WithEnvironment("ApplicationTopology__SqlServer__Password", sqlPassword)
         .WithEnvironment("ApplicationTopology__SqlServer__Database", "application_topology")

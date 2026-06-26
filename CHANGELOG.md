@@ -69,6 +69,9 @@ on `git blame --follow`, and then by the broad type of change.
   ensure-created handler that uses the resolved graph SQL Server endpoint and
   host configuration for administrator credentials, keeping secrets out of
   graph state while proving the provider-owned runtime hook.
+- ApplicationTopology API SQL access now reads the target SQL Server resource
+  name from configuration, allowing the old-provider API path and graph-backed
+  API path to declare different SQL service-discovery targets.
 
 #### Fixed
 

@@ -77,6 +77,7 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
             environmentVariables:
             [
                 new("CLOUDSHELL_TRACE_INGEST_ENDPOINT", "http://localhost:5104/api/control-plane/v1/traces/ingest"),
+                new("ApplicationTopology__SqlServer__ResourceName", "graph-application-topology-sql-server"),
                 new("EMPTY_VALUE")
             ]);
         var command = new AspNetCoreProjectProcessCommandFactory()
@@ -85,6 +86,9 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
         Assert.Equal(
             "http://localhost:5104/api/control-plane/v1/traces/ingest",
             command.Environment["CLOUDSHELL_TRACE_INGEST_ENDPOINT"]);
+        Assert.Equal(
+            "graph-application-topology-sql-server",
+            command.Environment["ApplicationTopology__SqlServer__ResourceName"]);
         Assert.Equal(string.Empty, command.Environment["EMPTY_VALUE"]);
     }
 

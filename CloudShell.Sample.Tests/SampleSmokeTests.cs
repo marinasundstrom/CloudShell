@@ -1219,6 +1219,8 @@ public sealed class SampleSmokeTests
         Assert.Contains("application_topology", apiEnvironmentHtml);
         Assert.Contains("ApplicationTopology__SqlServer__Authentication", apiEnvironmentHtml);
         Assert.Contains("CloudShell", apiEnvironmentHtml);
+        Assert.Contains("ApplicationTopology__SqlServer__ResourceName", apiEnvironmentHtml);
+        Assert.Contains("application-topology-sql-server", apiEnvironmentHtml);
         Assert.Contains("CLOUDSHELL_SQL_CREDENTIAL_ENDPOINT", apiEnvironmentHtml);
         Assert.Contains("ApplicationTopology__SqlServer__Password", apiEnvironmentHtml);
         Assert.Contains("Stored value hidden", apiEnvironmentHtml);

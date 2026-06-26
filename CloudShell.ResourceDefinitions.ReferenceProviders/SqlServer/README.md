@@ -22,4 +22,7 @@
 
 - Real SQL runtime integration.
 - Default/preferred container-host resolution.
-- Credential/grant reconciliation, database child projections, and UI tabs.
+- Credential/grant reconciliation for graph-backed SQL Server resources. The
+  current CloudShell SQL credential broker still resolves the old application
+  provider resource model and grants.
+- Database child projections and UI tabs.
