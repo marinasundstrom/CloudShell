@@ -129,10 +129,11 @@ progress. In this mode, the local DNS mapping targets
 
 Graph-only mode is a migration gate for the POC. The API/frontend,
 Configuration Store, and Secrets Vault runtime path starts through graph-backed
-resources. The graph SQL Server lifecycle adapter still delegates to the old
-sample SQL runtime resource through `IApplicationTopologyGraphSqlServerRuntimeBridge`,
-so full SQL runtime independence remains pending. That bridge is the intended
-replacement point for a graph-owned SQL runtime adapter.
+resources. In side-by-side mode, the graph SQL Server lifecycle adapter still
+delegates to the old sample SQL runtime resource through
+`IApplicationTopologyGraphSqlServerRuntimeBridge`. In graph-only mode, the
+same bridge is wired to a sample-local Docker-backed SQL runtime so graph SQL
+lifecycle operations do not require the old SQL resource declaration.
 
 ## Run
 
@@ -194,8 +195,9 @@ available after restarting the CloudShell host. Its appsettings set
 `Observability:Telemetry:RetainedSpansPerResource` to `5000`, and
 `Observability:Telemetry:RetainedMetricPointsPerResource` to `10000`.
 
-The sample disables startup autostart for these three application resources so
-you can exercise the live dependency path deliberately from Resource Manager.
+The sample disables startup autostart for the old workload resources and the
+graph-backed declarations so you can exercise the live dependency path
+deliberately from Resource Manager.
 
 You can override the SQL Server development password with:
 

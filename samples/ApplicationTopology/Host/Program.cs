@@ -93,8 +93,20 @@ builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
 builder.Services
-    .AddSingleton<ISqlDatabaseCreationHandler, GraphSqlDatabaseCreationHandler>()
-    .AddSingleton<IApplicationTopologyGraphSqlServerRuntimeBridge, ApplicationTopologyGraphSqlServerResourceManagerBridge>()
+    .AddSingleton<ISqlDatabaseCreationHandler, GraphSqlDatabaseCreationHandler>();
+if (graphOnly)
+{
+    builder.Services
+        .AddSingleton<IApplicationTopologyDockerCommandRunner, ProcessApplicationTopologyDockerCommandRunner>()
+        .AddSingleton<IApplicationTopologyGraphSqlServerRuntimeBridge, ApplicationTopologyGraphSqlServerDockerBridge>();
+}
+else
+{
+    builder.Services
+        .AddSingleton<IApplicationTopologyGraphSqlServerRuntimeBridge, ApplicationTopologyGraphSqlServerResourceManagerBridge>();
+}
+
+builder.Services
     .AddSingleton<ISqlServerRuntimeHandler, ApplicationTopologyGraphSqlServerRuntimeHandler>()
     .AddInMemoryResourceModelGraph(
     [
@@ -527,27 +539,34 @@ cloudShell.Resources(resources =>
 
     resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphSqlVolumeResourceId)
-        .WithResourceGroup(groupId);
+        .WithResourceGroup(groupId)
+        .WithAutoStart(false);
     var graphSqlServer = resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphSqlServerResourceId)
-        .WithResourceGroup(groupId);
+        .WithResourceGroup(groupId)
+        .WithAutoStart(false);
     resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphDatabaseResourceId)
-        .WithResourceGroup(groupId);
+        .WithResourceGroup(groupId)
+        .WithAutoStart(false);
     var graphSettings = resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphSettingsResourceId)
-        .WithResourceGroup(groupId);
+        .WithResourceGroup(groupId)
+        .WithAutoStart(false);
     var graphSecrets = resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphSecretsResourceId)
-        .WithResourceGroup(groupId);
+        .WithResourceGroup(groupId)
+        .WithAutoStart(false);
     var graphApi = resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphApiResourceId)
         .WithIdentity(identityProvider, name: graphApiIdentityName)
         .WithResourceGroup(groupId)
+        .WithAutoStart(false)
         .ProvisionIdentityOnStartup();
     var graphFrontend = resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphFrontendResourceId)
-        .WithResourceGroup(groupId);
+        .WithResourceGroup(groupId)
+        .WithAutoStart(false);
 
     graphSqlServer.Allow(graphApi.Principal, DatabaseResourceOperationPermissions.ReadWrite);
     graphSettings.Allow(graphApi.Principal, ConfigurationStoreResourceOperationPermissions.ReadEntries);

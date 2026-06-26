@@ -95,6 +95,10 @@ on `git blame --follow`, and then by the broad type of change.
 - ApplicationTopology graph SQL lifecycle handling now depends on a
   sample-local runtime bridge contract, isolating the temporary old SQL
   Resource Manager resource delegation behind a replaceable switch seam.
+- ApplicationTopology graph-only mode now wires that SQL bridge to a
+  sample-local Docker-backed graph SQL runtime implementation, so graph SQL
+  lifecycle operations no longer require the old SQL resource declaration in
+  that mode.
 - ReplicatedContainerHealth smoke coverage now verifies the graph-backed
   container app can scale through the existing replicas API and delegates the
   accepted graph replica count into the runtime app declaration.
