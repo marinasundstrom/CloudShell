@@ -1500,6 +1500,21 @@ public sealed class ResourceManagerIntegrationTests
 
         Assert.Equal("Executed Stop for api.", stopResult.Message);
         Assert.Equal("Executed Restart for api.", restartResult.Message);
+
+        Assert.True(provider.CanUpdateImage(projectedContainer));
+        var imageUpdate = await provider.UpdateImageAsync(
+            procedure,
+            "ghcr.io/example/api:v2",
+            restartIfRunning: false,
+            triggeredBy: "test",
+            requestedReplicas: 4);
+
+        Assert.Equal("Updated image for api to 'ghcr.io/example/api:v2'.", imageUpdate.Message);
+
+        var updatedContainer = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == container.EffectiveResourceId);
+        Assert.Equal("ghcr.io/example/api:v2", updatedContainer.ResourceAttributes["container.image"]);
+        Assert.Equal("4", updatedContainer.ResourceAttributes["container.replicas"]);
     }
 
     [Fact]

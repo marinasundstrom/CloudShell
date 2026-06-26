@@ -3041,6 +3041,33 @@ public sealed class SampleSmokeTests
         Assert.NotEqual(
             "unrevisioned",
             updatedAttributes.GetProperty("container.revision").GetString());
+
+        var graphUpdateJson = await host.SendJsonAsync(
+            HttpMethod.Post,
+            $"/api/container-apps/v1/{Uri.EscapeDataString("application.container-app:graph-sample-api")}/deployments",
+            """
+            {
+              "image": "cloudshell/mock-api:20260608.3",
+              "triggeredBy": "sample-smoke-test",
+              "requestedReplicas": 2
+            }
+            """);
+        using var graphUpdateDocument = JsonDocument.Parse(graphUpdateJson);
+
+        Assert.Contains(
+            "cloudshell/mock-api:20260608.3",
+            graphUpdateDocument.RootElement.GetProperty("message").GetString());
+
+        var updatedGraphJson = await host.GetStringAsync(
+            $"/api/control-plane/v1/resources/{Uri.EscapeDataString("application.container-app:graph-sample-api")}");
+        using var updatedGraphDocument = JsonDocument.Parse(updatedGraphJson);
+        var updatedGraphAttributes = updatedGraphDocument.RootElement.GetProperty("attributes");
+        Assert.Equal(
+            "cloudshell/mock-api:20260608.3",
+            updatedGraphAttributes.GetProperty("container.image").GetString());
+        Assert.Equal(
+            "2",
+            updatedGraphAttributes.GetProperty("container.replicas").GetString());
     }
 
     [Fact]

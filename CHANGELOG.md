@@ -55,6 +55,12 @@ on `git blame --follow`, and then by the broad type of change.
 - The ContainerAppDeployment graph Docker registry materializer now uses an
   injectable sample-local Docker command runner, with deterministic tests for
   status projection and lifecycle command construction.
+- Resource Model graph bridge resources that project `container.image.update`
+  can now satisfy the Resource Manager image update API by applying the image
+  and requested replica attributes into the graph before executing the graph
+  operation runtime seam. ContainerAppDeployment smoke coverage now updates
+  the graph-backed container app through the same deployment API as the old
+  sample app.
 - ContainerAppDeployment now declares its graph Docker host, registry
   container, and container app through provider-owned graph builders instead
   of raw graph state dictionaries.
