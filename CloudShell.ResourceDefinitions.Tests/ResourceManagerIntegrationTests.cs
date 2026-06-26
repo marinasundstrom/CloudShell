@@ -804,6 +804,58 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphProcedureProvider_ImportsResourceDefinitionTemplate()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var definition = new ResourceDefinition(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+            ProviderId: ExecutableApplicationResourceTypeProvider.ProviderId,
+            DisplayName: "API",
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
+            });
+        var template = new ResourceTemplateDefinition(
+            definition.Name,
+            "resource-model",
+            definition.TypeId.ToString(),
+            [],
+            ResourceModelGraphProcedureProvider.ResourceDefinitionTemplateConfigurationVersion,
+            ResourceDefinitionJson.FromValue(definition, JsonSerializerOptions.Web),
+            definition.EffectiveResourceId);
+        var registrations = new RecordingResourceRegistrationStore();
+
+        Assert.True(provider.CanImport(template));
+
+        var result = await provider.ImportAsync(
+            template,
+            new ResourceTemplateImportContext("applications", registrations, []));
+
+        Assert.Equal("application.executable:api", result.ResourceId);
+        Assert.Equal("Imported resource model graph resource 'api'.", result.Message);
+        var resource = Assert.Single(provider.GetResources());
+        Assert.Equal("application.executable:api", resource.Id);
+        Assert.Equal("API", resource.DisplayName);
+        Assert.Equal("dotnet", resource.ResourceAttributes[
+            ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
+
+        var registration = registrations.GetRegistration(resource.Id);
+        Assert.NotNull(registration);
+        Assert.Equal("resource-model", registration.ProviderId);
+        Assert.Equal("applications", registration.ResourceGroupId);
+    }
+
+    [Fact]
     public void AddResourceModelGraphProcedureProvider_RegistersSameScopedBridgeForProviderAndAvailability()
     {
         var services = new ServiceCollection();
@@ -4815,6 +4867,72 @@ public sealed class ResourceManagerIntegrationTests
             IReadOnlyList<string> dependsOn,
             CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
+    }
+
+    private sealed class RecordingResourceRegistrationStore : IResourceRegistrationStore
+    {
+        private readonly Dictionary<string, ResourceRegistration> _registrations =
+            new(StringComparer.OrdinalIgnoreCase);
+
+        public IReadOnlyList<ResourceRegistration> GetRegistrations() =>
+            _registrations.Values.ToArray();
+
+        public ResourceRegistration? GetRegistration(string resourceId) =>
+            _registrations.GetValueOrDefault(resourceId);
+
+        public Task RegisterAsync(
+            string providerId,
+            string resourceId,
+            string? resourceGroupId = null,
+            IReadOnlyList<string>? dependsOn = null,
+            CancellationToken cancellationToken = default)
+        {
+            _registrations[resourceId] = new ResourceRegistration(
+                resourceId,
+                providerId,
+                resourceGroupId,
+                DateTimeOffset.UtcNow,
+                dependsOn ?? []);
+            return Task.CompletedTask;
+        }
+
+        public Task RemoveAsync(
+            string resourceId,
+            CancellationToken cancellationToken = default)
+        {
+            _registrations.Remove(resourceId);
+            return Task.CompletedTask;
+        }
+
+        public Task AssignToGroupAsync(
+            string resourceId,
+            string? resourceGroupId,
+            IReadOnlyList<string>? dependsOn = null,
+            CancellationToken cancellationToken = default)
+        {
+            var existing = GetRegistration(resourceId) ??
+                new ResourceRegistration(resourceId, "resource-model", null, DateTimeOffset.UtcNow, []);
+            _registrations[resourceId] = existing with
+            {
+                ResourceGroupId = resourceGroupId,
+                DependsOn = dependsOn ?? existing.DependsOn
+            };
+            return Task.CompletedTask;
+        }
+
+        public Task SetDependenciesAsync(
+            string resourceId,
+            IReadOnlyList<string> dependsOn,
+            CancellationToken cancellationToken = default)
+        {
+            var existing = GetRegistration(resourceId) ??
+                new ResourceRegistration(resourceId, "resource-model", null, DateTimeOffset.UtcNow, []);
+            _registrations[resourceId] = existing with
+            {
+                DependsOn = dependsOn
+            };
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class RecordingExecutableApplicationRuntimeController :

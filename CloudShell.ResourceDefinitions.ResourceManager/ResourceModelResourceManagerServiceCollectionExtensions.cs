@@ -235,6 +235,7 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
                     resolutionContext,
                     projectionOptions),
                 serviceProvider.GetRequiredService<ResourceModelGraphResourceResolver>(),
+                serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>(),
                 resolutionContext));
         services.AddScoped<IResourceProvider>(
             serviceProvider => serviceProvider.GetRequiredService<ResourceModelGraphProcedureProvider>());

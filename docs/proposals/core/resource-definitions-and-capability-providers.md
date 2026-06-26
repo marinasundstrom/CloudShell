@@ -3792,12 +3792,13 @@ context. It should not infer resource state solely from projected
 `Resource.Attributes` when a full `Resource` projection or apply input is
 available.
 
-The current Resource Manager template export bridge is intentionally narrower:
-it can render graph-backed Resource Manager resources as template resources
-with `providerConfigurationVersion = resource-definition.v1` and a JSON
-`ResourceDefinition` payload. YAML remains a future authoring/interchange
-target; the model should stay serializer-neutral while the existing API path
-uses JSON.
+The current Resource Manager template bridge is intentionally narrower: it can
+render graph-backed Resource Manager resources as template resources with
+`providerConfigurationVersion = resource-definition.v1` and a JSON
+`ResourceDefinition` payload, and it can import those payloads by delegating to
+the graph apply path with create-missing-resource semantics. YAML remains a
+future authoring/interchange target; the model should stay serializer-neutral
+while the existing API path uses JSON.
 The name and shape of the outer container for exported and imported resource
 templates remains undecided. That container may remain close to the existing
 Resource Manager template API or evolve, but it should still carry

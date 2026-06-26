@@ -17,15 +17,18 @@ public sealed class ResourceModelGraphProcedureProvider :
 
     private readonly ResourceModelGraphResourceProvider _resourceProvider;
     private readonly ResourceModelGraphResourceResolver _resourceResolver;
+    private readonly ResourceModelGraphDefinitionApplyService _definitionApply;
     private readonly ResourceDefinitionResolutionContext _resolutionContext;
 
     public ResourceModelGraphProcedureProvider(
         ResourceModelGraphResourceProvider resourceProvider,
         ResourceModelGraphResourceResolver resourceResolver,
+        ResourceModelGraphDefinitionApplyService definitionApply,
         ResourceDefinitionResolutionContext? resolutionContext = null)
     {
         _resourceProvider = resourceProvider ?? throw new ArgumentNullException(nameof(resourceProvider));
         _resourceResolver = resourceResolver ?? throw new ArgumentNullException(nameof(resourceResolver));
+        _definitionApply = definitionApply ?? throw new ArgumentNullException(nameof(definitionApply));
         _resolutionContext = resolutionContext ?? ResourceDefinitionResolutionContext.Empty;
     }
 
@@ -77,15 +80,72 @@ public sealed class ResourceModelGraphProcedureProvider :
             definition.EffectiveResourceId);
     }
 
-    public bool CanImport(ResourceTemplateDefinition template) => false;
+    public bool CanImport(ResourceTemplateDefinition template) =>
+        string.Equals(template.ProviderId, Id, StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(
+            template.ProviderConfigurationVersion,
+            ResourceDefinitionTemplateConfigurationVersion,
+            StringComparison.OrdinalIgnoreCase);
 
-    public Task<ResourceTemplateImportResult> ImportAsync(
+    public async Task<ResourceTemplateImportResult> ImportAsync(
         ResourceTemplateDefinition template,
         ResourceTemplateImportContext context,
-        CancellationToken cancellationToken = default) =>
-        Task.FromException<ResourceTemplateImportResult>(
-            new NotSupportedException(
-                "Resource model graph templates are not imported through this bridge provider yet."));
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(template);
+        ArgumentNullException.ThrowIfNull(context);
+
+        if (!CanImport(template))
+        {
+            throw new InvalidOperationException("The resource model graph template is not supported.");
+        }
+
+        var definition = template.Configuration.Deserialize<ResourceDefinition>(SerializerOptions)
+            ?? throw new InvalidOperationException("The resource model graph template configuration is invalid.");
+        if (!string.Equals(definition.TypeId.ToString(), template.ResourceType, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Resource definition type '{definition.TypeId}' does not match template resource type '{template.ResourceType}'.");
+        }
+
+        var resourceId = string.IsNullOrWhiteSpace(template.ResourceId)
+            ? definition.EffectiveResourceId
+            : template.ResourceId.Trim();
+        if (_resourceProvider.GetResources().Any(resource =>
+            string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException($"Resource id '{resourceId}' is already in use.");
+        }
+
+        var importDefinition = definition with
+        {
+            ResourceId = resourceId,
+            DependsOn = context.DependsOn
+                .Select(resourceId => ResourceReference.DependsOnResourceId(resourceId))
+                .ToArray()
+        };
+        var result = await _definitionApply.ApplyDefinitionsAsync(
+            [importDefinition],
+            new ResourceGraphCommitContext(),
+            ResourceModelGraphDefinitionApplyOptions.CreateMissing,
+            cancellationToken);
+
+        if (result.HasErrors || !result.IsCommitted)
+        {
+            throw new InvalidOperationException(FormatDiagnostics(result.Diagnostics));
+        }
+
+        await context.Registrations.RegisterAsync(
+            Id,
+            resourceId,
+            context.ResourceGroupId,
+            context.DependsOn,
+            cancellationToken);
+
+        return new ResourceTemplateImportResult(
+            resourceId,
+            $"Imported resource model graph resource '{template.Name}'.");
+    }
 
     public Task<ResourceProcedureResult> DeleteAsync(
         ResourceProcedureContext context,

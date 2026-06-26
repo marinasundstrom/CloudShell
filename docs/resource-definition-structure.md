@@ -88,13 +88,14 @@ describes how a set of resource definitions is authored, grouped, ordered,
 parameterized, or applied together; it should not invent a second resource
 state model.
 
-## Template Export
+## Template Export And Import
 
 The current POC can render graph-backed Resource Manager resources through the
-existing resource group template export API. A graph resource is exported as a
-template resource whose provider is `resource-model`, whose provider
-configuration version is `resource-definition.v1`, and whose `configuration`
-payload is a JSON `ResourceDefinition`.
+existing resource group template export API and import those same payloads back
+through the template import path. A graph resource is represented as a template
+resource whose provider is `resource-model`, whose provider configuration
+version is `resource-definition.v1`, and whose `configuration` payload is a
+JSON `ResourceDefinition`.
 
 The name and shape of the outer container for exported and imported resource
 templates remains undecided. It may stay close to the current Resource Manager
@@ -102,10 +103,10 @@ template API or evolve into another artifact shape. The inner resource payload
 should still be based on `ResourceDefinition`, because that format is tied to
 resource shape, validation, and incremental apply semantics.
 
-Template import/apply is intentionally not part of this bridge yet. Applying
-resource definitions remains owned by the graph apply path so each resource
-type provider can validate and accept or reject changes before they become
-graph state.
+Template import delegates to the graph apply path with create-missing-resource
+semantics. Applying resource definitions remains owned by that graph apply
+path so each resource type provider can validate and accept or reject changes
+before they become graph state.
 
 ## Core Envelope
 

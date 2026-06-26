@@ -38,6 +38,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Graph-backed resources can now be exported through the existing resource
   group template API as JSON `resource-definition.v1` payloads, giving the POC
   an API feedback path for the `ResourceDefinition` interchange shape.
+- Graph-backed `resource-definition.v1` template payloads can now be imported
+  through the Resource Manager template bridge, which delegates creation to
+  the graph apply path and registers the imported graph resource into the
+  requested resource group.
 - Resource definition docs now clarify that capabilities can contribute
   attribute definitions and validation rules for the graph state they need.
 - Resource definition docs now clarify that future deployment and template
