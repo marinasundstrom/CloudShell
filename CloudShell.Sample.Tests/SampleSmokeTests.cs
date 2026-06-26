@@ -2425,6 +2425,7 @@ public sealed class SampleSmokeTests
     [Fact]
     public async Task ContainerAppDeploymentSample_UpdatesMockImageTagThroughDeploymentApi()
     {
+        const string sampleImage = "cloudshell/mock-api:20260608.1";
         var registryPort = await GetFreePortAsync();
         using var host = await SampleProcess.StartAsync(
             "samples/ContainerAppDeployment/CloudShell.ContainerAppDeployment.csproj",
@@ -2442,12 +2443,38 @@ public sealed class SampleSmokeTests
             resource.GetProperty("id").GetString() == "application:sample-api");
         var registry = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "docker:container:sample-registry");
+        var graphDocker = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "docker:graph-sample");
+        var graphRegistry = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "docker.container:graph-sample-registry");
+        var graphApp = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.container-app:graph-sample-api");
 
         var registryAddress = $"localhost:{registryPort.ToString(CultureInfo.InvariantCulture)}";
         var appAttributes = app.GetProperty("attributes");
         var registryAttributes = registry.GetProperty("attributes");
+        var graphDockerAttributes = graphDocker.GetProperty("attributes");
+        var graphRegistryAttributes = graphRegistry.GetProperty("attributes");
+        var graphAppAttributes = graphApp.GetProperty("attributes");
         Assert.Equal(registryAddress, appAttributes.GetProperty("container.registry").GetString());
         Assert.Equal(registryAddress, registryAttributes.GetProperty("container.registry").GetString());
+        Assert.Equal("docker.host", graphDocker.GetProperty("typeId").GetString());
+        Assert.Equal(registryAddress, graphDockerAttributes.GetProperty("container.registry").GetString());
+        Assert.Equal("docker.container", graphRegistry.GetProperty("typeId").GetString());
+        Assert.Equal("registry:2", graphRegistryAttributes.GetProperty("container.image").GetString());
+        Assert.Equal(registryAddress, graphRegistryAttributes.GetProperty("container.registry").GetString());
+        Assert.Contains(
+            "docker:graph-sample",
+            graphRegistry.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal("application.container-app", graphApp.GetProperty("typeId").GetString());
+        Assert.Equal(sampleImage, graphAppAttributes.GetProperty("container.image").GetString());
+        Assert.Equal(registryAddress, graphAppAttributes.GetProperty("container.registry").GetString());
+        Assert.Contains(
+            "docker:graph-sample",
+            graphApp.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+        Assert.Contains(
+            "docker.container:graph-sample-registry",
+            graphApp.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
         Assert.Equal(
             ResourceDeclarationPersistence.Persisted.ToString(),
             appAttributes.GetProperty(ResourceAttributeNames.DeclarationPersistence).GetString());

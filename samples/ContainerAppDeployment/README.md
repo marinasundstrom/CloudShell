@@ -50,6 +50,24 @@ programmatic declarations into durable Control Plane/provider state. Resource
 Manager should show these as persisted declarations rather than transient
 startup declarations.
 
+## Resource Graph POC coverage
+
+The sample also declares side-by-side graph-backed resources through the
+Resource Definitions bridge:
+
+- `docker:graph-sample`: graph-backed Docker host with the configured registry
+  address.
+- `docker.container:graph-sample-registry`: graph-backed registry container
+  projection.
+- `application.container-app:graph-sample-api`: graph-backed container app
+  projection with typed startup dependencies on the graph Docker host and
+  registry container.
+
+Those resources prove projection, registry attribute mapping, and dependency
+shape while the existing application/Docker provider path remains responsible
+for deployment requests, registry runtime behavior, image updates, and
+container materialization.
+
 Run the sample:
 
 ```bash

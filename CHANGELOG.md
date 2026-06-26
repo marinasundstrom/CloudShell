@@ -103,6 +103,11 @@ on `git blame --follow`, and then by the broad type of change.
   smoke coverage verifying Resource Manager projection, typed graph
   dependencies, and load-balancer count/operation shape while the old Traefik
   path still proves runtime materialization.
+- ContainerAppDeployment now declares side-by-side graph-backed Docker host,
+  registry container, and container-app resources in the sample host, with
+  smoke coverage verifying Resource Manager projection, registry attributes,
+  and typed graph dependencies while the old deployment API path still owns
+  runtime image updates.
 - The Resource Graph proposal now documents the lifecycle of porting tests,
   distinguishing temporary old/new parity tests from graph-contract tests,
   runtime seam tests, and smoke tests that should be simplified after a sample
