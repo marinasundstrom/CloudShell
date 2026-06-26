@@ -225,6 +225,32 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public void ResourceModelGraphResourceProvider_DoesNotProjectAspNetCoreProjectReferencesAsDependencies()
+    {
+        var api = CreateAspNetCoreProjectState("api");
+        var frontend = CreateAspNetCoreProjectState(
+            "frontend",
+            references:
+            [
+                ResourceReference.ReferenceResourceId(
+                    api.EffectiveResourceId,
+                    typeId: AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
+            ]);
+        var provider = new ResourceModelGraphResourceProvider(
+            "resource-model",
+            "Resource model",
+            () => new ResourceGraphSnapshot(ResourceGraphVersion.Initial, [api, frontend]),
+            CreateAspNetCoreProjectResolver());
+
+        var projected = provider.GetResources()
+            .Single(resource => resource.Id == frontend.EffectiveResourceId);
+
+        Assert.Empty(projected.DependsOn);
+        Assert.False(projected.ResourceAttributes.ContainsKey(
+            AspNetCoreProjectResourceTypeProvider.Attributes.References));
+    }
+
+    [Fact]
     public void ResourceModelGraphResourceProvider_DoesNotProjectInvalidTypedDependency()
     {
         var worker = CreateExecutableState(
@@ -4585,6 +4611,29 @@ public sealed class ResourceManagerIntegrationTests
             LocalVolumeResourceTypeProvider.ResourceTypeId,
             ProviderId: LocalVolumeResourceTypeProvider.ProviderId);
 
+    private static ResourceState CreateAspNetCoreProjectState(
+        string name,
+        IReadOnlyList<ResourceReference>? references = null)
+    {
+        var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+        {
+            [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] =
+                $"samples/{name}/{name}.csproj"
+        };
+
+        if (references is not null)
+        {
+            attributes[AspNetCoreProjectResourceTypeProvider.Attributes.References] =
+                ResourceAttributeValue.FromObject(references);
+        }
+
+        return new ResourceState(
+            name,
+            AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
+            ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
+            Attributes: attributes);
+    }
+
     private static ResourceResolver CreateResolver() =>
         new(
             [
@@ -4597,6 +4646,15 @@ public sealed class ResourceManagerIntegrationTests
             ],
             [
                 new ExecutableApplicationResourceTypeProvider().TypeDefinition
+            ]);
+
+    private static ResourceResolver CreateAspNetCoreProjectResolver() =>
+        new(
+            [
+                AspNetCoreProjectResourceTypeProvider.ClassDefinition
+            ],
+            [
+                new AspNetCoreProjectResourceTypeProvider().TypeDefinition
             ]);
 
     private static void AssertServiceHealthAndLiveness(
