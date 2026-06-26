@@ -25,8 +25,9 @@
 - ApplicationTopology sample-local lifecycle runtime handler that maps graph
   SQL Server start/stop/restart operations to the existing SQL Server runtime
   resource and projects cached lifecycle status while the provider-owned
-  runtime remains under design. Docker smoke coverage verifies graph SQL
-  start, restart, and stop through that adapter.
+  runtime remains under design. Deterministic adapter coverage verifies the
+  Resource Manager delegation path without Docker, and Docker smoke coverage
+  verifies graph SQL start, restart, and stop through that adapter.
 - ApplicationTopology graph API read/write grant declaration against a graph SQL Server resource.
 - ApplicationTopology sample-local graph SQL credential endpoint that validates
   graph resource identity grants and materializes SQL login/user access for

@@ -6,7 +6,7 @@ using GraphResource = CloudShell.ResourceDefinitions.Resource;
 
 namespace CloudShell.ApplicationTopologyHost;
 
-internal sealed class ApplicationTopologyGraphSqlServerRuntimeHandler(
+public sealed class ApplicationTopologyGraphSqlServerRuntimeHandler(
     IServiceScopeFactory scopeFactory) : ISqlServerRuntimeHandler
 {
     private SqlServerRuntimeStatus _status = SqlServerRuntimeStatus.Unknown;
