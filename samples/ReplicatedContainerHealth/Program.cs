@@ -154,8 +154,47 @@ await app.UseCloudShellControlPlaneAsync();
 await app.UseCloudShellAsync();
 app.MapCloudShellControlPlane();
 app.MapCloudShell<App>();
+app.MapPost(
+    "/replicated-container-health/resource-graph/resources/{resourceId}/container-image",
+    async (
+        string resourceId,
+        ReplicatedContainerHealthGraphImageUpdate update,
+        ResourceModelGraphDefinitionApplyService applyService,
+        CancellationToken cancellationToken) =>
+    {
+        if (!string.Equals(resourceId, graphApiResourceId, StringComparison.OrdinalIgnoreCase))
+        {
+            return Results.NotFound();
+        }
+
+        if (string.IsNullOrWhiteSpace(update.Image))
+        {
+            return Results.BadRequest("Container image is required.");
+        }
+
+        var result = await applyService.ApplyDefinitionsAsync(
+            [CreateGraphApiImageDefinition(update.Image.Trim())],
+            new ResourceGraphCommitContext(
+                EnvironmentId: "replicated-container-health",
+                PrincipalId: "sample",
+                Timestamp: DateTimeOffset.UtcNow),
+            cancellationToken);
+
+        return Results.Ok(ReplicatedContainerHealthGraphApplyResponse.FromResult(result));
+    });
 
 app.Run();
+
+static ResourceDefinition CreateGraphApiImageDefinition(string image) =>
+    new(
+        "graph-api",
+        ContainerApplicationResourceTypeProvider.ResourceTypeId,
+        ResourceId: "application.container-app:graph-api",
+        ProviderId: ContainerApplicationResourceTypeProvider.ProviderId,
+        Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+        {
+            [ContainerApplicationResourceTypeProvider.Attributes.ContainerImage] = image
+        });
 
 static string ResolveCloudShellEndpoint(IConfiguration configuration)
 {
@@ -218,3 +257,37 @@ static string ResolveDockerReachableEndpoint(string endpoint)
     };
     return builder.Uri.GetLeftPart(UriPartial.Authority);
 }
+
+internal sealed record ReplicatedContainerHealthGraphImageUpdate(
+    string Image);
+
+internal sealed record ReplicatedContainerHealthGraphApplyResponse(
+    bool Committed,
+    bool HasErrors,
+    long BaseVersion,
+    long ResultVersion,
+    string Status,
+    IReadOnlyList<ReplicatedContainerHealthGraphApplyDiagnosticResponse> Diagnostics)
+{
+    public static ReplicatedContainerHealthGraphApplyResponse FromResult(
+        ResourceModelGraphDefinitionApplyResult result) =>
+        new(
+            result.IsCommitted,
+            result.HasErrors,
+            result.BaseVersion.Value,
+            result.Commit.Version.Value,
+            result.Commit.Summary.Status.ToString(),
+            result.Diagnostics
+                .Select(diagnostic => new ReplicatedContainerHealthGraphApplyDiagnosticResponse(
+                    diagnostic.Severity.ToString(),
+                    diagnostic.Code,
+                    diagnostic.Message,
+                    diagnostic.Target))
+                .ToArray());
+}
+
+internal sealed record ReplicatedContainerHealthGraphApplyDiagnosticResponse(
+    string Severity,
+    string Code,
+    string Message,
+    string? Target);

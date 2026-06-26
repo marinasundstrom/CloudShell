@@ -55,7 +55,10 @@ materialization, runtime health aggregation, logs, traces, and metrics.
 The sample now wires the graph container-app lifecycle operation to a
 sample-local runtime adapter, so starting `application.container-app:graph-api`
 delegates to the existing `application:api` runtime app while the POC provider
-port is still being refined.
+port is still being refined. It also exposes a sample-local graph image update
+endpoint used by smoke coverage to apply a `ResourceDefinition` overlay and
+then delegate the graph `container.image.update` operation into the existing
+runtime app configuration.
 
 When running the replica health path against Docker, start the `api` resource.
 The app start builds the project container image into the local Docker image

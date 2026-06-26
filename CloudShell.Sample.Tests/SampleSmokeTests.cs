@@ -3059,6 +3059,62 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
+    public async Task ReplicatedContainerHealthSample_GraphImageUpdateDelegatesToRuntimeAppConfiguration()
+    {
+        const string graphApiResourceId = "application.container-app:graph-api";
+        const string runtimeApiResourceId = "application:api";
+        const string updatedImage = "cloudshell-application-api:20260622.3";
+        using var host = await SampleProcess.StartAsync(
+            "samples/ReplicatedContainerHealth/CloudShell.ReplicatedContainerHealth.csproj",
+            await GetFreePortAsync());
+
+        await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+        var graphApplyJson = await host.SendJsonAsync(
+            HttpMethod.Post,
+            $"/replicated-container-health/resource-graph/resources/{Uri.EscapeDataString(graphApiResourceId)}/container-image",
+            $$"""
+            {
+              "image": "{{updatedImage}}"
+            }
+            """);
+        using var graphApplyDocument = JsonDocument.Parse(graphApplyJson);
+        var graphApply = graphApplyDocument.RootElement;
+        Assert.True(graphApply.GetProperty("committed").GetBoolean());
+        Assert.False(graphApply.GetProperty("hasErrors").GetBoolean());
+        Assert.Equal("Committed", graphApply.GetProperty("status").GetString());
+        Assert.True(graphApply.GetProperty("resultVersion").GetInt64() >
+            graphApply.GetProperty("baseVersion").GetInt64());
+
+        var graphResourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var graphResourcesDocument = JsonDocument.Parse(graphResourcesJson);
+        var graphResources = graphResourcesDocument.RootElement.EnumerateArray().ToArray();
+        var graphApp = Assert.Single(graphResources, resource =>
+            resource.GetProperty("id").GetString() == graphApiResourceId);
+
+        Assert.Equal(
+            updatedImage,
+            graphApp.GetProperty("attributes").GetProperty("container.image").GetString());
+
+        var updateImageAction = graphApp
+            .GetProperty("resourceActions")
+            .GetProperty("container.image.update");
+        var updateImageHref = updateImageAction.GetProperty("href").GetString() ??
+            throw new InvalidOperationException("The graph container image update action did not include an href.");
+        await host.SendAsync(HttpMethod.Post, updateImageHref);
+
+        var runtimeResourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var runtimeResourcesDocument = JsonDocument.Parse(runtimeResourcesJson);
+        var runtimeApp = Assert.Single(
+            runtimeResourcesDocument.RootElement.EnumerateArray(),
+            resource => resource.GetProperty("id").GetString() == runtimeApiResourceId);
+        var runtimeAttributes = runtimeApp.GetProperty("attributes");
+
+        Assert.Equal(updatedImage, runtimeAttributes.GetProperty(ResourceAttributeNames.ContainerImage).GetString());
+        Assert.Equal("3", runtimeAttributes.GetProperty(ResourceAttributeNames.ContainerReplicas).GetString());
+    }
+
+    [Fact]
     [Trait("Category", "DockerIntegration")]
     public async Task ReplicatedContainerHealthSample_GraphContainerAppStartDelegatesToRuntimeApp()
     {
