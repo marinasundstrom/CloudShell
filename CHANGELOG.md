@@ -91,6 +91,10 @@ on `git blame --follow`, and then by the broad type of change.
 - ApplicationTopology Docker smoke coverage now starts the graph-backed
   frontend and verifies its `/upstream` path through the graph API, graph
   settings, and graph SQL credential flow.
+- Resource Manager graph operation execution now preserves successful
+  provider diagnostics in the returned procedure message, so runtime-backed
+  operations such as ThirdPartyIdentity Keycloak setup expose their provider
+  result through the existing action API.
 
 #### Fixed
 

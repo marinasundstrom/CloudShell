@@ -277,7 +277,7 @@ public sealed class ResourceModelGraphProcedureProvider :
         }
 
         return ResourceProcedureResult.Completed(
-            $"Executed {action.DisplayName} for {context.Resource.Name}.");
+            CreateCompletedMessage(action, context.Resource, execution.Diagnostics));
     }
 
     private async ValueTask<ResourceModelGraphOperationResolution> ResolveExecutableOperationAsync(
@@ -313,6 +313,27 @@ public sealed class ResourceModelGraphProcedureProvider :
                 string.IsNullOrWhiteSpace(diagnostic.Target)
                     ? diagnostic.Message
                     : $"{diagnostic.Message} Target: {diagnostic.Target}."));
+
+    private static string CreateCompletedMessage(
+        ResourceAction action,
+        ResourceManagerResource resource,
+        IReadOnlyList<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        var message = $"Executed {action.DisplayName} for {resource.Name}.";
+        var diagnosticMessages = diagnostics
+            .Where(diagnostic =>
+                (diagnostic.Severity is
+                    ResourceDefinitionDiagnosticSeverity.Information or
+                    ResourceDefinitionDiagnosticSeverity.Warning) &&
+                !string.IsNullOrWhiteSpace(diagnostic.Message))
+            .Select(diagnostic => diagnostic.Message.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return diagnosticMessages.Length == 0
+            ? message
+            : $"{message} {string.Join(" ", diagnosticMessages)}";
+    }
 
     private bool IsBridgeResource(ResourceManagerResource resource) =>
         resource.IsDeclaredResource &&

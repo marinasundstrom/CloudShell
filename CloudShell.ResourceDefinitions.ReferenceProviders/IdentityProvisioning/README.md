@@ -16,6 +16,9 @@
 - ThirdPartyIdentity sample adapter that delegates graph setup execution to the
   Resource Manager identity setup service for the provider attached to the
   graph provisioning resource.
+- Resource Manager action execution surfaces successful provider setup
+  diagnostics, so the sample can verify the Keycloak runtime setup result
+  through the graph operation path.
 
 ## Remaining
 

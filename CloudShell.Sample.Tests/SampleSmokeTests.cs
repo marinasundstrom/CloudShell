@@ -2431,6 +2431,9 @@ public sealed class SampleSmokeTests
         Assert.Contains(
             "Executed Identity Provisioning Setup",
             graphSetupDocument.RootElement.GetProperty("message").GetString());
+        Assert.Contains(
+            "Keycloak client 'cloudshell-ui' is configured to emit realm roles",
+            graphSetupDocument.RootElement.GetProperty("message").GetString());
 
         var provisioningStatusJson = await host.GetStringAsync(
             "/api/control-plane/v1/resources/application%3Akeycloak-provisioned-api/identity/provisioning-status");

@@ -799,7 +799,9 @@ public sealed class ResourceManagerIntegrationTests
 
         var result = await provider.ExecuteActionAsync(procedure, action);
 
-        Assert.Equal("Executed Storage Volume Provision for data.", result.Message);
+        Assert.Equal(
+            "Executed Storage Volume Provision for data. Provisioned local volume.",
+            result.Message);
         Assert.Equal(["storage.volume:data"], provisioner.ProvisionedResourceIds);
     }
 
@@ -5191,7 +5193,14 @@ public sealed class ResourceManagerIntegrationTests
         {
             _provisionedResourceIds.Add(resource.EffectiveResourceId);
 
-            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>(
+            [
+                new ResourceDefinitionDiagnostic(
+                    ResourceDefinitionDiagnosticSeverity.Information,
+                    "localVolume.provisioned",
+                    "Provisioned local volume.",
+                    resource.EffectiveResourceId)
+            ]);
         }
     }
 
