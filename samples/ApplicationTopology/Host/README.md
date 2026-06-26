@@ -50,7 +50,8 @@ settings and graph SQL credentials. The host registers a sample-local graph SQL
 lifecycle adapter so the graph SQL Server start/stop/restart operations drive
 the existing SQL runtime resource for this sample and project cached graph SQL
 state after those operations. Docker smoke coverage verifies graph SQL start,
-restart, and stop through that adapter. It also registers a graph SQL database
+restart, and stop through that adapter, including SQL container creation,
+restart recreation, and stop cleanup. It also registers a graph SQL database
 ensure-created handler that can materialize the graph database against the
 configured SQL Server endpoint without storing administrator credentials in
 graph state. The graph API has a declared built-in resource identity, read

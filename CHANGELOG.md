@@ -37,6 +37,9 @@ on `git blame --follow`, and then by the broad type of change.
   revision-scoped replica names when an environment revision is active, so
   stop/restart actions target the same runtime containers that start
   materialized.
+- ApplicationTopology SQL-inclusive Docker smoke coverage now verifies graph
+  SQL start creates the SQL container, graph SQL restart recreates it, and
+  graph SQL stop removes it through the sample-local runtime adapter.
 - ReplicatedContainerHealth now exposes a sample-local ResourceDefinition
   overlay endpoint for the graph container image, and smoke coverage verifies
   that executing the graph `container.image.update` operation delegates the

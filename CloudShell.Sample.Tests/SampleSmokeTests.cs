@@ -1675,8 +1675,10 @@ public sealed class SampleSmokeTests
     [Trait("Category", "DockerIntegration")]
     public async Task ApplicationTopologyHost_SqlInclusiveRuntimePathConnectsFrontendApiAndDatabase()
     {
+        const string sqlContainerName = "cloudshell-application-application-topology-sql-server";
         if (!await DockerComposeStack.IsAvailableAsync() ||
-            !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.DefaultSqlServerImage))
+            !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.DefaultSqlServerImage) ||
+            await DockerComposeStack.ContainerExistsAsync(sqlContainerName))
         {
             return;
         }
@@ -1688,6 +1690,7 @@ public sealed class SampleSmokeTests
         var sqlPort = await GetFreePortAsync();
         var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:application-topology");
         var secretsServiceBasePort = await GetServiceBasePortAsync("secrets-vault:application-topology");
+        var shouldCleanupSqlContainer = true;
         using var host = await SampleProcess.StartAsync(
             "samples/ApplicationTopology/Host/CloudShell.ApplicationTopologyHost.csproj",
             await GetFreePortAsync(),
@@ -1722,6 +1725,12 @@ public sealed class SampleSmokeTests
                 "application.sql-server:graph-application-topology-sql-server",
                 ResourceState.Running,
                 StartupTimeout);
+            Assert.True(
+                await WaitForDockerContainerExistsAsync(sqlContainerName, StartupTimeout),
+                $"Expected Docker container '{sqlContainerName}' to be created.");
+            var startedSqlContainerId = await DockerComposeStack.GetContainerIdAsync(sqlContainerName) ??
+                throw new InvalidOperationException(
+                    $"Docker container '{sqlContainerName}' did not have an inspectable id.");
             await host.SendAsync(
                 HttpMethod.Post,
                 $"/api/control-plane/v1/resources/{Uri.EscapeDataString("application.sql-server:graph-application-topology-sql-server")}/actions/restart?ignoreDependentWarning=true");
@@ -1735,6 +1744,12 @@ public sealed class SampleSmokeTests
                 "application.sql-server:graph-application-topology-sql-server",
                 ResourceState.Running,
                 StartupTimeout);
+            Assert.True(
+                await WaitForDockerContainerIdChangedAsync(
+                    sqlContainerName,
+                    startedSqlContainerId,
+                    StartupTimeout),
+                $"Expected Docker container '{sqlContainerName}' to be recreated after graph SQL restart.");
 
             await host.SendAsync(
                 HttpMethod.Post,
@@ -1900,6 +1915,10 @@ public sealed class SampleSmokeTests
                 "application.sql-server:graph-application-topology-sql-server",
                 ResourceState.Stopped,
                 StartupTimeout);
+            Assert.True(
+                await WaitForDockerContainerRemovedAsync(sqlContainerName, StartupTimeout),
+                $"Expected Docker container '{sqlContainerName}' to be removed after graph SQL stop.");
+            shouldCleanupSqlContainer = false;
         }
         finally
         {
@@ -1909,6 +1928,10 @@ public sealed class SampleSmokeTests
             await StopResourceIfRunningAsync(host, "application.aspnet-core-project:graph-application-topology-api");
             await StopResourceIfRunningAsync(host, "application.sql-server:graph-application-topology-sql-server");
             await StopResourceIfRunningAsync(host, "application:application-topology-sql-server");
+            if (shouldCleanupSqlContainer)
+            {
+                await DockerComposeStack.RemoveContainerIfExistsAsync(sqlContainerName);
+            }
         }
     }
 
