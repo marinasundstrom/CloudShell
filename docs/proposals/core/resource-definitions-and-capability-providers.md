@@ -3200,6 +3200,16 @@ capability is declared on a class, type, or resource. The resource type still
 owns the final accepted graph state, but the capability can supply part of the
 attribute contract.
 
+Direct capability payloads on a `ResourceDefinition` remain valid, but they
+should not be the only authoring path. They are likely more common on
+`ResourceClassDefinition` and `ResourceTypeDefinition`, where a class or type
+declares a capability and may supply capability-owned defaults. A resource that
+inherits the capability should normally set the resulting capability-defined
+attributes, such as `health.checks` or `storage.mounts`, under its
+`attributes` map. The capability provider owns those attribute definitions and
+validators, while the resource continues to store accepted values as resource
+state.
+
 For example:
 
 ```csharp

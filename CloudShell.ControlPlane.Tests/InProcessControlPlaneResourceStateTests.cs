@@ -1029,6 +1029,62 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task ImportResourceGroupTemplateAsync_ImportsResourceModelGraphResourceDefinition()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider(
+            ResourceModelResourceProvider.DefaultProviderId,
+            "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<ResourceModelGraphProcedureProvider>();
+        var definition = new CloudShell.ResourceDefinitions.ResourceDefinition(
+            "api",
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+            ProviderId: ExecutableApplicationResourceTypeProvider.ProviderId,
+            DisplayName: "API",
+            Attributes: new Dictionary<GraphResourceAttributeId, string>
+            {
+                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
+            });
+        var template = new ResourceGroupTemplate(
+            "1.0",
+            "resourceGroup",
+            "Applications",
+            "Imported graph resources.",
+            [
+                new ResourceTemplateDefinition(
+                    definition.Name,
+                    ResourceModelResourceProvider.DefaultProviderId,
+                    definition.TypeId.ToString(),
+                    [],
+                    ResourceModelGraphProcedureProvider.ResourceDefinitionTemplateConfigurationVersion,
+                    CloudShell.ResourceDefinitions.ResourceDefinitionJson.FromValue(
+                        definition,
+                        JsonSerializerOptions.Web),
+                    definition.EffectiveResourceId)
+            ]);
+        var controlPlane = CreateControlPlane([], provider);
+
+        var import = await controlPlane.ImportResourceGroupTemplateAsync(template);
+
+        Assert.Empty(import.Diagnostics);
+        Assert.Equal("Applications", import.ResourceGroup?.Name);
+        var imported = Assert.Single(import.ImportedResources);
+        Assert.Equal("application.executable:api", imported.ResourceId);
+        var resource = Assert.Single(await controlPlane.ListResourcesAsync());
+        Assert.Equal("application.executable:api", resource.Id);
+        Assert.Equal("API", resource.DisplayName);
+        Assert.Equal("dotnet", resource.ResourceAttributes[
+            ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
+        var registration = Assert.Single(await controlPlane.ListResourceRegistrationsAsync());
+        Assert.Equal(ResourceModelResourceProvider.DefaultProviderId, registration.ProviderId);
+        Assert.Equal(import.ResourceGroup?.Id, registration.ResourceGroupId);
+    }
+
+    [Fact]
     public async Task ExecuteResourceActionAsync_DispatchesRegisteredResourceModelGraphResourceRestartWhenRuntimeStateIsRunning()
     {
         var runtimeController = new RecordingAspNetCoreProjectRuntimeController();

@@ -214,6 +214,40 @@ declared on a class, type, or resource. The graph still stores the accepted
 attribute values as resource state; the capability supplies part of the
 contract that explains and validates those values.
 
+It is valid for a `ResourceDefinition` to carry a capability payload directly
+under `capabilities`, for example when a resource explicitly declares or
+overrides capability-owned state. In practice this is expected to be more
+common on `ResourceClassDefinition` or `ResourceTypeDefinition`, where the
+capability is declared once and can provide default attribute values or
+validation rules for all resources of that class or type.
+
+When a resource inherits a capability from its class or type, the authored
+resource will usually set capability-defined attributes instead of repeating
+the capability declaration. Those attributes should use stable IDs, normally
+qualified by the capability or provider boundary:
+
+```json
+{
+  "attributes": {
+    "health.checks": {
+      "checks": []
+    }
+  }
+}
+```
+
+The compact top-level form is still a possible future authoring convenience,
+but the current interchange envelope keeps resource state under
+`attributes`:
+
+```json
+{
+  "health.checks": {
+    "checks": []
+  }
+}
+```
+
 ## Endpoint Requests
 
 Endpoint requests are graph configuration. They describe what endpoint a

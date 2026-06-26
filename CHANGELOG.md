@@ -42,8 +42,14 @@ on `git blame --follow`, and then by the broad type of change.
   through the Resource Manager template bridge, which delegates creation to
   the graph apply path and registers the imported graph resource into the
   requested resource group.
+- Control Plane coverage now verifies that importing a resource group template
+  containing a graph `ResourceDefinition` creates a graph-backed Resource
+  Manager resource and registration through the existing template API.
 - Resource definition docs now clarify that capabilities can contribute
   attribute definitions and validation rules for the graph state they need.
+- Resource definition docs now clarify that direct resource capability payloads
+  remain valid, while resources that inherit capabilities usually author
+  capability-defined values through qualified attributes.
 - Resource definition docs now clarify that future deployment and template
   container names remain open, while their resource payloads should stay based
   on `ResourceDefinition` instead of parallel resource-state models.
