@@ -3340,9 +3340,22 @@ public sealed class SampleSmokeTests
                 $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}/health",
                 bearerToken: null,
                 StartupTimeout);
+
+            var stopAction = graphApp
+                .GetProperty("resourceActions")
+                .GetProperty(ResourceActionIds.Stop);
+            var stopHref = stopAction.GetProperty("href").GetString() ??
+                throw new InvalidOperationException("The graph container app stop action did not include an href.");
+            await host.SendAsync(HttpMethod.Post, stopHref);
+            await WaitForResourceStateAsync(
+                host,
+                "application.container-app:graph-api",
+                ResourceState.Stopped,
+                StartupTimeout);
         }
         finally
         {
+            await StopResourceIfRunningAsync(host, "application.container-app:graph-api");
             await StopResourceIfRunningAsync(host, "application:api");
         }
     }

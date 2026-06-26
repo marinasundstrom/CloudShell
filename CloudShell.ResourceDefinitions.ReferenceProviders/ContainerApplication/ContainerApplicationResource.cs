@@ -52,6 +52,12 @@ public sealed class ContainerApplicationResource(
             Resource.Operations.Get(ContainerApplicationResourceTypeProvider.Operations.Restart)
                 as ContainerApplicationLifecycleOperation);
 
+    public ValueTask<ContainerApplicationLifecycleOperation?> GetStopOperationAsync(
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult(
+            Resource.Operations.Get(ContainerApplicationResourceTypeProvider.Operations.Stop)
+                as ContainerApplicationLifecycleOperation);
+
     public ValueTask<ContainerApplicationImageUpdateOperation?> GetImageUpdateOperationAsync(
         CancellationToken cancellationToken = default) =>
         ValueTask.FromResult(

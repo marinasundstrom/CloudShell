@@ -9,9 +9,10 @@ public sealed class ContainerApplicationOperationTests
     {
         var runtimeHandler = new TestContainerApplicationRuntimeHandler();
         var startProvider = new ContainerApplicationStartOperationProvider(runtimeHandler);
+        var stopProvider = new ContainerApplicationStopOperationProvider(runtimeHandler);
         var restartProvider = new ContainerApplicationRestartOperationProvider(runtimeHandler);
         var imageProvider = new ContainerApplicationImageUpdateOperationProvider(runtimeHandler);
-        var pipeline = CreatePipeline(startProvider, restartProvider, imageProvider);
+        var pipeline = CreatePipeline(startProvider, stopProvider, restartProvider, imageProvider);
 
         var result = await pipeline.ValidateAsync(
             CreateDefinition(),
@@ -30,6 +31,19 @@ public sealed class ContainerApplicationOperationTests
         var invocation = Assert.Single(runtimeHandler.LifecycleInvocations);
         Assert.Same(result.Resource, invocation.Resource);
         Assert.Equal(ContainerApplicationResourceTypeProvider.Operations.Start, invocation.OperationId);
+
+        var stopOperation = result.Resource.Operations.Get(
+            ContainerApplicationResourceTypeProvider.Operations.Stop) as ContainerApplicationLifecycleOperation;
+
+        Assert.NotNull(stopOperation);
+
+        execution = await stopOperation.ExecuteAsync();
+
+        Assert.False(execution.HasErrors);
+        Assert.Equal(2, runtimeHandler.LifecycleInvocations.Count);
+        invocation = runtimeHandler.LifecycleInvocations[1];
+        Assert.Same(result.Resource, invocation.Resource);
+        Assert.Equal(ContainerApplicationResourceTypeProvider.Operations.Stop, invocation.OperationId);
     }
 
     [Fact]
@@ -37,9 +51,10 @@ public sealed class ContainerApplicationOperationTests
     {
         var runtimeHandler = new TestContainerApplicationRuntimeHandler();
         var startProvider = new ContainerApplicationStartOperationProvider(runtimeHandler);
+        var stopProvider = new ContainerApplicationStopOperationProvider(runtimeHandler);
         var restartProvider = new ContainerApplicationRestartOperationProvider(runtimeHandler);
         var imageProvider = new ContainerApplicationImageUpdateOperationProvider(runtimeHandler);
-        var pipeline = CreatePipeline(startProvider, restartProvider, imageProvider);
+        var pipeline = CreatePipeline(startProvider, stopProvider, restartProvider, imageProvider);
 
         var result = await pipeline.ValidateAsync(
             CreateDefinition(),
@@ -70,12 +85,14 @@ public sealed class ContainerApplicationOperationTests
 
     private static ResourceDefinitionValidationPipeline CreatePipeline(
         ContainerApplicationStartOperationProvider startProvider,
+        ContainerApplicationStopOperationProvider stopProvider,
         ContainerApplicationRestartOperationProvider restartProvider,
         ContainerApplicationImageUpdateOperationProvider imageProvider)
     {
         IResourceOperationProvider[] operationProviders =
         [
             startProvider,
+            stopProvider,
             restartProvider,
             imageProvider
         ];

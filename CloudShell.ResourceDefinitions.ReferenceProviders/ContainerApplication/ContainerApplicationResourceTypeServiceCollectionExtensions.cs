@@ -42,11 +42,15 @@ public static class ContainerApplicationResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProvider, ContainerApplicationStartOperationProvider>());
         services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOperationProvider, ContainerApplicationStopOperationProvider>());
+        services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProvider, ContainerApplicationRestartOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProvider, ContainerApplicationImageUpdateOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProjector, ContainerApplicationStartOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOperationProjector, ContainerApplicationStopOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProjector, ContainerApplicationRestartOperationProvider>());
         services.TryAddEnumerable(

@@ -31,6 +31,10 @@ internal sealed class ReplicatedContainerHealthGraphRuntimeHandler(
                     RuntimeApiResourceId,
                     startDependencies: true,
                     cancellationToken),
+                ResourceActionIds.Stop => await resourceManager.StopResourceAsync(
+                    RuntimeApiResourceId,
+                    ignoreDependentWarning: true,
+                    cancellationToken),
                 ResourceActionIds.Restart => await resourceManager.RestartResourceAsync(
                     RuntimeApiResourceId,
                     startDependencies: true,

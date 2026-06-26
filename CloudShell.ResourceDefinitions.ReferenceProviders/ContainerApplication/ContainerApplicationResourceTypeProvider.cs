@@ -22,6 +22,7 @@ public sealed class ContainerApplicationResourceTypeProvider :
     public static class Operations
     {
         public static readonly ResourceOperationId Start = "start";
+        public static readonly ResourceOperationId Stop = "stop";
         public static readonly ResourceOperationId Restart = "restart";
         public static readonly ResourceOperationId UpdateImage = "container.image.update";
     }
@@ -51,6 +52,7 @@ public sealed class ContainerApplicationResourceTypeProvider :
         Operations:
         [
             new(Operations.Start),
+            new(Operations.Stop),
             new(Operations.Restart),
             new(Operations.UpdateImage)
         ]);

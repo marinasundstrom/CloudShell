@@ -24,6 +24,18 @@ public sealed class ContainerApplicationRestartOperationProvider :
     }
 }
 
+public sealed class ContainerApplicationStopOperationProvider :
+    ContainerApplicationLifecycleOperationProvider
+{
+    public ContainerApplicationStopOperationProvider(
+        IContainerApplicationRuntimeHandler? runtimeHandler = null)
+        : base(
+            ContainerApplicationResourceTypeProvider.Operations.Stop,
+            runtimeHandler)
+    {
+    }
+}
+
 public abstract class ContainerApplicationLifecycleOperationProvider(
     ResourceOperationId operationId,
     IContainerApplicationRuntimeHandler? runtimeHandler = null) :

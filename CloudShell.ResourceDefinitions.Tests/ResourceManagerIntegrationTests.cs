@@ -1466,6 +1466,8 @@ public sealed class ResourceManagerIntegrationTests
             capability.Id == VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString());
         Assert.Contains(projectedContainer.ResourceActions, action =>
             action.Id == ContainerApplicationResourceTypeProvider.Operations.Start.ToString());
+        Assert.Contains(projectedContainer.ResourceActions, action =>
+            action.Id == ContainerApplicationResourceTypeProvider.Operations.Stop.ToString());
         var restart = Assert.Single(projectedContainer.ResourceActions, action =>
             action.Id == ContainerApplicationResourceTypeProvider.Operations.Restart.ToString());
 

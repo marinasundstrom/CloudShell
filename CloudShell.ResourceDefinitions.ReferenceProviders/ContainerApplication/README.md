@@ -12,12 +12,13 @@
 - Endpoint request attributes using the shared networking endpoint request shape.
 - Optional typed generic/Docker container-host reference validation and projection.
 - Shared volume-consumer capability.
-- Start, restart, and image-update operations with an injected provider-owned
-  runtime handler seam.
+- Start, stop, restart, and image-update operations with an injected
+  provider-owned runtime handler seam.
 - Typed wrapper plus Resource Manager bridge projection, endpoint projection, and execution.
 - ContainerAppDeployment and ReplicatedContainerHealth sample-inspired graph coverage,
   including ReplicatedContainerHealth smoke coverage where graph start,
-  restart, and image-update actions delegate to a sample-local runtime adapter.
+  stop, restart, and image-update actions delegate to a sample-local runtime
+  adapter.
 - Manual `ResourceDefinitionGraphBuilder.AddContainerApplication(...)`
   builder for code-first container app definition authoring with typed host
   dependencies, endpoint requests, replicas, and volume mount capability setup.
@@ -42,7 +43,7 @@ throwing for expected runtime outcomes.
 
 The ReplicatedContainerHealth sample currently proves this seam with a
 sample-local adapter that maps `application.container-app:graph-api` to the
-existing `application:api` runtime resource. It covers start delegation and
+existing `application:api` runtime resource. It covers start, stop, and
 restart delegation, projects graph state from the runtime app so Resource
 Manager action availability can evaluate lifecycle commands, and applies an
 accepted graph `container.image` change through the graph

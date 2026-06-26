@@ -1447,6 +1447,8 @@ public sealed class ResourceProviderDispatcherTests
         Assert.True(containerValidation.Resource.Operations.Has(
             ContainerApplicationResourceTypeProvider.Operations.Start));
         Assert.True(containerValidation.Resource.Operations.Has(
+            ContainerApplicationResourceTypeProvider.Operations.Stop));
+        Assert.True(containerValidation.Resource.Operations.Has(
             ContainerApplicationResourceTypeProvider.Operations.Restart));
         Assert.True(containerValidation.Resource.Operations.Has(
             ContainerApplicationResourceTypeProvider.Operations.UpdateImage));
@@ -1467,6 +1469,7 @@ public sealed class ResourceProviderDispatcherTests
         Assert.Equal(host.EffectiveResourceId, projection.ContainerHostResourceId);
         Assert.Equal(volume.EffectiveResourceId, Assert.Single(await projection.GetVolumesAsync()).Volume);
         Assert.True(await (await projection.GetStartOperationAsync())!.CanExecuteAsync());
+        Assert.True(await (await projection.GetStopOperationAsync())!.CanExecuteAsync());
         Assert.True(await (await projection.GetRestartOperationAsync())!.CanExecuteAsync());
         var imageUpdate = await projection.GetImageUpdateOperationAsync();
 

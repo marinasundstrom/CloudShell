@@ -113,6 +113,10 @@ on `git blame --follow`, and then by the broad type of change.
   drive the existing SQL Server runtime path and project cached graph SQL
   lifecycle state before graph API/database smoke coverage runs; the same
   smoke path now restarts and stops SQL through the graph action boundary.
+- Container Application graph resources now declare a stop operation through
+  the same runtime handler seam as start/restart, and ReplicatedContainerHealth
+  smoke coverage verifies graph stop delegates to the existing runtime app and
+  projects stopped state.
 - The Resource Graph proposal now clarifies that selected samples should
   become runnable through graph-backed providers, with adapters used only as
   temporary bridges into focused Control Plane or Resource Manager services.
