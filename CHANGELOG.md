@@ -44,6 +44,11 @@ on `git blame --follow`, and then by the broad type of change.
   runtime adapter, verifying start/stop/restart delegation into the existing
   SQL Server runtime resource and cached graph status projection without
   requiring Docker.
+- Resource Manager details now route Resource Model bridge resources through
+  generated Resource Manager views instead of old provider-specific tabs that
+  require old provider records, and ApplicationTopology smoke coverage verifies
+  graph-backed API, SQL Server, Configuration Store, and Secrets Vault pages
+  render without leaking stored secret values.
 - ThirdPartyIdentity now declares its side-by-side graph identity provisioning
   resource through the provider-owned `ResourceDefinitionGraphBuilder`
   identity builder instead of raw graph state, keeping the sample on the same

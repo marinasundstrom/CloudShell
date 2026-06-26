@@ -14,6 +14,7 @@
 - Service-discovery environment projection from explicit `project.references`, including project, configuration store, Secrets Vault, and SQL Server graph resources.
 - CloudShell Configuration Store and Secrets Vault client environment projection from explicit graph references, using the same name/id alias conventions as the existing configuration providers.
 - Resource Manager bridge projection for state, endpoints, observability links, and process-output logs.
+- Resource Manager details use generated Resource Manager views for graph-backed bridge resources so they do not fall into old application-provider tabs that require old provider records.
 - ProjectReference and SettingsAndSecrets sample coverage for runtime startup, graph-to-graph calls, logs, metrics, traces, health, and ResourceDefinition apply/update.
 - ApplicationTopology-inspired graph coverage for explicit SQL Server, Configuration Store, and Secrets Vault service-discovery references without using `DependsOn` for discovery.
 - ApplicationTopology graph API identity declaration and SQL read/write grant setup through Resource Manager declarations.
@@ -32,5 +33,7 @@
 - Reusable service-discovery/environment-variable conventions if more providers prove the need.
 - Reusable graph SQL credential/grant integration outside the
   ApplicationTopology sample-local endpoint.
+- Graph-backed environment-variable configuration provider support for
+  editable Resource Manager Environment tab projection.
 - First-class graph identity/provisioning projection if the POC proves it belongs in the graph model.
 - Container build behavior and UI registration/update flow.

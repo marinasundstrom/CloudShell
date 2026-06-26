@@ -295,12 +295,18 @@ Already covered by the sample:
   verifies frontend-to-API, settings, secrets, old-provider API-to-SQL
   connectivity, graph API-to-graph-SQL credential connectivity, and graph
   frontend-to-graph-API upstream connectivity.
+- Resource Manager UI smoke coverage for graph-backed API, SQL Server,
+  Configuration Store, and Secrets Vault details pages through generated
+  Resource Manager views.
 
 Remaining useful additions:
 
 - Harden the experimental SQL credential broker with rotation cleanup,
   provider-owned revocation reconciliation, and explicit credential lifetime
   diagnostics.
+- Add editable graph-backed environment-variable projection if the ASP.NET Core
+  provider needs Resource Manager Environment tab parity before the old
+  application provider is removed.
 - Optional container-app variants for the frontend and API only when they prove
   a distinct local-development workflow instead of duplicating the
   project-backed path.

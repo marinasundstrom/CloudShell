@@ -877,6 +877,50 @@ public sealed class SampleSmokeTests
                 .GetProperty(AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath.Value)
                 .GetString());
 
+        var resourcesHtml = await host.GetStringAsync("/resources");
+        Assert.Contains("Graph Application Topology API", resourcesHtml);
+        Assert.Contains("Graph Application Topology Frontend", resourcesHtml);
+        Assert.Contains("Graph Application Topology SQL Server", resourcesHtml);
+        Assert.Contains("Graph Application Topology Settings", resourcesHtml);
+        Assert.Contains("Graph Application Topology Secrets", resourcesHtml);
+
+        var graphApiDetailsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application.aspnet-core-project:graph-application-topology-api")}/details");
+        Assert.Contains("Graph Application Topology API", graphApiDetailsHtml);
+        Assert.Contains("application.aspnet-core-project", graphApiDetailsHtml);
+        Assert.Contains(">Identity<", graphApiDetailsHtml);
+        Assert.Contains(">Relationships<", graphApiDetailsHtml);
+        Assert.Contains(">Depends on<", graphApiDetailsHtml);
+        Assert.Contains(">Used by<", graphApiDetailsHtml);
+        Assert.Contains("graph-application-topology-db", graphApiDetailsHtml);
+        Assert.Contains("graph-application-topology-settings", graphApiDetailsHtml);
+        Assert.Contains("graph-application-topology-secrets", graphApiDetailsHtml);
+        Assert.DoesNotContain("CloudShell-Passw0rd!", graphApiDetailsHtml);
+
+        var graphApiEnvironmentHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application.aspnet-core-project:graph-application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Environment.Value)}");
+        Assert.Contains("Environment", graphApiEnvironmentHtml);
+        Assert.DoesNotContain("CloudShell-Passw0rd!", graphApiEnvironmentHtml);
+
+        var graphSqlDetailsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application.sql-server:graph-application-topology-sql-server")}/details");
+        Assert.Contains("Graph Application Topology SQL Server", graphSqlDetailsHtml);
+        Assert.Contains("application.sql-server", graphSqlDetailsHtml);
+        Assert.Contains("graph-application-topology-sql-data", graphSqlDetailsHtml);
+        Assert.DoesNotContain("Deploy image", graphSqlDetailsHtml);
+
+        var graphSettingsDetailsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("configuration.store:graph-application-topology-settings")}/details");
+        Assert.Contains("Graph Application Topology Settings", graphSettingsDetailsHtml);
+        Assert.Contains("configuration.store", graphSettingsDetailsHtml);
+        Assert.Contains("2", graphSettingsDetailsHtml);
+
+        var graphSecretsDetailsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("secrets.vault:graph-application-topology-secrets")}/details");
+        Assert.Contains("Graph Application Topology Secrets", graphSecretsDetailsHtml);
+        Assert.Contains("secrets.vault", graphSecretsDetailsHtml);
+        Assert.DoesNotContain("local-development-api-key", graphSecretsDetailsHtml);
+
         await StartGraphResourceIfAvailableAsync(host, graphSettings, "ApplicationTopology settings");
         await StartGraphResourceIfAvailableAsync(host, graphSecrets, "ApplicationTopology secrets");
         await StartGraphResourceIfAvailableAsync(host, graphApi, "ApplicationTopology API");
