@@ -110,6 +110,10 @@ on `git blame --follow`, and then by the broad type of change.
 - SQL Server and SQL Database now have provider-owned Resource Graph builders,
   including declared database configuration, volume mount capability payloads,
   and typed server dependencies, and SQL provider tests now use those builders.
+- Resource Graph provider porting guidance now treats provider-owned manual
+  builders as part of the porting contract, and Container Host, Docker Host,
+  and Container Application have builders covering host dependencies, endpoint
+  requests, replicas, image settings, and volume mount payloads.
 
 #### Fixed
 

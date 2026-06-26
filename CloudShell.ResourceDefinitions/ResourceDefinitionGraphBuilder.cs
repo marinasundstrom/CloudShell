@@ -122,6 +122,16 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
         return Self;
     }
 
+    protected TBuilder SetObjectAttribute<TValue>(
+        ResourceAttributeId attributeId,
+        TValue value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+
+        _attributes[attributeId] = ResourceAttributeValue.FromObject(value);
+        return Self;
+    }
+
     protected TBuilder AddDependency(ResourceReference reference)
     {
         ArgumentNullException.ThrowIfNull(reference);

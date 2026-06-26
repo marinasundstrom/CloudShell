@@ -13,6 +13,8 @@
 - Passive container image/build/filesystem-mount capability markers.
 - Inspect operation with an injected provider-owned inspector seam.
 - Typed wrapper plus Resource Manager bridge projection and execution.
+- Manual `ResourceDefinitionGraphBuilder.AddDockerHost(...)` builder for
+  code-first Docker host definition authoring.
 
 ## Example ResourceDefinition
 

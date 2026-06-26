@@ -1432,54 +1432,30 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var graph = new ResourceDefinitionGraphBuilder();
         var volume = new ResourceDefinition(
             "data",
             LocalVolumeResourceTypeProvider.ResourceTypeId);
-        var host = new ResourceDefinition(
-            "docker",
-            ContainerHostResourceTypeProvider.ResourceTypeId);
-        var container = new ResourceDefinition(
-            "api",
-            ContainerApplicationResourceTypeProvider.ResourceTypeId,
-            ProviderId: ContainerApplicationResourceTypeProvider.ProviderId,
-            DependsOn:
-            [
-                new(
-                    host.EffectiveResourceId,
-                    ResourceReferenceRelationships.DependsOn,
-                    ResourceReferenceAddressingModes.ResourceId,
-                    TypeId: ContainerHostResourceTypeProvider.ResourceTypeId)
-            ],
-            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
-            {
-                [ContainerApplicationResourceTypeProvider.Attributes.ContainerImage] = "ghcr.io/example/api:latest",
-                [ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas] = "2",
-                [ContainerApplicationResourceTypeProvider.Attributes.EndpointRequests] =
-                    ResourceAttributeValue.FromObject(new[]
-                    {
-                        new NetworkingEndpointRequestValue(
-                            "http",
-                            "http",
-                            TargetPort: 8080,
-                            Host: "localhost",
-                            Port: 5092,
-                            Exposure: "Local")
-                    })
-            },
-            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
-            {
-                [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
-                    ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
-                    [
-                        new(volume.EffectiveResourceId, "/data")
-                    ]))
-            });
+        graph.Add(volume);
+        var host = graph
+            .AddContainerHost("docker")
+            .UseDocker();
+        var container = graph
+            .AddContainerApplication("api")
+            .UseContainerHost(host)
+            .WithImage("ghcr.io/example/api:latest")
+            .WithReplicas(2)
+            .AddEndpointRequest(
+                "http",
+                "http",
+                targetPort: 8080,
+                host: "localhost",
+                port: 5092,
+                exposure: "Local")
+            .MountVolume(volume.EffectiveResourceId, "/data");
 
         var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
-                "container-app",
-                [host, volume, container],
-                EnvironmentId: "local"),
+            graph.BuildDeployment("container-app", environmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 24, 19, 0, 0, TimeSpan.Zero)));
@@ -1547,40 +1523,18 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var host = new ResourceDefinition(
-            "engine",
-            DockerHostResourceTypeProvider.ResourceTypeId,
-            ProviderId: DockerHostResourceTypeProvider.ProviderId);
-        var container = new ResourceDefinition(
-            "api",
-            ContainerApplicationResourceTypeProvider.ResourceTypeId,
-            ProviderId: ContainerApplicationResourceTypeProvider.ProviderId,
-            DependsOn:
-            [
-                ResourceReference.DependsOnResourceId(
-                    host.EffectiveResourceId,
-                    typeId: DockerHostResourceTypeProvider.ResourceTypeId)
-            ],
-            Attributes: new Dictionary<ResourceAttributeId, string>
-            {
-                [ContainerApplicationResourceTypeProvider.Attributes.ContainerImage] = "example/api:1.0"
-            });
-        var sqlServer = new ResourceDefinition(
-            "sql",
-            SqlServerResourceTypeProvider.ResourceTypeId,
-            ProviderId: SqlServerResourceTypeProvider.ProviderId,
-            DependsOn:
-            [
-                ResourceReference.DependsOnResourceId(
-                    host.EffectiveResourceId,
-                    typeId: DockerHostResourceTypeProvider.ResourceTypeId)
-            ]);
+        var graph = new ResourceDefinitionGraphBuilder();
+        var host = graph.AddDockerHost("engine");
+        var container = graph
+            .AddContainerApplication("api")
+            .UseDockerHost(host)
+            .WithImage("example/api:1.0");
+        var sqlServer = graph
+            .AddSqlServer("sql")
+            .UseContainerHost(host, DockerHostResourceTypeProvider.ResourceTypeId);
 
         var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
-                "docker-host-workloads",
-                [host, container, sqlServer],
-                EnvironmentId: "local"),
+            graph.BuildDeployment("docker-host-workloads", environmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 25, 20, 0, 0, TimeSpan.Zero)));
@@ -1979,23 +1933,13 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var host = new ResourceDefinition(
-            "docker",
-            ContainerHostResourceTypeProvider.ResourceTypeId,
-            ProviderId: ContainerHostResourceTypeProvider.ProviderId,
-            Attributes: new Dictionary<ResourceAttributeId, string>
-            {
-                [ContainerHostResourceTypeProvider.Attributes.HostKind] = "Docker",
-                [ContainerHostResourceTypeProvider.Attributes.Endpoint] = "unix:///var/run/docker.sock",
-                [ContainerHostResourceTypeProvider.Attributes.Registry] = "docker.io",
-                [ContainerHostResourceTypeProvider.Attributes.IsDefault] = bool.TrueString.ToLowerInvariant()
-            });
+        var graph = new ResourceDefinitionGraphBuilder();
+        var host = graph
+            .AddContainerHost("docker")
+            .UseDocker();
 
         var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
-                "container-host",
-                [host],
-                EnvironmentId: "local"),
+            graph.BuildDeployment("container-host", environmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 24, 23, 0, 0, TimeSpan.Zero)));
@@ -2048,23 +1992,13 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var host = new ResourceDefinition(
-            "engine",
-            DockerHostResourceTypeProvider.ResourceTypeId,
-            ProviderId: DockerHostResourceTypeProvider.ProviderId,
-            Attributes: new Dictionary<ResourceAttributeId, string>
-            {
-                [DockerHostResourceTypeProvider.Attributes.HostKind] = "local",
-                [DockerHostResourceTypeProvider.Attributes.Endpoint] = "unix:///var/run/docker.sock",
-                [DockerHostResourceTypeProvider.Attributes.Registry] = "docker.io",
-                [DockerHostResourceTypeProvider.Attributes.IsDefault] = bool.TrueString.ToLowerInvariant()
-            });
+        var graph = new ResourceDefinitionGraphBuilder();
+        var host = graph
+            .AddDockerHost("engine")
+            .UseLocalDocker();
 
         var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
-                "docker-host",
-                [host],
-                EnvironmentId: "local"),
+            graph.BuildDeployment("docker-host", environmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 25, 3, 0, 0, TimeSpan.Zero)));

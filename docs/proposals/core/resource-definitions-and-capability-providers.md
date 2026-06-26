@@ -815,7 +815,7 @@ Working plan and progress:
 | Pull health and liveness declarations into the graph model | In progress | The graph model now has a `health.checks` capability payload for HTTP health/liveness declarations, and Resource Manager bridge projections map those declarations to `ResourceHealthCheck` plus the derived `liveness` capability. The ProjectReference graph-backed ASP.NET Core project now declares `/health` and `/alive` through this payload and verifies that Control Plane health refresh can evaluate both probes through the projected endpoint mapping. Configuration Store and Secrets Vault graph providers now declare `/healthz` health and liveness checks on their projected service endpoints, with runtime materialization delegated to provider-local backing-service controllers. Polling, observed snapshots, degradation policy, and recovery decisions remain Control Plane concerns. |
 | Project provider-owned endpoint requests into Resource Manager | In progress | The Resource Manager bridge now accepts an endpoint projection resolver and registered endpoint projection providers, allowing a host or provider integration to translate provider-owned endpoint request attributes into `ResourceEndpoint` and `ResourceEndpointNetworkMapping` projections without making endpoints graph-native primitives. ProjectReference uses this for the graph-backed ASP.NET Core project. |
 | Project provider-owned observability declarations into Resource Manager | In progress | The Resource Manager bridge now accepts an observability resolver and registered observability providers, allowing a host or provider integration to declare Resource Manager logs/traces/metrics support for graph resources. ProjectReference uses this for the graph-backed ASP.NET Core project so telemetry tabs are declared by the runtime integration instead of inferred by the generic graph model. |
-| Re-introduce programmatic graph builders | In progress | The POC now has a `ResourceDefinitionGraphBuilder` that builds `ResourceDefinitionGraph` and `ResourceDeploymentDefinition` values, a common base for manual definition builders, and provider-owned Network, Configuration Store, Secrets Vault, Storage, CloudShell Volume, SQL Server, and SQL Database builders. Builders should stay provider-owned and hand-written until multiple resource types prove the conventions that source generation should automate. They are also being used to improve provider test setup by replacing raw attribute dictionaries, configuration payloads, capability payloads, and typed reference payloads with provider-shaped builder calls. SQL tests now use builders for declared database configuration, typed server dependencies, and SQL Server volume mount payloads. Configuration and secrets builders intentionally declare service resources and endpoints, not entry or secret values. |
+| Re-introduce programmatic graph builders | In progress | The POC now has a `ResourceDefinitionGraphBuilder` that builds `ResourceDefinitionGraph` and `ResourceDeploymentDefinition` values, a common base for manual definition builders, and provider-owned Network, Configuration Store, Secrets Vault, Storage, CloudShell Volume, SQL Server, SQL Database, Container Host, Docker Host, and Container Application builders. Builders should stay provider-owned and hand-written until multiple resource types prove the conventions that source generation should automate. They are also being used to improve provider test setup by replacing raw attribute dictionaries, configuration payloads, capability payloads, and typed reference payloads with provider-shaped builder calls. SQL tests now use builders for declared database configuration, typed server dependencies, and SQL Server volume mount payloads. Container tests now use builders for host dependencies, endpoint requests, replicas, image settings, and volume mount payloads. Configuration and secrets builders intentionally declare service resources and endpoints, not entry or secret values. |
 | Port the next provider | Deferred | Continue only after the ASP.NET Core vertical slice proves the provider seam and exposes any needed model changes. Provider selection should favor the next concrete integration question over broad type-count coverage. |
 
 Attribute value-state naming needs one cleanup pass before the model is
@@ -943,9 +943,15 @@ the resource type needs to work, not only mapping an existing provider to a new
 list or projection interface. A ported resource type should own its
 `ResourceTypeDefinition`, attribute definitions and validation, supported
 capability declarations and capability provider implementations, supported
-operation declarations and operation provider implementations, plus any apply,
-update, or provider-owned behavior required for Resource Manager and other
-Control Plane consumers to use that type through the new model.
+operation declarations and operation provider implementations, a provider-owned
+manual `ResourceDefinitionGraphBuilder` builder, plus any apply, update, or
+provider-owned behavior required for Resource Manager and other Control Plane
+consumers to use that type through the new model. The builder is part of the
+porting contract because it proves that the resource can be authored through
+the interchange model without callers repeating raw attribute dictionaries,
+capability payloads, configuration payloads, or typed references by hand. If a
+resource type is ported without a builder, the provider README should say why
+and record what would make the builder valuable later.
 
 Provider registration should follow the same boundary. The reference POC uses
 a singular executable application resource-type registration that wires the
@@ -1036,6 +1042,7 @@ The intended provider-local structure is:
   <ProviderName>/
   README.md
   <ProviderName>ResourceTypeProvider.cs
+  <ProviderName>ResourceDefinitionBuilder.cs
   <ProviderName>ResourceProjectionProvider.cs
   <ProviderName>ResourceTypeServiceCollectionExtensions.cs
   Attributes.cs or nested ID constants when local to the provider

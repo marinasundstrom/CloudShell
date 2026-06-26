@@ -18,6 +18,9 @@
 - ContainerAppDeployment and ReplicatedContainerHealth sample-inspired graph coverage,
   including ReplicatedContainerHealth smoke coverage where graph start,
   restart, and image-update actions delegate to a sample-local runtime adapter.
+- Manual `ResourceDefinitionGraphBuilder.AddContainerApplication(...)`
+  builder for code-first container app definition authoring with typed host
+  dependencies, endpoint requests, replicas, and volume mount capability setup.
 
 ## Runtime Integration
 

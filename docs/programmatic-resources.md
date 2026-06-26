@@ -147,6 +147,11 @@ deployment, or used by tests. Provider builders should start as small manual
 implementations next to the resource type provider they target. Source
 generation remains a future option once several manual builders show the
 stable conventions and the customization points providers need.
+For Resource Graph provider ports, creating the provider-owned manual builder
+is part of the porting work unless the provider README explicitly records why
+the builder is deferred. The builder is the first code-first authoring surface
+for the provider's `ResourceDefinition` shape and is used by tests to keep
+deployment setup aligned with the provider-owned interchange contract.
 
 ```csharp
 var graph = new ResourceDefinitionGraphBuilder();
@@ -160,16 +165,18 @@ var deployment = graph.BuildDeployment("local-app", environmentId: "local");
 ```
 
 The initial manual builders cover generic networks, Configuration Store,
-Secrets Vault, storage, CloudShell storage-backed volume, SQL Server, and SQL
-Database graph resources. They are useful for test setup as well as host
-authoring because provider tests can compose realistic deployment definitions
-without repeating raw attribute dictionaries, configuration payloads,
-capability payloads, and typed `ResourceReference` values. The SQL builders
-cover declared database configuration, typed server dependencies, and volume
-mount capability setup. The configuration and secrets builders can declare
-service endpoints and participate in dependencies, but they intentionally do
-not author configuration entries or secret values as graph attributes. Those
-values remain provider/runtime data.
+Secrets Vault, storage, CloudShell storage-backed volume, SQL Server, SQL
+Database, generic container hosts, Docker hosts, and container application
+graph resources. They are useful for test setup as well as host authoring
+because provider tests can compose realistic deployment definitions without
+repeating raw attribute dictionaries, configuration payloads, capability
+payloads, and typed `ResourceReference` values. The SQL builders cover declared
+database configuration, typed server dependencies, and volume mount capability
+setup. The container builders cover host dependencies, endpoint requests,
+replicas, image settings, and volume mount capability setup. The configuration
+and secrets builders can declare service endpoints and participate in
+dependencies, but they intentionally do not author configuration entries or
+secret values as graph attributes. Those values remain provider/runtime data.
 
 Display names are optional presentation labels. Use `.WithDisplayName(...)`
 when a local development dashboard or sample benefits from a friendlier label.

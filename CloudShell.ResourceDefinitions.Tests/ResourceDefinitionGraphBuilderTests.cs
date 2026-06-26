@@ -283,4 +283,91 @@ public sealed class ResourceDefinitionGraphBuilderTests
         Assert.False(result.HasErrors, string.Join(" ", result.Diagnostics.Select(diagnostic => diagnostic.Message)));
         Assert.True(result.IsCommitted);
     }
+
+    [Fact]
+    public async Task ResourceDefinitionGraphBuilder_BuildsContainerHostAndApplicationDefinitions()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddStorageResourceType();
+        services.AddCloudShellVolumeResourceType();
+        services.AddDockerHostResourceType();
+        services.AddContainerApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var graph = new ResourceDefinitionGraphBuilder();
+        var storage = graph
+            .AddStorage("local")
+            .UseLocalFileSystem();
+        var volume = graph
+            .AddCloudShellVolume("data")
+            .UseStorage(storage)
+            .UseLocalFileSystemVolume("api");
+        var host = graph
+            .AddDockerHost("engine")
+            .UseLocalDocker();
+
+        graph
+            .AddContainerApplication("api")
+            .UseDockerHost(host)
+            .WithImage("example/api:1.0")
+            .WithRegistry("registry.local")
+            .WithReplicas(2)
+            .AddEndpointRequest(
+                "http",
+                "http",
+                targetPort: 8080,
+                host: "localhost",
+                port: 5092,
+                exposure: "Local")
+            .MountVolume(volume, "/data");
+
+        var deployment = graph.BuildDeployment("container-app", environmentId: "local");
+
+        Assert.Equal(4, deployment.Resources.Count);
+        var hostDefinition = Assert.Single(deployment.Resources, resource =>
+            resource.TypeId == DockerHostResourceTypeProvider.ResourceTypeId);
+        var appDefinition = Assert.Single(deployment.Resources, resource =>
+            resource.TypeId == ContainerApplicationResourceTypeProvider.ResourceTypeId);
+        Assert.Equal("docker.host:engine", hostDefinition.EffectiveResourceId);
+        Assert.Equal("local", hostDefinition.ResourceAttributeValues[
+            DockerHostResourceTypeProvider.Attributes.HostKind].StringValue);
+        Assert.Equal("unix:///var/run/docker.sock", hostDefinition.ResourceAttributeValues[
+            DockerHostResourceTypeProvider.Attributes.Endpoint].StringValue);
+        Assert.Equal(true, hostDefinition.ResourceAttributeValues[
+            DockerHostResourceTypeProvider.Attributes.IsDefault].BooleanValue);
+
+        Assert.Equal("application.container-app:api", appDefinition.EffectiveResourceId);
+        Assert.Equal("example/api:1.0", appDefinition.ResourceAttributeValues[
+            ContainerApplicationResourceTypeProvider.Attributes.ContainerImage].StringValue);
+        Assert.Equal("registry.local", appDefinition.ResourceAttributeValues[
+            ContainerApplicationResourceTypeProvider.Attributes.ContainerRegistry].StringValue);
+        Assert.Equal(2, appDefinition.ResourceAttributeValues[
+            ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas].IntegerValue);
+        var endpoint = Assert.Single(appDefinition.ResourceAttributeValues.GetObject<NetworkingEndpointRequestValue[]>(
+            ContainerApplicationResourceTypeProvider.Attributes.EndpointRequests) ?? []);
+        Assert.Equal("http", endpoint.Name);
+        Assert.Equal(8080, endpoint.TargetPort);
+        Assert.Equal(5092, endpoint.Port);
+        var dependency = Assert.Single(appDefinition.StartupDependencies);
+        Assert.True(dependency.TryGetDependsOnResourceId(out var dependencyId));
+        Assert.Equal(host.EffectiveResourceId, dependencyId);
+        Assert.Equal(DockerHostResourceTypeProvider.ResourceTypeId, dependency.TypeId);
+        var volumeConsumer = appDefinition.GetCapability<VolumeConsumerDefinition>(
+            VolumeConsumerCapabilityProvider.CapabilityIdValue);
+        var mount = Assert.Single(volumeConsumer!.Mounts);
+        Assert.Equal(volume.EffectiveResourceId, mount.Volume);
+        Assert.Equal("/data", mount.TargetPath);
+
+        var result = await serviceProvider
+            .GetRequiredService<ResourceModelGraphDefinitionApplyService>()
+            .ApplyDeploymentAsync(
+                deployment,
+                new ResourceGraphCommitContext(
+                    PrincipalId: "developer",
+                    Timestamp: new DateTimeOffset(2026, 6, 26, 16, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, string.Join(" ", result.Diagnostics.Select(diagnostic => diagnostic.Message)));
+        Assert.True(result.IsCommitted);
+    }
 }
