@@ -37,6 +37,9 @@ var metricIngestEndpoint = builder.Configuration["Observability:MetricIngestEndp
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
 builder.Services
+    .AddSingleton<
+        IReplicatedContainerHealthGraphContainerAppRuntimeBridge,
+        ReplicatedContainerHealthGraphResourceManagerBridge>()
     .AddSingleton<IContainerApplicationRuntimeHandler, ReplicatedContainerHealthGraphRuntimeHandler>()
     .AddInMemoryResourceModelGraph(
     [

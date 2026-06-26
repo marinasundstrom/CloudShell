@@ -3,22 +3,66 @@ using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Providers.Applications;
 using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
-using Microsoft.Extensions.DependencyInjection;
 using GraphResource = CloudShell.ResourceDefinitions.Resource;
 
 internal sealed class ReplicatedContainerHealthGraphRuntimeHandler(
-    IServiceScopeFactory scopeFactory) : IContainerApplicationRuntimeHandler
+    IReplicatedContainerHealthGraphContainerAppRuntimeBridge bridge) : IContainerApplicationRuntimeHandler
 {
     private const string GraphApiResourceId = "application.container-app:graph-api";
+
+    public ContainerApplicationRuntimeStatus GetStatus(GraphResource resource) =>
+        IsGraphApi(resource)
+            ? bridge.GetStatus(resource)
+            : ContainerApplicationRuntimeStatus.Unknown;
+
+    public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
+        GraphResource resource,
+        ResourceOperationId operationId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!IsGraphApi(resource))
+        {
+            return [];
+        }
+
+        return await bridge.ExecuteLifecycleAsync(resource, operationId, cancellationToken);
+    }
+
+    public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyImageAsync(
+        GraphResource resource,
+        CancellationToken cancellationToken = default)
+    {
+        if (!IsGraphApi(resource))
+        {
+            return [];
+        }
+
+        return await bridge.ApplyImageAsync(resource, cancellationToken);
+    }
+
+    public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyReplicasAsync(
+        GraphResource resource,
+        CancellationToken cancellationToken = default)
+    {
+        if (!IsGraphApi(resource))
+        {
+            return [];
+        }
+
+        return await bridge.ApplyReplicasAsync(resource, cancellationToken);
+    }
+
+    private static bool IsGraphApi(GraphResource resource) =>
+        string.Equals(resource.EffectiveResourceId, GraphApiResourceId, StringComparison.OrdinalIgnoreCase);
+}
+
+internal sealed class ReplicatedContainerHealthGraphResourceManagerBridge(
+    IServiceScopeFactory scopeFactory) : IReplicatedContainerHealthGraphContainerAppRuntimeBridge
+{
     private const string RuntimeApiResourceId = "application:api";
 
     public ContainerApplicationRuntimeStatus GetStatus(GraphResource resource)
     {
-        if (!IsGraphApi(resource))
-        {
-            return ContainerApplicationRuntimeStatus.Unknown;
-        }
-
         using var scope = scopeFactory.CreateScope();
         var runtimeState = scope.ServiceProvider
             .GetRequiredService<IApplicationResourceRunningStateOperations>();
@@ -32,11 +76,6 @@ internal sealed class ReplicatedContainerHealthGraphRuntimeHandler(
         ResourceOperationId operationId,
         CancellationToken cancellationToken = default)
     {
-        if (!IsGraphApi(resource))
-        {
-            return [];
-        }
-
         try
         {
             using var scope = scopeFactory.CreateScope();
@@ -78,11 +117,6 @@ internal sealed class ReplicatedContainerHealthGraphRuntimeHandler(
         GraphResource resource,
         CancellationToken cancellationToken = default)
     {
-        if (!IsGraphApi(resource))
-        {
-            return [];
-        }
-
         var image = resource.Attributes.GetString(
             ContainerApplicationResourceTypeProvider.Attributes.ContainerImage);
         if (string.IsNullOrWhiteSpace(image))
@@ -133,11 +167,6 @@ internal sealed class ReplicatedContainerHealthGraphRuntimeHandler(
         GraphResource resource,
         CancellationToken cancellationToken = default)
     {
-        if (!IsGraphApi(resource))
-        {
-            return [];
-        }
-
         if (!int.TryParse(
                 resource.Attributes.GetString(
                     ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas),
@@ -176,9 +205,6 @@ internal sealed class ReplicatedContainerHealthGraphRuntimeHandler(
             ];
         }
     }
-
-    private static bool IsGraphApi(GraphResource resource) =>
-        string.Equals(resource.EffectiveResourceId, GraphApiResourceId, StringComparison.OrdinalIgnoreCase);
 
     private static IReadOnlyList<ResourceDefinitionDiagnostic> ToDiagnostics(
         ResourceProcedureResult result,

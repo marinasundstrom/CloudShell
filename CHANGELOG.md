@@ -17,6 +17,11 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- ReplicatedContainerHealth graph container-app runtime behavior now goes
+  through an explicit sample-local bridge contract. The current bridge still
+  delegates to the old `application:api` runtime app, but the graph handler no
+  longer depends directly on the old application-provider services and focused
+  tests cover the replaceable seam.
 - Graph-backed container app start, restart, image-update, and replica-update
   operations now delegate through an injected provider-owned runtime handler
   seam, keeping runtime orchestration outside the Resource Graph while leaving
