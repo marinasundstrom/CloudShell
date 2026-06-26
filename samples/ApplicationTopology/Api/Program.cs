@@ -1,9 +1,13 @@
 using CloudShell.ApplicationTopology.ServiceDefaults;
+using CloudShell.Configuration.Client;
+using CloudShell.Secrets.Client;
 using CloudShell.SqlServer.Client;
 using Microsoft.Data.SqlClient;
 using System.Diagnostics;
 
 var builder = CloudShellApplication.CreateBuilder(args);
+builder.Configuration.AddCloudShellConfigurationStore();
+builder.Configuration.AddCloudShellSecretsVault();
 builder.AddServiceDefaults();
 builder.Services.AddCloudShellSqlServerClient(options =>
 {

@@ -96,6 +96,10 @@ on `git blame --follow`, and then by the broad type of change.
   graph runtime data, Resource Manager-declared graph API identity grants, and
   smoke coverage for starting the backing services and reading entries/secrets
   through the new provider runtime path.
+- ApplicationTopology graph-backed API now loads its settings and secret flag
+  through the CloudShell Configuration Store and Secrets Vault client
+  integrations derived from `project.references`, removing direct graph API
+  environment-value injection for those values.
 - The Resource Graph proposal now clarifies that selected samples should
   become runnable through graph-backed providers, with adapters used only as
   temporary bridges into focused Control Plane or Resource Manager services.

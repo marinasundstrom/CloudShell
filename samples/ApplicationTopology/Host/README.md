@@ -40,8 +40,10 @@ new ASP.NET Core graph runtime controller can start them without relying on the
 old application provider. Current graph smoke coverage starts the graph-backed
 Configuration Store and Secrets Vault through the new provider runtime
 controllers, verifies authenticated reads from their service APIs, starts the
-graph API and frontend, verifies the graph API settings endpoint, and exercises
-frontend-to-API discovery through `/upstream/failure`. Docker-backed smoke
+graph API, verifies that `/settings` is loaded from the graph-backed
+Configuration Store and Secrets Vault client integrations, starts the graph
+frontend, and exercises frontend-to-API discovery through `/upstream/failure`.
+Docker-backed smoke
 coverage also starts the graph API and frontend against the existing SQL
 Server runtime and verifies the graph frontend `/upstream` path through graph
 settings and graph SQL credentials. The host registers a sample-local graph SQL
@@ -270,7 +272,9 @@ Already covered by the sample:
   without leaking secret values.
 - Side-by-side graph-backed Configuration Store and Secrets Vault runtime
   services with seeded provider-owned data and Resource Manager-declared graph
-  identity grants for the graph API.
+  identity grants for the graph API. The graph API consumes those values
+  through the CloudShell Configuration Store and Secrets Vault client
+  integrations instead of direct environment-value injection.
 - Built-in development resource identity and access grants for settings,
   secrets, and SQL Server database access.
 - Local DNS/name mapping through the `local-hostnames` publisher.

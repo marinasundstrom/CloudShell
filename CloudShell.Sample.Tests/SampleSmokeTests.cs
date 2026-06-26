@@ -1592,6 +1592,8 @@ public sealed class SampleSmokeTests
             resource.GetProperty("id").GetString() == "configuration.store:graph-application-topology-settings");
         var graphSecrets = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "secrets.vault:graph-application-topology-secrets");
+        var graphApi = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.aspnet-core-project:graph-application-topology-api");
 
         var graphSettingsEndpoint = GetEndpointAddress(graphSettings, "entries");
         var graphSecretsEndpointAddress = GetEndpointAddress(graphSecrets, "secrets");
@@ -1642,12 +1644,25 @@ public sealed class SampleSmokeTests
                 entry.GetProperty("value").GetString() == "Graph");
 
         var graphSecretJson = await host.GetAbsoluteStringAsync(
-            $"{graphSecretsEndpointAddress.TrimEnd('/')}/external-api-key",
+            $"{graphSecretsEndpointAddress.TrimEnd('/')}/ApplicationTopology--ExternalApiKey",
             graphResourceToken);
         using var graphSecretDocument = JsonDocument.Parse(graphSecretJson);
         Assert.Equal(
             "graph-local-development-api-key",
             graphSecretDocument.RootElement.GetProperty("value").GetString());
+
+        await StartGraphResourceIfAvailableAsync(host, graphApi, "ApplicationTopology graph API");
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"http://localhost:{graphApiPort}/health",
+            bearerToken: null,
+            StartupTimeout);
+        var graphApiSettingsJson = await host.GetAbsoluteStringAsync(
+            $"http://localhost:{graphApiPort}/settings");
+        using var graphApiSettingsDocument = JsonDocument.Parse(graphApiSettingsJson);
+        var graphApiSettings = graphApiSettingsDocument.RootElement;
+        Assert.Equal("Hello from CloudShell graph configuration.", graphApiSettings.GetProperty("message").GetString());
+        Assert.Equal("Graph", graphApiSettings.GetProperty("mode").GetString());
+        Assert.True(graphApiSettings.GetProperty("externalApiKeyConfigured").GetBoolean());
     }
 
     [Fact]
@@ -1722,11 +1737,27 @@ public sealed class SampleSmokeTests
                 .GetString() ?? throw new InvalidOperationException("The graph SQL database ensure-created action did not include an href.");
             await host.SendAsync(HttpMethod.Post, ensureCreatedHref);
 
+            await StartGraphResourceIfAvailableAsync(host, Assert.Single(
+                resourcesDocument.RootElement.EnumerateArray(),
+                resource => resource.GetProperty("id").GetString() ==
+                    "configuration.store:graph-application-topology-settings"), "ApplicationTopology settings");
+            await StartGraphResourceIfAvailableAsync(host, Assert.Single(
+                resourcesDocument.RootElement.EnumerateArray(),
+                resource => resource.GetProperty("id").GetString() ==
+                    "secrets.vault:graph-application-topology-secrets"), "ApplicationTopology secrets");
             await StartGraphResourceIfAvailableAsync(host, graphApi, "ApplicationTopology API");
             await host.WaitForAbsoluteHttpOkAsync(
                 $"http://localhost:{graphApiPort}/health",
                 bearerToken: null,
                 StartupTimeout);
+            var graphSettingsJson = await host.WaitForAbsoluteHttpOkAndGetStringAsync(
+                $"http://localhost:{graphApiPort}/settings",
+                StartupTimeout);
+            using var graphSettingsDocument = JsonDocument.Parse(graphSettingsJson);
+            var graphSettings = graphSettingsDocument.RootElement;
+            Assert.Equal("Hello from CloudShell graph configuration.", graphSettings.GetProperty("message").GetString());
+            Assert.Equal("Graph", graphSettings.GetProperty("mode").GetString());
+            Assert.True(graphSettings.GetProperty("externalApiKeyConfigured").GetBoolean());
             var graphDatabaseJson = await host.WaitForAbsoluteHttpOkAndGetStringAsync(
                 $"http://localhost:{graphApiPort}/database",
                 StartupTimeout);

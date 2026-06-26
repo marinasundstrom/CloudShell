@@ -248,15 +248,6 @@ builder.Services
                             "ApplicationTopology__SqlServer__Database",
                             "application_topology"),
                         new AspNetCoreProjectEnvironmentVariableValue(
-                            "ApplicationTopology__Message",
-                            "Hello from CloudShell graph configuration."),
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "ApplicationTopology__Mode",
-                            "Graph"),
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "ApplicationTopology__ExternalApiKey",
-                            "configured"),
-                        new AspNetCoreProjectEnvironmentVariableValue(
                             "OTEL_SERVICE_NAME",
                             "graph-application-topology-api")
                     }),
@@ -374,7 +365,7 @@ builder.Services
         options.ServiceAuthenticationIssuer = identityIssuer;
         options.ServiceAuthenticationAudience = identityAudience;
         options.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
-        options.Secrets.Add(new("external-api-key", "graph-local-development-api-key"));
+        options.Secrets.Add(new("ApplicationTopology--ExternalApiKey", "graph-local-development-api-key"));
     })
     .AddAspNetCoreProjectResourceType()
     .AddResourceModelGraphServices()
