@@ -7,31 +7,51 @@ using GraphResource = CloudShell.ResourceDefinitions.Resource;
 namespace CloudShell.ApplicationTopologyHost;
 
 public sealed class ApplicationTopologyGraphSqlServerRuntimeHandler(
-    IServiceScopeFactory scopeFactory) : ISqlServerRuntimeHandler
+    IApplicationTopologyGraphSqlServerRuntimeBridge bridge) : ISqlServerRuntimeHandler
 {
-    private SqlServerRuntimeStatus _status = SqlServerRuntimeStatus.Unknown;
-
     private const string GraphSqlServerResourceId =
         "application.sql-server:graph-application-topology-sql-server";
 
-    private const string RuntimeSqlServerResourceId =
-        "application:application-topology-sql-server";
-
     public SqlServerRuntimeStatus GetStatus(GraphResource resource) =>
         IsGraphSqlServer(resource)
-            ? _status
+            ? bridge.GetStatus(resource)
             : SqlServerRuntimeStatus.Unknown;
 
-    public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
+    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
         GraphResource resource,
         ResourceOperationId operationId,
         CancellationToken cancellationToken = default)
     {
         if (!IsGraphSqlServer(resource))
         {
-            return [];
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }
 
+        return bridge.ExecuteLifecycleAsync(resource, operationId, cancellationToken);
+    }
+
+    private static bool IsGraphSqlServer(GraphResource resource) =>
+        string.Equals(
+            resource.EffectiveResourceId,
+            GraphSqlServerResourceId,
+            StringComparison.OrdinalIgnoreCase);
+}
+
+public sealed class ApplicationTopologyGraphSqlServerResourceManagerBridge(
+    IServiceScopeFactory scopeFactory) : IApplicationTopologyGraphSqlServerRuntimeBridge
+{
+    private SqlServerRuntimeStatus _status = SqlServerRuntimeStatus.Unknown;
+
+    private const string RuntimeSqlServerResourceId =
+        "application:application-topology-sql-server";
+
+    public SqlServerRuntimeStatus GetStatus(GraphResource resource) => _status;
+
+    public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
+        GraphResource resource,
+        ResourceOperationId operationId,
+        CancellationToken cancellationToken = default)
+    {
         try
         {
             using var scope = scopeFactory.CreateScope();
@@ -76,12 +96,6 @@ public sealed class ApplicationTopologyGraphSqlServerRuntimeHandler(
             ];
         }
     }
-
-    private static bool IsGraphSqlServer(GraphResource resource) =>
-        string.Equals(
-            resource.EffectiveResourceId,
-            GraphSqlServerResourceId,
-            StringComparison.OrdinalIgnoreCase);
 
     private static IReadOnlyList<ResourceDefinitionDiagnostic> ToDiagnostics(
         ResourceProcedureResult result,

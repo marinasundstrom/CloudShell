@@ -130,7 +130,9 @@ progress. In this mode, the local DNS mapping targets
 Graph-only mode is a migration gate for the POC. The API/frontend,
 Configuration Store, and Secrets Vault runtime path starts through graph-backed
 resources. The graph SQL Server lifecycle adapter still delegates to the old
-sample SQL runtime resource, so full SQL runtime independence remains pending.
+sample SQL runtime resource through `IApplicationTopologyGraphSqlServerRuntimeBridge`,
+so full SQL runtime independence remains pending. That bridge is the intended
+replacement point for a graph-owned SQL runtime adapter.
 
 ## Run
 

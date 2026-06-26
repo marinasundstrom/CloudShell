@@ -94,6 +94,7 @@ var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
 builder.Services
     .AddSingleton<ISqlDatabaseCreationHandler, GraphSqlDatabaseCreationHandler>()
+    .AddSingleton<IApplicationTopologyGraphSqlServerRuntimeBridge, ApplicationTopologyGraphSqlServerResourceManagerBridge>()
     .AddSingleton<ISqlServerRuntimeHandler, ApplicationTopologyGraphSqlServerRuntimeHandler>()
     .AddInMemoryResourceModelGraph(
     [

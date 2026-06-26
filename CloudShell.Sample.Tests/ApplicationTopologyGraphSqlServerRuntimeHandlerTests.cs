@@ -14,7 +14,7 @@ public sealed class ApplicationTopologyGraphSqlServerRuntimeHandlerTests
     [InlineData("start", "start", true, false, SqlServerRuntimeStatus.Running)]
     [InlineData("stop", "stop", false, true, SqlServerRuntimeStatus.Stopped)]
     [InlineData("restart", "restart", true, true, SqlServerRuntimeStatus.Running)]
-    public async Task ExecuteLifecycle_DelegatesToRuntimeSqlServerResource(
+    public async Task ResourceManagerBridge_DelegatesToRuntimeSqlServerResource(
         string graphOperationId,
         string expectedActionId,
         bool expectedStartDependencies,
@@ -22,7 +22,7 @@ public sealed class ApplicationTopologyGraphSqlServerRuntimeHandlerTests
         SqlServerRuntimeStatus expectedStatus)
     {
         var resourceManager = new RecordingResourceManager();
-        var handler = CreateHandler(resourceManager);
+        var handler = CreateResourceManagerBridge(resourceManager);
         var resource = CreateGraphSqlServerResource();
 
         Assert.Equal(SqlServerRuntimeStatus.Unknown, handler.GetStatus(resource));
@@ -41,10 +41,31 @@ public sealed class ApplicationTopologyGraphSqlServerRuntimeHandlerTests
     }
 
     [Fact]
-    public async Task ExecuteLifecycle_IgnoresUnmappedSqlServerResource()
+    public async Task ExecuteLifecycle_DelegatesMappedSqlServerResourceToBridge()
     {
-        var resourceManager = new RecordingResourceManager();
-        var handler = CreateHandler(resourceManager);
+        var bridge = new RecordingGraphSqlServerRuntimeBridge(SqlServerRuntimeStatus.Running);
+        var handler = new ApplicationTopologyGraphSqlServerRuntimeHandler(bridge);
+        var resource = CreateGraphSqlServerResource();
+
+        Assert.Equal(SqlServerRuntimeStatus.Running, handler.GetStatus(resource));
+
+        var diagnostics = await handler.ExecuteLifecycleAsync(
+            resource,
+            SqlServerResourceTypeProvider.Operations.Start);
+
+        Assert.Empty(diagnostics);
+        var command = Assert.Single(bridge.LifecycleCommands);
+        Assert.Equal(
+            "application.sql-server:graph-application-topology-sql-server",
+            command.Resource.EffectiveResourceId);
+        Assert.Equal(SqlServerResourceTypeProvider.Operations.Start, command.OperationId);
+    }
+
+    [Fact]
+    public async Task ExecuteLifecycle_IgnoresUnmappedSqlServerResourceWithoutCallingBridge()
+    {
+        var bridge = new RecordingGraphSqlServerRuntimeBridge(SqlServerRuntimeStatus.Running);
+        var handler = new ApplicationTopologyGraphSqlServerRuntimeHandler(bridge);
         var resource = CreateGraphSqlServerResource(
             "other-sql",
             "application.sql-server:other-sql");
@@ -54,11 +75,11 @@ public sealed class ApplicationTopologyGraphSqlServerRuntimeHandlerTests
             SqlServerResourceTypeProvider.Operations.Start);
 
         Assert.Empty(diagnostics);
-        Assert.Empty(resourceManager.ActionCommands);
+        Assert.Empty(bridge.LifecycleCommands);
         Assert.Equal(SqlServerRuntimeStatus.Unknown, handler.GetStatus(resource));
     }
 
-    private static ApplicationTopologyGraphSqlServerRuntimeHandler CreateHandler(
+    private static ApplicationTopologyGraphSqlServerResourceManagerBridge CreateResourceManagerBridge(
         IResourceManager resourceManager)
     {
         var services = new ServiceCollection();
@@ -81,4 +102,25 @@ public sealed class ApplicationTopologyGraphSqlServerRuntimeHandlerTests
             ResourceId: resourceId,
             ProviderId: SqlServerResourceTypeProvider.ProviderId));
     }
+
+    private sealed class RecordingGraphSqlServerRuntimeBridge(
+        SqlServerRuntimeStatus status) : IApplicationTopologyGraphSqlServerRuntimeBridge
+    {
+        public List<LifecycleCommand> LifecycleCommands { get; } = [];
+
+        public SqlServerRuntimeStatus GetStatus(GraphResource resource) => status;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
+            GraphResource resource,
+            ResourceOperationId operationId,
+            CancellationToken cancellationToken = default)
+        {
+            LifecycleCommands.Add(new(resource, operationId));
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+    }
+
+    private sealed record LifecycleCommand(
+        GraphResource Resource,
+        ResourceOperationId OperationId);
 }
