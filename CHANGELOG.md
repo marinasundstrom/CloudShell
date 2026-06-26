@@ -47,6 +47,11 @@ on `git blame --follow`, and then by the broad type of change.
 - Graph-backed Docker container lifecycle operations now delegate through an
   injected provider-owned runtime handler seam with status-aware action
   availability, keeping real Docker materialization outside the graph model.
+- ContainerAppDeployment now carries an opt-in sample-local graph Docker
+  container runtime materializer for the graph registry container, while the
+  default sample path keeps the materializer disabled so normal projection
+  smoke coverage does not shell out to Docker during Resource Manager state
+  projection.
 - ReplicatedContainerHealth now exposes a sample-local ResourceDefinition
   overlay endpoint for the graph container image, and smoke coverage verifies
   that executing the graph `container.image.update` operation delegates the

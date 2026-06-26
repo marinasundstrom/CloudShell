@@ -43,6 +43,10 @@ public static class ReferenceProviderResourceManagerServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 IResourceModelResourceManagerStateProvider,
+                DockerContainerResourceManagerStateProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IResourceModelResourceManagerStateProvider,
                 ConfigurationStoreResourceManagerStateProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<

@@ -68,6 +68,20 @@ shape while the existing application/Docker provider path remains responsible
 for deployment requests, registry runtime behavior, image updates, and
 container materialization.
 
+The sample also includes an opt-in graph registry runtime materializer behind:
+
+```bash
+ContainerAppDeployment__EnableGraphDockerRuntime=true
+```
+
+When enabled, graph `start`, `restart`, and `stop` operations for
+`docker.container:graph-sample-registry` create, recreate, and remove a local
+Docker registry container named
+`cloudshell-container-app-deployment-graph-registry`. It is disabled by default
+so normal sample projection and smoke coverage do not depend on Docker CLI
+availability or latency. A provider-owned Docker runtime implementation and
+full lifecycle smoke coverage are still POC follow-up work.
+
 Run the sample:
 
 ```bash

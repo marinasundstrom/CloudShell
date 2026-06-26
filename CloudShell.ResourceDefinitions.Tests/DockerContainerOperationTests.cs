@@ -1,4 +1,6 @@
 using CloudShell.ResourceDefinitions.ReferenceProviders;
+using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
+using ResourceManagerState = CloudShell.Abstractions.ResourceManager.ResourceState;
 
 namespace CloudShell.ResourceDefinitions.Tests;
 
@@ -82,6 +84,31 @@ public sealed class DockerContainerOperationTests
 
         Assert.True(execution.HasErrors);
         Assert.Empty(runtimeHandler.LifecycleInvocations);
+    }
+
+    [Fact]
+    public async Task ResourceManagerStateProvider_ProjectsRuntimeStatus()
+    {
+        var runtimeHandler = new TestDockerContainerRuntimeHandler
+        {
+            Status = DockerContainerRuntimeStatus.Paused
+        };
+        var pipeline = CreatePipeline(
+            new DockerContainerStartOperationProvider(runtimeHandler),
+            new DockerContainerStopOperationProvider(runtimeHandler),
+            new DockerContainerRestartOperationProvider(runtimeHandler),
+            new DockerContainerPauseOperationProvider(runtimeHandler),
+            new DockerContainerUnpauseOperationProvider(runtimeHandler));
+
+        var result = await pipeline.ValidateAsync(
+            CreateDefinition(),
+            new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.False(result.HasErrors);
+
+        var stateProvider = new DockerContainerResourceManagerStateProvider(runtimeHandler);
+
+        Assert.Equal(ResourceManagerState.Paused, stateProvider.GetState(result.Resource));
     }
 
     private static ResourceDefinitionValidationPipeline CreatePipeline(

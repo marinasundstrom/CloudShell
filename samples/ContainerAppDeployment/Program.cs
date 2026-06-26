@@ -28,6 +28,12 @@ const string graphContainerAppResourceId = "application.container-app:graph-samp
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
+if (builder.Configuration.GetValue("ContainerAppDeployment:EnableGraphDockerRuntime", false))
+{
+    builder.Services
+        .AddSingleton<IDockerContainerRuntimeHandler, ContainerAppDeploymentGraphDockerContainerRuntimeHandler>();
+}
+
 builder.Services
     .AddInMemoryResourceModelGraph(
     [
@@ -132,13 +138,16 @@ cloudShell.Resources(resources =>
 
     resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphDockerResourceId)
-        .WithResourceGroup(graphResourceGroupId);
+        .WithResourceGroup(graphResourceGroupId)
+        .WithAutoStart(false);
     resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphRegistryResourceId)
-        .WithResourceGroup(graphResourceGroupId);
+        .WithResourceGroup(graphResourceGroupId)
+        .WithAutoStart(false);
     resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphContainerAppResourceId)
-        .WithResourceGroup(graphResourceGroupId);
+        .WithResourceGroup(graphResourceGroupId)
+        .WithAutoStart(false);
 
     resources
         .AddContainerApplication(
