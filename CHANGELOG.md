@@ -99,6 +99,10 @@ on `git blame --follow`, and then by the broad type of change.
   `ResourceDefinitionGraphBuilder` and a provider-owned Network builder that
   emits `ResourceDefinition` and `ResourceDeploymentDefinition` values for the
   same apply pipeline used by interchange documents.
+- Resource Graph programmatic builders now share common resource id, display
+  name, dependency, and attribute emission, and Configuration Store plus
+  Secrets Vault have provider-owned builders for endpoint declarations without
+  storing entry or secret values in graph attributes.
 
 #### Fixed
 

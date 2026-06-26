@@ -14,6 +14,9 @@
 - Provider-owned runtime entry seed options.
 - Inspect operation with a runtime-backed inspector that reports configured counts without exposing values.
 - Typed wrapper plus Resource Manager bridge projection and execution.
+- Manual `ResourceDefinitionGraphBuilder.AddConfigurationStore(...)` builder
+  for code-first resource and endpoint declaration. Entry values remain
+  provider/runtime data and are not authored as graph attributes.
 - SettingsAndSecrets smoke coverage for endpoint projection, inspect execution, authorized entry reads, and API consumption through the graph-backed endpoint.
 
 ## Remaining
