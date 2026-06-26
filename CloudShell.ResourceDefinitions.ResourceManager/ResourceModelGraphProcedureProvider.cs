@@ -10,6 +10,7 @@ public sealed class ResourceModelGraphProcedureProvider :
     IResourceProcedureProvider,
     IResourceActionAvailabilityProvider,
     IResourceImageUpdateProvider,
+    IResourceReplicaUpdateProvider,
     IResourceTemplateProvider
 {
     public const string ResourceDefinitionTemplateConfigurationVersion = "resource-definition.v1";
@@ -214,21 +215,6 @@ public sealed class ResourceModelGraphProcedureProvider :
                 $"Resource model graph resource '{context.Resource.Id}' does not support image updates.");
         }
 
-        var current = await _resourceResolver.ResolveAsync(
-            context.Resource.Id,
-            _resolutionContext,
-            cancellationToken);
-        if (current.Target is null)
-        {
-            throw new InvalidOperationException(
-                $"Resource model graph resource '{context.Resource.Id}' could not be resolved.");
-        }
-
-        if (current.HasErrors)
-        {
-            throw new InvalidOperationException(FormatDiagnostics(current.Diagnostics));
-        }
-
         var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeValue>
         {
             [ContainerImageAttributeId] = image
@@ -238,47 +224,53 @@ public sealed class ResourceModelGraphProcedureProvider :
             attributes[ContainerReplicasAttributeId] = requestedReplicas.Value;
         }
 
-        var definition = new ResourceDefinition(
-            current.Target.Name,
-            current.Target.Type.TypeId,
-            ResourceId: current.Target.EffectiveResourceId,
-            Attributes: new ResourceAttributeValueMap(attributes));
-        var apply = await _definitionApply.ApplyDefinitionsAsync(
-            [definition],
-            new ResourceGraphCommitContext(
-                EnvironmentId: _resolutionContext.EnvironmentId,
-                PrincipalId: string.IsNullOrWhiteSpace(triggeredBy)
-                    ? _resolutionContext.PrincipalId
-                    : triggeredBy),
+        await ApplyContainerUpdateAttributesAsync(
+            context,
+            attributes,
+            triggeredBy,
             cancellationToken);
-        if (apply.HasErrors || !apply.IsCommitted)
-        {
-            throw new InvalidOperationException(FormatDiagnostics(apply.Diagnostics));
-        }
-
-        var operation = await ResolveExecutableOperationAsync(
-            context.Resource.Id,
-            ContainerImageUpdateOperationId,
-            cancellationToken);
-        if (operation.Diagnostics.Count > 0)
-        {
-            throw new InvalidOperationException(FormatDiagnostics(operation.Diagnostics));
-        }
-
-        if (operation.Operation is not IResourceOperationExecutorProjection executableOperation)
-        {
-            throw new NotSupportedException(
-                $"Resource model operation '{operation.OperationId}' does not support execution.");
-        }
-
-        var execution = await executableOperation.ExecuteAsync(cancellationToken);
-        if (execution.HasErrors)
-        {
-            throw new InvalidOperationException(FormatDiagnostics(execution.Diagnostics));
-        }
 
         return ResourceProcedureResult.Completed(
             $"Updated image for {context.Resource.Name} to '{image}'.");
+    }
+
+    public bool CanUpdateReplicas(ResourceManagerResource resource) =>
+        IsBridgeResource(resource) &&
+        resource.HasAction(ContainerImageUpdateOperationId.ToString());
+
+    public async Task<ResourceProcedureResult> UpdateReplicasAsync(
+        ResourceProcedureContext context,
+        int replicas,
+        bool restartIfRunning,
+        string? triggeredBy = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        if (replicas < 1)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(replicas),
+                replicas,
+                "Replicas must be greater than or equal to 1.");
+        }
+
+        if (!CanUpdateReplicas(context.Resource))
+        {
+            throw new NotSupportedException(
+                $"Resource model graph resource '{context.Resource.Id}' does not support replica updates.");
+        }
+
+        await ApplyContainerUpdateAttributesAsync(
+            context,
+            new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                [ContainerReplicasAttributeId] = replicas
+            },
+            triggeredBy,
+            cancellationToken);
+
+        return ResourceProcedureResult.Completed(
+            $"Updated replicas for {context.Resource.Name} to '{replicas}'.");
     }
 
     public bool CanEvaluateAction(
@@ -369,6 +361,67 @@ public sealed class ResourceModelGraphProcedureProvider :
 
         return ResourceProcedureResult.Completed(
             CreateCompletedMessage(action, context.Resource, execution.Diagnostics));
+    }
+
+    private async Task ApplyContainerUpdateAttributesAsync(
+        ResourceProcedureContext context,
+        IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeValue> attributes,
+        string? triggeredBy,
+        CancellationToken cancellationToken)
+    {
+        var current = await _resourceResolver.ResolveAsync(
+            context.Resource.Id,
+            _resolutionContext,
+            cancellationToken);
+        if (current.Target is null)
+        {
+            throw new InvalidOperationException(
+                $"Resource model graph resource '{context.Resource.Id}' could not be resolved.");
+        }
+
+        if (current.HasErrors)
+        {
+            throw new InvalidOperationException(FormatDiagnostics(current.Diagnostics));
+        }
+
+        var definition = new ResourceDefinition(
+            current.Target.Name,
+            current.Target.Type.TypeId,
+            ResourceId: current.Target.EffectiveResourceId,
+            Attributes: new ResourceAttributeValueMap(attributes));
+        var apply = await _definitionApply.ApplyDefinitionsAsync(
+            [definition],
+            new ResourceGraphCommitContext(
+                EnvironmentId: _resolutionContext.EnvironmentId,
+                PrincipalId: string.IsNullOrWhiteSpace(triggeredBy)
+                    ? _resolutionContext.PrincipalId
+                    : triggeredBy),
+            cancellationToken);
+        if (apply.HasErrors || !apply.IsCommitted)
+        {
+            throw new InvalidOperationException(FormatDiagnostics(apply.Diagnostics));
+        }
+
+        var operation = await ResolveExecutableOperationAsync(
+            context.Resource.Id,
+            ContainerImageUpdateOperationId,
+            cancellationToken);
+        if (operation.Diagnostics.Count > 0)
+        {
+            throw new InvalidOperationException(FormatDiagnostics(operation.Diagnostics));
+        }
+
+        if (operation.Operation is not IResourceOperationExecutorProjection executableOperation)
+        {
+            throw new NotSupportedException(
+                $"Resource model operation '{operation.OperationId}' does not support execution.");
+        }
+
+        var execution = await executableOperation.ExecuteAsync(cancellationToken);
+        if (execution.HasErrors)
+        {
+            throw new InvalidOperationException(FormatDiagnostics(execution.Diagnostics));
+        }
     }
 
     private async ValueTask<ResourceModelGraphOperationResolution> ResolveExecutableOperationAsync(

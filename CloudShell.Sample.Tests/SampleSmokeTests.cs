@@ -3068,6 +3068,33 @@ public sealed class SampleSmokeTests
         Assert.Equal(
             "2",
             updatedGraphAttributes.GetProperty("container.replicas").GetString());
+
+        var graphReplicaUpdateJson = await host.SendJsonAsync(
+            HttpMethod.Put,
+            $"/api/container-apps/v1/{Uri.EscapeDataString("application.container-app:graph-sample-api")}/replicas",
+            """
+            {
+              "replicas": 3,
+              "restartIfRunning": false,
+              "triggeredBy": "sample-smoke-test"
+            }
+            """);
+        using var graphReplicaUpdateDocument = JsonDocument.Parse(graphReplicaUpdateJson);
+
+        Assert.Contains(
+            "3",
+            graphReplicaUpdateDocument.RootElement.GetProperty("message").GetString());
+
+        var scaledGraphJson = await host.GetStringAsync(
+            $"/api/control-plane/v1/resources/{Uri.EscapeDataString("application.container-app:graph-sample-api")}");
+        using var scaledGraphDocument = JsonDocument.Parse(scaledGraphJson);
+        var scaledGraphAttributes = scaledGraphDocument.RootElement.GetProperty("attributes");
+        Assert.Equal(
+            "cloudshell/mock-api:20260608.3",
+            scaledGraphAttributes.GetProperty("container.image").GetString());
+        Assert.Equal(
+            "3",
+            scaledGraphAttributes.GetProperty("container.replicas").GetString());
     }
 
     [Fact]

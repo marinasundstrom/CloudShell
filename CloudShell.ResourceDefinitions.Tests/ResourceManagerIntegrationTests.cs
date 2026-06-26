@@ -1515,6 +1515,20 @@ public sealed class ResourceManagerIntegrationTests
             resource.Id == container.EffectiveResourceId);
         Assert.Equal("ghcr.io/example/api:v2", updatedContainer.ResourceAttributes["container.image"]);
         Assert.Equal("4", updatedContainer.ResourceAttributes["container.replicas"]);
+
+        Assert.True(provider.CanUpdateReplicas(updatedContainer));
+        var replicaUpdate = await provider.UpdateReplicasAsync(
+            procedure,
+            5,
+            restartIfRunning: false,
+            triggeredBy: "test");
+
+        Assert.Equal("Updated replicas for api to '5'.", replicaUpdate.Message);
+
+        var scaledContainer = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == container.EffectiveResourceId);
+        Assert.Equal("ghcr.io/example/api:v2", scaledContainer.ResourceAttributes["container.image"]);
+        Assert.Equal("5", scaledContainer.ResourceAttributes["container.replicas"]);
     }
 
     [Fact]

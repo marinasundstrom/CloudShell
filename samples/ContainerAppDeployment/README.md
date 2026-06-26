@@ -122,12 +122,19 @@ app deployment, records the app-owned revision produced by that deployment, and
 writes resource events for traceability. The graph-backed
 `application.container-app:graph-sample-api` path uses the same API to apply
 `container.image` and optional `container.replicas` changes into the Resource
-Graph before executing the graph image-update operation seam. In a real
-build-server flow, the image upload or push to the registry happens before this
-call. The deployment request names the immutable uploaded image tag, then the
-orchestrator materializes runtime replicas for the produced revision and records
-the routing-remap milestones that move endpoint-bearing services toward the new
-replica version.
+Graph before executing the graph image-update operation seam. The graph-backed
+app also supports the existing:
+
+```text
+PUT /api/container-apps/v1/{containerAppId}/replicas
+```
+
+route, which applies `container.replicas` into the graph before executing the
+same runtime seam. In a real build-server flow, the image upload or push to the
+registry happens before the deployment call. The deployment request names the
+immutable uploaded image tag, then the orchestrator materializes runtime
+replicas for the produced revision and records the routing-remap milestones
+that move endpoint-bearing services toward the new replica version.
 
 Future on-premise validation should cover the same image-update flow through
 the Resource Manager UI after resources have been created through the UI, with
