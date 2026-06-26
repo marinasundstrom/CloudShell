@@ -1,0 +1,37 @@
+namespace CloudShell.ResourceDefinitions.ReferenceProviders;
+
+public sealed class DockerContainerResourceDefinitionBuilder(string name) :
+    ResourceDefinitionBuilder<DockerContainerResourceDefinitionBuilder>(name)
+{
+    protected override ResourceTypeId TypeId =>
+        DockerContainerResourceTypeProvider.ResourceTypeId;
+
+    protected override string? ProviderId =>
+        DockerContainerResourceTypeProvider.ProviderId;
+
+    public DockerContainerResourceDefinitionBuilder WithImage(string image) =>
+        SetScalarAttribute(DockerContainerResourceTypeProvider.Attributes.ContainerImage, image);
+
+    public DockerContainerResourceDefinitionBuilder WithRegistry(string registry) =>
+        SetScalarAttribute(DockerContainerResourceTypeProvider.Attributes.ContainerRegistry, registry);
+
+    public DockerContainerResourceDefinitionBuilder WithReplicas(long replicas) =>
+        SetScalarAttribute(DockerContainerResourceTypeProvider.Attributes.ContainerReplicas, replicas);
+
+    public DockerContainerResourceDefinitionBuilder WithWorkloadKind(string workloadKind) =>
+        SetScalarAttribute(DockerContainerResourceTypeProvider.Attributes.WorkloadKind, workloadKind);
+}
+
+public static class DockerContainerResourceDefinitionBuilderExtensions
+{
+    public static DockerContainerResourceDefinitionBuilder AddDockerContainer(
+        this ResourceDefinitionGraphBuilder graph,
+        string name)
+    {
+        ArgumentNullException.ThrowIfNull(graph);
+
+        var builder = new DockerContainerResourceDefinitionBuilder(name);
+        graph.Add(builder);
+        return builder;
+    }
+}

@@ -582,4 +582,54 @@ public sealed class ResourceDefinitionGraphBuilderTests
         Assert.False(result.HasErrors, string.Join(" ", result.Diagnostics.Select(diagnostic => diagnostic.Message)));
         Assert.True(result.IsCommitted);
     }
+
+    [Fact]
+    public async Task ResourceDefinitionGraphBuilder_BuildsDockerContainerAndLocalVolumeDefinitions()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddDockerContainerResourceType();
+        services.AddLocalVolumeResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var graph = new ResourceDefinitionGraphBuilder();
+
+        graph
+            .AddDockerContainer("api")
+            .WithImage("example/api:1.0")
+            .WithRegistry("registry.local")
+            .WithReplicas(2);
+        graph
+            .AddLocalVolume("data")
+            .WithStorageMedium("local");
+
+        var deployment = graph.BuildDeployment("docker-container", environmentId: "local");
+
+        Assert.Equal(2, deployment.Resources.Count);
+        var container = Assert.Single(deployment.Resources, resource =>
+            resource.TypeId == DockerContainerResourceTypeProvider.ResourceTypeId);
+        var volume = Assert.Single(deployment.Resources, resource =>
+            resource.TypeId == LocalVolumeResourceTypeProvider.ResourceTypeId);
+        Assert.Equal("docker.container:api", container.EffectiveResourceId);
+        Assert.Equal("example/api:1.0", container.ResourceAttributeValues[
+            DockerContainerResourceTypeProvider.Attributes.ContainerImage].StringValue);
+        Assert.Equal("registry.local", container.ResourceAttributeValues[
+            DockerContainerResourceTypeProvider.Attributes.ContainerRegistry].StringValue);
+        Assert.Equal(2, container.ResourceAttributeValues[
+            DockerContainerResourceTypeProvider.Attributes.ContainerReplicas].IntegerValue);
+        Assert.Equal("storage.volume:data", volume.EffectiveResourceId);
+        Assert.Equal("local", volume.ResourceAttributeValues[
+            LocalVolumeResourceTypeProvider.Attributes.StorageMedium].StringValue);
+
+        var result = await serviceProvider
+            .GetRequiredService<ResourceModelGraphDefinitionApplyService>()
+            .ApplyDeploymentAsync(
+                deployment,
+                new ResourceGraphCommitContext(
+                    PrincipalId: "developer",
+                    Timestamp: new DateTimeOffset(2026, 6, 26, 20, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, string.Join(" ", result.Diagnostics.Select(diagnostic => diagnostic.Message)));
+        Assert.True(result.IsCommitted);
+    }
 }

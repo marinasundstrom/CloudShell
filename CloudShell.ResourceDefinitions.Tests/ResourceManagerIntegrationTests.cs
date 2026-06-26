@@ -1350,14 +1350,11 @@ public sealed class ResourceManagerIntegrationTests
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
         var graph = new ResourceDefinitionGraphBuilder();
-        var volume = new ResourceDefinition(
-            "data",
-            LocalVolumeResourceTypeProvider.ResourceTypeId);
-        graph.Add(volume);
+        var volume = graph.AddLocalVolume("data");
         var executable = graph
             .AddExecutableApplication("api")
             .WithExecutablePath("dotnet")
-            .MountVolume(volume.EffectiveResourceId, "App_Data");
+            .MountVolume(volume, "App_Data");
         var deployment = graph.BuildDeployment("local-app", environmentId: "local");
 
         var result = await service.ApplyDeploymentAsync(
@@ -2023,21 +2020,14 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var container = new ResourceDefinition(
-            "api",
-            DockerContainerResourceTypeProvider.ResourceTypeId,
-            ProviderId: DockerContainerResourceTypeProvider.ProviderId,
-            Attributes: new Dictionary<ResourceAttributeId, string>
-            {
-                [DockerContainerResourceTypeProvider.Attributes.ContainerImage] = "example/api:1.0",
-                [DockerContainerResourceTypeProvider.Attributes.ContainerRegistry] = "registry.local"
-            });
+        var graph = new ResourceDefinitionGraphBuilder();
+        var container = graph
+            .AddDockerContainer("api")
+            .WithImage("example/api:1.0")
+            .WithRegistry("registry.local");
 
         var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
-                "docker-container",
-                [container],
-                EnvironmentId: "local"),
+            graph.BuildDeployment("docker-container", environmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 25, 4, 0, 0, TimeSpan.Zero)));

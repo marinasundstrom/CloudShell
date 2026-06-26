@@ -13,6 +13,8 @@
 - Passive monitoring and log-source capability markers.
 - Lifecycle operation projections.
 - Typed wrapper plus apply planning and Resource Manager bridge projection/execution.
+- Manual `ResourceDefinitionGraphBuilder.AddDockerContainer(...)` builder for
+  code-first Docker container definition authoring.
 
 ## Remaining
 

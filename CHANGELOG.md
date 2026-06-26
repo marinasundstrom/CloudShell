@@ -125,6 +125,9 @@ on `git blame --follow`, and then by the broad type of change.
   builders for code-first exposure definitions, and the exposure provider tests
   now use those builders for target, network, DNS-zone, and name-mapping
   dependencies.
+- Docker Container and Local Volume now have provider-owned Resource Graph
+  builders, and the Docker container plus executable deployment provider tests
+  now use those builders.
 
 #### Fixed
 
