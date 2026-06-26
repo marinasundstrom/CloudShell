@@ -16,8 +16,8 @@
   runtime handler seam.
 - Typed wrapper plus Resource Manager bridge projection, endpoint projection, and execution.
 - ContainerAppDeployment and ReplicatedContainerHealth sample-inspired graph coverage,
-  including ReplicatedContainerHealth smoke coverage where graph start and
-  image-update actions delegate to a sample-local runtime adapter.
+  including ReplicatedContainerHealth smoke coverage where graph start,
+  restart, and image-update actions delegate to a sample-local runtime adapter.
 
 ## Runtime Integration
 
@@ -40,7 +40,9 @@ throwing for expected runtime outcomes.
 The ReplicatedContainerHealth sample currently proves this seam with a
 sample-local adapter that maps `application.container-app:graph-api` to the
 existing `application:api` runtime resource. It covers start delegation and
-applying an accepted graph `container.image` change through the graph
+restart delegation, projects graph state from the runtime app so Resource
+Manager action availability can evaluate lifecycle commands, and applies an
+accepted graph `container.image` change through the graph
 `container.image.update` operation. That adapter is intentionally not a
 reusable provider toolkit yet; it exists to validate the graph-to-runtime
 boundary while the old application-provider runtime still owns replica

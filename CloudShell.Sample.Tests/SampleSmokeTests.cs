@@ -3116,7 +3116,7 @@ public sealed class SampleSmokeTests
 
     [Fact]
     [Trait("Category", "DockerIntegration")]
-    public async Task ReplicatedContainerHealthSample_GraphContainerAppStartDelegatesToRuntimeApp()
+    public async Task ReplicatedContainerHealthSample_GraphContainerAppStartAndRestartDelegateToRuntimeApp()
     {
         if (!await DockerComposeStack.IsAvailableAsync())
         {
@@ -3144,6 +3144,17 @@ public sealed class SampleSmokeTests
             Assert.Equal($"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}", GetPrimaryEndpointAddress(graphApp));
 
             await StartGraphResourceIfAvailableAsync(host, graphApp, "ReplicatedContainerHealth API");
+            await host.WaitForAbsoluteHttpOkAsync(
+                $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}/health",
+                bearerToken: null,
+                StartupTimeout);
+
+            var restartAction = graphApp
+                .GetProperty("resourceActions")
+                .GetProperty(ResourceActionIds.Restart);
+            var restartHref = restartAction.GetProperty("href").GetString() ??
+                throw new InvalidOperationException("The graph container app restart action did not include an href.");
+            await host.SendAsync(HttpMethod.Post, restartHref);
             await host.WaitForAbsoluteHttpOkAsync(
                 $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}/health",
                 bearerToken: null,

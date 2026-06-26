@@ -94,6 +94,7 @@ builder.Services
     .AddContainerApplicationResourceType()
     .AddResourceModelGraphServices()
     .AddReferenceProviderResourceManagerProjections()
+    .AddScoped<IResourceModelResourceManagerStateProvider, ReplicatedContainerHealthGraphStateProvider>()
     .AddResourceModelGraphProcedureProvider(
         ResourceModelResourceProvider.DefaultProviderId,
         "Resource model");

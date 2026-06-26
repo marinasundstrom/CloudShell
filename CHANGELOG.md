@@ -22,9 +22,10 @@ on `git blame --follow`, and then by the broad type of change.
   runtime orchestration outside the Resource Graph while leaving the default
   POC behavior no-op.
 - ReplicatedContainerHealth now wires the graph container-app lifecycle seam to
-  a sample-local runtime adapter that starts the existing `application:api`
-  runtime app, and Docker smoke coverage verifies the graph start action
-  publishes the replicated API health endpoint.
+  a sample-local runtime adapter that starts and restarts the existing
+  `application:api` runtime app, projects graph container-app state from that
+  runtime app, and Docker smoke coverage verifies the graph start/restart
+  actions publish the replicated API health endpoint.
 - ReplicatedContainerHealth now exposes a sample-local ResourceDefinition
   overlay endpoint for the graph container image, and smoke coverage verifies
   that executing the graph `container.image.update` operation delegates the
