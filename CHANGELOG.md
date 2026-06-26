@@ -40,6 +40,10 @@ on `git blame --follow`, and then by the broad type of change.
 - ApplicationTopology SQL-inclusive Docker smoke coverage now verifies graph
   SQL start creates the SQL container, graph SQL restart recreates it, and
   graph SQL stop removes it through the sample-local runtime adapter.
+- ThirdPartyIdentity now declares its side-by-side graph identity provisioning
+  resource through the provider-owned `ResourceDefinitionGraphBuilder`
+  identity builder instead of raw graph state, keeping the sample on the same
+  programmatic authoring path as provider tests.
 - ReplicatedContainerHealth now exposes a sample-local ResourceDefinition
   overlay endpoint for the graph container image, and smoke coverage verifies
   that executing the graph `container.image.update` operation delegates the

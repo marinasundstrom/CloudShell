@@ -20,7 +20,8 @@
   diagnostics, so the sample can verify the Keycloak runtime setup result
   through the graph operation path.
 - Manual `ResourceDefinitionGraphBuilder.AddIdentityProvisioning(...)`
-  builder for code-first identity provisioning definition authoring.
+  builder for code-first identity provisioning definition authoring, now used
+  by the ThirdPartyIdentity sample graph provisioning declaration.
 
 ## Remaining
 

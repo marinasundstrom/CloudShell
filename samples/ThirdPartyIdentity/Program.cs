@@ -14,7 +14,7 @@ using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
 using CloudShell.ResourceDefinitions.ResourceManager;
 using CloudShell.ThirdPartyIdentity;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using ResourceGraphState = CloudShell.ResourceDefinitions.ResourceState;
+using GraphResourceState = CloudShell.ResourceDefinitions.ResourceState;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 var repositoryRootPath = FindRepositoryRoot(builder.Environment.ContentRootPath);
@@ -35,24 +35,22 @@ var apiEndpoint = builder.Configuration["Samples:ThirdPartyIdentity:ApiEndpoint"
     "http://localhost:5234";
 const string graphIdentityProvisioningResourceId = "identity-provisioning:graph-keycloak";
 
+var graph = new ResourceDefinitionGraphBuilder();
+graph
+    .AddIdentityProvisioning("graph-keycloak")
+    .WithResourceId(graphIdentityProvisioningResourceId)
+    .WithDisplayName("Graph Keycloak Identity Provisioning")
+    .WithIdentityProvider("Keycloak")
+    .WithIdentityProviderId("identity:graph-keycloak")
+    .WithProviderKind("oidc");
+
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
 builder.Services
     .AddInMemoryResourceModelGraph(
-    [
-        new ResourceGraphState(
-            "graph-keycloak",
-            IdentityProvisioningResourceTypeProvider.ResourceTypeId,
-            ResourceId: graphIdentityProvisioningResourceId,
-            ProviderId: IdentityProvisioningResourceTypeProvider.ProviderId,
-            DisplayName: "Graph Keycloak Identity Provisioning",
-            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
-            {
-                [IdentityProvisioningResourceTypeProvider.Attributes.IdentityProvider] = "Keycloak",
-                [IdentityProvisioningResourceTypeProvider.Attributes.IdentityProviderId] = "identity:graph-keycloak",
-                [IdentityProvisioningResourceTypeProvider.Attributes.ProviderKind] = "oidc"
-            })
-    ])
+        graph.BuildDeployment("third-party-identity", environmentId: "local")
+            .Resources
+            .Select(GraphResourceState.FromDefinition))
     .AddIdentityProvisioningResourceType()
     .AddResourceModelGraphServices()
     .AddReferenceProviderResourceManagerProjections()

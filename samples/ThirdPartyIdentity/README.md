@@ -86,14 +86,15 @@ The sample also declares the external resource identity boundary:
 
 The sample also declares `identity-provisioning:graph-keycloak`, a
 side-by-side graph-backed identity provisioning resource through the Resource
-Definitions bridge. It proves Resource Manager projection and setup operation
-execution by attaching a graph-specific identity provider definition and a
-sample-local adapter that delegates the graph setup operation to the existing
-Resource Manager identity setup service. The graph resource stores the attached
-provider id as non-secret configuration, while the provider definition remains
-registered in the Resource Manager declaration model. The existing Keycloak
-integration remains responsible for real provider setup, credential
-materialization, and protected configuration access.
+Definitions bridge and the provider-owned identity provisioning builder. It
+proves Resource Manager projection and setup operation execution by attaching a
+graph-specific identity provider definition and a sample-local adapter that
+delegates the graph setup operation to the existing Resource Manager identity
+setup service. The graph resource stores the attached provider id as non-secret
+configuration, while the provider definition remains registered in the Resource
+Manager declaration model. The existing Keycloak integration remains
+responsible for real provider setup, credential materialization, and protected
+configuration access.
 
 The sample registers `KeycloakResourceIdentityProvisioner` as the resource
 identity provisioner, provider setup handler, and runtime credential
