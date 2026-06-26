@@ -3,22 +3,66 @@ using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Providers.Applications;
 using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
-using Microsoft.Extensions.DependencyInjection;
 using GraphResource = CloudShell.ResourceDefinitions.Resource;
 
 internal sealed class ContainerAppDeploymentGraphContainerApplicationRuntimeHandler(
-    IServiceScopeFactory scopeFactory) : IContainerApplicationRuntimeHandler
+    IContainerAppDeploymentGraphContainerApplicationRuntimeBridge bridge) : IContainerApplicationRuntimeHandler
 {
     private const string GraphAppResourceId = "application.container-app:graph-sample-api";
+
+    public ContainerApplicationRuntimeStatus GetStatus(GraphResource resource) =>
+        IsGraphApp(resource)
+            ? bridge.GetStatus(resource)
+            : ContainerApplicationRuntimeStatus.Unknown;
+
+    public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
+        GraphResource resource,
+        ResourceOperationId operationId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!IsGraphApp(resource))
+        {
+            return [];
+        }
+
+        return await bridge.ExecuteLifecycleAsync(resource, operationId, cancellationToken);
+    }
+
+    public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyImageAsync(
+        GraphResource resource,
+        CancellationToken cancellationToken = default)
+    {
+        if (!IsGraphApp(resource))
+        {
+            return [];
+        }
+
+        return await bridge.ApplyImageAsync(resource, cancellationToken);
+    }
+
+    public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyReplicasAsync(
+        GraphResource resource,
+        CancellationToken cancellationToken = default)
+    {
+        if (!IsGraphApp(resource))
+        {
+            return [];
+        }
+
+        return await bridge.ApplyReplicasAsync(resource, cancellationToken);
+    }
+
+    private static bool IsGraphApp(GraphResource resource) =>
+        string.Equals(resource.EffectiveResourceId, GraphAppResourceId, StringComparison.OrdinalIgnoreCase);
+}
+
+internal sealed class ContainerAppDeploymentGraphResourceManagerContainerApplicationBridge(
+    IServiceScopeFactory scopeFactory) : IContainerAppDeploymentGraphContainerApplicationRuntimeBridge
+{
     private const string RuntimeAppResourceId = "application:sample-api";
 
     public ContainerApplicationRuntimeStatus GetStatus(GraphResource resource)
     {
-        if (!IsGraphApp(resource))
-        {
-            return ContainerApplicationRuntimeStatus.Unknown;
-        }
-
         using var scope = scopeFactory.CreateScope();
         var runningState = scope.ServiceProvider
             .GetRequiredService<IApplicationResourceRunningStateOperations>();
@@ -32,11 +76,6 @@ internal sealed class ContainerAppDeploymentGraphContainerApplicationRuntimeHand
         ResourceOperationId operationId,
         CancellationToken cancellationToken = default)
     {
-        if (!IsGraphApp(resource))
-        {
-            return [];
-        }
-
         try
         {
             using var scope = scopeFactory.CreateScope();
@@ -78,11 +117,6 @@ internal sealed class ContainerAppDeploymentGraphContainerApplicationRuntimeHand
         GraphResource resource,
         CancellationToken cancellationToken = default)
     {
-        if (!IsGraphApp(resource))
-        {
-            return [];
-        }
-
         var image = resource.Attributes.GetString(
             ContainerApplicationResourceTypeProvider.Attributes.ContainerImage);
         if (string.IsNullOrWhiteSpace(image))
@@ -133,11 +167,6 @@ internal sealed class ContainerAppDeploymentGraphContainerApplicationRuntimeHand
         GraphResource resource,
         CancellationToken cancellationToken = default)
     {
-        if (!IsGraphApp(resource))
-        {
-            return [];
-        }
-
         if (!int.TryParse(
                 resource.Attributes.GetString(
                     ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas),
@@ -176,9 +205,6 @@ internal sealed class ContainerAppDeploymentGraphContainerApplicationRuntimeHand
             ];
         }
     }
-
-    private static bool IsGraphApp(GraphResource resource) =>
-        string.Equals(resource.EffectiveResourceId, GraphAppResourceId, StringComparison.OrdinalIgnoreCase);
 
     private static IReadOnlyList<ResourceDefinitionDiagnostic> ToDiagnostics(
         ResourceProcedureResult result,

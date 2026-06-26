@@ -56,6 +56,9 @@ if (builder.Configuration.GetValue("ContainerAppDeployment:EnableGraphDockerRunt
 }
 
 builder.Services
+    .AddSingleton<
+        IContainerAppDeploymentGraphContainerApplicationRuntimeBridge,
+        ContainerAppDeploymentGraphResourceManagerContainerApplicationBridge>()
     .AddSingleton<IContainerApplicationRuntimeHandler, ContainerAppDeploymentGraphContainerApplicationRuntimeHandler>();
 
 builder.Services

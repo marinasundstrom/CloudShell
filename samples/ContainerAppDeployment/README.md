@@ -68,6 +68,13 @@ shape while the existing application/Docker provider path remains responsible
 for deployment requests, registry runtime behavior, image updates, and
 container materialization.
 
+The graph container-app lifecycle, image-update, replica-update, and state
+projection path now goes through an explicit sample-local bridge contract. The
+current bridge still targets the existing `application:sample-api` runtime app
+while durable graph container-app materialization is being refined, but the
+graph handler itself is no longer coupled directly to old application-provider
+services.
+
 The sample also includes an opt-in graph registry runtime materializer behind:
 
 ```bash

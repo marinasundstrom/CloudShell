@@ -13,15 +13,15 @@ public sealed class ContainerAppDeploymentGraphContainerApplicationRuntimeHandle
     [Theory]
     [InlineData(false, ContainerApplicationRuntimeStatus.Stopped)]
     [InlineData(true, ContainerApplicationRuntimeStatus.Running)]
-    public async Task GetStatus_MapsRuntimeAppRunningState(
+    public async Task ResourceManagerBridge_MapsRuntimeAppRunningState(
         bool isRunning,
         ContainerApplicationRuntimeStatus expectedStatus)
     {
-        var handler = CreateHandler(
+        var bridge = CreateResourceManagerBridge(
             new RecordingResourceManager(),
             new RecordingRunningState { IsRunningResult = isRunning });
 
-        var status = handler.GetStatus(await CreateGraphAppResourceAsync());
+        var status = bridge.GetStatus(await CreateGraphAppResourceAsync());
 
         Assert.Equal(expectedStatus, status);
     }
@@ -30,16 +30,16 @@ public sealed class ContainerAppDeploymentGraphContainerApplicationRuntimeHandle
     [InlineData("start", "start", true, false)]
     [InlineData("stop", "stop", false, true)]
     [InlineData("restart", "restart", true, true)]
-    public async Task ExecuteLifecycle_DelegatesToRuntimeApp(
+    public async Task ResourceManagerBridge_DelegatesLifecycleToRuntimeApp(
         string graphOperationId,
         string expectedActionId,
         bool expectedStartDependencies,
         bool expectedIgnoreDependentWarning)
     {
         var resourceManager = new RecordingResourceManager();
-        var handler = CreateHandler(resourceManager, new RecordingRunningState());
+        var bridge = CreateResourceManagerBridge(resourceManager, new RecordingRunningState());
 
-        var diagnostics = await handler.ExecuteLifecycleAsync(
+        var diagnostics = await bridge.ExecuteLifecycleAsync(
             await CreateGraphAppResourceAsync(),
             graphOperationId);
 
@@ -52,12 +52,12 @@ public sealed class ContainerAppDeploymentGraphContainerApplicationRuntimeHandle
     }
 
     [Fact]
-    public async Task ApplyImage_DelegatesImageAndReplicasToRuntimeApp()
+    public async Task ResourceManagerBridge_DelegatesImageAndReplicasToRuntimeApp()
     {
         var resourceManager = new RecordingResourceManager();
-        var handler = CreateHandler(resourceManager, new RecordingRunningState());
+        var bridge = CreateResourceManagerBridge(resourceManager, new RecordingRunningState());
 
-        var diagnostics = await handler.ApplyImageAsync(
+        var diagnostics = await bridge.ApplyImageAsync(
             await CreateGraphAppResourceAsync(
                 image: "cloudshell/mock-api:20260608.4",
                 replicas: 5));
@@ -72,12 +72,12 @@ public sealed class ContainerAppDeploymentGraphContainerApplicationRuntimeHandle
     }
 
     [Fact]
-    public async Task ApplyReplicas_DelegatesReplicasToRuntimeApp()
+    public async Task ResourceManagerBridge_DelegatesReplicasToRuntimeApp()
     {
         var resourceManager = new RecordingResourceManager();
-        var handler = CreateHandler(resourceManager, new RecordingRunningState());
+        var bridge = CreateResourceManagerBridge(resourceManager, new RecordingRunningState());
 
-        var diagnostics = await handler.ApplyReplicasAsync(
+        var diagnostics = await bridge.ApplyReplicasAsync(
             await CreateGraphAppResourceAsync(replicas: 4));
 
         Assert.Empty(diagnostics);
@@ -88,7 +88,44 @@ public sealed class ContainerAppDeploymentGraphContainerApplicationRuntimeHandle
         Assert.Equal("resource-graph", command.TriggeredBy);
     }
 
-    private static ContainerAppDeploymentGraphContainerApplicationRuntimeHandler CreateHandler(
+    [Fact]
+    public async Task Handler_DelegatesMappedGraphAppToBridge()
+    {
+        var bridge = new RecordingGraphContainerApplicationRuntimeBridge(ContainerApplicationRuntimeStatus.Running);
+        var handler = new ContainerAppDeploymentGraphContainerApplicationRuntimeHandler(bridge);
+        var resource = await CreateGraphAppResourceAsync();
+
+        Assert.Equal(ContainerApplicationRuntimeStatus.Running, handler.GetStatus(resource));
+
+        var diagnostics = await handler.ExecuteLifecycleAsync(
+            resource,
+            ContainerApplicationResourceTypeProvider.Operations.Start);
+
+        Assert.Empty(diagnostics);
+        var command = Assert.Single(bridge.LifecycleCommands);
+        Assert.Equal("application.container-app:graph-sample-api", command.Resource.EffectiveResourceId);
+        Assert.Equal(ContainerApplicationResourceTypeProvider.Operations.Start, command.OperationId);
+    }
+
+    [Fact]
+    public async Task Handler_IgnoresUnmappedGraphAppWithoutCallingBridge()
+    {
+        var bridge = new RecordingGraphContainerApplicationRuntimeBridge(ContainerApplicationRuntimeStatus.Running);
+        var handler = new ContainerAppDeploymentGraphContainerApplicationRuntimeHandler(bridge);
+        var resource = await CreateGraphAppResourceAsync(
+            name: "other",
+            resourceId: "application.container-app:other");
+
+        var diagnostics = await handler.ExecuteLifecycleAsync(
+            resource,
+            ContainerApplicationResourceTypeProvider.Operations.Start);
+
+        Assert.Empty(diagnostics);
+        Assert.Empty(bridge.LifecycleCommands);
+        Assert.Equal(ContainerApplicationRuntimeStatus.Unknown, handler.GetStatus(resource));
+    }
+
+    private static ContainerAppDeploymentGraphResourceManagerContainerApplicationBridge CreateResourceManagerBridge(
         IResourceManager resourceManager,
         IApplicationResourceRunningStateOperations runningState)
     {
@@ -100,6 +137,8 @@ public sealed class ContainerAppDeploymentGraphContainerApplicationRuntimeHandle
     }
 
     private static async Task<GraphResource> CreateGraphAppResourceAsync(
+        string name = "graph-sample-api",
+        string resourceId = "application.container-app:graph-sample-api",
         string image = "cloudshell/mock-api:20260608.1",
         int replicas = 2)
     {
@@ -118,9 +157,9 @@ public sealed class ContainerAppDeploymentGraphContainerApplicationRuntimeHandle
             operationProjectors: operationProviders.OfType<IResourceOperationProjector>());
         var result = await pipeline.ValidateAsync(
             new ResourceDefinition(
-                "graph-sample-api",
+                name,
                 ContainerApplicationResourceTypeProvider.ResourceTypeId,
-                ResourceId: "application.container-app:graph-sample-api",
+                ResourceId: resourceId,
                 Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
                 {
                     [ContainerApplicationResourceTypeProvider.Attributes.ContainerImage] = image,
@@ -147,5 +186,36 @@ public sealed class ContainerAppDeploymentGraphContainerApplicationRuntimeHandle
             return IsRunningResult;
         }
     }
+
+    private sealed class RecordingGraphContainerApplicationRuntimeBridge(
+        ContainerApplicationRuntimeStatus status) : IContainerAppDeploymentGraphContainerApplicationRuntimeBridge
+    {
+        public List<LifecycleCommand> LifecycleCommands { get; } = [];
+
+        public ContainerApplicationRuntimeStatus GetStatus(GraphResource resource) => status;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
+            GraphResource resource,
+            ResourceOperationId operationId,
+            CancellationToken cancellationToken = default)
+        {
+            LifecycleCommands.Add(new(resource, operationId));
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyImageAsync(
+            GraphResource resource,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyReplicasAsync(
+            GraphResource resource,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+    }
+
+    private sealed record LifecycleCommand(
+        GraphResource Resource,
+        ResourceOperationId OperationId);
 
 }

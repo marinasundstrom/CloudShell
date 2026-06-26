@@ -17,6 +17,11 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- ContainerAppDeployment graph container-app runtime behavior now goes through
+  an explicit sample-local bridge contract. The current bridge still delegates
+  image, replica, lifecycle, and state operations to the old
+  `application:sample-api` runtime app while durable graph container-app
+  materialization remains deferred.
 - ThirdPartyIdentity graph identity setup now goes through an explicit
   sample-local bridge contract. The current bridge still delegates to the
   attached Resource Manager identity provider setup service, but the graph
