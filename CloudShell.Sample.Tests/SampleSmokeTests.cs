@@ -3382,6 +3382,37 @@ public sealed class SampleSmokeTests
 
         Assert.Equal(updatedImage, runtimeAttributes.GetProperty(ResourceAttributeNames.ContainerImage).GetString());
         Assert.Equal("3", runtimeAttributes.GetProperty(ResourceAttributeNames.ContainerReplicas).GetString());
+
+        var graphReplicaUpdateJson = await host.SendJsonAsync(
+            HttpMethod.Put,
+            $"/api/container-apps/v1/{Uri.EscapeDataString(graphApiResourceId)}/replicas",
+            """
+            {
+              "replicas": 2,
+              "restartIfRunning": false,
+              "triggeredBy": "sample-smoke-test"
+            }
+            """);
+        using var graphReplicaUpdateDocument = JsonDocument.Parse(graphReplicaUpdateJson);
+
+        Assert.Contains(
+            "2",
+            graphReplicaUpdateDocument.RootElement.GetProperty("message").GetString());
+
+        var scaledResourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var scaledResourcesDocument = JsonDocument.Parse(scaledResourcesJson);
+        var scaledResources = scaledResourcesDocument.RootElement.EnumerateArray().ToArray();
+        var scaledGraphApp = Assert.Single(scaledResources, resource =>
+            resource.GetProperty("id").GetString() == graphApiResourceId);
+        var scaledRuntimeApp = Assert.Single(scaledResources, resource =>
+            resource.GetProperty("id").GetString() == runtimeApiResourceId);
+
+        Assert.Equal(
+            "2",
+            scaledGraphApp.GetProperty("attributes").GetProperty("container.replicas").GetString());
+        Assert.Equal(
+            "2",
+            scaledRuntimeApp.GetProperty("attributes").GetProperty(ResourceAttributeNames.ContainerReplicas).GetString());
     }
 
     [Fact]

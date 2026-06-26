@@ -73,6 +73,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Container app replica updates now have their own graph operation
   (`container.replicas.update`) and runtime-handler method, so direct scale
   requests no longer reuse the image-update operation seam.
+- ReplicatedContainerHealth smoke coverage now verifies the graph-backed
+  container app can scale through the existing replicas API and delegates the
+  accepted graph replica count into the runtime app declaration.
 - ContainerAppDeployment now declares its graph Docker host, registry
   container, and container app through provider-owned graph builders instead
   of raw graph state dictionaries.
