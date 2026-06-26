@@ -1871,6 +1871,22 @@ public sealed class SampleSmokeTests
             Assert.Equal("application-topology-frontend", frontendFailureDocument.RootElement.GetProperty("resourceName").GetString());
             Assert.Equal(500, frontendFailureDocument.RootElement.GetProperty("upstreamStatusCode").GetInt32());
             Assert.Matches("^[0-9a-f]{32}$", frontendFailureDocument.RootElement.GetProperty("traceId").GetString() ?? string.Empty);
+
+            await StopResourceIfRunningAsync(host, "application:application-topology-frontend");
+            await StopResourceIfRunningAsync(host, "application:application-topology-api");
+            await StopResourceIfRunningAsync(host, "application.aspnet-core-project:graph-application-topology-frontend");
+            await StopResourceIfRunningAsync(host, "application.aspnet-core-project:graph-application-topology-api");
+            await StopResourceIfRunningAsync(host, "application.sql-server:graph-application-topology-sql-server");
+            await WaitForResourceStateAsync(
+                host,
+                "application:application-topology-sql-server",
+                ResourceState.Stopped,
+                StartupTimeout);
+            await WaitForResourceStateAsync(
+                host,
+                "application.sql-server:graph-application-topology-sql-server",
+                ResourceState.Stopped,
+                StartupTimeout);
         }
         finally
         {
@@ -1878,6 +1894,7 @@ public sealed class SampleSmokeTests
             await StopResourceIfRunningAsync(host, "application:application-topology-api");
             await StopResourceIfRunningAsync(host, "application.aspnet-core-project:graph-application-topology-frontend");
             await StopResourceIfRunningAsync(host, "application.aspnet-core-project:graph-application-topology-api");
+            await StopResourceIfRunningAsync(host, "application.sql-server:graph-application-topology-sql-server");
             await StopResourceIfRunningAsync(host, "application:application-topology-sql-server");
         }
     }
