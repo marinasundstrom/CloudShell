@@ -1716,6 +1716,110 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
+    public async Task ApplicationTopologyHost_GraphOnlyModeDeclaresWorkloadThroughResourceModel()
+    {
+        var apiPort = await GetFreePortAsync();
+        var frontendPort = await GetFreePortAsync();
+        var graphApiPort = await GetFreePortAsync();
+        var graphFrontendPort = await GetFreePortAsync();
+        var graphConfigurationEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
+        var graphSecretsEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
+        var sqlPort = await GetFreePortAsync();
+        var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:application-topology");
+        var secretsServiceBasePort = await GetServiceBasePortAsync("secrets-vault:application-topology");
+        using var host = await SampleProcess.StartAsync(
+            "samples/ApplicationTopology/Host/CloudShell.ApplicationTopologyHost.csproj",
+            await GetFreePortAsync(),
+            [
+                ("ApplicationTopology__GraphOnly", "true"),
+                ("ApplicationTopology__ApiEndpoint", $"http://localhost:{apiPort}"),
+                ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
+                ("ApplicationTopology__GraphApiEndpoint", $"http://localhost:{graphApiPort}"),
+                ("ApplicationTopology__GraphFrontendEndpoint", $"http://localhost:{graphFrontendPort}"),
+                ("ApplicationTopology__GraphConfigurationServiceEndpoint", graphConfigurationEndpoint),
+                ("ApplicationTopology__GraphSecretsServiceEndpoint", graphSecretsEndpoint),
+                ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
+                ("ApplicationTopology__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
+                ("ApplicationTopology__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture))
+            ]);
+
+        await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+        var graphSettings = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "configuration.store:graph-application-topology-settings");
+        var graphSecrets = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "secrets.vault:graph-application-topology-secrets");
+        var graphApi = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.aspnet-core-project:graph-application-topology-api");
+        var graphFrontend = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.aspnet-core-project:graph-application-topology-frontend");
+        var nameMapping = Assert.Single(resources, resource =>
+            resource.GetProperty("typeId").GetString() == PlatformResourceProvider.NameMappingResourceType
+            && resource.GetProperty("attributes")
+                .GetProperty(ResourceAttributeNames.NameMappingHostName)
+                .GetString() == "app.application-topology.cloudshell.local");
+
+        foreach (var oldResourceId in new[]
+        {
+            "storage:application-topology-local",
+            "volume:application-topology-sql-data",
+            "application:application-topology-sql-server",
+            "application:application-topology-sql-server/database:application-topology",
+            "configuration:application-topology",
+            "secrets-vault:application-topology",
+            "application:application-topology-api",
+            "application:application-topology-frontend"
+        })
+        {
+            Assert.DoesNotContain(
+                resources,
+                resource => string.Equals(
+                    resource.GetProperty("id").GetString(),
+                    oldResourceId,
+                    StringComparison.OrdinalIgnoreCase));
+        }
+
+        Assert.Equal(
+            "application.aspnet-core-project:graph-application-topology-frontend",
+            nameMapping.GetProperty("attributes")
+                .GetProperty(ResourceAttributeNames.NameMappingTargetResourceId)
+                .GetString());
+
+        await StartGraphResourceIfAvailableAsync(host, graphSettings, "ApplicationTopology graph-only settings");
+        await StartGraphResourceIfAvailableAsync(host, graphSecrets, "ApplicationTopology graph-only secrets");
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"{graphConfigurationEndpoint}/healthz",
+            bearerToken: null,
+            StartupTimeout);
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"{graphSecretsEndpoint}/healthz",
+            bearerToken: null,
+            StartupTimeout);
+
+        await StartGraphResourceIfAvailableAsync(host, graphApi, "ApplicationTopology graph-only API");
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"http://localhost:{graphApiPort}/health",
+            bearerToken: null,
+            StartupTimeout);
+        var graphApiSettingsJson = await host.GetAbsoluteStringAsync(
+            $"http://localhost:{graphApiPort}/settings");
+        using var graphApiSettingsDocument = JsonDocument.Parse(graphApiSettingsJson);
+        var graphApiSettings = graphApiSettingsDocument.RootElement;
+        Assert.Equal("Hello from CloudShell graph configuration.", graphApiSettings.GetProperty("message").GetString());
+        Assert.Equal("Graph", graphApiSettings.GetProperty("mode").GetString());
+        Assert.True(graphApiSettings.GetProperty("externalApiKeyConfigured").GetBoolean());
+
+        await StartGraphResourceIfAvailableAsync(host, graphFrontend, "ApplicationTopology graph-only frontend");
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"http://localhost:{graphFrontendPort}/healthz",
+            bearerToken: null,
+            StartupTimeout);
+    }
+
+    [Fact]
     [Trait("Category", "DockerIntegration")]
     public async Task ApplicationTopologyHost_SqlInclusiveRuntimePathConnectsFrontendApiAndDatabase()
     {

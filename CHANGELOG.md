@@ -88,6 +88,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Container app replica updates now have their own graph operation
   (`container.replicas.update`) and runtime-handler method, so direct scale
   requests no longer reuse the image-update operation seam.
+- ApplicationTopology now has an opt-in graph-only declaration mode that
+  declares workload resources through the Resource Model bridge, retargets the
+  local DNS mapping to the graph frontend, and keeps the old provider packages
+  only as temporary runtime bridge dependencies while the switch progresses.
 - ReplicatedContainerHealth smoke coverage now verifies the graph-backed
   container app can scale through the existing replicas API and delegates the
   accepted graph replica count into the runtime app declaration.

@@ -55,6 +55,7 @@ var graphApiEndpoint = builder.Configuration["ApplicationTopology:GraphApiEndpoi
     ?? apiEndpoint;
 var graphFrontendEndpoint = builder.Configuration["ApplicationTopology:GraphFrontendEndpoint"]
     ?? frontendEndpoint;
+var graphOnly = builder.Configuration.GetValue("ApplicationTopology:GraphOnly", false);
 var graphConfigurationEndpoint = builder.Configuration["ApplicationTopology:GraphConfigurationServiceEndpoint"]
     ?? $"http://localhost:{builder.Configuration.GetValue<int?>("ApplicationTopology:GraphConfigurationServiceBasePort") ?? 5139}";
 var graphSecretsEndpoint = builder.Configuration["ApplicationTopology:GraphSecretsServiceEndpoint"]
@@ -434,89 +435,94 @@ cloudShell.Resources(resources =>
         "Application Topology",
         "Resources for the Application Topology sample.");
 
-    var localStorage = resources
-        .AddLocalStorage("application-topology-local")
-        .WithDisplayName("Local Storage")
-        .WithResourceGroup(groupId)
-        .UseLocation("./Data/storage");
+    IResourceBuilder? oldApi = null;
+    if (!graphOnly)
+    {
+        var localStorage = resources
+            .AddLocalStorage("application-topology-local")
+            .WithDisplayName("Local Storage")
+            .WithResourceGroup(groupId)
+            .UseLocation("./Data/storage");
 
-    var sqlData = resources
-        .AddVolume("application-topology-sql-data")
-        .WithDisplayName("SQL Data")
-        .WithResourceGroup(groupId)
-        .UseStorage(localStorage, "sql-server")
-        .WithAccessMode(VolumeAccessMode.ReadWriteOnce);
+        var sqlData = resources
+            .AddVolume("application-topology-sql-data")
+            .WithDisplayName("SQL Data")
+            .WithResourceGroup(groupId)
+            .UseStorage(localStorage, "sql-server")
+            .WithAccessMode(VolumeAccessMode.ReadWriteOnce);
 
-    var sqlServer = resources
-        .AddSqlServer(
-            "application-topology-sql-server",
-            administratorPassword: sqlPassword,
-            dataVolume: sqlData,
-            port: sqlPort)
-        .DeclareDatabase("application_topology", "Application Topology")
-            .EnsureCreated()
-        .WithIdentity(identityProvider, name: "application-topology-sql-server")
-        .WithResourceGroup(groupId)
-        .WithAutoStart(false)
-        .ProvisionIdentityOnStartup();
+        var sqlServer = resources
+            .AddSqlServer(
+                "application-topology-sql-server",
+                administratorPassword: sqlPassword,
+                dataVolume: sqlData,
+                port: sqlPort)
+            .DeclareDatabase("application_topology", "Application Topology")
+                .EnsureCreated()
+            .WithIdentity(identityProvider, name: "application-topology-sql-server")
+            .WithResourceGroup(groupId)
+            .WithAutoStart(false)
+            .ProvisionIdentityOnStartup();
 
-    var settings = resources
-        .AddConfigurationStore("application-topology")
-        .WithDisplayName("Settings")
-        .WithIdentity(identityProvider)
-        .WithResourceGroup(groupId)
-        .WithEntries(
-        [
-            new("ApplicationTopology:Message", "Hello from CloudShell configuration."),
-            new("ApplicationTopology:Mode", "Development")
-        ])
-        .ProvisionIdentityOnStartup();
+        var settings = resources
+            .AddConfigurationStore("application-topology")
+            .WithDisplayName("Settings")
+            .WithIdentity(identityProvider)
+            .WithResourceGroup(groupId)
+            .WithEntries(
+            [
+                new("ApplicationTopology:Message", "Hello from CloudShell configuration."),
+                new("ApplicationTopology:Mode", "Development")
+            ])
+            .ProvisionIdentityOnStartup();
 
-    var secrets = resources
-        .AddSecretsVault("application-topology")
-        .WithDisplayName("Secrets")
-        .WithIdentity(identityProvider)
-        .WithResourceGroup(groupId)
-        .WithSecret("external-api-key", "local-development-api-key")
-        .ProvisionIdentityOnStartup();
+        var secrets = resources
+            .AddSecretsVault("application-topology")
+            .WithDisplayName("Secrets")
+            .WithIdentity(identityProvider)
+            .WithResourceGroup(groupId)
+            .WithSecret("external-api-key", "local-development-api-key")
+            .ProvisionIdentityOnStartup();
 
-    var api = resources.AddAspNetCoreProject(
-        "application-topology-api",
-        "../Api/CloudShell.ApplicationTopologyApi.csproj",
-        endpoint: apiEndpoint)
-        .WithIdentity(identityProvider, name: "application-topology-api")
-        .WithHttpHealthCheck("/health")
-        .WithHttpProbe(ResourceProbeType.Liveness, "/alive")
-        .WithRecovery(new ResourceRecoveryPolicy(
-            Enabled: true,
-            ProbeType: ResourceProbeType.Liveness,
-            FailureThreshold: 3,
-            InitialBackoffSeconds: 5,
-            MaxBackoffSeconds: 60,
-            MaxAttempts: 3))
-        .WithOtlpExporter(otlpEndpoint, otlpProtocol)
-        .WithEnvironment("CLOUDSHELL_TRACE_INGEST_ENDPOINT", traceIngestEndpoint ?? string.Empty)
-        .WithEnvironment("CLOUDSHELL_METRIC_INGEST_ENDPOINT", metricIngestEndpoint ?? string.Empty)
-        .WithEnvironment("CLOUDSHELL_SQL_CREDENTIAL_ENDPOINT", $"{cloudShellEndpoint}/api/sql-server/v1/credentials")
-        .WithEnvironment("ApplicationTopology__SqlServer__Authentication", "CloudShell")
-        .WithEnvironment("ApplicationTopology__SqlServer__ResourceName", "application-topology-sql-server")
-        .WithEnvironment("ApplicationTopology__SqlServer__User", "sa")
-        .WithEnvironment("ApplicationTopology__SqlServer__Password", sqlPassword)
-        .WithEnvironment("ApplicationTopology__SqlServer__Database", "application_topology")
-        .WithEnvironment("ApplicationTopology__Message", settings.Entry("ApplicationTopology:Message"))
-        .WithEnvironment("ApplicationTopology__Mode", settings.Entry("ApplicationTopology:Mode"))
-        .WithEnvironment("ApplicationTopology__ExternalApiKey", secrets.Secret("external-api-key"))
-        .WithReference(settings)
-        .WithReference(secrets)
-        .WithReference(sqlServer)
-        .DependsOn(sqlServer)
-        .WithResourceGroup(groupId)
-        .WithAutoStart(false)
-        .ProvisionIdentityOnStartup();
+        var api = resources.AddAspNetCoreProject(
+            "application-topology-api",
+            "../Api/CloudShell.ApplicationTopologyApi.csproj",
+            endpoint: apiEndpoint)
+            .WithIdentity(identityProvider, name: "application-topology-api")
+            .WithHttpHealthCheck("/health")
+            .WithHttpProbe(ResourceProbeType.Liveness, "/alive")
+            .WithRecovery(new ResourceRecoveryPolicy(
+                Enabled: true,
+                ProbeType: ResourceProbeType.Liveness,
+                FailureThreshold: 3,
+                InitialBackoffSeconds: 5,
+                MaxBackoffSeconds: 60,
+                MaxAttempts: 3))
+            .WithOtlpExporter(otlpEndpoint, otlpProtocol)
+            .WithEnvironment("CLOUDSHELL_TRACE_INGEST_ENDPOINT", traceIngestEndpoint ?? string.Empty)
+            .WithEnvironment("CLOUDSHELL_METRIC_INGEST_ENDPOINT", metricIngestEndpoint ?? string.Empty)
+            .WithEnvironment("CLOUDSHELL_SQL_CREDENTIAL_ENDPOINT", $"{cloudShellEndpoint}/api/sql-server/v1/credentials")
+            .WithEnvironment("ApplicationTopology__SqlServer__Authentication", "CloudShell")
+            .WithEnvironment("ApplicationTopology__SqlServer__ResourceName", "application-topology-sql-server")
+            .WithEnvironment("ApplicationTopology__SqlServer__User", "sa")
+            .WithEnvironment("ApplicationTopology__SqlServer__Password", sqlPassword)
+            .WithEnvironment("ApplicationTopology__SqlServer__Database", "application_topology")
+            .WithEnvironment("ApplicationTopology__Message", settings.Entry("ApplicationTopology:Message"))
+            .WithEnvironment("ApplicationTopology__Mode", settings.Entry("ApplicationTopology:Mode"))
+            .WithEnvironment("ApplicationTopology__ExternalApiKey", secrets.Secret("external-api-key"))
+            .WithReference(settings)
+            .WithReference(secrets)
+            .WithReference(sqlServer)
+            .DependsOn(sqlServer)
+            .WithResourceGroup(groupId)
+            .WithAutoStart(false)
+            .ProvisionIdentityOnStartup();
 
-    secrets.Allow(api.Principal, SecretsVaultResourceOperationPermissions.ReadSecrets);
-    settings.Allow(api.Principal, ConfigurationStoreResourceOperationPermissions.ReadEntries);
-    sqlServer.Allow(api.Principal, DatabaseResourceOperationPermissions.ReadWrite);
+        secrets.Allow(api.Principal, SecretsVaultResourceOperationPermissions.ReadSecrets);
+        settings.Allow(api.Principal, ConfigurationStoreResourceOperationPermissions.ReadEntries);
+        sqlServer.Allow(api.Principal, DatabaseResourceOperationPermissions.ReadWrite);
+        oldApi = api;
+    }
 
     resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphSqlVolumeResourceId)
@@ -538,7 +544,7 @@ cloudShell.Resources(resources =>
         .WithIdentity(identityProvider, name: graphApiIdentityName)
         .WithResourceGroup(groupId)
         .ProvisionIdentityOnStartup();
-    resources
+    var graphFrontend = resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphFrontendResourceId)
         .WithResourceGroup(groupId);
 
@@ -546,21 +552,28 @@ cloudShell.Resources(resources =>
     graphSettings.Allow(graphApi.Principal, ConfigurationStoreResourceOperationPermissions.ReadEntries);
     graphSecrets.Allow(graphApi.Principal, SecretsVaultResourceOperationPermissions.ReadSecrets);
 
-    var frontend = resources
-        .AddAspNetCoreProject(
-            "application-topology-frontend",
-            "../Frontend/CloudShell.ApplicationTopologyFrontend.csproj",
-            endpoint: frontendEndpoint)
-        .WithHttpHealthCheck("/healthz")
-        .WithHttpProbe(ResourceProbeType.Liveness, "/alive")
-        .WithOtlpExporter(otlpEndpoint, otlpProtocol)
-        .WithEnvironment("CLOUDSHELL_TRACE_INGEST_ENDPOINT", traceIngestEndpoint ?? string.Empty)
-        .WithEnvironment("CLOUDSHELL_METRIC_INGEST_ENDPOINT", metricIngestEndpoint ?? string.Empty)
-        .WithServiceDiscovery()
-        .WithReference(api)
-        .DependsOn(api)
-        .WithResourceGroup(groupId)
-        .WithAutoStart(false);
+    IResourceBuilder frontendNameMappingTarget = graphFrontend;
+    if (!graphOnly)
+    {
+        var frontendApi = oldApi ??
+            throw new InvalidOperationException("The old ApplicationTopology API declaration is required when graph-only mode is disabled.");
+        var frontend = resources
+            .AddAspNetCoreProject(
+                "application-topology-frontend",
+                "../Frontend/CloudShell.ApplicationTopologyFrontend.csproj",
+                endpoint: frontendEndpoint)
+            .WithHttpHealthCheck("/healthz")
+            .WithHttpProbe(ResourceProbeType.Liveness, "/alive")
+            .WithOtlpExporter(otlpEndpoint, otlpProtocol)
+            .WithEnvironment("CLOUDSHELL_TRACE_INGEST_ENDPOINT", traceIngestEndpoint ?? string.Empty)
+            .WithEnvironment("CLOUDSHELL_METRIC_INGEST_ENDPOINT", metricIngestEndpoint ?? string.Empty)
+            .WithServiceDiscovery()
+            .WithReference(frontendApi)
+            .DependsOn(frontendApi)
+            .WithResourceGroup(groupId)
+            .WithAutoStart(false);
+        frontendNameMappingTarget = frontend;
+    }
 
     resources
         .AddDnsZone(
@@ -569,7 +582,7 @@ cloudShell.Resources(resources =>
         .WithDisplayName("Local DNS")
         .WithResourceGroup(groupId)
         .UseLocalHostNames()
-        .MapHost("app.application-topology.cloudshell.local", frontend, "http");
+        .MapHost("app.application-topology.cloudshell.local", frontendNameMappingTarget, "http");
 });
 
 var app = builder.Build();

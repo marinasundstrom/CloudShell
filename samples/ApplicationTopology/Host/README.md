@@ -109,6 +109,29 @@ reconciliation, and normal `SqlConnection` flow. The API registers
 `AddCloudShellSqlServerClient(...)` and injects `CloudShellSqlConnectionFactory`
 so endpoint code does not construct the broker resolver directly.
 
+## Graph-only declaration mode
+
+Set `ApplicationTopology:GraphOnly` to `true` to declare the workload through
+the Resource Model bridge instead of declaring the old application,
+configuration, secrets, storage, volume, and SQL resource records side by side.
+The host still registers the old provider packages because some runtime seams
+are temporarily bridged through existing services while the switch is in
+progress. In this mode, the local DNS mapping targets
+`application.aspnet-core-project:graph-application-topology-frontend`.
+
+```json
+{
+  "ApplicationTopology": {
+    "GraphOnly": true
+  }
+}
+```
+
+Graph-only mode is a migration gate for the POC. The API/frontend,
+Configuration Store, and Secrets Vault runtime path starts through graph-backed
+resources. The graph SQL Server lifecycle adapter still delegates to the old
+sample SQL runtime resource, so full SQL runtime independence remains pending.
+
 ## Run
 
 From the repository root:
