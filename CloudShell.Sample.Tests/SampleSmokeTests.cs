@@ -1908,6 +1908,19 @@ public sealed class SampleSmokeTests
                 entry.GetProperty("name").GetString() == "Sample:Message" &&
                 entry.GetProperty("value").GetString() == "Hello from a graph configuration entry");
 
+        var graphSecretsServiceDiscoveryJson = await host.GetAbsoluteStringAsync(
+            $"{graphApiEndpoint.TrimEnd('/')}/service-discovery/graph-secrets/sample-api-key");
+        using var graphSecretsServiceDiscoveryDocument = JsonDocument.Parse(graphSecretsServiceDiscoveryJson);
+        Assert.Equal(
+            "connected",
+            graphSecretsServiceDiscoveryDocument.RootElement.GetProperty("status").GetString());
+        Assert.Equal(
+            $"https+http://secrets.vault-graph-sample-app/api/secrets/vaults/{Uri.EscapeDataString("secrets.vault:graph-sample-app")}/secrets/sample-api-key",
+            graphSecretsServiceDiscoveryDocument.RootElement.GetProperty("source").GetString());
+        Assert.Equal(
+            "graph-local-development-api-key",
+            graphSecretsServiceDiscoveryDocument.RootElement.GetProperty("value").GetString());
+
         var graphApiSecretJson = await host.GetAbsoluteStringAsync(
             $"{graphApiEndpoint.TrimEnd('/')}/secrets/sample-api-key");
         using var graphApiSecretDocument = JsonDocument.Parse(graphApiSecretJson);

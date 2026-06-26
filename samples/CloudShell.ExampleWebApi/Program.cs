@@ -170,6 +170,52 @@ app.MapGet("/service-discovery/graph-configuration", async (
     });
 });
 
+app.MapGet("/service-discovery/graph-secrets/{name}", async (
+    string name,
+    IHttpClientFactory httpClientFactory,
+    CloudShellResourceCredential credential,
+    CancellationToken cancellationToken) =>
+{
+    var vaultId = Environment.GetEnvironmentVariable(
+        "CLOUDSHELL_SECRETS_GRAPH_SAMPLE_APP_VAULT_ID");
+    if (string.IsNullOrWhiteSpace(vaultId))
+    {
+        return Results.Problem(
+            "The graph Secrets Vault id is not configured.",
+            statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+
+    var logicalEndpoint =
+        $"https+http://secrets.vault-graph-sample-app/api/secrets/vaults/{Uri.EscapeDataString(vaultId)}/secrets/{Uri.EscapeDataString(name)}";
+    var token = await credential.GetTokenAsync(
+        new CloudShellResourceTokenRequest([SecretsVaultClient.DefaultScope]),
+        cancellationToken);
+    using var request = new HttpRequestMessage(HttpMethod.Get, logicalEndpoint);
+    request.Headers.Authorization = new("Bearer", token.Token);
+
+    var httpClient = httpClientFactory.CreateClient();
+    using var response = await httpClient.SendAsync(request, cancellationToken);
+    response.EnsureSuccessStatusCode();
+    var secret = await response.Content.ReadFromJsonAsync<SecretValue>(
+        cancellationToken: cancellationToken);
+
+    return secret is null
+        ? Results.NotFound(new
+        {
+            status = "notFound",
+            source = logicalEndpoint,
+            name
+        })
+        : Results.Ok(new
+        {
+            status = "connected",
+            source = logicalEndpoint,
+            secret.Name,
+            secret.Value,
+            secret.Version
+        });
+});
+
 app.MapGet("/secrets/{name}", async (
     string name,
     CloudShellServiceClients clients,

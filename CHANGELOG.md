@@ -93,8 +93,8 @@ on `git blame --follow`, and then by the broad type of change.
   environment variables from referenced graph Configuration Store and Secrets
   Vault endpoint attributes, keeping those endpoint shapes provider-owned.
 - SettingsAndSecrets now proves that the graph-backed ASP.NET Core API can call
-  the graph-backed Configuration Store through service discovery derived from
-  `project.references`.
+  the graph-backed Configuration Store and Secrets Vault through service
+  discovery derived from `project.references`.
 - Configuration Store and Secrets Vault graph provider registration now accepts
   provider-owned runtime options, letting SettingsAndSecrets configure backing
   service projects and seeded runtime data through the provider boundary.

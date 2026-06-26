@@ -26,11 +26,13 @@ current service discovery path end to end. That endpoint calls the Configuration
 Store through the logical URI `https+http://configuration-sample-app`, using the Web
 API resource identity token for authorization.
 
-The graph-backed Web API also exposes `/service-discovery/graph-configuration`.
-That path calls the graph-backed Configuration Store through a logical
-service-discovery URI derived from `project.references` on the graph ASP.NET
-Core project resource. The endpoint still uses the Web API resource identity
-token for authorization; service discovery only locates the referenced service.
+The graph-backed Web API also exposes
+`/service-discovery/graph-configuration` and
+`/service-discovery/graph-secrets/{name}`. Those paths call the graph-backed
+Configuration Store and Secrets Vault through logical service-discovery URIs
+derived from `project.references` on the graph ASP.NET Core project resource.
+The endpoints still use the Web API resource identity token for authorization;
+service discovery only locates the referenced services.
 
 The Web API also dogfoods the public-preview SDK clients and their
 service-specific Microsoft configuration integrations. It calls
