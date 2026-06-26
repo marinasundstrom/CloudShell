@@ -148,4 +148,64 @@ public sealed class ResourceDefinitionGraphBuilderTests
 
         Assert.Equal(3, snapshot.Resources.Count);
     }
+
+    [Fact]
+    public async Task ResourceDefinitionGraphBuilder_BuildsStorageAndVolumeDefinitions()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddStorageResourceType();
+        services.AddCloudShellVolumeResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var graph = new ResourceDefinitionGraphBuilder();
+        var storage = graph
+            .AddStorage("local")
+            .UseLocalFileSystem("Data/storage/local");
+
+        graph
+            .AddCloudShellVolume("data")
+            .UseStorage(storage)
+            .UseLocalFileSystemVolume("data");
+
+        var deployment = graph.BuildDeployment("storage-volume", environmentId: "local");
+
+        Assert.Equal(2, deployment.Resources.Count);
+        var storageDefinition = Assert.Single(deployment.Resources, resource =>
+            resource.TypeId == StorageResourceTypeProvider.ResourceTypeId);
+        var volumeDefinition = Assert.Single(deployment.Resources, resource =>
+            resource.TypeId == CloudShellVolumeResourceTypeProvider.ResourceTypeId);
+        Assert.Equal("cloudshell.storage:local", storageDefinition.EffectiveResourceId);
+        Assert.Equal("Local Storage", storageDefinition.ResourceAttributeValues[
+            StorageResourceTypeProvider.Attributes.Provider].StringValue);
+        Assert.Equal("FileSystem", storageDefinition.ResourceAttributeValues[
+            StorageResourceTypeProvider.Attributes.Medium].StringValue);
+        Assert.Equal("Data/storage/local", storageDefinition.ResourceAttributeValues[
+            StorageResourceTypeProvider.Attributes.Location].StringValue);
+
+        Assert.Equal("cloudshell.volume:data", volumeDefinition.EffectiveResourceId);
+        Assert.Equal("Local Storage", volumeDefinition.ResourceAttributeValues[
+            CloudShellVolumeResourceTypeProvider.Attributes.Provider].StringValue);
+        Assert.Equal("FileSystem", volumeDefinition.ResourceAttributeValues[
+            CloudShellVolumeResourceTypeProvider.Attributes.StorageMedium].StringValue);
+        Assert.Equal("data", volumeDefinition.ResourceAttributeValues[
+            CloudShellVolumeResourceTypeProvider.Attributes.SubPath].StringValue);
+        Assert.Equal(true, volumeDefinition.ResourceAttributeValues[
+            CloudShellVolumeResourceTypeProvider.Attributes.Persistent].BooleanValue);
+        var dependency = Assert.Single(volumeDefinition.StartupDependencies);
+        Assert.True(dependency.TryGetDependsOnResourceId(out var dependencyId));
+        Assert.Equal(storage.EffectiveResourceId, dependencyId);
+        Assert.Equal(StorageResourceTypeProvider.ResourceTypeId, dependency.TypeId);
+
+        var result = await serviceProvider
+            .GetRequiredService<ResourceModelGraphDefinitionApplyService>()
+            .ApplyDeploymentAsync(
+                deployment,
+                new ResourceGraphCommitContext(
+                    PrincipalId: "developer",
+                    Timestamp: new DateTimeOffset(2026, 6, 26, 14, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, string.Join(" ", result.Diagnostics.Select(diagnostic => diagnostic.Message)));
+        Assert.True(result.IsCommitted);
+    }
 }

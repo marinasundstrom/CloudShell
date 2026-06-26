@@ -159,11 +159,15 @@ graph
 var deployment = graph.BuildDeployment("local-app", environmentId: "local");
 ```
 
-The initial manual builders cover generic networks, Configuration Store, and
-Secrets Vault graph resources. The configuration and secrets builders can
-declare service endpoints and participate in dependencies, but they
-intentionally do not author configuration entries or secret values as graph
-attributes. Those values remain provider/runtime data.
+The initial manual builders cover generic networks, Configuration Store,
+Secrets Vault, storage, and CloudShell storage-backed volume graph resources.
+They are useful for test setup as well as host authoring because provider
+tests can compose realistic deployment definitions without repeating raw
+attribute dictionaries and typed `ResourceReference` payloads. The
+configuration and secrets builders can declare service endpoints and
+participate in dependencies, but they intentionally do not author
+configuration entries or secret values as graph attributes. Those values remain
+provider/runtime data.
 
 Display names are optional presentation labels. Use `.WithDisplayName(...)`
 when a local development dashboard or sample benefits from a friendlier label.

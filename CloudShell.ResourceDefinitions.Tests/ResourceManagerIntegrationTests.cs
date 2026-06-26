@@ -3330,22 +3330,17 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var storage = new ResourceDefinition(
-            "local",
-            StorageResourceTypeProvider.ResourceTypeId,
-            ProviderId: StorageResourceTypeProvider.ProviderId,
-            Attributes: new Dictionary<ResourceAttributeId, string>
-            {
-                [StorageResourceTypeProvider.Attributes.Provider] = "Local Storage",
-                [StorageResourceTypeProvider.Attributes.Medium] = "FileSystem",
-                [StorageResourceTypeProvider.Attributes.Location] = "Data/storage/local"
-            });
+        var graph = new ResourceDefinitionGraphBuilder();
+        var storageBuilder = graph
+            .AddStorage("local")
+            .UseLocalFileSystem("Data/storage/local");
+        var deployment = graph.BuildDeployment(
+            "storage",
+            environmentId: "local");
+        var storage = Assert.Single(deployment.Resources);
 
         var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
-                "storage",
-                [storage],
-                EnvironmentId: "local"),
+            deployment,
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 25, 8, 0, 0, TimeSpan.Zero)));
@@ -3359,7 +3354,7 @@ public sealed class ResourceManagerIntegrationTests
             .OfType<ResourceModelGraphProcedureProvider>()
             .Single();
         var projectedStorage = Assert.Single(provider.GetResources(), resource =>
-            resource.Id == storage.EffectiveResourceId);
+            resource.Id == storageBuilder.EffectiveResourceId);
 
         Assert.Equal(ResourceManagerClass.Storage, projectedStorage.ResourceClass);
         Assert.Equal(StorageResourceTypeProvider.ProviderId, projectedStorage.Provider);
@@ -3379,7 +3374,7 @@ public sealed class ResourceManagerIntegrationTests
 
         var resolution = await serviceProvider
             .GetRequiredService<ResourceModelGraphResourceResolver>()
-            .ResolveAsync(storage.EffectiveResourceId);
+            .ResolveAsync(storageBuilder.EffectiveResourceId);
 
         Assert.False(resolution.HasErrors);
         var projection = Assert.IsType<StorageResource>(
@@ -3401,7 +3396,7 @@ public sealed class ResourceManagerIntegrationTests
         var procedureResult = await provider.ExecuteActionAsync(procedure, inspect);
 
         Assert.Equal("Executed Storage Inspect for local.", procedureResult.Message);
-        Assert.Equal([storage.EffectiveResourceId], inspector.InspectedResourceIds);
+        Assert.Equal([storageBuilder.EffectiveResourceId], inspector.InspectedResourceIds);
     }
 
     [Fact]
@@ -3417,39 +3412,20 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var storage = new ResourceDefinition(
-            "local",
-            StorageResourceTypeProvider.ResourceTypeId,
-            ProviderId: StorageResourceTypeProvider.ProviderId,
-            Attributes: new Dictionary<ResourceAttributeId, string>
-            {
-                [StorageResourceTypeProvider.Attributes.Provider] = "Local Storage",
-                [StorageResourceTypeProvider.Attributes.Medium] = "FileSystem"
-            });
-        var volume = new ResourceDefinition(
-            "data",
-            CloudShellVolumeResourceTypeProvider.ResourceTypeId,
-            ProviderId: CloudShellVolumeResourceTypeProvider.ProviderId,
-            DependsOn:
-            [
-                ResourceReference.DependsOnResourceId(
-                    storage.EffectiveResourceId,
-                    typeId: StorageResourceTypeProvider.ResourceTypeId)
-            ],
-            Attributes: new Dictionary<ResourceAttributeId, string>
-            {
-                [CloudShellVolumeResourceTypeProvider.Attributes.Provider] = "Local Storage",
-                [CloudShellVolumeResourceTypeProvider.Attributes.StorageMedium] = "FileSystem",
-                [CloudShellVolumeResourceTypeProvider.Attributes.SubPath] = "data",
-                [CloudShellVolumeResourceTypeProvider.Attributes.AccessMode] = "ReadWriteOnce",
-                [CloudShellVolumeResourceTypeProvider.Attributes.Persistent] = bool.TrueString.ToLowerInvariant()
-            });
+        var graph = new ResourceDefinitionGraphBuilder();
+        var storage = graph
+            .AddStorage("local")
+            .UseLocalFileSystem();
+        var volume = graph
+            .AddCloudShellVolume("data")
+            .UseStorage(storage)
+            .UseLocalFileSystemVolume("data");
+        var deployment = graph.BuildDeployment(
+            "storage-volume",
+            environmentId: "local");
 
         var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
-                "storage-volume",
-                [storage, volume],
-                EnvironmentId: "local"),
+            deployment,
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 25, 9, 0, 0, TimeSpan.Zero)));

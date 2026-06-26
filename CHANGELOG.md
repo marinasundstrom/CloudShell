@@ -103,6 +103,10 @@ on `git blame --follow`, and then by the broad type of change.
   name, dependency, and attribute emission, and Configuration Store plus
   Secrets Vault have provider-owned builders for endpoint declarations without
   storing entry or secret values in graph attributes.
+- Storage and CloudShell Volume now have provider-owned Resource Graph
+  builders, including typed storage references, and the storage provider
+  integration tests now use builders instead of raw ResourceDefinition
+  dictionaries.
 
 #### Fixed
 

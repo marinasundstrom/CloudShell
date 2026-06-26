@@ -2,6 +2,8 @@ namespace CloudShell.ResourceDefinitions;
 
 public interface IResourceDefinitionBuilder
 {
+    string EffectiveResourceId { get; }
+
     ResourceDefinition Build();
 }
 
@@ -25,6 +27,9 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
 
     protected IReadOnlyList<ResourceReference> Dependencies => _dependencies;
 
+    public string EffectiveResourceId =>
+        string.IsNullOrWhiteSpace(_resourceId) ? $"{TypeId}:{Name}" : _resourceId;
+
     public TBuilder WithResourceId(string? resourceId)
     {
         _resourceId = string.IsNullOrWhiteSpace(resourceId) ? null : resourceId.Trim();
@@ -47,7 +52,7 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
     {
         ArgumentNullException.ThrowIfNull(resource);
 
-        return DependsOn(resource.Build().EffectiveResourceId);
+        return DependsOn(resource.EffectiveResourceId);
     }
 
     public TBuilder DependsOn(ResourceDefinition definition)
@@ -94,6 +99,14 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
         long value)
     {
         _attributes[attributeId] = ResourceAttributeValue.Integer(value);
+        return Self;
+    }
+
+    protected TBuilder AddDependency(ResourceReference reference)
+    {
+        ArgumentNullException.ThrowIfNull(reference);
+
+        _dependencies.Add(reference);
         return Self;
     }
 
@@ -147,6 +160,8 @@ public sealed class ResourceDefinitionGraphBuilder
     private sealed class FixedResourceDefinitionBuilder(
         ResourceDefinition definition) : IResourceDefinitionBuilder
     {
+        public string EffectiveResourceId => definition.EffectiveResourceId;
+
         public ResourceDefinition Build() => definition;
     }
 }
