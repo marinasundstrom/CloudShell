@@ -124,6 +124,11 @@ on `git blame --follow`, and then by the broad type of change.
   identity-provisioning resource, with non-Docker smoke coverage verifying
   Resource Manager projection and setup operation shape while the Docker-backed
   sample path still owns real Keycloak provisioning.
+- ApplicationTopology now includes a side-by-side graph-backed frontend project
+  paired with the graph-backed API project, using separate configurable graph
+  endpoints, runtime-ready absolute project paths, health/liveness declarations,
+  and `project.serviceDiscoveryName` plus `project.references` for frontend to
+  API service discovery.
 - The Resource Graph proposal now records that programmatic builders over the
   new declaration model are deferred authoring work that may be generated,
   partially generated, or reused by UI flows after provider ports stabilize.

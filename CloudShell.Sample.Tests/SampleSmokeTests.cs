@@ -710,6 +710,8 @@ public sealed class SampleSmokeTests
     {
         var apiPort = await GetFreePortAsync();
         var frontendPort = await GetFreePortAsync();
+        var graphApiPort = await GetFreePortAsync();
+        var graphFrontendPort = await GetFreePortAsync();
         var sqlPort = await GetFreePortAsync();
         var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:application-topology");
         var secretsServiceBasePort = await GetServiceBasePortAsync("secrets-vault:application-topology");
@@ -719,6 +721,8 @@ public sealed class SampleSmokeTests
             [
                 ("ApplicationTopology__ApiEndpoint", $"http://localhost:{apiPort}"),
                 ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
+                ("ApplicationTopology__GraphApiEndpoint", $"http://localhost:{graphApiPort}"),
+                ("ApplicationTopology__GraphFrontendEndpoint", $"http://localhost:{graphFrontendPort}"),
                 ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
                 ("ApplicationTopology__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
                 ("ApplicationTopology__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture))
@@ -755,6 +759,8 @@ public sealed class SampleSmokeTests
             resource.GetProperty("id").GetString() == "secrets.vault:graph-application-topology-secrets");
         var graphApi = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "application.aspnet-core-project:graph-application-topology-api");
+        var graphFrontend = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.aspnet-core-project:graph-application-topology-frontend");
         var dnsZone = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "dns:application-topology-local");
         var nameMapping = Assert.Single(resources, resource =>
@@ -769,6 +775,8 @@ public sealed class SampleSmokeTests
         var sqlDatabaseAttributes = sqlDatabase.GetProperty("attributes");
         var apiAttributes = api.GetProperty("attributes");
         var frontendAttributes = frontend.GetProperty("attributes");
+        var graphApiAttributes = graphApi.GetProperty("attributes");
+        var graphFrontendAttributes = graphFrontend.GetProperty("attributes");
         var dnsZoneAttributes = dnsZone.GetProperty("attributes");
         var nameMappingAttributes = nameMapping.GetProperty("attributes");
         var settingsIdentity = settings.GetProperty("identity");
@@ -833,13 +841,33 @@ public sealed class SampleSmokeTests
             "/api/secrets/vaults/secrets.vault%3Agraph-application-topology-secrets/secrets",
             GetEndpointAddress(graphSecrets, "secrets"));
         Assert.Equal("application.aspnet-core-project", graphApi.GetProperty("typeId").GetString());
-        Assert.Equal($"http://localhost:{apiPort}", GetPrimaryEndpointAddress(graphApi));
+        Assert.Equal($"http://localhost:{graphApiPort}", GetPrimaryEndpointAddress(graphApi));
+        Assert.Equal(
+            "application-topology-api",
+            graphApiAttributes
+                .GetProperty(AspNetCoreProjectResourceTypeProvider.Attributes.ServiceDiscoveryName.Value)
+                .GetString());
         Assert.Contains(
             "application.sql-database:graph-application-topology-db",
             graphApi.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
         Assert.DoesNotContain(
             "application.sql-server:graph-application-topology-sql-server",
             graphApi.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+        Assert.EndsWith(
+            "/samples/ApplicationTopology/Api/CloudShell.ApplicationTopologyApi.csproj",
+            graphApiAttributes
+                .GetProperty(AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath.Value)
+                .GetString());
+        Assert.Equal("application.aspnet-core-project", graphFrontend.GetProperty("typeId").GetString());
+        Assert.Equal($"http://localhost:{graphFrontendPort}", GetPrimaryEndpointAddress(graphFrontend));
+        Assert.Contains(
+            "application.aspnet-core-project:graph-application-topology-api",
+            graphFrontend.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+        Assert.EndsWith(
+            "/samples/ApplicationTopology/Frontend/CloudShell.ApplicationTopologyFrontend.csproj",
+            graphFrontendAttributes
+                .GetProperty(AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath.Value)
+                .GetString());
 
         Assert.Equal(ApplicationResourceTypes.AspNetCoreProject, api.GetProperty("typeId").GetString());
         Assert.Equal("../Api/CloudShell.ApplicationTopologyApi.csproj", apiAttributes.GetProperty(ResourceAttributeNames.ProjectPath).GetString());

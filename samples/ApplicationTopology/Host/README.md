@@ -30,6 +30,15 @@ The frontend uses CloudShell service discovery to call the API:
 .DependsOn(api)
 ```
 
+The host also declares side-by-side graph-backed resources for the API and
+frontend through the Resource Definitions bridge. Those graph resources use
+`project.references` and `project.serviceDiscoveryName` for frontend-to-API
+service discovery, separate configurable graph endpoints
+(`ApplicationTopology:GraphApiEndpoint` and
+`ApplicationTopology:GraphFrontendEndpoint`), and absolute project paths so the
+new ASP.NET Core graph runtime controller can start them later without relying
+on the old application provider.
+
 Both projects use the shared `ServiceDefaults` project for health endpoints,
 HTTP client service discovery, JSON console logs, OpenTelemetry tracing, and
 basic HTTP request metrics. The host injects CloudShell trace and metric

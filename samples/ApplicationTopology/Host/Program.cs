@@ -21,6 +21,7 @@ using ResourceGraphState = CloudShell.ResourceDefinitions.ResourceState;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 var repositoryRootPath = Path.GetFullPath("../../..", builder.Environment.ContentRootPath);
+var sampleRootPath = Path.Combine(repositoryRootPath, "samples", "ApplicationTopology");
 var configurationStoreServiceProjectPath = Path.Combine(
     repositoryRootPath,
     "CloudShell.ConfigurationStoreService",
@@ -49,7 +50,20 @@ var frontendEndpoint = builder.Configuration["ApplicationTopology:FrontendEndpoi
     ?? "http://localhost:5218";
 var apiEndpoint = builder.Configuration["ApplicationTopology:ApiEndpoint"]
     ?? "http://localhost:21422";
-var apiEndpointUri = new Uri(apiEndpoint);
+var graphApiEndpoint = builder.Configuration["ApplicationTopology:GraphApiEndpoint"]
+    ?? apiEndpoint;
+var graphFrontendEndpoint = builder.Configuration["ApplicationTopology:GraphFrontendEndpoint"]
+    ?? frontendEndpoint;
+var graphApiEndpointUri = new Uri(graphApiEndpoint);
+var graphFrontendEndpointUri = new Uri(graphFrontendEndpoint);
+var graphApiProjectPath = Path.Combine(
+    sampleRootPath,
+    "Api",
+    "CloudShell.ApplicationTopologyApi.csproj");
+var graphFrontendProjectPath = Path.Combine(
+    sampleRootPath,
+    "Frontend",
+    "CloudShell.ApplicationTopologyFrontend.csproj");
 var sqlPassword = builder.Configuration["ApplicationTopology:SqlServer:Password"]
     ?? ApplicationProviderServiceCollectionExtensions.DefaultSqlServerAdministratorPassword;
 var sqlPort = builder.Configuration.GetValue("ApplicationTopology:SqlServer:Port", 14334);
@@ -59,6 +73,7 @@ const string graphDatabaseResourceId = "application.sql-database:graph-applicati
 const string graphSettingsResourceId = "configuration.store:graph-application-topology-settings";
 const string graphSecretsResourceId = "secrets.vault:graph-application-topology-secrets";
 const string graphApiResourceId = "application.aspnet-core-project:graph-application-topology-api";
+const string graphFrontendResourceId = "application.aspnet-core-project:graph-application-topology-frontend";
 builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 {
     ["Authentication:BuiltInAuthority:Enabled"] = "true",
@@ -168,20 +183,50 @@ builder.Services
             Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
                 [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] =
-                    "../Api/CloudShell.ApplicationTopologyApi.csproj",
+                    graphApiProjectPath,
                 [AspNetCoreProjectResourceTypeProvider.Attributes.HotReload] =
                     true,
                 [AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings] =
                     false,
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ServiceDiscoveryName] =
+                    "application-topology-api",
                 [AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests] =
                     ResourceAttributeValue.FromObject(new[]
                     {
                         new NetworkingEndpointRequestValue(
                             "http",
-                            apiEndpointUri.Scheme,
-                            Host: apiEndpointUri.Host,
-                            Port: apiEndpointUri.Port,
+                            graphApiEndpointUri.Scheme,
+                            Host: graphApiEndpointUri.Host,
+                            Port: graphApiEndpointUri.Port,
                             Exposure: "Local")
+                    }),
+                [AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
+                            traceIngestEndpoint ?? string.Empty),
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "CLOUDSHELL_METRIC_INGEST_ENDPOINT",
+                            metricIngestEndpoint ?? string.Empty),
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "CLOUDSHELL_SQL_CREDENTIAL_ENDPOINT",
+                            $"{cloudShellEndpoint}/api/sql-server/v1/credentials"),
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "ApplicationTopology__SqlServer__Authentication",
+                            "CloudShell"),
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "ApplicationTopology__SqlServer__User",
+                            "sa"),
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "ApplicationTopology__SqlServer__Password",
+                            sqlPassword),
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "ApplicationTopology__SqlServer__Database",
+                            "application_topology"),
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "OTEL_SERVICE_NAME",
+                            "graph-application-topology-api")
                     }),
                 [AspNetCoreProjectResourceTypeProvider.Attributes.References] =
                     ResourceAttributeValue.FromObject(new[]
@@ -196,6 +241,85 @@ builder.Services
                             graphSecretsResourceId,
                             typeId: SecretsVaultResourceTypeProvider.ResourceTypeId)
                     })
+            },
+            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
+            {
+                [ResourceHealthCheckCapabilityIds.HealthChecks] =
+                    ResourceDefinitionJson.FromValue(new ResourceHealthCheckDefinitionSet(
+                    [
+                        ResourceHealthCheckDefinition.Http(
+                            "/health",
+                            endpointName: "http"),
+                        ResourceHealthCheckDefinition.HttpLiveness(
+                            "/alive",
+                            endpointName: "http",
+                            name: "alive")
+                    ]))
+            }),
+        new ResourceGraphState(
+            "graph-application-topology-frontend",
+            AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
+            ResourceId: graphFrontendResourceId,
+            ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
+            DisplayName: "Graph Application Topology Frontend",
+            DependsOn:
+            [
+                ResourceReference.DependsOnResourceId(
+                    graphApiResourceId,
+                    typeId: AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
+            ],
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] =
+                    graphFrontendProjectPath,
+                [AspNetCoreProjectResourceTypeProvider.Attributes.HotReload] =
+                    true,
+                [AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings] =
+                    false,
+                [AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        new NetworkingEndpointRequestValue(
+                            "http",
+                            graphFrontendEndpointUri.Scheme,
+                            Host: graphFrontendEndpointUri.Host,
+                            Port: graphFrontendEndpointUri.Port,
+                            Exposure: "Local")
+                    }),
+                [AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
+                            traceIngestEndpoint ?? string.Empty),
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "CLOUDSHELL_METRIC_INGEST_ENDPOINT",
+                            metricIngestEndpoint ?? string.Empty),
+                        new AspNetCoreProjectEnvironmentVariableValue(
+                            "OTEL_SERVICE_NAME",
+                            "graph-application-topology-frontend")
+                    }),
+                [AspNetCoreProjectResourceTypeProvider.Attributes.References] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        ResourceReference.ReferenceResourceId(
+                            graphApiResourceId,
+                            typeId: AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
+                    })
+            },
+            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
+            {
+                [ResourceHealthCheckCapabilityIds.HealthChecks] =
+                    ResourceDefinitionJson.FromValue(new ResourceHealthCheckDefinitionSet(
+                    [
+                        ResourceHealthCheckDefinition.Http(
+                            "/healthz",
+                            endpointName: "http"),
+                        ResourceHealthCheckDefinition.HttpLiveness(
+                            "/alive",
+                            endpointName: "http",
+                            name: "alive")
+                    ]))
             })
     ])
     .AddLocalVolumeResourceType()
@@ -369,6 +493,9 @@ cloudShell.Resources(resources =>
         .WithResourceGroup(groupId);
     resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphApiResourceId)
+        .WithResourceGroup(groupId);
+    resources
+        .Declare(ResourceModelResourceProvider.DefaultProviderId, graphFrontendResourceId)
         .WithResourceGroup(groupId);
 
     var frontend = resources
