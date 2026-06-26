@@ -173,7 +173,7 @@ public sealed class SqlDatabaseResourceTypeProvider :
             "dependsOn"));
     }
 
-    internal static bool TryGetServerDependencyResourceId(
+    public static bool TryGetServerDependencyResourceId(
         ResourceState state,
         out string serverResourceId)
     {

@@ -3985,6 +3985,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddSqlServerResourceType();
         services.AddSqlDatabaseResourceType();
         services.AddResourceModelGraphServices();
+        services.AddReferenceProviderResourceManagerProjections();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
@@ -4057,6 +4058,7 @@ public sealed class ResourceManagerIntegrationTests
 
         Assert.Equal("Executed Application Sql Database Ensure Created for appdb.", procedureResult.Message);
         Assert.Equal([database.EffectiveResourceId], creationHandler.CreatedResourceIds);
+        Assert.Equal([server.EffectiveResourceId], creationHandler.ServerResourceIds);
     }
 
     [Fact]
@@ -5350,14 +5352,18 @@ public sealed class ResourceManagerIntegrationTests
         ISqlDatabaseCreationHandler
     {
         private readonly List<string> _createdResourceIds = [];
+        private readonly List<string> _serverResourceIds = [];
 
         public IReadOnlyList<string> CreatedResourceIds => _createdResourceIds;
 
+        public IReadOnlyList<string> ServerResourceIds => _serverResourceIds;
+
         public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> EnsureCreatedAsync(
-            Resource resource,
+            SqlDatabaseCreationContext context,
             CancellationToken cancellationToken = default)
         {
-            _createdResourceIds.Add(resource.EffectiveResourceId);
+            _createdResourceIds.Add(context.Database.EffectiveResourceId);
+            _serverResourceIds.Add(context.Server.EffectiveResourceId);
 
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }

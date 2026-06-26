@@ -1,12 +1,15 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
 public sealed class SqlDatabaseEnsureCreatedOperationProvider(
-    ISqlDatabaseCreationHandler? creationHandler = null) :
+    ISqlDatabaseCreationHandler? creationHandler = null,
+    ISqlDatabaseServerResolver? serverResolver = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
     private readonly ISqlDatabaseCreationHandler _creationHandler =
         creationHandler ?? new NoopSqlDatabaseCreationHandler();
+    private readonly ISqlDatabaseServerResolver _serverResolver =
+        serverResolver ?? new ContextSqlDatabaseServerResolver();
 
     public ResourceOperationId OperationId =>
         SqlDatabaseResourceTypeProvider.Operations.EnsureCreated;
@@ -41,17 +44,20 @@ public sealed class SqlDatabaseEnsureCreatedOperationProvider(
             new SqlDatabaseEnsureCreatedOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _creationHandler));
+                _creationHandler,
+                _serverResolver));
 }
 
 public sealed class SqlDatabaseEnsureCreatedOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    ISqlDatabaseCreationHandler creationHandler) : IResourceOperationExecutorProjection
+    ISqlDatabaseCreationHandler creationHandler,
+    ISqlDatabaseServerResolver serverResolver) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
     private readonly ISqlDatabaseCreationHandler _creationHandler = creationHandler;
+    private readonly ISqlDatabaseServerResolver _serverResolver = serverResolver;
 
     public Resource Resource => Context.Resource;
 
@@ -90,8 +96,40 @@ public sealed class SqlDatabaseEnsureCreatedOperation(
                 ]);
         }
 
-        var diagnostics = await _creationHandler.EnsureCreatedAsync(
+        if (!SqlDatabaseResourceTypeProvider.TryGetServerDependencyResourceId(
+                Resource.State,
+                out var serverResourceId))
+        {
+            return new ResourceOperationExecutionResult(
+                Resource,
+                OperationId,
+                [
+                    ResourceDefinitionDiagnostic.Error(
+                        "application.sqlDatabase.serverReferenceRequired",
+                        "SQL database owning server reference is required.",
+                        Resource.EffectiveResourceId)
+                ]);
+        }
+
+        var server = await _serverResolver.ResolveServerAsync(
             Resource,
+            Context,
+            cancellationToken);
+        if (server is null)
+        {
+            return new ResourceOperationExecutionResult(
+                Resource,
+                OperationId,
+                [
+                    ResourceDefinitionDiagnostic.Error(
+                        ResourceDefinitionDiagnosticCodes.ResourceGraphResourceMissing,
+                        $"SQL database owning server resource '{serverResourceId}' was not resolved.",
+                        serverResourceId)
+                ]);
+        }
+
+        var diagnostics = await _creationHandler.EnsureCreatedAsync(
+            new SqlDatabaseCreationContext(Resource, server),
             cancellationToken);
 
         return new ResourceOperationExecutionResult(

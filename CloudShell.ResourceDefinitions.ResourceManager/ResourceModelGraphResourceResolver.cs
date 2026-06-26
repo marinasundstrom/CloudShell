@@ -55,6 +55,7 @@ public sealed class ResourceModelGraphResourceResolver(
         {
             await BindProjectionsAsync(
                 resolution.Resource!,
+                [resolution.Resource!],
                 resolvedContext,
                 cancellationToken);
         }
@@ -171,6 +172,7 @@ public sealed class ResourceModelGraphResourceResolver(
         {
             await BindProjectionsAsync(
                 resource,
+                resolution.Resources,
                 resolvedContext,
                 cancellationToken);
         }
@@ -190,6 +192,7 @@ public sealed class ResourceModelGraphResourceResolver(
 
     private async ValueTask BindProjectionsAsync(
         Resource resource,
+        IReadOnlyList<Resource> resources,
         ResourceDefinitionResolutionContext context,
         CancellationToken cancellationToken)
     {
@@ -198,7 +201,7 @@ public sealed class ResourceModelGraphResourceResolver(
             new ResourceCapabilityProjectionContext(
                 context.EnvironmentId,
                 context.PrincipalId,
-                new ResourceProjectionExecutionContext(resource)),
+                new ResourceProjectionExecutionContext(resource, resources)),
             cancellationToken);
 
         await _operationResolver.BindAsync(
@@ -206,7 +209,7 @@ public sealed class ResourceModelGraphResourceResolver(
             new ResourceOperationProjectionContext(
                 context.EnvironmentId,
                 context.PrincipalId,
-                new ResourceProjectionExecutionContext(resource)),
+                new ResourceProjectionExecutionContext(resource, resources)),
             cancellationToken);
     }
 }

@@ -52,6 +52,9 @@ public static class ReferenceProviderResourceManagerServiceCollectionExtensions
             ServiceDescriptor.Singleton<
                 ILogProvider,
                 AspNetCoreProjectResourceManagerLogProvider>());
+        services.AddScoped<
+            ISqlDatabaseServerResolver,
+            SqlDatabaseResourceManagerServerResolver>();
 
         return services;
     }

@@ -29,11 +29,14 @@ public static class SqlDatabaseResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceGraphDependencyProvider, SqlDatabaseGraphDependencyProvider>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IResourceOperationProvider, SqlDatabaseEnsureCreatedOperationProvider>());
+            ServiceDescriptor.Scoped<IResourceOperationProvider, SqlDatabaseEnsureCreatedOperationProvider>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IResourceOperationProjector, SqlDatabaseEnsureCreatedOperationProvider>());
+            ServiceDescriptor.Scoped<IResourceOperationProjector, SqlDatabaseEnsureCreatedOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, SqlDatabaseResourceProjectionProvider>());
+        services.TryAddScoped<
+            ISqlDatabaseServerResolver,
+            ContextSqlDatabaseServerResolver>();
         services.TryAddSingleton<
             ISqlDatabaseCreationHandler,
             NoopSqlDatabaseCreationHandler>();

@@ -276,14 +276,25 @@ public sealed record ResourceProjectionContext(
     ResourceCapabilityResolver? CapabilityResolver = null,
     ResourceOperationResolver? OperationResolver = null);
 
-public sealed class ResourceProjectionExecutionContext(Resource resource)
+public sealed class ResourceProjectionExecutionContext(
+    Resource resource,
+    IReadOnlyList<Resource>? resources = null)
 {
     public Resource Resource { get; } = resource;
+
+    public IReadOnlyList<Resource> Resources { get; } = resources ?? [resource];
 
     public ResourceProjectionExecutionContext ForResource(Resource targetResource) =>
         ReferenceEquals(Resource, targetResource)
             ? this
-            : new ResourceProjectionExecutionContext(targetResource);
+            : new ResourceProjectionExecutionContext(targetResource, Resources);
+
+    public Resource? FindResource(string resourceId) =>
+        Resources.FirstOrDefault(resource =>
+            string.Equals(
+                resource.EffectiveResourceId,
+                resourceId,
+                StringComparison.OrdinalIgnoreCase));
 
     public ResourceChangeContext CreateChangeContext() =>
         Resource.CreateChangeContext();

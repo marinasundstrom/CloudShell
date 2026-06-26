@@ -62,6 +62,9 @@ on `git blame --follow`, and then by the broad type of change.
   `resourceId` is supplied. Existing resource identity fields stay stable, and
   rename attempts through an overlay are rejected until the model has an
   explicit rename/change-identity operation.
+- Resource model operation projections now receive the current resolved
+  resource scope, and SQL database ensure-created handlers receive both the
+  database resource and its resolved owning SQL Server resource.
 
 #### Fixed
 
