@@ -86,6 +86,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Service discovery documentation now calls out that graph-backed ASP.NET Core
   project resources use provider-owned `project.references`, while `DependsOn`
   remains startup ordering.
+- ASP.NET Core project graph validation now checks provider-owned service
+  references for missing targets and expected resource type mismatches without
+  treating those references as startup dependencies.
 - ProjectReference smoke coverage now verifies logs plus health/liveness
   refresh for both graph-backed ASP.NET Core project resources.
 - ProjectReference documentation and the resource graph proposal now describe

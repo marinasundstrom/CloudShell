@@ -95,6 +95,76 @@ public sealed class ResourceDefinitionGraphValidationPipelineTests
     }
 
     [Fact]
+    public async Task ValidateAsync_Graph_ReturnsMissingAspNetCoreProjectReferenceDiagnostic()
+    {
+        var pipeline = CreateAspNetCoreProjectGraphPipeline();
+        var frontend = CreateAspNetCoreProjectDefinition(
+            "frontend",
+            references:
+            [
+                ResourceReference.ReferenceResourceId(
+                    "application.aspnet-core-project:missing-api",
+                    typeId: AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
+            ]);
+
+        var result = await pipeline.ValidateAsync(
+            new ResourceDefinitionGraph([frontend]),
+            new ResourceDefinitionValidationContext());
+
+        Assert.True(result.HasErrors);
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Code == ResourceDefinitionDiagnosticCodes.ResourceReferenceMissing &&
+            diagnostic.Target == frontend.EffectiveResourceId);
+    }
+
+    [Fact]
+    public async Task ValidateAsync_Graph_ReturnsAspNetCoreProjectReferenceTypeMismatchDiagnostic()
+    {
+        var pipeline = CreateAspNetCoreProjectGraphPipeline();
+        var api = CreateAspNetCoreProjectDefinition("api");
+        var frontend = CreateAspNetCoreProjectDefinition(
+            "frontend",
+            references:
+            [
+                ResourceReference.ReferenceResourceId(
+                    api.EffectiveResourceId,
+                    typeId: StorageResourceTypeProvider.ResourceTypeId)
+            ]);
+
+        var result = await pipeline.ValidateAsync(
+            new ResourceDefinitionGraph([api, frontend]),
+            new ResourceDefinitionValidationContext());
+
+        Assert.True(result.HasErrors);
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Code == ResourceDefinitionDiagnosticCodes.ResourceReferenceTypeMismatch &&
+            diagnostic.Target == frontend.EffectiveResourceId);
+    }
+
+    [Fact]
+    public async Task ValidateAsync_Graph_AcceptsAspNetCoreProjectReferencesWithoutStartupDependencies()
+    {
+        var pipeline = CreateAspNetCoreProjectGraphPipeline();
+        var api = CreateAspNetCoreProjectDefinition("api");
+        var frontend = CreateAspNetCoreProjectDefinition(
+            "frontend",
+            references:
+            [
+                ResourceReference.ReferenceResourceId(
+                    api.EffectiveResourceId,
+                    typeId: AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
+            ]);
+
+        var result = await pipeline.ValidateAsync(
+            new ResourceDefinitionGraph([api, frontend]),
+            new ResourceDefinitionValidationContext());
+
+        Assert.False(result.HasErrors);
+        Assert.Empty(result.Diagnostics);
+        Assert.Empty(frontend.StartupDependencies);
+    }
+
+    [Fact]
     public async Task PlanApplyAsync_ValidatedGraph_UsesResourceTypeApplyProviders()
     {
         var validation = await CreateGraphPipeline().ValidateAsync(
@@ -183,6 +253,23 @@ public sealed class ResourceDefinitionGraphValidationPipelineTests
                 operationProviders: [new ExecutableStartOperationProvider()]),
             [new VolumeConsumerGraphValidator()]);
 
+    private static ResourceDefinitionGraphValidationPipeline CreateAspNetCoreProjectGraphPipeline() =>
+        new(
+            new ResourceDefinitionValidationPipeline(
+                [
+                    AspNetCoreProjectResourceTypeProvider.ClassDefinition
+                ],
+                [
+                    new AspNetCoreProjectResourceTypeProvider()
+                ],
+                operationProviders:
+                [
+                    new AspNetCoreProjectStartOperationProvider(),
+                    new AspNetCoreProjectStopOperationProvider(),
+                    new AspNetCoreProjectRestartOperationProvider()
+                ]),
+            [new AspNetCoreProjectReferenceGraphValidator()]);
+
     private static ResourceDefinitionGraphApplyPlanner CreateApplyPlanner() =>
         new([new ExecutableApplicationResourceTypeProvider()]);
 
@@ -216,6 +303,28 @@ public sealed class ResourceDefinitionGraphValidationPipelineTests
                     [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
                         ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(mounts))
                 });
+
+    private static ResourceDefinition CreateAspNetCoreProjectDefinition(
+        string name,
+        IReadOnlyList<ResourceReference>? references = null)
+    {
+        var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+        {
+            [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] =
+                $"samples/ProjectReference/{name}/{name}.csproj"
+        };
+
+        if (references is not null)
+        {
+            attributes[AspNetCoreProjectResourceTypeProvider.Attributes.References] =
+                ResourceAttributeValue.FromObject(references);
+        }
+
+        return new ResourceDefinition(
+            name,
+            AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
+            Attributes: attributes);
+    }
 
     private static IReadOnlyList<ResourceReference>? ToReferences(
         IReadOnlyList<string>? resourceIds) =>

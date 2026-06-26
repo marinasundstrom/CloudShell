@@ -35,6 +35,8 @@ public static class AspNetCoreProjectResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceDefinitionGraphValidator, VolumeConsumerGraphValidator>());
         services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceDefinitionGraphValidator, AspNetCoreProjectReferenceGraphValidator>());
+        services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceGraphDependencyProvider, VolumeConsumerGraphDependencyProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProvider, AspNetCoreProjectStartOperationProvider>());
