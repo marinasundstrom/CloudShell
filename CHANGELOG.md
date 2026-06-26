@@ -120,6 +120,13 @@ on `git blame --follow`, and then by the broad type of change.
 - SplitHosting now exposes a graph-backed network resource from the split
   Control Plane host, with smoke coverage verifying that the separate UI host
   and remote Control Plane API see it alongside the old persisted network.
+- ThirdPartyIdentity now declares a side-by-side graph-backed Keycloak
+  identity-provisioning resource, with non-Docker smoke coverage verifying
+  Resource Manager projection and setup operation shape while the Docker-backed
+  sample path still owns real Keycloak provisioning.
+- The Resource Graph proposal now records that programmatic builders over the
+  new declaration model are deferred authoring work that may be generated,
+  partially generated, or reused by UI flows after provider ports stabilize.
 - The Resource Graph proposal now documents the lifecycle of porting tests,
   distinguishing temporary old/new parity tests from graph-contract tests,
   runtime seam tests, and smoke tests that should be simplified after a sample

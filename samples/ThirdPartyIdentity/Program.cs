@@ -8,8 +8,13 @@ using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
 using CloudShell.Providers.Applications;
 using CloudShell.Providers.Configuration;
+using CloudShell.ResourceDefinitions;
+using CloudShell.ResourceDefinitions.ReferenceProviders;
+using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
+using CloudShell.ResourceDefinitions.ResourceManager;
 using CloudShell.ThirdPartyIdentity;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using ResourceGraphState = CloudShell.ResourceDefinitions.ResourceState;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 var repositoryRootPath = FindRepositoryRoot(builder.Environment.ContentRootPath);
@@ -28,9 +33,31 @@ var clientId = builder.Configuration["Authentication:OpenIdConnect:ClientId"] ??
     "cloudshell-ui";
 var apiEndpoint = builder.Configuration["Samples:ThirdPartyIdentity:ApiEndpoint"] ??
     "http://localhost:5234";
+const string graphIdentityProvisioningResourceId = "identity-provisioning:graph-keycloak";
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
+builder.Services
+    .AddInMemoryResourceModelGraph(
+    [
+        new ResourceGraphState(
+            "graph-keycloak",
+            IdentityProvisioningResourceTypeProvider.ResourceTypeId,
+            ResourceId: graphIdentityProvisioningResourceId,
+            ProviderId: IdentityProvisioningResourceTypeProvider.ProviderId,
+            DisplayName: "Graph Keycloak Identity Provisioning",
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                [IdentityProvisioningResourceTypeProvider.Attributes.IdentityProvider] = "Keycloak",
+                [IdentityProvisioningResourceTypeProvider.Attributes.ProviderKind] = "oidc"
+            })
+    ])
+    .AddIdentityProvisioningResourceType()
+    .AddResourceModelGraphServices()
+    .AddReferenceProviderResourceManagerProjections()
+    .AddResourceModelGraphProcedureProvider(
+        ResourceModelResourceProvider.DefaultProviderId,
+        "Resource model");
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()
@@ -58,9 +85,12 @@ builder.Services.TryAddEnumerable(
 
 cloudShell.Resources(resources =>
 {
+    resources
+        .Declare(ResourceModelResourceProvider.DefaultProviderId, graphIdentityProvisioningResourceId);
+
     var provisioningResource = resources
         .Declare(ResourceIdentityProvisioningResources.ProviderId, "identity-provisioning:keycloak")
-        .WithResourceClass(ResourceClass.Infrastructure)
+        .WithResourceClass(CloudShell.Abstractions.ResourceManager.ResourceClass.Infrastructure)
         .WithResourceAttribute(ResourceAttributeNames.InfrastructureKind, "identity-provisioning")
         .WithResourceAttribute("identity.provider", "Keycloak")
         .WithResourceAttribute("identity.authority", authority)

@@ -84,6 +84,12 @@ The sample also declares the external resource identity boundary:
 - `configuration:third-party-identity` grants that API identity configuration
   read access.
 
+The sample also declares `identity-provisioning:graph-keycloak`, a
+side-by-side graph-backed identity provisioning resource through the Resource
+Definitions bridge. It proves Resource Manager projection and setup operation
+shape while the existing Keycloak integration remains responsible for real
+provider setup, credential materialization, and protected configuration access.
+
 The sample registers `KeycloakResourceIdentityProvisioner` as the resource
 identity provisioner, provider setup handler, and runtime credential
 environment provider. Provider setup is separate from individual resource

@@ -2153,6 +2153,39 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
+    public async Task ThirdPartyIdentitySample_ProjectsGraphIdentityProvisioningBoundary()
+    {
+        using var host = await SampleProcess.StartAsync(
+            "samples/ThirdPartyIdentity/CloudShell.ThirdPartyIdentity.csproj",
+            await GetFreePortAsync(),
+            [
+                ("Authentication__Enabled", "false"),
+                ("Authentication__OpenIdConnect__RequireHttpsMetadata", "false")
+            ]);
+
+        await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+        var provisioning = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "identity-provisioning:keycloak");
+        var graphProvisioning = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "identity-provisioning:graph-keycloak");
+        var graphAttributes = graphProvisioning.GetProperty("attributes");
+
+        Assert.Equal(ResourceIdentityProvisioningResources.ResourceType, provisioning.GetProperty("typeId").GetString());
+        Assert.Equal("cloudshell.identity-provisioning", graphProvisioning.GetProperty("typeId").GetString());
+        Assert.Equal("Graph Keycloak Identity Provisioning", graphProvisioning.GetProperty("displayName").GetString());
+        Assert.Equal("identity-provisioning", graphAttributes.GetProperty("infrastructure.kind").GetString());
+        Assert.Equal("Keycloak", graphAttributes.GetProperty("identity.provider").GetString());
+        Assert.Equal("oidc", graphAttributes.GetProperty("identity.providerKind").GetString());
+        Assert.True(graphProvisioning
+            .GetProperty("resourceActions")
+            .TryGetProperty("identity.provisioning.setup", out _));
+    }
+
+    [Fact]
     [Trait("Category", "DockerIntegration")]
     public async Task ThirdPartyIdentitySample_KeycloakProvisionedWorkloadReadsConfiguration()
     {
