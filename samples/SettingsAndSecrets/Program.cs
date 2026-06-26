@@ -50,6 +50,9 @@ var graphApiEndpointUri = new Uri(graphApiEndpoint);
 const string graphSettingsResourceId = "configuration.store:graph-sample-app";
 const string graphSecretsResourceId = "secrets.vault:graph-sample-app";
 const string graphApiResourceId = "application.aspnet-core-project:graph-settings-secrets-api";
+const string graphApiIdentityName = "graph-settings-secrets-api";
+const string resourceIdentityClientSecret = "local-development-settings-secrets-api-secret";
+var graphApiIdentityClientId = $"{graphApiResourceId}/{graphApiIdentityName}";
 var graphApiProjectPath = Path.Combine(
     repositoryRootPath,
     "samples",
@@ -167,10 +170,10 @@ builder.Services
                             identityTokenEndpoint),
                         new AspNetCoreProjectEnvironmentVariableValue(
                             "CLOUDSHELL_IDENTITY_CLIENT_ID",
-                            "application:settings-secrets-api/settings-secrets-api"),
+                            graphApiIdentityClientId),
                         new AspNetCoreProjectEnvironmentVariableValue(
                             "CLOUDSHELL_IDENTITY_CLIENT_SECRET",
-                            "local-development-settings-secrets-api-secret"),
+                            resourceIdentityClientSecret),
                         new AspNetCoreProjectEnvironmentVariableValue(
                             "CLOUDSHELL_IDENTITY_SCOPE",
                             "ControlPlane.Access"),
@@ -249,7 +252,7 @@ cloudShell.Resources(resources =>
         new Dictionary<string, string>
         {
             [BuiltInResourceIdentityRegistry.ClientSecretSettingName] =
-                "local-development-settings-secrets-api-secret"
+                resourceIdentityClientSecret
         },
         useAsDefault: true);
 
@@ -299,11 +302,16 @@ cloudShell.Resources(resources =>
     var graphSecrets = resources.Declare(
         ResourceModelResourceProvider.DefaultProviderId,
         graphSecretsResourceId);
-    resources.Declare(
-        ResourceModelResourceProvider.DefaultProviderId,
-        graphApiResourceId);
+    var graphApi = resources
+        .Declare(
+            ResourceModelResourceProvider.DefaultProviderId,
+            graphApiResourceId)
+        .WithIdentity(identityProvider, name: graphApiIdentityName)
+        .ProvisionIdentityOnStartup();
     graphSettings.Allow(api.Principal, ConfigurationStoreResourceOperationPermissions.ReadEntries);
     graphSecrets.Allow(api.Principal, SecretsVaultResourceOperationPermissions.ReadSecrets);
+    graphSettings.Allow(graphApi.Principal, ConfigurationStoreResourceOperationPermissions.ReadEntries);
+    graphSecrets.Allow(graphApi.Principal, SecretsVaultResourceOperationPermissions.ReadSecrets);
 });
 
 var app = builder.Build();

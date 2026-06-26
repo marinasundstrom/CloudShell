@@ -1629,6 +1629,23 @@ public sealed class SampleSmokeTests
                 grant.GetProperty("targetResourceId").GetString() == "configuration.store:graph-sample-app" &&
                 grant.GetProperty("permission").GetString() == ConfigurationStoreResourceOperationPermissions.ReadEntries);
 
+        var graphGrantsJson = await host.GetStringAsync(
+            "/api/control-plane/v1/resource-permission-grants" +
+            $"?principalKind={(int)ResourcePrincipalKind.ResourceIdentity}" +
+            $"&principalId={Uri.EscapeDataString("application.aspnet-core-project:graph-settings-secrets-api/identities/graph-settings-secrets-api")}");
+        using var graphGrantsDocument = JsonDocument.Parse(graphGrantsJson);
+        var graphGrants = graphGrantsDocument.RootElement.EnumerateArray().ToArray();
+        Assert.Contains(
+            graphGrants,
+            grant =>
+                grant.GetProperty("targetResourceId").GetString() == "secrets.vault:graph-sample-app" &&
+                grant.GetProperty("permission").GetString() == SecretsVaultResourceOperationPermissions.ReadSecrets);
+        Assert.Contains(
+            graphGrants,
+            grant =>
+                grant.GetProperty("targetResourceId").GetString() == "configuration.store:graph-sample-app" &&
+                grant.GetProperty("permission").GetString() == ConfigurationStoreResourceOperationPermissions.ReadEntries);
+
         var provisioning = await host.GetStringAsync(
             "/api/control-plane/v1/resources/application%3Asettings-secrets-api/identity/provisioning-status");
         using var provisioningDocument = JsonDocument.Parse(provisioning);
@@ -1708,6 +1725,10 @@ public sealed class SampleSmokeTests
             "application:settings-secrets-api/settings-secrets-api",
             "local-development-settings-secrets-api-secret",
             "ControlPlane.Access");
+        var graphResourceToken = await host.GetClientCredentialsTokenAsync(
+            "application.aspnet-core-project:graph-settings-secrets-api/graph-settings-secrets-api",
+            "local-development-settings-secrets-api-secret",
+            "ControlPlane.Access");
         var apiEndpoint = GetPrimaryEndpointAddress(api);
         var settingsEndpoint = GetEndpointAddress(settings, "entries");
         var secretsEndpoint = GetEndpointAddress(secrets, "secrets");
@@ -1726,6 +1747,11 @@ public sealed class SampleSmokeTests
         await host.WaitForAbsoluteHttpOkAsync(
             $"{graphSecretsEntriesEndpoint.TrimEnd('/')}/sample-api-key",
             resourceToken,
+            StartupTimeout);
+        await host.WaitForAbsoluteHttpOkAsync(graphSettingsEndpoint, graphResourceToken, StartupTimeout);
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"{graphSecretsEntriesEndpoint.TrimEnd('/')}/sample-api-key",
+            graphResourceToken,
             StartupTimeout);
 
         var settingsJson = await host.GetAbsoluteStringAsync(settingsEndpoint, resourceToken);

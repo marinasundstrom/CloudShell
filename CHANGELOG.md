@@ -69,6 +69,9 @@ on `git blame --follow`, and then by the broad type of change.
 - ASP.NET Core graph observability and process-output log projection now live
   in the reference-provider bridge package, removing the remaining
   ProjectReference sample-local Resource Manager bridge implementations.
+- SettingsAndSecrets now gives the graph-backed ASP.NET Core API its own
+  Resource Manager-declared identity and scoped graph settings/secrets grants,
+  so the graph-backed runtime path no longer reuses the legacy API identity.
 - Docker container reference resources now mark `endpoints.count` as read-only
   provider-projected state, so deployment definitions cannot author endpoint
   counts while resolved Resource projections still expose the default count.
