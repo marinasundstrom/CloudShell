@@ -15,6 +15,13 @@ on `git blame --follow`, and then by the broad type of change.
 
 ### 2026-06-26
 
+#### Changed
+
+- Graph-backed container app start, restart, and image-update operations now
+  delegate through an injected provider-owned runtime handler seam, keeping
+  runtime orchestration outside the Resource Graph while leaving the default
+  POC behavior no-op.
+
 #### Fixed
 
 - Replica aggregate liveness no longer reports a parent application as stopped

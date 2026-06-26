@@ -14,6 +14,28 @@
 - Inspect operation with an injected provider-owned inspector seam.
 - Typed wrapper plus Resource Manager bridge projection and execution.
 
+## Example ResourceDefinition
+
+This is the interchange shape for a graph-backed Docker host declaration. Other
+resource definitions can reference it through `ResourceReference` values in
+`dependsOn` or provider-owned attributes.
+
+```json
+{
+  "name": "graph-sample",
+  "typeId": "docker.host",
+  "resourceId": "docker:graph-sample",
+  "providerId": "docker",
+  "displayName": "Graph Docker Host",
+  "attributes": {
+    "docker.host.kind": "local",
+    "docker.host.endpoint": "unix:///var/run/docker.sock",
+    "container.registry": "docker.io",
+    "docker.host.default": true
+  }
+}
+```
+
 ## Remaining
 
 - Real Docker runtime integration.

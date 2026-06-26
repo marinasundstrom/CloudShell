@@ -1,9 +1,13 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
-public sealed class ContainerApplicationImageUpdateOperationProvider :
+public sealed class ContainerApplicationImageUpdateOperationProvider(
+    IContainerApplicationRuntimeHandler? runtimeHandler = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
+    private readonly IContainerApplicationRuntimeHandler _runtimeHandler =
+        runtimeHandler ?? new NoopContainerApplicationRuntimeHandler();
+
     public ResourceOperationId OperationId =>
         ContainerApplicationResourceTypeProvider.Operations.UpdateImage;
 
@@ -36,14 +40,18 @@ public sealed class ContainerApplicationImageUpdateOperationProvider :
         ValueTask.FromResult<IResourceOperationProjection>(
             new ContainerApplicationImageUpdateOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
-                operation));
+                operation,
+                _runtimeHandler));
 }
 
 public sealed class ContainerApplicationImageUpdateOperation(
     ResourceProjectionExecutionContext context,
-    ResourceOperationResolution operation) : IResourceOperationExecutorProjection
+    ResourceOperationResolution operation,
+    IContainerApplicationRuntimeHandler runtimeHandler) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
+
+    private readonly IContainerApplicationRuntimeHandler _runtimeHandler = runtimeHandler;
 
     public Resource Resource => Context.Resource;
 
@@ -94,9 +102,13 @@ public sealed class ContainerApplicationImageUpdateOperation(
                 ]);
         }
 
+        var diagnostics = await _runtimeHandler.ApplyImageAsync(
+            Resource,
+            cancellationToken);
+
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            []);
+            diagnostics);
     }
 }

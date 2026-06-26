@@ -12,11 +12,97 @@
 - Endpoint request attributes using the shared networking endpoint request shape.
 - Optional typed generic/Docker container-host reference validation and projection.
 - Shared volume-consumer capability.
-- Start, restart, and image-update operations.
+- Start, restart, and image-update operations with an injected provider-owned
+  runtime handler seam.
 - Typed wrapper plus Resource Manager bridge projection, endpoint projection, and execution.
 - ContainerAppDeployment and ReplicatedContainerHealth sample-inspired graph coverage.
 
+## Runtime Integration
+
+The provider declares container app operations in the graph, but does not own
+container orchestration itself. Runtime behavior is supplied by registering an
+`IContainerApplicationRuntimeHandler` implementation in the host or Control
+Plane integration layer.
+
+```csharp
+services.AddSingleton<IContainerApplicationRuntimeHandler, DockerContainerApplicationRuntimeHandler>();
+services.AddContainerApplicationResourceType();
+```
+
+The default `NoopContainerApplicationRuntimeHandler` keeps the reference
+provider usable for graph/projection tests. A real handler is expected to
+interpret the resolved `ContainerApplicationResource`/`Resource` state, apply
+the operation through the runtime it owns, and return diagnostics instead of
+throwing for expected runtime outcomes.
+
+## Example ResourceDefinition
+
+This is the interchange shape a deployment, template, or import can use to
+declare a replicated container app. Runtime materialization is still handled by
+the Control Plane/provider integration.
+
+```json
+{
+  "name": "api",
+  "typeId": "application.container-app",
+  "resourceId": "application.container-app:graph-api",
+  "providerId": "applications.container-app",
+  "displayName": "Graph Replicated API",
+  "dependsOn": [
+    {
+      "value": "docker:graph-sample",
+      "relationship": "dependsOn",
+      "addressingMode": "resourceId",
+      "typeId": "docker.host"
+    }
+  ],
+  "attributes": {
+    "container.image": "cloudshell-application-api:20260622.2",
+    "container.registry": "docker.io",
+    "container.replicas": 3,
+    "container.endpointRequests": [
+      {
+        "name": "http",
+        "protocol": "http",
+        "targetPort": 8080,
+        "host": "localhost",
+        "port": 5092,
+        "exposure": "Local"
+      }
+    ]
+  },
+  "capabilities": {
+    "health.checks": {
+      "checks": [
+        {
+          "name": "health",
+          "type": "health",
+          "source": {
+            "kind": "http",
+            "http": {
+              "path": "/health",
+              "endpointName": "http"
+            }
+          }
+        },
+        {
+          "name": "alive",
+          "type": "liveness",
+          "source": {
+            "kind": "http",
+            "http": {
+              "path": "/alive",
+              "endpointName": "http"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
 ## Remaining
 
-- Actual container host orchestration.
+- Actual container host orchestration through a runtime handler implementation.
 - Revisions, replica runtime state, monitoring, and UI operations.

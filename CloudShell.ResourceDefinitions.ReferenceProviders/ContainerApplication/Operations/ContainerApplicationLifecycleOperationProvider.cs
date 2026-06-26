@@ -3,8 +3,11 @@ namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 public sealed class ContainerApplicationStartOperationProvider :
     ContainerApplicationLifecycleOperationProvider
 {
-    public ContainerApplicationStartOperationProvider()
-        : base(ContainerApplicationResourceTypeProvider.Operations.Start)
+    public ContainerApplicationStartOperationProvider(
+        IContainerApplicationRuntimeHandler? runtimeHandler = null)
+        : base(
+            ContainerApplicationResourceTypeProvider.Operations.Start,
+            runtimeHandler)
     {
     }
 }
@@ -12,17 +15,24 @@ public sealed class ContainerApplicationStartOperationProvider :
 public sealed class ContainerApplicationRestartOperationProvider :
     ContainerApplicationLifecycleOperationProvider
 {
-    public ContainerApplicationRestartOperationProvider()
-        : base(ContainerApplicationResourceTypeProvider.Operations.Restart)
+    public ContainerApplicationRestartOperationProvider(
+        IContainerApplicationRuntimeHandler? runtimeHandler = null)
+        : base(
+            ContainerApplicationResourceTypeProvider.Operations.Restart,
+            runtimeHandler)
     {
     }
 }
 
 public abstract class ContainerApplicationLifecycleOperationProvider(
-    ResourceOperationId operationId) :
+    ResourceOperationId operationId,
+    IContainerApplicationRuntimeHandler? runtimeHandler = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
+    private readonly IContainerApplicationRuntimeHandler _runtimeHandler =
+        runtimeHandler ?? new NoopContainerApplicationRuntimeHandler();
+
     public ResourceOperationId OperationId { get; } = operationId;
 
     public ResourceDefinitionValueSource ResolutionLevel =>
@@ -54,14 +64,18 @@ public abstract class ContainerApplicationLifecycleOperationProvider(
         ValueTask.FromResult<IResourceOperationProjection>(
             new ContainerApplicationLifecycleOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
-                operation));
+                operation,
+                _runtimeHandler));
 }
 
 public sealed class ContainerApplicationLifecycleOperation(
     ResourceProjectionExecutionContext context,
-    ResourceOperationResolution operation) : IResourceOperationExecutorProjection
+    ResourceOperationResolution operation,
+    IContainerApplicationRuntimeHandler runtimeHandler) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
+
+    private readonly IContainerApplicationRuntimeHandler _runtimeHandler = runtimeHandler;
 
     public Resource Resource => Context.Resource;
 
@@ -93,9 +107,14 @@ public sealed class ContainerApplicationLifecycleOperation(
                 ]);
         }
 
+        var diagnostics = await _runtimeHandler.ExecuteLifecycleAsync(
+            Resource,
+            OperationId,
+            cancellationToken);
+
         return new ResourceOperationExecutionResult(
             Resource,
             OperationId,
-            []);
+            diagnostics);
     }
 }

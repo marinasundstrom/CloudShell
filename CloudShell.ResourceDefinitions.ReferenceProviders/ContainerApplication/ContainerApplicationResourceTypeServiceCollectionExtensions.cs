@@ -36,6 +36,9 @@ public static class ContainerApplicationResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceDefinitionGraphValidator, ContainerApplicationGraphValidator>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceGraphDependencyProvider, VolumeConsumerGraphDependencyProvider>());
+        services.TryAddSingleton<
+            IContainerApplicationRuntimeHandler,
+            NoopContainerApplicationRuntimeHandler>();
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProvider, ContainerApplicationStartOperationProvider>());
         services.TryAddEnumerable(
