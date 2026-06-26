@@ -7,8 +7,22 @@ using GraphResource = CloudShell.ResourceDefinitions.Resource;
 internal sealed class ContainerAppDeploymentGraphDockerContainerRuntimeHandler :
     IDockerContainerRuntimeHandler
 {
-    private const string GraphRegistryResourceId = "docker.container:graph-sample-registry";
-    private const string GraphRegistryContainerName = "cloudshell-container-app-deployment-graph-registry";
+    internal const string GraphRegistryResourceId = "docker.container:graph-sample-registry";
+    internal const string GraphRegistryContainerName = "cloudshell-container-app-deployment-graph-registry";
+    private readonly IContainerAppDeploymentDockerCommandRunner _docker;
+
+    public ContainerAppDeploymentGraphDockerContainerRuntimeHandler()
+        : this(new ProcessContainerAppDeploymentDockerCommandRunner())
+    {
+    }
+
+    internal ContainerAppDeploymentGraphDockerContainerRuntimeHandler(
+        IContainerAppDeploymentDockerCommandRunner docker)
+    {
+        ArgumentNullException.ThrowIfNull(docker);
+
+        _docker = docker;
+    }
 
     public DockerContainerRuntimeStatus GetStatus(GraphResource resource)
     {
@@ -17,7 +31,7 @@ internal sealed class ContainerAppDeploymentGraphDockerContainerRuntimeHandler :
             return DockerContainerRuntimeStatus.Unknown;
         }
 
-        var result = RunDocker(
+        var result = _docker.Run(
             ["container", "inspect", "--format", "{{.State.Status}}", GraphRegistryContainerName],
             throwOnError: false);
         if (result.ExitCode != 0)
@@ -59,10 +73,10 @@ internal sealed class ContainerAppDeploymentGraphDockerContainerRuntimeHandler :
                     await StartRegistryAsync(resource, cancellationToken);
                     break;
                 case "pause":
-                    await RunDockerAsync(["pause", GraphRegistryContainerName], cancellationToken, throwOnError: false);
+                    await _docker.RunAsync(["pause", GraphRegistryContainerName], cancellationToken, throwOnError: false);
                     break;
                 case "docker.unpause":
-                    await RunDockerAsync(["unpause", GraphRegistryContainerName], cancellationToken, throwOnError: false);
+                    await _docker.RunAsync(["unpause", GraphRegistryContainerName], cancellationToken, throwOnError: false);
                     break;
                 default:
                     throw new NotSupportedException(
@@ -83,11 +97,11 @@ internal sealed class ContainerAppDeploymentGraphDockerContainerRuntimeHandler :
         }
     }
 
-    private static async Task StartRegistryAsync(
+    private async Task StartRegistryAsync(
         GraphResource resource,
         CancellationToken cancellationToken)
     {
-        var status = RunDocker(
+        var status = _docker.Run(
             ["container", "inspect", "--format", "{{.State.Status}}", GraphRegistryContainerName],
             throwOnError: false);
         if (status.ExitCode == 0)
@@ -97,7 +111,7 @@ internal sealed class ContainerAppDeploymentGraphDockerContainerRuntimeHandler :
                 return;
             }
 
-            await RunDockerAsync(["start", GraphRegistryContainerName], cancellationToken);
+            await _docker.RunAsync(["start", GraphRegistryContainerName], cancellationToken);
             return;
         }
 
@@ -109,7 +123,7 @@ internal sealed class ContainerAppDeploymentGraphDockerContainerRuntimeHandler :
         }
 
         var port = ResolveRegistryPort(resource);
-        await RunDockerAsync(
+        await _docker.RunAsync(
             [
                 "run",
                 "-d",
@@ -122,8 +136,8 @@ internal sealed class ContainerAppDeploymentGraphDockerContainerRuntimeHandler :
             cancellationToken);
     }
 
-    private static async Task RemoveRegistryAsync(CancellationToken cancellationToken) =>
-        await RunDockerAsync(["rm", "-f", GraphRegistryContainerName], cancellationToken, throwOnError: false);
+    private async Task RemoveRegistryAsync(CancellationToken cancellationToken) =>
+        await _docker.RunAsync(["rm", "-f", GraphRegistryContainerName], cancellationToken, throwOnError: false);
 
     private static int ResolveRegistryPort(GraphResource resource)
     {
@@ -149,15 +163,31 @@ internal sealed class ContainerAppDeploymentGraphDockerContainerRuntimeHandler :
 
     private static bool IsGraphRegistry(GraphResource resource) =>
         string.Equals(resource.EffectiveResourceId, GraphRegistryResourceId, StringComparison.OrdinalIgnoreCase);
+}
 
-    private static DockerCommandResult RunDocker(
+internal interface IContainerAppDeploymentDockerCommandRunner
+{
+    ContainerAppDeploymentDockerCommandResult Run(
+        IReadOnlyList<string> arguments,
+        bool throwOnError = true);
+
+    Task<ContainerAppDeploymentDockerCommandResult> RunAsync(
+        IReadOnlyList<string> arguments,
+        CancellationToken cancellationToken,
+        bool throwOnError = true);
+}
+
+internal sealed class ProcessContainerAppDeploymentDockerCommandRunner :
+    IContainerAppDeploymentDockerCommandRunner
+{
+    public ContainerAppDeploymentDockerCommandResult Run(
         IReadOnlyList<string> arguments,
         bool throwOnError = true) =>
-        RunDockerAsync(arguments, CancellationToken.None, throwOnError)
+        RunAsync(arguments, CancellationToken.None, throwOnError)
             .GetAwaiter()
             .GetResult();
 
-    private static async Task<DockerCommandResult> RunDockerAsync(
+    public async Task<ContainerAppDeploymentDockerCommandResult> RunAsync(
         IReadOnlyList<string> arguments,
         CancellationToken cancellationToken,
         bool throwOnError = true)
@@ -179,7 +209,7 @@ internal sealed class ContainerAppDeploymentGraphDockerContainerRuntimeHandler :
         var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
         var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
         await process.WaitForExitAsync(cancellationToken);
-        var result = new DockerCommandResult(
+        var result = new ContainerAppDeploymentDockerCommandResult(
             process.ExitCode,
             await outputTask,
             await errorTask);
@@ -191,9 +221,9 @@ internal sealed class ContainerAppDeploymentGraphDockerContainerRuntimeHandler :
 
         return result;
     }
-
-    private sealed record DockerCommandResult(
-        int ExitCode,
-        string Output,
-        string Error);
 }
+
+internal sealed record ContainerAppDeploymentDockerCommandResult(
+    int ExitCode,
+    string Output,
+    string Error);

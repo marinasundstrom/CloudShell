@@ -52,6 +52,9 @@ on `git blame --follow`, and then by the broad type of change.
   default sample path keeps the materializer disabled so normal projection
   smoke coverage does not shell out to Docker during Resource Manager state
   projection.
+- The ContainerAppDeployment graph Docker registry materializer now uses an
+  injectable sample-local Docker command runner, with deterministic tests for
+  status projection and lifecycle command construction.
 - ContainerAppDeployment now declares its graph Docker host, registry
   container, and container app through provider-owned graph builders instead
   of raw graph state dictionaries.

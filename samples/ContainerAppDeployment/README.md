@@ -79,8 +79,10 @@ When enabled, graph `start`, `restart`, and `stop` operations for
 Docker registry container named
 `cloudshell-container-app-deployment-graph-registry`. It is disabled by default
 so normal sample projection and smoke coverage do not depend on Docker CLI
-availability or latency. A provider-owned Docker runtime implementation and
-full lifecycle smoke coverage are still POC follow-up work.
+availability or latency. The Docker command runner is sample-local and covered
+by deterministic command-construction tests; it is not the durable Docker
+provider runtime implementation. A provider-owned Docker runtime implementation
+and full lifecycle smoke coverage are still POC follow-up work.
 
 Run the sample:
 
