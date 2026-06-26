@@ -14,6 +14,9 @@
 - Temporary typed target/network `ResourceReference` dependencies and target/network graph validation.
 - Reconcile operation with an injected provider-owned reconciler seam.
 - Typed wrapper plus apply planning and Resource Manager bridge projection/execution.
+- Manual `ResourceDefinitionGraphBuilder.AddService(...)` builder for
+  code-first service definition authoring with typed target and network
+  dependencies.
 
 ## Remaining
 

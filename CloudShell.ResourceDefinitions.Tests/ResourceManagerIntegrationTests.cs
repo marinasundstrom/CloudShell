@@ -2879,21 +2879,13 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var zone = new ResourceDefinition(
-            "local",
-            DnsZoneResourceTypeProvider.ResourceTypeId,
-            ProviderId: DnsZoneResourceTypeProvider.ProviderId,
-            Attributes: new Dictionary<ResourceAttributeId, string>
-            {
-                [DnsZoneResourceTypeProvider.Attributes.ZoneName] = "local",
-                [DnsZoneResourceTypeProvider.Attributes.Provider] = "hosts-file"
-            });
+        var graph = new ResourceDefinitionGraphBuilder();
+        var zone = graph
+            .AddDnsZone("local")
+            .WithProvider("hosts-file");
 
         var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
-                "dns",
-                [zone],
-                EnvironmentId: "local"),
+            graph.BuildDeployment("dns", environmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 25, 6, 0, 0, TimeSpan.Zero)));
@@ -2958,41 +2950,23 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var zone = new ResourceDefinition(
-            "local",
-            DnsZoneResourceTypeProvider.ResourceTypeId,
-            ProviderId: DnsZoneResourceTypeProvider.ProviderId,
-            Attributes: new Dictionary<ResourceAttributeId, string>
-            {
-                [DnsZoneResourceTypeProvider.Attributes.ZoneName] = "local"
-            });
+        var graph = new ResourceDefinitionGraphBuilder();
+        var zone = graph.AddDnsZone("local");
         var target = new ResourceDefinition(
             "api",
             LocalVolumeResourceTypeProvider.ResourceTypeId,
             ProviderId: LocalVolumeResourceTypeProvider.ProviderId);
-        var mapping = new ResourceDefinition(
-            "api-local",
-            NameMappingResourceTypeProvider.ResourceTypeId,
-            ProviderId: NameMappingResourceTypeProvider.ProviderId,
-            DependsOn:
-            [
-                ResourceReference.DependsOnResourceId(
-                    zone.EffectiveResourceId,
-                    typeId: DnsZoneResourceTypeProvider.ResourceTypeId),
-                ResourceReference.DependsOnResourceId(target.EffectiveResourceId)
-            ],
-            Attributes: new Dictionary<ResourceAttributeId, string>
-            {
-                [NameMappingResourceTypeProvider.Attributes.HostName] = "api.local",
-                [NameMappingResourceTypeProvider.Attributes.TargetEndpointName] = "http",
-                [NameMappingResourceTypeProvider.Attributes.Exposure] = "Public"
-            });
+        graph.Add(target);
+        var mapping = graph
+            .AddNameMapping("api-local")
+            .InDnsZone(zone)
+            .MapsTarget(target.EffectiveResourceId)
+            .WithHostName("api.local")
+            .WithTargetEndpointName("http")
+            .WithExposure("Public");
 
         var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
-                "name-mapping",
-                [zone, target, mapping],
-                EnvironmentId: "local"),
+            graph.BuildDeployment("name-mapping", environmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 25, 7, 0, 0, TimeSpan.Zero)));
@@ -3103,70 +3077,30 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var api = new ResourceDefinition(
-            "application-topology-api",
-            ContainerApplicationResourceTypeProvider.ResourceTypeId,
-            ProviderId: ContainerApplicationResourceTypeProvider.ProviderId,
-            Attributes: new Dictionary<ResourceAttributeId, string>
-            {
-                [ContainerApplicationResourceTypeProvider.Attributes.ContainerImage] = "example/application-topology-api:1.0"
-            });
-        var network = new ResourceDefinition(
-            "application-topology-local",
-            NetworkResourceTypeProvider.ResourceTypeId,
-            ProviderId: NetworkResourceTypeProvider.ProviderId);
-        var apiService = new ResourceDefinition(
-            "application-topology-api-service",
-            ServiceResourceTypeProvider.ResourceTypeId,
-            ProviderId: ServiceResourceTypeProvider.ProviderId,
-            DependsOn:
-            [
-                ResourceReference.DependsOnResourceId(
-                    api.EffectiveResourceId,
-                    typeId: ContainerApplicationResourceTypeProvider.ResourceTypeId),
-                ResourceReference.DependsOnResourceId(
-                    network.EffectiveResourceId,
-                    typeId: NetworkResourceTypeProvider.ResourceTypeId)
-            ],
-            Attributes: new Dictionary<ResourceAttributeId, string>
-            {
-                [ServiceResourceTypeProvider.Attributes.RoutingMode] = "logical"
-            });
-        var zone = new ResourceDefinition(
-            "application-topology-local",
-            DnsZoneResourceTypeProvider.ResourceTypeId,
-            ProviderId: DnsZoneResourceTypeProvider.ProviderId,
-            Attributes: new Dictionary<ResourceAttributeId, string>
-            {
-                [DnsZoneResourceTypeProvider.Attributes.ZoneName] = "application-topology.cloudshell.local",
-                [DnsZoneResourceTypeProvider.Attributes.Provider] = "hosts-file"
-            });
-        var mapping = new ResourceDefinition(
-            "application-topology-api-local",
-            NameMappingResourceTypeProvider.ResourceTypeId,
-            ProviderId: NameMappingResourceTypeProvider.ProviderId,
-            DependsOn:
-            [
-                ResourceReference.DependsOnResourceId(
-                    zone.EffectiveResourceId,
-                    typeId: DnsZoneResourceTypeProvider.ResourceTypeId),
-                ResourceReference.DependsOnResourceId(
-                    apiService.EffectiveResourceId,
-                    typeId: ServiceResourceTypeProvider.ResourceTypeId)
-            ],
-            Attributes: new Dictionary<ResourceAttributeId, string>
-            {
-                [NameMappingResourceTypeProvider.Attributes.HostName] =
-                    "api.application-topology.cloudshell.local",
-                [NameMappingResourceTypeProvider.Attributes.TargetEndpointName] = "http",
-                [NameMappingResourceTypeProvider.Attributes.Exposure] = "Public"
-            });
+        var graph = new ResourceDefinitionGraphBuilder();
+        var api = graph
+            .AddContainerApplication("application-topology-api")
+            .WithImage("example/application-topology-api:1.0");
+        var network = graph.AddNetwork("application-topology-local");
+        var apiService = graph
+            .AddService("application-topology-api-service")
+            .DependsOnTarget(api, ContainerApplicationResourceTypeProvider.ResourceTypeId)
+            .DependsOnNetwork(network)
+            .WithRoutingMode("logical");
+        var zone = graph
+            .AddDnsZone("application-topology-local")
+            .WithZoneName("application-topology.cloudshell.local")
+            .WithProvider("hosts-file");
+        var mapping = graph
+            .AddNameMapping("application-topology-api-local")
+            .InDnsZone(zone)
+            .MapsTarget(apiService, ServiceResourceTypeProvider.ResourceTypeId)
+            .WithHostName("api.application-topology.cloudshell.local")
+            .WithTargetEndpointName("http")
+            .WithExposure("Public");
 
         var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
-                "application-exposure",
-                [api, network, apiService, zone, mapping],
-                EnvironmentId: "local"),
+            graph.BuildDeployment("application-exposure", environmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 25, 14, 0, 0, TimeSpan.Zero)));
@@ -3441,41 +3375,19 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var target = new ResourceDefinition(
-            "api",
-            ContainerApplicationResourceTypeProvider.ResourceTypeId,
-            ProviderId: ContainerApplicationResourceTypeProvider.ProviderId,
-            Attributes: new Dictionary<ResourceAttributeId, string>
-            {
-                [ContainerApplicationResourceTypeProvider.Attributes.ContainerImage] = "example/api:1.0"
-            });
-        var network = new ResourceDefinition(
-            "default",
-            NetworkResourceTypeProvider.ResourceTypeId,
-            ProviderId: NetworkResourceTypeProvider.ProviderId);
-        var definition = new ResourceDefinition(
-            "api-service",
-            ServiceResourceTypeProvider.ResourceTypeId,
-            ProviderId: ServiceResourceTypeProvider.ProviderId,
-            DependsOn:
-            [
-                ResourceReference.DependsOnResourceId(
-                    target.EffectiveResourceId,
-                    typeId: ContainerApplicationResourceTypeProvider.ResourceTypeId),
-                ResourceReference.DependsOnResourceId(
-                    network.EffectiveResourceId,
-                    typeId: NetworkResourceTypeProvider.ResourceTypeId)
-            ],
-            Attributes: new Dictionary<ResourceAttributeId, string>
-            {
-                [ServiceResourceTypeProvider.Attributes.RoutingMode] = "logical"
-            });
+        var graph = new ResourceDefinitionGraphBuilder();
+        var target = graph
+            .AddContainerApplication("api")
+            .WithImage("example/api:1.0");
+        var network = graph.AddNetwork("default");
+        var definition = graph
+            .AddService("api-service")
+            .DependsOnTarget(target, ContainerApplicationResourceTypeProvider.ResourceTypeId)
+            .DependsOnNetwork(network)
+            .WithRoutingMode("logical");
 
         var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
-                "service",
-                [target, network, definition],
-                EnvironmentId: "local"),
+            graph.BuildDeployment("service", environmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 25, 10, 0, 0, TimeSpan.Zero)));

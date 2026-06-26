@@ -13,6 +13,8 @@
 - Passive DNS-zone capability marker.
 - Reconcile name mappings operation.
 - Typed wrapper plus Resource Manager bridge projection and execution.
+- Manual `ResourceDefinitionGraphBuilder.AddDnsZone(...)` builder for
+  code-first DNS zone definition authoring.
 
 ## Remaining
 

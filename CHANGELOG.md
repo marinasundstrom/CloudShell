@@ -121,6 +121,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Identity Provisioning now has a provider-owned Resource Graph builder
   covering provider identity and provider-kind attributes, and the identity
   provider test now uses that builder.
+- Service, DNS Zone, and Name Mapping now have provider-owned Resource Graph
+  builders for code-first exposure definitions, and the exposure provider tests
+  now use those builders for target, network, DNS-zone, and name-mapping
+  dependencies.
 
 #### Fixed
 

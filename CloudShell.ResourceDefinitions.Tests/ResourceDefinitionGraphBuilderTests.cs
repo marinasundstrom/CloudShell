@@ -510,4 +510,76 @@ public sealed class ResourceDefinitionGraphBuilderTests
         Assert.False(result.HasErrors, string.Join(" ", result.Diagnostics.Select(diagnostic => diagnostic.Message)));
         Assert.True(result.IsCommitted);
     }
+
+    [Fact]
+    public async Task ResourceDefinitionGraphBuilder_BuildsExposureDefinitions()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddContainerApplicationResourceType();
+        services.AddNetworkResourceType();
+        services.AddServiceResourceType();
+        services.AddDnsZoneResourceType();
+        services.AddNameMappingResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var graph = new ResourceDefinitionGraphBuilder();
+        var api = graph
+            .AddContainerApplication("application-topology-api")
+            .WithImage("example/application-topology-api:1.0");
+        var network = graph
+            .AddNetwork("application-topology-local");
+        var apiService = graph
+            .AddService("application-topology-api-service")
+            .DependsOnTarget(api, ContainerApplicationResourceTypeProvider.ResourceTypeId)
+            .DependsOnNetwork(network)
+            .WithRoutingMode("logical");
+        var zone = graph
+            .AddDnsZone("application-topology-local")
+            .WithZoneName("application-topology.cloudshell.local")
+            .WithProvider("hosts-file");
+
+        graph
+            .AddNameMapping("application-topology-api-local")
+            .InDnsZone(zone)
+            .MapsTarget(apiService, ServiceResourceTypeProvider.ResourceTypeId)
+            .WithHostName("api.application-topology.cloudshell.local")
+            .WithTargetEndpointName("http")
+            .WithExposure("Public");
+
+        var deployment = graph.BuildDeployment("application-exposure", environmentId: "local");
+
+        Assert.Equal(5, deployment.Resources.Count);
+        var service = Assert.Single(deployment.Resources, resource =>
+            resource.TypeId == ServiceResourceTypeProvider.ResourceTypeId);
+        var nameMapping = Assert.Single(deployment.Resources, resource =>
+            resource.TypeId == NameMappingResourceTypeProvider.ResourceTypeId);
+        Assert.Equal("cloudshell.service:application-topology-api-service", service.EffectiveResourceId);
+        Assert.Equal("logical", service.ResourceAttributeValues[
+            ServiceResourceTypeProvider.Attributes.RoutingMode].StringValue);
+        Assert.Equal(
+            [api.EffectiveResourceId, network.EffectiveResourceId],
+            service.StartupDependencies.Select(reference => reference.Value));
+        Assert.Equal("cloudshell.nameMapping:application-topology-api-local", nameMapping.EffectiveResourceId);
+        Assert.Equal("api.application-topology.cloudshell.local", nameMapping.ResourceAttributeValues[
+            NameMappingResourceTypeProvider.Attributes.HostName].StringValue);
+        Assert.Equal("http", nameMapping.ResourceAttributeValues[
+            NameMappingResourceTypeProvider.Attributes.TargetEndpointName].StringValue);
+        Assert.Equal("Public", nameMapping.ResourceAttributeValues[
+            NameMappingResourceTypeProvider.Attributes.Exposure].StringValue);
+        Assert.Equal(
+            [zone.EffectiveResourceId, apiService.EffectiveResourceId],
+            nameMapping.StartupDependencies.Select(reference => reference.Value));
+
+        var result = await serviceProvider
+            .GetRequiredService<ResourceModelGraphDefinitionApplyService>()
+            .ApplyDeploymentAsync(
+                deployment,
+                new ResourceGraphCommitContext(
+                    PrincipalId: "developer",
+                    Timestamp: new DateTimeOffset(2026, 6, 26, 19, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, string.Join(" ", result.Diagnostics.Select(diagnostic => diagnostic.Message)));
+        Assert.True(result.IsCommitted);
+    }
 }
