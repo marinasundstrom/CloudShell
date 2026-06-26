@@ -653,6 +653,16 @@ public sealed class SampleSmokeTests
             resource.GetProperty("id").GetString() == "application:application-topology-api");
         var frontend = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "application:application-topology-frontend");
+        var graphSqlServer = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.sql-server:graph-application-topology-sql-server");
+        var graphDatabase = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.sql-database:graph-application-topology-db");
+        var graphSettings = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "configuration.store:graph-application-topology-settings");
+        var graphSecrets = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "secrets.vault:graph-application-topology-secrets");
+        var graphApi = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.aspnet-core-project:graph-application-topology-api");
         var dnsZone = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "dns:application-topology-local");
         var nameMapping = Assert.Single(resources, resource =>
@@ -715,6 +725,29 @@ public sealed class SampleSmokeTests
         Assert.Equal("secrets.vault", secrets.GetProperty("typeId").GetString());
         Assert.Equal("identity:development", settingsIdentity.GetProperty("providerId").GetString());
         Assert.Equal("identity:development", secretsIdentity.GetProperty("providerId").GetString());
+
+        Assert.Equal("application.sql-server", graphSqlServer.GetProperty("typeId").GetString());
+        Assert.Equal($"localhost:{sqlPort}", GetEndpointAddress(graphSqlServer, "tds"));
+        Assert.Equal("application.sql-database", graphDatabase.GetProperty("typeId").GetString());
+        Assert.Contains(
+            "application.sql-server:graph-application-topology-sql-server",
+            graphDatabase.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal("configuration.store", graphSettings.GetProperty("typeId").GetString());
+        Assert.Equal("http://localhost:" + configurationServiceBasePort.ToString(CultureInfo.InvariantCulture) +
+            "/api/configuration/stores/configuration.store%3Agraph-application-topology-settings/entries",
+            GetEndpointAddress(graphSettings, "entries"));
+        Assert.Equal("secrets.vault", graphSecrets.GetProperty("typeId").GetString());
+        Assert.Equal("http://localhost:" + secretsServiceBasePort.ToString(CultureInfo.InvariantCulture) +
+            "/api/secrets/vaults/secrets.vault%3Agraph-application-topology-secrets/secrets",
+            GetEndpointAddress(graphSecrets, "secrets"));
+        Assert.Equal("application.aspnet-core-project", graphApi.GetProperty("typeId").GetString());
+        Assert.Equal($"http://localhost:{apiPort}", GetPrimaryEndpointAddress(graphApi));
+        Assert.Contains(
+            "application.sql-database:graph-application-topology-db",
+            graphApi.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+        Assert.DoesNotContain(
+            "application.sql-server:graph-application-topology-sql-server",
+            graphApi.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
 
         Assert.Equal(ApplicationResourceTypes.AspNetCoreProject, api.GetProperty("typeId").GetString());
         Assert.Equal("../Api/CloudShell.ApplicationTopologyApi.csproj", apiAttributes.GetProperty(ResourceAttributeNames.ProjectPath).GetString());

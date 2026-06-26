@@ -90,6 +90,14 @@ on `git blame --follow`, and then by the broad type of change.
   explicit `project.references` for SQL Server, Configuration Store, and Secrets
   Vault service discovery while keeping `DependsOn` focused on startup
   ordering.
+- ApplicationTopology now declares side-by-side graph-backed storage, SQL
+  Server/database, Configuration Store, Secrets Vault, and ASP.NET Core API
+  resources in the sample host, with smoke coverage verifying their Resource
+  Manager projection and graph dependency/discovery shape.
+- The Resource Graph proposal now documents the lifecycle of porting tests,
+  distinguishing temporary old/new parity tests from graph-contract tests,
+  runtime seam tests, and smoke tests that should be simplified after a sample
+  switches fully to graph-backed providers.
 - Ported Resource Definitions reference providers now keep provider-local
   `README.md` files that summarize the provider purpose, ported POC behavior,
   runtime seams, and remaining work before the old provider path can be turned

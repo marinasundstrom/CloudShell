@@ -696,9 +696,43 @@ same concept belongs in shared code.
 | --- | --- | --- |
 | ProjectReference | Graph-backed ASP.NET Core API and frontend resources run side-by-side with old application-provider resources and now prove graph-to-graph project calls through service-discovery variables derived from provider-owned graph references, provider-owned service names, endpoint request attributes, start, stop, logs, traces, metrics, health, endpoint projection, state projection, and ResourceDefinition apply diagnostics. ASP.NET Core state, endpoint, observability, and process-output log projection now come from the reference-provider bridge package. Provider-owned service references now validate missing targets and expected resource type mismatches without using `DependsOn`. | Decide whether ASP.NET Core graph service discovery should remain provider-local for the POC or become a reusable graph/runtime projection after more providers need it; updated smoke coverage still keeps old `application:project-reference-api` dependency links as the comparison baseline. |
 | SettingsAndSecrets | Configuration Store, Secrets Vault, identity provisioning, and ASP.NET Core project graph definitions can be applied together; Configuration Store and Secrets Vault now project Resource Manager endpoints plus `/healthz` health/liveness declarations through provider-bridge coverage, and the sample host carries a side-by-side graph-backed app/settings/secrets vertical slice with endpoint, count-summary, inspect-action projection/execution, typed app-to-settings/secrets startup dependencies, provider-owned runtime option registration for backing services and seeded runtime data, backing-service startup, authorized graph-backed entry/secret reads, graph API identity projection/provisioning/grants through Resource Manager declarations, API process startup, graph API to graph Configuration Store and Secrets Vault service discovery through `project.references`, and API consumption coverage. | Decide how graph-backed configuration/secrets resources persist runtime-owned data, whether identity needs to become a first-class graph concept after more provider ports, and how much of the old configuration provider API should be replaced before turning the old providers off for this sample. |
-| ApplicationTopology | The inspired graph composes storage, SQL Server/database, configuration, secrets, and ASP.NET Core resources across provider boundaries. | Use it after SettingsAndSecrets to validate multi-provider dependencies, SQL child ownership, volume materialization, and application-level discovery without reintroducing application-provider terminology. |
+| ApplicationTopology | The sample host now declares side-by-side graph-backed storage, SQL Server/database, configuration, secrets, and ASP.NET Core resources across provider boundaries. Smoke coverage verifies their Resource Manager projection, SQL endpoint mapping, settings/secrets endpoints, typed startup dependencies, and explicit `project.references` without using `DependsOn` for service discovery. | Use this sample to keep validating multi-provider dependencies, SQL child ownership, volume materialization, and application-level discovery before replacing the old application-provider path. |
 | ContainerAppDeployment | The inspired graph covers Docker/container host references and container app definitions; old sample runtime still owns deployment, registry, and Docker behavior. | Port only when the graph-to-Resource Manager runtime apply boundary for container app deployment can be tested against registry and container-host seams. |
 | HostVirtualNetwork and LoadBalancer | Network, virtual network, host networking, DNS zone, name mapping, service, and load-balancer graph providers have definition/projection coverage. | Use these samples to validate endpoint mapping operations and provider-owned network reconciliation after application and settings dependencies are stable. |
+
+### Porting Test Lifecycle
+
+Tests added during provider porting have different jobs and should not all be
+treated as permanent product coverage. Each port should make the test purpose
+clear in its name, fixture shape, or nearby documentation.
+
+Comparison and parity tests run old-provider resources next to graph-backed
+resources or use the old sample as the behavioral oracle. Their purpose is to
+prove that the new provider can expose equivalent Resource Manager shape,
+dependencies, endpoints, health, logs, grants, or runtime behavior before the
+old provider path is switched off. After switch-over, these tests should either
+be deleted with the old provider, or rewritten as normal graph-provider smoke
+tests when the compared behavior remains product-critical.
+
+Graph-only model tests should survive the migration. These cover definition
+resolution, attribute/default merging, typed `ResourceReference` validation,
+capability and operation projection, ResourceDefinition apply behavior, and
+Resource Manager bridge projection. They are not compatibility tests; they
+define the Resource Graph contract.
+
+Runtime seam tests should also survive when the seam remains intentional. These
+prove that capabilities, operations, and apply hooks delegate runtime behavior
+to provider-owned or Control Plane-owned implementations instead of embedding
+runtime systems in type definitions. Some seam tests may be rewritten from
+recording/no-op fakes to real integration tests as providers mature.
+
+Sample smoke tests that carry both old and graph-backed resources are temporary
+migration tests. They are valuable while porting because they prevent accidental
+behavior loss and show where the new graph model still depends on old runtime
+infrastructure. Once a sample switches fully to the graph-backed provider path,
+the smoke test should be simplified to the new path and any assertions that only
+exist to compare with old resource ids, old provider names, or old projected
+attributes should be removed.
 
 ### Revised POC Plan
 
