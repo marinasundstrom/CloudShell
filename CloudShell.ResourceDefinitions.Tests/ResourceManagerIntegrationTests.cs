@@ -1409,6 +1409,8 @@ public sealed class ResourceManagerIntegrationTests
         services.AddInMemoryResourceModelGraph();
         services.AddLocalVolumeResourceType();
         services.AddContainerHostResourceType();
+        services.AddSingleton<IContainerApplicationRuntimeHandler>(
+            new StaticContainerApplicationRuntimeHandler(ContainerApplicationRuntimeStatus.Running));
         services.AddContainerApplicationResourceType();
         services.AddResourceModelGraphServices();
         services.AddReferenceProviderResourceManagerProjections();
@@ -1457,6 +1459,7 @@ public sealed class ResourceManagerIntegrationTests
 
         Assert.Equal(ResourceManagerClass.Container, projectedContainer.ResourceClass);
         Assert.Equal(ContainerApplicationResourceTypeProvider.ProviderId, projectedContainer.Provider);
+        Assert.Equal(ResourceManagerResourceState.Running, projectedContainer.State);
         Assert.Equal("ghcr.io/example/api:latest", projectedContainer.ResourceAttributes["container.image"]);
         Assert.Equal("2", projectedContainer.ResourceAttributes["container.replicas"]);
         Assert.Equal("http://localhost:5092", projectedContainer.PrimaryEndpoint);
@@ -5205,6 +5208,24 @@ public sealed class ResourceManagerIntegrationTests
                 StringComparison.OrdinalIgnoreCase)
                 ? state
                 : null;
+    }
+
+    private sealed class StaticContainerApplicationRuntimeHandler(
+        ContainerApplicationRuntimeStatus status) : IContainerApplicationRuntimeHandler
+    {
+        public ContainerApplicationRuntimeStatus GetStatus(Resource resource) =>
+            status;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
+            Resource resource,
+            ResourceOperationId operationId,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyImageAsync(
+            Resource resource,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
     }
 
     private sealed class StaticResourceModelEndpointProjectionProvider(

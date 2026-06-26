@@ -123,6 +123,9 @@ public sealed class ContainerApplicationOperationTests
 
         public List<Resource> ImageApplyInvocations { get; } = [];
 
+        public ContainerApplicationRuntimeStatus GetStatus(Resource resource) =>
+            ContainerApplicationRuntimeStatus.Unknown;
+
         public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
             Resource resource,
             ResourceOperationId operationId,

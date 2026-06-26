@@ -4,9 +4,12 @@ namespace CloudShell.Providers.Applications;
 
 internal sealed class ContainerApplicationOrchestratorServiceDescriptionOperations(
     ApplicationResourceStore store,
+    ApplicationContainerDeploymentStore containerDeployments,
     ApplicationWorkloadConfigurationProvider workloadConfigurations) :
     IContainerApplicationOrchestratorServiceDescriptionOperations
 {
+    private static readonly ApplicationContainerRevisionService RevisionService = new();
+    private static readonly ContainerApplicationRuntimeRevisionPolicy RuntimeRevisionPolicy = new();
     private static readonly ApplicationContainerOrchestratorDeploymentFactory OrchestratorDeploymentFactory = new();
 
     public bool CanExecuteOrchestratorService(
@@ -30,8 +33,16 @@ internal sealed class ContainerApplicationOrchestratorServiceDescriptionOperatio
                 $"Resource '{context.Resource.Id}' is not a container app.");
         }
 
-        return Task.FromResult(OrchestratorDeploymentFactory.CreateService(
+        var revision = RevisionService.GetEffectiveRevision(application);
+        return Task.FromResult(OrchestratorDeploymentFactory.CreateDeployment(
             application,
-            workloadConfigurations.Create(application)));
+            context.Resource.State ?? ResourceState.Unknown,
+            workloadConfigurations.Create(application),
+            useRuntimeRevisionScopedInstances: RuntimeRevisionPolicy.ShouldUseRevisionScopedRuntimeInstances(
+                application,
+                revision,
+                containerDeployments.ListRevisions(application.Id)))
+            .Spec
+            .Service);
     }
 }

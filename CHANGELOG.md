@@ -26,6 +26,14 @@ on `git blame --follow`, and then by the broad type of change.
   `application:api` runtime app, projects graph container-app state from that
   runtime app, and Docker smoke coverage verifies the graph start/restart
   actions publish the replicated API health endpoint.
+- Graph-backed container app Resource Manager state can now project through
+  the provider-owned runtime handler seam and bridge state provider, and
+  ReplicatedContainerHealth Docker smoke coverage verifies graph stop removes
+  the revision-scoped runtime containers created by graph start.
+- Container app lifecycle service descriptions now preserve active
+  revision-scoped replica names when an environment revision is active, so
+  stop/restart actions target the same runtime containers that start
+  materialized.
 - ReplicatedContainerHealth now exposes a sample-local ResourceDefinition
   overlay endpoint for the graph container image, and smoke coverage verifies
   that executing the graph `container.image.update` operation delegates the

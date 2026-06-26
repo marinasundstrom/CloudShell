@@ -1,7 +1,16 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
+public enum ContainerApplicationRuntimeStatus
+{
+    Unknown,
+    Stopped,
+    Running
+}
+
 public interface IContainerApplicationRuntimeHandler
 {
+    ContainerApplicationRuntimeStatus GetStatus(Resource resource);
+
     ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
         Resource resource,
         ResourceOperationId operationId,
@@ -15,6 +24,9 @@ public interface IContainerApplicationRuntimeHandler
 public sealed class NoopContainerApplicationRuntimeHandler :
     IContainerApplicationRuntimeHandler
 {
+    public ContainerApplicationRuntimeStatus GetStatus(Resource resource) =>
+        ContainerApplicationRuntimeStatus.Unknown;
+
     public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
         Resource resource,
         ResourceOperationId operationId,

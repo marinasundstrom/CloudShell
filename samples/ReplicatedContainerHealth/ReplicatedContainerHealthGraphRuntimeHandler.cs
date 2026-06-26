@@ -1,5 +1,6 @@
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.Providers.Applications;
 using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,6 +11,21 @@ internal sealed class ReplicatedContainerHealthGraphRuntimeHandler(
 {
     private const string GraphApiResourceId = "application.container-app:graph-api";
     private const string RuntimeApiResourceId = "application:api";
+
+    public ContainerApplicationRuntimeStatus GetStatus(GraphResource resource)
+    {
+        if (!IsGraphApi(resource))
+        {
+            return ContainerApplicationRuntimeStatus.Unknown;
+        }
+
+        using var scope = scopeFactory.CreateScope();
+        var runtimeState = scope.ServiceProvider
+            .GetRequiredService<IApplicationResourceRunningStateOperations>();
+        return runtimeState.IsRunning(RuntimeApiResourceId)
+            ? ContainerApplicationRuntimeStatus.Running
+            : ContainerApplicationRuntimeStatus.Stopped;
+    }
 
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
         GraphResource resource,

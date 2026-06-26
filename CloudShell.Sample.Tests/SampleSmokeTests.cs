@@ -3299,12 +3299,20 @@ public sealed class SampleSmokeTests
     [Trait("Category", "DockerIntegration")]
     public async Task ReplicatedContainerHealthSample_GraphContainerAppStartStopAndRestartDelegateToRuntimeApp()
     {
-        if (!await DockerComposeStack.IsAvailableAsync())
+        string[] containerNames =
+        [
+            "cloudshell-application-api-20260622-2-replica-1",
+            "cloudshell-application-api-20260622-2-replica-2",
+            "cloudshell-application-api-20260622-2-replica-3"
+        ];
+        if (!await DockerComposeStack.IsAvailableAsync() ||
+            await AnyDockerContainerExistsAsync(containerNames))
         {
             return;
         }
 
         var apiPort = await GetFreePortAsync();
+        var shouldCleanupContainers = true;
         using var host = await SampleProcess.StartAsync(
             "samples/ReplicatedContainerHealth/CloudShell.ReplicatedContainerHealth.csproj",
             await GetFreePortAsync(),
@@ -3329,6 +3337,12 @@ public sealed class SampleSmokeTests
                 $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}/health",
                 bearerToken: null,
                 StartupTimeout);
+            foreach (var containerName in containerNames)
+            {
+                Assert.True(
+                    await WaitForDockerContainerExistsAsync(containerName, StartupTimeout),
+                    $"Expected Docker container '{containerName}' to be created.");
+            }
 
             var restartAction = graphApp
                 .GetProperty("resourceActions")
@@ -3352,11 +3366,26 @@ public sealed class SampleSmokeTests
                 "application.container-app:graph-api",
                 ResourceState.Stopped,
                 StartupTimeout);
+            foreach (var containerName in containerNames)
+            {
+                Assert.True(
+                    await WaitForDockerContainerRemovedAsync(containerName, StartupTimeout),
+                    $"Expected Docker container '{containerName}' to be removed after graph stop.");
+            }
+
+            shouldCleanupContainers = false;
         }
         finally
         {
             await StopResourceIfRunningAsync(host, "application.container-app:graph-api");
             await StopResourceIfRunningAsync(host, "application:api");
+            if (shouldCleanupContainers)
+            {
+                foreach (var containerName in containerNames)
+                {
+                    await DockerComposeStack.RemoveContainerIfExistsAsync(containerName);
+                }
+            }
         }
     }
 
@@ -3994,6 +4023,19 @@ public sealed class SampleSmokeTests
             }
 
             await Task.Delay(250);
+        }
+
+        return false;
+    }
+
+    private static async Task<bool> AnyDockerContainerExistsAsync(IReadOnlyCollection<string> containerNames)
+    {
+        foreach (var containerName in containerNames)
+        {
+            if (await DockerComposeStack.ContainerExistsAsync(containerName))
+            {
+                return true;
+            }
         }
 
         return false;

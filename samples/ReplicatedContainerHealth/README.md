@@ -56,11 +56,14 @@ The sample now wires the graph container-app lifecycle operation to a
 sample-local runtime adapter, so starting `application.container-app:graph-api`
 delegates to the existing `application:api` runtime app while the POC provider
 port is still being refined. The graph container app projects its Resource
-Manager state from the existing runtime app so graph stop and restart can be
-evaluated and delegated as well. The sample also exposes a sample-local graph
-image update endpoint used by smoke coverage to apply a `ResourceDefinition`
-overlay and then delegate the graph `container.image.update` operation into
-the existing runtime app configuration.
+Manager state through the container-app runtime handler/status seam and the
+Resource Manager bridge so graph stop and restart can be evaluated and
+delegated as well. The Docker smoke also verifies that graph stop removes the
+revision-scoped runtime containers created by graph start. The sample exposes a
+sample-local graph image update endpoint used by smoke coverage to apply a
+`ResourceDefinition` overlay and then delegate the graph
+`container.image.update` operation into the existing runtime app
+configuration.
 
 When running the replica health path against Docker, start the `api` resource.
 The app start builds the project container image into the local Docker image

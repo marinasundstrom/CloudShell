@@ -18,7 +18,7 @@
 - ContainerAppDeployment and ReplicatedContainerHealth sample-inspired graph coverage,
   including ReplicatedContainerHealth smoke coverage where graph start,
   stop, restart, and image-update actions delegate to a sample-local runtime
-  adapter.
+  adapter and stop verifies Docker runtime container cleanup.
 - Manual `ResourceDefinitionGraphBuilder.AddContainerApplication(...)`
   builder for code-first container app definition authoring with typed host
   dependencies, endpoint requests, replicas, and volume mount capability setup.
@@ -36,21 +36,24 @@ services.AddContainerApplicationResourceType();
 ```
 
 The default `NoopContainerApplicationRuntimeHandler` keeps the reference
-provider usable for graph/projection tests. A real handler is expected to
-interpret the resolved `ContainerApplicationResource`/`Resource` state, apply
-the operation through the runtime it owns, and return diagnostics instead of
-throwing for expected runtime outcomes.
+provider usable for graph/projection tests and reports unknown runtime state.
+A real handler is expected to interpret the resolved
+`ContainerApplicationResource`/`Resource` state, project runtime status through
+the Resource Manager bridge when needed, apply the operation through the
+runtime it owns, and return diagnostics instead of throwing for expected
+runtime outcomes.
 
 The ReplicatedContainerHealth sample currently proves this seam with a
 sample-local adapter that maps `application.container-app:graph-api` to the
 existing `application:api` runtime resource. It covers start, stop, and
-restart delegation, projects graph state from the runtime app so Resource
-Manager action availability can evaluate lifecycle commands, and applies an
-accepted graph `container.image` change through the graph
+restart delegation, projects graph state from the runtime app through the
+provider bridge so Resource Manager action availability can evaluate lifecycle
+commands, and applies an accepted graph `container.image` change through the graph
 `container.image.update` operation. That adapter is intentionally not a
 reusable provider toolkit yet; it exists to validate the graph-to-runtime
 boundary while the old application-provider runtime still owns replica
-materialization.
+materialization. The Docker smoke verifies that graph stop removes the
+revision-scoped runtime containers that graph start created.
 
 ## Example ResourceDefinition
 

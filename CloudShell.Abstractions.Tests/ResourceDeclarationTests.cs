@@ -3836,6 +3836,79 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task ContainerApplicationProvider_ServiceDescriptionUsesRevisionScopedReplicasForActiveEnvironmentRevision()
+    {
+        var services = new ServiceCollection();
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services.AddSingleton(new ApplicationProviderOptions());
+        services
+            .AddControlPlane()
+            .AddExtension<ApplicationProviderExtension>();
+
+        try
+        {
+            using var serviceProvider = services.BuildServiceProvider();
+            var store = serviceProvider.GetRequiredService<ApplicationResourceStore>();
+            store.Save(
+                new ApplicationResourceDefinition(
+                    "application:api",
+                    "api",
+                    executablePath: string.Empty,
+                    containerImage: "example/api:20260622",
+                    containerRevision: "20260622.2",
+                    containerHostId: "docker:dev",
+                    replicas: 3,
+                    resourceType: ApplicationResourceTypes.ContainerApp,
+                    replicasEnabled: true,
+                    containerRevisions:
+                    [
+                        new ApplicationContainerRevision(
+                            "20260622.2",
+                            "example/api:20260622",
+                            3,
+                            DateTimeOffset.UtcNow.AddMinutes(-5),
+                            ApplicationContainerRevisionChangeKinds.Initial)
+                    ],
+                    deploymentEnvironmentRevisionId: "env-test-1"),
+                persist: false);
+
+            var provider = serviceProvider.GetRequiredService<ApplicationResourceRuntimeOperations>();
+            var descriptions = serviceProvider
+                .GetRequiredService<IContainerApplicationOrchestratorServiceDescriptionOperations>();
+            var registrations = new DeclarationRegistrationStore(
+                serviceProvider.GetRequiredService<ResourceDeclarationStore>());
+            var resource = Assert.Single(provider.GetResources(), resource =>
+                resource.Id == "application:api");
+
+            var service = await descriptions.CreateOrchestratorServiceAsync(
+                new ResourceProcedureContext(
+                    resource,
+                    registrations.GetRegistration(resource.Id),
+                    null,
+                    registrations));
+            var replicaGroup = ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service);
+
+            Assert.Equal("20260622.2", service.RuntimeRevisionId);
+            Assert.Equal(
+                [
+                    "cloudshell-application-api-20260622-2-replica-1",
+                    "cloudshell-application-api-20260622-2-replica-2",
+                    "cloudshell-application-api-20260622-2-replica-3"
+                ],
+                replicaGroup.Instances.Select(instance => instance.Name).ToArray());
+        }
+        finally
+        {
+            if (Directory.Exists(contentRoot))
+            {
+                Directory.Delete(contentRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     [Trait("Category", "Integration")]
     public async Task ApplicationProvider_CancellingContainerHostCommandKillsProcess()
     {
