@@ -209,6 +209,7 @@ public sealed class ResourceDefinitionGraphChangeApplier(
 
         var incomingDefinitions = definitions.ToArray();
         var tracker = new ResourceGraphChangeTracker(snapshot);
+        var states = snapshot.Resources.ToArray();
         var statesById = snapshot.Resources.ToDictionary(
             resource => resource.EffectiveResourceId,
             resource => resource,
@@ -228,7 +229,17 @@ public sealed class ResourceDefinitionGraphChangeApplier(
 
         foreach (var definition in incomingDefinitions)
         {
-            if (!statesById.TryGetValue(definition.EffectiveResourceId, out var state))
+            var target = FindTargetState(definition, statesById, states);
+            if (target.IsAmbiguous)
+            {
+                tracker.TrackDiagnostic(ResourceDefinitionDiagnostic.Error(
+                    ResourceDefinitionDiagnosticCodes.ResourceDefinitionTargetAmbiguous,
+                    $"Resource definition '{definition.EffectiveResourceId}' matched more than one resource by type and name.",
+                    definition.EffectiveResourceId));
+                continue;
+            }
+
+            if (target.State is null)
             {
                 if (options.CreateMissingResources)
                 {
@@ -253,7 +264,7 @@ public sealed class ResourceDefinitionGraphChangeApplier(
             }
 
             var resource = resolver.Resolve(
-                state,
+                target.State,
                 ToResolutionContext(context));
             var changes = resource.ApplyDefinition(definition);
             var accepted = await applyDispatcher.ApplyChangesAsync(
@@ -274,6 +285,29 @@ public sealed class ResourceDefinitionGraphChangeApplier(
         }
 
         return tracker.GetChanges();
+    }
+
+    private static ResourceDefinitionTargetState FindTargetState(
+        ResourceDefinition definition,
+        IReadOnlyDictionary<string, ResourceState> statesById,
+        IReadOnlyList<ResourceState> states)
+    {
+        if (!string.IsNullOrWhiteSpace(definition.ResourceId))
+        {
+            return new(
+                statesById.GetValueOrDefault(definition.ResourceId.Trim()),
+                IsAmbiguous: false);
+        }
+
+        var matches = states
+            .Where(state =>
+                state.TypeId == definition.TypeId &&
+                string.Equals(state.Name, definition.Name, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        return matches.Length == 1
+            ? new(matches[0], IsAmbiguous: false)
+            : new(null, IsAmbiguous: matches.Length > 1);
     }
 
     private async ValueTask ValidateProposedGraphAsync(
@@ -385,6 +419,10 @@ public sealed class ResourceDefinitionGraphChangeApplier(
         ResourceChangeApplyContext context) =>
         new(context.EnvironmentId, context.PrincipalId);
 }
+
+internal sealed record ResourceDefinitionTargetState(
+    ResourceState? State,
+    bool IsAmbiguous);
 
 public sealed record ResourceDefinitionGraphChangeApplierOptions(
     bool CreateMissingResources = false)

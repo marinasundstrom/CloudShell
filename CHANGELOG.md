@@ -57,6 +57,11 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource definition docs now clarify that future deployment and template
   container names remain open, while their resource payloads should stay based
   on `ResourceDefinition` instead of parallel resource-state models.
+- Applying `ResourceDefinition` overlays now resolves existing graph resources
+  by explicit `resourceId` first, then by `typeId` plus `name` when no
+  `resourceId` is supplied. Existing resource identity fields stay stable, and
+  rename attempts through an overlay are rejected until the model has an
+  explicit rename/change-identity operation.
 
 #### Fixed
 

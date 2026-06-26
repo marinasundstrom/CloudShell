@@ -1022,6 +1022,8 @@ public static class ResourceDefinitionDiagnosticCodes
     public const string ResourceChangeApplyProviderMissing = "resourceDefinition.changeApplyProviderMissing";
     public const string ResourceGraphVersionConflict = "resourceDefinition.graphVersionConflict";
     public const string ResourceGraphResourceMissing = "resourceDefinition.graphResourceMissing";
+    public const string ResourceDefinitionTargetAmbiguous = "resourceDefinition.targetAmbiguous";
+    public const string ResourceDefinitionIdentityChangeNotAllowed = "resourceDefinition.identityChangeNotAllowed";
     public const string ResourceDependencyCycle = "resourceDefinition.dependencyCycle";
     public const string ResourceCapabilityProjectionMissing = "resourceDefinition.capabilityProjectionMissing";
     public const string ResourceOperationProjectionMissing = "resourceDefinition.operationProjectionMissing";

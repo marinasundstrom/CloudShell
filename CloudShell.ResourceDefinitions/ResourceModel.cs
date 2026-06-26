@@ -90,9 +90,9 @@ public sealed record ResourceState(
 
         return this with
         {
-            Name = definition.Name,
-            TypeId = definition.TypeId,
-            ResourceId = definition.ResourceId ?? ResourceId,
+            Name = Name,
+            TypeId = TypeId,
+            ResourceId = ResourceId,
             ProviderId = definition.ProviderId ?? ProviderId,
             DisplayName = definition.DisplayName ?? DisplayName,
             Version = definition.Version ?? Version,
@@ -539,19 +539,15 @@ public sealed record ResourceChangeSet(
         ArgumentNullException.ThrowIfNull(resource);
         ArgumentNullException.ThrowIfNull(definition);
 
-        if (!IsDefinitionTarget(resource, definition))
+        var targetDiagnostic = ValidateDefinitionTarget(resource, definition);
+        if (targetDiagnostic is not null)
         {
             return new(
                 resource,
                 resource.State,
                 [],
                 [],
-                [
-                    ResourceDefinitionDiagnostic.Error(
-                        ResourceDefinitionDiagnosticCodes.ResourceDefinitionTargetMismatch,
-                        $"Resource definition '{definition.EffectiveResourceId}' cannot be applied to resource '{resource.EffectiveResourceId}'.",
-                        definition.EffectiveResourceId)
-                ]);
+                [targetDiagnostic]);
         }
 
         var proposedState = resource.State.ApplyDefinition(definition);
@@ -612,11 +608,46 @@ public sealed record ResourceChangeSet(
             JsonSerializer.Serialize(right, JsonSerializerOptions.Web),
             StringComparison.Ordinal);
 
-    private static bool IsDefinitionTarget(
+    private static ResourceDefinitionDiagnostic? ValidateDefinitionTarget(
         Resource resource,
-        ResourceDefinition definition) =>
-        string.Equals(resource.EffectiveResourceId, definition.EffectiveResourceId, StringComparison.OrdinalIgnoreCase) &&
-        resource.Type.TypeId == definition.TypeId;
+        ResourceDefinition definition)
+    {
+        if (resource.Type.TypeId != definition.TypeId)
+        {
+            return ResourceDefinitionDiagnostic.Error(
+                ResourceDefinitionDiagnosticCodes.ResourceDefinitionTargetMismatch,
+                $"Resource definition '{definition.EffectiveResourceId}' cannot be applied to resource '{resource.EffectiveResourceId}'.",
+                definition.EffectiveResourceId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(definition.ResourceId))
+        {
+            if (!string.Equals(resource.EffectiveResourceId, definition.ResourceId.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                return ResourceDefinitionDiagnostic.Error(
+                    ResourceDefinitionDiagnosticCodes.ResourceDefinitionTargetMismatch,
+                    $"Resource definition '{definition.EffectiveResourceId}' cannot be applied to resource '{resource.EffectiveResourceId}'.",
+                    definition.EffectiveResourceId);
+            }
+
+            if (!string.Equals(resource.Name, definition.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                return ResourceDefinitionDiagnostic.Error(
+                    ResourceDefinitionDiagnosticCodes.ResourceDefinitionIdentityChangeNotAllowed,
+                    $"Resource definition '{definition.EffectiveResourceId}' cannot rename resource '{resource.EffectiveResourceId}' from '{resource.Name}' to '{definition.Name}'.",
+                    resource.EffectiveResourceId);
+            }
+
+            return null;
+        }
+
+        return string.Equals(resource.Name, definition.Name, StringComparison.OrdinalIgnoreCase)
+            ? null
+            : ResourceDefinitionDiagnostic.Error(
+                ResourceDefinitionDiagnosticCodes.ResourceDefinitionTargetMismatch,
+                $"Resource definition '{definition.EffectiveResourceId}' cannot be applied to resource '{resource.EffectiveResourceId}'.",
+                definition.EffectiveResourceId);
+    }
 }
 
 public sealed record ResourceAttributeChange(

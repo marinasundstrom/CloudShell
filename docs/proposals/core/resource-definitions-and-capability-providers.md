@@ -2403,6 +2403,14 @@ current `ResourceState`, builds resource-local changes, runs the type-owned
 apply providers, and returns one `ResourceGraphChangeSet` for the caller to
 commit or reject. Missing target resources remain graph-level diagnostics
 instead of being hidden inside a resource-local provider result.
+The current targeting rule is deliberately small: an explicit `resourceId`
+targets the existing resource first; when `resourceId` is omitted, the applier
+can resolve by `typeId` plus `name`. Existing `resourceId`, `typeId`, and
+`name` are treated as identity fields during overlay apply, so a definition
+that targets by `resourceId` but supplies a different `name` is rejected
+instead of silently renaming the graph resource. A future rename or
+change-identity operation should be explicit because names are used for
+authoring, lookup, and often generated IDs.
 Before staging resource-local changes, the graph applier now preflights the
 incoming batch against the current snapshot and rejects duplicate incoming
 resource IDs or dependencies that cannot be found in either the current graph
@@ -3894,11 +3902,15 @@ the Resource model becomes a replacement path:
   controller deliberately starts from the current `executable.path` only so
   the next slice can add those attributes intentionally instead of copying the
   old record wholesale.
+- Add an identity-convention extension point only when a second naming or ID
+  scheme needs to plug in. The POC should keep `ResourceDefinition` matching
+  independent of one generated ID convention by allowing explicit
+  `resourceId` targeting and `typeId`/`name` fallback targeting.
 
 ## Open Questions
 
-- Should `ResourceDefinition` use resource `name` plus `type`, resource `id`,
-  or both as the primary identity in the serialized format?
+- What shape should an explicit rename or change-identity operation take if a
+  resource name must become mutable later?
 - Should capability payloads live only under `capabilities`, or can a resource
   type provider promote common capability payloads into typed configuration
   facades for ergonomics?

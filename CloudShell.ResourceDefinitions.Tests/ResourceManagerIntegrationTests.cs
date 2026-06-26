@@ -995,6 +995,92 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_MatchesExplicitIdResourceByNameWhenDefinitionHasNoId()
+    {
+        var explicitIdState = CreateExecutableState() with
+        {
+            ResourceId = "application.executable:custom-api"
+        };
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph([CreateLocalVolumeState(), explicitIdState]);
+        services.AddLocalVolumeResourceType();
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+
+        var result = await service.ApplyDefinitionsAsync(
+            [
+                new(
+                    "api",
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    Attributes: new Dictionary<ResourceAttributeId, string>
+                    {
+                        [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet-watch"
+                    })
+            ],
+            new ResourceGraphCommitContext(
+                EnvironmentId: "local",
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 24, 16, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        var committed = result.Commit.Snapshot!.Resources.Single(resource =>
+            resource.EffectiveResourceId == "application.executable:custom-api");
+        Assert.Equal("api", committed.Name);
+        Assert.Equal("application.executable:custom-api", committed.EffectiveResourceId);
+        Assert.Equal(
+            "dotnet-watch",
+            committed.ResourceAttributes[ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
+    }
+
+    [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_RejectsRenameWhenDefinitionTargetsExplicitId()
+    {
+        var explicitIdState = CreateExecutableState() with
+        {
+            ResourceId = "application.executable:custom-api"
+        };
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph([CreateLocalVolumeState(), explicitIdState]);
+        services.AddLocalVolumeResourceType();
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+
+        var result = await service.ApplyDefinitionsAsync(
+            [
+                new(
+                    "renamed-api",
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    ResourceId: "application.executable:custom-api",
+                    Attributes: new Dictionary<ResourceAttributeId, string>
+                    {
+                        [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet-watch"
+                    })
+            ],
+            new ResourceGraphCommitContext(
+                EnvironmentId: "local",
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 24, 16, 0, 0, TimeSpan.Zero)));
+
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.True(result.HasErrors);
+        Assert.False(result.IsCommitted);
+        Assert.Equal(
+            ResourceDefinitionDiagnosticCodes.ResourceDefinitionIdentityChangeNotAllowed,
+            diagnostic.Code);
+        var state = (await serviceProvider.GetRequiredService<ResourceGraphModel>().GetSnapshotAsync())
+            .Resources
+            .Single(resource => resource.EffectiveResourceId == "application.executable:custom-api");
+        Assert.Equal("api", state.Name);
+        Assert.Equal("dotnet", state.ResourceAttributes[
+            ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_RejectsProviderDiagnostics()
     {
         var services = new ServiceCollection();

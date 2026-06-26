@@ -154,6 +154,26 @@ Common fields:
 | `operations` | Operation declarations and operation-owned graph state. |
 | `metadata` | Non-runtime metadata about the definition. |
 
+## Applying to Existing Resources
+
+When a `ResourceDefinition` is applied to an existing graph, `resourceId` is
+the canonical target if it is present. If `resourceId` is omitted, the apply
+path may resolve the target by `typeId` plus `name`, which is the common
+authoring case and keeps the serialized format from depending on one generated
+ID convention.
+
+For existing resources, `resourceId`, `typeId`, and `name` are identity fields.
+Applying a definition should not silently change them. If a definition targets
+an existing resource by `resourceId` but supplies a different `name`, the POC
+rejects the change instead of treating it as a rename. A future explicit
+rename or change-identity operation can add warnings, reference updates, and
+provider checks when there is a concrete use case.
+
+The model may eventually support configurable ID or naming schemes, including
+schemes that encode other logical relationships. That should be an extension
+point around identity generation and matching policy, not a reason to bake one
+resource ID convention into the `ResourceDefinition` envelope.
+
 ## References
 
 `ResourceReference` is the graph-native way to reference another resource. A
