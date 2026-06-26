@@ -104,6 +104,10 @@ on `git blame --follow`, and then by the broad type of change.
   Configuration Store and Secrets Vault runtime endpoints and starts those
   graph backing services before the graph API, keeping the broader sample
   test aligned with the new provider-backed runtime path.
+- SQL Server graph resources now declare start, stop, and restart operations
+  through an injected provider-owned runtime handler seam, with Resource
+  Manager state projection ready for hosts or samples to plug in actual SQL
+  runtime behavior.
 - The Resource Graph proposal now clarifies that selected samples should
   become runnable through graph-backed providers, with adapters used only as
   temporary bridges into focused Control Plane or Resource Manager services.

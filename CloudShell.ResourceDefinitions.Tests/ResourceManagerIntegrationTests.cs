@@ -3662,8 +3662,18 @@ public sealed class ResourceManagerIntegrationTests
 
         Assert.Equal(ResourceManagerClass.Service, projectedSql.ResourceClass);
         Assert.Equal(SqlServerResourceTypeProvider.ProviderId, projectedSql.Provider);
+        Assert.Equal(ResourceManagerResourceState.Unknown, projectedSql.State);
         Assert.Equal("2022", projectedSql.ResourceAttributes["sqlserver.version"]);
         Assert.Equal([volume.EffectiveResourceId], projectedSql.DependsOn);
+        Assert.Contains(projectedSql.ResourceActions, action =>
+            action.Id == "start" &&
+            action.Kind == ResourceActionKind.Start);
+        Assert.Contains(projectedSql.ResourceActions, action =>
+            action.Id == "stop" &&
+            action.Kind == ResourceActionKind.Stop);
+        Assert.Contains(projectedSql.ResourceActions, action =>
+            action.Id == "restart" &&
+            action.Kind == ResourceActionKind.Restart);
         var reconcile = Assert.Single(projectedSql.ResourceActions, action =>
             action.Id == SqlServerResourceTypeProvider.Operations.ReconcileAccess.ToString());
 

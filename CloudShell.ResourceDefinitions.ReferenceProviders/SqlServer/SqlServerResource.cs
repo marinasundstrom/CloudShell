@@ -26,6 +26,24 @@ public sealed class SqlServerResource(
         Resource.GetConfiguration<SqlServerConfiguration>(
             SqlServerResourceTypeProvider.ConfigurationSection)?.Databases ?? [];
 
+    public ValueTask<SqlServerLifecycleOperation?> GetStartOperationAsync(
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult(
+            Resource.Operations.Get(SqlServerResourceTypeProvider.Operations.Start)
+                as SqlServerLifecycleOperation);
+
+    public ValueTask<SqlServerLifecycleOperation?> GetStopOperationAsync(
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult(
+            Resource.Operations.Get(SqlServerResourceTypeProvider.Operations.Stop)
+                as SqlServerLifecycleOperation);
+
+    public ValueTask<SqlServerLifecycleOperation?> GetRestartOperationAsync(
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult(
+            Resource.Operations.Get(SqlServerResourceTypeProvider.Operations.Restart)
+                as SqlServerLifecycleOperation);
+
     public ValueTask<SqlServerReconcileAccessOperation?> GetReconcileAccessOperationAsync(
         CancellationToken cancellationToken = default) =>
         ValueTask.FromResult(

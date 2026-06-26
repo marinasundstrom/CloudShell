@@ -1565,6 +1565,12 @@ public sealed class ResourceProviderDispatcherTests
         Assert.True(sqlValidation.Resource.Capabilities.Has(
             VolumeConsumerCapabilityProvider.CapabilityIdValue));
         Assert.True(sqlValidation.Resource.Operations.Has(
+            SqlServerResourceTypeProvider.Operations.Start));
+        Assert.True(sqlValidation.Resource.Operations.Has(
+            SqlServerResourceTypeProvider.Operations.Stop));
+        Assert.True(sqlValidation.Resource.Operations.Has(
+            SqlServerResourceTypeProvider.Operations.Restart));
+        Assert.True(sqlValidation.Resource.Operations.Has(
             SqlServerResourceTypeProvider.Operations.ReconcileAccess));
 
         var projectedGraph = await serviceProvider
@@ -1584,8 +1590,17 @@ public sealed class ResourceProviderDispatcherTests
         Assert.Equal(14334, endpointRequest.Port);
         Assert.Equal("appdb", Assert.Single(projection.Databases).Name);
 
+        var start = await projection.GetStartOperationAsync();
+        var stop = await projection.GetStopOperationAsync();
+        var restart = await projection.GetRestartOperationAsync();
         var reconcile = await projection.GetReconcileAccessOperationAsync();
 
+        Assert.NotNull(start);
+        Assert.True(await start.CanExecuteAsync());
+        Assert.NotNull(stop);
+        Assert.True(await stop.CanExecuteAsync());
+        Assert.NotNull(restart);
+        Assert.True(await restart.CanExecuteAsync());
         Assert.NotNull(reconcile);
         Assert.True(await reconcile.CanExecuteAsync());
         Assert.Equal("appdb", Assert.Single(reconcile.PlanReconciliation().Databases).Name);
