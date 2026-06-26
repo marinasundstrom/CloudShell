@@ -62,6 +62,14 @@ shape: attributes, defaults, validation rules, supported capabilities, and
 supported operations. They do not implement runtime behavior. Their
 responsibility ends when proposed configuration changes have been validated,
 normalized, and accepted into the graph.
+Those definitions should be treated as versioned provider artifacts in the
+future, alongside capability and operation declarations. A resource definition
+may eventually pin the type, capability, or operation declaration version it
+expects; if it does not, resolution can choose the latest compatible provider
+artifact. The model should represent artifact ID and requested version
+separately even if an authoring format later supports compact selectors such
+as `application.executable:v2`, `application.executable:latest`, or another
+convention that proves clearer.
 
 Capabilities and operations are declarations in the graph. Their
 implementations are resolved by the runtime layer. The graph owns what exists;

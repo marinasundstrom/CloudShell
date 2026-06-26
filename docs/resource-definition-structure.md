@@ -41,6 +41,38 @@ type, such as `application.container-app` or `configuration.store`. It may add
 or override type-specific attributes, declare supported capabilities and
 operations, provide defaults, and attach validation rules.
 
+Definitions are expected to become versioned artifacts. Resource class
+definitions, resource type definitions, capability declarations, and operation
+declarations may each declare the provider/artifact version they were authored
+for. A resource definition may pin the type definition version it expects; if
+it does not, resolution can assume the latest compatible provider version.
+
+The domain model should keep the logical artifact ID separate from the
+requested version. Serialized authoring formats can still choose a compact
+selector convention later, but the convention is not settled. One possible
+shorthand is a suffix on the type selector:
+
+```json
+{
+  "type": "application.executable:v2"
+}
+```
+
+That selector would parse as logical type `application.executable` with the
+requested type/provider version `v2`. Other conventions may be clearer, such
+as explicit fields:
+
+```json
+{
+  "typeId": "application.executable",
+  "typeVersion": "v2"
+}
+```
+
+The POC should not choose this prematurely. Whatever convention is selected
+for JSON, YAML, or another authoring format, the graph should resolve it into
+explicit IDs and versions before validation.
+
 `ResourceDefinition` then represents resource-owned state in interchange form.
 It can be:
 
