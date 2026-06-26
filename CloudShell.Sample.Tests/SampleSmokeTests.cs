@@ -1722,6 +1722,19 @@ public sealed class SampleSmokeTests
                 "application.sql-server:graph-application-topology-sql-server",
                 ResourceState.Running,
                 StartupTimeout);
+            await host.SendAsync(
+                HttpMethod.Post,
+                $"/api/control-plane/v1/resources/{Uri.EscapeDataString("application.sql-server:graph-application-topology-sql-server")}/actions/restart?ignoreDependentWarning=true");
+            await WaitForResourceStateAsync(
+                host,
+                "application:application-topology-sql-server",
+                ResourceState.Running,
+                StartupTimeout);
+            await WaitForResourceStateAsync(
+                host,
+                "application.sql-server:graph-application-topology-sql-server",
+                ResourceState.Running,
+                StartupTimeout);
 
             await host.SendAsync(
                 HttpMethod.Post,

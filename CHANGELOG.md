@@ -112,7 +112,7 @@ on `git blame --follow`, and then by the broad type of change.
   sample-local runtime adapter, so starting the graph SQL Server resource can
   drive the existing SQL Server runtime path and project cached graph SQL
   lifecycle state before graph API/database smoke coverage runs; the same
-  smoke path now stops SQL through the graph action boundary.
+  smoke path now restarts and stops SQL through the graph action boundary.
 - The Resource Graph proposal now clarifies that selected samples should
   become runnable through graph-backed providers, with adapters used only as
   temporary bridges into focused Control Plane or Resource Manager services.
