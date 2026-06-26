@@ -78,6 +78,8 @@ on `git blame --follow`, and then by the broad type of change.
 - ProjectReference now includes a graph-backed ASP.NET Core frontend that uses
   Aspire-style service-discovery configuration to call the graph-backed API,
   proving graph project resources can compose with each other at runtime.
+- ProjectReference smoke coverage now verifies logs plus health/liveness
+  refresh for both graph-backed ASP.NET Core project resources.
 - Docker container reference resources now mark `endpoints.count` as read-only
   provider-projected state, so deployment definitions cannot author endpoint
   counts while resolved Resource projections still expose the default count.

@@ -216,6 +216,9 @@ public sealed class SampleSmokeTests
         var graphApiLogSourceId = await WaitForLogSourceAsync(host, graphApiResourceId);
         var graphApiLogEntries = await WaitForLogEntriesAsync(host, graphApiLogSourceId);
         Assert.NotEmpty(graphApiLogEntries);
+        var graphFrontendLogSourceId = await WaitForLogSourceAsync(host, graphFrontendResourceId);
+        var graphFrontendLogEntries = await WaitForLogEntriesAsync(host, graphFrontendLogSourceId);
+        Assert.NotEmpty(graphFrontendLogEntries);
         var graphApiMetricPoints = await WaitForMetricPointsAsync(
             host,
             graphApiResourceId,
@@ -257,6 +260,20 @@ public sealed class SampleSmokeTests
             check.GetProperty("check").GetProperty("type").GetInt32() == (int)ResourceProbeType.Health &&
             check.GetProperty("status").GetInt32() == (int)ResourceHealthStatus.Healthy);
         Assert.Contains(graphApiHealthChecks, check =>
+            check.GetProperty("check").GetProperty("type").GetInt32() == (int)ResourceProbeType.Liveness &&
+            check.GetProperty("status").GetInt32() == (int)ResourceHealthStatus.Healthy);
+        var graphFrontendHealthJson = await host.SendAsync(
+            HttpMethod.Post,
+            $"/api/control-plane/v1/resources/{Uri.EscapeDataString(graphFrontendResourceId)}/health/refresh");
+        using var graphFrontendHealthDocument = JsonDocument.Parse(graphFrontendHealthJson);
+        var graphFrontendHealth = graphFrontendHealthDocument.RootElement;
+        var graphFrontendHealthChecks = graphFrontendHealth.GetProperty("checks").EnumerateArray().ToArray();
+        Assert.Equal(graphFrontendResourceId, graphFrontendHealth.GetProperty("resourceId").GetString());
+        Assert.Equal((int)ResourceHealthStatus.Healthy, graphFrontendHealth.GetProperty("status").GetInt32());
+        Assert.Contains(graphFrontendHealthChecks, check =>
+            check.GetProperty("check").GetProperty("type").GetInt32() == (int)ResourceProbeType.Health &&
+            check.GetProperty("status").GetInt32() == (int)ResourceHealthStatus.Healthy);
+        Assert.Contains(graphFrontendHealthChecks, check =>
             check.GetProperty("check").GetProperty("type").GetInt32() == (int)ResourceProbeType.Liveness &&
             check.GetProperty("status").GetInt32() == (int)ResourceHealthStatus.Healthy);
 
