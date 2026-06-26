@@ -807,7 +807,8 @@ public sealed class ResourceManagerIntegrationTests
     public async Task ResourceModelGraphProcedureProvider_ImportsResourceDefinitionTemplate()
     {
         var services = new ServiceCollection();
-        services.AddInMemoryResourceModelGraph();
+        services.AddInMemoryResourceModelGraph([CreateLocalVolumeState()]);
+        services.AddLocalVolumeResourceType();
         services.AddExecutableApplicationResourceType();
         services.AddResourceModelGraphServices();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
@@ -821,6 +822,13 @@ public sealed class ResourceManagerIntegrationTests
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
             ProviderId: ExecutableApplicationResourceTypeProvider.ProviderId,
             DisplayName: "API",
+            DependsOn:
+            [
+                ResourceReference.DependsOnResourceId(
+                    "template-volume",
+                    typeId: LocalVolumeResourceTypeProvider.ResourceTypeId,
+                    providerId: LocalVolumeResourceTypeProvider.ProviderId)
+            ],
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
                 [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
@@ -829,7 +837,7 @@ public sealed class ResourceManagerIntegrationTests
             definition.Name,
             "resource-model",
             definition.TypeId.ToString(),
-            [],
+            ["template-volume"],
             ResourceModelGraphProcedureProvider.ResourceDefinitionTemplateConfigurationVersion,
             ResourceDefinitionJson.FromValue(definition, JsonSerializerOptions.Web),
             definition.EffectiveResourceId);
@@ -839,12 +847,14 @@ public sealed class ResourceManagerIntegrationTests
 
         var result = await provider.ImportAsync(
             template,
-            new ResourceTemplateImportContext("applications", registrations, []));
+            new ResourceTemplateImportContext("applications", registrations, ["storage.volume:data"]));
 
         Assert.Equal("application.executable:api", result.ResourceId);
         Assert.Equal("Imported resource model graph resource 'api'.", result.Message);
-        var resource = Assert.Single(provider.GetResources());
+        var resource = provider.GetResources()
+            .Single(resource => resource.Id == "application.executable:api");
         Assert.Equal("application.executable:api", resource.Id);
+        Assert.Equal(["storage.volume:data"], resource.DependsOn);
         Assert.Equal("API", resource.DisplayName);
         Assert.Equal("dotnet", resource.ResourceAttributes[
             ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
@@ -853,6 +863,15 @@ public sealed class ResourceManagerIntegrationTests
         Assert.NotNull(registration);
         Assert.Equal("resource-model", registration.ProviderId);
         Assert.Equal("applications", registration.ResourceGroupId);
+        Assert.Equal(["storage.volume:data"], registration.DependsOn);
+
+        var graphModel = serviceProvider.GetRequiredService<ResourceGraphModel>();
+        var imported = (await graphModel.GetSnapshotAsync()).Resources
+            .Single(resource => resource.EffectiveResourceId == "application.executable:api");
+        var dependency = Assert.Single(imported.StartupDependencies);
+        Assert.Equal("storage.volume:data", dependency.Value);
+        Assert.Equal(LocalVolumeResourceTypeProvider.ResourceTypeId, dependency.TypeId);
+        Assert.Equal(LocalVolumeResourceTypeProvider.ProviderId, dependency.ProviderId);
     }
 
     [Fact]

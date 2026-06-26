@@ -120,9 +120,7 @@ public sealed class ResourceModelGraphProcedureProvider :
         var importDefinition = definition with
         {
             ResourceId = resourceId,
-            DependsOn = context.DependsOn
-                .Select(resourceId => ResourceReference.DependsOnResourceId(resourceId))
-                .ToArray()
+            DependsOn = RemapStartupDependencies(definition, template, context)
         };
         var result = await _definitionApply.ApplyDefinitionsAsync(
             [importDefinition],
@@ -139,12 +137,51 @@ public sealed class ResourceModelGraphProcedureProvider :
             Id,
             resourceId,
             context.ResourceGroupId,
-            context.DependsOn,
+            importDefinition.StartupDependencyIds,
             cancellationToken);
 
         return new ResourceTemplateImportResult(
             resourceId,
             $"Imported resource model graph resource '{template.Name}'.");
+    }
+
+    private static IReadOnlyList<ResourceReference> RemapStartupDependencies(
+        ResourceDefinition definition,
+        ResourceTemplateDefinition template,
+        ResourceTemplateImportContext context)
+    {
+        var dependencyMap = template.DependsOn
+            .Zip(context.DependsOn)
+            .ToDictionary(pair => pair.First, pair => pair.Second, StringComparer.OrdinalIgnoreCase);
+        var references = new List<ResourceReference>();
+        var dependencyIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var reference in definition.StartupDependencies)
+        {
+            if (reference.TryGetDependsOnResourceId(out var dependency) &&
+                dependencyMap.TryGetValue(dependency, out var mappedDependency))
+            {
+                references.Add(reference with { Value = mappedDependency });
+                dependencyIds.Add(mappedDependency);
+                continue;
+            }
+
+            references.Add(reference);
+            if (reference.TryGetDependsOnResourceId(out dependency))
+            {
+                dependencyIds.Add(dependency);
+            }
+        }
+
+        foreach (var dependency in context.DependsOn)
+        {
+            if (dependencyIds.Add(dependency))
+            {
+                references.Add(ResourceReference.DependsOnResourceId(dependency));
+            }
+        }
+
+        return references;
     }
 
     public Task<ResourceProcedureResult> DeleteAsync(

@@ -3815,6 +3815,10 @@ Resource Manager template API or evolve, but it should still carry
 `ResourceDefinition` payloads for resource state so templates, deployments,
 imports, exports, and incremental apply all share the same resource-shaped
 model instead of separate infrastructures.
+When that outer container remaps startup dependency keys during import, it
+should not flatten graph references into plain strings. The bridge can rewrite
+the resource id value while preserving `ResourceReference` metadata such as
+expected resource type, provider, relationship, and addressing mode.
 
 ### Projected resources
 

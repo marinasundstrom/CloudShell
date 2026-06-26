@@ -108,6 +108,13 @@ semantics. Applying resource definitions remains owned by that graph apply
 path so each resource type provider can validate and accept or reject changes
 before they become graph state.
 
+When template import remaps startup dependencies, the graph bridge should
+preserve the richer `ResourceReference` metadata from the embedded
+`ResourceDefinition` where possible. The template container may translate a
+dependency key to a concrete resource id, but expected resource type,
+provider, relationship, and addressing mode still belong to the graph
+reference.
+
 ## Core Envelope
 
 A `ResourceDefinition` describes a resource state snapshot or an incremental
