@@ -1054,6 +1054,19 @@ before the old provider path can be turned off. This keeps the central proposal
 useful as the architecture record while keeping provider-specific status and
 cleanup notes near the code that owns them.
 
+Provider READMEs should also include at least one representative
+`ResourceDefinition` example when the provider has enough shape to be useful.
+Those examples are not only documentation. They are part of the API feedback
+loop for treating `ResourceDefinition` as an interchange format used by
+deployments, templates, imports, exports, and external tooling. If the example
+is hard to author, hard to read, overly coupled to implementation details, or
+awkward to round-trip, that is evidence to record for later API cleanup once
+the providers have been ported. The examples should therefore prefer the
+actual serialized shape over pseudo-code, call out which fields are graph
+configuration versus runtime-owned behavior, and leave provider-specific
+integration details in the runtime section rather than hiding them inside the
+interchange document.
+
 A narrow configuration store reference provider extends the proof outside the
 old application-provider group. It owns `configuration.store`, configuration
 class defaults, endpoint and entry-count summary attributes, an inspect

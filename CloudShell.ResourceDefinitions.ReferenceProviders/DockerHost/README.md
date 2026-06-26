@@ -18,7 +18,9 @@
 
 This is the interchange shape for a graph-backed Docker host declaration. Other
 resource definitions can reference it through `ResourceReference` values in
-`dependsOn` or provider-owned attributes.
+`dependsOn` or provider-owned attributes. The example is also a check that the
+interchange API remains readable for deployment, template, import, and export
+flows rather than only being convenient for provider implementation code.
 
 ```json
 {

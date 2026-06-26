@@ -21,6 +21,9 @@ on `git blame --follow`, and then by the broad type of change.
   delegate through an injected provider-owned runtime handler seam, keeping
   runtime orchestration outside the Resource Graph while leaving the default
   POC behavior no-op.
+- Provider README guidance now treats concrete `ResourceDefinition` examples
+  as feedback on whether the interchange format is suitable for deployments,
+  templates, imports, exports, and external tooling.
 
 #### Fixed
 

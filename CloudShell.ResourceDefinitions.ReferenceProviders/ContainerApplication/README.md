@@ -39,7 +39,10 @@ throwing for expected runtime outcomes.
 
 This is the interchange shape a deployment, template, or import can use to
 declare a replicated container app. Runtime materialization is still handled by
-the Control Plane/provider integration.
+the Control Plane/provider integration. The example should also be read as a
+usability check for the `ResourceDefinition` interchange API: if this shape is
+hard to author or round-trip, the provider port should feed that back into the
+model cleanup work after switch-over.
 
 ```json
 {
