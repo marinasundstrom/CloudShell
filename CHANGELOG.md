@@ -60,6 +60,9 @@ on `git blame --follow`, and then by the broad type of change.
 - SettingsAndSecrets smoke coverage now refreshes Resource Manager health for
   the graph-backed API resource, proving its graph-declared health probe is
   evaluated through the projected endpoint.
+- ASP.NET Core graph resources now get Resource Manager state and endpoint
+  projection from the reference-provider bridge package, removing the
+  SettingsAndSecrets sample-local projection implementations.
 - Docker container reference resources now mark `endpoints.count` as read-only
   provider-projected state, so deployment definitions cannot author endpoint
   counts while resolved Resource projections still expose the default count.
