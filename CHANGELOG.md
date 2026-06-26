@@ -35,6 +35,11 @@ on `git blame --follow`, and then by the broad type of change.
 - The Resource Definition Structure document now treats deployment definitions
   as a future higher-level artifact and, for the POC, describes deployment
   inputs as groupings of `ResourceDefinition` values.
+- Graph-backed resources can now be exported through the existing resource
+  group template API as JSON `resource-definition.v1` payloads, giving the POC
+  an API feedback path for the `ResourceDefinition` interchange shape.
+- Resource definition docs now clarify that capabilities can contribute
+  attribute definitions and validation rules for the graph state they need.
 
 #### Fixed
 

@@ -1,9 +1,10 @@
 # Resource Definition Structure
 
 This document describes the common `ResourceDefinition` structure used by the
-Resource Graph POC. It focuses on the interchange shape: the JSON/YAML/XML
-friendly model used by deployments, templates, imports, exports, debug views,
-and apply operations.
+Resource Graph POC. It focuses on the interchange shape: the serializer-neutral
+model used by deployments, templates, imports, exports, debug views, and apply
+operations. The current API path is JSON, while YAML is a likely future
+authoring format because it is common for declarative DSLs.
 
 The Resource Graph still owns the durable graph/configuration state. The
 Control Plane and Resource Manager own runtime state, operational records,
@@ -65,18 +66,37 @@ runtime-observed value. Provider-managed or read-only attributes may be
 filtered from interchange output unless a provider explicitly makes them part
 of the authored contract.
 
-## Deployment Definitions
+## Deployment Groupings
 
-A deployment definition is a separate future artifact. It will likely use
-`ResourceDefinition` values and other deployment-centered artifact definitions,
-but that higher-level model is not defined by the current POC.
+The graph POC currently has `ResourceDeploymentDefinition` as a small grouping
+of `ResourceDefinition` values that can be validated and applied together. It
+is intentionally narrow.
 
-For now, treat deployment inputs as an envelope or grouping of resource
-definitions plus contextual metadata such as environment, resource group, or
-deployment name. The important boundary is that `ResourceDefinition` remains
-the resource interchange unit, while a deployment definition describes how a
-set of those resource definitions is authored, grouped, ordered,
-parameterized, or applied together.
+A fuller deployment artifact or specification is a separate future concern. It
+may group resource definitions with other deployment-centered artifacts,
+parameters, environment data, resource group placement, or rollout policy. It
+should also stay distinct from the existing Resource Manager orchestration
+types such as `ResourceOrchestratorDeploymentSpec` and
+`ResourceOrchestratorDeploymentDefinition`, which describe operational runtime
+deployment state.
+
+The important boundary is that `ResourceDefinition` remains the resource
+interchange unit, while a deployment grouping or future deployment
+specification describes how a set of those resource definitions is authored,
+grouped, ordered, parameterized, or applied together.
+
+## Template Export
+
+The current POC can render graph-backed Resource Manager resources through the
+existing resource group template export API. A graph resource is exported as a
+template resource whose provider is `resource-model`, whose provider
+configuration version is `resource-definition.v1`, and whose `configuration`
+payload is a JSON `ResourceDefinition`.
+
+Template import/apply is intentionally not part of this bridge yet. Applying
+resource definitions remains owned by the graph apply path so each resource
+type provider can validate and accept or reject changes before they become
+graph state.
 
 ## Core Envelope
 
@@ -176,6 +196,13 @@ state, read-only/provider-managed mutability, collection shape, and optional
 complex shape. A resource may still carry custom attributes without a
 definition, but defined attributes are the portable contract for validation,
 authoring, and provider integration.
+
+Capabilities may also contribute attribute definitions and validators. For
+example, a volume-consumer capability can define the mount-related attributes
+or payload shape it needs, and validate those values when the capability is
+declared on a class, type, or resource. The graph still stores the accepted
+attribute values as resource state; the capability supplies part of the
+contract that explains and validates those values.
 
 ## Endpoint Requests
 

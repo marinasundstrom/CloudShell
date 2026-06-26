@@ -1,3 +1,4 @@
+using System.Text.Json;
 using CloudShell.Abstractions.ResourceManager;
 using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource;
 
@@ -7,8 +8,13 @@ public sealed class ResourceModelGraphProcedureProvider :
     IResourceProvider,
     IResourceModelDiagnosticProvider,
     IResourceProcedureProvider,
-    IResourceActionAvailabilityProvider
+    IResourceActionAvailabilityProvider,
+    IResourceTemplateProvider
 {
+    public const string ResourceDefinitionTemplateConfigurationVersion = "resource-definition.v1";
+
+    private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerOptions.Web);
+
     private readonly ResourceModelGraphResourceProvider _resourceProvider;
     private readonly ResourceModelGraphResourceResolver _resourceResolver;
     private readonly ResourceDefinitionResolutionContext _resolutionContext;
@@ -33,6 +39,54 @@ public sealed class ResourceModelGraphProcedureProvider :
     public IReadOnlyList<ResourceModelDiagnostic> GetResourceModelDiagnostics() =>
         _resourceProvider.GetResourceModelDiagnostics();
 
+    public bool CanExport(ResourceManagerResource resource) =>
+        IsBridgeResource(resource);
+
+    public async Task<ResourceTemplateDefinition> ExportAsync(
+        ResourceManagerResource resource,
+        ResourceTemplateExportContext context,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentNullException.ThrowIfNull(context);
+
+        var resolution = await _resourceResolver.ResolveAsync(
+            resource.Id,
+            _resolutionContext,
+            cancellationToken);
+        if (resolution.Target is null)
+        {
+            throw new InvalidOperationException(
+                $"Resource model graph resource '{resource.Id}' could not be resolved.");
+        }
+
+        if (resolution.HasErrors)
+        {
+            throw new InvalidOperationException(FormatDiagnostics(resolution.Diagnostics));
+        }
+
+        var definition = resolution.Target.ToDefinition();
+
+        return new ResourceTemplateDefinition(
+            definition.Name,
+            Id,
+            definition.TypeId.ToString(),
+            definition.StartupDependencyIds,
+            ResourceDefinitionTemplateConfigurationVersion,
+            ResourceDefinitionJson.FromValue(definition, SerializerOptions),
+            definition.EffectiveResourceId);
+    }
+
+    public bool CanImport(ResourceTemplateDefinition template) => false;
+
+    public Task<ResourceTemplateImportResult> ImportAsync(
+        ResourceTemplateDefinition template,
+        ResourceTemplateImportContext context,
+        CancellationToken cancellationToken = default) =>
+        Task.FromException<ResourceTemplateImportResult>(
+            new NotSupportedException(
+                "Resource model graph templates are not imported through this bridge provider yet."));
+
     public Task<ResourceProcedureResult> DeleteAsync(
         ResourceProcedureContext context,
         CancellationToken cancellationToken = default) =>
@@ -42,12 +96,8 @@ public sealed class ResourceModelGraphProcedureProvider :
     public bool CanEvaluateAction(
         ResourceManagerResource resource,
         ResourceAction action) =>
-        resource.IsDeclaredResource &&
-        resource.HasAction(action.Id) &&
-        resource.ResourceAttributes.TryGetValue(
-            ResourceModelResourceManagerAttributeNames.BridgeProviderId,
-            out var bridgeProviderId) &&
-        string.Equals(bridgeProviderId, Id, StringComparison.OrdinalIgnoreCase);
+        IsBridgeResource(resource) &&
+        resource.HasAction(action.Id);
 
     public async Task<string?> GetActionUnavailableReasonAsync(
         ResourceProcedureContext context,
@@ -166,4 +216,11 @@ public sealed class ResourceModelGraphProcedureProvider :
                 string.IsNullOrWhiteSpace(diagnostic.Target)
                     ? diagnostic.Message
                     : $"{diagnostic.Message} Target: {diagnostic.Target}."));
+
+    private bool IsBridgeResource(ResourceManagerResource resource) =>
+        resource.IsDeclaredResource &&
+        resource.ResourceAttributes.TryGetValue(
+            ResourceModelResourceManagerAttributeNames.BridgeProviderId,
+            out var bridgeProviderId) &&
+        string.Equals(bridgeProviderId, Id, StringComparison.OrdinalIgnoreCase);
 }

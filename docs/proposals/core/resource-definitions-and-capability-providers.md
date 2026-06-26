@@ -712,7 +712,7 @@ aggregation, and identity integration.
 | ContainerHost | The sample host now declares side-by-side graph-backed storage, volume, and SQL Server resources. Service-level coverage verifies Resource Manager projection, storage/volume attributes, typed storage dependency, and SQL Server volume-consumer capability while the old sample still owns local Docker materialization. | Use this sample to keep validating storage-backed volume semantics before runtime storage materialization moves behind graph-backed provider seams. |
 | ApplicationTopology | The sample host now declares side-by-side graph-backed storage, SQL Server/database, configuration, secrets, API, and frontend ASP.NET Core resources across provider boundaries. Smoke coverage verifies their Resource Manager projection, SQL endpoint mapping, settings/secrets endpoints, typed startup dependencies, graph frontend-to-API service discovery through `project.serviceDiscoveryName` and `project.references`, health/liveness declarations, and explicit separation from `DependsOn`. The graph ASP.NET Core resources now use runtime-ready absolute project paths, separate configurable graph endpoints, and runtime smoke coverage for graph API settings plus frontend-to-API discovery through the intentional failure route. | Use this sample to keep validating multi-provider dependencies, SQL child ownership, volume materialization, and application-level discovery before replacing the old application-provider path. Full graph `/upstream` remains blocked on graph SQL/runtime materialization. |
 | ContainerAppDeployment | The sample host now declares side-by-side graph-backed Docker host, registry container, and container-app resources. Smoke coverage verifies Resource Manager projection, registry attributes, and typed graph dependencies while the old sample runtime still owns deployment, registry, and Docker behavior. | Port runtime deployment only when the graph-to-Resource Manager runtime apply boundary can be tested against registry and container-host seams without reintroducing the old application-provider aggregate. |
-| ReplicatedContainerHealth | The sample host now declares side-by-side graph-backed Docker host and replicated container-app resources. Smoke coverage verifies Resource Manager projection, replica-count attributes, typed graph dependencies, container endpoint requests, endpoint/network mapping projection, and health/liveness capability declarations. Container-app start/restart/image-update graph operations now delegate through a provider-owned runtime handler seam, while the old sample runtime still owns replica materialization, aggregate health observations, logs, traces, and metrics. | Use this sample later to decide which health/telemetry declarations belong in graph configuration and which remain operational projections from Resource Manager runtime state. |
+| ReplicatedContainerHealth | The sample host now declares side-by-side graph-backed Docker host and replicated container-app resources. Smoke coverage verifies Resource Manager projection, replica-count attributes, typed graph dependencies, container endpoint requests, endpoint/network mapping projection, health/liveness capability declarations, and resource group template export of graph resources as `resource-definition.v1` payloads. Container-app start/restart/image-update graph operations now delegate through a provider-owned runtime handler seam, while the old sample runtime still owns replica materialization, aggregate health observations, logs, traces, and metrics. | Use this sample later to decide which health/telemetry declarations belong in graph configuration and which remain operational projections from Resource Manager runtime state. |
 | HostVirtualNetwork and LoadBalancer | Network, virtual network, host networking, DNS zone, name mapping, service, and load-balancer graph providers have definition/projection coverage. HostVirtualNetwork carries side-by-side graph-backed local host networking, ASP.NET Core target API, and virtual-network resources in the sample host. LoadBalancer carries side-by-side graph-backed Docker host, container-app targets, and load-balancer resources. Smoke coverage verifies Resource Manager projection, typed graph dependencies, and load-balancer count/operation shape. | Continue validating endpoint mapping operations, route payloads, and provider-owned network/load-balancer reconciliation as the graph model starts carrying richer route and backend configuration. |
 
 ### Porting Test Lifecycle
@@ -3192,7 +3192,15 @@ Attribute validators should cover common rules:
 - cross-attribute rules
 
 They should also allow type-specific and capability-specific rules without
-forcing every rule into a central switch. For example:
+forcing every rule into a central switch. A capability declaration may define
+and validate the attributes it needs in addition to its capability payload. For
+example, a volume-consumer capability could define mount-related attributes or
+payload shapes, and the resolver should merge those contracts when the
+capability is declared on a class, type, or resource. The resource type still
+owns the final accepted graph state, but the capability can supply part of the
+attribute contract.
+
+For example:
 
 ```csharp
 public sealed class ExecutablePathAttributeValidator : IResourceAttributeValidator
@@ -3756,11 +3764,19 @@ not native CloudShell definition formats.
 
 ### Deployment projection
 
-Deployment definitions should be able to contain `ResourceDefinition` entries
-as interchange inputs for resource state. In that flow, a deployment
-definition tells CloudShell which resource state changes an actor wants
-applied, while each resource type provider validates, plans, and applies the
-definition to the resource type it owns.
+The current graph POC has `ResourceDeploymentDefinition` as a narrow grouping
+of `ResourceDefinition` entries that can be validated and applied together.
+That is separate from the Resource Manager orchestration types such as
+`ResourceOrchestratorDeploymentSpec` and
+`ResourceOrchestratorDeploymentDefinition`, which describe operational runtime
+deployment state.
+
+A fuller deployment artifact or specification remains a future concern. It
+should be able to contain `ResourceDefinition` entries as interchange inputs
+for resource state. In that flow, the deployment-level artifact tells
+CloudShell which resource state changes an actor wants applied, while each
+resource type provider validates, plans, and applies the definition to the
+resource type it owns.
 
 This makes resource definitions useful before a resource has been persisted as
 accepted inventory. The same interchange envelope can describe a new resource
@@ -3774,6 +3790,13 @@ interchange inputs, resolved `Resource` projections, and current graph
 context. It should not infer resource state solely from projected
 `Resource.Attributes` when a full `Resource` projection or apply input is
 available.
+
+The current Resource Manager template export bridge is intentionally narrower:
+it can render graph-backed Resource Manager resources as template resources
+with `providerConfigurationVersion = resource-definition.v1` and a JSON
+`ResourceDefinition` payload. YAML remains a future authoring/interchange
+target; the model should stay serializer-neutral while the existing API path
+uses JSON.
 
 ### Projected resources
 

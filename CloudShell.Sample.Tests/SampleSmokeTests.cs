@@ -2780,6 +2780,35 @@ public sealed class SampleSmokeTests
             "docker:graph-sample",
             graphApp.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
 
+        var graphTemplateJson = await host.GetStringAsync(
+            "/api/control-plane/v1/resource-groups/replicated-container-health-graph-poc/template");
+        using var graphTemplateDocument = JsonDocument.Parse(graphTemplateJson);
+        var graphTemplate = graphTemplateDocument.RootElement.GetProperty("template");
+        var graphTemplateResources = graphTemplate.GetProperty("resources")
+            .EnumerateArray()
+            .ToArray();
+        var graphAppTemplate = Assert.Single(graphTemplateResources, resource =>
+            resource.GetProperty("resourceId").GetString() == "application.container-app:graph-api");
+        var graphAppDefinition = graphAppTemplate.GetProperty("configuration");
+        var graphAppDefinitionAttributes = graphAppDefinition.GetProperty("attributes");
+
+        Assert.Equal("resourceGroup", graphTemplate.GetProperty("kind").GetString());
+        Assert.Equal("resource-model", graphAppTemplate.GetProperty("providerId").GetString());
+        Assert.Equal("application.container-app", graphAppTemplate.GetProperty("resourceType").GetString());
+        Assert.Equal("resource-definition.v1", graphAppTemplate.GetProperty("providerConfigurationVersion").GetString());
+        Assert.Equal("application.container-app", graphAppDefinition.GetProperty("typeId").GetString());
+        Assert.Equal("applications.container-app", graphAppDefinition.GetProperty("providerId").GetString());
+        Assert.Equal("Graph Replicated API", graphAppDefinition.GetProperty("displayName").GetString());
+        Assert.Equal("cloudshell-application-api:20260622.2", graphAppDefinitionAttributes.GetProperty("container.image").GetString());
+        Assert.Equal(3, graphAppDefinitionAttributes.GetProperty("container.replicas").GetInt32());
+        Assert.Equal(
+            "docker:graph-sample",
+            Assert.Single(graphAppDefinition.GetProperty("dependsOn").EnumerateArray())
+                .GetProperty("value")
+                .GetString());
+        Assert.True(graphAppDefinition.GetProperty("capabilities")
+            .TryGetProperty(ResourceHealthCheckCapabilityIds.HealthChecks.ToString(), out _));
+
         var observability = app.GetProperty("observability");
         Assert.True(observability.GetProperty("logs").GetBoolean());
         Assert.True(observability.GetProperty("traces").GetBoolean());
