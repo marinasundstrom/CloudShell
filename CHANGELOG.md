@@ -102,6 +102,9 @@ on `git blame --follow`, and then by the broad type of change.
 - ApplicationTopology Docker smoke coverage now verifies graph-only mode can
   start graph SQL, create the graph database, and run the graph API/frontend
   `/database` and `/upstream` paths without declaring the old SQL resource.
+- ApplicationTopology graph-only mode no longer registers the old application,
+  configuration, or secrets provider implementations; side-by-side mode keeps
+  them registered for comparison and remaining bridge coverage.
 - ReplicatedContainerHealth smoke coverage now verifies the graph-backed
   container app can scale through the existing replicas API and delegates the
   accepted graph replica count into the runtime app declaration.

@@ -391,43 +391,49 @@ builder.Services
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()
-    .AddExtension<ObservabilityExtension>()
-    .AddApplicationProvider(options =>
-    {
-        options.LogStore = builder.Configuration["Observability:ApplicationLogs:Store"] ?? options.LogStore;
-        options.LogDirectory = builder.Configuration["Observability:ApplicationLogs:LogDirectory"] ??
-            options.LogDirectory;
-        options.LogRetentionDays = builder.Configuration.GetValue<int?>(
-            "Observability:ApplicationLogs:LogRetentionDays") ?? options.LogRetentionDays;
-        options.RetainedLogEntries = builder.Configuration.GetValue<int?>(
-            "Observability:ApplicationLogs:RetainedLogEntries") ?? options.RetainedLogEntries;
-        options.SplitLogFilesByDay = builder.Configuration.GetValue<bool?>(
-            "Observability:ApplicationLogs:SplitLogFilesByDay") ?? options.SplitLogFilesByDay;
-        options.OtlpEndpoint = otlpEndpoint;
-        options.OtlpProtocol = otlpProtocol;
-        options.ResourceIdentityTokenEndpoint = identityTokenEndpoint;
-    })
-    .AddConfigurationProvider(options =>
-    {
-        options.ServiceProjectPath = configurationStoreServiceProjectPath;
-        options.ServiceWorkingDirectory = repositoryRootPath;
-        options.ServiceBasePort = builder.Configuration.GetValue<int?>(
-            "ApplicationTopology:ConfigurationServiceBasePort") ?? options.ServiceBasePort;
-        options.ServiceAuthenticationIssuer = identityIssuer;
-        options.ServiceAuthenticationAudience = identityAudience;
-        options.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
-    })
-    .AddSecretsProvider(options =>
-    {
-        options.SecretsServiceProjectPath = secretsVaultServiceProjectPath;
-        options.SecretsServiceWorkingDirectory = repositoryRootPath;
-        options.SecretsServiceBasePort = builder.Configuration.GetValue<int?>(
-            "ApplicationTopology:SecretsServiceBasePort") ?? options.SecretsServiceBasePort;
-        options.ServiceAuthenticationIssuer = identityIssuer;
-        options.ServiceAuthenticationAudience = identityAudience;
-        options.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
-    })
-    .UseLocalDevelopmentDefaults();
+    .AddExtension<ObservabilityExtension>();
+
+if (!graphOnly)
+{
+    cloudShell
+        .AddApplicationProvider(options =>
+        {
+            options.LogStore = builder.Configuration["Observability:ApplicationLogs:Store"] ?? options.LogStore;
+            options.LogDirectory = builder.Configuration["Observability:ApplicationLogs:LogDirectory"] ??
+                options.LogDirectory;
+            options.LogRetentionDays = builder.Configuration.GetValue<int?>(
+                "Observability:ApplicationLogs:LogRetentionDays") ?? options.LogRetentionDays;
+            options.RetainedLogEntries = builder.Configuration.GetValue<int?>(
+                "Observability:ApplicationLogs:RetainedLogEntries") ?? options.RetainedLogEntries;
+            options.SplitLogFilesByDay = builder.Configuration.GetValue<bool?>(
+                "Observability:ApplicationLogs:SplitLogFilesByDay") ?? options.SplitLogFilesByDay;
+            options.OtlpEndpoint = otlpEndpoint;
+            options.OtlpProtocol = otlpProtocol;
+            options.ResourceIdentityTokenEndpoint = identityTokenEndpoint;
+        })
+        .AddConfigurationProvider(options =>
+        {
+            options.ServiceProjectPath = configurationStoreServiceProjectPath;
+            options.ServiceWorkingDirectory = repositoryRootPath;
+            options.ServiceBasePort = builder.Configuration.GetValue<int?>(
+                "ApplicationTopology:ConfigurationServiceBasePort") ?? options.ServiceBasePort;
+            options.ServiceAuthenticationIssuer = identityIssuer;
+            options.ServiceAuthenticationAudience = identityAudience;
+            options.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
+        })
+        .AddSecretsProvider(options =>
+        {
+            options.SecretsServiceProjectPath = secretsVaultServiceProjectPath;
+            options.SecretsServiceWorkingDirectory = repositoryRootPath;
+            options.SecretsServiceBasePort = builder.Configuration.GetValue<int?>(
+                "ApplicationTopology:SecretsServiceBasePort") ?? options.SecretsServiceBasePort;
+            options.ServiceAuthenticationIssuer = identityIssuer;
+            options.ServiceAuthenticationAudience = identityAudience;
+            options.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
+        });
+}
+
+cloudShell.UseLocalDevelopmentDefaults();
 
 cloudShell.Resources(resources =>
 {
@@ -610,7 +616,11 @@ var app = builder.Build();
 await app.UseCloudShellControlPlaneAsync();
 await app.UseCloudShellAsync();
 app.MapCloudShellControlPlane();
-app.MapCloudShellSqlServerCredentialApi();
+if (!graphOnly)
+{
+    app.MapCloudShellSqlServerCredentialApi();
+}
+
 app.MapApplicationTopologyGraphSqlCredentialApi();
 app.MapCloudShell<App>();
 
