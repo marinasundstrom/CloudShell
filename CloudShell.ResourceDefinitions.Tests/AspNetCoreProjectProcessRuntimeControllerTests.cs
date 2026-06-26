@@ -89,6 +89,66 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
     }
 
     [Fact]
+    public void CommandFactory_LetsGraphEnvironmentVariablesOverrideDerivedValues()
+    {
+        var resource = CreateResource(
+            "src/Api/Api.csproj",
+            environmentVariables:
+            [
+                new("services__project-reference-api__http__0", "http://127.0.0.1:6000")
+            ]);
+        var command = new AspNetCoreProjectProcessCommandFactory()
+            .CreateStartInfo(
+                resource,
+                "/repo/src/Api/Api.csproj",
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["services__project-reference-api__http__0"] = "http://127.0.0.1:5229"
+                });
+
+        Assert.Equal(
+            "http://127.0.0.1:6000",
+            command.Environment["services__project-reference-api__http__0"]);
+    }
+
+    [Fact]
+    public async Task ServiceDiscoveryResolver_DerivesVariablesFromGraphReferences()
+    {
+        const string apiResourceId = "application.aspnet-core-project:graph-project-reference-api";
+        var apiState = CreateState(
+            "graph-project-reference-api",
+            "src/Api/Api.csproj",
+            resourceId: apiResourceId,
+            endpointRequests:
+            [
+                new(
+                    "http",
+                    "http",
+                    Host: "127.0.0.1",
+                    Port: 5229,
+                    Exposure: "Local")
+            ],
+            serviceDiscoveryName: "project-reference-api");
+        var frontend = CreateResource(
+            "src/Frontend/Frontend.csproj",
+            name: "graph-project-reference-frontend",
+            references:
+            [
+                ResourceReference.ReferenceResourceId(
+                    apiResourceId,
+                    typeId: AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
+            ]);
+        var resolver = new AspNetCoreProjectServiceDiscoveryEnvironmentResolver(
+            new ResourceGraphModel(new InMemoryResourceStateProvider([apiState])));
+
+        var variables = await resolver.ResolveAsync(frontend);
+
+        Assert.Equal(
+            "http://127.0.0.1:5229",
+            variables["services__project-reference-api__http__0"]);
+    }
+
+    [Fact]
     public void CommandFactory_PrefersExplicitProjectArgumentsOverEndpointRequests()
     {
         var resource = CreateResource(
@@ -209,11 +269,49 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
 
     private static Resource CreateResource(
         string projectPath,
+        string name = "api",
+        string? resourceId = null,
         string? arguments = null,
         bool? hotReload = null,
         bool? useLaunchSettings = null,
         IReadOnlyList<NetworkingEndpointRequestValue>? endpointRequests = null,
-        IReadOnlyList<AspNetCoreProjectEnvironmentVariableValue>? environmentVariables = null)
+        IReadOnlyList<AspNetCoreProjectEnvironmentVariableValue>? environmentVariables = null,
+        IReadOnlyList<ResourceReference>? references = null,
+        string? serviceDiscoveryName = null)
+    {
+        var resolver = new ResourceResolver(
+            [AspNetCoreProjectResourceTypeProvider.ClassDefinition],
+            [new AspNetCoreProjectResourceTypeProvider().TypeDefinition],
+            attributeValueShapeProviders:
+            [
+                new NetworkingEndpointShapeProvider(),
+                new AspNetCoreProjectShapeProvider()
+            ]);
+
+        return resolver.Resolve(CreateState(
+            name,
+            projectPath,
+            resourceId,
+            arguments,
+            hotReload,
+            useLaunchSettings,
+            endpointRequests,
+            environmentVariables,
+            references,
+            serviceDiscoveryName));
+    }
+
+    private static ResourceGraphState CreateState(
+        string name,
+        string projectPath,
+        string? resourceId = null,
+        string? arguments = null,
+        bool? hotReload = null,
+        bool? useLaunchSettings = null,
+        IReadOnlyList<NetworkingEndpointRequestValue>? endpointRequests = null,
+        IReadOnlyList<AspNetCoreProjectEnvironmentVariableValue>? environmentVariables = null,
+        IReadOnlyList<ResourceReference>? references = null,
+        string? serviceDiscoveryName = null)
     {
         var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeValue>
         {
@@ -250,20 +348,24 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
                 ResourceAttributeValue.FromObject(environmentVariables);
         }
 
-        var resolver = new ResourceResolver(
-            [AspNetCoreProjectResourceTypeProvider.ClassDefinition],
-            [new AspNetCoreProjectResourceTypeProvider().TypeDefinition],
-            attributeValueShapeProviders:
-            [
-                new NetworkingEndpointShapeProvider(),
-                new AspNetCoreProjectShapeProvider()
-            ]);
+        if (serviceDiscoveryName is not null)
+        {
+            attributes[AspNetCoreProjectResourceTypeProvider.Attributes.ServiceDiscoveryName] =
+                serviceDiscoveryName;
+        }
 
-        return resolver.Resolve(new ResourceGraphState(
-            "api",
+        if (references is not null)
+        {
+            attributes[AspNetCoreProjectResourceTypeProvider.Attributes.References] =
+                ResourceAttributeValue.FromObject(references);
+        }
+
+        return new ResourceGraphState(
+            name,
             AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
+            ResourceId: resourceId,
             ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
-            Attributes: attributes));
+            Attributes: attributes);
     }
 
     private static async Task<HttpResponseMessage> GetHealthyResponseAsync(

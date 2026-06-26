@@ -27,6 +27,14 @@ public sealed class AspNetCoreProjectResource(
         Resource.Attributes.GetObject<NetworkingEndpointRequestValue[]>(
             AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests) ?? [];
 
+    public string? ServiceDiscoveryName =>
+        Resource.Attributes.GetString(
+            AspNetCoreProjectResourceTypeProvider.Attributes.ServiceDiscoveryName);
+
+    public IReadOnlyList<ResourceReference> References =>
+        Resource.Attributes.GetObject<ResourceReference[]>(
+            AspNetCoreProjectResourceTypeProvider.Attributes.References) ?? [];
+
     public ValueTask<IReadOnlyList<VolumeMountDefinition>> GetVolumesAsync(
         CancellationToken cancellationToken = default)
     {

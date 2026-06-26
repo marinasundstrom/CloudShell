@@ -2,6 +2,7 @@ namespace CloudShell.ResourceDefinitions;
 
 public static class ResourceReferenceRelationships
 {
+    public static readonly ResourceReferenceRelationship Reference = "reference";
     public static readonly ResourceReferenceRelationship DependsOn = "dependsOn";
     public static readonly ResourceReferenceRelationship BelongsTo = "belongsTo";
 }
@@ -43,6 +44,16 @@ public sealed record ResourceReference(
         ResourceId(
             resourceId,
             ResourceReferenceRelationships.DependsOn,
+            typeId,
+            providerId);
+
+    public static ResourceReference ReferenceResourceId(
+        string resourceId,
+        ResourceTypeId? typeId = null,
+        string? providerId = null) =>
+        ResourceId(
+            resourceId,
+            ResourceReferenceRelationships.Reference,
             typeId,
             providerId);
 

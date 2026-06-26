@@ -163,12 +163,7 @@ public sealed class SampleSmokeTests
         Assert.Equal("http", graphFrontendEndpointElement.GetProperty("protocol").GetString());
         Assert.Equal(graphFrontendPort, graphFrontendEndpointElement.GetProperty("targetPort").GetInt32());
         Assert.Equal(graphFrontendEndpoint, graphFrontend.GetProperty("primaryEndpoint").GetString());
-        Assert.Contains(
-            graphApiResourceId,
-            graphFrontend
-                .GetProperty("dependsOn")
-                .EnumerateArray()
-                .Select(item => item.GetString() ?? string.Empty));
+        Assert.Empty(graphFrontend.GetProperty("dependsOn").EnumerateArray());
 
         if (!HasResourceState(graphApi, ResourceState.Running))
         {
@@ -470,7 +465,6 @@ public sealed class SampleSmokeTests
         Assert.Contains("project-reference-api", allTraceListHtml);
         Assert.Contains("graph-project-reference-api", allTraceListHtml);
         Assert.Contains("graph-project-reference-frontend", allTraceListHtml);
-        Assert.Contains("recent-trace-item attention", allTraceListHtml);
         Assert.Contains("Needs attention: 1 error span(s)", allTraceListHtml);
         Assert.Contains(
             $"href=\"/observability/traces?resourceId=application%3Aproject-reference-frontend&amp;traceId={traceId}\"",

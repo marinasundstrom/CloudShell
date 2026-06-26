@@ -58,6 +58,8 @@ builder.Services
                     false,
                 [AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings] =
                     false,
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ServiceDiscoveryName] =
+                    "project-reference-api",
                 [AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests] =
                     ResourceAttributeValue.FromObject(new[]
                     {
@@ -102,12 +104,6 @@ builder.Services
             ResourceId: graphFrontendResourceId,
             ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
             DisplayName: "Graph Project Reference Frontend",
-            DependsOn:
-            [
-                ResourceReference.DependsOnResourceId(
-                    graphApiResourceId,
-                    typeId: AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
-            ],
             Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
                 [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] =
@@ -116,6 +112,13 @@ builder.Services
                     false,
                 [AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings] =
                     false,
+                [AspNetCoreProjectResourceTypeProvider.Attributes.References] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        ResourceReference.ReferenceResourceId(
+                            graphApiResourceId,
+                            typeId: AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
+                    }),
                 [AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests] =
                     ResourceAttributeValue.FromObject(new[]
                     {
@@ -137,10 +140,7 @@ builder.Services
                             metricIngestEndpoint ?? string.Empty),
                         new AspNetCoreProjectEnvironmentVariableValue(
                             "OTEL_SERVICE_NAME",
-                            "graph-project-reference-frontend"),
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "services__project-reference-api__http__0",
-                            graphApiEndpoint)
+                            "graph-project-reference-frontend")
                     })
             },
             Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
@@ -281,6 +281,8 @@ static ResourceDefinition CreateGraphApiDefinition(
                 false,
             [AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings] =
                 false,
+            [AspNetCoreProjectResourceTypeProvider.Attributes.ServiceDiscoveryName] =
+                "project-reference-api",
             [AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests] =
                 ResourceAttributeValue.FromObject(new[]
                 {

@@ -78,6 +78,9 @@ on `git blame --follow`, and then by the broad type of change.
 - ProjectReference now includes a graph-backed ASP.NET Core frontend that uses
   Aspire-style service-discovery configuration to call the graph-backed API,
   proving graph project resources can compose with each other at runtime.
+- ASP.NET Core graph project startup now derives Aspire-style service-discovery
+  environment variables from provider-owned graph references, target endpoint
+  request attributes, and an optional provider-owned `project.serviceDiscoveryName`.
 - ProjectReference smoke coverage now verifies logs plus health/liveness
   refresh for both graph-backed ASP.NET Core project resources.
 - ProjectReference documentation and the resource graph proposal now describe

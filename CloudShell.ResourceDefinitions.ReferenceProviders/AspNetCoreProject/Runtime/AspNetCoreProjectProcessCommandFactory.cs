@@ -7,7 +7,8 @@ public sealed class AspNetCoreProjectProcessCommandFactory
 {
     public ProcessStartInfo CreateStartInfo(
         Resource resource,
-        string fullProjectPath)
+        string fullProjectPath,
+        IReadOnlyDictionary<string, string>? derivedEnvironmentVariables = null)
     {
         ArgumentNullException.ThrowIfNull(resource);
         ArgumentException.ThrowIfNullOrWhiteSpace(fullProjectPath);
@@ -53,6 +54,7 @@ public sealed class AspNetCoreProjectProcessCommandFactory
             resource.EffectiveResourceId;
         startInfo.Environment[AspNetCoreProjectEnvironmentNames.ResourceName] =
             resource.Name;
+        ApplyDerivedEnvironmentVariables(derivedEnvironmentVariables, startInfo);
         ApplyEnvironmentVariables(resource, startInfo);
 
         return startInfo;
@@ -132,6 +134,26 @@ public sealed class AspNetCoreProjectProcessCommandFactory
             }
 
             startInfo.Environment[variable.Name.Trim()] = variable.Value ?? string.Empty;
+        }
+    }
+
+    private static void ApplyDerivedEnvironmentVariables(
+        IReadOnlyDictionary<string, string>? environmentVariables,
+        ProcessStartInfo startInfo)
+    {
+        if (environmentVariables is null)
+        {
+            return;
+        }
+
+        foreach (var (name, value) in environmentVariables)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                continue;
+            }
+
+            startInfo.Environment[name.Trim()] = value;
         }
     }
 

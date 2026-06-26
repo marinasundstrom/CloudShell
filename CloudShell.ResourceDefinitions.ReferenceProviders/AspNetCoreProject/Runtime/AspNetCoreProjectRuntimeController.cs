@@ -46,6 +46,13 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
     private readonly ConcurrentDictionary<string, BoundedRuntimeOutputBuffer> _output = new(
         StringComparer.OrdinalIgnoreCase);
     private readonly AspNetCoreProjectProcessCommandFactory _commands = new();
+    private readonly AspNetCoreProjectServiceDiscoveryEnvironmentResolver _serviceDiscovery;
+
+    public AspNetCoreProjectProcessRuntimeController(
+        ResourceGraphModel? graphModel = null)
+    {
+        _serviceDiscovery = new AspNetCoreProjectServiceDiscoveryEnvironmentResolver(graphModel);
+    }
 
     public AspNetCoreProjectRuntimeStatus GetStatus(Resource resource)
     {
@@ -88,39 +95,39 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
         ];
     }
 
-    private ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> StartAsync(
+    private async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> StartAsync(
         Resource resource,
         CancellationToken cancellationToken)
     {
         if (_processes.TryGetValue(resource.EffectiveResourceId, out var current) &&
             !current.HasExited)
         {
-            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+            return [];
         }
 
         var projectPath = resource.Attributes.GetString(
             AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath);
         if (string.IsNullOrWhiteSpace(projectPath))
         {
-            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>(
+            return
             [
                 ResourceDefinitionDiagnostic.Error(
                     "application.aspNetCoreProject.pathRequired",
                     "ASP.NET Core project path is required.",
                     AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath)
-            ]);
+            ];
         }
 
         var fullProjectPath = Path.GetFullPath(projectPath, Directory.GetCurrentDirectory());
         if (!File.Exists(fullProjectPath))
         {
-            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>(
+            return
             [
                 ResourceDefinitionDiagnostic.Error(
                     "application.aspNetCoreProject.projectFileMissing",
                     $"ASP.NET Core project file '{fullProjectPath}' does not exist.",
                     resource.EffectiveResourceId)
-            ]);
+            ];
         }
 
         var output = _output.GetOrAdd(
@@ -128,7 +135,12 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
             _ => new BoundedRuntimeOutputBuffer());
         output.Clear();
 
-        var startInfo = _commands.CreateStartInfo(resource, fullProjectPath);
+        var serviceDiscoveryEnvironmentVariables =
+            await _serviceDiscovery.ResolveAsync(resource, cancellationToken);
+        var startInfo = _commands.CreateStartInfo(
+            resource,
+            fullProjectPath,
+            serviceDiscoveryEnvironmentVariables);
         var process = new Process
         {
             StartInfo = startInfo,
@@ -141,13 +153,13 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
 
         if (!process.Start())
         {
-            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>(
+            return
             [
                 ResourceDefinitionDiagnostic.Error(
                     "application.aspNetCoreProject.processStartFailed",
                     $"ASP.NET Core project process for '{resource.EffectiveResourceId}' did not start.",
                     resource.EffectiveResourceId)
-            ]);
+            ];
         }
 
         process.BeginOutputReadLine();
@@ -161,7 +173,7 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
                 return process;
             });
 
-        return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        return [];
     }
 
     public IReadOnlyList<AspNetCoreProjectRuntimeOutputEntry> ReadOutput(

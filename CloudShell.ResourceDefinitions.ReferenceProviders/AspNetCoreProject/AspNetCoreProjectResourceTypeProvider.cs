@@ -21,6 +21,8 @@ public sealed class AspNetCoreProjectResourceTypeProvider(
         public static readonly ResourceAttributeId UseLaunchSettings = "project.useLaunchSettings";
         public static readonly ResourceAttributeId EndpointRequests = "project.endpointRequests";
         public static readonly ResourceAttributeId EnvironmentVariables = "project.environmentVariables";
+        public static readonly ResourceAttributeId ServiceDiscoveryName = "project.serviceDiscoveryName";
+        public static readonly ResourceAttributeId References = "project.references";
     }
 
     public static class Operations
@@ -58,7 +60,11 @@ public sealed class AspNetCoreProjectResourceTypeProvider(
                 itemShapeId: NetworkingEndpointShapeIds.EndpointRequest),
             [Attributes.EnvironmentVariables] = ResourceAttributeDefinition.Collection(
                 itemType: ResourceAttributeValueType.ComplexType,
-                itemShapeId: AspNetCoreProjectShapeIds.EnvironmentVariable)
+                itemShapeId: AspNetCoreProjectShapeIds.EnvironmentVariable),
+            [Attributes.ServiceDiscoveryName] = new(
+                ValueType: ResourceAttributeValueType.String),
+            [Attributes.References] = ResourceAttributeDefinition.Collection(
+                itemType: ResourceAttributeValueType.ResourceReference)
         },
         Capabilities:
         [
@@ -158,7 +164,9 @@ public sealed class AspNetCoreProjectResourceTypeProvider(
             change.AttributeId == Attributes.HotReload ||
             change.AttributeId == Attributes.UseLaunchSettings ||
             change.AttributeId == Attributes.EndpointRequests ||
-            change.AttributeId == Attributes.EnvironmentVariables);
+            change.AttributeId == Attributes.EnvironmentVariables ||
+            change.AttributeId == Attributes.ServiceDiscoveryName ||
+            change.AttributeId == Attributes.References);
 
     private static void ValidateProjectPath(
         string? projectPath,

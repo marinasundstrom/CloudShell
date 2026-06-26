@@ -17,12 +17,14 @@ new Resource model bridge provider:
 
 Those resources use the new `application.aspnet-core-project` resource type
 provider and provider-owned process runtime controller. The graph-backed
-frontend keeps the same frontend code but receives an Aspire-style
-`services__project-reference-api__http__0` configuration entry that points at
-the graph-backed API endpoint. This intentionally stays narrow: it proves
-Resource Manager can list graph resources, dispatch Start to the new provider
-seam, and compose one graph-backed project with another without adapting the
-old application-provider definition/store concepts.
+frontend keeps the same frontend code and declares a provider-owned graph
+reference to the graph-backed API. The ASP.NET Core runtime resolver derives
+the Aspire-style service-discovery configuration from that reference, the
+API's `project.serviceDiscoveryName`, and the API endpoint request. This
+intentionally stays narrow: it proves Resource Manager can list graph
+resources, dispatch Start to the new provider seam, and compose one
+graph-backed project with another without adapting the old application-provider
+definition/store concepts.
 
 The frontend resource uses:
 
