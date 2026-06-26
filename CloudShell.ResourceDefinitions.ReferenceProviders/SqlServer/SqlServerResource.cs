@@ -18,6 +18,10 @@ public sealed class SqlServerResource(
             ? containerHostResourceId
             : null;
 
+    public IReadOnlyList<NetworkingEndpointRequestValue> EndpointRequests =>
+        Resource.Attributes.GetObject<NetworkingEndpointRequestValue[]>(
+            SqlServerResourceTypeProvider.Attributes.EndpointRequests) ?? [];
+
     public IReadOnlyList<SqlServerDatabaseDefinition> Databases =>
         Resource.GetConfiguration<SqlServerConfiguration>(
             SqlServerResourceTypeProvider.ConfigurationSection)?.Databases ?? [];

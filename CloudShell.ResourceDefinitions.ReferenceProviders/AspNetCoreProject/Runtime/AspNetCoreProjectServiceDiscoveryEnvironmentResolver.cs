@@ -42,9 +42,7 @@ public sealed class AspNetCoreProjectServiceDiscoveryEnvironmentResolver(
         ResourceState resource,
         Dictionary<string, string> variables)
     {
-        var endpointRequests = resource.ResourceAttributeValues
-            .GetObject<NetworkingEndpointRequestValue[]>(
-                AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests) ?? [];
+        var endpointRequests = GetEndpointRequests(resource);
 
         foreach (var endpoint in endpointRequests)
         {
@@ -76,6 +74,14 @@ public sealed class AspNetCoreProjectServiceDiscoveryEnvironmentResolver(
             SecretsVaultResourceTypeProvider.Attributes.Endpoint,
             "secrets");
     }
+
+    private static IReadOnlyList<NetworkingEndpointRequestValue> GetEndpointRequests(
+        ResourceState resource) =>
+        resource.TypeId == SqlServerResourceTypeProvider.ResourceTypeId
+            ? resource.ResourceAttributeValues.GetObject<NetworkingEndpointRequestValue[]>(
+                SqlServerResourceTypeProvider.Attributes.EndpointRequests) ?? []
+            : resource.ResourceAttributeValues.GetObject<NetworkingEndpointRequestValue[]>(
+                AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests) ?? [];
 
     private static void AddEndpointAttribute(
         ResourceState resource,

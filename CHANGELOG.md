@@ -78,6 +78,10 @@ on `git blame --follow`, and then by the broad type of change.
 - ProjectReference now includes a graph-backed ASP.NET Core frontend that uses
   Aspire-style service-discovery configuration to call the graph-backed API,
   proving graph project resources can compose with each other at runtime.
+- SQL Server graph resources now declare typed `sqlserver.endpointRequests`
+  values using the shared networking endpoint shape, and ASP.NET Core graph
+  project service discovery can derive `services__...` variables from explicit
+  SQL Server `project.references` without using `DependsOn` for discovery.
 - ASP.NET Core graph project startup now derives Aspire-style service-discovery
   environment variables from provider-owned graph references, target endpoint
   request attributes, and an optional provider-owned `project.serviceDiscoveryName`.

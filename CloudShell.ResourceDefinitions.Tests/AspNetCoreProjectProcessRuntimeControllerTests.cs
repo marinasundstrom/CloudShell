@@ -212,6 +212,49 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
     }
 
     [Fact]
+    public async Task ServiceDiscoveryResolver_DerivesVariablesFromReferencedSqlServerEndpointRequests()
+    {
+        const string sqlResourceId = "application.sql-server:application-topology-sql-server";
+        var sqlState = new ResourceGraphState(
+            "application-topology-sql-server",
+            SqlServerResourceTypeProvider.ResourceTypeId,
+            ResourceId: sqlResourceId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                [SqlServerResourceTypeProvider.Attributes.EndpointRequests] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        new NetworkingEndpointRequestValue(
+                            "tds",
+                            "tcp",
+                            TargetPort: 1433,
+                            Host: "127.0.0.1",
+                            Port: 14334,
+                            Exposure: "Local")
+                    })
+            });
+        var api = CreateResource(
+            "src/Api/Api.csproj",
+            references:
+            [
+                ResourceReference.ReferenceResourceId(
+                    sqlResourceId,
+                    typeId: SqlServerResourceTypeProvider.ResourceTypeId)
+            ]);
+        var resolver = new AspNetCoreProjectServiceDiscoveryEnvironmentResolver(
+            new ResourceGraphModel(new InMemoryResourceStateProvider([sqlState])));
+
+        var variables = await resolver.ResolveAsync(api);
+
+        Assert.Equal(
+            "127.0.0.1:14334",
+            variables["services__application-topology-sql-server__tds__0"]);
+        Assert.Equal(
+            "127.0.0.1:14334",
+            variables["services__application.sql-server-application-topology-sql-server__tcp__0"]);
+    }
+
+    [Fact]
     public void CommandFactory_PrefersExplicitProjectArgumentsOverEndpointRequests()
     {
         var resource = CreateResource(

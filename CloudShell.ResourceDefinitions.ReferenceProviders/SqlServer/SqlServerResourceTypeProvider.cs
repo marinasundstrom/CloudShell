@@ -16,6 +16,7 @@ public sealed class SqlServerResourceTypeProvider :
     {
         public static readonly ResourceAttributeId Version = "sqlserver.version";
         public static readonly ResourceAttributeId Edition = "sqlserver.edition";
+        public static readonly ResourceAttributeId EndpointRequests = "sqlserver.endpointRequests";
     }
 
     public static class Operations
@@ -39,7 +40,10 @@ public sealed class SqlServerResourceTypeProvider :
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.Edition] = new(
                 DefaultValue: "Developer",
-                ValueType: ResourceAttributeValueType.String)
+                ValueType: ResourceAttributeValueType.String),
+            [Attributes.EndpointRequests] = ResourceAttributeDefinition.Collection(
+                itemType: ResourceAttributeValueType.ComplexType,
+                itemShapeId: NetworkingEndpointShapeIds.EndpointRequest)
         },
         Operations:
         [

@@ -1500,10 +1500,21 @@ public sealed class ResourceProviderDispatcherTests
         var definition = new ResourceDefinition(
             "sql",
             SqlServerResourceTypeProvider.ResourceTypeId,
-            Attributes: new Dictionary<ResourceAttributeId, string>
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
                 [SqlServerResourceTypeProvider.Attributes.Version] = "2022",
-                [SqlServerResourceTypeProvider.Attributes.Edition] = "Developer"
+                [SqlServerResourceTypeProvider.Attributes.Edition] = "Developer",
+                [SqlServerResourceTypeProvider.Attributes.EndpointRequests] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        new NetworkingEndpointRequestValue(
+                            "tds",
+                            "tcp",
+                            TargetPort: 1433,
+                            Host: "localhost",
+                            Port: 14334,
+                            Exposure: "Local")
+                    })
             },
             Configuration: new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
             {
@@ -1550,6 +1561,10 @@ public sealed class ResourceProviderDispatcherTests
         Assert.NotNull(projection);
         Assert.Equal("2022", projection.Version);
         Assert.Equal("Developer", projection.Edition);
+        var endpointRequest = Assert.Single(projection.EndpointRequests);
+        Assert.Equal("tds", endpointRequest.Name);
+        Assert.Equal("tcp", endpointRequest.Protocol);
+        Assert.Equal(14334, endpointRequest.Port);
         Assert.Equal("appdb", Assert.Single(projection.Databases).Name);
 
         var reconcile = await projection.GetReconcileAccessOperationAsync();
