@@ -83,6 +83,9 @@ on `git blame --follow`, and then by the broad type of change.
   request attributes, and an optional provider-owned `project.serviceDiscoveryName`.
   It emits aliases for the configured service-discovery name, resource name,
   and resource id to match the existing application-provider behavior.
+- Service discovery documentation now calls out that graph-backed ASP.NET Core
+  project resources use provider-owned `project.references`, while `DependsOn`
+  remains startup ordering.
 - ProjectReference smoke coverage now verifies logs plus health/liveness
   refresh for both graph-backed ASP.NET Core project resources.
 - ProjectReference documentation and the resource graph proposal now describe
