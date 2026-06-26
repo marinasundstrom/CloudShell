@@ -52,8 +52,9 @@ commands, and applies an accepted graph `container.image` change through the gra
 `container.image.update` operation. That adapter is intentionally not a
 reusable provider toolkit yet; it exists to validate the graph-to-runtime
 boundary while the old application-provider runtime still owns replica
-materialization. The Docker smoke verifies that graph stop removes the
-revision-scoped runtime containers that graph start created.
+materialization. The Docker smoke verifies that graph restart recreates the
+revision-scoped runtime containers and graph stop removes the containers that
+graph start created.
 
 ## Example ResourceDefinition
 

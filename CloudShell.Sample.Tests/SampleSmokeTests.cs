@@ -3343,6 +3343,7 @@ public sealed class SampleSmokeTests
                     await WaitForDockerContainerExistsAsync(containerName, StartupTimeout),
                     $"Expected Docker container '{containerName}' to be created.");
             }
+            var startedContainerIds = await GetDockerContainerIdsAsync(containerNames);
 
             var restartAction = graphApp
                 .GetProperty("resourceActions")
@@ -3354,6 +3355,15 @@ public sealed class SampleSmokeTests
                 $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}/health",
                 bearerToken: null,
                 StartupTimeout);
+            foreach (var containerName in containerNames)
+            {
+                Assert.True(
+                    await WaitForDockerContainerIdChangedAsync(
+                        containerName,
+                        startedContainerIds[containerName],
+                        StartupTimeout),
+                    $"Expected Docker container '{containerName}' to be recreated after graph restart.");
+            }
 
             var stopAction = graphApp
                 .GetProperty("resourceActions")
@@ -4028,6 +4038,46 @@ public sealed class SampleSmokeTests
         return false;
     }
 
+    private static async Task<IReadOnlyDictionary<string, string>> GetDockerContainerIdsAsync(
+        IReadOnlyCollection<string> containerNames)
+    {
+        var containerIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var containerName in containerNames)
+        {
+            var containerId = await DockerComposeStack.GetContainerIdAsync(containerName);
+            if (string.IsNullOrWhiteSpace(containerId))
+            {
+                throw new InvalidOperationException(
+                    $"Docker container '{containerName}' did not have an inspectable id.");
+            }
+
+            containerIds[containerName] = containerId;
+        }
+
+        return containerIds;
+    }
+
+    private static async Task<bool> WaitForDockerContainerIdChangedAsync(
+        string containerName,
+        string previousContainerId,
+        TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            var currentContainerId = await DockerComposeStack.GetContainerIdAsync(containerName);
+            if (!string.IsNullOrWhiteSpace(currentContainerId) &&
+                !string.Equals(currentContainerId, previousContainerId, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            await Task.Delay(250);
+        }
+
+        return false;
+    }
+
     private static async Task<bool> AnyDockerContainerExistsAsync(IReadOnlyCollection<string> containerNames)
     {
         foreach (var containerName in containerNames)
@@ -4239,6 +4289,26 @@ public sealed class SampleSmokeTests
             catch
             {
                 return false;
+            }
+        }
+
+        public static async Task<string?> GetContainerIdAsync(string containerName)
+        {
+            try
+            {
+                var result = await RunDockerAsync(
+                    SampleProcess.FindRepositoryRoot(),
+                    ["container", "inspect", "--format", "{{.Id}}", containerName],
+                    null,
+                    TimeSpan.FromSeconds(10),
+                    throwOnError: false);
+                return result.ExitCode == 0
+                    ? result.Output.Trim()
+                    : null;
+            }
+            catch
+            {
+                return null;
             }
         }
 

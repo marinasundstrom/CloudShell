@@ -30,6 +30,9 @@ on `git blame --follow`, and then by the broad type of change.
   the provider-owned runtime handler seam and bridge state provider, and
   ReplicatedContainerHealth Docker smoke coverage verifies graph stop removes
   the revision-scoped runtime containers created by graph start.
+- ReplicatedContainerHealth Docker smoke coverage now also verifies graph
+  restart recreates the revision-scoped runtime containers instead of only
+  checking that the health endpoint comes back.
 - Container app lifecycle service descriptions now preserve active
   revision-scoped replica names when an environment revision is active, so
   stop/restart actions target the same runtime containers that start
