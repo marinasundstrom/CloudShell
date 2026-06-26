@@ -132,6 +132,14 @@ on `git blame --follow`, and then by the broad type of change.
   Secrets Vault client environment from explicit graph references, allowing the
   SettingsAndSecrets graph-backed API to consume graph-backed settings and
   secrets without duplicating those variables in the resource declaration.
+- ThirdPartyIdentity now attaches a graph-specific Keycloak identity provider
+  definition to the graph-backed identity provisioning resource, with a
+  sample-local graph setup adapter that delegates execution to the existing
+  Resource Manager identity setup service.
+- Graph-backed identity provisioning resources now have an optional
+  `identity.providerId` attribute so runtime integrations can attach setup
+  behavior to a Resource Manager identity provider without auto-declaring a
+  duplicate provisioning resource.
 - ApplicationTopology now includes a side-by-side graph-backed frontend project
   paired with the graph-backed API project, using separate configurable graph
   endpoints, runtime-ready absolute project paths, health/liveness declarations,

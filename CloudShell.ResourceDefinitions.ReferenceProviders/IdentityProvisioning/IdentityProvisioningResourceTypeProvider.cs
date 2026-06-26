@@ -15,6 +15,7 @@ public sealed class IdentityProvisioningResourceTypeProvider :
     {
         public static readonly ResourceAttributeId InfrastructureKind = "infrastructure.kind";
         public static readonly ResourceAttributeId IdentityProvider = "identity.provider";
+        public static readonly ResourceAttributeId IdentityProviderId = "identity.providerId";
         public static readonly ResourceAttributeId ProviderKind = "identity.providerKind";
     }
 
@@ -41,6 +42,8 @@ public sealed class IdentityProvisioningResourceTypeProvider :
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.IdentityProvider] = new(
                 Required: true,
+                ValueType: ResourceAttributeValueType.String),
+            [Attributes.IdentityProviderId] = new(
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.ProviderKind] = new(
                 DefaultValue: "oidc",

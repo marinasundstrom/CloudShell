@@ -11,6 +11,9 @@ public sealed class IdentityProvisioningResource(
     public string? IdentityProvider =>
         Resource.Attributes.GetString(IdentityProvisioningResourceTypeProvider.Attributes.IdentityProvider);
 
+    public string? IdentityProviderId =>
+        Resource.Attributes.GetString(IdentityProvisioningResourceTypeProvider.Attributes.IdentityProviderId);
+
     public string? ProviderKind =>
         Resource.Attributes.GetString(IdentityProvisioningResourceTypeProvider.Attributes.ProviderKind);
 

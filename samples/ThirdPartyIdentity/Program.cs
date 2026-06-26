@@ -49,6 +49,7 @@ builder.Services
             Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
                 [IdentityProvisioningResourceTypeProvider.Attributes.IdentityProvider] = "Keycloak",
+                [IdentityProvisioningResourceTypeProvider.Attributes.IdentityProviderId] = "identity:graph-keycloak",
                 [IdentityProvisioningResourceTypeProvider.Attributes.ProviderKind] = "oidc"
             })
     ])
@@ -82,6 +83,7 @@ builder.Services.TryAddEnumerable(
     ServiceDescriptor.Singleton<IResourceIdentityProviderSetupHandler, KeycloakResourceIdentityProvisioner>());
 builder.Services.TryAddEnumerable(
     ServiceDescriptor.Singleton<IResourceIdentityCredentialEnvironmentProvider, KeycloakResourceIdentityProvisioner>());
+builder.Services.AddSingleton<IIdentityProvisioningSetupHandler, GraphIdentityProvisioningSetupHandler>();
 
 cloudShell.Resources(resources =>
 {
@@ -114,6 +116,22 @@ cloudShell.Resources(resources =>
         },
         provisioningResourceId: provisioningResource.ResourceId,
         useAsDefault: true);
+    AddIdentityProviderDefinition(resources, new ResourceIdentityProviderDefinition(
+        "identity:graph-keycloak",
+        "Graph Keycloak",
+        ResourceIdentityProviderKind.Oidc,
+        new Dictionary<string, string>
+        {
+            ["Provider"] = "Keycloak",
+            ["Authority"] = authority,
+            ["ClientId"] = clientId,
+            ["RoleClaimType"] = builder.Configuration["Authentication:RoleClaimType"] ?? "roles",
+            ["TokenEndpoint"] = builder.Configuration["Keycloak:TokenEndpoint"] ??
+                $"{authority.TrimEnd('/')}/protocol/openid-connect/token",
+            ["Realm"] = builder.Configuration["Keycloak:Realm"] ?? "cloudshell",
+            ["AdminBaseAddress"] = builder.Configuration["Keycloak:AdminBaseAddress"] ??
+                "http://localhost:8080"
+        }));
     var settings = resources
         .AddConfigurationStore("third-party-identity")
         .WithDisplayName("Third-party Identity Settings")
@@ -168,4 +186,17 @@ static string FindRepositoryRoot(string startPath)
     }
 
     return Path.GetFullPath("../..", startPath);
+}
+
+static ResourceIdentityProviderDefinition AddIdentityProviderDefinition(
+    CloudShell.Abstractions.ResourceManager.IResourceGraphBuilder resources,
+    ResourceIdentityProviderDefinition provider)
+{
+    var declarations = resources.Services
+        .Where(descriptor => descriptor.ServiceType == typeof(ResourceDeclarationStore))
+        .Select(descriptor => descriptor.ImplementationInstance)
+        .OfType<ResourceDeclarationStore>()
+        .SingleOrDefault() ?? throw new InvalidOperationException(
+            "The resource declaration store is not registered.");
+    return declarations.AddIdentityProvider(provider);
 }

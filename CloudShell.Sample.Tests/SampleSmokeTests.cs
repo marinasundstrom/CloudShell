@@ -2242,10 +2242,13 @@ public sealed class SampleSmokeTests
         Assert.Equal("Graph Keycloak Identity Provisioning", graphProvisioning.GetProperty("displayName").GetString());
         Assert.Equal("identity-provisioning", graphAttributes.GetProperty("infrastructure.kind").GetString());
         Assert.Equal("Keycloak", graphAttributes.GetProperty("identity.provider").GetString());
+        Assert.Equal("identity:graph-keycloak", graphAttributes.GetProperty("identity.providerId").GetString());
         Assert.Equal("oidc", graphAttributes.GetProperty("identity.providerKind").GetString());
-        Assert.True(graphProvisioning
+        var graphSetupAction = graphProvisioning
             .GetProperty("resourceActions")
-            .TryGetProperty("identity.provisioning.setup", out _));
+            .GetProperty("identity.provisioning.setup");
+        Assert.Equal("POST", graphSetupAction.GetProperty("method").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(graphSetupAction.GetProperty("href").GetString()));
     }
 
     [Fact]
@@ -2293,6 +2296,8 @@ public sealed class SampleSmokeTests
         var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
         var provisioning = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "identity-provisioning:keycloak");
+        var graphProvisioning = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "identity-provisioning:graph-keycloak");
         var settings = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "configuration:third-party-identity");
         var api = Assert.Single(resources, resource =>
@@ -2300,6 +2305,7 @@ public sealed class SampleSmokeTests
         var identity = api.GetProperty("identity");
 
         Assert.Equal(ResourceIdentityProvisioningResources.ResourceType, provisioning.GetProperty("typeId").GetString());
+        Assert.Equal("cloudshell.identity-provisioning", graphProvisioning.GetProperty("typeId").GetString());
         Assert.Equal("keycloak", provisioning.GetProperty("name").GetString());
         Assert.Equal("Keycloak Identity Provisioning", provisioning.GetProperty("displayName").GetString());
         Assert.Equal(JsonValueKind.Null, provisioning.GetProperty("state").ValueKind);
@@ -2309,6 +2315,17 @@ public sealed class SampleSmokeTests
         Assert.Contains(
             "configuration:third-party-identity",
             api.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+
+        var graphSetupAction = graphProvisioning
+            .GetProperty("resourceActions")
+            .GetProperty("identity.provisioning.setup");
+        var graphSetupHref = graphSetupAction.GetProperty("href").GetString() ??
+            throw new InvalidOperationException("The graph identity provisioning setup action did not include an href.");
+        var graphSetupJson = await host.SendAsync(HttpMethod.Post, graphSetupHref);
+        using var graphSetupDocument = JsonDocument.Parse(graphSetupJson);
+        Assert.Contains(
+            "Executed Identity Provisioning Setup",
+            graphSetupDocument.RootElement.GetProperty("message").GetString());
 
         var provisioningStatusJson = await host.GetStringAsync(
             "/api/control-plane/v1/resources/application%3Akeycloak-provisioned-api/identity/provisioning-status");
