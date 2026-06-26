@@ -3095,6 +3095,18 @@ public sealed class SampleSmokeTests
         Assert.Equal(
             "3",
             scaledGraphAttributes.GetProperty("container.replicas").GetString());
+
+        var runtimeAfterGraphUpdateJson = await host.GetStringAsync(
+            "/api/control-plane/v1/resources/application%3Asample-api");
+        using var runtimeAfterGraphUpdateDocument = JsonDocument.Parse(runtimeAfterGraphUpdateJson);
+        var runtimeAfterGraphUpdateAttributes =
+            runtimeAfterGraphUpdateDocument.RootElement.GetProperty("attributes");
+        Assert.Equal(
+            "cloudshell/mock-api:20260608.3",
+            runtimeAfterGraphUpdateAttributes.GetProperty("container.image").GetString());
+        Assert.Equal(
+            "3",
+            runtimeAfterGraphUpdateAttributes.GetProperty(ResourceAttributeNames.ContainerReplicas).GetString());
     }
 
     [Fact]

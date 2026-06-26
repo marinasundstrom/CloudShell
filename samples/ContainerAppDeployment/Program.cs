@@ -56,6 +56,9 @@ if (builder.Configuration.GetValue("ContainerAppDeployment:EnableGraphDockerRunt
 }
 
 builder.Services
+    .AddSingleton<IContainerApplicationRuntimeHandler, ContainerAppDeploymentGraphContainerApplicationRuntimeHandler>();
+
+builder.Services
     .AddInMemoryResourceModelGraph(
         graph.BuildDeployment("container-app-deployment", environmentId: "local")
             .Resources

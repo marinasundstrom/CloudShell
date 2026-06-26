@@ -16,9 +16,10 @@
   provider-owned runtime handler seam.
 - Typed wrapper plus Resource Manager bridge projection, endpoint projection, and execution.
 - ContainerAppDeployment and ReplicatedContainerHealth sample-inspired graph coverage,
-  including ReplicatedContainerHealth smoke coverage where graph start,
-  stop, restart, and image-update actions delegate to a sample-local runtime
-  adapter and stop verifies Docker runtime container cleanup.
+  including ContainerAppDeployment image/replica update delegation and
+  ReplicatedContainerHealth smoke coverage where graph start, stop, restart,
+  and image-update actions delegate to sample-local runtime adapters and stop
+  verifies Docker runtime container cleanup.
 - Manual `ResourceDefinitionGraphBuilder.AddContainerApplication(...)`
   builder for code-first container app definition authoring with typed host
   dependencies, endpoint requests, replicas, and volume mount capability setup.
@@ -55,6 +56,12 @@ boundary while the old application-provider runtime still owns replica
 materialization. The Docker smoke verifies that graph restart recreates the
 revision-scoped runtime containers and graph stop removes the containers that
 graph start created.
+
+The ContainerAppDeployment sample also wires this seam to a sample-local
+adapter. It maps `application.container-app:graph-sample-api` to the existing
+`application:sample-api` runtime resource so graph image and replica updates can
+be applied through the existing Resource Manager deployment and replicas APIs
+while the durable container runtime provider remains future work.
 
 ## Example ResourceDefinition
 

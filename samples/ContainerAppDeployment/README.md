@@ -122,8 +122,11 @@ app deployment, records the app-owned revision produced by that deployment, and
 writes resource events for traceability. The graph-backed
 `application.container-app:graph-sample-api` path uses the same API to apply
 `container.image` and optional `container.replicas` changes into the Resource
-Graph before executing the graph image-update operation seam. The graph-backed
-app also supports the existing:
+Graph before executing the graph image-update operation seam. In this sample,
+that seam is wired to a sample-local adapter over the existing
+`application:sample-api` runtime path so the graph update also changes the
+current runtime app declaration. The graph-backed app also supports the
+existing:
 
 ```text
 PUT /api/container-apps/v1/{containerAppId}/replicas

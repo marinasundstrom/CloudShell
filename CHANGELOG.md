@@ -66,6 +66,10 @@ on `git blame --follow`, and then by the broad type of change.
   requested replica count into the graph before executing the same container
   app runtime seam. ContainerAppDeployment smoke coverage now scales the
   graph-backed container app through the existing replicas API.
+- ContainerAppDeployment now wires the graph container-app runtime seam to a
+  sample-local adapter over the existing `application:sample-api` runtime path,
+  so graph image and replica updates are applied to both graph state and the
+  running sample resource model.
 - ContainerAppDeployment now declares its graph Docker host, registry
   container, and container app through provider-owned graph builders instead
   of raw graph state dictionaries.
