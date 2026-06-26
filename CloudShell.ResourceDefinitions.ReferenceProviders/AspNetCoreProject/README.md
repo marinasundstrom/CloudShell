@@ -21,6 +21,10 @@
   graph SQL credential endpoint.
 - ApplicationTopology Docker-backed graph frontend `/upstream` coverage through
   the graph API, graph settings, and graph SQL credential flow.
+- Manual `ResourceDefinitionGraphBuilder.AddAspNetCoreProject(...)` builder
+  for code-first project definition authoring with endpoint requests,
+  environment variables, service-discovery references, volume mounts, and
+  health-check capability payloads.
 
 ## Remaining
 

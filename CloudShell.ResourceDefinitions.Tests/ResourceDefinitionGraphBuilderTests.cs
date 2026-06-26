@@ -370,4 +370,104 @@ public sealed class ResourceDefinitionGraphBuilderTests
         Assert.False(result.HasErrors, string.Join(" ", result.Diagnostics.Select(diagnostic => diagnostic.Message)));
         Assert.True(result.IsCommitted);
     }
+
+    [Fact]
+    public async Task ResourceDefinitionGraphBuilder_BuildsExecutableAndProjectDefinitions()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddStorageResourceType();
+        services.AddCloudShellVolumeResourceType();
+        services.AddConfigurationStoreResourceType();
+        services.AddExecutableApplicationResourceType();
+        services.AddAspNetCoreProjectResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var graph = new ResourceDefinitionGraphBuilder();
+        var storage = graph
+            .AddStorage("local")
+            .UseLocalFileSystem();
+        var volume = graph
+            .AddCloudShellVolume("app-data")
+            .UseStorage(storage)
+            .UseLocalFileSystemVolume("app");
+        var settings = graph
+            .AddConfigurationStore("settings")
+            .WithEndpoint("http://localhost:5101/api/configuration/stores/settings/entries");
+
+        graph
+            .AddExecutableApplication("worker")
+            .WithCommand("dotnet", "run --project src/Worker/Worker.csproj", "src/Worker")
+            .MountVolume(volume, "App_Data");
+        graph
+            .AddAspNetCoreProject("api", "src/Api/Api.csproj")
+            .WithHotReload()
+            .UseLaunchSettings(false)
+            .AddEndpointRequest(
+                "http",
+                "http",
+                host: "localhost",
+                port: 5010,
+                exposure: "Local")
+            .WithEnvironmentVariable(
+                "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
+                "http://localhost:5104/api/control-plane/v1/traces/ingest")
+            .WithReference(settings, ConfigurationStoreResourceTypeProvider.ResourceTypeId)
+            .MountVolume(volume, "App_Data")
+            .AddHealthCheck(ResourceHealthCheckDefinition.HttpLiveness(
+                "/alive",
+                endpointName: "http",
+                name: "alive",
+                intervalSeconds: 10));
+
+        var deployment = graph.BuildDeployment("project-app", environmentId: "local");
+
+        Assert.Equal(5, deployment.Resources.Count);
+        var executable = Assert.Single(deployment.Resources, resource =>
+            resource.TypeId == ExecutableApplicationResourceTypeProvider.ResourceTypeId);
+        var project = Assert.Single(deployment.Resources, resource =>
+            resource.TypeId == AspNetCoreProjectResourceTypeProvider.ResourceTypeId);
+        Assert.Equal("application.executable:worker", executable.EffectiveResourceId);
+        Assert.Equal("dotnet", executable.ResourceAttributeValues[
+            ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath].StringValue);
+        var executableConfiguration = executable.GetConfiguration<ExecutableApplicationConfiguration>(
+            ExecutableApplicationResourceTypeProvider.ConfigurationSection);
+        Assert.Equal("dotnet", executableConfiguration!.Path);
+        Assert.Equal("run --project src/Worker/Worker.csproj", executableConfiguration.Arguments);
+        Assert.Equal("src/Worker", executableConfiguration.WorkingDirectory);
+
+        Assert.Equal("application.aspnet-core-project:api", project.EffectiveResourceId);
+        Assert.Equal("src/Api/Api.csproj", project.ResourceAttributeValues[
+            AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath].StringValue);
+        Assert.Equal(false, project.ResourceAttributeValues[
+            AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings].BooleanValue);
+        var endpoint = Assert.Single(project.ResourceAttributeValues.GetObject<NetworkingEndpointRequestValue[]>(
+            AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests) ?? []);
+        Assert.Equal("http", endpoint.Name);
+        Assert.Equal(5010, endpoint.Port);
+        var environmentVariable = Assert.Single(project.ResourceAttributeValues
+            .GetObject<AspNetCoreProjectEnvironmentVariableValue[]>(
+                AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables) ?? []);
+        Assert.Equal("CLOUDSHELL_TRACE_INGEST_ENDPOINT", environmentVariable.Name);
+        var reference = Assert.Single(project.ResourceAttributeValues.GetObject<ResourceReference[]>(
+            AspNetCoreProjectResourceTypeProvider.Attributes.References) ?? []);
+        Assert.Equal(ResourceReferenceRelationships.Reference, reference.Relationship);
+        Assert.Equal(settings.EffectiveResourceId, reference.Value);
+        Assert.Equal(ConfigurationStoreResourceTypeProvider.ResourceTypeId, reference.TypeId);
+        var healthChecks = project.GetCapability<ResourceHealthCheckDefinitionSet>(
+            ResourceHealthCheckCapabilityIds.HealthChecks);
+        var healthCheck = Assert.Single(healthChecks!.Checks ?? []);
+        Assert.Equal("alive", healthCheck.Name);
+
+        var result = await serviceProvider
+            .GetRequiredService<ResourceModelGraphDefinitionApplyService>()
+            .ApplyDeploymentAsync(
+                deployment,
+                new ResourceGraphCommitContext(
+                    PrincipalId: "developer",
+                    Timestamp: new DateTimeOffset(2026, 6, 26, 17, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, string.Join(" ", result.Diagnostics.Select(diagnostic => diagnostic.Message)));
+        Assert.True(result.IsCommitted);
+    }
 }

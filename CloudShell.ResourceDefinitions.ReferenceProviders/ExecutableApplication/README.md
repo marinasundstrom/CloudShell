@@ -14,6 +14,9 @@
 - Provider-declared default console log source.
 - Start operation with an injected provider-owned process runtime controller.
 - Typed wrapper plus Resource Manager bridge projection and execution.
+- Manual `ResourceDefinitionGraphBuilder.AddExecutableApplication(...)`
+  builder for code-first executable definition authoring with command
+  configuration and volume mount capability setup.
 
 ## Remaining
 

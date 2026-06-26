@@ -114,6 +114,10 @@ on `git blame --follow`, and then by the broad type of change.
   builders as part of the porting contract, and Container Host, Docker Host,
   and Container Application have builders covering host dependencies, endpoint
   requests, replicas, image settings, and volume mount payloads.
+- Executable Application and ASP.NET Core Project now have provider-owned
+  Resource Graph builders covering command/project settings, endpoint
+  requests, environment variables, service-discovery references, volume mounts,
+  and health-check payloads, and their provider tests now use those builders.
 
 #### Fixed
 

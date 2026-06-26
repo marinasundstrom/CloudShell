@@ -1349,30 +1349,16 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphResourceProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var graph = new ResourceDefinitionGraphBuilder();
         var volume = new ResourceDefinition(
             "data",
             LocalVolumeResourceTypeProvider.ResourceTypeId);
-        var executable = new ResourceDefinition(
-            "api",
-            ExecutableApplicationResourceTypeProvider.ResourceTypeId,
-            ProviderId: ExecutableApplicationResourceTypeProvider.ProviderId,
-            DependsOn: [ResourceReference.DependsOnResourceId(volume.EffectiveResourceId)],
-            Attributes: new Dictionary<ResourceAttributeId, string>
-            {
-                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
-            },
-            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
-            {
-                [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
-                    ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
-                    [
-                        new(volume.EffectiveResourceId, "App_Data")
-                    ]))
-            });
-        var deployment = new ResourceDeploymentDefinition(
-            "local-app",
-            [volume, executable],
-            EnvironmentId: "local");
+        graph.Add(volume);
+        var executable = graph
+            .AddExecutableApplication("api")
+            .WithExecutablePath("dotnet")
+            .MountVolume(volume.EffectiveResourceId, "App_Data");
+        var deployment = graph.BuildDeployment("local-app", environmentId: "local");
 
         var result = await service.ApplyDeploymentAsync(
             deployment,
@@ -1698,59 +1684,33 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var graph = new ResourceDefinitionGraphBuilder();
         var volume = new ResourceDefinition(
             "data",
             LocalVolumeResourceTypeProvider.ResourceTypeId);
-        var project = new ResourceDefinition(
-            "api",
-            AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
-            ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
-            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
-            {
-                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] = "src/Api/Api.csproj",
-                [AspNetCoreProjectResourceTypeProvider.Attributes.HotReload] = true,
-                [AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings] = false,
-                [AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests] =
-                    ResourceAttributeValue.FromObject(new[]
-                    {
-                        new NetworkingEndpointRequestValue(
-                            "http",
-                            "http",
-                            Host: "localhost",
-                            Port: 5010,
-                            Exposure: "Local")
-                    }),
-                [AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables] =
-                    ResourceAttributeValue.FromObject(new[]
-                    {
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
-                            "http://localhost:5104/api/control-plane/v1/traces/ingest")
-                    })
-            },
-            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
-            {
-                [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
-                    ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
-                    [
-                        new(volume.EffectiveResourceId, "App_Data")
-                    ])),
-                [ResourceHealthCheckCapabilityIds.HealthChecks] =
-                    ResourceDefinitionJson.FromValue(new ResourceHealthCheckDefinitionSet(
-                    [
-                        ResourceHealthCheckDefinition.HttpLiveness(
-                            "/alive",
-                            endpointName: "http",
-                            name: "alive",
-                            intervalSeconds: 10)
-                    ]))
-            });
+        graph.Add(volume);
+        var project = graph
+            .AddAspNetCoreProject("api", "src/Api/Api.csproj")
+            .WithHotReload()
+            .UseLaunchSettings(false)
+            .AddEndpointRequest(
+                "http",
+                "http",
+                host: "localhost",
+                port: 5010,
+                exposure: "Local")
+            .WithEnvironmentVariable(
+                "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
+                "http://localhost:5104/api/control-plane/v1/traces/ingest")
+            .MountVolume(volume.EffectiveResourceId, "App_Data")
+            .AddHealthCheck(ResourceHealthCheckDefinition.HttpLiveness(
+                "/alive",
+                endpointName: "http",
+                name: "alive",
+                intervalSeconds: 10));
 
         var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
-                "project-app",
-                [volume, project],
-                EnvironmentId: "local"),
+            graph.BuildDeployment("project-app", environmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 24, 21, 0, 0, TimeSpan.Zero)));
