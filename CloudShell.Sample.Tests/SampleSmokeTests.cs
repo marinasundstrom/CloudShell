@@ -1511,6 +1511,9 @@ public sealed class SampleSmokeTests
             GetPrimaryEndpointAddress(graphApi));
         Assert.Contains("configuration.store:graph-sample-app", graphApiDependsOn);
         Assert.Contains("secrets.vault:graph-sample-app", graphApiDependsOn);
+        var graphApiIdentity = graphApi.GetProperty("identity");
+        Assert.Equal("identity:development", graphApiIdentity.GetProperty("providerId").GetString());
+        Assert.Equal("graph-settings-secrets-api", graphApiIdentity.GetProperty("name").GetString());
 
         var graphSettingsInspectAction = graphSettings
             .GetProperty("resourceActions")
@@ -1661,6 +1664,24 @@ public sealed class SampleSmokeTests
         else
         {
             Assert.Equal((int)ResourceIdentityProvisioningState.Provisioned, state.GetInt32());
+        }
+
+        var graphProvisioning = await host.GetStringAsync(
+            "/api/control-plane/v1/resources/application.aspnet-core-project%3Agraph-settings-secrets-api/identity/provisioning-status");
+        using var graphProvisioningDocument = JsonDocument.Parse(graphProvisioning);
+        Assert.Equal(
+            "identity:development",
+            graphProvisioningDocument.RootElement.GetProperty("providerId").GetString());
+        var graphProvisioningStatus =
+            Assert.Single(graphProvisioningDocument.RootElement.GetProperty("statuses").EnumerateArray());
+        var graphState = graphProvisioningStatus.GetProperty("state");
+        if (graphState.ValueKind == JsonValueKind.String)
+        {
+            Assert.Equal("provisioned", graphState.GetString()?.ToLowerInvariant());
+        }
+        else
+        {
+            Assert.Equal((int)ResourceIdentityProvisioningState.Provisioned, graphState.GetInt32());
         }
 
         var credentialSampleOutput = await RunResourceIdentityCredentialSampleAsync(host);

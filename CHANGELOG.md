@@ -72,6 +72,9 @@ on `git blame --follow`, and then by the broad type of change.
 - SettingsAndSecrets now gives the graph-backed ASP.NET Core API its own
   Resource Manager-declared identity and scoped graph settings/secrets grants,
   so the graph-backed runtime path no longer reuses the legacy API identity.
+- SettingsAndSecrets smoke coverage now verifies that the Resource Manager
+  declaration identity is projected onto the graph-backed API resource and
+  reports provisioned status through the normal identity endpoint.
 - Docker container reference resources now mark `endpoints.count` as read-only
   provider-projected state, so deployment definitions cannot author endpoint
   counts while resolved Resource projections still expose the default count.
