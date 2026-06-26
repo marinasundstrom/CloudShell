@@ -108,6 +108,10 @@ on `git blame --follow`, and then by the broad type of change.
   through an injected provider-owned runtime handler seam, with Resource
   Manager state projection ready for hosts or samples to plug in actual SQL
   runtime behavior.
+- ApplicationTopology now wires that SQL Server graph lifecycle seam to a
+  sample-local runtime adapter, so starting the graph SQL Server resource can
+  drive the existing SQL Server runtime path before graph API/database smoke
+  coverage runs.
 - The Resource Graph proposal now clarifies that selected samples should
   become runnable through graph-backed providers, with adapters used only as
   temporary bridges into focused Control Plane or Resource Manager services.

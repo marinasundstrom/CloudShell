@@ -47,14 +47,16 @@ Docker-backed smoke
 coverage also starts the graph API and frontend against the existing SQL
 Server runtime and verifies the graph frontend `/upstream` path through graph
 settings and graph SQL credentials. The host registers a sample-local graph SQL
-database ensure-created handler that can materialize the graph database against
-the configured SQL Server endpoint without storing administrator credentials in
+lifecycle adapter so the graph SQL Server start/stop/restart operations drive
+the existing SQL runtime resource for this sample, and a graph SQL database
+ensure-created handler that can materialize the graph database against the
+configured SQL Server endpoint without storing administrator credentials in
 graph state. The graph API has a declared built-in resource identity, read
 grants to the graph Configuration Store and Secrets Vault, and a read/write
 grant to the graph SQL Server. The host maps a sample-local graph SQL
 credential endpoint so the graph API can exercise `/database` through the same
 CloudShell SQL client flow as the old provider path. A reusable graph SQL
-credential broker and broader SQL Server lifecycle/runtime ownership remain
+credential broker and provider-owned SQL Server runtime implementation remain
 provider work.
 
 Both projects use the shared `ServiceDefaults` project for health endpoints,

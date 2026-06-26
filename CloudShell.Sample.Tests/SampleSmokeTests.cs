@@ -1704,6 +1704,20 @@ public sealed class SampleSmokeTests
         try
         {
             await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+            var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+            using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+            var graphSqlServer = Assert.Single(
+                resourcesDocument.RootElement.EnumerateArray(),
+                resource => resource.GetProperty("id").GetString() ==
+                    "application.sql-server:graph-application-topology-sql-server");
+            await StartGraphResourceIfAvailableAsync(host, graphSqlServer, "ApplicationTopology SQL Server");
+            await WaitForResourceStateAsync(
+                host,
+                "application:application-topology-sql-server",
+                ResourceState.Running,
+                StartupTimeout);
+
             await host.SendAsync(
                 HttpMethod.Post,
                 "/api/control-plane/v1/resources/application%3Aapplication-topology-frontend/actions/start?startDependencies=true");
@@ -1722,8 +1736,6 @@ public sealed class SampleSmokeTests
             Assert.Equal("mssql", upstream.GetProperty("database").GetProperty("provider").GetString());
             Assert.Equal("application_topology", upstream.GetProperty("database").GetProperty("database").GetString());
 
-            var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
-            using var resourcesDocument = JsonDocument.Parse(resourcesJson);
             var graphDatabase = Assert.Single(
                 resourcesDocument.RootElement.EnumerateArray(),
                 resource => resource.GetProperty("id").GetString() ==
