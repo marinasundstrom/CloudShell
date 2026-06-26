@@ -117,6 +117,9 @@ on `git blame --follow`, and then by the broad type of change.
   Server resources in the sample host, with service-level coverage verifying
   Resource Manager projection, storage/volume attributes, typed storage
   dependency, and SQL Server volume-consumer capability.
+- SplitHosting now exposes a graph-backed network resource from the split
+  Control Plane host, with smoke coverage verifying that the separate UI host
+  and remote Control Plane API see it alongside the old persisted network.
 - The Resource Graph proposal now documents the lifecycle of porting tests,
   distinguishing temporary old/new parity tests from graph-contract tests,
   runtime seam tests, and smoke tests that should be simplified after a sample

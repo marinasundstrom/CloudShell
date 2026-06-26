@@ -33,3 +33,11 @@ through the remote Control Plane settings adapter because the UI sample sets
 `Shell:EnvironmentSettings:Storage` to `ControlPlane`. In this sample, the Control
 Plane stores them in its local `Data/environment-settings.json` file under the identity
 represented by the UI's Control Plane credential.
+
+## Resource Graph POC coverage
+
+The split Control Plane also exposes `network:graph-split-sample`, a
+graph-backed network resource projected through the Resource Definitions
+bridge. The separate UI host renders it through the remote Control Plane
+client, which keeps this sample useful for validating graph-backed Resource
+Manager projections before changing public API or client contracts.

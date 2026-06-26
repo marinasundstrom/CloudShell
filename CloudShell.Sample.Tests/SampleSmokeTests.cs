@@ -2278,6 +2278,7 @@ public sealed class SampleSmokeTests
 
         var resourcesHtml = await ui.GetStringAsync("/resources");
         Assert.Contains("Split Sample Network", resourcesHtml);
+        Assert.Contains("Graph Split Sample Network", resourcesHtml);
 
         var token = await controlPlane.GetClientCredentialsTokenAsync(
             "cloudshell-split-ui",
@@ -2287,8 +2288,15 @@ public sealed class SampleSmokeTests
             "/api/control-plane/v1/resources",
             token);
         using var document = JsonDocument.Parse(apiJson);
-        var resource = Assert.Single(document.RootElement.EnumerateArray());
-        Assert.Equal("network:split-sample", resource.GetProperty("id").GetString());
+        var resources = document.RootElement.EnumerateArray().ToArray();
+        var network = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "network:split-sample");
+        var graphNetwork = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "network:graph-split-sample");
+        Assert.Equal("cloudshell.network", network.GetProperty("typeId").GetString());
+        Assert.Equal("cloudshell.network", graphNetwork.GetProperty("typeId").GetString());
+        Assert.Equal("Logical", graphNetwork.GetProperty("attributes").GetProperty("network.kind").GetString());
+        Assert.Equal("logicalOnly", graphNetwork.GetProperty("attributes").GetProperty("network.hostReadiness").GetString());
     }
 
     [Fact]
