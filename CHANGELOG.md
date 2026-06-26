@@ -44,7 +44,8 @@ on `git blame --follow`, and then by the broad type of change.
   requested resource group.
 - Control Plane coverage now verifies that importing a resource group template
   containing a graph `ResourceDefinition` creates a graph-backed Resource
-  Manager resource and registration through the existing template API.
+  Manager resource and registration through the existing template API,
+  including startup dependency remapping between imported graph resources.
 - Graph-backed template import now preserves typed `ResourceReference`
   metadata when the Resource Manager template container remaps startup
   dependency keys to concrete resource ids.

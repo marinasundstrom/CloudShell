@@ -1033,6 +1033,7 @@ public sealed class InProcessControlPlaneResourceStateTests
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph();
+        services.AddLocalVolumeResourceType();
         services.AddExecutableApplicationResourceType();
         services.AddResourceModelGraphServices();
         services.AddResourceModelGraphProcedureProvider(
@@ -1040,11 +1041,22 @@ public sealed class InProcessControlPlaneResourceStateTests
             "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var provider = serviceProvider.GetRequiredService<ResourceModelGraphProcedureProvider>();
+        var volumeDefinition = new CloudShell.ResourceDefinitions.ResourceDefinition(
+            "data",
+            LocalVolumeResourceTypeProvider.ResourceTypeId,
+            ProviderId: LocalVolumeResourceTypeProvider.ProviderId);
         var definition = new CloudShell.ResourceDefinitions.ResourceDefinition(
             "api",
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
             ProviderId: ExecutableApplicationResourceTypeProvider.ProviderId,
             DisplayName: "API",
+            DependsOn:
+            [
+                CloudShell.ResourceDefinitions.ResourceReference.DependsOnResourceId(
+                    "data",
+                    typeId: LocalVolumeResourceTypeProvider.ResourceTypeId,
+                    providerId: LocalVolumeResourceTypeProvider.ProviderId)
+            ],
             Attributes: new Dictionary<GraphResourceAttributeId, string>
             {
                 [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
@@ -1056,10 +1068,19 @@ public sealed class InProcessControlPlaneResourceStateTests
             "Imported graph resources.",
             [
                 new ResourceTemplateDefinition(
+                    volumeDefinition.Name,
+                    ResourceModelResourceProvider.DefaultProviderId,
+                    volumeDefinition.TypeId.ToString(),
+                    [],
+                    ResourceModelGraphProcedureProvider.ResourceDefinitionTemplateConfigurationVersion,
+                    CloudShell.ResourceDefinitions.ResourceDefinitionJson.FromValue(
+                        volumeDefinition,
+                        JsonSerializerOptions.Web)),
+                new ResourceTemplateDefinition(
                     definition.Name,
                     ResourceModelResourceProvider.DefaultProviderId,
                     definition.TypeId.ToString(),
-                    [],
+                    ["data"],
                     ResourceModelGraphProcedureProvider.ResourceDefinitionTemplateConfigurationVersion,
                     CloudShell.ResourceDefinitions.ResourceDefinitionJson.FromValue(
                         definition,
@@ -1072,16 +1093,24 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         Assert.Empty(import.Diagnostics);
         Assert.Equal("Applications", import.ResourceGroup?.Name);
-        var imported = Assert.Single(import.ImportedResources);
-        Assert.Equal("application.executable:api", imported.ResourceId);
-        var resource = Assert.Single(await controlPlane.ListResourcesAsync());
+        Assert.Equal(
+            ["application.executable:api", "storage.volume:data"],
+            import.ImportedResources
+                .Select(resource => resource.ResourceId)
+                .OrderBy(id => id, StringComparer.OrdinalIgnoreCase)
+                .ToArray());
+        var resources = await controlPlane.ListResourcesAsync();
+        var resource = resources.Single(resource => resource.Id == "application.executable:api");
         Assert.Equal("application.executable:api", resource.Id);
+        Assert.Equal(["storage.volume:data"], resource.DependsOn);
         Assert.Equal("API", resource.DisplayName);
         Assert.Equal("dotnet", resource.ResourceAttributes[
             ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
-        var registration = Assert.Single(await controlPlane.ListResourceRegistrationsAsync());
+        var registration = (await controlPlane.ListResourceRegistrationsAsync())
+            .Single(registration => registration.ResourceId == "application.executable:api");
         Assert.Equal(ResourceModelResourceProvider.DefaultProviderId, registration.ProviderId);
         Assert.Equal(import.ResourceGroup?.Id, registration.ResourceGroupId);
+        Assert.Equal(["storage.volume:data"], registration.DependsOn);
     }
 
     [Fact]
