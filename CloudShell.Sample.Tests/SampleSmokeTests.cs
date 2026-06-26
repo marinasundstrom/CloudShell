@@ -3297,7 +3297,7 @@ public sealed class SampleSmokeTests
 
     [Fact]
     [Trait("Category", "DockerIntegration")]
-    public async Task ReplicatedContainerHealthSample_GraphContainerAppStartAndRestartDelegateToRuntimeApp()
+    public async Task ReplicatedContainerHealthSample_GraphContainerAppStartStopAndRestartDelegateToRuntimeApp()
     {
         if (!await DockerComposeStack.IsAvailableAsync())
         {

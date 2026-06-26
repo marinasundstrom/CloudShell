@@ -1466,7 +1466,7 @@ public sealed class ResourceManagerIntegrationTests
             capability.Id == VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString());
         Assert.Contains(projectedContainer.ResourceActions, action =>
             action.Id == ContainerApplicationResourceTypeProvider.Operations.Start.ToString());
-        Assert.Contains(projectedContainer.ResourceActions, action =>
+        var stop = Assert.Single(projectedContainer.ResourceActions, action =>
             action.Id == ContainerApplicationResourceTypeProvider.Operations.Stop.ToString());
         var restart = Assert.Single(projectedContainer.ResourceActions, action =>
             action.Id == ContainerApplicationResourceTypeProvider.Operations.Restart.ToString());
@@ -1490,10 +1490,13 @@ public sealed class ResourceManagerIntegrationTests
             new EmptyResourceRegistrationStore());
 
         Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, restart));
+        Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, stop));
 
-        var procedureResult = await provider.ExecuteActionAsync(procedure, restart);
+        var stopResult = await provider.ExecuteActionAsync(procedure, stop);
+        var restartResult = await provider.ExecuteActionAsync(procedure, restart);
 
-        Assert.Equal("Executed Restart for api.", procedureResult.Message);
+        Assert.Equal("Executed Stop for api.", stopResult.Message);
+        Assert.Equal("Executed Restart for api.", restartResult.Message);
     }
 
     [Fact]
