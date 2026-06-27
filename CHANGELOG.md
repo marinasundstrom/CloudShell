@@ -59,6 +59,11 @@ on `git blame --follow`, and then by the broad type of change.
   `IResourceProvider` adapter, publishes probe-only ports for each replica,
   and smoke-tests runtime-scope health aggregation without storing runtime
   observations in the graph.
+- ReplicatedContainerHealth graph-only replica containers now receive the
+  projected runtime replica resource ID, OpenTelemetry service name, and
+  telemetry scope attributes in their runtime environment. Focused coverage
+  verifies the Docker command wiring, and smoke coverage inspects the running
+  container environment without requiring Docker-to-host telemetry ingestion.
 - ReplicatedContainerHealth now documents its temporary switch seams, and
   graph-only state projection uses bounded, cached Docker inspection so normal
   Resource Manager rendering does not depend on a responsive Docker daemon.

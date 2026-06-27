@@ -278,7 +278,12 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
                 Assert.Equal("dotnet", command.FileName);
                 Assert.Equal("publish", command.Arguments[0]);
             },
-            command => AssertDockerRun(command, "cloudshell-replicated-health-graph-api-replica-1", replica: 1, expectPublishedEndpoint: false));
+            command => AssertDockerRun(
+                command,
+                "cloudshell-replicated-health-graph-api-replica-1",
+                replica: 1,
+                expectPublishedEndpoint: false,
+                expectedReplicaCount: 1));
     }
 
     [Fact]
@@ -571,15 +576,25 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
         string containerName,
         int replica,
         bool expectPublishedEndpoint,
-        int? expectedProbePort = null)
+        int? expectedProbePort = null,
+        int expectedReplicaCount = 2)
     {
         Assert.Equal("docker", command.FileName);
         Assert.Equal("run", command.Arguments[0]);
         Assert.Contains("--name", command.Arguments);
         Assert.Contains(containerName, command.Arguments);
         Assert.Contains($"CLOUDSHELL_REPLICA_ORDINAL={replica}", command.Arguments);
-        Assert.Contains("CLOUDSHELL_RESOURCE_ID=application.container-app:graph-api", command.Arguments);
+        Assert.Contains(
+            $"CLOUDSHELL_RESOURCE_ID={ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaResourceId(replica)}",
+            command.Arguments);
+        Assert.Contains(
+            $"OTEL_SERVICE_NAME=replicated-container-health-graph-api-replica-{replica.ToString(CultureInfo.InvariantCulture)}",
+            command.Arguments);
+        Assert.Contains(
+            CreateExpectedOtelResourceAttributes(replica, expectedReplicaCount),
+            command.Arguments);
         Assert.Contains("CLOUDSHELL_TRACE_INGEST_ENDPOINT=http://host.docker.internal:5011/api/control-plane/v1/traces/ingest", command.Arguments);
+        Assert.Contains("CLOUDSHELL_METRIC_INGEST_ENDPOINT=http://host.docker.internal:5011/api/control-plane/v1/metrics/ingest", command.Arguments);
         Assert.Contains("cloudshell-application-api:20260622.2", command.Arguments);
         if (expectPublishedEndpoint)
         {
@@ -596,6 +611,25 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
                 $"127.0.0.1:{expectedProbePort.Value.ToString(CultureInfo.InvariantCulture)}:8080",
                 command.Arguments);
         }
+    }
+
+    private static string CreateExpectedOtelResourceAttributes(
+        int replica,
+        int replicaCount)
+    {
+        var resourceId = ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaResourceId(replica);
+        var containerName = ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaContainerName(replica);
+        return string.Join(
+            ',',
+            $"OTEL_RESOURCE_ATTRIBUTES=service.instance.id={resourceId}",
+            $"cloudshell.resource.id={resourceId}",
+            "cloudshell.resource.type=runtime.container",
+            $"telemetry.scope.resourceId={ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId}",
+            $"telemetry.scope.name=Replica {replica.ToString(CultureInfo.InvariantCulture)}",
+            "telemetry.scope.kind=runtime",
+            $"runtime.replica.ordinal={replica.ToString(CultureInfo.InvariantCulture)}",
+            $"runtime.replica.count={replicaCount.ToString(CultureInfo.InvariantCulture)}",
+            $"runtime.container.name={containerName}");
     }
 
     private static void AssertGraphReplicaResource(

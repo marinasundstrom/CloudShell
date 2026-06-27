@@ -83,13 +83,19 @@ sources for the graph container app. A graph-only runtime resource provider
 also projects hidden runtime-managed replica resources from the accepted graph
 state and sample runtime convention so the existing Control Plane health
 aggregation path can evaluate runtime-scope health/liveness without writing
-runtime observations back into the graph. Docker smoke coverage now verifies
-graph-only image update, replica update, stale replica removal, direct
-graph-declared HTTP health/liveness refresh, runtime-scope health aggregation,
-log source discovery, and Docker log reading without the old provider records.
-Traces, metrics, and richer Resource Manager state projection still need to be
-owned by the graph-backed runtime path before this sample is fully switched
-over.
+runtime observations back into the graph. The graph-only Docker bridge also
+assigns each replica container the projected runtime replica resource ID,
+OpenTelemetry service name, and telemetry scope attributes so runtime
+observability can be correlated with the hidden replica resource projection.
+Docker smoke coverage now verifies graph-only image update, replica update,
+stale replica removal, direct graph-declared HTTP health/liveness refresh,
+runtime-scope health aggregation, log source discovery, Docker log reading,
+and the running replica container's projected runtime observability
+environment without the old provider records. Live trace and metric ingestion
+from graph-only Docker containers is still deferred because the current sample
+test host binds to loopback; the durable runtime path should handle the
+Docker-reachable Control Plane endpoint deliberately instead of hiding it in
+the graph model.
 
 ### Temporary switch seams
 
@@ -116,6 +122,10 @@ sample runs successfully through the new providers:
   abstraction; the future provider contract should distinguish top-level
   resource enumeration from optional sub-resource/runtime projection after the
   switch succeeds.
+- The graph-only Docker bridge sets runtime replica IDs and telemetry scope
+  environment variables on the containers it creates. This is runtime
+  integration wiring for the projected replica resources; it should move with
+  the durable runtime implementation rather than becoming graph-model state.
 - `ReplicatedContainerHealthGraphOnlyLogProvider` contributes graph-owned
   replica container log sources and reads Docker logs through the sample
   command runner. It intentionally does not bridge back into the old

@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.ControlPlane;
+using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
@@ -250,12 +251,16 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
         string image,
         int replica)
     {
+        var replicaResourceId = ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaResourceId(replica);
+        var replicaContainerName = ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaContainerName(replica);
+        var replicaName = $"Replica {replica.ToString(CultureInfo.InvariantCulture)}";
+        var replicaCount = ResolveReplicas(resource);
         var arguments = new List<string>
         {
             "run",
             "-d",
             "--name",
-            ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaContainerName(replica)
+            replicaContainerName
         };
 
         if (replica == 1 && TryResolveHttpEndpoint(resource, out var endpoint))
@@ -272,9 +277,13 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
         }
 
         arguments.Add("-e");
-        arguments.Add($"CLOUDSHELL_RESOURCE_ID={ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId}");
+        arguments.Add($"CLOUDSHELL_RESOURCE_ID={replicaResourceId}");
         arguments.Add("-e");
         arguments.Add($"CLOUDSHELL_REPLICA_ORDINAL={replica.ToString(CultureInfo.InvariantCulture)}");
+        arguments.Add("-e");
+        arguments.Add($"OTEL_SERVICE_NAME=replicated-container-health-graph-api-replica-{replica.ToString(CultureInfo.InvariantCulture)}");
+        arguments.Add("-e");
+        arguments.Add($"OTEL_RESOURCE_ATTRIBUTES={CreateOtelResourceAttributes(replicaResourceId, replicaContainerName, replicaName, replica, replicaCount)}");
         AddEnvironment(arguments, "CLOUDSHELL_TRACE_INGEST_ENDPOINT", "Observability:TraceIngestEndpoint");
         AddEnvironment(arguments, "CLOUDSHELL_METRIC_INGEST_ENDPOINT", "Observability:MetricIngestEndpoint");
         arguments.Add(image);
@@ -322,6 +331,39 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
             out var replicas)
             ? Math.Max(1, replicas)
             : 1;
+
+    private static string CreateOtelResourceAttributes(
+        string replicaResourceId,
+        string replicaContainerName,
+        string replicaName,
+        int replica,
+        int replicaCount)
+    {
+        var replicaOrdinal = replica.ToString(CultureInfo.InvariantCulture);
+        var totalReplicas = replicaCount.ToString(CultureInfo.InvariantCulture);
+        return string.Join(
+            ',',
+            CreateOtelAttribute("service.instance.id", replicaResourceId),
+            CreateOtelAttribute("cloudshell.resource.id", replicaResourceId),
+            CreateOtelAttribute("cloudshell.resource.type", "runtime.container"),
+            CreateOtelAttribute(TelemetryAttributeNames.ScopeResourceId, ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId),
+            CreateOtelAttribute(TelemetryAttributeNames.ScopeName, replicaName),
+            CreateOtelAttribute(TelemetryAttributeNames.ScopeKind, "runtime"),
+            CreateOtelAttribute(TelemetryAttributeNames.RuntimeReplicaOrdinal, replicaOrdinal),
+            CreateOtelAttribute(TelemetryAttributeNames.RuntimeReplicaCount, totalReplicas),
+            CreateOtelAttribute(TelemetryAttributeNames.RuntimeContainerName, replicaContainerName));
+    }
+
+    private static string CreateOtelAttribute(
+        string name,
+        string value) =>
+        $"{name}={EscapeOtelAttributeValue(value)}";
+
+    private static string EscapeOtelAttributeValue(string value) =>
+        value
+            .Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace(",", "\\,", StringComparison.Ordinal)
+            .Replace("=", "\\=", StringComparison.Ordinal);
 
     private int ResolveReplicaCleanupLimit(GraphResource resource) =>
         Math.Max(ResolveReplicas(resource), _replicaCleanupLimit);

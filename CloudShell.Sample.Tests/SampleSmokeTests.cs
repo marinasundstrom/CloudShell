@@ -3857,6 +3857,9 @@ public sealed class SampleSmokeTests
             Assert.Contains(
                 graphReplicaLogEntries,
                 message => message.Contains("handled demo work", StringComparison.OrdinalIgnoreCase));
+            await AssertGraphReplicaRuntimeEnvironmentAsync(
+                "cloudshell-replicated-health-graph-api-replica-1",
+                replica: 1);
             foreach (var containerName in containerNames)
             {
                 Assert.True(
@@ -4953,6 +4956,29 @@ public sealed class SampleSmokeTests
         }
     }
 
+    private static async Task AssertGraphReplicaRuntimeEnvironmentAsync(
+        string containerName,
+        int replica,
+        int replicaCount = 3)
+    {
+        var replicaResourceId = ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaResourceId(replica);
+        var environment = await DockerComposeStack.GetContainerEnvironmentAsync(containerName);
+        Assert.Contains($"CLOUDSHELL_RESOURCE_ID={replicaResourceId}", environment);
+        Assert.Contains($"CLOUDSHELL_REPLICA_ORDINAL={replica.ToString(CultureInfo.InvariantCulture)}", environment);
+        Assert.Contains(
+            $"OTEL_SERVICE_NAME=replicated-container-health-graph-api-replica-{replica.ToString(CultureInfo.InvariantCulture)}",
+            environment);
+        var resourceAttributes = Assert.Single(
+            environment,
+            variable => variable.StartsWith("OTEL_RESOURCE_ATTRIBUTES=", StringComparison.Ordinal));
+        Assert.Contains($"cloudshell.resource.id={replicaResourceId}", resourceAttributes);
+        Assert.Contains($"telemetry.scope.resourceId={ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId}", resourceAttributes);
+        Assert.Contains($"telemetry.scope.name=Replica {replica.ToString(CultureInfo.InvariantCulture)}", resourceAttributes);
+        Assert.Contains("telemetry.scope.kind=runtime", resourceAttributes);
+        Assert.Contains($"runtime.replica.ordinal={replica.ToString(CultureInfo.InvariantCulture)}", resourceAttributes);
+        Assert.Contains($"runtime.replica.count={replicaCount.ToString(CultureInfo.InvariantCulture)}", resourceAttributes);
+    }
+
     private static async Task<string> RunResourceIdentityCredentialSampleAsync(
         SampleProcess host)
     {
@@ -5125,6 +5151,19 @@ public sealed class SampleSmokeTests
             {
                 return null;
             }
+        }
+
+        public static async Task<IReadOnlyList<string>> GetContainerEnvironmentAsync(string containerName)
+        {
+            var result = await RunDockerAsync(
+                SampleProcess.FindRepositoryRoot(),
+                ["container", "inspect", "--format", "{{json .Config.Env}}", containerName],
+                null,
+                TimeSpan.FromSeconds(10),
+                throwOnError: true);
+
+            return JsonSerializer.Deserialize<IReadOnlyList<string>>(result.Output.Trim())
+                ?? [];
         }
 
         public static async Task RemoveContainerIfExistsAsync(string containerName)
