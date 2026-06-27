@@ -85,9 +85,10 @@ resources into the existing `INamePublishingProvider` contract, allowing the
 local-hostnames publisher to write the graph host names to the configured
 hosts file.
 
-Set `LoadBalancer:GraphOnly` to `true` to omit the old Docker, container-app,
-load-balancer, DNS-zone, and name-mapping resource records and provider
-registrations. This is a switch-readiness gate for the graph-backed
+`LoadBalancer:GraphOnly` defaults to `true` so the sample omits the old Docker,
+container-app, load-balancer, DNS-zone, and name-mapping resource records and
+provider registrations. This is the switch-readiness gate for the graph-backed
 load-balancer path: graph apply and DNS reconcile still execute through the
 sample-local runtime bridges, while Traefik runtime container management
-remains on the existing Traefik provider path.
+remains on the existing Traefik provider path. Set it to `false` only when
+running the side-by-side comparison path against the old providers.

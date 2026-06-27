@@ -4920,6 +4920,7 @@ public sealed class SampleSmokeTests
             "samples/LoadBalancer/CloudShell.LoadBalancer.csproj",
             await GetFreePortAsync(),
             [
+                ("LoadBalancer__GraphOnly", "false"),
                 ("CLOUDSHELL_LOADBALANCER_SKIP_TRAEFIK_RUNTIME", "true"),
                 ("CLOUDSHELL_LOCAL_HOSTS_FILE", hostsFilePath)
             ]);
@@ -5154,7 +5155,6 @@ public sealed class SampleSmokeTests
             "samples/LoadBalancer/CloudShell.LoadBalancer.csproj",
             await GetFreePortAsync(),
             [
-                ("LoadBalancer__GraphOnly", "true"),
                 ("CLOUDSHELL_LOADBALANCER_SKIP_TRAEFIK_RUNTIME", "true"),
                 ("CLOUDSHELL_LOCAL_HOSTS_FILE", hostsFilePath)
             ]);

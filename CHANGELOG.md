@@ -135,6 +135,10 @@ on `git blame --follow`, and then by the broad type of change.
   Side-by-side projection coverage explicitly opts back into the old
   application-provider host networking path so graph endpoint-mapping
   reconciliation is the default path.
+- LoadBalancer now defaults to graph-only mode for the sample host.
+  Side-by-side Traefik/DNS projection coverage explicitly opts back into the
+  old Docker/application/load-balancer provider path so graph route generation
+  and graph DNS publishing are the default path.
 - The Resource Manager host integration now exposes `DefineResources(...)` for
   Aspire-compatible in-memory resource declarations and
   `DefineInitialDeployment(...)` for seed-like deployment declarations with
