@@ -2839,7 +2839,13 @@ public sealed class SampleSmokeTests
             resource.GetProperty("id").GetString() == "identity-provisioning:keycloak");
         var graphProvisioning = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "identity-provisioning:graph-keycloak");
+        var graphSettings = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "configuration.store:graph-third-party-identity");
+        var graphApi = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.aspnet-core-project:graph-keycloak-provisioned-api");
         var graphAttributes = graphProvisioning.GetProperty("attributes");
+        var graphSettingsAttributes = graphSettings.GetProperty("attributes");
+        var graphApiAttributes = graphApi.GetProperty("attributes");
 
         Assert.Equal(ResourceIdentityProvisioningResources.ResourceType, provisioning.GetProperty("typeId").GetString());
         Assert.Equal("cloudshell.identity-provisioning", graphProvisioning.GetProperty("typeId").GetString());
@@ -2848,6 +2854,27 @@ public sealed class SampleSmokeTests
         Assert.Equal("Keycloak", graphAttributes.GetProperty("identity.provider").GetString());
         Assert.Equal("identity:graph-keycloak", graphAttributes.GetProperty("identity.providerId").GetString());
         Assert.Equal("oidc", graphAttributes.GetProperty("identity.providerKind").GetString());
+        Assert.Equal("configuration.store", graphSettings.GetProperty("typeId").GetString());
+        Assert.Equal("Graph Third-party Identity Settings", graphSettings.GetProperty("displayName").GetString());
+        Assert.Equal("http://localhost:5138", graphSettingsAttributes.GetProperty("configuration.endpoint").GetString());
+        Assert.Equal("1", graphSettingsAttributes.GetProperty("configuration.entries.count").GetString());
+        Assert.Equal("application.aspnet-core-project", graphApi.GetProperty("typeId").GetString());
+        Assert.Equal("Graph Keycloak Provisioned API", graphApi.GetProperty("displayName").GetString());
+        Assert.EndsWith(
+            "/samples/ThirdPartyIdentity/Api/CloudShell.ThirdPartyIdentity.Api.csproj",
+            graphApiAttributes.GetProperty("project.path").GetString());
+        Assert.Equal("false", graphApiAttributes.GetProperty("project.hotReload").GetString());
+        Assert.Equal("false", graphApiAttributes.GetProperty("project.useLaunchSettings").GetString());
+        Assert.Equal("http://localhost:5235", GetPrimaryEndpointAddress(graphApi));
+        Assert.Contains(
+            "configuration.store:graph-third-party-identity",
+            graphApi.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal(
+            "identity:keycloak",
+            graphApi.GetProperty("identity").GetProperty("providerId").GetString());
+        Assert.Equal(
+            "graph-keycloak-provisioned-api",
+            graphApi.GetProperty("identity").GetProperty("name").GetString());
         var graphSetupAction = graphProvisioning
             .GetProperty("resourceActions")
             .GetProperty("identity.provisioning.setup");

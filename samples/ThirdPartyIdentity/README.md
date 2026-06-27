@@ -96,6 +96,16 @@ definition remains registered in the Resource Manager declaration model. The
 existing Keycloak integration remains responsible for real provider setup,
 credential materialization, and protected configuration access.
 
+The sample now also declares side-by-side graph-backed
+`configuration.store:graph-third-party-identity` and
+`application.aspnet-core-project:graph-keycloak-provisioned-api` resources.
+Those declarations prove the graph shape for the protected configuration store,
+the API project, the API endpoint, the graph startup dependency, the
+provider-owned configuration reference, and the Resource Manager-declared
+identity attached to the graph API. The old Configuration and Application
+providers still own the runnable workload path until the graph-backed runtime
+and identity provisioning flow is ported for this sample.
+
 The sample registers `KeycloakResourceIdentityProvisioner` as the resource
 identity provisioner, provider setup handler, and runtime credential
 environment provider. Provider setup is separate from individual resource

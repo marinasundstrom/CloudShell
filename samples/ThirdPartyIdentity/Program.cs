@@ -33,7 +33,17 @@ var clientId = builder.Configuration["Authentication:OpenIdConnect:ClientId"] ??
     "cloudshell-ui";
 var apiEndpoint = builder.Configuration["Samples:ThirdPartyIdentity:ApiEndpoint"] ??
     "http://localhost:5234";
+var configurationServiceBasePort = builder.Configuration.GetValue<int?>(
+    "Samples:ThirdPartyIdentity:ConfigurationServiceBasePort") ?? 5138;
+var graphConfigurationServiceEndpoint =
+    builder.Configuration["Samples:ThirdPartyIdentity:GraphConfigurationServiceEndpoint"] ??
+    $"http://localhost:{configurationServiceBasePort}";
+var graphApiEndpoint = builder.Configuration["Samples:ThirdPartyIdentity:GraphApiEndpoint"] ??
+    "http://localhost:5235";
+var graphApiEndpointUri = new Uri(graphApiEndpoint);
 const string graphIdentityProvisioningResourceId = "identity-provisioning:graph-keycloak";
+const string graphConfigurationResourceId = "configuration.store:graph-third-party-identity";
+const string graphApiResourceId = "application.aspnet-core-project:graph-keycloak-provisioned-api";
 
 var graph = new ResourceDefinitionGraphBuilder();
 graph
@@ -43,6 +53,31 @@ graph
     .WithIdentityProvider("Keycloak")
     .WithIdentityProviderId("identity:graph-keycloak")
     .WithProviderKind("oidc");
+var graphSettings = graph
+    .AddConfigurationStore("graph-third-party-identity")
+    .WithResourceId(graphConfigurationResourceId)
+    .WithDisplayName("Graph Third-party Identity Settings")
+    .WithEndpoint(graphConfigurationServiceEndpoint);
+graph
+    .AddAspNetCoreProject("graph-keycloak-provisioned-api", apiProjectPath)
+    .WithResourceId(graphApiResourceId)
+    .WithDisplayName("Graph Keycloak Provisioned API")
+    .DependsOn(graphSettings)
+    .WithReference(graphSettings, ConfigurationStoreResourceTypeProvider.ResourceTypeId)
+    .UseLaunchSettings(false)
+    .WithHotReload(false)
+    .AddEndpointRequest(
+        "http",
+        graphApiEndpointUri.Scheme,
+        host: graphApiEndpointUri.Host,
+        port: graphApiEndpointUri.Port,
+        exposure: "Local")
+    .WithEnvironmentVariable(
+        "CLOUDSHELL_APPLICATION",
+        "Graph Keycloak Provisioned API")
+    .WithEnvironmentVariable(
+        "CLOUDSHELL_CONFIGURATION_SERVICE_NAME",
+        "graph-third-party-identity");
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
@@ -50,8 +85,18 @@ builder.Services
     .AddInMemoryResourceModelGraph(
         graph.BuildDeployment("third-party-identity", environmentId: "local")
             .Resources
-            .Select(GraphResourceState.FromDefinition))
+            .Select(GraphResourceState.FromDefinition)
+            .Select(AddGraphProjectionState))
     .AddIdentityProvisioningResourceType()
+    .AddConfigurationStoreResourceType(options =>
+    {
+        options.ServiceProjectPath = configurationStoreServiceProjectPath;
+        options.ServiceWorkingDirectory = repositoryRootPath;
+        options.Entries.Add(new(
+            "Sample:Message",
+            "Hello from a graph Keycloak-provisioned resource identity"));
+    })
+    .AddAspNetCoreProjectResourceType()
     .AddResourceModelGraphServices()
     .AddReferenceProviderResourceManagerProjections()
     .AddResourceModelGraphProcedureProvider(
@@ -66,8 +111,7 @@ cloudShell
     {
         options.ServiceProjectPath = configurationStoreServiceProjectPath;
         options.ServiceWorkingDirectory = repositoryRootPath;
-        options.ServiceBasePort = builder.Configuration.GetValue<int?>(
-            "Samples:ThirdPartyIdentity:ConfigurationServiceBasePort") ?? options.ServiceBasePort;
+        options.ServiceBasePort = configurationServiceBasePort;
         options.ServiceBearerAuthority = authority;
         options.ServiceBearerIssuer = authority;
         options.ServiceBearerRequireHttpsMetadata =
@@ -90,6 +134,8 @@ cloudShell.Resources(resources =>
 {
     resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphIdentityProvisioningResourceId);
+    var graphSettings = resources
+        .Declare(ResourceModelResourceProvider.DefaultProviderId, graphConfigurationResourceId);
 
     var provisioningResource = resources
         .Declare(ResourceIdentityProvisioningResources.ProviderId, "identity-provisioning:keycloak")
@@ -162,6 +208,12 @@ cloudShell.Resources(resources =>
         .ProvisionIdentityOnStartup();
 
     settings.Allow(api.Principal, ConfigurationStoreResourceOperationPermissions.ReadEntries);
+
+    var graphApi = resources
+        .Declare(ResourceModelResourceProvider.DefaultProviderId, graphApiResourceId)
+        .WithIdentity(identityProvider, name: "graph-keycloak-provisioned-api")
+        .ProvisionIdentityOnStartup();
+    graphSettings.Allow(graphApi.Principal, ConfigurationStoreResourceOperationPermissions.ReadEntries);
 });
 
 var app = builder.Build();
@@ -200,4 +252,16 @@ static ResourceIdentityProviderDefinition AddIdentityProviderDefinition(
         .SingleOrDefault() ?? throw new InvalidOperationException(
             "The resource declaration store is not registered.");
     return declarations.AddIdentityProvider(provider);
+}
+
+GraphResourceState AddGraphProjectionState(GraphResourceState state)
+{
+    if (state.EffectiveResourceId != graphConfigurationResourceId)
+    {
+        return state;
+    }
+
+    var attributes = state.ResourceAttributeValues.ToDictionary();
+    attributes[ConfigurationStoreResourceTypeProvider.Attributes.EntryCount] = 1;
+    return state with { Attributes = new ResourceAttributeValueMap(attributes) };
 }
