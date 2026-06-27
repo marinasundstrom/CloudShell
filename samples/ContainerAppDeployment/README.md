@@ -96,9 +96,12 @@ Docker registry container named
 `cloudshell-container-app-deployment-graph-registry`. It is disabled by default
 so normal sample projection and smoke coverage do not depend on Docker CLI
 availability or latency. The Docker command runner is sample-local and covered
-by deterministic command-construction tests; it is not the durable Docker
-provider runtime implementation. A provider-owned Docker runtime implementation
-and full lifecycle smoke coverage are still POC follow-up work.
+by deterministic command-construction tests plus graph-only Docker smoke
+coverage that starts the registry, verifies `/v2/`, and stops/removes the
+container without old provider records. It is not the durable Docker provider
+runtime implementation. Registry status projection uses a bounded, cached
+Docker inspect probe so enabling the materializer does not make normal
+Resource Manager rendering depend on a responsive Docker daemon.
 
 Run the sample:
 

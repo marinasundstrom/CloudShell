@@ -9,7 +9,12 @@ internal sealed class ContainerAppDeploymentGraphDockerContainerRuntimeHandler :
 {
     internal const string GraphRegistryResourceId = "docker.container:graph-sample-registry";
     internal const string GraphRegistryContainerName = "cloudshell-container-app-deployment-graph-registry";
+    private static readonly TimeSpan StatusProbeTimeout = TimeSpan.FromMilliseconds(100);
+    private static readonly TimeSpan StatusCacheDuration = TimeSpan.FromSeconds(2);
     private readonly IContainerAppDeploymentDockerCommandRunner _docker;
+    private readonly object _statusGate = new();
+    private DockerContainerRuntimeStatus? _cachedStatus;
+    private DateTimeOffset _cachedStatusTimestamp;
 
     public ContainerAppDeploymentGraphDockerContainerRuntimeHandler()
         : this(new ProcessContainerAppDeploymentDockerCommandRunner())
@@ -31,9 +36,37 @@ internal sealed class ContainerAppDeploymentGraphDockerContainerRuntimeHandler :
             return DockerContainerRuntimeStatus.Unknown;
         }
 
+        var now = DateTimeOffset.UtcNow;
+        lock (_statusGate)
+        {
+            if (_cachedStatus is not null &&
+                now - _cachedStatusTimestamp <= StatusCacheDuration)
+            {
+                return _cachedStatus.Value;
+            }
+        }
+
+        var status = ResolveStatus();
+        lock (_statusGate)
+        {
+            _cachedStatus = status;
+            _cachedStatusTimestamp = now;
+        }
+
+        return status;
+    }
+
+    private DockerContainerRuntimeStatus ResolveStatus()
+    {
         var result = _docker.Run(
             ["container", "inspect", "--format", "{{.State.Status}}", GraphRegistryContainerName],
-            throwOnError: false);
+            throwOnError: false,
+            timeout: StatusProbeTimeout);
+        if (result.ExitCode == ContainerAppDeploymentDockerCommandResult.TimeoutExitCode)
+        {
+            return DockerContainerRuntimeStatus.Unknown;
+        }
+
         if (result.ExitCode != 0)
         {
             return DockerContainerRuntimeStatus.Stopped;
@@ -64,19 +97,24 @@ internal sealed class ContainerAppDeploymentGraphDockerContainerRuntimeHandler :
             {
                 case "start":
                     await StartRegistryAsync(resource, cancellationToken);
+                    ClearStatusCache();
                     break;
                 case "stop":
                     await RemoveRegistryAsync(cancellationToken);
+                    ClearStatusCache();
                     break;
                 case "restart":
                     await RemoveRegistryAsync(cancellationToken);
                     await StartRegistryAsync(resource, cancellationToken);
+                    ClearStatusCache();
                     break;
                 case "pause":
                     await _docker.RunAsync(["pause", GraphRegistryContainerName], cancellationToken, throwOnError: false);
+                    ClearStatusCache();
                     break;
                 case "docker.unpause":
                     await _docker.RunAsync(["unpause", GraphRegistryContainerName], cancellationToken, throwOnError: false);
+                    ClearStatusCache();
                     break;
                 default:
                     throw new NotSupportedException(
@@ -94,6 +132,15 @@ internal sealed class ContainerAppDeploymentGraphDockerContainerRuntimeHandler :
                     exception.Message,
                     resource.EffectiveResourceId)
             ];
+        }
+    }
+
+    private void ClearStatusCache()
+    {
+        lock (_statusGate)
+        {
+            _cachedStatus = null;
+            _cachedStatusTimestamp = default;
         }
     }
 
@@ -169,12 +216,14 @@ internal interface IContainerAppDeploymentDockerCommandRunner
 {
     ContainerAppDeploymentDockerCommandResult Run(
         IReadOnlyList<string> arguments,
-        bool throwOnError = true);
+        bool throwOnError = true,
+        TimeSpan? timeout = null);
 
     Task<ContainerAppDeploymentDockerCommandResult> RunAsync(
         IReadOnlyList<string> arguments,
         CancellationToken cancellationToken,
-        bool throwOnError = true);
+        bool throwOnError = true,
+        TimeSpan? timeout = null);
 }
 
 internal sealed class ProcessContainerAppDeploymentDockerCommandRunner :
@@ -182,15 +231,17 @@ internal sealed class ProcessContainerAppDeploymentDockerCommandRunner :
 {
     public ContainerAppDeploymentDockerCommandResult Run(
         IReadOnlyList<string> arguments,
-        bool throwOnError = true) =>
-        RunAsync(arguments, CancellationToken.None, throwOnError)
+        bool throwOnError = true,
+        TimeSpan? timeout = null) =>
+        RunAsync(arguments, CancellationToken.None, throwOnError, timeout)
             .GetAwaiter()
             .GetResult();
 
     public async Task<ContainerAppDeploymentDockerCommandResult> RunAsync(
         IReadOnlyList<string> arguments,
         CancellationToken cancellationToken,
-        bool throwOnError = true)
+        bool throwOnError = true,
+        TimeSpan? timeout = null)
     {
         var startInfo = new ProcessStartInfo("docker")
         {
@@ -206,9 +257,37 @@ internal sealed class ProcessContainerAppDeploymentDockerCommandRunner :
 
         using var process = Process.Start(startInfo) ??
             throw new InvalidOperationException("Docker command could not be started.");
-        var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
-        var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
-        await process.WaitForExitAsync(cancellationToken);
+        using var timeoutCancellation = timeout is null
+            ? null
+            : new CancellationTokenSource(timeout.Value);
+        using var linkedCancellation = timeoutCancellation is null
+            ? null
+            : CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken,
+                timeoutCancellation.Token);
+        var waitCancellationToken = linkedCancellation?.Token ?? cancellationToken;
+        var outputTask = process.StandardOutput.ReadToEndAsync(waitCancellationToken);
+        var errorTask = process.StandardError.ReadToEndAsync(waitCancellationToken);
+        try
+        {
+            await process.WaitForExitAsync(waitCancellationToken);
+        }
+        catch (OperationCanceledException) when (
+            timeoutCancellation?.IsCancellationRequested == true &&
+            !cancellationToken.IsCancellationRequested)
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+                await process.WaitForExitAsync(CancellationToken.None);
+            }
+
+            return new ContainerAppDeploymentDockerCommandResult(
+                ContainerAppDeploymentDockerCommandResult.TimeoutExitCode,
+                string.Empty,
+                $"Docker command 'docker {string.Join(' ', arguments)}' timed out.");
+        }
+
         var result = new ContainerAppDeploymentDockerCommandResult(
             process.ExitCode,
             await outputTask,
@@ -226,4 +305,7 @@ internal sealed class ProcessContainerAppDeploymentDockerCommandRunner :
 internal sealed record ContainerAppDeploymentDockerCommandResult(
     int ExitCode,
     string Output,
-    string Error);
+    string Error)
+{
+    public const int TimeoutExitCode = -1;
+}

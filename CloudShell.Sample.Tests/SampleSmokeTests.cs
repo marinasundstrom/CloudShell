@@ -2911,6 +2911,29 @@ public sealed class SampleSmokeTests
         Assert.Equal((int)ResourceState.Running, resource.GetProperty("state").GetInt32());
     }
 
+    private static async Task StopGraphResourceIfAvailableAsync(
+        SampleProcess host,
+        JsonElement resource,
+        string label)
+    {
+        if (resource.TryGetProperty("state", out var state) &&
+            state.ValueKind == JsonValueKind.Number &&
+            state.GetInt32() == (int)ResourceState.Stopped)
+        {
+            return;
+        }
+
+        if (resource.GetProperty("resourceActions").TryGetProperty("stop", out var stopAction))
+        {
+            var href = stopAction.GetProperty("href").GetString() ??
+                throw new InvalidOperationException($"The graph {label} stop action did not include an href.");
+            await host.SendAsync(HttpMethod.Post, href);
+            return;
+        }
+
+        Assert.Equal((int)ResourceState.Stopped, resource.GetProperty("state").GetInt32());
+    }
+
     [Fact]
     public async Task ThirdPartyIdentitySample_ProjectsGraphIdentityProvisioningBoundary()
     {
@@ -3725,6 +3748,73 @@ public sealed class SampleSmokeTests
         Assert.Equal(
             "3",
             scaledGraphAttributes.GetProperty("container.replicas").GetString());
+    }
+
+    [Fact]
+    [Trait("Category", "DockerIntegration")]
+    public async Task ContainerAppDeploymentSample_GraphOnlyModeStartsGraphRegistryRuntime()
+    {
+        var registryContainerName =
+            ContainerAppDeploymentGraphDockerContainerRuntimeHandler.GraphRegistryContainerName;
+        if (!await DockerComposeStack.IsAvailableAsync() ||
+            await DockerComposeStack.ContainerExistsAsync(registryContainerName))
+        {
+            return;
+        }
+
+        const string graphRegistryResourceId = "docker.container:graph-sample-registry";
+        var registryPort = await GetFreePortAsync();
+        using var host = await SampleProcess.StartAsync(
+            "samples/ContainerAppDeployment/CloudShell.ContainerAppDeployment.csproj",
+            await GetFreePortAsync(),
+            [
+                ("ContainerAppDeployment__GraphOnly", "true"),
+                ("ContainerAppDeployment__EnableGraphDockerRuntime", "true"),
+                ("ContainerAppDeployment__RegistryPort", registryPort.ToString(CultureInfo.InvariantCulture))
+            ]);
+
+        try
+        {
+            await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+            var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+            using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+            var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+            var graphRegistry = Assert.Single(resources, resource =>
+                resource.GetProperty("id").GetString() == graphRegistryResourceId);
+
+            Assert.DoesNotContain(resources, resource =>
+                resource.GetProperty("id").GetString() == "docker:container:sample-registry");
+
+            await StartGraphResourceIfAvailableAsync(
+                host,
+                graphRegistry,
+                "ContainerAppDeployment graph registry");
+
+            Assert.True(
+                await WaitForDockerContainerExistsAsync(registryContainerName, StartupTimeout),
+                $"Expected Docker container '{registryContainerName}' to be created.");
+            await host.WaitForAbsoluteHttpOkAsync(
+                $"http://localhost:{registryPort.ToString(CultureInfo.InvariantCulture)}/v2/",
+                bearerToken: null,
+                StartupTimeout);
+
+            var startedRegistryJson = await host.GetStringAsync(
+                $"/api/control-plane/v1/resources/{Uri.EscapeDataString(graphRegistryResourceId)}");
+            using var startedRegistryDocument = JsonDocument.Parse(startedRegistryJson);
+            await StopGraphResourceIfAvailableAsync(
+                host,
+                startedRegistryDocument.RootElement,
+                "ContainerAppDeployment graph registry");
+
+            Assert.True(
+                await WaitForDockerContainerRemovedAsync(registryContainerName, StartupTimeout),
+                $"Expected Docker container '{registryContainerName}' to be removed after graph registry stop.");
+        }
+        finally
+        {
+            await DockerComposeStack.RemoveContainerIfExistsAsync(registryContainerName);
+        }
     }
 
     [Fact]

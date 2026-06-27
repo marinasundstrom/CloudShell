@@ -43,6 +43,18 @@ public sealed class ContainerAppDeploymentGraphDockerContainerRuntimeHandlerTest
     }
 
     [Fact]
+    public async Task GetStatus_ReturnsUnknownWhenDockerProbeTimesOut()
+    {
+        var runner = new RecordingDockerCommandRunner();
+        runner.Enqueue(new(ContainerAppDeploymentDockerCommandResult.TimeoutExitCode, string.Empty, "Timed out"));
+        var handler = new ContainerAppDeploymentGraphDockerContainerRuntimeHandler(runner);
+
+        var status = handler.GetStatus(await CreateGraphRegistryResourceAsync());
+
+        Assert.Equal(DockerContainerRuntimeStatus.Unknown, status);
+    }
+
+    [Fact]
     public async Task ExecuteStart_CreatesRegistryContainerWhenMissing()
     {
         var runner = new RecordingDockerCommandRunner();
@@ -179,13 +191,15 @@ public sealed class ContainerAppDeploymentGraphDockerContainerRuntimeHandlerTest
 
         public ContainerAppDeploymentDockerCommandResult Run(
             IReadOnlyList<string> arguments,
-            bool throwOnError = true) =>
+            bool throwOnError = true,
+            TimeSpan? timeout = null) =>
             RunCore(arguments, throwOnError);
 
         public Task<ContainerAppDeploymentDockerCommandResult> RunAsync(
             IReadOnlyList<string> arguments,
             CancellationToken cancellationToken,
-            bool throwOnError = true) =>
+            bool throwOnError = true,
+            TimeSpan? timeout = null) =>
             Task.FromResult(RunCore(arguments, throwOnError));
 
         private ContainerAppDeploymentDockerCommandResult RunCore(

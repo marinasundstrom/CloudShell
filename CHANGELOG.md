@@ -148,6 +148,13 @@ on `git blame --follow`, and then by the broad type of change.
   omits the old Docker, registry-container, and application resource records
   plus old provider registrations while keeping graph image and replica update
   API coverage active through a sample-local graph-state bridge.
+- ContainerAppDeployment graph-only Docker smoke coverage now enables the
+  sample-local graph registry materializer, starts the graph registry
+  container, verifies the registry `/v2/` endpoint, stops the graph resource,
+  and asserts Docker cleanup without declaring the old registry resource.
+- ContainerAppDeployment graph registry status projection now uses a bounded,
+  cached Docker inspect probe so enabling the graph Docker materializer does
+  not block Resource Manager rendering when Docker is slow to answer.
 - Virtual network graph resources can now carry endpoint contracts, endpoint
   address mappings, and source-to-target endpoint mapping payloads. The
   HostVirtualNetwork sample declares the graph public ingress mapping through
