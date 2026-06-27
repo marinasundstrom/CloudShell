@@ -103,7 +103,6 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
             ContainerApplicationResourceTypeProvider.Operations.Start);
 
         Assert.Empty(diagnostics);
-        Assert.Equal(ContainerApplicationRuntimeStatus.Running, bridge.GetStatus(resource));
         Assert.Collection(
             commandRunner.Commands,
             command =>
@@ -134,11 +133,76 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
             ContainerApplicationResourceTypeProvider.Operations.Stop);
 
         Assert.Empty(diagnostics);
-        Assert.Equal(ContainerApplicationRuntimeStatus.Stopped, bridge.GetStatus(resource));
         Assert.Collection(
             commandRunner.Commands,
             command => AssertDockerRemove(command, "cloudshell-replicated-health-graph-api-replica-1"),
             command => AssertDockerRemove(command, "cloudshell-replicated-health-graph-api-replica-2"));
+    }
+
+    [Fact]
+    public async Task GraphOnlyBridge_GetStatusReturnsRunningWhenAllReplicasAreRunning()
+    {
+        var commandRunner = new RecordingCommandRunner();
+        commandRunner.Enqueue(new(0, "running", string.Empty));
+        commandRunner.Enqueue(new(0, "running", string.Empty));
+        var bridge = new ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridge(
+            commandRunner,
+            CreateConfiguration());
+
+        var status = bridge.GetStatus(await CreateGraphAppResourceAsync(replicas: 2));
+
+        Assert.Equal(ContainerApplicationRuntimeStatus.Running, status);
+        Assert.Collection(
+            commandRunner.Commands,
+            command => AssertDockerInspect(command, "cloudshell-replicated-health-graph-api-replica-1"),
+            command => AssertDockerInspect(command, "cloudshell-replicated-health-graph-api-replica-2"));
+    }
+
+    [Fact]
+    public async Task GraphOnlyBridge_GetStatusReturnsStoppedWhenAllReplicasAreMissing()
+    {
+        var commandRunner = new RecordingCommandRunner();
+        commandRunner.Enqueue(new(1, string.Empty, "No such container"));
+        commandRunner.Enqueue(new(1, string.Empty, "No such container"));
+        var bridge = new ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridge(
+            commandRunner,
+            CreateConfiguration());
+
+        var status = bridge.GetStatus(await CreateGraphAppResourceAsync(replicas: 2));
+
+        Assert.Equal(ContainerApplicationRuntimeStatus.Stopped, status);
+    }
+
+    [Fact]
+    public async Task GraphOnlyBridge_GetStatusReturnsUnknownWhenReplicaStatesAreMixed()
+    {
+        var commandRunner = new RecordingCommandRunner();
+        commandRunner.Enqueue(new(0, "running", string.Empty));
+        commandRunner.Enqueue(new(0, "exited", string.Empty));
+        var bridge = new ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridge(
+            commandRunner,
+            CreateConfiguration());
+
+        var status = bridge.GetStatus(await CreateGraphAppResourceAsync(replicas: 2));
+
+        Assert.Equal(ContainerApplicationRuntimeStatus.Unknown, status);
+    }
+
+    [Fact]
+    public async Task GraphOnlyBridge_GetStatusReturnsUnknownWhenDockerProbeTimesOut()
+    {
+        var commandRunner = new RecordingCommandRunner();
+        commandRunner.Enqueue(new(
+            ReplicatedContainerHealthCommandResult.TimeoutExitCode,
+            string.Empty,
+            "timeout"));
+        var bridge = new ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridge(
+            commandRunner,
+            CreateConfiguration());
+
+        var status = bridge.GetStatus(await CreateGraphAppResourceAsync(replicas: 1));
+
+        Assert.Equal(ContainerApplicationRuntimeStatus.Unknown, status);
     }
 
     [Fact]
@@ -153,12 +217,14 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
             resource,
             ContainerApplicationResourceTypeProvider.Operations.Start);
         commandRunner.Commands.Clear();
+        commandRunner.Enqueue(new(0, "running", string.Empty));
 
         var diagnostics = await bridge.ApplyImageAsync(resource);
 
         Assert.Empty(diagnostics);
         Assert.Collection(
             commandRunner.Commands,
+            command => AssertDockerInspect(command, "cloudshell-replicated-health-graph-api-replica-1"),
             command => AssertDockerRemove(command, "cloudshell-replicated-health-graph-api-replica-1"),
             command =>
             {
@@ -292,6 +358,17 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
         Assert.False(command.ThrowOnError);
     }
 
+    private static void AssertDockerInspect(
+        RecordingCommand command,
+        string containerName)
+    {
+        Assert.Equal("docker", command.FileName);
+        Assert.Equal(
+            ["container", "inspect", "--format", "{{.State.Status}}", containerName],
+            command.Arguments);
+        Assert.False(command.ThrowOnError);
+    }
+
     private static void AssertDockerRun(
         RecordingCommand command,
         string containerName,
@@ -360,16 +437,45 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
 
     private sealed class RecordingCommandRunner : IReplicatedContainerHealthCommandRunner
     {
+        private readonly Queue<ReplicatedContainerHealthCommandResult> _results = [];
+
         public List<RecordingCommand> Commands { get; } = [];
+
+        public void Enqueue(ReplicatedContainerHealthCommandResult result) =>
+            _results.Enqueue(result);
+
+        public ReplicatedContainerHealthCommandResult Run(
+            string fileName,
+            IReadOnlyList<string> arguments,
+            bool throwOnError = true,
+            TimeSpan? timeout = null) =>
+            RunCore(fileName, arguments, throwOnError);
 
         public Task<ReplicatedContainerHealthCommandResult> RunAsync(
             string fileName,
             IReadOnlyList<string> arguments,
             CancellationToken cancellationToken,
-            bool throwOnError = true)
+            bool throwOnError = true,
+            TimeSpan? timeout = null)
+        {
+            return Task.FromResult(RunCore(fileName, arguments, throwOnError));
+        }
+
+        private ReplicatedContainerHealthCommandResult RunCore(
+            string fileName,
+            IReadOnlyList<string> arguments,
+            bool throwOnError)
         {
             Commands.Add(new(fileName, arguments.ToArray(), throwOnError));
-            return Task.FromResult(new ReplicatedContainerHealthCommandResult(0, string.Empty, string.Empty));
+            var result = _results.Count == 0
+                ? new ReplicatedContainerHealthCommandResult(0, string.Empty, string.Empty)
+                : _results.Dequeue();
+            if (throwOnError && result.ExitCode != 0)
+            {
+                throw new InvalidOperationException(result.Error);
+            }
+
+            return result;
         }
     }
 

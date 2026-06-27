@@ -75,8 +75,31 @@ it proves the graph resource shape without the old provider records, and it
 wires the graph container app to a sample-local Docker bridge that publishes
 the API container image, starts/removes the graph-owned replica containers, and
 restarts those replicas when graph image or replica attributes are applied.
-Health aggregation, logs, traces, and metrics still need to be owned by the
-graph-backed runtime path before this sample is fully switched over.
+The same bridge projects basic running/stopped state by inspecting the
+graph-owned replica containers. Health aggregation, logs, traces, and metrics
+still need to be owned by the graph-backed runtime path before this sample is
+fully switched over.
+
+### Temporary switch seams
+
+These seams are intentional switch scaffolding and should be swept after the
+sample runs successfully through the new providers:
+
+- `ReplicatedContainerHealthGraphResourceManagerBridge` delegates side-by-side
+  graph operations into the old `application:api` Resource Manager resource.
+- `ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridge` is a
+  sample-local Docker runtime bridge for graph-only mode. It should either
+  move into the new provider/runtime structure or be replaced by the durable
+  runtime implementation.
+- `IReplicatedContainerHealthCommandRunner` keeps shell execution testable for
+  the sample-local bridge. Its shape should not become shared infrastructure
+  unless another provider proves the same command boundary is needed.
+- Graph-only state projection uses bounded, cached Docker inspection so normal
+  Resource Manager rendering does not block on Docker responsiveness.
+- The sample-local graph image update endpoint exists to exercise
+  `ResourceDefinition` overlay apply plus graph operation delegation. It should
+  be replaced by the eventual Resource Manager/control-plane API surface for
+  applying graph changes.
 
 When running the replica health path against Docker, start the `api` resource.
 The app start builds the project container image into the local Docker image

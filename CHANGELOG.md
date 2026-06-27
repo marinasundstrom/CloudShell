@@ -36,6 +36,13 @@ on `git blame --follow`, and then by the broad type of change.
   container app to a sample-local Docker bridge that publishes the API image,
   starts/removes graph-owned replica containers, and restarts them when graph
   image or replica attributes are applied.
+- ReplicatedContainerHealth graph-only container app state now projects from
+  Docker inspection of the graph-owned replica containers, returning running
+  only when all expected replicas are running and stopped when all are absent
+  or stopped.
+- ReplicatedContainerHealth now documents its temporary switch seams, and
+  graph-only state projection uses bounded, cached Docker inspection so normal
+  Resource Manager rendering does not depend on a responsive Docker daemon.
 
 ### 2026-06-26
 

@@ -159,10 +159,12 @@ cloudShell.Resources(resources =>
 
     resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphDockerResourceId)
-        .WithResourceGroup(graphResourceGroupId);
+        .WithResourceGroup(graphResourceGroupId)
+        .WithAutoStart(false);
     resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphApiResourceId)
-        .WithResourceGroup(graphResourceGroupId);
+        .WithResourceGroup(graphResourceGroupId)
+        .WithAutoStart(false);
 });
 
 var app = builder.Build();

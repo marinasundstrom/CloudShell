@@ -2,6 +2,7 @@ using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
+using Microsoft.Extensions.Configuration;
 using System.Diagnostics;
 using System.Globalization;
 using GraphResource = CloudShell.ResourceDefinitions.Resource;
@@ -12,10 +13,84 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
 {
     private const string ResourceId = "application.container-app:graph-api";
     private const string ProjectPath = "samples/ReplicatedContainerHealth/Api/CloudShell.ReplicatedContainerHealth.Api.csproj";
-    private ContainerApplicationRuntimeStatus _status = ContainerApplicationRuntimeStatus.Unknown;
+    private readonly object _statusGate = new();
+    private readonly TimeSpan _statusProbeTimeout = TimeSpan.FromMilliseconds(
+        configuration.GetValue<int?>("ReplicatedContainerHealth:GraphOnlyStatusProbeTimeoutMilliseconds") ?? 50);
+    private readonly TimeSpan _statusCacheDuration = TimeSpan.FromMilliseconds(
+        configuration.GetValue<int?>("ReplicatedContainerHealth:GraphOnlyStatusCacheMilliseconds") ?? 2_000);
+    private ContainerApplicationRuntimeStatus? _cachedStatus;
+    private DateTimeOffset _cachedStatusTimestamp;
 
-    public ContainerApplicationRuntimeStatus GetStatus(GraphResource resource) =>
-        _status;
+    public ContainerApplicationRuntimeStatus GetStatus(GraphResource resource)
+    {
+        var now = DateTimeOffset.UtcNow;
+        lock (_statusGate)
+        {
+            if (_cachedStatus is not null &&
+                now - _cachedStatusTimestamp <= _statusCacheDuration)
+            {
+                return _cachedStatus.Value;
+            }
+        }
+
+        var status = ResolveStatus(resource);
+        lock (_statusGate)
+        {
+            _cachedStatus = status;
+            _cachedStatusTimestamp = now;
+        }
+
+        return status;
+    }
+
+    private ContainerApplicationRuntimeStatus ResolveStatus(GraphResource resource)
+    {
+        var replicas = ResolveReplicas(resource);
+        var running = 0;
+        var stopped = 0;
+
+        for (var replica = 1; replica <= replicas; replica++)
+        {
+            var result = commandRunner.Run(
+                "docker",
+                ["container", "inspect", "--format", "{{.State.Status}}", CreateReplicaContainerName(replica)],
+                throwOnError: false,
+                timeout: _statusProbeTimeout);
+            if (result.ExitCode == ReplicatedContainerHealthCommandResult.TimeoutExitCode)
+            {
+                return ContainerApplicationRuntimeStatus.Unknown;
+            }
+
+            if (result.ExitCode != 0)
+            {
+                stopped++;
+                continue;
+            }
+
+            switch (result.Output.Trim().ToLowerInvariant())
+            {
+                case "running":
+                    running++;
+                    break;
+                case "created":
+                case "exited":
+                case "dead":
+                    stopped++;
+                    break;
+                default:
+                    return ContainerApplicationRuntimeStatus.Unknown;
+            }
+        }
+
+        if (running == replicas)
+        {
+            return ContainerApplicationRuntimeStatus.Running;
+        }
+
+        return stopped == replicas
+            ? ContainerApplicationRuntimeStatus.Stopped
+            : ContainerApplicationRuntimeStatus.Unknown;
+    }
 
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
         GraphResource resource,
@@ -28,16 +103,16 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
             {
                 case ResourceActionIds.Start:
                     await StartAsync(resource, cancellationToken);
-                    _status = ContainerApplicationRuntimeStatus.Running;
+                    ClearStatusCache();
                     break;
                 case ResourceActionIds.Stop:
                     await RemoveAsync(resource, cancellationToken);
-                    _status = ContainerApplicationRuntimeStatus.Stopped;
+                    ClearStatusCache();
                     break;
                 case ResourceActionIds.Restart:
                     await RemoveAsync(resource, cancellationToken);
                     await StartAsync(resource, cancellationToken);
-                    _status = ContainerApplicationRuntimeStatus.Running;
+                    ClearStatusCache();
                     break;
                 default:
                     throw new NotSupportedException(
@@ -56,7 +131,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
         GraphResource resource,
         CancellationToken cancellationToken = default)
     {
-        if (_status == ContainerApplicationRuntimeStatus.Running)
+        if (GetStatus(resource) == ContainerApplicationRuntimeStatus.Running)
         {
             return await ExecuteLifecycleAsync(
                 resource,
@@ -67,11 +142,20 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
         return [];
     }
 
+    private void ClearStatusCache()
+    {
+        lock (_statusGate)
+        {
+            _cachedStatus = null;
+            _cachedStatusTimestamp = default;
+        }
+    }
+
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyReplicasAsync(
         GraphResource resource,
         CancellationToken cancellationToken = default)
     {
-        if (_status == ContainerApplicationRuntimeStatus.Running)
+        if (GetStatus(resource) == ContainerApplicationRuntimeStatus.Running)
         {
             return await ExecuteLifecycleAsync(
                 resource,
@@ -230,26 +314,46 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
 
 internal interface IReplicatedContainerHealthCommandRunner
 {
+    ReplicatedContainerHealthCommandResult Run(
+        string fileName,
+        IReadOnlyList<string> arguments,
+        bool throwOnError = true,
+        TimeSpan? timeout = null);
+
     Task<ReplicatedContainerHealthCommandResult> RunAsync(
         string fileName,
         IReadOnlyList<string> arguments,
         CancellationToken cancellationToken,
-        bool throwOnError = true);
+        bool throwOnError = true,
+        TimeSpan? timeout = null);
 }
 
 internal sealed record ReplicatedContainerHealthCommandResult(
     int ExitCode,
     string Output,
-    string Error);
+    string Error)
+{
+    public const int TimeoutExitCode = -1;
+}
 
 internal sealed class ProcessReplicatedContainerHealthCommandRunner :
     IReplicatedContainerHealthCommandRunner
 {
+    public ReplicatedContainerHealthCommandResult Run(
+        string fileName,
+        IReadOnlyList<string> arguments,
+        bool throwOnError = true,
+        TimeSpan? timeout = null) =>
+        RunAsync(fileName, arguments, CancellationToken.None, throwOnError, timeout)
+            .GetAwaiter()
+            .GetResult();
+
     public async Task<ReplicatedContainerHealthCommandResult> RunAsync(
         string fileName,
         IReadOnlyList<string> arguments,
         CancellationToken cancellationToken,
-        bool throwOnError = true)
+        bool throwOnError = true,
+        TimeSpan? timeout = null)
     {
         var startInfo = new ProcessStartInfo(fileName)
         {
@@ -264,9 +368,37 @@ internal sealed class ProcessReplicatedContainerHealthCommandRunner :
 
         using var process = Process.Start(startInfo) ??
             throw new InvalidOperationException($"Command '{fileName}' could not be started.");
-        var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
-        var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
-        await process.WaitForExitAsync(cancellationToken);
+        using var timeoutCancellation = timeout is null
+            ? null
+            : new CancellationTokenSource(timeout.Value);
+        using var linkedCancellation = timeoutCancellation is null
+            ? null
+            : CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken,
+                timeoutCancellation.Token);
+        var waitCancellationToken = linkedCancellation?.Token ?? cancellationToken;
+        var outputTask = process.StandardOutput.ReadToEndAsync(waitCancellationToken);
+        var errorTask = process.StandardError.ReadToEndAsync(waitCancellationToken);
+        try
+        {
+            await process.WaitForExitAsync(waitCancellationToken);
+        }
+        catch (OperationCanceledException) when (
+            timeoutCancellation?.IsCancellationRequested == true &&
+            !cancellationToken.IsCancellationRequested)
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+                await process.WaitForExitAsync(CancellationToken.None);
+            }
+
+            return new ReplicatedContainerHealthCommandResult(
+                ReplicatedContainerHealthCommandResult.TimeoutExitCode,
+                string.Empty,
+                $"Command '{fileName} {string.Join(' ', arguments)}' timed out.");
+        }
+
         var result = new ReplicatedContainerHealthCommandResult(
             process.ExitCode,
             await outputTask,
