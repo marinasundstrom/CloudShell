@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Providers.Traefik;
 using CloudShell.ResourceDefinitions;
@@ -11,40 +10,43 @@ using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource
 namespace CloudShell.LoadBalancer;
 
 public sealed class LoadBalancerGraphTraefikConfigurationApplier(
-    TraefikProviderOptions options) : ILoadBalancerConfigurationApplier
+    TraefikLoadBalancerProvider provider) : ILoadBalancerConfigurationApplier
 {
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyConfigurationAsync(
         ResourceModelResource resource,
         ResourceProjectionExecutionContext context,
         CancellationToken cancellationToken = default)
     {
-        var definition = CreateDefinition(resource);
-        var hostResource = ResolveHostResource(resource, context);
-        var routes = definition.LoadBalancerRoutes
-            .Select(route => ResolveRoute(resource, context, route))
-            .ToArray();
-        var configuration = TraefikDynamicConfigurationWriter.Write(
-            new LoadBalancerProviderContext(
-                ToResourceManagerResource(resource),
-                definition,
-                hostResource,
-                routes,
-                new GraphLoadBalancerResourceManagerStore(context.Resources.Select(ToResourceManagerResource).ToArray())));
-
-        Directory.CreateDirectory(options.DynamicConfigurationDirectory);
-        var path = Path.Combine(
-            options.DynamicConfigurationDirectory,
-            $"{CreateFileName(resource.EffectiveResourceId)}.dynamic.yml");
-        await File.WriteAllTextAsync(path, configuration, Encoding.UTF8, cancellationToken);
+        var result = await provider.ApplyAsync(
+            CreateProviderContext(resource, context),
+            cancellationToken);
 
         return
         [
             new ResourceDefinitionDiagnostic(
                 ResourceDefinitionDiagnosticSeverity.Information,
                 "network.loadBalancer.traefikConfigurationApplied",
-                $"Applied Traefik graph configuration for {definition.LoadBalancerRoutes.Count.ToString(CultureInfo.InvariantCulture)} route(s) to {path}.",
+                result.Message,
                 resource.EffectiveResourceId)
         ];
+    }
+
+    private static LoadBalancerProviderContext CreateProviderContext(
+        ResourceModelResource resource,
+        ResourceProjectionExecutionContext context)
+    {
+        var definition = CreateDefinition(resource);
+        var hostResource = ResolveHostResource(resource, context);
+        var routes = definition.LoadBalancerRoutes
+            .Select(route => ResolveRoute(resource, context, route))
+            .ToArray();
+
+        return new(
+            ToResourceManagerResource(resource),
+            definition,
+            hostResource,
+            routes,
+            new GraphLoadBalancerResourceManagerStore(context.Resources.Select(ToResourceManagerResource).ToArray()));
     }
 
     private static LoadBalancerResourceDefinition CreateDefinition(ResourceModelResource resource)
@@ -202,18 +204,6 @@ public sealed class LoadBalancerGraphTraefikConfigurationApplier(
         Enum.TryParse<TValue>(value, ignoreCase: true, out var parsed)
             ? parsed
             : fallback;
-
-    private static string CreateFileName(string resourceId)
-    {
-        var builder = new StringBuilder(resourceId.Length);
-        foreach (var character in resourceId.Trim())
-        {
-            builder.Append(char.IsLetterOrDigit(character) ? char.ToLowerInvariant(character) : '-');
-        }
-
-        var fileName = builder.ToString().Trim('-');
-        return string.IsNullOrWhiteSpace(fileName) ? "load-balancer" : fileName;
-    }
 
     private sealed class GraphLoadBalancerResourceManagerStore(
         IReadOnlyList<ResourceManagerResource> resources) : IResourceManagerStore

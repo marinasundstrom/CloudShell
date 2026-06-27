@@ -20,8 +20,9 @@
   code-first load balancer definition authoring with typed host dependencies,
   backend dependencies, entrypoints, host/path HTTP routes, and TCP routes.
 - LoadBalancer sample coverage that executes the graph load balancer action
-  through Resource Manager and writes Traefik dynamic configuration from the
-  graph-declared routes.
+  through Resource Manager, translates graph-declared routes into the
+  existing Traefik provider context, and lets the provider-owned writer
+  materialize dynamic configuration.
 
 ## Remaining
 

@@ -71,6 +71,7 @@ Resource Definitions bridge:
 
 Those resources prove projection, dependency, count-summary, route payload,
 and operation shape. The graph **Apply load balancer configuration** action
-uses a sample-local Traefik adapter to write the dynamic configuration from
-the graph-declared routes, while provider-owned Traefik runtime container
-management remains on the existing load-balancer provider path.
+uses a sample-local Traefik adapter to translate graph-declared routes into
+the existing Traefik provider context. The provider-owned Traefik writer then
+materializes dynamic configuration, while Traefik runtime container management
+remains on the existing load-balancer provider path.

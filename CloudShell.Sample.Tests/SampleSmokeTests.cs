@@ -4478,7 +4478,7 @@ public sealed class SampleSmokeTests
         var graphApplyJson = await host.SendAsync(HttpMethod.Post, graphApplyHref);
         using var graphApplyDocument = JsonDocument.Parse(graphApplyJson);
         Assert.Contains(
-            "Applied Traefik graph configuration for 3 route(s)",
+            "Applied Traefik configuration for 3 route(s)",
             graphApplyDocument.RootElement.GetProperty("message").GetString());
 
         var graphConfigPath = Path.Combine(dataDirectory, "traefik", "load-balancer-graph-public.dynamic.yml");
