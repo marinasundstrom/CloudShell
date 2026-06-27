@@ -91,3 +91,10 @@ sample declares the graph storage, volume, and SQL Server resources and uses
 the sample-local graph SQL Docker bridge for lifecycle operations. Docker smoke
 coverage runs this mode so the SQL runtime path is exercised without old
 provider records.
+
+The generic sample-host readiness smoke test removes the graph SQL container
+after launch because the current graph bridge starts a Docker runtime artifact
+outside the Resource Manager host-scoped workload catalog. The intended
+follow-up is to project graph-backed programmatic runtime artifacts into the
+host-scoped shutdown path, matching the old provider model for
+programmatically declared resources.
