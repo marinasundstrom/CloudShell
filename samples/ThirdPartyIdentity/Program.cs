@@ -169,7 +169,7 @@ cloudShell.Resources(resources =>
         },
         provisioningResourceId: provisioningResource.ResourceId,
         useAsDefault: true);
-    AddIdentityProviderDefinition(resources, new ResourceIdentityProviderDefinition(
+    var graphIdentityProvider = AddIdentityProviderDefinition(resources, new ResourceIdentityProviderDefinition(
         "identity:graph-keycloak",
         "Graph Keycloak",
         ResourceIdentityProviderKind.Oidc,
@@ -218,7 +218,7 @@ cloudShell.Resources(resources =>
     var graphApi = resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphApiResourceId)
         .WithIdentity(
-            identityProvider,
+            graphIdentityProvider,
             scopes: [builder.Configuration["Keycloak:ResourceIdentityScope"] ?? "openid"],
             name: "graph-keycloak-provisioned-api")
         .ProvisionIdentityOnStartup();

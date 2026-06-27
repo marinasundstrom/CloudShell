@@ -105,8 +105,8 @@ provider-owned configuration reference, and the Resource Manager-declared
 identity attached to the graph API. The graph-backed Configuration Store can
 also run with Keycloak `Authentication:ServiceBearer` settings, and the
 graph-backed API can start through the ASP.NET Core project runtime, receive
-the graph API identity credentials, and read the protected graph-backed
-configuration entry.
+the graph API identity credentials from `identity:graph-keycloak`, and read
+the protected graph-backed configuration entry.
 The graph ASP.NET Core runtime also has a sample-local environment adapter
 that resolves the graph API identity declaration from Resource Manager and
 delegates credential environment creation to the existing Keycloak integration.

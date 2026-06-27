@@ -2870,7 +2870,7 @@ public sealed class SampleSmokeTests
             "configuration.store:graph-third-party-identity",
             graphApi.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
         Assert.Equal(
-            "identity:keycloak",
+            "identity:graph-keycloak",
             graphApi.GetProperty("identity").GetProperty("providerId").GetString());
         Assert.Equal(
             "graph-keycloak-provisioned-api",
@@ -2957,7 +2957,7 @@ public sealed class SampleSmokeTests
         Assert.Equal("keycloak-provisioned-api", identity.GetProperty("name").GetString());
         Assert.Equal("configuration.store", graphSettings.GetProperty("typeId").GetString());
         Assert.Equal(graphConfigurationEndpoint, graphSettings.GetProperty("attributes").GetProperty("configuration.endpoint").GetString());
-        Assert.Equal("identity:keycloak", graphIdentity.GetProperty("providerId").GetString());
+        Assert.Equal("identity:graph-keycloak", graphIdentity.GetProperty("providerId").GetString());
         Assert.Equal("graph-keycloak-provisioned-api", graphIdentity.GetProperty("name").GetString());
         Assert.Contains(
             "configuration:third-party-identity",
@@ -3021,7 +3021,7 @@ public sealed class SampleSmokeTests
             "/api/control-plane/v1/resources/application.aspnet-core-project%3Agraph-keycloak-provisioned-api/identity/provisioning-status");
         using var graphProvisioningStatusDocument = JsonDocument.Parse(graphProvisioningStatusJson);
         Assert.Equal(
-            "identity:keycloak",
+            "identity:graph-keycloak",
             graphProvisioningStatusDocument.RootElement.GetProperty("providerId").GetString());
         var graphProvisioningStatus = Assert.Single(
             graphProvisioningStatusDocument.RootElement.GetProperty("statuses").EnumerateArray());
