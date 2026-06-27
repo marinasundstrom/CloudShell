@@ -90,6 +90,15 @@ on `git blame --follow`, and then by the broad type of change.
   `IResourceProvider` adapter, publishes probe-only ports for each replica,
   and smoke-tests runtime-scope health aggregation without storing runtime
   observations in the graph.
+- ReplicatedContainerHealth graph-only startup now creates a sample-owned
+  Traefik ingress container for the stable app endpoint instead of publishing
+  the first replica directly on the app port. The graph-only container app is
+  also registered as a Control Plane-scoped runtime workload so host shutdown
+  dispatches its Stop action and removes graph-owned ingress and replica
+  containers.
+- Control Plane API routes now disable antiforgery at the API group boundary so
+  non-browser clients and sample runtime containers can POST health refresh and
+  runtime ingestion requests without browser antiforgery tokens.
 - ReplicatedContainerHealth graph-only replica containers now receive the
   projected runtime replica resource ID, OpenTelemetry service name, and
   telemetry scope attributes in their runtime environment. Focused coverage

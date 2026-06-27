@@ -120,20 +120,22 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
                 Assert.Contains("-p:ContainerRepository=cloudshell-application-api", command.Arguments);
                 Assert.Contains("-p:ContainerImageTag=20260622.2", command.Arguments);
             },
+            command => AssertDockerRemove(command, ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateIngressContainerName()),
             command => AssertDockerRemove(command, "cloudshell-replicated-health-graph-api-replica-1"),
             command => AssertDockerRemove(command, "cloudshell-replicated-health-graph-api-replica-2"),
+            AssertDockerNetworkCreate,
             command => AssertDockerRun(
                 command,
                 "cloudshell-replicated-health-graph-api-replica-1",
                 replica: 1,
-                expectPublishedEndpoint: true,
                 expectedProbePort: 5192),
             command => AssertDockerRun(
                 command,
                 "cloudshell-replicated-health-graph-api-replica-2",
                 replica: 2,
-                expectPublishedEndpoint: false,
-                expectedProbePort: 5193));
+                expectedProbePort: 5193),
+            command => AssertDockerRemove(command, ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateIngressContainerName()),
+            command => AssertDockerIngressRun(command, endpointPort: 5092));
     }
 
     [Fact]
@@ -182,6 +184,7 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
         Assert.Empty(diagnostics);
         Assert.Collection(
             commandRunner.Commands,
+            command => AssertDockerRemove(command, ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateIngressContainerName()),
             command => AssertDockerRemove(command, "cloudshell-replicated-health-graph-api-replica-1"),
             command => AssertDockerRemove(command, "cloudshell-replicated-health-graph-api-replica-2"));
     }
@@ -272,17 +275,18 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
         Assert.Collection(
             commandRunner.Commands,
             command => AssertDockerInspect(command, "cloudshell-replicated-health-graph-api-replica-1"),
+            command => AssertDockerRemove(command, ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateIngressContainerName()),
             command => AssertDockerRemove(command, "cloudshell-replicated-health-graph-api-replica-1"),
             command =>
             {
                 Assert.Equal("dotnet", command.FileName);
                 Assert.Equal("publish", command.Arguments[0]);
             },
+            AssertDockerNetworkCreate,
             command => AssertDockerRun(
                 command,
                 "cloudshell-replicated-health-graph-api-replica-1",
                 replica: 1,
-                expectPublishedEndpoint: false,
                 expectedReplicaCount: 1));
     }
 
@@ -293,7 +297,9 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
         var bridge = new ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridge(
             commandRunner,
             CreateConfiguration(replicaCleanupLimit: 3));
-        var resource = await CreateGraphAppResourceAsync(replicas: 2);
+        var resource = await CreateGraphAppResourceAsync(
+            replicas: 2,
+            endpointPort: 5092);
         commandRunner.Enqueue(new(0, "running", string.Empty));
         commandRunner.Enqueue(new(0, "running", string.Empty));
 
@@ -304,6 +310,7 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
             commandRunner.Commands,
             command => AssertDockerInspect(command, "cloudshell-replicated-health-graph-api-replica-1"),
             command => AssertDockerInspect(command, "cloudshell-replicated-health-graph-api-replica-2"),
+            command => AssertDockerRemove(command, ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateIngressContainerName()),
             command => AssertDockerRemove(command, "cloudshell-replicated-health-graph-api-replica-1"),
             command => AssertDockerRemove(command, "cloudshell-replicated-health-graph-api-replica-2"),
             command => AssertDockerRemove(command, "cloudshell-replicated-health-graph-api-replica-3"),
@@ -312,8 +319,11 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
                 Assert.Equal("dotnet", command.FileName);
                 Assert.Equal("publish", command.Arguments[0]);
             },
-            command => AssertDockerRun(command, "cloudshell-replicated-health-graph-api-replica-1", replica: 1, expectPublishedEndpoint: false),
-            command => AssertDockerRun(command, "cloudshell-replicated-health-graph-api-replica-2", replica: 2, expectPublishedEndpoint: false));
+            AssertDockerNetworkCreate,
+            command => AssertDockerRun(command, "cloudshell-replicated-health-graph-api-replica-1", replica: 1),
+            command => AssertDockerRun(command, "cloudshell-replicated-health-graph-api-replica-2", replica: 2),
+            command => AssertDockerRemove(command, ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateIngressContainerName()),
+            command => AssertDockerIngressRun(command, endpointPort: 5092));
     }
 
     [Fact]
@@ -423,6 +433,26 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
         Assert.Empty(diagnostics);
         Assert.Empty(bridge.LifecycleCommands);
         Assert.Equal(ContainerApplicationRuntimeStatus.Unknown, handler.GetStatus(resource));
+    }
+
+    [Fact]
+    public async Task GraphOnlyDescriptorProvider_MarksGraphApiAsControlPlaneScopedRuntimeWorkload()
+    {
+        var provider = new ReplicatedContainerHealthGraphOnlyOrchestrationDescriptorProvider();
+        var resource = CreateResourceManagerGraphAppResource(replicas: 3);
+
+        Assert.True(provider.CanDescribe(resource));
+
+        var descriptor = await provider.DescribeAsync(
+            resource,
+            new ResourceOrchestrationDescriptorContext(null, null, null!));
+        var workload = descriptor.Configuration.Deserialize<ResourceWorkloadConfiguration>(
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        Assert.NotNull(workload);
+        Assert.Equal(ResourceWorkloadKind.LocalExecutable, workload.Kind);
+        Assert.Equal(ResourceLifetime.ControlPlaneScoped, workload.Lifetime);
+        Assert.Equal("graph-api", workload.Name);
     }
 
     private static ReplicatedContainerHealthGraphResourceManagerBridge CreateResourceManagerBridge(
@@ -571,11 +601,17 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
         Assert.False(command.ThrowOnError);
     }
 
+    private static void AssertDockerNetworkCreate(RecordingCommand command)
+    {
+        Assert.Equal("docker", command.FileName);
+        Assert.Equal(["network", "create", "cloudshell"], command.Arguments);
+        Assert.False(command.ThrowOnError);
+    }
+
     private static void AssertDockerRun(
         RecordingCommand command,
         string containerName,
         int replica,
-        bool expectPublishedEndpoint,
         int? expectedProbePort = null,
         int expectedReplicaCount = 2)
     {
@@ -583,6 +619,12 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
         Assert.Equal("run", command.Arguments[0]);
         Assert.Contains("--name", command.Arguments);
         Assert.Contains(containerName, command.Arguments);
+        Assert.Contains("--network", command.Arguments);
+        Assert.Contains("cloudshell", command.Arguments);
+        Assert.Contains("--network-alias", command.Arguments);
+        Assert.Contains(
+            ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaNetworkAlias(replica),
+            command.Arguments);
         Assert.Contains($"CLOUDSHELL_REPLICA_ORDINAL={replica}", command.Arguments);
         Assert.Contains(
             $"CLOUDSHELL_RESOURCE_ID={ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaResourceId(replica)}",
@@ -596,14 +638,7 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
         Assert.Contains("CLOUDSHELL_TRACE_INGEST_ENDPOINT=http://host.docker.internal:5011/api/control-plane/v1/traces/ingest", command.Arguments);
         Assert.Contains("CLOUDSHELL_METRIC_INGEST_ENDPOINT=http://host.docker.internal:5011/api/control-plane/v1/metrics/ingest", command.Arguments);
         Assert.Contains("cloudshell-application-api:20260622.2", command.Arguments);
-        if (expectPublishedEndpoint)
-        {
-            Assert.Contains("127.0.0.1:5092:8080", command.Arguments);
-        }
-        else
-        {
-            Assert.DoesNotContain("127.0.0.1:5092:8080", command.Arguments);
-        }
+        Assert.DoesNotContain("127.0.0.1:5092:8080", command.Arguments);
 
         if (expectedProbePort is not null)
         {
@@ -611,6 +646,27 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
                 $"127.0.0.1:{expectedProbePort.Value.ToString(CultureInfo.InvariantCulture)}:8080",
                 command.Arguments);
         }
+    }
+
+    private static void AssertDockerIngressRun(
+        RecordingCommand command,
+        int endpointPort)
+    {
+        Assert.Equal("docker", command.FileName);
+        Assert.Equal("run", command.Arguments[0]);
+        Assert.Contains("--name", command.Arguments);
+        Assert.Contains(ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateIngressContainerName(), command.Arguments);
+        Assert.Contains("--network", command.Arguments);
+        Assert.Contains("cloudshell", command.Arguments);
+        Assert.Contains(
+            $"127.0.0.1:{endpointPort.ToString(CultureInfo.InvariantCulture)}:{endpointPort.ToString(CultureInfo.InvariantCulture)}/tcp",
+            command.Arguments);
+        Assert.Contains("traefik:v3.0", command.Arguments);
+        Assert.Contains("--providers.file.directory=/etc/traefik/dynamic", command.Arguments);
+        Assert.Contains("--providers.file.watch=true", command.Arguments);
+        Assert.Contains(
+            $"--entrypoints.http.address=:{endpointPort.ToString(CultureInfo.InvariantCulture)}",
+            command.Arguments);
     }
 
     private static string CreateExpectedOtelResourceAttributes(

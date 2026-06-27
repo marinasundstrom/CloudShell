@@ -32,10 +32,15 @@ for reaching the host machine.
 
 The sample keeps the app stopped by default so the resource model, Health tab,
 and Control Plane health endpoints can be tested without requiring Docker to
-start the containers. Start the Docker host and then the `api` resource to
-publish the app ingress on `http://localhost:5092` and separate probe-only
-ports for each runtime replica. Set `ReplicatedContainerHealth:ApiPort` when
-the sample should publish the app ingress on a different local port.
+start the containers. In the old side-by-side provider path, starting the
+`api` resource publishes app ingress on `http://localhost:5092`. In graph-only
+mode, starting `application.container-app:graph-api` creates graph-owned
+runtime replica containers plus the
+`cloudshell-replicated-health-graph-api-ingress` Traefik container. The stable
+container-app endpoint points at that ingress container, while the replica
+probe ports are used for runtime health evaluation. Set
+`ReplicatedContainerHealth:ApiPort` when the sample should publish the app
+ingress on a different local port.
 
 ## Resource Graph POC coverage
 
@@ -74,8 +79,9 @@ provider path and does not declare `application:api` or `docker:sample`. This
 is the current switch-readiness gate: it proves the graph resource shape
 without the old provider records, and it wires the graph container app to a
 sample-local Docker bridge that publishes the API container image,
-starts/removes the graph-owned replica containers, and restarts those replicas
-when graph image or replica attributes are applied.
+starts/removes the graph-owned replica containers plus the app-owned Traefik
+ingress container, and restarts those containers when graph image or replica
+attributes are applied.
 The same bridge removes a bounded range of graph-owned replica containers
 during cleanup so scale-down does not leave stale higher-ordinal replicas
 running, projects basic running/stopped state by inspecting the graph-owned
@@ -89,11 +95,11 @@ assigns each replica container the projected runtime replica resource ID,
 OpenTelemetry service name, and telemetry scope attributes so runtime
 observability can be correlated with the hidden replica resource projection.
 Docker smoke coverage now verifies graph-only image update, replica update,
-stale replica removal, direct graph-declared HTTP health/liveness refresh,
-runtime-scope health aggregation, log source discovery, Docker log reading,
-the running replica container's projected runtime observability environment,
-and live trace/metric ingestion under the projected runtime replica resource
-ID without the old provider records. The hidden runtime replica resource
+stale replica removal, ingress-routed graph-declared HTTP health/liveness
+refresh, runtime-scope health aggregation, log source discovery, Docker log
+reading, the running replica container's projected runtime observability
+environment, and live trace/metric ingestion under the projected runtime
+replica resource ID without the old provider records. The hidden runtime replica resource
 projection now also advertises Resource Manager logs, traces, metrics, service
 name, and runtime telemetry scope metadata so the projected resource and the
 emitted telemetry line up. Generated Resource Manager telemetry tabs for the
@@ -114,7 +120,10 @@ sample runs successfully through the new providers:
 - `ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridge` is a
   sample-local Docker runtime bridge for graph-only mode. It should either
   move into the new provider/runtime structure or be replaced by the durable
-  runtime implementation.
+  runtime implementation. It starts the graph-owned replicas on a shared Docker
+  network and publishes the stable app endpoint through a sample-owned Traefik
+  ingress container instead of binding the first replica directly to the app
+  port.
 - `IReplicatedContainerHealthCommandRunner` keeps shell execution testable for
   the sample-local bridge. Its shape should not become shared infrastructure
   unless another provider proves the same command boundary is needed.
@@ -156,12 +165,15 @@ sample runs successfully through the new providers:
   be replaced by the eventual Resource Manager/control-plane API surface for
   applying graph changes.
 
-When running the replica health path against Docker, start the `api` resource.
-The app start builds the project container image into the local Docker image
-store before creating the replicas.
+When running the replica health path against Docker, start the `api` resource
+in side-by-side mode or the `application.container-app:graph-api` resource in
+graph-only mode. The app start builds the project container image into the local
+Docker image store before creating the replicas.
 
 After the app starts, browse `http://localhost:5092/work` a few times to
-generate demo logs, spans, and metrics from the replicas. The replica scope
-attributes are provided through the container app runtime environment and are
-preserved by the sample service defaults when telemetry is ingested into the
-Control Plane.
+generate demo logs, spans, and metrics from the replicas. In graph-only mode
+that address is served by the sample-owned ingress container; the runtime
+replica probe ports are diagnostics and health targets, not the stable app
+endpoint. The replica scope attributes are provided through the container app
+runtime environment and are preserved by the sample service defaults when
+telemetry is ingested into the Control Plane.

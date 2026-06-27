@@ -4595,9 +4595,10 @@ public sealed class SampleSmokeTests
                 bearerToken: null,
                 graphOnlySmokeTimeout);
             await AssertGraphReplicaLogSourcesAsync(host, graphApiResourceId, expectedReplicas: 3);
-            var graphReplicaLogEntries = await WaitForLogEntriesAsync(
+            var graphReplicaLogEntries = await WaitForAnyGraphReplicaLogEntriesAsync(
                 host,
-                $"{graphApiResourceId}:replica-1:logs",
+                graphApiResourceId,
+                expectedReplicas: 3,
                 message => message.Contains("handled demo work", StringComparison.OrdinalIgnoreCase));
             Assert.NotEmpty(graphReplicaLogEntries);
             await AssertGraphResourceHealthChecksHealthyAsync(host, graphApiResourceId, apiPort, graphOnlySmokeTimeout);
@@ -5597,6 +5598,45 @@ public sealed class SampleSmokeTests
 
         throw new TimeoutException(
             $"Timed out waiting for log entries for source '{logSourceId}'. Last response: {lastBody}");
+    }
+
+    private static async Task<IReadOnlyList<string>> WaitForAnyGraphReplicaLogEntriesAsync(
+        SampleProcess host,
+        string resourceId,
+        int expectedReplicas,
+        Func<string, bool> containsEntry)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(StartupTimeout);
+        var lastResponses = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        do
+        {
+            for (var replica = 1; replica <= expectedReplicas; replica++)
+            {
+                var logSourceId = $"{resourceId}:replica-{replica.ToString(CultureInfo.InvariantCulture)}:logs";
+                var body = await host.GetStringAsync(
+                    $"/api/control-plane/v1/log-sources/{Uri.EscapeDataString(logSourceId)}/entries?maxEntries=50");
+                lastResponses[logSourceId] = body;
+                using var document = JsonDocument.Parse(body);
+                var entries = document.RootElement
+                    .EnumerateArray()
+                    .Select(entry => entry.GetProperty("message").GetString() ?? string.Empty)
+                    .Where(message => !string.IsNullOrWhiteSpace(message))
+                    .ToArray();
+                if (entries.Length > 0 && entries.Any(containsEntry))
+                {
+                    return entries;
+                }
+            }
+
+            await Task.Delay(250);
+        }
+        while (DateTimeOffset.UtcNow < deadline);
+
+        var lastResponseText = string.Join(
+            Environment.NewLine,
+            lastResponses.Select(response => $"{response.Key}: {response.Value}"));
+        throw new TimeoutException(
+            $"Timed out waiting for graph replica log entries for resource '{resourceId}'. Last responses: {lastResponseText}");
     }
 
     private static bool HasResourceState(JsonElement resource, ResourceState expected)

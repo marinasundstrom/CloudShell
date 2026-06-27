@@ -39,7 +39,8 @@ public static class CloudShellControlPlaneApiExtensions
         var api = endpoints
             .MapGroup(CloudShellControlPlaneApiDefaults.RoutePrefix)
             .WithTags("Control Plane")
-            .WithGroupName(CloudShellControlPlaneApiDefaults.DocumentName);
+            .WithGroupName(CloudShellControlPlaneApiDefaults.DocumentName)
+            .DisableAntiforgery();
 
         api.MapGet("/resources", ListResources)
             .WithName("CloudShellControlPlane_ListResources")

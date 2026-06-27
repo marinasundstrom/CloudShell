@@ -8,8 +8,14 @@ internal static class ReplicatedContainerHealthGraphOnlyRuntimeConventions
     public static string CreateReplicaContainerName(int replica) =>
         $"cloudshell-replicated-health-graph-api-replica-{Math.Max(1, replica).ToString(CultureInfo.InvariantCulture)}";
 
+    public static string CreateIngressContainerName() =>
+        "cloudshell-replicated-health-graph-api-ingress";
+
     public static string CreateReplicaResourceId(int replica) =>
         $"runtime-container:application-container-app-graph-api:replica-{Math.Max(1, replica).ToString(CultureInfo.InvariantCulture)}";
+
+    public static string CreateReplicaNetworkAlias(int replica) =>
+        $"cloudshell-replicated-health-graph-api-replica-{Math.Max(1, replica).ToString(CultureInfo.InvariantCulture)}";
 
     public static int ResolveReplicaProbePort(
         IConfiguration configuration,

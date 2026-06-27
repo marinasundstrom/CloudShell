@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using System.Diagnostics;
 using System.Globalization;
+using System.Text;
 using GraphResource = CloudShell.ResourceDefinitions.Resource;
 
 internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridge(
@@ -17,9 +18,14 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
     string? metricIngestEndpoint = null) : IReplicatedContainerHealthGraphContainerAppRuntimeBridge
 {
     private const string DefaultProjectPath = "samples/ReplicatedContainerHealth/Api/CloudShell.ReplicatedContainerHealth.Api.csproj";
+    private const string DefaultContainerNetworkName = "cloudshell";
+    private const string DefaultIngressImage = "traefik:v3.0";
     private readonly string _projectPath = hostEnvironment is null
         ? DefaultProjectPath
         : Path.Combine(hostEnvironment.ContentRootPath, "Api", "CloudShell.ReplicatedContainerHealth.Api.csproj");
+    private readonly string _ingressConfigurationDirectory = hostEnvironment is null
+        ? Path.Combine("samples", "ReplicatedContainerHealth", "Data", "graph-only-ingress")
+        : Path.Combine(hostEnvironment.ContentRootPath, "Data", "graph-only-ingress");
     private readonly object _statusGate = new();
     private readonly TimeSpan _statusProbeTimeout = TimeSpan.FromMilliseconds(
         configuration.GetValue<int?>("ReplicatedContainerHealth:GraphOnlyStatusProbeTimeoutMilliseconds") ?? 50);
@@ -212,9 +218,11 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
         var replicas = ResolveReplicas(resource);
         if (cleanExistingReplicas)
         {
+            await RemoveIngressAsync(cancellationToken);
             await RemoveReplicasAsync(ResolveReplicaCleanupLimit(resource), cancellationToken);
         }
 
+        await EnsureContainerNetworkAsync(cancellationToken);
         for (var replica = 1; replica <= replicas; replica++)
         {
             await commandRunner.RunAsync(
@@ -222,12 +230,35 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
                 CreateRunArguments(resource, image, replica),
                 cancellationToken);
         }
+
+        await StartIngressAsync(resource, cancellationToken);
     }
 
     private async Task RemoveAsync(
         GraphResource resource,
-        CancellationToken cancellationToken) =>
+        CancellationToken cancellationToken)
+    {
+        await RemoveIngressAsync(cancellationToken);
         await RemoveReplicasAsync(ResolveReplicaCleanupLimit(resource), cancellationToken);
+    }
+
+    private Task EnsureContainerNetworkAsync(CancellationToken cancellationToken) =>
+        commandRunner.RunAsync(
+            "docker",
+            ["network", "create", DefaultContainerNetworkName],
+            cancellationToken,
+            throwOnError: false);
+
+    private Task RemoveIngressAsync(CancellationToken cancellationToken) =>
+        commandRunner.RunAsync(
+            "docker",
+            [
+                "rm",
+                "-f",
+                ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateIngressContainerName()
+            ],
+            cancellationToken,
+            throwOnError: false);
 
     private async Task RemoveReplicasAsync(
         int replicaCount,
@@ -266,16 +297,14 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
             "run",
             "-d",
             "--name",
-            replicaContainerName
+            replicaContainerName,
+            "--network",
+            DefaultContainerNetworkName,
+            "--network-alias",
+            ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaNetworkAlias(replica)
         };
 
-        if (replica == 1 && TryResolveHttpEndpoint(resource, out var endpoint))
-        {
-            arguments.Add("-p");
-            arguments.Add($"127.0.0.1:{endpoint.Port!.Value.ToString(CultureInfo.InvariantCulture)}:{(endpoint.TargetPort ?? endpoint.Port.Value).ToString(CultureInfo.InvariantCulture)}");
-        }
-
-        if (TryResolveHttpEndpoint(resource, out endpoint))
+        if (TryResolveHttpEndpoint(resource, out var endpoint))
         {
             arguments.Add("-p");
             arguments.Add(
@@ -295,6 +324,82 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
         arguments.Add(image);
 
         return arguments;
+    }
+
+    private async Task StartIngressAsync(
+        GraphResource resource,
+        CancellationToken cancellationToken)
+    {
+        if (!TryResolveHttpEndpoint(resource, out var endpoint) ||
+            ResolveReplicas(resource) <= 1)
+        {
+            return;
+        }
+
+        await WriteIngressConfigurationAsync(resource, endpoint, cancellationToken);
+        await RemoveIngressAsync(cancellationToken);
+
+        var hostPort = endpoint.Port!.Value;
+        var arguments = new List<string>
+        {
+            "run",
+            "-d",
+            "--name",
+            ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateIngressContainerName(),
+            "--network",
+            DefaultContainerNetworkName,
+            "-p",
+            $"127.0.0.1:{hostPort.ToString(CultureInfo.InvariantCulture)}:{hostPort.ToString(CultureInfo.InvariantCulture)}/tcp",
+            "-v",
+            $"{Path.GetFullPath(_ingressConfigurationDirectory)}:/etc/traefik/dynamic:ro",
+            configuration["ReplicatedContainerHealth:GraphOnlyIngressImage"] ?? DefaultIngressImage,
+            "--providers.file.directory=/etc/traefik/dynamic",
+            "--providers.file.watch=true",
+            $"--entrypoints.http.address=:{hostPort.ToString(CultureInfo.InvariantCulture)}"
+        };
+
+        await commandRunner.RunAsync(
+            "docker",
+            arguments,
+            cancellationToken);
+    }
+
+    private async Task WriteIngressConfigurationAsync(
+        GraphResource resource,
+        NetworkingEndpointRequestValue endpoint,
+        CancellationToken cancellationToken)
+    {
+        Directory.CreateDirectory(_ingressConfigurationDirectory);
+        await File.WriteAllTextAsync(
+            Path.Combine(_ingressConfigurationDirectory, "dynamic.yml"),
+            CreateIngressConfiguration(resource, endpoint),
+            cancellationToken);
+    }
+
+    private static string CreateIngressConfiguration(
+        GraphResource resource,
+        NetworkingEndpointRequestValue endpoint)
+    {
+        var targetPort = endpoint.TargetPort ?? endpoint.Port!.Value;
+        var builder = new StringBuilder();
+        builder.AppendLine("http:");
+        builder.AppendLine("  routers:");
+        builder.AppendLine("    graph-api-http:");
+        builder.AppendLine("      entryPoints: [\"http\"]");
+        builder.AppendLine("      rule: \"PathPrefix(`/`)\"");
+        builder.AppendLine("      service: \"graph-api-http\"");
+        builder.AppendLine("  services:");
+        builder.AppendLine("    graph-api-http:");
+        builder.AppendLine("      loadBalancer:");
+        builder.AppendLine("        servers:");
+        for (var replica = 1; replica <= ResolveReplicas(resource); replica++)
+        {
+            builder.AppendLine(
+                CultureInfo.InvariantCulture,
+                $"          - url: \"http://{ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaNetworkAlias(replica)}:{targetPort.ToString(CultureInfo.InvariantCulture)}\"");
+        }
+
+        return builder.ToString();
     }
 
     private void AddEnvironment(
