@@ -44,6 +44,104 @@ public sealed class SampleSmokeTests
     private static readonly TimeSpan StartupTimeout = TimeSpan.FromSeconds(90);
 
     [Fact]
+    public void SupportedSwitchReadinessSamples_DefaultToGraphOnly()
+    {
+        var samples = new (string AppSettingsPath, string ConfigurationPath)[]
+        {
+            ("samples/ApplicationTopology/Host/appsettings.json", "ApplicationTopology:GraphOnly"),
+            ("samples/CloudShell.ContainerHost/appsettings.json", "ContainerHost:GraphOnly"),
+            ("samples/ContainerAppDeployment/appsettings.json", "ContainerAppDeployment:GraphOnly"),
+            ("samples/HostVirtualNetwork/appsettings.json", "HostVirtualNetwork:GraphOnly"),
+            ("samples/LoadBalancer/appsettings.json", "LoadBalancer:GraphOnly"),
+            ("samples/ProjectReference/Host/appsettings.json", "ProjectReference:GraphOnly"),
+            ("samples/ReplicatedContainerHealth/appsettings.json", "ReplicatedContainerHealth:GraphOnly"),
+            ("samples/SettingsAndSecrets/appsettings.json", "Samples:SettingsAndSecrets:GraphOnly"),
+            ("samples/SplitHosting/ControlPlane/appsettings.json", "SplitHosting:GraphOnly"),
+            ("samples/ThirdPartyIdentity/appsettings.json", "Samples:ThirdPartyIdentity:GraphOnly")
+        };
+
+        foreach (var sample in samples)
+        {
+            Assert.True(
+                ReadBooleanConfigurationValue(sample.AppSettingsPath, sample.ConfigurationPath),
+                $"{sample.AppSettingsPath} should set {sample.ConfigurationPath}=true.");
+        }
+    }
+
+    public static IEnumerable<object[]> SupportedSwitchReadinessSampleHostProjects()
+    {
+        var resourceHostPaths = new[] { "/", "/resources", "/api/control-plane/v1/resources" };
+        yield return new object[]
+        {
+            "samples/ApplicationTopology/Host/CloudShell.ApplicationTopologyHost.csproj",
+            resourceHostPaths
+        };
+        yield return new object[]
+        {
+            "samples/CloudShell.ContainerHost/CloudShell.ContainerHost.csproj",
+            resourceHostPaths
+        };
+        yield return new object[]
+        {
+            "samples/ContainerAppDeployment/CloudShell.ContainerAppDeployment.csproj",
+            resourceHostPaths
+        };
+        yield return new object[]
+        {
+            "samples/HostVirtualNetwork/CloudShell.HostVirtualNetwork.csproj",
+            resourceHostPaths
+        };
+        yield return new object[]
+        {
+            "samples/LoadBalancer/CloudShell.LoadBalancer.csproj",
+            resourceHostPaths
+        };
+        yield return new object[]
+        {
+            "samples/ProjectReference/Host/CloudShell.ProjectReferenceHost.csproj",
+            resourceHostPaths
+        };
+        yield return new object[]
+        {
+            "samples/ReplicatedContainerHealth/CloudShell.ReplicatedContainerHealth.csproj",
+            resourceHostPaths
+        };
+        yield return new object[]
+        {
+            "samples/SettingsAndSecrets/CloudShell.SettingsAndSecrets.csproj",
+            resourceHostPaths
+        };
+        yield return new object[]
+        {
+            "samples/SplitHosting/ControlPlane/CloudShell.SplitHosting.ControlPlane.csproj",
+            new[] { "/openapi/control-plane-v1.json" }
+        };
+        yield return new object[]
+        {
+            "samples/ThirdPartyIdentity/CloudShell.ThirdPartyIdentity.csproj",
+            resourceHostPaths
+        };
+    }
+
+    [Theory]
+    [MemberData(nameof(SupportedSwitchReadinessSampleHostProjects))]
+    public async Task SupportedSwitchReadinessSampleHosts_StartAndRenderResources(
+        string projectPath,
+        string[] readinessPaths)
+    {
+        var port = await GetFreePortAsync();
+        using var host = await SampleProcess.StartAsync(
+            projectPath,
+            port,
+            await CreateSampleHostLaunchEnvironmentAsync(projectPath, port));
+
+        foreach (var path in readinessPaths)
+        {
+            await host.WaitForHttpOkAsync(path, StartupTimeout);
+        }
+    }
+
+    [Fact]
     public async Task ContainerHostSample_DeclaresLocalStorageBackedSqlServerVolume()
     {
         const string graphStorageResourceId = "cloudshell.storage:graph-local";
@@ -5218,6 +5316,90 @@ public sealed class SampleSmokeTests
         var hostsFile = await File.ReadAllTextAsync(hostsFilePath);
         Assert.Contains("127.0.0.1 app.cloudshell.local", hostsFile);
         Assert.Contains("127.0.0.1 api.cloudshell.local", hostsFile);
+    }
+
+    private static bool ReadBooleanConfigurationValue(string appSettingsPath, string configurationPath)
+    {
+        var fullPath = Path.Combine(SampleProcess.FindRepositoryRoot(), appSettingsPath);
+        using var document = JsonDocument.Parse(File.ReadAllText(fullPath));
+        var current = document.RootElement;
+        foreach (var segment in configurationPath.Split(':', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (!current.TryGetProperty(segment, out var next))
+            {
+                throw new InvalidOperationException(
+                    $"Configuration path '{configurationPath}' was not found in '{appSettingsPath}'.");
+            }
+
+            current = next;
+        }
+
+        return current.ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            _ => throw new InvalidOperationException(
+                $"Configuration path '{configurationPath}' in '{appSettingsPath}' is not a boolean value.")
+        };
+    }
+
+    private static async Task<IReadOnlyList<(string Key, string Value)>> CreateSampleHostLaunchEnvironmentAsync(
+        string projectPath,
+        int hostPort)
+    {
+        List<(string Key, string Value)> environment = [];
+
+        if (projectPath.Contains("/ApplicationTopology/", StringComparison.OrdinalIgnoreCase))
+        {
+            environment.Add(("ApplicationTopology__ApiEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("ApplicationTopology__FrontendEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("ApplicationTopology__GraphApiEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("ApplicationTopology__GraphFrontendEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("ApplicationTopology__GraphConfigurationServiceEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("ApplicationTopology__GraphSecretsServiceEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("ApplicationTopology__SqlServer__Port", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
+        }
+        else if (projectPath.Contains("/ContainerAppDeployment/", StringComparison.OrdinalIgnoreCase))
+        {
+            environment.Add(("ContainerAppDeployment__RegistryPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
+        }
+        else if (projectPath.Contains("/HostVirtualNetwork/", StringComparison.OrdinalIgnoreCase))
+        {
+            environment.Add(("HostVirtualNetwork__TargetPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
+            environment.Add(("HostVirtualNetwork__VirtualNetworkPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
+            environment.Add(("HostVirtualNetwork__GraphVirtualNetworkPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
+        }
+        else if (projectPath.Contains("/ProjectReference/", StringComparison.OrdinalIgnoreCase))
+        {
+            environment.Add(("ProjectReference__FrontendEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("ProjectReference__GraphApiEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("ProjectReference__GraphFrontendEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+        }
+        else if (projectPath.Contains("/ReplicatedContainerHealth/", StringComparison.OrdinalIgnoreCase))
+        {
+            environment.Add(("ReplicatedContainerHealth__ApiPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
+            environment.Add(("ReplicatedContainerHealth__GraphOnlyStatusCacheMilliseconds", "25"));
+        }
+        else if (projectPath.Contains("/SettingsAndSecrets/", StringComparison.OrdinalIgnoreCase))
+        {
+            environment.Add(("Samples__SettingsAndSecrets__GraphConfigurationServiceEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("Samples__SettingsAndSecrets__GraphSecretsServiceEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("Samples__SettingsAndSecrets__GraphApiEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+        }
+        else if (projectPath.Contains("/SplitHosting/ControlPlane/", StringComparison.OrdinalIgnoreCase))
+        {
+            environment.Add(("Authentication__BuiltInAuthority__Issuer", $"http://localhost:{hostPort}"));
+        }
+        else if (projectPath.Contains("/ThirdPartyIdentity/", StringComparison.OrdinalIgnoreCase))
+        {
+            environment.Add(("Authentication__Enabled", "false"));
+            environment.Add(("Authentication__OpenIdConnect__RequireHttpsMetadata", "false"));
+            environment.Add(("Keycloak__AdminBaseAddress", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("Samples__ThirdPartyIdentity__GraphApiEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("Samples__ThirdPartyIdentity__GraphConfigurationServiceEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+        }
+
+        return environment;
     }
 
     private static async Task<int> GetFreePortAsync()

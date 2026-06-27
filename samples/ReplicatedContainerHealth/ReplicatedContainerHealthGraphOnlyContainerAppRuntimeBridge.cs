@@ -429,6 +429,7 @@ internal sealed class ProcessReplicatedContainerHealthCommandRunner :
         bool throwOnError = true,
         TimeSpan? timeout = null) =>
         RunAsync(fileName, arguments, CancellationToken.None, throwOnError, timeout)
+            .ConfigureAwait(false)
             .GetAwaiter()
             .GetResult();
 
@@ -465,7 +466,7 @@ internal sealed class ProcessReplicatedContainerHealthCommandRunner :
         var errorTask = process.StandardError.ReadToEndAsync(waitCancellationToken);
         try
         {
-            await process.WaitForExitAsync(waitCancellationToken);
+            await process.WaitForExitAsync(waitCancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (
             timeoutCancellation?.IsCancellationRequested == true &&
@@ -474,7 +475,7 @@ internal sealed class ProcessReplicatedContainerHealthCommandRunner :
             if (!process.HasExited)
             {
                 process.Kill(entireProcessTree: true);
-                await process.WaitForExitAsync(CancellationToken.None);
+                await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
             }
 
             return new ReplicatedContainerHealthCommandResult(
@@ -485,8 +486,8 @@ internal sealed class ProcessReplicatedContainerHealthCommandRunner :
 
         var result = new ReplicatedContainerHealthCommandResult(
             process.ExitCode,
-            await outputTask,
-            await errorTask);
+            await outputTask.ConfigureAwait(false),
+            await errorTask.ConfigureAwait(false));
         if (throwOnError && result.ExitCode != 0)
         {
             throw new InvalidOperationException(
