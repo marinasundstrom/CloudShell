@@ -732,6 +732,11 @@ runtime path for a slice, prefer extracting or directly plugging the required
 focused service into the new provider boundary, and record the remaining
 replacement work explicitly.
 
+The selected switch-readiness samples now default to graph-only mode in both
+their appsettings and host-code fallback values. `GraphOnly=false` is therefore
+the explicit comparison path for tests or local runs that still need the old
+provider records next to graph-backed resources.
+
 | Sample lens | Current graph-model coverage | Next migration question |
 | --- | --- | --- |
 | ProjectReference | Graph-backed ASP.NET Core API and frontend resources prove graph-to-graph project calls through service-discovery variables derived from provider-owned graph references, provider-owned service names, endpoint request attributes, start, stop, logs, traces, metrics, health, endpoint projection, state projection, and ResourceDefinition apply diagnostics. ASP.NET Core state, endpoint, observability, and process-output log projection now come from the reference-provider bridge package. Provider-owned service references now validate missing targets and expected resource type mismatches without using `DependsOn`. The sample now defaults to graph-only mode that omits the old application-provider project records and registration while keeping graph ASP.NET Core startup and graph-to-graph service discovery coverage. Side-by-side observability and UI smoke coverage explicitly opts back into the old provider path. | Decide whether ASP.NET Core graph service discovery should remain provider-local for the POC or become a reusable graph/runtime projection after more providers need it; updated side-by-side smoke coverage still keeps old `application:project-reference-api` dependency links as the comparison baseline. |
