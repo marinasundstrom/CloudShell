@@ -3,21 +3,29 @@ using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using System.Diagnostics;
 using System.Globalization;
 using GraphResource = CloudShell.ResourceDefinitions.Resource;
 
 internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridge(
     IReplicatedContainerHealthCommandRunner commandRunner,
-    IConfiguration configuration) : IReplicatedContainerHealthGraphContainerAppRuntimeBridge
+    IConfiguration configuration,
+    IHostEnvironment? hostEnvironment = null) : IReplicatedContainerHealthGraphContainerAppRuntimeBridge
 {
     private const string ResourceId = "application.container-app:graph-api";
-    private const string ProjectPath = "samples/ReplicatedContainerHealth/Api/CloudShell.ReplicatedContainerHealth.Api.csproj";
+    private const string DefaultProjectPath = "samples/ReplicatedContainerHealth/Api/CloudShell.ReplicatedContainerHealth.Api.csproj";
+    private readonly string _projectPath = hostEnvironment is null
+        ? DefaultProjectPath
+        : Path.Combine(hostEnvironment.ContentRootPath, "Api", "CloudShell.ReplicatedContainerHealth.Api.csproj");
     private readonly object _statusGate = new();
     private readonly TimeSpan _statusProbeTimeout = TimeSpan.FromMilliseconds(
         configuration.GetValue<int?>("ReplicatedContainerHealth:GraphOnlyStatusProbeTimeoutMilliseconds") ?? 50);
     private readonly TimeSpan _statusCacheDuration = TimeSpan.FromMilliseconds(
         configuration.GetValue<int?>("ReplicatedContainerHealth:GraphOnlyStatusCacheMilliseconds") ?? 2_000);
+    private readonly int _replicaCleanupLimit = Math.Max(
+        1,
+        configuration.GetValue<int?>("ReplicatedContainerHealth:GraphOnlyReplicaCleanupLimit") ?? 10);
     private ContainerApplicationRuntimeStatus? _cachedStatus;
     private DateTimeOffset _cachedStatusTimestamp;
 
@@ -111,7 +119,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
                     break;
                 case ResourceActionIds.Restart:
                     await RemoveAsync(resource, cancellationToken);
-                    await StartAsync(resource, cancellationToken);
+                    await StartAsync(resource, cancellationToken, cleanExistingReplicas: false);
                     ClearStatusCache();
                     break;
                 default:
@@ -168,7 +176,8 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
 
     private async Task StartAsync(
         GraphResource resource,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool cleanExistingReplicas = true)
     {
         var image = ResolveImage(resource);
         var (repository, tag) = SplitImage(image);
@@ -177,7 +186,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
             "dotnet",
             [
                 "publish",
-                ProjectPath,
+                _projectPath,
                 "--os",
                 "linux",
                 "--arch",
@@ -189,9 +198,13 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
             cancellationToken);
 
         var replicas = ResolveReplicas(resource);
+        if (cleanExistingReplicas)
+        {
+            await RemoveReplicasAsync(ResolveReplicaCleanupLimit(resource), cancellationToken);
+        }
+
         for (var replica = 1; replica <= replicas; replica++)
         {
-            await RemoveReplicaAsync(replica, cancellationToken);
             await commandRunner.RunAsync(
                 "docker",
                 CreateRunArguments(resource, image, replica),
@@ -201,9 +214,14 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
 
     private async Task RemoveAsync(
         GraphResource resource,
+        CancellationToken cancellationToken) =>
+        await RemoveReplicasAsync(ResolveReplicaCleanupLimit(resource), cancellationToken);
+
+    private async Task RemoveReplicasAsync(
+        int replicaCount,
         CancellationToken cancellationToken)
     {
-        for (var replica = 1; replica <= ResolveReplicas(resource); replica++)
+        for (var replica = 1; replica <= replicaCount; replica++)
         {
             await RemoveReplicaAsync(replica, cancellationToken);
         }
@@ -288,6 +306,9 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
             out var replicas)
             ? Math.Max(1, replicas)
             : 1;
+
+    private int ResolveReplicaCleanupLimit(GraphResource resource) =>
+        Math.Max(ResolveReplicas(resource), _replicaCleanupLimit);
 
     private static (string Repository, string Tag) SplitImage(string image)
     {

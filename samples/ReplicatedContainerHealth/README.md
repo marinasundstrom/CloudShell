@@ -75,10 +75,14 @@ it proves the graph resource shape without the old provider records, and it
 wires the graph container app to a sample-local Docker bridge that publishes
 the API container image, starts/removes the graph-owned replica containers, and
 restarts those replicas when graph image or replica attributes are applied.
-The same bridge projects basic running/stopped state by inspecting the
-graph-owned replica containers. Health aggregation, logs, traces, and metrics
-still need to be owned by the graph-backed runtime path before this sample is
-fully switched over.
+The same bridge removes a bounded range of graph-owned replica containers
+during cleanup so scale-down does not leave stale higher-ordinal replicas
+running, and it projects basic running/stopped state by inspecting the
+graph-owned replica containers. Docker smoke coverage now verifies graph-only
+image update, replica update, and stale replica removal without the old
+provider records. Health aggregation, logs, traces, and metrics still need to
+be owned by the graph-backed runtime path before this sample is fully switched
+over.
 
 ### Temporary switch seams
 
@@ -96,6 +100,9 @@ sample runs successfully through the new providers:
   unless another provider proves the same command boundary is needed.
 - Graph-only state projection uses bounded, cached Docker inspection so normal
   Resource Manager rendering does not block on Docker responsiveness.
+- Graph-only lifecycle and update cleanup removes a bounded replica range so
+  stale graph-owned containers are swept after scale-down; this is sample
+  switch scaffolding, not a shared orchestration abstraction.
 - The sample-local graph image update endpoint exists to exercise
   `ResourceDefinition` overlay apply plus graph operation delegation. It should
   be replaced by the eventual Resource Manager/control-plane API surface for

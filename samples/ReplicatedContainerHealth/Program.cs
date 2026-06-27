@@ -69,7 +69,8 @@ builder.Services
             serviceProvider => graphOnly
                 ? new ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridge(
                     serviceProvider.GetRequiredService<IReplicatedContainerHealthCommandRunner>(),
-                    serviceProvider.GetRequiredService<IConfiguration>())
+                    serviceProvider.GetRequiredService<IConfiguration>(),
+                    serviceProvider.GetRequiredService<IHostEnvironment>())
                 : new ReplicatedContainerHealthGraphResourceManagerBridge(
                     serviceProvider.GetRequiredService<IServiceScopeFactory>()))
     .AddSingleton<IContainerApplicationRuntimeHandler, ReplicatedContainerHealthGraphRuntimeHandler>()

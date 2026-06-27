@@ -95,7 +95,7 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
         var commandRunner = new RecordingCommandRunner();
         var bridge = new ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridge(
             commandRunner,
-            CreateConfiguration());
+            CreateConfiguration(replicaCleanupLimit: 2));
         var resource = await CreateGraphAppResourceAsync(replicas: 2, endpointPort: 5092);
 
         var diagnostics = await bridge.ExecuteLifecycleAsync(
@@ -114,8 +114,8 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
                 Assert.Contains("-p:ContainerImageTag=20260622.2", command.Arguments);
             },
             command => AssertDockerRemove(command, "cloudshell-replicated-health-graph-api-replica-1"),
-            command => AssertDockerRun(command, "cloudshell-replicated-health-graph-api-replica-1", replica: 1, expectPublishedEndpoint: true),
             command => AssertDockerRemove(command, "cloudshell-replicated-health-graph-api-replica-2"),
+            command => AssertDockerRun(command, "cloudshell-replicated-health-graph-api-replica-1", replica: 1, expectPublishedEndpoint: true),
             command => AssertDockerRun(command, "cloudshell-replicated-health-graph-api-replica-2", replica: 2, expectPublishedEndpoint: false));
     }
 
@@ -125,7 +125,7 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
         var commandRunner = new RecordingCommandRunner();
         var bridge = new ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridge(
             commandRunner,
-            CreateConfiguration());
+            CreateConfiguration(replicaCleanupLimit: 2));
         var resource = await CreateGraphAppResourceAsync(replicas: 2);
 
         var diagnostics = await bridge.ExecuteLifecycleAsync(
@@ -211,7 +211,7 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
         var commandRunner = new RecordingCommandRunner();
         var bridge = new ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridge(
             commandRunner,
-            CreateConfiguration());
+            CreateConfiguration(replicaCleanupLimit: 1));
         var resource = await CreateGraphAppResourceAsync(replicas: 1);
         await bridge.ExecuteLifecycleAsync(
             resource,
@@ -231,8 +231,37 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
                 Assert.Equal("dotnet", command.FileName);
                 Assert.Equal("publish", command.Arguments[0]);
             },
-            command => AssertDockerRemove(command, "cloudshell-replicated-health-graph-api-replica-1"),
             command => AssertDockerRun(command, "cloudshell-replicated-health-graph-api-replica-1", replica: 1, expectPublishedEndpoint: false));
+    }
+
+    [Fact]
+    public async Task GraphOnlyBridge_ApplyReplicasRestartsAndRemovesStaleReplicaContainers()
+    {
+        var commandRunner = new RecordingCommandRunner();
+        var bridge = new ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridge(
+            commandRunner,
+            CreateConfiguration(replicaCleanupLimit: 3));
+        var resource = await CreateGraphAppResourceAsync(replicas: 2);
+        commandRunner.Enqueue(new(0, "running", string.Empty));
+        commandRunner.Enqueue(new(0, "running", string.Empty));
+
+        var diagnostics = await bridge.ApplyReplicasAsync(resource);
+
+        Assert.Empty(diagnostics);
+        Assert.Collection(
+            commandRunner.Commands,
+            command => AssertDockerInspect(command, "cloudshell-replicated-health-graph-api-replica-1"),
+            command => AssertDockerInspect(command, "cloudshell-replicated-health-graph-api-replica-2"),
+            command => AssertDockerRemove(command, "cloudshell-replicated-health-graph-api-replica-1"),
+            command => AssertDockerRemove(command, "cloudshell-replicated-health-graph-api-replica-2"),
+            command => AssertDockerRemove(command, "cloudshell-replicated-health-graph-api-replica-3"),
+            command =>
+            {
+                Assert.Equal("dotnet", command.FileName);
+                Assert.Equal("publish", command.Arguments[0]);
+            },
+            command => AssertDockerRun(command, "cloudshell-replicated-health-graph-api-replica-1", replica: 1, expectPublishedEndpoint: false),
+            command => AssertDockerRun(command, "cloudshell-replicated-health-graph-api-replica-2", replica: 2, expectPublishedEndpoint: false));
     }
 
     [Fact]
@@ -340,14 +369,22 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
         return result.Resource;
     }
 
-    private static IConfiguration CreateConfiguration() =>
-        new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["Observability:TraceIngestEndpoint"] = "http://host.docker.internal:5011/api/control-plane/v1/traces/ingest",
-                ["Observability:MetricIngestEndpoint"] = "http://host.docker.internal:5011/api/control-plane/v1/metrics/ingest"
-            })
+    private static IConfiguration CreateConfiguration(int? replicaCleanupLimit = null)
+    {
+        var values = new Dictionary<string, string?>
+        {
+            ["Observability:TraceIngestEndpoint"] = "http://host.docker.internal:5011/api/control-plane/v1/traces/ingest",
+            ["Observability:MetricIngestEndpoint"] = "http://host.docker.internal:5011/api/control-plane/v1/metrics/ingest"
+        };
+        if (replicaCleanupLimit is not null)
+        {
+            values["ReplicatedContainerHealth:GraphOnlyReplicaCleanupLimit"] = replicaCleanupLimit.Value.ToString();
+        }
+
+        return new ConfigurationBuilder()
+            .AddInMemoryCollection(values)
             .Build();
+    }
 
     private static void AssertDockerRemove(
         RecordingCommand command,

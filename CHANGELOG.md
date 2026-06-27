@@ -40,6 +40,10 @@ on `git blame --follow`, and then by the broad type of change.
   Docker inspection of the graph-owned replica containers, returning running
   only when all expected replicas are running and stopped when all are absent
   or stopped.
+- ReplicatedContainerHealth graph-only image and replica updates now have
+  Docker smoke coverage, and graph-only replica cleanup removes a bounded range
+  of graph-owned replica containers so scale-down does not leave stale
+  higher-ordinal replicas running.
 - ReplicatedContainerHealth now documents its temporary switch seams, and
   graph-only state projection uses bounded, cached Docker inspection so normal
   Resource Manager rendering does not depend on a responsive Docker daemon.

@@ -3789,6 +3789,169 @@ public sealed class SampleSmokeTests
 
     [Fact]
     [Trait("Category", "DockerIntegration")]
+    public async Task ReplicatedContainerHealthSample_GraphOnlyImageAndReplicaUpdatesRestartGraphContainers()
+    {
+        const string graphApiResourceId = "application.container-app:graph-api";
+        const string updatedImage = "cloudshell-application-api:20260622.3";
+        string[] containerNames =
+        [
+            "cloudshell-replicated-health-graph-api-replica-1",
+            "cloudshell-replicated-health-graph-api-replica-2",
+            "cloudshell-replicated-health-graph-api-replica-3"
+        ];
+        string[] scaledContainerNames =
+        [
+            "cloudshell-replicated-health-graph-api-replica-1",
+            "cloudshell-replicated-health-graph-api-replica-2"
+        ];
+        if (!await DockerComposeStack.IsAvailableAsync() ||
+            await AnyDockerContainerExistsAsync(containerNames))
+        {
+            return;
+        }
+
+        var apiPort = await GetFreePortAsync();
+        var graphOnlySmokeTimeout = TimeSpan.FromSeconds(180);
+        using var host = await SampleProcess.StartAsync(
+            "samples/ReplicatedContainerHealth/CloudShell.ReplicatedContainerHealth.csproj",
+            await GetFreePortAsync(),
+            [
+                ("ReplicatedContainerHealth__GraphOnly", "true"),
+                ("ReplicatedContainerHealth__ApiPort", apiPort.ToString(CultureInfo.InvariantCulture)),
+                ("ReplicatedContainerHealth__GraphOnlyStatusCacheMilliseconds", "25"),
+                ("ReplicatedContainerHealth__GraphOnlyReplicaCleanupLimit", "3")
+            ]);
+
+        try
+        {
+            await host.WaitForHttpOkAsync("/api/control-plane/v1/resources", graphOnlySmokeTimeout);
+
+            var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+            using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+            var graphApp = Assert.Single(
+                resourcesDocument.RootElement.EnumerateArray(),
+                resource => resource.GetProperty("id").GetString() == graphApiResourceId);
+
+            Assert.DoesNotContain(
+                resourcesDocument.RootElement.EnumerateArray(),
+                resource => resource.GetProperty("id").GetString() == "application:api");
+            Assert.DoesNotContain(
+                resourcesDocument.RootElement.EnumerateArray(),
+                resource => resource.GetProperty("id").GetString() == "docker:sample");
+
+            await StartGraphResourceIfAvailableAsync(host, graphApp, "ReplicatedContainerHealth graph-only API");
+            await host.WaitForAbsoluteHttpOkAsync(
+                $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}/health",
+                bearerToken: null,
+                graphOnlySmokeTimeout);
+            foreach (var containerName in containerNames)
+            {
+                Assert.True(
+                    await WaitForDockerContainerExistsAsync(containerName, graphOnlySmokeTimeout),
+                    $"Expected Docker container '{containerName}' to be created.");
+            }
+            var startedContainerIds = await GetDockerContainerIdsAsync(containerNames);
+
+            var graphApplyJson = await host.SendJsonAsync(
+                HttpMethod.Post,
+                $"/replicated-container-health/resource-graph/resources/{Uri.EscapeDataString(graphApiResourceId)}/container-image",
+                $$"""
+                {
+                  "image": "{{updatedImage}}"
+                }
+                """);
+            using var graphApplyDocument = JsonDocument.Parse(graphApplyJson);
+
+            Assert.True(graphApplyDocument.RootElement.GetProperty("committed").GetBoolean());
+            Assert.False(graphApplyDocument.RootElement.GetProperty("hasErrors").GetBoolean());
+
+            var updatedResourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+            using var updatedResourcesDocument = JsonDocument.Parse(updatedResourcesJson);
+            var updatedGraphApp = Assert.Single(
+                updatedResourcesDocument.RootElement.EnumerateArray(),
+                resource => resource.GetProperty("id").GetString() == graphApiResourceId);
+            Assert.Equal(
+                updatedImage,
+                updatedGraphApp.GetProperty("attributes").GetProperty("container.image").GetString());
+
+            var updateImageAction = updatedGraphApp
+                .GetProperty("resourceActions")
+                .GetProperty("container.image.update");
+            var updateImageHref = updateImageAction.GetProperty("href").GetString() ??
+                throw new InvalidOperationException("The graph-only container image update action did not include an href.");
+            await host.SendAsync(HttpMethod.Post, updateImageHref);
+            await host.WaitForAbsoluteHttpOkAsync(
+                $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}/health",
+                bearerToken: null,
+                graphOnlySmokeTimeout);
+            foreach (var containerName in containerNames)
+            {
+                Assert.True(
+                    await WaitForDockerContainerIdChangedAsync(
+                        containerName,
+                        startedContainerIds[containerName],
+                        graphOnlySmokeTimeout),
+                    $"Expected Docker container '{containerName}' to be recreated after graph image update.");
+            }
+            var imageUpdatedContainerIds = await GetDockerContainerIdsAsync(containerNames);
+
+            var graphReplicaUpdateJson = await host.SendJsonAsync(
+                HttpMethod.Put,
+                $"/api/container-apps/v1/{Uri.EscapeDataString(graphApiResourceId)}/replicas",
+                """
+                {
+                  "replicas": 2,
+                  "restartIfRunning": false,
+                  "triggeredBy": "graph-only-smoke-test"
+                }
+                """);
+            using var graphReplicaUpdateDocument = JsonDocument.Parse(graphReplicaUpdateJson);
+
+            Assert.Contains(
+                "2",
+                graphReplicaUpdateDocument.RootElement.GetProperty("message").GetString());
+            await host.WaitForAbsoluteHttpOkAsync(
+                $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}/health",
+                bearerToken: null,
+                graphOnlySmokeTimeout);
+            foreach (var containerName in scaledContainerNames)
+            {
+                Assert.True(
+                    await WaitForDockerContainerIdChangedAsync(
+                        containerName,
+                        imageUpdatedContainerIds[containerName],
+                        graphOnlySmokeTimeout),
+                    $"Expected Docker container '{containerName}' to be recreated after graph replica update.");
+            }
+
+            Assert.True(
+                await WaitForDockerContainerRemovedAsync(
+                    "cloudshell-replicated-health-graph-api-replica-3",
+                    graphOnlySmokeTimeout),
+                "Expected stale graph replica 3 to be removed after graph scale-down.");
+
+            var scaledResourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+            using var scaledResourcesDocument = JsonDocument.Parse(scaledResourcesJson);
+            var scaledGraphApp = Assert.Single(
+                scaledResourcesDocument.RootElement.EnumerateArray(),
+                resource => resource.GetProperty("id").GetString() == graphApiResourceId);
+
+            Assert.Equal(
+                "2",
+                scaledGraphApp.GetProperty("attributes").GetProperty("container.replicas").GetString());
+        }
+        finally
+        {
+            await StopResourceIfRunningAsync(host, graphApiResourceId);
+            foreach (var containerName in containerNames)
+            {
+                await DockerComposeStack.RemoveContainerIfExistsAsync(containerName);
+            }
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "DockerIntegration")]
     public async Task ReplicatedContainerHealthSample_GraphContainerAppStartStopAndRestartDelegateToRuntimeApp()
     {
         string[] containerNames =
