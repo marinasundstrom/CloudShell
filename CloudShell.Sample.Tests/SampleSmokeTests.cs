@@ -2208,6 +2208,14 @@ public sealed class SampleSmokeTests
             Assert.DoesNotContain(
                 resources,
                 resource => resource.GetProperty("id").GetString() == "application:application-topology-sql-server");
+            var graphStorage = Assert.Single(
+                resources,
+                resource => resource.GetProperty("id").GetString() ==
+                    "cloudshell.storage:graph-application-topology-local");
+            var graphVolume = Assert.Single(
+                resources,
+                resource => resource.GetProperty("id").GetString() ==
+                    "cloudshell.volume:graph-application-topology-sql-data");
             var graphSqlServer = Assert.Single(
                 resources,
                 resource => resource.GetProperty("id").GetString() ==
@@ -2232,6 +2240,11 @@ public sealed class SampleSmokeTests
                 resources,
                 resource => resource.GetProperty("id").GetString() ==
                     "application.aspnet-core-project:graph-application-topology-frontend");
+            Assert.Equal("cloudshell.storage", graphStorage.GetProperty("typeId").GetString());
+            Assert.Equal("cloudshell.volume", graphVolume.GetProperty("typeId").GetString());
+            Assert.Contains(
+                "cloudshell.storage:graph-application-topology-local",
+                graphVolume.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
 
             await StartGraphResourceIfAvailableAsync(host, graphSqlServer, "ApplicationTopology graph-only SQL Server");
             await WaitForResourceStateAsync(
@@ -2242,6 +2255,17 @@ public sealed class SampleSmokeTests
             Assert.True(
                 await WaitForDockerContainerExistsAsync(sqlContainerName, StartupTimeout),
                 $"Expected Docker container '{sqlContainerName}' to be created.");
+            var sampleDataPath = Path.Combine(
+                SampleProcess.FindRepositoryRoot(),
+                "samples",
+                "ApplicationTopology",
+                "Host",
+                "Data",
+                "storage",
+                "sql-server");
+            Assert.True(
+                Directory.Exists(sampleDataPath),
+                $"Expected graph storage-backed SQL data path '{sampleDataPath}' to be created.");
 
             var ensureCreatedHref = graphDatabase
                 .GetProperty("resourceActions")

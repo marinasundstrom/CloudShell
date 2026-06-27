@@ -71,7 +71,8 @@ var graphFrontendProjectPath = Path.Combine(
 var sqlPassword = builder.Configuration["ApplicationTopology:SqlServer:Password"]
     ?? ApplicationProviderServiceCollectionExtensions.DefaultSqlServerAdministratorPassword;
 var sqlPort = builder.Configuration.GetValue("ApplicationTopology:SqlServer:Port", 14334);
-const string graphSqlVolumeResourceId = "storage.volume:graph-application-topology-sql-data";
+const string graphSqlStorageResourceId = "cloudshell.storage:graph-application-topology-local";
+const string graphSqlVolumeResourceId = "cloudshell.volume:graph-application-topology-sql-data";
 const string graphSqlServerResourceId = "application.sql-server:graph-application-topology-sql-server";
 const string graphDatabaseResourceId = "application.sql-database:graph-application-topology-db";
 const string graphSettingsResourceId = "configuration.store:graph-application-topology-settings";
@@ -93,9 +94,22 @@ var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
 cloudShell.DefineResources(resources =>
 {
+    var graphSqlStorage = resources
+        .AddStorage("graph-application-topology-local")
+        .WithResourceId(graphSqlStorageResourceId)
+        .WithProvider("local")
+        .WithMedium("FileSystem")
+        .WithLocation("./Data/storage");
     var graphSqlVolume = resources
-        .AddLocalVolume("graph-application-topology-sql-data")
-        .WithResourceId(graphSqlVolumeResourceId);
+        .AddCloudShellVolume("graph-application-topology-sql-data")
+        .WithResourceId(graphSqlVolumeResourceId)
+        .WithDisplayName("Graph Application Topology SQL Data")
+        .UseStorage(graphSqlStorage)
+        .WithProvider("local")
+        .WithStorageMedium("FileSystem")
+        .WithSubPath("sql-server")
+        .WithAccessMode("ReadWriteOnce")
+        .WithPersistent();
     var graphSqlServer = resources
         .AddSqlServer("graph-application-topology-sql-server")
         .WithResourceId(graphSqlServerResourceId)
@@ -243,7 +257,8 @@ else
 
 builder.Services
     .AddSingleton<ISqlServerRuntimeHandler, ApplicationTopologyGraphSqlServerRuntimeHandler>()
-    .AddLocalVolumeResourceType()
+    .AddStorageResourceType()
+    .AddCloudShellVolumeResourceType()
     .AddSqlServerResourceType()
     .AddSqlDatabaseResourceType()
     .AddConfigurationStoreResourceType(options =>

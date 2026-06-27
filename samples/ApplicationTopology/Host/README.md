@@ -139,13 +139,16 @@ resources. In side-by-side mode, the graph SQL Server lifecycle adapter still
 delegates to the old sample SQL runtime resource through
 `IApplicationTopologyGraphSqlServerRuntimeBridge`. In graph-only mode, the
 same bridge is wired to a sample-local Docker-backed SQL runtime so graph SQL
-lifecycle operations do not require the old SQL resource declaration. Docker
-smoke coverage verifies the graph-only SQL-backed API and frontend path
-without declaring `application:application-topology-sql-server`. The graph-only
-SQL runtime also contributes Resource Manager orchestration metadata with a
-control-plane-scoped lifetime so graceful host shutdown removes its Docker
-container through the same host-scoped shutdown path used by old
-programmatically declared resources.
+lifecycle operations do not require the old SQL resource declaration. The
+graph SQL declaration uses an explicit `cloudshell.storage` resource and
+storage-backed `cloudshell.volume` mount for `/var/opt/mssql`; the sample-local
+Docker bridge resolves that graph shape, creates `Data/storage/sql-server`,
+and bind-mounts it into the SQL container. Docker smoke coverage verifies the
+graph-only SQL-backed API and frontend path without declaring
+`application:application-topology-sql-server`. The graph-only SQL runtime also
+contributes Resource Manager orchestration metadata with a control-plane-scoped
+lifetime so graceful host shutdown removes its Docker container through the
+same host-scoped shutdown path used by old programmatically declared resources.
 
 ## Run
 

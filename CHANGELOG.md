@@ -28,6 +28,10 @@ on `git blame --follow`, and then by the broad type of change.
   control-plane-scoped lifetime metadata. A focused Docker smoke test verifies
   graceful host shutdown removes the graph SQL container without declaring the
   old SQL resource.
+- ApplicationTopology graph-only SQL now declares explicit graph-backed
+  storage and volume resources for SQL data. The sample-local Docker bridge
+  resolves that graph shape, creates the storage-backed host directory, and
+  bind-mounts it into the SQL Server container before startup.
 
 ### 2026-06-27
 
