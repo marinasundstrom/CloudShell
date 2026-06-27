@@ -69,6 +69,10 @@ on `git blame --follow`, and then by the broad type of change.
   Resource Manager logs, traces, metrics, service name, and runtime telemetry
   scope metadata so the projected runtime resource matches the telemetry it
   emits.
+- ReplicatedContainerHealth now records the remaining hidden runtime replica
+  telemetry-tab parity gap: generated details pages still need
+  runtime-resource-aware health refresh behavior so inherited health checks do
+  not block trace/metric rendering.
 - ReplicatedContainerHealth now documents its temporary switch seams, and
   graph-only state projection uses bounded, cached Docker inspection so normal
   Resource Manager rendering does not depend on a responsive Docker daemon.

@@ -95,7 +95,11 @@ and live trace/metric ingestion under the projected runtime replica resource
 ID without the old provider records. The hidden runtime replica resource
 projection now also advertises Resource Manager logs, traces, metrics, service
 name, and runtime telemetry scope metadata so the projected resource and the
-emitted telemetry line up.
+emitted telemetry line up. Generated Resource Manager telemetry tabs for the
+hidden runtime replica resources are still a parity gap: those resources inherit
+runtime health checks, and the generic details page currently refreshes health
+before rendering the selected telemetry tab. Keep this as a UI/runtime-resource
+seam to fix later rather than moving operational behavior into the graph model.
 
 ### Temporary switch seams
 
@@ -122,7 +126,9 @@ sample runs successfully through the new providers:
   abstraction; the future provider contract should distinguish top-level
   resource enumeration from optional sub-resource/runtime projection after the
   switch succeeds. It also owns the temporary Resource Manager observability
-  projection for those hidden runtime replicas.
+  projection for those hidden runtime replicas. The generated details UI still
+  needs a runtime-resource-specific treatment so telemetry tabs for hidden
+  runtime replicas are not blocked by inherited health refresh work.
 - The graph-only Docker bridge sets runtime replica IDs and telemetry scope
   environment variables on the containers it creates. This is runtime
   integration wiring for the projected replica resources; it should move with
