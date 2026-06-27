@@ -157,13 +157,15 @@ for lifecycle-capable graph resources when no runtime state provider is
 registered, but this sample now exercises the provider-local state projection
 path for start/stop and health/liveness checks.
 
-Set `ProjectReference:GraphOnly` to `true` to omit the old
+`ProjectReference:GraphOnly` defaults to `true` so the sample omits the old
 application-provider project records and the old application provider
 registration. In graph-only mode the host declares only the graph-backed API
 and frontend resources and still starts them through the
 `application.aspnet-core-project` provider runtime. Smoke coverage starts both
 graph projects and verifies the graph frontend resolves and calls the graph
 API without old provider records.
+Set `ProjectReference:GraphOnly` to `false` only when running the side-by-side
+comparison path against the old providers.
 
 Runtime state is stored under `samples/ProjectReference/Host/Data/`
 and is ignored by git.

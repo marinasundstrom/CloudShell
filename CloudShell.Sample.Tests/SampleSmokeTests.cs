@@ -309,6 +309,7 @@ public sealed class SampleSmokeTests
             "samples/ProjectReference/Host/CloudShell.ProjectReferenceHost.csproj",
             await GetFreePortAsync(),
             [
+                ("ProjectReference__GraphOnly", "false"),
                 ("ProjectReference__FrontendEndpoint", frontendEndpoint),
                 ("ProjectReference__GraphApiEndpoint", graphApiEndpoint),
                 ("ProjectReference__GraphFrontendEndpoint", graphFrontendEndpoint)
@@ -775,7 +776,6 @@ public sealed class SampleSmokeTests
             "samples/ProjectReference/Host/CloudShell.ProjectReferenceHost.csproj",
             await GetFreePortAsync(),
             [
-                ("ProjectReference__GraphOnly", "true"),
                 ("ProjectReference__GraphApiEndpoint", graphApiEndpoint),
                 ("ProjectReference__GraphFrontendEndpoint", graphFrontendEndpoint)
             ]);
@@ -834,7 +834,10 @@ public sealed class SampleSmokeTests
         using var host = await SampleProcess.StartAsync(
             "samples/ProjectReference/Host/CloudShell.ProjectReferenceHost.csproj",
             await GetFreePortAsync(),
-            [("ResourceManager__ReadOnly", "true")]);
+            [
+                ("ProjectReference__GraphOnly", "false"),
+                ("ResourceManager__ReadOnly", "true")
+            ]);
 
         await host.WaitForHttpOkAsync("/", StartupTimeout);
 
