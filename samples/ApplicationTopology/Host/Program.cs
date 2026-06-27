@@ -78,6 +78,8 @@ const string graphSettingsResourceId = "configuration.store:graph-application-to
 const string graphSecretsResourceId = "secrets.vault:graph-application-topology-secrets";
 const string graphApiResourceId = "application.aspnet-core-project:graph-application-topology-api";
 const string graphFrontendResourceId = "application.aspnet-core-project:graph-application-topology-frontend";
+const string graphNetworkResourceId = "network:graph-application-topology-local";
+const string graphApiServiceResourceId = "cloudshell.service:graph-application-topology-api-service";
 const string graphApiIdentityName = "graph-application-topology-api";
 var graphApiIdentityClientId = $"{graphApiResourceId}/{graphApiIdentityName}";
 builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
@@ -123,6 +125,12 @@ cloudShell.DefineResources(resources =>
         .WithResourceId(graphSecretsResourceId)
         .WithDisplayName("Graph Application Topology Secrets")
         .WithEndpoint(graphSecretsEndpoint);
+    var graphNetwork = resources
+        .AddNetwork("graph-application-topology-local")
+        .WithResourceId(graphNetworkResourceId)
+        .WithDisplayName("Graph Application Topology Local Network")
+        .WithNetworkKind("Logical")
+        .WithHostReadiness("logicalOnly");
     var graphApi = resources
         .AddAspNetCoreProject("graph-application-topology-api", graphApiProjectPath)
         .WithResourceId(graphApiResourceId)
@@ -188,6 +196,13 @@ cloudShell.DefineResources(resources =>
             "/alive",
             endpointName: "http",
             name: "alive"));
+    resources
+        .AddService("graph-application-topology-api-service")
+        .WithResourceId(graphApiServiceResourceId)
+        .WithDisplayName("Graph Application Topology API Service")
+        .DependsOnTarget(graphApi, AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
+        .DependsOnNetwork(graphNetwork)
+        .WithRoutingMode("logical");
 
     resources
         .AddAspNetCoreProject("graph-application-topology-frontend", graphFrontendProjectPath)
@@ -258,6 +273,8 @@ builder.Services
         options.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
         options.Secrets.Add(new("ApplicationTopology--ExternalApiKey", "graph-local-development-api-key"));
     })
+    .AddNetworkResourceType()
+    .AddServiceResourceType()
     .AddAspNetCoreProjectResourceType()
     .AddResourceModelGraphServices()
     .AddReferenceProviderResourceManagerProjections()
@@ -447,6 +464,13 @@ cloudShell.Resources(resources =>
         .ProvisionIdentityOnStartup();
     var graphFrontend = resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphFrontendResourceId)
+        .WithResourceGroup(groupId)
+        .WithAutoStart(false);
+    resources
+        .Declare(ResourceModelResourceProvider.DefaultProviderId, graphNetworkResourceId)
+        .WithResourceGroup(groupId);
+    resources
+        .Declare(ResourceModelResourceProvider.DefaultProviderId, graphApiServiceResourceId)
         .WithResourceGroup(groupId)
         .WithAutoStart(false);
 
