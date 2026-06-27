@@ -140,6 +140,11 @@ on `git blame --follow`, and then by the broad type of change.
   HostVirtualNetwork sample declares the graph public ingress mapping through
   provider-owned builder methods and verifies the Resource Manager projection
   beside the legacy virtual-network resource.
+- Network and host-network graph reconcile integrations now receive the
+  `ResourceProjectionExecutionContext` used to resolve the operation, matching
+  the DNS reconcile seam and giving future runtime implementations access to
+  graph-scoped endpoint mapping targets without putting runtime behavior into
+  the graph model.
 
 ### 2026-06-26
 

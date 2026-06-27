@@ -91,6 +91,7 @@ public sealed class NetworkReconcileEndpointMappingsOperation(
 
         var diagnostics = await _reconciler.ReconcileEndpointMappingsAsync(
             Resource,
+            Context,
             cancellationToken);
 
         return new ResourceOperationExecutionResult(

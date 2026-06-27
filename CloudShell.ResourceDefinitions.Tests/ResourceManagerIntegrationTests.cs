@@ -2517,6 +2517,7 @@ public sealed class ResourceManagerIntegrationTests
 
         Assert.Equal("Executed ReconcileEndpointMappings for edge-network.", procedureResult.Message);
         Assert.Equal([network.EffectiveResourceId], reconciler.ReconciledResourceIds);
+        Assert.Equal([network.EffectiveResourceId], reconciler.ContextResourceIds);
     }
 
     [Fact]
@@ -2602,6 +2603,7 @@ public sealed class ResourceManagerIntegrationTests
 
         Assert.Equal("Executed ReconcileEndpointMappings for app.", procedureResult.Message);
         Assert.Equal([network.EffectiveResourceId], reconciler.ReconciledResourceIds);
+        Assert.Equal([network.EffectiveResourceId], reconciler.ContextResourceIds);
     }
 
     [Fact]
@@ -2681,6 +2683,7 @@ public sealed class ResourceManagerIntegrationTests
 
         Assert.Equal("Executed ReconcileEndpointMappings for host-local.", procedureResult.Message);
         Assert.Equal([network.EffectiveResourceId], reconciler.ReconciledResourceIds);
+        Assert.Equal([network.EffectiveResourceId], reconciler.ContextResourceIds);
     }
 
     [Fact]
@@ -2863,6 +2866,7 @@ public sealed class ResourceManagerIntegrationTests
 
         Assert.Equal("Executed ReconcileEndpointMappings for host-macos.", procedureResult.Message);
         Assert.Equal([network.EffectiveResourceId], reconciler.ReconciledResourceIds);
+        Assert.Equal([network.EffectiveResourceId], reconciler.ContextResourceIds);
     }
 
     [Fact]
@@ -4813,14 +4817,19 @@ public sealed class ResourceManagerIntegrationTests
         ILocalHostNetworkEndpointMappingReconciler
     {
         private readonly List<string> _reconciledResourceIds = [];
+        private readonly List<string> _contextResourceIds = [];
 
         public IReadOnlyList<string> ReconciledResourceIds => _reconciledResourceIds;
 
+        public IReadOnlyList<string> ContextResourceIds => _contextResourceIds;
+
         public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileEndpointMappingsAsync(
             Resource resource,
+            ResourceProjectionExecutionContext context,
             CancellationToken cancellationToken = default)
         {
             _reconciledResourceIds.Add(resource.EffectiveResourceId);
+            _contextResourceIds.Add(context.Resource.EffectiveResourceId);
 
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }
@@ -4830,14 +4839,19 @@ public sealed class ResourceManagerIntegrationTests
         IVirtualNetworkEndpointMappingReconciler
     {
         private readonly List<string> _reconciledResourceIds = [];
+        private readonly List<string> _contextResourceIds = [];
 
         public IReadOnlyList<string> ReconciledResourceIds => _reconciledResourceIds;
 
+        public IReadOnlyList<string> ContextResourceIds => _contextResourceIds;
+
         public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileEndpointMappingsAsync(
             Resource resource,
+            ResourceProjectionExecutionContext context,
             CancellationToken cancellationToken = default)
         {
             _reconciledResourceIds.Add(resource.EffectiveResourceId);
+            _contextResourceIds.Add(context.Resource.EffectiveResourceId);
 
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }
@@ -4847,14 +4861,19 @@ public sealed class ResourceManagerIntegrationTests
         INetworkEndpointMappingReconciler
     {
         private readonly List<string> _reconciledResourceIds = [];
+        private readonly List<string> _contextResourceIds = [];
 
         public IReadOnlyList<string> ReconciledResourceIds => _reconciledResourceIds;
 
+        public IReadOnlyList<string> ContextResourceIds => _contextResourceIds;
+
         public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileEndpointMappingsAsync(
             Resource resource,
+            ResourceProjectionExecutionContext context,
             CancellationToken cancellationToken = default)
         {
             _reconciledResourceIds.Add(resource.EffectiveResourceId);
+            _contextResourceIds.Add(context.Resource.EffectiveResourceId);
 
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }
@@ -4864,14 +4883,19 @@ public sealed class ResourceManagerIntegrationTests
         IMacOSHostNetworkEndpointMappingReconciler
     {
         private readonly List<string> _reconciledResourceIds = [];
+        private readonly List<string> _contextResourceIds = [];
 
         public IReadOnlyList<string> ReconciledResourceIds => _reconciledResourceIds;
 
+        public IReadOnlyList<string> ContextResourceIds => _contextResourceIds;
+
         public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileEndpointMappingsAsync(
             Resource resource,
+            ResourceProjectionExecutionContext context,
             CancellationToken cancellationToken = default)
         {
             _reconciledResourceIds.Add(resource.EffectiveResourceId);
+            _contextResourceIds.Add(context.Resource.EffectiveResourceId);
 
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }

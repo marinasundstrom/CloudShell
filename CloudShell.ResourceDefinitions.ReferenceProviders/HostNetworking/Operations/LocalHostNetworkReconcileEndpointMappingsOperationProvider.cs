@@ -93,6 +93,7 @@ public sealed class LocalHostNetworkReconcileEndpointMappingsOperation(
 
         var diagnostics = await _reconciler.ReconcileEndpointMappingsAsync(
             Resource,
+            Context,
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
