@@ -115,6 +115,8 @@ builder.Services
         "Resource model");
 builder.Services.Replace(
     ServiceDescriptor.Singleton<ILoadBalancerConfigurationApplier, LoadBalancerGraphTraefikConfigurationApplier>());
+builder.Services.Replace(
+    ServiceDescriptor.Singleton<IDnsZoneNameMappingReconciler, LoadBalancerGraphNameMappingReconciler>());
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()

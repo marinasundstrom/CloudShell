@@ -19,10 +19,12 @@
   dependencies.
 - LoadBalancer sample graph name-mapping coverage targeting the graph-backed
   load balancer frontend.
+- LoadBalancer sample-local runtime bridge coverage that materializes graph
+  name mappings through the existing local-hostnames publisher contract.
 
 ## Remaining
 
 - Provider-specific reference modeling if needed.
 - Target endpoint validation.
 - Conflict/materialization views as capability members or operation plans.
-- DNS publisher integration and UI registration/update flow.
+- Generalized DNS publisher integration outside the sample bridge and UI registration/update flow.

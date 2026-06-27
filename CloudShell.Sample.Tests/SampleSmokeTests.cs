@@ -4438,10 +4438,14 @@ public sealed class SampleSmokeTests
             Directory.Delete(dataDirectory, recursive: true);
         }
 
+        var hostsFilePath = Path.Combine(dataDirectory, "cloudshell.hosts");
         using var host = await SampleProcess.StartAsync(
             "samples/LoadBalancer/CloudShell.LoadBalancer.csproj",
             await GetFreePortAsync(),
-            [("CLOUDSHELL_LOADBALANCER_SKIP_TRAEFIK_RUNTIME", "true")]);
+            [
+                ("CLOUDSHELL_LOADBALANCER_SKIP_TRAEFIK_RUNTIME", "true"),
+                ("CLOUDSHELL_LOCAL_HOSTS_FILE", hostsFilePath)
+            ]);
 
         await host.WaitForHttpOkAsync("/", StartupTimeout);
 
@@ -4635,6 +4639,22 @@ public sealed class SampleSmokeTests
         Assert.Contains("url: \"http://cloudshell-application-container-app-graph-api-replica-3:80\"", graphConfig);
         Assert.Contains("HostSNI(`*`)", graphConfig);
         Assert.Contains("address: \"cloudshell-application-container-app-graph-postgres:5432\"", graphConfig);
+
+        var graphDnsReconcileAction = graphDnsZone
+            .GetProperty("resourceActions")
+            .GetProperty("reconcileNameMappings");
+        var graphDnsReconcileHref = graphDnsReconcileAction.GetProperty("href").GetString() ??
+            throw new InvalidOperationException("The graph DNS zone reconcile action did not include an href.");
+
+        var graphDnsReconcileJson = await host.SendAsync(HttpMethod.Post, graphDnsReconcileHref);
+        using var graphDnsReconcileDocument = JsonDocument.Parse(graphDnsReconcileJson);
+        Assert.Contains(
+            "Executed ReconcileNameMappings",
+            graphDnsReconcileDocument.RootElement.GetProperty("message").GetString());
+
+        var hostsFile = await File.ReadAllTextAsync(hostsFilePath);
+        Assert.Contains("127.0.0.1 app.cloudshell.local", hostsFile);
+        Assert.Contains("127.0.0.1 api.cloudshell.local", hostsFile);
     }
 
     private static async Task<int> GetFreePortAsync()

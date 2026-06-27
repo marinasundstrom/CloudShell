@@ -17,9 +17,12 @@
   code-first DNS zone definition authoring.
 - LoadBalancer sample graph DNS zone coverage beside the legacy
   local-hostnames zone.
+- LoadBalancer sample-local runtime bridge coverage that delegates graph name
+  mappings to the existing Resource Manager name-publishing provider contract.
 
 ## Remaining
 
-- Name-mapping child resource runtime integration.
+- Generalized name-mapping child resource runtime integration outside the
+  sample bridge.
 - Record/conflict/materialization views as capability members or operation plans.
 - DNS publisher integration and UI registration/update flow.

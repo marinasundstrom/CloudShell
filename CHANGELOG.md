@@ -135,6 +135,11 @@ on `git blame --follow`, and then by the broad type of change.
   extending the networking POC coverage from route projection into declarative
   host-name mapping shape while leaving DNS publishing runtime integration
   deferred.
+- The LoadBalancer sample now wires graph DNS-zone `reconcileNameMappings`
+  through a sample-local bridge that translates resolved graph name mappings
+  into the existing `INamePublishingProvider` contract. Smoke coverage writes
+  graph-backed `app.cloudshell.local` and `api.cloudshell.local` entries to a
+  temporary hosts file through the Control Plane action path.
 - Virtual network graph resources can now carry endpoint contracts, endpoint
   address mappings, and source-to-target endpoint mapping payloads. The
   HostVirtualNetwork sample declares the graph public ingress mapping through
