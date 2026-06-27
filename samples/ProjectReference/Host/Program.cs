@@ -31,6 +31,7 @@ var graphApiEndpointUri = new Uri(graphApiEndpoint);
 var graphFrontendEndpointUri = new Uri(graphFrontendEndpoint);
 var graphApiResourceId = "application.aspnet-core-project:graph-project-reference-api";
 var graphFrontendResourceId = "application.aspnet-core-project:graph-project-reference-frontend";
+var graphOnly = builder.Configuration.GetValue("ProjectReference:GraphOnly", false);
 var graphApiProjectPath = Path.GetFullPath(
     "../Api/CloudShell.ProjectReferenceApi.csproj",
     builder.Environment.ContentRootPath);
@@ -113,39 +114,46 @@ builder.Services
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()
-    .AddExtension<ObservabilityExtension>()
-    .AddApplicationProvider(options =>
+    .AddExtension<ObservabilityExtension>();
+
+if (!graphOnly)
+{
+    cloudShell.AddApplicationProvider(options =>
     {
         options.OtlpEndpoint = otlpEndpoint;
         options.OtlpProtocol = otlpProtocol;
     });
+}
 
 cloudShell.Resources(resources =>
 {
-    var api = resources.AddAspNetCoreProject(
-        "project-reference-api",
-        "../Api/CloudShell.ProjectReferenceApi.csproj")
-        .WithDisplayName("Project Reference API")
-        .WithHttpHealthCheck("/health")
-        .WithHttpProbe(ResourceProbeType.Liveness, "/alive")
-        .WithOtlpExporter(otlpEndpoint, otlpProtocol)
-        .WithEnvironment("CLOUDSHELL_TRACE_INGEST_ENDPOINT", traceIngestEndpoint ?? string.Empty)
-        .WithEnvironment("CLOUDSHELL_METRIC_INGEST_ENDPOINT", metricIngestEndpoint ?? string.Empty);
+    if (!graphOnly)
+    {
+        var api = resources.AddAspNetCoreProject(
+            "project-reference-api",
+            "../Api/CloudShell.ProjectReferenceApi.csproj")
+            .WithDisplayName("Project Reference API")
+            .WithHttpHealthCheck("/health")
+            .WithHttpProbe(ResourceProbeType.Liveness, "/alive")
+            .WithOtlpExporter(otlpEndpoint, otlpProtocol)
+            .WithEnvironment("CLOUDSHELL_TRACE_INGEST_ENDPOINT", traceIngestEndpoint ?? string.Empty)
+            .WithEnvironment("CLOUDSHELL_METRIC_INGEST_ENDPOINT", metricIngestEndpoint ?? string.Empty);
 
-    resources
-        .AddAspNetCoreProject(
-        "project-reference-frontend",
-        "../Frontend/CloudShell.ProjectReferenceFrontend.csproj",
-        endpoint: frontendEndpoint)
-        .WithDisplayName("Project Reference Frontend")
-        .WithHttpHealthCheck("/healthz")
-        .WithHttpProbe(ResourceProbeType.Liveness, "/alive")
-        .WithOtlpExporter(otlpEndpoint, otlpProtocol)
-        .WithEnvironment("CLOUDSHELL_TRACE_INGEST_ENDPOINT", traceIngestEndpoint ?? string.Empty)
-        .WithEnvironment("CLOUDSHELL_METRIC_INGEST_ENDPOINT", metricIngestEndpoint ?? string.Empty)
-        .WithServiceDiscovery()
-        .WithReference(api)
-        .DependsOn(api);
+        resources
+            .AddAspNetCoreProject(
+            "project-reference-frontend",
+            "../Frontend/CloudShell.ProjectReferenceFrontend.csproj",
+            endpoint: frontendEndpoint)
+            .WithDisplayName("Project Reference Frontend")
+            .WithHttpHealthCheck("/healthz")
+            .WithHttpProbe(ResourceProbeType.Liveness, "/alive")
+            .WithOtlpExporter(otlpEndpoint, otlpProtocol)
+            .WithEnvironment("CLOUDSHELL_TRACE_INGEST_ENDPOINT", traceIngestEndpoint ?? string.Empty)
+            .WithEnvironment("CLOUDSHELL_METRIC_INGEST_ENDPOINT", metricIngestEndpoint ?? string.Empty)
+            .WithServiceDiscovery()
+            .WithReference(api)
+            .DependsOn(api);
+    }
 
     resources.Declare(
         ResourceModelResourceProvider.DefaultProviderId,

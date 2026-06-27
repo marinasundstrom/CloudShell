@@ -159,6 +159,9 @@ on `git blame --follow`, and then by the broad type of change.
   old application-provider storage, volume, and SQL Server resource records
   plus the old application provider registration while keeping graph SQL
   Docker lifecycle coverage active through the sample-local bridge.
+- ProjectReference now has an opt-in graph-only mode that omits the old
+  application-provider project records and registration while keeping graph
+  ASP.NET Core project startup and graph-to-graph service discovery coverage.
 - Virtual network graph resources can now carry endpoint contracts, endpoint
   address mappings, and source-to-target endpoint mapping payloads. The
   HostVirtualNetwork sample declares the graph public ingress mapping through

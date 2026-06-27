@@ -763,6 +763,72 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
+    public async Task ProjectReferenceHost_GraphOnlyModeRunsGraphProjectsWithoutOldProviderRecords()
+    {
+        var graphApiPort = await GetFreePortAsync();
+        var graphFrontendPort = await GetFreePortAsync();
+        var graphApiEndpoint = $"http://127.0.0.1:{graphApiPort}";
+        var graphFrontendEndpoint = $"http://127.0.0.1:{graphFrontendPort}";
+        const string graphApiResourceId = "application.aspnet-core-project:graph-project-reference-api";
+        const string graphFrontendResourceId = "application.aspnet-core-project:graph-project-reference-frontend";
+        using var host = await SampleProcess.StartAsync(
+            "samples/ProjectReference/Host/CloudShell.ProjectReferenceHost.csproj",
+            await GetFreePortAsync(),
+            [
+                ("ProjectReference__GraphOnly", "true"),
+                ("ProjectReference__GraphApiEndpoint", graphApiEndpoint),
+                ("ProjectReference__GraphFrontendEndpoint", graphFrontendEndpoint)
+            ]);
+
+        await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+        var graphApi = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == graphApiResourceId);
+        var graphFrontend = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == graphFrontendResourceId);
+
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "application:project-reference-api");
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "application:project-reference-frontend");
+        Assert.Equal(graphApiEndpoint, graphApi.GetProperty("primaryEndpoint").GetString());
+        Assert.Equal(graphFrontendEndpoint, graphFrontend.GetProperty("primaryEndpoint").GetString());
+
+        await StartGraphResourceIfAvailableAsync(host, graphApi, "ProjectReference graph API");
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"{graphApiEndpoint}/health",
+            bearerToken: null,
+            StartupTimeout);
+        var startedGraphApi = await WaitForResourceStateAsync(
+            host,
+            graphApiResourceId,
+            ResourceState.Running,
+            StartupTimeout);
+        Assert.True(HasResourceState(startedGraphApi, ResourceState.Running));
+
+        await StartGraphResourceIfAvailableAsync(host, graphFrontend, "ProjectReference graph frontend");
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"{graphFrontendEndpoint}/upstream",
+            bearerToken: null,
+            StartupTimeout);
+        var upstreamJson = await host.GetAbsoluteStringAsync($"{graphFrontendEndpoint}/upstream");
+        using var upstreamDocument = JsonDocument.Parse(upstreamJson);
+        Assert.StartsWith(
+            graphApiEndpoint,
+            upstreamDocument.RootElement.GetProperty("resolvedApiEndpoint").GetString(),
+            StringComparison.Ordinal);
+        Assert.Equal(
+            "Hello from the referenced API project.",
+            upstreamDocument.RootElement
+                .GetProperty("upstream")
+                .GetProperty("message")
+                .GetString());
+    }
+
+    [Fact]
     public async Task ProjectReferenceHost_HonorsResourceManagerReadOnlySetting()
     {
         using var host = await SampleProcess.StartAsync(
