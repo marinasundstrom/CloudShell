@@ -120,6 +120,14 @@ sample runs successfully through the new providers:
   unless another provider proves the same command boundary is needed.
 - Graph-only state projection uses bounded, cached Docker inspection so normal
   Resource Manager rendering does not block on Docker responsiveness.
+- Graph-only state projection currently only distinguishes running, stopped,
+  and unknown replica states. After the provider switch, the durable runtime
+  implementation should model transitional container-app startup separately so
+  a newly-started graph app can show that containers are still starting instead
+  of briefly projecting as degraded/unhealthy while health checks converge.
+  The same follow-up should decide whether the initial host projection should
+  keep `unknown` or move directly to `stopped` when no graph-owned replicas
+  exist.
 - Graph-only lifecycle and update cleanup removes a bounded replica range so
   stale graph-owned containers are swept after scale-down; this is sample
   switch scaffolding, not a shared orchestration abstraction.
