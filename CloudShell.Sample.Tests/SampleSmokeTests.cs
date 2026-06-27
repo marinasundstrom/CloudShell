@@ -3112,7 +3112,8 @@ public sealed class SampleSmokeTests
             await GetFreePortAsync(),
             [
                 ("Authentication__Enabled", "false"),
-                ("Authentication__OpenIdConnect__RequireHttpsMetadata", "false")
+                ("Authentication__OpenIdConnect__RequireHttpsMetadata", "false"),
+                ("Samples__ThirdPartyIdentity__GraphOnly", "false")
             ]);
 
         await host.WaitForHttpOkAsync("/", StartupTimeout);
@@ -3178,7 +3179,6 @@ public sealed class SampleSmokeTests
             [
                 ("Authentication__Enabled", "false"),
                 ("Authentication__OpenIdConnect__RequireHttpsMetadata", "false"),
-                ("Samples__ThirdPartyIdentity__GraphOnly", "true"),
                 ("Samples__ThirdPartyIdentity__GraphConfigurationServiceEndpoint", $"http://localhost:{graphConfigurationPort.ToString(CultureInfo.InvariantCulture)}"),
                 ("Samples__ThirdPartyIdentity__GraphApiEndpoint", $"http://localhost:{graphApiPort.ToString(CultureInfo.InvariantCulture)}")
             ]);
@@ -3251,6 +3251,7 @@ public sealed class SampleSmokeTests
                 ("Authentication__OpenIdConnect__RequireHttpsMetadata", "false"),
                 ("Keycloak__AdminBaseAddress", $"http://localhost:{keycloakPort}"),
                 ("Keycloak__TokenEndpoint", $"{authority}/protocol/openid-connect/token"),
+                ("Samples__ThirdPartyIdentity__GraphOnly", "false"),
                 ("Samples__ThirdPartyIdentity__ApiEndpoint", $"http://localhost:{apiPort}"),
                 ("Samples__ThirdPartyIdentity__GraphApiEndpoint", $"http://localhost:{graphApiPort}"),
                 ("Samples__ThirdPartyIdentity__GraphConfigurationServiceEndpoint", graphConfigurationEndpoint),

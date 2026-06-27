@@ -113,17 +113,18 @@ delegates credential environment creation to the existing Keycloak integration.
 That keeps identity credential materialization in the runtime/Control Plane
 boundary while the graph resource continues to store only declarative project,
 endpoint, reference, and identity attachment information.
-Set `Samples:ThirdPartyIdentity:GraphOnly` to `true` to omit the old
-application/configuration provider registrations and the old
+`Samples:ThirdPartyIdentity:GraphOnly` defaults to `true` so the sample omits
+the old application/configuration provider registrations and the old
 `identity-provisioning:keycloak`, `configuration:third-party-identity`, and
-`application:keycloak-provisioned-api` resource records. Graph-only mode still
-uses Resource Manager-owned identity provider declarations and the sample-local
-graph identity credential adapter; those are runtime/Control Plane concerns,
-not graph state. Docker-backed smoke coverage now runs the protected graph
-Configuration Store and graph ASP.NET Core API in this mode, executes graph
-identity-provider setup, and verifies the graph API can read protected graph
-configuration with a Keycloak-issued resource identity token without old
-provider records.
+`application:keycloak-provisioned-api` resource records. Set it to `false`
+only when running the side-by-side comparison path against the old providers.
+Graph-only mode still uses Resource Manager-owned identity provider
+declarations and the sample-local graph identity credential adapter; those are
+runtime/Control Plane concerns, not graph state. Docker-backed smoke coverage
+now runs the protected graph Configuration Store and graph ASP.NET Core API in
+this mode, executes graph identity-provider setup, and verifies the graph API
+can read protected graph configuration with a Keycloak-issued resource identity
+token without old provider records.
 
 The sample registers `KeycloakResourceIdentityProvisioner` as the resource
 identity provisioner, provider setup handler, and runtime credential
