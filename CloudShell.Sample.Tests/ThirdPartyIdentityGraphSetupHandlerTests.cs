@@ -1,5 +1,8 @@
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.Abstractions.Hosting;
+using CloudShell.Client.Authentication;
 using CloudShell.ControlPlane.ResourceManager.Identity;
+using CloudShell.Providers.Applications;
 using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using CloudShell.ThirdPartyIdentity;
@@ -77,6 +80,52 @@ public sealed class ThirdPartyIdentityGraphSetupHandlerTests
         Assert.Equal("identity-provisioning:graph-keycloak", bridge.SetupResourceId);
     }
 
+    [Fact]
+    public async Task IdentityEnvironmentProvider_DerivesCredentialVariablesFromResourceManagerIdentityDeclaration()
+    {
+        var services = new ServiceCollection();
+        var builder = services.AddCloudShellControlPlane();
+        var declarations = builder.Services
+            .Where(descriptor => descriptor.ServiceType == typeof(ResourceDeclarationStore))
+            .Select(descriptor => descriptor.ImplementationInstance)
+            .OfType<ResourceDeclarationStore>()
+            .Single();
+        var provider = declarations.AddIdentityProvider(new ResourceIdentityProviderDefinition(
+            "identity:graph-keycloak",
+            "Graph Keycloak",
+            ResourceIdentityProviderKind.Oidc,
+            new Dictionary<string, string>
+            {
+                ["Provider"] = "Keycloak"
+            }));
+        declarations.Declare(
+            builder,
+            "resource-model",
+            "application.aspnet-core-project:graph-keycloak-provisioned-api",
+            identity: new ResourceIdentityBinding(
+                provider.Id,
+                Subject: "client:graph-keycloak-provisioned-api",
+                Scopes: ["openid"],
+                Name: "graph-keycloak-provisioned-api"));
+        var environmentProvider = new GraphAspNetCoreProjectIdentityEnvironmentProvider(
+            new ApplicationProviderOptions(),
+            declarations,
+            new ResourceIdentityProviderCatalog(),
+            [new RecordingCredentialEnvironmentProvider()]);
+
+        var variables = await environmentProvider.ResolveAsync(CreateGraphAspNetCoreProjectResource());
+
+        Assert.Equal(
+            "https://identity.example/token",
+            variables[EnvironmentCloudShellResourceCredential.TokenEndpointEnvironmentVariable]);
+        Assert.Equal(
+            "application.aspnet-core-project:graph-keycloak-provisioned-api/graph-keycloak-provisioned-api",
+            variables[EnvironmentCloudShellResourceCredential.ClientIdEnvironmentVariable]);
+        Assert.Equal(
+            "openid",
+            variables[EnvironmentCloudShellResourceCredential.ScopeEnvironmentVariable]);
+    }
+
     private static GraphResource CreateGraphIdentityProvisioningResource(
         bool includeProviderId)
     {
@@ -100,6 +149,30 @@ public sealed class ThirdPartyIdentityGraphSetupHandlerTests
             ResourceId: "identity-provisioning:graph-keycloak",
             ProviderId: IdentityProvisioningResourceTypeProvider.ProviderId,
             Attributes: attributes));
+    }
+
+    private static GraphResource CreateGraphAspNetCoreProjectResource()
+    {
+        var provider = new AspNetCoreProjectResourceTypeProvider();
+        var resolver = new ResourceResolver(
+            [AspNetCoreProjectResourceTypeProvider.ClassDefinition],
+            [provider.TypeDefinition],
+            attributeValueShapeProviders:
+            [
+                new NetworkingEndpointShapeProvider(),
+                new AspNetCoreProjectShapeProvider()
+            ]);
+
+        return resolver.Resolve(new GraphResourceState(
+            "graph-keycloak-provisioned-api",
+            AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
+            ResourceId: "application.aspnet-core-project:graph-keycloak-provisioned-api",
+            ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] =
+                    "samples/ThirdPartyIdentity/Api/CloudShell.ThirdPartyIdentity.Api.csproj"
+            }));
     }
 
     private static ServiceProvider CreateServices(
@@ -147,5 +220,28 @@ public sealed class ThirdPartyIdentityGraphSetupHandlerTests
             SetupResourceId = resource.EffectiveResourceId;
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }
+    }
+
+    private sealed class RecordingCredentialEnvironmentProvider :
+        IResourceIdentityCredentialEnvironmentProvider
+    {
+        public string ProviderId => "recording";
+
+        public bool CanCreateEnvironment(ResourceIdentityProviderDefinition provider) =>
+            string.Equals(provider.Id, "identity:graph-keycloak", StringComparison.OrdinalIgnoreCase);
+
+        public IReadOnlyList<EnvironmentVariableAssignment> CreateEnvironment(
+            ResourceIdentityCredentialEnvironmentRequest request) =>
+            [
+                new(
+                    EnvironmentCloudShellResourceCredential.TokenEndpointEnvironmentVariable,
+                    "https://identity.example/token"),
+                new(
+                    EnvironmentCloudShellResourceCredential.ClientIdEnvironmentVariable,
+                    $"{request.Identity.ResourceId}/{request.Identity.Name}"),
+                new(
+                    EnvironmentCloudShellResourceCredential.ScopeEnvironmentVariable,
+                    request.DefaultScope)
+            ];
     }
 }
