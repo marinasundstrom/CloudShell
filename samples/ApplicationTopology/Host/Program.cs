@@ -443,6 +443,10 @@ cloudShell.Resources(resources =>
     }
 
     resources
+        .Declare(ResourceModelResourceProvider.DefaultProviderId, graphSqlStorageResourceId)
+        .WithResourceGroup(groupId)
+        .WithAutoStart(false);
+    resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphSqlVolumeResourceId)
         .WithResourceGroup(groupId)
         .WithAutoStart(false);

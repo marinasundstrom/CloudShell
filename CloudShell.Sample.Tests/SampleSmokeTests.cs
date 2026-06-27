@@ -2075,6 +2075,14 @@ public sealed class SampleSmokeTests
         var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
         using var resourcesDocument = JsonDocument.Parse(resourcesJson);
         var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+        var graphStorage = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "cloudshell.storage:graph-application-topology-local");
+        var graphVolume = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "cloudshell.volume:graph-application-topology-sql-data");
+        var graphSqlServer = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.sql-server:graph-application-topology-sql-server");
+        var graphDatabase = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.sql-database:graph-application-topology-db");
         var graphSettings = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "configuration.store:graph-application-topology-settings");
         var graphSecrets = Assert.Single(resources, resource =>
@@ -2116,6 +2124,20 @@ public sealed class SampleSmokeTests
             nameMapping.GetProperty("attributes")
                 .GetProperty(ResourceAttributeNames.NameMappingTargetResourceId)
                 .GetString());
+        Assert.Equal("cloudshell.storage", graphStorage.GetProperty("typeId").GetString());
+        Assert.Equal("cloudshell.volume", graphVolume.GetProperty("typeId").GetString());
+        Assert.Equal("application.sql-server", graphSqlServer.GetProperty("typeId").GetString());
+        Assert.Equal("application.sql-database", graphDatabase.GetProperty("typeId").GetString());
+        Assert.Contains(
+            "cloudshell.storage:graph-application-topology-local",
+            graphVolume.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+        Assert.Contains(
+            "cloudshell.volume:graph-application-topology-sql-data",
+            graphSqlServer.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+        Assert.Contains(
+            "application.sql-server:graph-application-topology-sql-server",
+            graphDatabase.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal($"localhost:{sqlPort}", GetEndpointAddress(graphSqlServer, "tds"));
         Assert.Equal("configuration.host", graphHostConfiguration.GetProperty("typeId").GetString());
         Assert.Equal(
             "host",

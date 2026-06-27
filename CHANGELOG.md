@@ -32,6 +32,9 @@ on `git blame --follow`, and then by the broad type of change.
   storage and volume resources for SQL data. The sample-local Docker bridge
   resolves that graph shape, creates the storage-backed host directory, and
   bind-mounts it into the SQL Server container before startup.
+- ApplicationTopology now declares the graph SQL backing storage through the
+  Resource Manager bridge as well, so graph-only projection shows the full
+  storage -> volume -> SQL Server -> database chain without relying on Docker.
 
 ### 2026-06-27
 
