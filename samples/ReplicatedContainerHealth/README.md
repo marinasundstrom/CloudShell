@@ -71,9 +71,12 @@ Set `ReplicatedContainerHealth:GraphOnly` to `true` to declare only the
 graph-backed Docker host and container-app resources. In this mode the sample
 does not register the old application or Docker provider path and does not
 declare `application:api` or `docker:sample`. This is a switch-readiness gate:
-it proves the graph resource shape without the old provider records, while
-graph-only container runtime materialization remains deferred to the next
-runtime bridge slice.
+it proves the graph resource shape without the old provider records, and it
+wires the graph container app to a sample-local Docker bridge that publishes
+the API container image, starts/removes the graph-owned replica containers, and
+restarts those replicas when graph image or replica attributes are applied.
+Health aggregation, logs, traces, and metrics still need to be owned by the
+graph-backed runtime path before this sample is fully switched over.
 
 When running the replica health path against Docker, start the `api` resource.
 The app start builds the project container image into the local Docker image

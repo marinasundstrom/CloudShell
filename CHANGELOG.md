@@ -31,8 +31,11 @@ on `git blame --follow`, and then by the broad type of change.
 - ReplicatedContainerHealth now has an opt-in graph-only declaration mode that
   skips old application/Docker provider registrations and omits
   `application:api` plus `docker:sample`, proving the graph-backed Docker host
-  and container-app projection without old provider records while graph-only
-  container runtime materialization remains deferred.
+  and container-app projection without old provider records.
+- ReplicatedContainerHealth graph-only mode now wires the graph-backed
+  container app to a sample-local Docker bridge that publishes the API image,
+  starts/removes graph-owned replica containers, and restarts them when graph
+  image or replica attributes are applied.
 
 ### 2026-06-26
 

@@ -38,9 +38,12 @@ var graphOnly = builder.Configuration.GetValue("ReplicatedContainerHealth:GraphO
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
 builder.Services
+    .AddSingleton<IReplicatedContainerHealthCommandRunner, ProcessReplicatedContainerHealthCommandRunner>()
     .AddSingleton<IReplicatedContainerHealthGraphContainerAppRuntimeBridge>(
             serviceProvider => graphOnly
-                ? new ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridge()
+                ? new ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridge(
+                    serviceProvider.GetRequiredService<IReplicatedContainerHealthCommandRunner>(),
+                    serviceProvider.GetRequiredService<IConfiguration>())
                 : new ReplicatedContainerHealthGraphResourceManagerBridge(
                     serviceProvider.GetRequiredService<IServiceScopeFactory>()))
     .AddSingleton<IContainerApplicationRuntimeHandler, ReplicatedContainerHealthGraphRuntimeHandler>()
