@@ -359,7 +359,8 @@ public sealed class ResourceManagerIntegrationTests
     public async Task ResourceModelGraphResourceResolver_ResolvesBoundResourceFromGraph()
     {
         var services = new ServiceCollection();
-        services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
+        services.AddInMemoryResourceModelGraph([CreateLocalVolumeState(), CreateExecutableState()]);
+        services.AddLocalVolumeResourceType();
         services.AddExecutableApplicationResourceType();
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
@@ -543,7 +544,8 @@ public sealed class ResourceManagerIntegrationTests
     public async Task ResourceModelGraphResourceResolver_ResolvesCapabilityProjection()
     {
         var services = new ServiceCollection();
-        services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
+        services.AddInMemoryResourceModelGraph([CreateLocalVolumeState(), CreateExecutableState()]);
+        services.AddLocalVolumeResourceType();
         services.AddExecutableApplicationResourceType();
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
@@ -573,10 +575,11 @@ public sealed class ResourceManagerIntegrationTests
     public async Task ResourceModelGraphResourceResolver_ReturnsDiagnosticWhenCapabilityProjectionIsMissing()
     {
         var services = new ServiceCollection();
-        services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
+        services.AddInMemoryResourceModelGraph([CreateLocalVolumeState(), CreateExecutableState()]);
+        services.AddLocalVolumeResourceType();
+        services.AddSingleton(ExecutableApplicationResourceTypeProvider.ClassDefinition);
         services.AddSingleton<IResourceTypeProvider>(new ExecutableApplicationResourceTypeProvider());
-        services.AddResourceModelGraphServices(
-            [new(ExecutableApplicationResourceTypeProvider.ClassId)]);
+        services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
 
         var resolution = await serviceProvider
@@ -650,10 +653,11 @@ public sealed class ResourceManagerIntegrationTests
     public async Task ResourceModelGraphResourceResolver_ReturnsDiagnosticWhenOperationProjectionIsMissing()
     {
         var services = new ServiceCollection();
-        services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
+        services.AddInMemoryResourceModelGraph([CreateLocalVolumeState(), CreateExecutableState()]);
+        services.AddLocalVolumeResourceType();
+        services.AddSingleton(ExecutableApplicationResourceTypeProvider.ClassDefinition);
         services.AddSingleton<IResourceTypeProvider>(new ExecutableApplicationResourceTypeProvider());
-        services.AddResourceModelGraphServices(
-            [new(ExecutableApplicationResourceTypeProvider.ClassId)]);
+        services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
 
         var resolution = await serviceProvider
@@ -672,7 +676,8 @@ public sealed class ResourceManagerIntegrationTests
     {
         var services = new ServiceCollection();
         services.AddSingleton<IExecutableApplicationRuntimeController, NoopExecutableApplicationRuntimeController>();
-        services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
+        services.AddInMemoryResourceModelGraph([CreateLocalVolumeState(), CreateExecutableState()]);
+        services.AddLocalVolumeResourceType();
         services.AddExecutableApplicationResourceType();
         services.AddResourceModelGraphServices();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
@@ -681,7 +686,8 @@ public sealed class ResourceManagerIntegrationTests
             .GetServices<IResourceProvider>()
             .OfType<ResourceModelGraphProcedureProvider>()
             .Single();
-        var resource = Assert.Single(provider.GetResources());
+        var resource = provider.GetResources()
+            .Single(resource => resource.Id == "application.executable:api");
         var procedure = new ResourceProcedureContext(
             resource,
             null,
@@ -702,7 +708,8 @@ public sealed class ResourceManagerIntegrationTests
         var runtimeController = new RecordingExecutableApplicationRuntimeController();
         var services = new ServiceCollection();
         services.AddSingleton<IExecutableApplicationRuntimeController>(runtimeController);
-        services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
+        services.AddInMemoryResourceModelGraph([CreateLocalVolumeState(), CreateExecutableState()]);
+        services.AddLocalVolumeResourceType();
         services.AddExecutableApplicationResourceType();
         services.AddResourceModelGraphServices();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
@@ -711,7 +718,8 @@ public sealed class ResourceManagerIntegrationTests
             .GetServices<IResourceProvider>()
             .OfType<ResourceModelGraphProcedureProvider>()
             .Single();
-        var resource = Assert.Single(provider.GetResources());
+        var resource = provider.GetResources()
+            .Single(resource => resource.Id == "application.executable:api");
         var procedure = new ResourceProcedureContext(
             resource,
             null,
