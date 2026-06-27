@@ -232,7 +232,8 @@ if (graphOnly)
 {
     builder.Services
         .AddSingleton<IApplicationTopologyDockerCommandRunner, ProcessApplicationTopologyDockerCommandRunner>()
-        .AddSingleton<IApplicationTopologyGraphSqlServerRuntimeBridge, ApplicationTopologyGraphSqlServerDockerBridge>();
+        .AddSingleton<IApplicationTopologyGraphSqlServerRuntimeBridge, ApplicationTopologyGraphSqlServerDockerBridge>()
+        .AddSingleton<IResourceOrchestrationDescriptorProvider, ApplicationTopologyGraphSqlServerOrchestrationDescriptorProvider>();
 }
 else
 {

@@ -141,7 +141,11 @@ delegates to the old sample SQL runtime resource through
 same bridge is wired to a sample-local Docker-backed SQL runtime so graph SQL
 lifecycle operations do not require the old SQL resource declaration. Docker
 smoke coverage verifies the graph-only SQL-backed API and frontend path
-without declaring `application:application-topology-sql-server`.
+without declaring `application:application-topology-sql-server`. The graph-only
+SQL runtime also contributes Resource Manager orchestration metadata with a
+control-plane-scoped lifetime so graceful host shutdown removes its Docker
+container through the same host-scoped shutdown path used by old
+programmatically declared resources.
 
 ## Run
 

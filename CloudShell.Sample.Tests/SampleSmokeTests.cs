@@ -2311,6 +2311,76 @@ public sealed class SampleSmokeTests
 
     [Fact]
     [Trait("Category", "DockerIntegration")]
+    public async Task ApplicationTopologyHost_GraphOnlySqlRuntimeStopsOnGracefulHostShutdown()
+    {
+        const string graphSqlServerResourceId = "application.sql-server:graph-application-topology-sql-server";
+        var sqlContainerName = ApplicationTopologyGraphSqlServerDockerBridge.GraphSqlServerContainerName;
+        if (!await DockerComposeStack.IsAvailableAsync() ||
+            !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.DefaultSqlServerImage))
+        {
+            return;
+        }
+
+        await DockerComposeStack.RemoveContainerIfExistsAsync(sqlContainerName);
+
+        var apiPort = await GetFreePortAsync();
+        var frontendPort = await GetFreePortAsync();
+        var graphApiPort = await GetFreePortAsync();
+        var graphFrontendPort = await GetFreePortAsync();
+        var graphConfigurationEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
+        var graphSecretsEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
+        var sqlPort = await GetFreePortAsync();
+        var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:application-topology");
+        var secretsServiceBasePort = await GetServiceBasePortAsync("secrets-vault:application-topology");
+        var host = await SampleProcess.StartAsync(
+            "samples/ApplicationTopology/Host/CloudShell.ApplicationTopologyHost.csproj",
+            await GetFreePortAsync(),
+            [
+                ("ApplicationTopology__ApiEndpoint", $"http://localhost:{apiPort}"),
+                ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
+                ("ApplicationTopology__GraphApiEndpoint", $"http://localhost:{graphApiPort}"),
+                ("ApplicationTopology__GraphFrontendEndpoint", $"http://localhost:{graphFrontendPort}"),
+                ("ApplicationTopology__GraphConfigurationServiceEndpoint", graphConfigurationEndpoint),
+                ("ApplicationTopology__GraphSecretsServiceEndpoint", graphSecretsEndpoint),
+                ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
+                ("ApplicationTopology__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
+                ("ApplicationTopology__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture))
+            ]);
+
+        try
+        {
+            await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+            var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+            using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+            var graphSqlServer = Assert.Single(
+                resourcesDocument.RootElement.EnumerateArray(),
+                resource => resource.GetProperty("id").GetString() == graphSqlServerResourceId);
+
+            await StartGraphResourceIfAvailableAsync(host, graphSqlServer, "ApplicationTopology graph-only SQL Server");
+            await WaitForResourceStateAsync(
+                host,
+                graphSqlServerResourceId,
+                ResourceState.Running,
+                StartupTimeout);
+            Assert.True(
+                await WaitForDockerContainerExistsAsync(sqlContainerName, StartupTimeout),
+                $"Expected Docker container '{sqlContainerName}' to be created.");
+
+            await host.StopAsync(StartupTimeout);
+            Assert.True(
+                await WaitForDockerContainerRemovedAsync(sqlContainerName, StartupTimeout),
+                $"Expected Docker container '{sqlContainerName}' to be removed during graceful host shutdown.");
+        }
+        finally
+        {
+            host.Dispose();
+            await DockerComposeStack.RemoveContainerIfExistsAsync(sqlContainerName);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "DockerIntegration")]
     public async Task ApplicationTopologyHost_SqlInclusiveRuntimePathConnectsFrontendApiAndDatabase()
     {
         const string sqlContainerName = "cloudshell-application-application-topology-sql-server";
@@ -5466,6 +5536,11 @@ public sealed class SampleSmokeTests
         {
             await DockerComposeStack.RemoveContainerIfExistsAsync(
                 ContainerHostGraphSqlServerDockerBridge.GraphSqlServerContainerName);
+        }
+        else if (projectPath.Contains("/ApplicationTopology/", StringComparison.OrdinalIgnoreCase))
+        {
+            await DockerComposeStack.RemoveContainerIfExistsAsync(
+                ApplicationTopologyGraphSqlServerDockerBridge.GraphSqlServerContainerName);
         }
     }
 

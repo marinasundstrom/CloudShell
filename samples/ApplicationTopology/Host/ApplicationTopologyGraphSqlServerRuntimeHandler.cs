@@ -9,7 +9,7 @@ namespace CloudShell.ApplicationTopologyHost;
 public sealed class ApplicationTopologyGraphSqlServerRuntimeHandler(
     IApplicationTopologyGraphSqlServerRuntimeBridge bridge) : ISqlServerRuntimeHandler
 {
-    private const string GraphSqlServerResourceId =
+    public const string GraphSqlServerResourceId =
         "application.sql-server:graph-application-topology-sql-server";
 
     public SqlServerRuntimeStatus GetStatus(GraphResource resource) =>

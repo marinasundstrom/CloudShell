@@ -23,6 +23,11 @@ on `git blame --follow`, and then by the broad type of change.
   shutdown removes the graph SQL container through the existing host-scoped
   shutdown service, matching the old provider model for programmatically
   declared resources.
+- ApplicationTopology graph-only mode now projects its sample-local graph SQL
+  Docker runtime into the Resource Manager orchestration catalog with
+  control-plane-scoped lifetime metadata. A focused Docker smoke test verifies
+  graceful host shutdown removes the graph SQL container without declaring the
+  old SQL resource.
 
 ### 2026-06-27
 
