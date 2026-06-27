@@ -162,6 +162,10 @@ on `git blame --follow`, and then by the broad type of change.
 - ProjectReference now has an opt-in graph-only mode that omits the old
   application-provider project records and registration while keeping graph
   ASP.NET Core project startup and graph-to-graph service discovery coverage.
+- SettingsAndSecrets now has an opt-in graph-only mode that omits the old
+  application, configuration, and secrets provider registrations plus old
+  workload records while keeping graph Configuration Store, Secrets Vault, API,
+  identity grant, and graph service-discovery coverage.
 - Virtual network graph resources can now carry endpoint contracts, endpoint
   address mappings, and source-to-target endpoint mapping payloads. The
   HostVirtualNetwork sample declares the graph public ingress mapping through

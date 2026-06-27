@@ -64,6 +64,15 @@ Those existing providers currently start local C# service projects; a future
 provider implementation can back the same graph resource shapes with
 containers.
 
+Set `Samples:SettingsAndSecrets:GraphOnly` to `true` to omit the old
+application, configuration, and secrets provider registrations plus the old
+`configuration:sample-app`, `secrets-vault:sample-app`, and
+`application:settings-secrets-api` resource records. In graph-only mode the
+sample still declares the built-in identity provider, graph Configuration
+Store, graph Secrets Vault, and graph ASP.NET Core API. Smoke coverage starts
+the graph services and API, then verifies the graph API reads graph-backed
+configuration and secrets through graph service-discovery references.
+
 Run the sample host:
 
 ```bash

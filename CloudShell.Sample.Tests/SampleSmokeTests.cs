@@ -2944,6 +2944,84 @@ public sealed class SampleSmokeTests
             apiSecretDocument.RootElement.GetProperty("value").GetString());
     }
 
+    [Fact]
+    public async Task SettingsAndSecretsSample_GraphOnlyModeRunsGraphServicesAndApi()
+    {
+        var graphConfigurationEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
+        var graphSecretsEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
+        var graphApiEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
+        const string graphSettingsResourceId = "configuration.store:graph-sample-app";
+        const string graphSecretsResourceId = "secrets.vault:graph-sample-app";
+        const string graphApiResourceId = "application.aspnet-core-project:graph-settings-secrets-api";
+        using var host = await SampleProcess.StartAsync(
+            "samples/SettingsAndSecrets/CloudShell.SettingsAndSecrets.csproj",
+            await GetFreePortAsync(),
+            [
+                ("Samples__SettingsAndSecrets__GraphOnly", "true"),
+                ("Samples__SettingsAndSecrets__GraphConfigurationServiceEndpoint", graphConfigurationEndpoint),
+                ("Samples__SettingsAndSecrets__GraphSecretsServiceEndpoint", graphSecretsEndpoint),
+                ("Samples__SettingsAndSecrets__GraphApiEndpoint", graphApiEndpoint)
+            ]);
+
+        await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+        var graphSettings = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == graphSettingsResourceId);
+        var graphSecrets = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == graphSecretsResourceId);
+        var graphApi = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == graphApiResourceId);
+
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "configuration:sample-app");
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "secrets-vault:sample-app");
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "application:settings-secrets-api");
+        Assert.Equal(graphApiEndpoint, GetPrimaryEndpointAddress(graphApi));
+
+        await StartGraphResourceIfAvailableAsync(host, graphSettings, "SettingsAndSecrets graph settings");
+        await StartGraphResourceIfAvailableAsync(host, graphSecrets, "SettingsAndSecrets graph secrets");
+        await StartGraphResourceIfAvailableAsync(host, graphApi, "SettingsAndSecrets graph API");
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"{graphConfigurationEndpoint}/healthz",
+            bearerToken: null,
+            StartupTimeout);
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"{graphSecretsEndpoint}/healthz",
+            bearerToken: null,
+            StartupTimeout);
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"{graphApiEndpoint}/health",
+            bearerToken: null,
+            StartupTimeout);
+
+        var graphServiceDiscoveryJson = await host.GetAbsoluteStringAsync(
+            $"{graphApiEndpoint.TrimEnd('/')}/service-discovery/graph-configuration");
+        using var graphServiceDiscoveryDocument = JsonDocument.Parse(graphServiceDiscoveryJson);
+        Assert.Equal(
+            "connected",
+            graphServiceDiscoveryDocument.RootElement.GetProperty("status").GetString());
+        Assert.Contains(
+            graphServiceDiscoveryDocument.RootElement.GetProperty("entries").EnumerateArray(),
+            entry =>
+                entry.GetProperty("name").GetString() == "Sample:Message" &&
+                entry.GetProperty("value").GetString() == "Hello from a graph configuration entry");
+
+        var graphSecretsServiceDiscoveryJson = await host.GetAbsoluteStringAsync(
+            $"{graphApiEndpoint.TrimEnd('/')}/service-discovery/graph-secrets/sample-api-key");
+        using var graphSecretsServiceDiscoveryDocument = JsonDocument.Parse(graphSecretsServiceDiscoveryJson);
+        Assert.Equal(
+            "connected",
+            graphSecretsServiceDiscoveryDocument.RootElement.GetProperty("status").GetString());
+        Assert.Equal(
+            "graph-local-development-api-key",
+            graphSecretsServiceDiscoveryDocument.RootElement.GetProperty("value").GetString());
+    }
+
     private static void AssertGraphHealthRefreshSucceeded(
         JsonElement health,
         string resourceId)

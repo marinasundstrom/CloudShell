@@ -44,6 +44,7 @@ var graphSecretsServiceEndpoint = builder.Configuration["Samples:SettingsAndSecr
     $"http://localhost:{secretsServiceBasePort}";
 var graphApiEndpoint = builder.Configuration["Samples:SettingsAndSecrets:GraphApiEndpoint"] ??
     "http://localhost:5228";
+var graphOnly = builder.Configuration.GetValue("Samples:SettingsAndSecrets:GraphOnly", false);
 var graphApiEndpointUri = new Uri(graphApiEndpoint);
 const string graphSettingsResourceId = "configuration.store:graph-sample-app";
 const string graphSecretsResourceId = "secrets.vault:graph-sample-app";
@@ -147,29 +148,34 @@ builder.Services
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()
-    .AddExtension<ObservabilityExtension>()
-    .AddApplicationProvider(options =>
-    {
-        options.ResourceIdentityTokenEndpoint = identityTokenEndpoint;
-    })
-    .AddConfigurationProvider(options =>
-    {
-        options.ServiceProjectPath = configurationStoreServiceProjectPath;
-        options.ServiceWorkingDirectory = repositoryRootPath;
-        options.ServiceBasePort = configurationServiceBasePort;
-        options.ServiceAuthenticationIssuer = identityIssuer;
-        options.ServiceAuthenticationAudience = identityAudience;
-        options.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
-    })
-    .AddSecretsProvider(options =>
-    {
-        options.SecretsServiceProjectPath = secretsVaultServiceProjectPath;
-        options.SecretsServiceWorkingDirectory = repositoryRootPath;
-        options.SecretsServiceBasePort = secretsServiceBasePort;
-        options.ServiceAuthenticationIssuer = identityIssuer;
-        options.ServiceAuthenticationAudience = identityAudience;
-        options.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
-    });
+    .AddExtension<ObservabilityExtension>();
+
+if (!graphOnly)
+{
+    cloudShell
+        .AddApplicationProvider(options =>
+        {
+            options.ResourceIdentityTokenEndpoint = identityTokenEndpoint;
+        })
+        .AddConfigurationProvider(options =>
+        {
+            options.ServiceProjectPath = configurationStoreServiceProjectPath;
+            options.ServiceWorkingDirectory = repositoryRootPath;
+            options.ServiceBasePort = configurationServiceBasePort;
+            options.ServiceAuthenticationIssuer = identityIssuer;
+            options.ServiceAuthenticationAudience = identityAudience;
+            options.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
+        })
+        .AddSecretsProvider(options =>
+        {
+            options.SecretsServiceProjectPath = secretsVaultServiceProjectPath;
+            options.SecretsServiceWorkingDirectory = repositoryRootPath;
+            options.SecretsServiceBasePort = secretsServiceBasePort;
+            options.ServiceAuthenticationIssuer = identityIssuer;
+            options.ServiceAuthenticationAudience = identityAudience;
+            options.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
+        });
+}
 
 cloudShell.Resources(resources =>
 {
@@ -184,46 +190,6 @@ cloudShell.Resources(resources =>
         },
         useAsDefault: true);
 
-    var settings = resources
-        .AddConfigurationStore("sample-app")
-        .WithDisplayName("Sample App Settings")
-        .WithIdentity(identityProvider)
-        .WithEntries(
-        [
-            new("Sample:Message", "Hello from a configuration entry"),
-            new("Sample:Mode", "Development")
-        ]);
-
-    var secrets = resources
-        .AddSecretsVault("sample-app")
-        .WithDisplayName("Sample App Secrets")
-        .WithIdentity(identityProvider)
-        .WithSecret("sample-api-key", "local-development-api-key");
-
-    var api = resources
-        .AddAspNetCoreProject(
-            "settings-secrets-api",
-            "../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj",
-            endpoint: apiEndpoint)
-        .WithIdentity(identityProvider, name: "settings-secrets-api")
-        .WithReference(settings)
-        .WithReference(secrets)
-        .WithServiceDiscovery()
-        .WithEnvironment("SAMPLE_MESSAGE", settings.Entry("Sample:Message"))
-        .WithEnvironment("SAMPLE_MODE", settings.Entry("Sample:Mode"))
-        .WithEnvironment("SAMPLE_API_KEY", secrets.Secret("sample-api-key"))
-        .WithEnvironment("CLOUDSHELL_CONFIGURATION_SERVICE_NAME", "graph-sample-app")
-        .WithEnvironment("CLOUDSHELL_CONFIGURATION_GRAPH_SAMPLE_APP_STORE_ID", graphSettingsResourceId)
-        .WithEnvironment("CLOUDSHELL_CONFIGURATION_GRAPH_SAMPLE_APP_ENDPOINT", graphConfigurationEntriesEndpoint)
-        .WithEnvironment("CLOUDSHELL_SECRETS_VAULT_NAME", "graph-sample-app")
-        .WithEnvironment("CLOUDSHELL_SECRETS_GRAPH_SAMPLE_APP_VAULT_ID", graphSecretsResourceId)
-        .WithEnvironment("CLOUDSHELL_SECRETS_GRAPH_SAMPLE_APP_ENDPOINT", graphSecretsEndpoint)
-        .WithAutoStart(false)
-        .ProvisionIdentityOnStartup();
-
-    secrets.Allow(api.Principal, SecretsVaultResourceOperationPermissions.ReadSecrets);
-    settings.Allow(api.Principal, ConfigurationStoreResourceOperationPermissions.ReadEntries);
-
     var graphSettings = resources.Declare(
         ResourceModelResourceProvider.DefaultProviderId,
         graphSettingsResourceId);
@@ -236,10 +202,53 @@ cloudShell.Resources(resources =>
             graphApiResourceId)
         .WithIdentity(identityProvider, name: graphApiIdentityName)
         .ProvisionIdentityOnStartup();
-    graphSettings.Allow(api.Principal, ConfigurationStoreResourceOperationPermissions.ReadEntries);
-    graphSecrets.Allow(api.Principal, SecretsVaultResourceOperationPermissions.ReadSecrets);
     graphSettings.Allow(graphApi.Principal, ConfigurationStoreResourceOperationPermissions.ReadEntries);
     graphSecrets.Allow(graphApi.Principal, SecretsVaultResourceOperationPermissions.ReadSecrets);
+
+    if (!graphOnly)
+    {
+        var settings = resources
+            .AddConfigurationStore("sample-app")
+            .WithDisplayName("Sample App Settings")
+            .WithIdentity(identityProvider)
+            .WithEntries(
+            [
+                new("Sample:Message", "Hello from a configuration entry"),
+                new("Sample:Mode", "Development")
+            ]);
+
+        var secrets = resources
+            .AddSecretsVault("sample-app")
+            .WithDisplayName("Sample App Secrets")
+            .WithIdentity(identityProvider)
+            .WithSecret("sample-api-key", "local-development-api-key");
+
+        var api = resources
+            .AddAspNetCoreProject(
+                "settings-secrets-api",
+                "../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj",
+                endpoint: apiEndpoint)
+            .WithIdentity(identityProvider, name: "settings-secrets-api")
+            .WithReference(settings)
+            .WithReference(secrets)
+            .WithServiceDiscovery()
+            .WithEnvironment("SAMPLE_MESSAGE", settings.Entry("Sample:Message"))
+            .WithEnvironment("SAMPLE_MODE", settings.Entry("Sample:Mode"))
+            .WithEnvironment("SAMPLE_API_KEY", secrets.Secret("sample-api-key"))
+            .WithEnvironment("CLOUDSHELL_CONFIGURATION_SERVICE_NAME", "graph-sample-app")
+            .WithEnvironment("CLOUDSHELL_CONFIGURATION_GRAPH_SAMPLE_APP_STORE_ID", graphSettingsResourceId)
+            .WithEnvironment("CLOUDSHELL_CONFIGURATION_GRAPH_SAMPLE_APP_ENDPOINT", graphConfigurationEntriesEndpoint)
+            .WithEnvironment("CLOUDSHELL_SECRETS_VAULT_NAME", "graph-sample-app")
+            .WithEnvironment("CLOUDSHELL_SECRETS_GRAPH_SAMPLE_APP_VAULT_ID", graphSecretsResourceId)
+            .WithEnvironment("CLOUDSHELL_SECRETS_GRAPH_SAMPLE_APP_ENDPOINT", graphSecretsEndpoint)
+            .WithAutoStart(false)
+            .ProvisionIdentityOnStartup();
+
+        secrets.Allow(api.Principal, SecretsVaultResourceOperationPermissions.ReadSecrets);
+        settings.Allow(api.Principal, ConfigurationStoreResourceOperationPermissions.ReadEntries);
+        graphSettings.Allow(api.Principal, ConfigurationStoreResourceOperationPermissions.ReadEntries);
+        graphSecrets.Allow(api.Principal, SecretsVaultResourceOperationPermissions.ReadSecrets);
+    }
 });
 
 var app = builder.Build();
