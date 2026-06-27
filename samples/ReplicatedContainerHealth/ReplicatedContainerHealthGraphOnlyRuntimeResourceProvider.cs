@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
@@ -68,6 +69,9 @@ internal sealed class ReplicatedContainerHealthGraphOnlyRuntimeResourceProvider(
     {
         var resourceId = ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaResourceId(replica);
         var containerName = ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaContainerName(replica);
+        var replicaOrdinal = replica.ToString(CultureInfo.InvariantCulture);
+        var totalReplicas = replicaCount.ToString(CultureInfo.InvariantCulture);
+        var replicaName = $"Replica {replicaOrdinal}";
         var protocol = NormalizeProtocol(endpoint.Protocol);
         var targetPort = endpoint.TargetPort ?? endpoint.Port ?? 8080;
         var probePort = ReplicatedContainerHealthGraphOnlyRuntimeConventions.ResolveReplicaProbePort(
@@ -94,8 +98,8 @@ internal sealed class ReplicatedContainerHealthGraphOnlyRuntimeResourceProvider(
             {
                 [ResourceAttributeNames.RuntimeKind] = "containerReplica",
                 [ResourceAttributeNames.RuntimeContainerName] = containerName,
-                [ResourceAttributeNames.RuntimeReplicaOrdinal] = replica.ToString(CultureInfo.InvariantCulture),
-                [ResourceAttributeNames.RuntimeReplicaCount] = replicaCount.ToString(CultureInfo.InvariantCulture),
+                [ResourceAttributeNames.RuntimeReplicaOrdinal] = replicaOrdinal,
+                [ResourceAttributeNames.RuntimeReplicaCount] = totalReplicas,
                 [ResourceAttributeNames.RuntimeMaterialization] = "sampleGraphOnlyRuntime"
             },
             Capabilities:
@@ -115,8 +119,53 @@ internal sealed class ReplicatedContainerHealthGraphOnlyRuntimeResourceProvider(
             ManagementMode: ResourceManagementMode.RuntimeManaged,
             Visibility: ResourceVisibility.Hidden,
             OwnerResourceId: parent.Id,
-            CleanupBehavior: ResourceCleanupBehavior.DeleteWithOwner);
+            CleanupBehavior: ResourceCleanupBehavior.DeleteWithOwner,
+            Observability: CreateRuntimeReplicaObservability(
+                parent.Id,
+                resourceId,
+                replicaName,
+                containerName,
+                replicaOrdinal,
+                totalReplicas));
     }
+
+    private static ResourceObservability CreateRuntimeReplicaObservability(
+        string parentResourceId,
+        string replicaResourceId,
+        string replicaName,
+        string containerName,
+        string replicaOrdinal,
+        string replicaCount) =>
+        new(
+            Logs: true,
+            Traces: true,
+            Metrics: true,
+            ServiceName: $"replicated-container-health-graph-api-replica-{replicaOrdinal}",
+            ResourceAttributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["cloudshell.resource.id"] = replicaResourceId,
+                ["cloudshell.resource.type"] = "runtime.container",
+                [TelemetryAttributeNames.ScopeResourceId] = parentResourceId,
+                [TelemetryAttributeNames.ScopeName] = replicaName,
+                [TelemetryAttributeNames.ScopeKind] = "runtime",
+                [TelemetryAttributeNames.RuntimeReplicaOrdinal] = replicaOrdinal,
+                [TelemetryAttributeNames.RuntimeReplicaCount] = replicaCount,
+                [TelemetryAttributeNames.RuntimeContainerName] = containerName
+            },
+            Scopes:
+            [
+                new(
+                    parentResourceId,
+                    replicaName,
+                    "runtime",
+                    $"Runtime replica {replicaOrdinal}",
+                    Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        [TelemetryAttributeNames.RuntimeReplicaOrdinal] = replicaOrdinal,
+                        [TelemetryAttributeNames.RuntimeReplicaCount] = replicaCount,
+                        [TelemetryAttributeNames.RuntimeContainerName] = containerName
+                    })
+            ]);
 
     private static NetworkingEndpointRequestValue? ResolveHttpEndpoint(GraphResource resource) =>
         resource.Attributes

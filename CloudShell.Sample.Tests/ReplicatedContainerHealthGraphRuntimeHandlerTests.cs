@@ -654,6 +654,22 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
         Assert.Equal(2, replica.ResourceHealthChecks.Count);
         Assert.Contains(replica.ResourceHealthChecks, check => check.Type == ResourceProbeType.Health);
         Assert.Contains(replica.ResourceHealthChecks, check => check.Type == ResourceProbeType.Liveness);
+        Assert.True(replica.EffectiveObservability.Logs);
+        Assert.True(replica.EffectiveObservability.Traces);
+        Assert.True(replica.EffectiveObservability.Metrics);
+        Assert.Equal(
+            $"replicated-container-health-graph-api-replica-{ordinal.ToString(CultureInfo.InvariantCulture)}",
+            replica.EffectiveObservability.ServiceName);
+        Assert.Equal(
+            ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId,
+            replica.EffectiveObservability.Attributes["telemetry.scope.resourceId"]);
+        Assert.Equal(
+            ordinal.ToString(CultureInfo.InvariantCulture),
+            replica.EffectiveObservability.Attributes["runtime.replica.ordinal"]);
+        var scope = Assert.Single(replica.EffectiveObservability.TelemetryScopes);
+        Assert.Equal(ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId, scope.ScopeResourceId);
+        Assert.Equal($"Replica {ordinal.ToString(CultureInfo.InvariantCulture)}", scope.Name);
+        Assert.Equal("runtime", scope.Kind);
         var mapping = Assert.Single(replica.ResourceEndpointNetworkMappings);
         Assert.Equal($"http://localhost:{port.ToString(CultureInfo.InvariantCulture)}", mapping.Address);
     }

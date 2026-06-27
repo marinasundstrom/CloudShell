@@ -92,7 +92,10 @@ stale replica removal, direct graph-declared HTTP health/liveness refresh,
 runtime-scope health aggregation, log source discovery, Docker log reading,
 the running replica container's projected runtime observability environment,
 and live trace/metric ingestion under the projected runtime replica resource
-ID without the old provider records.
+ID without the old provider records. The hidden runtime replica resource
+projection now also advertises Resource Manager logs, traces, metrics, service
+name, and runtime telemetry scope metadata so the projected resource and the
+emitted telemetry line up.
 
 ### Temporary switch seams
 
@@ -118,7 +121,8 @@ sample runs successfully through the new providers:
   `IResourceProvider` adapter. This is intentionally not a new graph provider
   abstraction; the future provider contract should distinguish top-level
   resource enumeration from optional sub-resource/runtime projection after the
-  switch succeeds.
+  switch succeeds. It also owns the temporary Resource Manager observability
+  projection for those hidden runtime replicas.
 - The graph-only Docker bridge sets runtime replica IDs and telemetry scope
   environment variables on the containers it creates. This is runtime
   integration wiring for the projected replica resources; it should move with

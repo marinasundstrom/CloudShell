@@ -3861,6 +3861,7 @@ public sealed class SampleSmokeTests
                 "cloudshell-replicated-health-graph-api-replica-1",
                 replica: 1);
             await AssertGraphReplicaTelemetryAsync(host, replica: 1, graphOnlySmokeTimeout);
+            await AssertGraphReplicaResourceObservabilityAsync(host, replica: 1);
             foreach (var containerName in containerNames)
             {
                 Assert.True(
@@ -5041,6 +5042,45 @@ public sealed class SampleSmokeTests
 
         return scopeResourceId.GetString() == ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId &&
             replicaOrdinal.GetString() == replica.ToString(CultureInfo.InvariantCulture);
+    }
+
+    private static async Task AssertGraphReplicaResourceObservabilityAsync(
+        SampleProcess host,
+        int replica)
+    {
+        var replicaResourceId = ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaResourceId(replica);
+        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+        var runtimeReplica = Assert.Single(
+            resourcesDocument.RootElement.EnumerateArray(),
+            resource => string.Equals(
+                resource.GetProperty("id").GetString(),
+                replicaResourceId,
+                StringComparison.OrdinalIgnoreCase));
+        Assert.Equal((int)ResourceVisibility.Hidden, runtimeReplica.GetProperty("visibility").GetInt32());
+
+        var observability = runtimeReplica.GetProperty("observability");
+        Assert.True(observability.GetProperty("logs").GetBoolean());
+        Assert.True(observability.GetProperty("traces").GetBoolean());
+        Assert.True(observability.GetProperty("metrics").GetBoolean());
+        Assert.Equal(
+            $"replicated-container-health-graph-api-replica-{replica.ToString(CultureInfo.InvariantCulture)}",
+            observability.GetProperty("serviceName").GetString());
+
+        var attributes = observability.GetProperty("attributes");
+        Assert.Equal(
+            ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId,
+            attributes.GetProperty("telemetry.scope.resourceId").GetString());
+        Assert.Equal(
+            replica.ToString(CultureInfo.InvariantCulture),
+            attributes.GetProperty("runtime.replica.ordinal").GetString());
+
+        var scope = Assert.Single(observability.GetProperty("scopes").EnumerateArray());
+        Assert.Equal(
+            ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId,
+            scope.GetProperty("scopeResourceId").GetString());
+        Assert.Equal($"Replica {replica.ToString(CultureInfo.InvariantCulture)}", scope.GetProperty("name").GetString());
+        Assert.Equal("runtime", scope.GetProperty("kind").GetString());
     }
 
     private static async Task<string> RunResourceIdentityCredentialSampleAsync(
