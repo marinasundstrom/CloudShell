@@ -23,6 +23,9 @@ const string graphWebResourceId = "application.container-app:graph-web";
 const string graphApiResourceId = "application.container-app:graph-api";
 const string graphPostgresResourceId = "application.container-app:graph-postgres";
 const string graphLoadBalancerResourceId = "load-balancer:graph-public";
+const string graphDnsZoneResourceId = "dns:graph-cloudshell-local";
+const string graphAppNameMappingResourceId = "dns:graph-cloudshell-local:name:app-cloudshell-local";
+const string graphApiNameMappingResourceId = "dns:graph-cloudshell-local:name:api-cloudshell-local";
 const string graphResourceGroupId = "load-balancer-graph-poc";
 var dynamicConfigurationDirectory = Path.Combine(
     builder.Environment.ContentRootPath,
@@ -75,11 +78,36 @@ cloudShell.DefineResources(resources =>
         .MapHost("app.cloudshell.local", graphWeb, port: 80)
         .MapPath("api.cloudshell.local", "/v1", graphApi, port: 80)
         .MapTcp(5432, graphPostgres, targetPort: 5432);
+
+    var graphDnsZone = resources
+        .AddDnsZone("graph-cloudshell-local")
+        .WithResourceId(graphDnsZoneResourceId)
+        .WithDisplayName("Graph CloudShell Local DNS")
+        .WithZoneName("cloudshell.local")
+        .WithProvider("local-hostnames");
+    resources
+        .AddNameMapping("graph-app-cloudshell-local")
+        .WithResourceId(graphAppNameMappingResourceId)
+        .WithDisplayName("Graph app.cloudshell.local")
+        .WithHostName("app.cloudshell.local")
+        .WithTargetEndpointName("http")
+        .InDnsZone(graphDnsZone)
+        .MapsTarget(graphLoadBalancerResourceId, LoadBalancerResourceTypeProvider.ResourceTypeId);
+    resources
+        .AddNameMapping("graph-api-cloudshell-local")
+        .WithResourceId(graphApiNameMappingResourceId)
+        .WithDisplayName("Graph api.cloudshell.local")
+        .WithHostName("api.cloudshell.local")
+        .WithTargetEndpointName("http")
+        .InDnsZone(graphDnsZone)
+        .MapsTarget(graphLoadBalancerResourceId, LoadBalancerResourceTypeProvider.ResourceTypeId);
 });
 builder.Services
     .AddDockerHostResourceType()
     .AddContainerApplicationResourceType()
     .AddLoadBalancerResourceType()
+    .AddDnsZoneResourceType()
+    .AddNameMappingResourceType()
     .AddResourceModelGraphServices()
     .AddReferenceProviderResourceManagerProjections()
     .AddResourceModelGraphProcedureProvider(
@@ -172,6 +200,15 @@ cloudShell.Resources(resources =>
         .WithResourceGroup(graphResourceGroupId);
     resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphLoadBalancerResourceId)
+        .WithResourceGroup(graphResourceGroupId);
+    resources
+        .Declare(ResourceModelResourceProvider.DefaultProviderId, graphDnsZoneResourceId)
+        .WithResourceGroup(graphResourceGroupId);
+    resources
+        .Declare(ResourceModelResourceProvider.DefaultProviderId, graphAppNameMappingResourceId)
+        .WithResourceGroup(graphResourceGroupId);
+    resources
+        .Declare(ResourceModelResourceProvider.DefaultProviderId, graphApiNameMappingResourceId)
         .WithResourceGroup(graphResourceGroupId);
 
     var lb = resources

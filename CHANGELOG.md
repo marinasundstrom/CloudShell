@@ -130,6 +130,11 @@ on `git blame --follow`, and then by the broad type of change.
   provider-owned reconciler implementations to inspect sibling graph resources
   such as declared name mappings without putting name-publishing behavior in
   the graph model itself.
+- The LoadBalancer sample now declares side-by-side graph-backed DNS zone and
+  name-mapping resources that target the graph-backed load balancer frontend,
+  extending the networking POC coverage from route projection into declarative
+  host-name mapping shape while leaving DNS publishing runtime integration
+  deferred.
 
 ### 2026-06-26
 

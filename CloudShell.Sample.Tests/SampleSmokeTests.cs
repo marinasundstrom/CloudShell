@@ -4387,6 +4387,12 @@ public sealed class SampleSmokeTests
             resource.GetProperty("id").GetString() == "application.container-app:graph-api");
         var graphLoadBalancer = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "load-balancer:graph-public");
+        var graphDnsZone = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "dns:graph-cloudshell-local");
+        var graphAppName = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "dns:graph-cloudshell-local:name:app-cloudshell-local");
+        var graphApiName = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "dns:graph-cloudshell-local:name:api-cloudshell-local");
         var attributes = loadBalancer.GetProperty("attributes");
         var apiAttributes = api.GetProperty("attributes");
         var postgresAttributes = postgres.GetProperty("attributes");
@@ -4395,6 +4401,9 @@ public sealed class SampleSmokeTests
         var apiNameAttributes = apiName.GetProperty("attributes");
         var graphApiAttributes = graphApi.GetProperty("attributes");
         var graphLoadBalancerAttributes = graphLoadBalancer.GetProperty("attributes");
+        var graphDnsAttributes = graphDnsZone.GetProperty("attributes");
+        var graphAppNameAttributes = graphAppName.GetProperty("attributes");
+        var graphApiNameAttributes = graphApiName.GetProperty("attributes");
 
         Assert.Equal("cloudshell.loadBalancer", loadBalancer.GetProperty("typeId").GetString());
         Assert.Equal("traefik", attributes.GetProperty("loadBalancer.provider").GetString());
@@ -4468,6 +4477,30 @@ public sealed class SampleSmokeTests
         Assert.True(graphLoadBalancer
             .GetProperty("resourceActions")
             .TryGetProperty("applyLoadBalancerConfiguration", out _));
+        Assert.Equal("cloudshell.dnsZone", graphDnsZone.GetProperty("typeId").GetString());
+        Assert.Equal("cloudshell.local", graphDnsAttributes.GetProperty("dns.zone").GetString());
+        Assert.Equal("local-hostnames", graphDnsAttributes.GetProperty("dns.provider").GetString());
+        Assert.True(graphDnsZone
+            .GetProperty("resourceActions")
+            .TryGetProperty("reconcileNameMappings", out _));
+        Assert.Equal("cloudshell.nameMapping", graphAppName.GetProperty("typeId").GetString());
+        Assert.Equal("app.cloudshell.local", graphAppNameAttributes.GetProperty("nameMapping.hostName").GetString());
+        Assert.Equal("http", graphAppNameAttributes.GetProperty("nameMapping.targetEndpointName").GetString());
+        Assert.Contains(
+            "dns:graph-cloudshell-local",
+            graphAppName.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+        Assert.Contains(
+            "load-balancer:graph-public",
+            graphAppName.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal("cloudshell.nameMapping", graphApiName.GetProperty("typeId").GetString());
+        Assert.Equal("api.cloudshell.local", graphApiNameAttributes.GetProperty("nameMapping.hostName").GetString());
+        Assert.Equal("http", graphApiNameAttributes.GetProperty("nameMapping.targetEndpointName").GetString());
+        Assert.Contains(
+            "dns:graph-cloudshell-local",
+            graphApiName.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+        Assert.Contains(
+            "load-balancer:graph-public",
+            graphApiName.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
 
         var apiEndpointsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Endpoints.Value)}");

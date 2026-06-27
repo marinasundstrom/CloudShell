@@ -15,9 +15,11 @@
 - Typed wrapper plus Resource Manager bridge projection and execution.
 - Manual `ResourceDefinitionGraphBuilder.AddDnsZone(...)` builder for
   code-first DNS zone definition authoring.
+- LoadBalancer sample graph DNS zone coverage beside the legacy
+  local-hostnames zone.
 
 ## Remaining
 
-- Name-mapping child resource integration.
+- Name-mapping child resource runtime integration.
 - Record/conflict/materialization views as capability members or operation plans.
 - DNS publisher integration and UI registration/update flow.

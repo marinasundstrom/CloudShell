@@ -68,11 +68,16 @@ Resource Definitions bridge:
 - `load-balancer:graph-public`: graph-backed load balancer with typed startup
   dependencies on the graph host and target resources plus graph-declared
   entrypoints and host/path/TCP routes.
+- `dns:graph-cloudshell-local`: graph-backed DNS zone using the local-hostnames
+  provider.
+- `dns:graph-cloudshell-local:name:app-cloudshell-local` and
+  `dns:graph-cloudshell-local:name:api-cloudshell-local`: graph-backed
+  name mappings targeting the graph load-balancer `http` frontend.
 
 Those resources prove projection, dependency, count-summary, route payload,
-frontend endpoint projection, and operation shape. The graph **Apply load
-balancer configuration** action uses a sample-local Traefik adapter to
-translate graph-declared routes into the existing Traefik provider context.
-The provider-owned Traefik writer then materializes dynamic configuration,
-while Traefik runtime container management remains on the existing
-load-balancer provider path.
+frontend endpoint projection, declarative name-mapping shape, and operation
+shape. The graph **Apply load balancer configuration** action uses a
+sample-local Traefik adapter to translate graph-declared routes into the
+existing Traefik provider context. The provider-owned Traefik writer then
+materializes dynamic configuration, while Traefik runtime container
+management and DNS publishing remain on the existing provider paths.

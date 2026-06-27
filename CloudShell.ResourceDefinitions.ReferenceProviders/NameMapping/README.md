@@ -17,6 +17,8 @@
 - Manual `ResourceDefinitionGraphBuilder.AddNameMapping(...)` builder for
   code-first name mapping definition authoring with typed DNS-zone and target
   dependencies.
+- LoadBalancer sample graph name-mapping coverage targeting the graph-backed
+  load balancer frontend.
 
 ## Remaining
 
