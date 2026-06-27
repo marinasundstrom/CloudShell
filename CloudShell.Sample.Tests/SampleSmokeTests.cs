@@ -4648,9 +4648,14 @@ public sealed class SampleSmokeTests
 
         var graphDnsReconcileJson = await host.SendAsync(HttpMethod.Post, graphDnsReconcileHref);
         using var graphDnsReconcileDocument = JsonDocument.Parse(graphDnsReconcileJson);
+        var graphDnsReconcileMessage =
+            graphDnsReconcileDocument.RootElement.GetProperty("message").GetString();
         Assert.Contains(
             "Executed ReconcileNameMappings",
-            graphDnsReconcileDocument.RootElement.GetProperty("message").GetString());
+            graphDnsReconcileMessage);
+        Assert.Contains(
+            "Published 2 local host name mapping(s)",
+            graphDnsReconcileMessage);
 
         var hostsFile = await File.ReadAllTextAsync(hostsFilePath);
         Assert.Contains("127.0.0.1 app.cloudshell.local", hostsFile);
