@@ -38,7 +38,7 @@ public sealed class TraefikLoadBalancerProvider(TraefikProviderOptions options) 
         var path = await WriteDynamicConfigurationAsync(context, cancellationToken);
         await StartRuntimeContainerAsync(
             context,
-            Path.GetFullPath(options.DynamicConfigurationDirectory),
+            Path.GetFullPath(path),
             cancellationToken);
 
         return ResourceProcedureResult.Completed(
@@ -86,7 +86,7 @@ public sealed class TraefikLoadBalancerProvider(TraefikProviderOptions options) 
 
     private async Task StartRuntimeContainerAsync(
         LoadBalancerProviderContext context,
-        string dynamicConfigurationDirectory,
+        string dynamicConfigurationPath,
         CancellationToken cancellationToken)
     {
         var containerName = CreateContainerName(context.Definition.Id);
@@ -117,9 +117,9 @@ public sealed class TraefikLoadBalancerProvider(TraefikProviderOptions options) 
         }
 
         arguments.Add("-v");
-        arguments.Add($"{dynamicConfigurationDirectory}:/etc/traefik/dynamic:ro");
+        arguments.Add($"{dynamicConfigurationPath}:/etc/traefik/dynamic.yml:ro");
         arguments.Add(options.RuntimeContainerImage);
-        arguments.Add("--providers.file.directory=/etc/traefik/dynamic");
+        arguments.Add("--providers.file.filename=/etc/traefik/dynamic.yml");
         arguments.Add("--providers.file.watch=true");
         foreach (var entrypoint in context.Definition.LoadBalancerEntrypoints)
         {

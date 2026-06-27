@@ -1428,6 +1428,16 @@ public sealed class PlatformResourceProvider(
         var protocol = string.IsNullOrWhiteSpace(targetEndpoint?.Protocol)
             ? route.Kind == LoadBalancerRouteKind.Http ? "http" : "tcp"
             : targetEndpoint.Protocol;
+        var runtimeBackends = ResolveRuntimeContainerLoadBalancerBackends(
+            resourceManager,
+            targetResource,
+            port,
+            protocol);
+        if (runtimeBackends.Count > 0)
+        {
+            return runtimeBackends;
+        }
+
         var serviceName = ResourceOrchestratorReplicaGroups.CreateDefaultServiceName(targetResource.Id);
         return Enumerable
             .Range(1, replicas)
@@ -1440,6 +1450,53 @@ public sealed class PlatformResourceProvider(
                 protocol))
             .ToArray();
     }
+
+    private static IReadOnlyList<LoadBalancerBackendTarget> ResolveRuntimeContainerLoadBalancerBackends(
+        IResourceManagerStore resourceManager,
+        Resource targetResource,
+        int port,
+        string protocol)
+    {
+        var replicas = resourceManager
+            .GetResources()
+            .Where(resource =>
+                string.Equals(resource.EffectiveTypeId, "runtime.container", StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(resource.OwnerResourceId ?? resource.ParentResourceId, targetResource.Id, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(
+                    GetAttribute(resource, ResourceAttributeNames.RuntimeKind),
+                    "containerReplica",
+                    StringComparison.OrdinalIgnoreCase) &&
+                !string.IsNullOrWhiteSpace(GetRuntimeContainerLoadBalancerHost(resource)))
+            .Select(resource => new
+            {
+                Resource = resource,
+                Ordinal = TryParseInteger(GetAttribute(resource, ResourceAttributeNames.RuntimeReplicaOrdinal))
+            })
+            .OrderBy(replica => replica.Ordinal ?? int.MaxValue)
+            .ThenBy(replica => replica.Resource.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(replica => new LoadBalancerBackendTarget(
+                GetRuntimeContainerLoadBalancerHost(replica.Resource),
+                port,
+                protocol))
+            .ToArray();
+
+        return replicas;
+    }
+
+    private static string GetRuntimeContainerLoadBalancerHost(Resource resource) =>
+        GetAttribute(resource, ResourceAttributeNames.RuntimeNetworkAlias) is { Length: > 0 } alias
+            ? alias
+            : GetAttribute(resource, ResourceAttributeNames.RuntimeContainerName);
+
+    private static string GetAttribute(Resource resource, string name) =>
+        resource.ResourceAttributes.TryGetValue(name, out var value)
+            ? value
+            : string.Empty;
+
+    private static int? TryParseInteger(string value) =>
+        int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var result)
+            ? result
+            : null;
 
     private static IReadOnlyList<LoadBalancerBackendTarget> ResolveServiceLoadBalancerBackends(
         IResourceManagerStore resourceManager,

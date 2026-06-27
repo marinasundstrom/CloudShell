@@ -1610,24 +1610,11 @@ public sealed partial class ApplicationResourceRuntimeOperations(
 
     private static string CreateContainerAppIngressTargetName(
         ResourceOrchestratorService service,
-        ResourceOrchestratorServiceInstance instance)
-    {
-        const int maxDnsLabelLength = 63;
-        if (instance.Name.Length <= maxDnsLabelLength)
-        {
-            return instance.Name;
-        }
-
-        var serviceName = CreateStableIdentifier(service.Name);
-        if (serviceName.Length > 40)
-        {
-            serviceName = serviceName[..40].Trim('-');
-        }
-
-        var hash = ApplicationResourceHash.StableHash(instance.Name).ToString("x8", CultureInfo.InvariantCulture);
-        var replica = Math.Max(1, instance.ReplicaOrdinal).ToString(CultureInfo.InvariantCulture);
-        return $"{serviceName}-r{replica}-{hash}";
-    }
+        ResourceOrchestratorServiceInstance instance) =>
+        ApplicationResourceNames.CreateRuntimeNetworkAlias(
+            service.Name,
+            instance.Name,
+            instance.ReplicaOrdinal);
 
     private static string CreateContainerAppIngressEntrypoint(ServicePort port) =>
         CreateStableIdentifier(string.IsNullOrWhiteSpace(port.Name) ? $"port-{port.TargetPort}" : port.Name);

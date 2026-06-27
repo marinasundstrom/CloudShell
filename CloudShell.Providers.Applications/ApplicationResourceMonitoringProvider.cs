@@ -335,6 +335,10 @@ internal sealed class ApplicationResourceMonitoringProvider(
             [ResourceAttributeNames.DeploymentReplicaGroupId] = replicaGroup.Id,
             [ResourceAttributeNames.RuntimeKind] = "containerReplica",
             [ResourceAttributeNames.RuntimeContainerName] = instance.Name,
+            [ResourceAttributeNames.RuntimeNetworkAlias] = ApplicationResourceNames.CreateRuntimeNetworkAlias(
+                service.Name,
+                instance.Name,
+                instance.ReplicaOrdinal),
             [ResourceAttributeNames.RuntimeReplicaOrdinal] = instance.ReplicaOrdinal.ToString(CultureInfo.InvariantCulture),
             [ResourceAttributeNames.RuntimeReplicaCount] = instance.ReplicaCount.ToString(CultureInfo.InvariantCulture),
             [ResourceAttributeNames.RuntimeRevision] = deployment.RevisionId,

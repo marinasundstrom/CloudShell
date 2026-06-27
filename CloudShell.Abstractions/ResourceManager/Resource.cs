@@ -249,6 +249,7 @@ public static class ResourceAttributeNames
     public const string DeploymentReplicaMaxAttempts = "deployment.replica.maxAttempts";
     public const string RuntimeKind = "runtime.kind";
     public const string RuntimeContainerName = "runtime.container.name";
+    public const string RuntimeNetworkAlias = "runtime.network.alias";
     public const string RuntimeReplicaOrdinal = "runtime.replica.ordinal";
     public const string RuntimeReplicaCount = "runtime.replica.count";
     public const string RuntimeRevision = "runtime.revision";
