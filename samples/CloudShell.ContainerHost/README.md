@@ -1,7 +1,8 @@
 # CloudShell Container Host Sample
 
 This sample shows the minimal local development flow for container-backed
-resources.
+resources. By default it runs the new Resource Graph provider path for the
+SQL Server service shape.
 
 ```csharp
 var cloudShell = builder
@@ -10,7 +11,8 @@ var cloudShell = builder
     .UseLocalDevelopmentDefaults();
 ```
 
-- `UseLocalDevelopmentDefaults()` registers Docker as the default container
+- In side-by-side comparison mode, `UseLocalDevelopmentDefaults()` registers
+  Docker as the default container
   host and selects the built-in default orchestrator when Resource Manager
   settings have not already been changed.
 
@@ -22,8 +24,9 @@ CloudShell has two usage modes:
 - On-premise mode: an orchestrator such as Docker Compose owns lifecycle,
   networking, and exposure for the resource graph.
 
-The sample also shows a lightweight SQL Server service resource with a
-resource-owned local endpoint and a Local Storage-backed data volume:
+The old provider comparison path also shows a lightweight SQL Server service
+resource with a resource-owned local endpoint and a Local Storage-backed data
+volume:
 
 ```csharp
 var localStorage = resources
@@ -55,8 +58,8 @@ mount when SQL Server starts.
 
 ## Resource Graph POC coverage
 
-The sample also declares side-by-side graph-backed resources through the
-Resource Definitions bridge:
+The sample declares graph-backed resources through the Resource Definitions
+bridge:
 
 - `cloudshell.storage:graph-local`: graph-backed local storage projection.
 - `cloudshell.volume:graph-sql-data`: graph-backed SQL data volume with a
@@ -66,9 +69,7 @@ Resource Definitions bridge:
   `/var/opt/mssql`.
 
 Those resources prove projection, storage/volume attributes, typed storage
-dependency, and volume-consumer capability shape while the existing
-application/Docker provider path remains responsible for the old side-by-side
-resource.
+dependency, and volume-consumer capability shape.
 
 The graph SQL Server lifecycle operations now use a sample-local Docker bridge.
 That bridge resolves the mounted CloudShell volume and its storage parent from
@@ -82,9 +83,11 @@ ContainerHost sample seam: durable provider-backed storage materialization,
 usage tracking, and generalized Docker host placement remain deferred until the
 provider ports need them.
 
-Set `ContainerHost:GraphOnly` to `true` to omit the old application-provider
-storage, volume, and SQL Server resource records plus the old application
-provider registration. In graph-only mode the sample still declares the graph
-storage, volume, and SQL Server resources and uses the sample-local graph SQL
-Docker bridge for lifecycle operations. Docker smoke coverage runs this mode so
-the SQL runtime path is exercised without old provider records.
+The default graph-only mode omits the old application-provider storage, volume,
+and SQL Server resource records plus the old application provider
+registration. Set `ContainerHost:GraphOnly` to `false` for side-by-side
+comparison with the old application-provider resources. In graph-only mode the
+sample declares the graph storage, volume, and SQL Server resources and uses
+the sample-local graph SQL Docker bridge for lifecycle operations. Docker smoke
+coverage runs this mode so the SQL runtime path is exercised without old
+provider records.

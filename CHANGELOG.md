@@ -206,10 +206,10 @@ on `git blame --follow`, and then by the broad type of change.
 - ContainerAppDeployment graph registry status projection now uses a bounded,
   cached Docker inspect probe so enabling the graph Docker materializer does
   not block Resource Manager rendering when Docker is slow to answer.
-- CloudShell.ContainerHost now has an opt-in graph-only mode that omits the
-  old application-provider storage, volume, and SQL Server resource records
-  plus the old application provider registration while keeping graph SQL
-  Docker lifecycle coverage active through the sample-local bridge.
+- CloudShell.ContainerHost now defaults to graph-only mode, omitting the old
+  application-provider storage, volume, and SQL Server resource records plus
+  the old application provider registration while keeping graph SQL Docker
+  lifecycle coverage active through the sample-local bridge.
 - ProjectReference now has an opt-in graph-only mode that omits the old
   application-provider project records and registration while keeping graph
   ASP.NET Core project startup and graph-to-graph service discovery coverage.

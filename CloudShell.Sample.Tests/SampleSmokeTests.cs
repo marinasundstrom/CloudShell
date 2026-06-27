@@ -213,7 +213,6 @@ public sealed class SampleSmokeTests
             "samples/CloudShell.ContainerHost/CloudShell.ContainerHost.csproj",
             await GetFreePortAsync(),
             [
-                ("ContainerHost__GraphOnly", "true"),
                 ("ContainerHost__GraphSqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture))
             ]);
 
