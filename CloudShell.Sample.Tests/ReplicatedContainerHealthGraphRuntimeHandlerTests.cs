@@ -1,10 +1,12 @@
 using CloudShell.Abstractions.ControlPlane;
+using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Providers.Applications;
 using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using System.Globalization;
 using GraphResource = CloudShell.ResourceDefinitions.Resource;
 
 namespace CloudShell.Sample.Tests;
@@ -265,6 +267,78 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
     }
 
     [Fact]
+    public void GraphOnlyLogProvider_ProjectsReplicaLogSourcesFromGraphState()
+    {
+        var provider = new ReplicatedContainerHealthGraphOnlyLogProvider(
+            new RecordingCommandRunner(),
+            new RecordingResourceManagerStore(CreateResourceManagerGraphAppResource(replicas: 2)));
+
+        var sources = provider.GetLogSources();
+
+        Assert.Collection(
+            sources,
+            source =>
+            {
+                Assert.Equal("application.container-app:graph-api:replica-1:logs", source.Id);
+                Assert.Equal("Replica 1 logs", source.Name);
+                Assert.Equal("application.container-app:graph-api", source.ResourceId);
+                Assert.Equal(ResourceLogSourceKind.Container, source.Kind);
+                Assert.Equal(LogFormat.JsonConsole, source.Format);
+            },
+            source =>
+            {
+                Assert.Equal("application.container-app:graph-api:replica-2:logs", source.Id);
+                Assert.Equal("Replica 2 logs", source.Name);
+                Assert.Equal("application.container-app:graph-api", source.ResourceId);
+                Assert.Equal(ResourceLogSourceKind.Container, source.Kind);
+                Assert.Equal(LogFormat.JsonConsole, source.Format);
+            });
+    }
+
+    [Fact]
+    public async Task GraphOnlyLogProvider_ReadsReplicaContainerLogs()
+    {
+        var commandRunner = new RecordingCommandRunner();
+        commandRunner.Enqueue(new(
+            0,
+            """
+            2026-06-27T10:00:00.0000000Z {"message":"Handled demo work","severity":"Information","source":"ReplicatedApi","traceId":"trace-1","spanId":"span-1","state":{"path":"/work"}}
+
+            """,
+            string.Empty));
+        var provider = new ReplicatedContainerHealthGraphOnlyLogProvider(
+            commandRunner,
+            new RecordingResourceManagerStore(CreateResourceManagerGraphAppResource(replicas: 2)));
+
+        var entries = await provider.ReadLogSourceAsync(
+            ReplicatedContainerHealthGraphOnlyLogProvider.GetLogSourceId(2),
+            maxEntries: 10);
+
+        var command = Assert.Single(commandRunner.Commands);
+        Assert.Equal("docker", command.FileName);
+        Assert.Equal(
+            [
+                "logs",
+                "--timestamps",
+                "--tail",
+                "10",
+                "cloudshell-replicated-health-graph-api-replica-2"
+            ],
+            command.Arguments);
+        Assert.False(command.ThrowOnError);
+
+        var entry = Assert.Single(entries);
+        Assert.Equal(new DateTimeOffset(2026, 6, 27, 10, 0, 0, TimeSpan.Zero), entry.Timestamp);
+        Assert.Equal("Handled demo work", entry.Message);
+        Assert.Equal("Information", entry.Severity);
+        Assert.Equal("ReplicatedApi", entry.Source);
+        Assert.Equal("trace-1", entry.TraceId);
+        Assert.Equal("span-1", entry.SpanId);
+        Assert.NotNull(entry.Attributes);
+        Assert.Equal("/work", entry.Attributes["path"]);
+    }
+
+    [Fact]
     public async Task Handler_DelegatesMappedGraphApiToBridge()
     {
         var bridge = new RecordingGraphContainerAppRuntimeBridge(ContainerApplicationRuntimeStatus.Running);
@@ -369,6 +443,25 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
         return result.Resource;
     }
 
+    private static CloudShell.Abstractions.ResourceManager.Resource CreateResourceManagerGraphAppResource(
+        int replicas) =>
+        new(
+            "application.container-app:graph-api",
+            "graph-api",
+            "container",
+            "Resource model",
+            "local",
+            CloudShell.Abstractions.ResourceManager.ResourceState.Running,
+            [],
+            "v1",
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: "application.container-app",
+            Attributes: new Dictionary<string, string>
+            {
+                ["container.replicas"] = replicas.ToString(CultureInfo.InvariantCulture)
+            });
+
     private static IConfiguration CreateConfiguration(int? replicaCleanupLimit = null)
     {
         var values = new Dictionary<string, string?>
@@ -471,6 +564,34 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
     private sealed record LifecycleCommand(
         GraphResource Resource,
         ResourceOperationId OperationId);
+
+    private sealed class RecordingResourceManagerStore(
+        CloudShell.Abstractions.ResourceManager.Resource resource) : IResourceManagerStore
+    {
+        public IReadOnlyList<IResourceProvider> Providers => [];
+
+        public IReadOnlyList<ResourceGroup> GetResourceGroups() => [];
+
+        public IReadOnlyList<CloudShell.Abstractions.ResourceManager.Resource> GetAvailableResources() => [resource];
+
+        public IReadOnlyList<CloudShell.Abstractions.ResourceManager.Resource> GetResources() => [resource];
+
+        public IReadOnlyList<ResourceModelDiagnostic> GetResourceModelDiagnostics() => [];
+
+        public CloudShell.Abstractions.ResourceManager.ResourceClass? GetResourceTypeClass(string resourceType) =>
+            CloudShell.Abstractions.ResourceManager.ResourceClass.Container;
+
+        public CloudShell.Abstractions.ResourceManager.Resource? GetResource(string id) =>
+            string.Equals(id, resource.Id, StringComparison.OrdinalIgnoreCase)
+                ? resource
+                : null;
+
+        public IReadOnlyList<CloudShell.Abstractions.ResourceManager.Resource> GetChildren(string resourceId) => [];
+
+        public ResourceGroup? GetGroupForResource(string resourceId) => null;
+
+        public bool IsRegistered(string resourceId) => true;
+    }
 
     private sealed class RecordingCommandRunner : IReplicatedContainerHealthCommandRunner
     {

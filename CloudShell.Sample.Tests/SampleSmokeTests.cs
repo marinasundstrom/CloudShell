@@ -3844,8 +3844,18 @@ public sealed class SampleSmokeTests
                 $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}/health",
                 bearerToken: null,
                 graphOnlySmokeTimeout);
+            await host.WaitForAbsoluteHttpOkAsync(
+                $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}/work",
+                bearerToken: null,
+                graphOnlySmokeTimeout);
             await AssertGraphResourceHealthChecksHealthyAsync(host, graphApiResourceId, apiPort);
             await AssertGraphReplicaLogSourcesAsync(host, graphApiResourceId, expectedReplicas: 3);
+            var graphReplicaLogEntries = await WaitForLogEntriesAsync(
+                host,
+                $"{graphApiResourceId}:replica-1:logs");
+            Assert.Contains(
+                graphReplicaLogEntries,
+                message => message.Contains("handled demo work", StringComparison.OrdinalIgnoreCase));
             foreach (var containerName in containerNames)
             {
                 Assert.True(

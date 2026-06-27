@@ -50,6 +50,10 @@ on `git blame --follow`, and then by the broad type of change.
 - ReplicatedContainerHealth graph-only mode now contributes provider-projected
   replica container log sources for the graph container app, and smoke coverage
   verifies the source list follows the graph replica count after scale-down.
+- ReplicatedContainerHealth graph-only log sources now read Docker logs from
+  graph-owned replica containers through the sample command runner, parse
+  timestamped JSON console output, and smoke-test log reads without depending
+  on the old application-provider runtime.
 - ReplicatedContainerHealth now documents its temporary switch seams, and
   graph-only state projection uses bounded, cached Docker inspection so normal
   Resource Manager rendering does not depend on a responsive Docker daemon.

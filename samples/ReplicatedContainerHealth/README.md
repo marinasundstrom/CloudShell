@@ -81,10 +81,11 @@ running, projects basic running/stopped state by inspecting the graph-owned
 replica containers, and contributes provider-projected replica container log
 sources for the graph container app. Docker smoke coverage now verifies
 graph-only image update, replica update, stale replica removal, direct
-graph-declared HTTP health/liveness refresh, and log source discovery without
-the old provider records. Docker log reading, runtime-scope health
-aggregation, traces, and metrics still need to be owned by the graph-backed
-runtime path before this sample is fully switched over.
+graph-declared HTTP health/liveness refresh, log source discovery, and Docker
+log reading without the old provider records. Runtime-scope health
+aggregation, traces, metrics, and richer Resource Manager state projection
+still need to be owned by the graph-backed runtime path before this sample is
+fully switched over.
 
 ### Temporary switch seams
 
@@ -106,8 +107,11 @@ sample runs successfully through the new providers:
   stale graph-owned containers are swept after scale-down; this is sample
   switch scaffolding, not a shared orchestration abstraction.
 - `ReplicatedContainerHealthGraphOnlyLogProvider` contributes graph-owned
-  replica container log sources for discovery. Docker log reading is still a
-  follow-up seam.
+  replica container log sources and reads Docker logs through the sample
+  command runner. It intentionally does not bridge back into the old
+  application-provider log parser; promotion to a shared provider runtime
+  should wait until another port proves the same Docker-backed behavior is
+  needed.
 - The sample-local graph image update endpoint exists to exercise
   `ResourceDefinition` overlay apply plus graph operation delegation. It should
   be replaced by the eventual Resource Manager/control-plane API surface for
