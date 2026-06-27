@@ -90,12 +90,9 @@ observability can be correlated with the hidden replica resource projection.
 Docker smoke coverage now verifies graph-only image update, replica update,
 stale replica removal, direct graph-declared HTTP health/liveness refresh,
 runtime-scope health aggregation, log source discovery, Docker log reading,
-and the running replica container's projected runtime observability
-environment without the old provider records. Live trace and metric ingestion
-from graph-only Docker containers is still deferred because the current sample
-test host binds to loopback; the durable runtime path should handle the
-Docker-reachable Control Plane endpoint deliberately instead of hiding it in
-the graph model.
+the running replica container's projected runtime observability environment,
+and live trace/metric ingestion under the projected runtime replica resource
+ID without the old provider records.
 
 ### Temporary switch seams
 

@@ -3820,7 +3820,8 @@ public sealed class SampleSmokeTests
                 ("ReplicatedContainerHealth__ApiPort", apiPort.ToString(CultureInfo.InvariantCulture)),
                 ("ReplicatedContainerHealth__GraphOnlyStatusCacheMilliseconds", "25"),
                 ("ReplicatedContainerHealth__GraphOnlyReplicaCleanupLimit", "3")
-            ]);
+            ],
+            bindToAnyAddress: true);
 
         try
         {
@@ -3848,18 +3849,18 @@ public sealed class SampleSmokeTests
                 $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}/work",
                 bearerToken: null,
                 graphOnlySmokeTimeout);
-            await AssertGraphResourceHealthChecksHealthyAsync(host, graphApiResourceId, apiPort);
-            await AssertGraphResourceRuntimeHealthAggregatesAsync(host, graphApiResourceId, expectedReplicas: 3);
             await AssertGraphReplicaLogSourcesAsync(host, graphApiResourceId, expectedReplicas: 3);
             var graphReplicaLogEntries = await WaitForLogEntriesAsync(
                 host,
-                $"{graphApiResourceId}:replica-1:logs");
-            Assert.Contains(
-                graphReplicaLogEntries,
+                $"{graphApiResourceId}:replica-1:logs",
                 message => message.Contains("handled demo work", StringComparison.OrdinalIgnoreCase));
+            Assert.NotEmpty(graphReplicaLogEntries);
+            await AssertGraphResourceHealthChecksHealthyAsync(host, graphApiResourceId, apiPort, graphOnlySmokeTimeout);
+            await AssertGraphResourceRuntimeHealthAggregatesAsync(host, graphApiResourceId, expectedReplicas: 3);
             await AssertGraphReplicaRuntimeEnvironmentAsync(
                 "cloudshell-replicated-health-graph-api-replica-1",
                 replica: 1);
+            await AssertGraphReplicaTelemetryAsync(host, replica: 1, graphOnlySmokeTimeout);
             foreach (var containerName in containerNames)
             {
                 Assert.True(
@@ -3930,7 +3931,7 @@ public sealed class SampleSmokeTests
                 $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}/health",
                 bearerToken: null,
                 graphOnlySmokeTimeout);
-            await AssertGraphResourceHealthChecksHealthyAsync(host, graphApiResourceId, apiPort);
+            await AssertGraphResourceHealthChecksHealthyAsync(host, graphApiResourceId, apiPort, graphOnlySmokeTimeout);
             await AssertGraphResourceRuntimeHealthAggregatesAsync(host, graphApiResourceId, expectedReplicas: 2);
             await AssertGraphReplicaLogSourcesAsync(host, graphApiResourceId, expectedReplicas: 2);
             foreach (var containerName in scaledContainerNames)
@@ -4444,7 +4445,8 @@ public sealed class SampleSmokeTests
 
     private static async Task<IReadOnlyList<string>> WaitForLogEntriesAsync(
         SampleProcess host,
-        string logSourceId)
+        string logSourceId,
+        Func<string, bool>? containsEntry = null)
     {
         var deadline = DateTimeOffset.UtcNow.Add(StartupTimeout);
         string? lastBody = null;
@@ -4458,7 +4460,8 @@ public sealed class SampleSmokeTests
                 .Select(entry => entry.GetProperty("message").GetString() ?? string.Empty)
                 .Where(message => !string.IsNullOrWhiteSpace(message))
                 .ToArray();
-            if (entries.Length > 0)
+            if (entries.Length > 0 &&
+                (containsEntry is null || entries.Any(containsEntry)))
             {
                 return entries;
             }
@@ -4815,23 +4818,34 @@ public sealed class SampleSmokeTests
     private static async Task AssertGraphResourceHealthChecksHealthyAsync(
         SampleProcess host,
         string resourceId,
-        int endpointPort)
+        int endpointPort,
+        TimeSpan timeout)
     {
-        var summaryJson = await host.SendAsync(
-            HttpMethod.Post,
-            $"/api/control-plane/v1/resources/{Uri.EscapeDataString(resourceId)}/health/refresh");
-        using var summaryDocument = JsonDocument.Parse(summaryJson);
-        var summary = summaryDocument.RootElement;
-        var checks = summary.GetProperty("checks").EnumerateArray().ToArray();
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        string? lastSummaryJson = null;
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            lastSummaryJson = await host.SendAsync(
+                HttpMethod.Post,
+                $"/api/control-plane/v1/resources/{Uri.EscapeDataString(resourceId)}/health/refresh");
+            using var summaryDocument = JsonDocument.Parse(lastSummaryJson);
+            var summary = summaryDocument.RootElement;
+            var checks = summary.GetProperty("checks").EnumerateArray().ToArray();
 
-        Assert.Equal(resourceId, summary.GetProperty("resourceId").GetString());
-        Assert.Equal((int)ResourceHealthStatus.Healthy, summary.GetProperty("status").GetInt32());
-        Assert.Contains(
-            checks,
-            check => IsHealthyHttpCheck(check, ResourceProbeType.Health, "health", endpointPort, "/health"));
-        Assert.Contains(
-            checks,
-            check => IsHealthyHttpCheck(check, ResourceProbeType.Liveness, "alive", endpointPort, "/alive"));
+            if (summary.GetProperty("resourceId").GetString() == resourceId &&
+                summary.GetProperty("status").GetInt32() == (int)ResourceHealthStatus.Healthy &&
+                checks.Any(check => IsHealthyHttpCheck(check, ResourceProbeType.Health, "health", endpointPort, "/health")) &&
+                checks.Any(check => IsHealthyHttpCheck(check, ResourceProbeType.Liveness, "alive", endpointPort, "/alive")))
+            {
+                return;
+            }
+
+            await Task.Delay(250);
+        }
+
+        throw new TimeoutException(
+            $"Graph resource '{resourceId}' health checks did not become healthy within {timeout}." +
+            $"{Environment.NewLine}{lastSummaryJson}");
     }
 
     private static bool IsHealthyHttpCheck(
@@ -4968,6 +4982,12 @@ public sealed class SampleSmokeTests
         Assert.Contains(
             $"OTEL_SERVICE_NAME=replicated-container-health-graph-api-replica-{replica.ToString(CultureInfo.InvariantCulture)}",
             environment);
+        Assert.Contains(
+            environment,
+            variable => variable.StartsWith("CLOUDSHELL_TRACE_INGEST_ENDPOINT=http://host.docker.internal:", StringComparison.Ordinal));
+        Assert.Contains(
+            environment,
+            variable => variable.StartsWith("CLOUDSHELL_METRIC_INGEST_ENDPOINT=http://host.docker.internal:", StringComparison.Ordinal));
         var resourceAttributes = Assert.Single(
             environment,
             variable => variable.StartsWith("OTEL_RESOURCE_ATTRIBUTES=", StringComparison.Ordinal));
@@ -4977,6 +4997,50 @@ public sealed class SampleSmokeTests
         Assert.Contains("telemetry.scope.kind=runtime", resourceAttributes);
         Assert.Contains($"runtime.replica.ordinal={replica.ToString(CultureInfo.InvariantCulture)}", resourceAttributes);
         Assert.Contains($"runtime.replica.count={replicaCount.ToString(CultureInfo.InvariantCulture)}", resourceAttributes);
+    }
+
+    private static async Task AssertGraphReplicaTelemetryAsync(
+        SampleProcess host,
+        int replica,
+        TimeSpan timeout)
+    {
+        var replicaResourceId = ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaResourceId(replica);
+        var metrics = await WaitForMetricPointsAsync(
+            host,
+            replicaResourceId,
+            timeout,
+            points => points.Any(point =>
+                point.GetProperty("name").GetString() == "http.server.requests" &&
+                point.GetProperty("resourceId").GetString() == replicaResourceId &&
+                point.TryGetProperty("attributes", out var attributes) &&
+                attributes.TryGetProperty("telemetry.scope.resourceId", out var scopeResourceId) &&
+                scopeResourceId.GetString() == ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId));
+        Assert.NotEmpty(metrics);
+
+        var spans = await WaitForTraceSpansByResourceAsync(
+            host,
+            replicaResourceId,
+            timeout,
+            spans => spans.Any(span => IsGraphReplicaWorkSpan(span, replicaResourceId, replica)));
+        Assert.NotEmpty(spans);
+    }
+
+    private static bool IsGraphReplicaWorkSpan(
+        JsonElement span,
+        string replicaResourceId,
+        int replica)
+    {
+        if (span.GetProperty("name").GetString() != "Handle demo work" ||
+            span.GetProperty("resourceId").GetString() != replicaResourceId ||
+            !span.TryGetProperty("spanAttributes", out var attributes) ||
+            !attributes.TryGetProperty("telemetry.scope.resourceId", out var scopeResourceId) ||
+            !attributes.TryGetProperty("runtime.replica.ordinal", out var replicaOrdinal))
+        {
+            return false;
+        }
+
+        return scopeResourceId.GetString() == ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId &&
+            replicaOrdinal.GetString() == replica.ToString(CultureInfo.InvariantCulture);
     }
 
     private static async Task<string> RunResourceIdentityCredentialSampleAsync(
@@ -5312,7 +5376,8 @@ public sealed class SampleSmokeTests
         public static Task<SampleProcess> StartAsync(
             string projectPath,
             int port,
-            IReadOnlyList<(string Key, string Value)>? environment = null)
+            IReadOnlyList<(string Key, string Value)>? environment = null,
+            bool bindToAnyAddress = false)
         {
             var root = FindRepositoryRoot();
             var projectFile = Path.Combine(root, projectPath);
@@ -5325,6 +5390,9 @@ public sealed class SampleSmokeTests
             }
 
             var baseAddress = new Uri($"http://127.0.0.1:{port}");
+            var listenAddress = bindToAnyAddress
+                ? new Uri($"http://0.0.0.0:{port}")
+                : baseAddress;
             var startInfo = new ProcessStartInfo("dotnet")
             {
                 WorkingDirectory = root,
@@ -5338,7 +5406,7 @@ public sealed class SampleSmokeTests
             startInfo.ArgumentList.Add(projectFile);
             startInfo.ArgumentList.Add("--");
             startInfo.ArgumentList.Add("--urls");
-            startInfo.ArgumentList.Add(baseAddress.ToString());
+            startInfo.ArgumentList.Add(listenAddress.ToString());
             startInfo.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
 
             if (environment is not null)

@@ -62,8 +62,9 @@ on `git blame --follow`, and then by the broad type of change.
 - ReplicatedContainerHealth graph-only replica containers now receive the
   projected runtime replica resource ID, OpenTelemetry service name, and
   telemetry scope attributes in their runtime environment. Focused coverage
-  verifies the Docker command wiring, and smoke coverage inspects the running
-  container environment without requiring Docker-to-host telemetry ingestion.
+  verifies the Docker command wiring, and smoke coverage binds the sample host
+  to a Docker-reachable address so graph-only containers can ingest live trace
+  spans and metric points under the projected runtime replica resource ID.
 - ReplicatedContainerHealth now documents its temporary switch seams, and
   graph-only state projection uses bounded, cached Docker inspection so normal
   Resource Manager rendering does not depend on a responsive Docker daemon.

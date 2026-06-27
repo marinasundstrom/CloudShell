@@ -12,7 +12,9 @@ using GraphResource = CloudShell.ResourceDefinitions.Resource;
 internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridge(
     IReplicatedContainerHealthCommandRunner commandRunner,
     IConfiguration configuration,
-    IHostEnvironment? hostEnvironment = null) : IReplicatedContainerHealthGraphContainerAppRuntimeBridge
+    IHostEnvironment? hostEnvironment = null,
+    string? traceIngestEndpoint = null,
+    string? metricIngestEndpoint = null) : IReplicatedContainerHealthGraphContainerAppRuntimeBridge
 {
     private const string DefaultProjectPath = "samples/ReplicatedContainerHealth/Api/CloudShell.ReplicatedContainerHealth.Api.csproj";
     private readonly string _projectPath = hostEnvironment is null
@@ -26,6 +28,10 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
     private readonly int _replicaCleanupLimit = Math.Max(
         1,
         configuration.GetValue<int?>("ReplicatedContainerHealth:GraphOnlyReplicaCleanupLimit") ?? 10);
+    private readonly string? _traceIngestEndpoint =
+        FirstNonEmpty(traceIngestEndpoint, configuration["Observability:TraceIngestEndpoint"]);
+    private readonly string? _metricIngestEndpoint =
+        FirstNonEmpty(metricIngestEndpoint, configuration["Observability:MetricIngestEndpoint"]);
     private ContainerApplicationRuntimeStatus? _cachedStatus;
     private DateTimeOffset _cachedStatusTimestamp;
 
@@ -284,8 +290,8 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
         arguments.Add($"OTEL_SERVICE_NAME=replicated-container-health-graph-api-replica-{replica.ToString(CultureInfo.InvariantCulture)}");
         arguments.Add("-e");
         arguments.Add($"OTEL_RESOURCE_ATTRIBUTES={CreateOtelResourceAttributes(replicaResourceId, replicaContainerName, replicaName, replica, replicaCount)}");
-        AddEnvironment(arguments, "CLOUDSHELL_TRACE_INGEST_ENDPOINT", "Observability:TraceIngestEndpoint");
-        AddEnvironment(arguments, "CLOUDSHELL_METRIC_INGEST_ENDPOINT", "Observability:MetricIngestEndpoint");
+        AddEnvironment(arguments, "CLOUDSHELL_TRACE_INGEST_ENDPOINT", _traceIngestEndpoint);
+        AddEnvironment(arguments, "CLOUDSHELL_METRIC_INGEST_ENDPOINT", _metricIngestEndpoint);
         arguments.Add(image);
 
         return arguments;
@@ -294,9 +300,8 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
     private void AddEnvironment(
         List<string> arguments,
         string name,
-        string configurationKey)
+        string? value)
     {
-        var value = configuration[configurationKey];
         if (string.IsNullOrWhiteSpace(value))
         {
             return;
@@ -364,6 +369,9 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
             .Replace("\\", "\\\\", StringComparison.Ordinal)
             .Replace(",", "\\,", StringComparison.Ordinal)
             .Replace("=", "\\=", StringComparison.Ordinal);
+
+    private static string? FirstNonEmpty(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
 
     private int ResolveReplicaCleanupLimit(GraphResource resource) =>
         Math.Max(ResolveReplicas(resource), _replicaCleanupLimit);

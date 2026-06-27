@@ -70,7 +70,9 @@ builder.Services
                 ? new ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridge(
                     serviceProvider.GetRequiredService<IReplicatedContainerHealthCommandRunner>(),
                     serviceProvider.GetRequiredService<IConfiguration>(),
-                    serviceProvider.GetRequiredService<IHostEnvironment>())
+                    serviceProvider.GetRequiredService<IHostEnvironment>(),
+                    traceIngestEndpoint,
+                    metricIngestEndpoint)
                 : new ReplicatedContainerHealthGraphResourceManagerBridge(
                     serviceProvider.GetRequiredService<IServiceScopeFactory>()))
     .AddSingleton<IContainerApplicationRuntimeHandler, ReplicatedContainerHealthGraphRuntimeHandler>()
@@ -245,7 +247,7 @@ static string? FirstHttpEndpoint(string? value)
 static string ResolveDockerReachableEndpoint(string endpoint)
 {
     if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) ||
-        uri.Host is not ("localhost" or "127.0.0.1" or "::1"))
+        uri.Host is not ("localhost" or "127.0.0.1" or "::1" or "0.0.0.0" or "::"))
     {
         return endpoint;
     }
