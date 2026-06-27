@@ -2030,7 +2030,6 @@ public sealed class SampleSmokeTests
             "samples/ApplicationTopology/Host/CloudShell.ApplicationTopologyHost.csproj",
             await GetFreePortAsync(),
             [
-                ("ApplicationTopology__GraphOnly", "true"),
                 ("ApplicationTopology__ApiEndpoint", $"http://localhost:{apiPort}"),
                 ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
                 ("ApplicationTopology__GraphApiEndpoint", $"http://localhost:{graphApiPort}"),
@@ -3424,7 +3423,6 @@ public sealed class SampleSmokeTests
                 ("Authentication__OpenIdConnect__RequireHttpsMetadata", "false"),
                 ("Keycloak__AdminBaseAddress", $"http://localhost:{keycloakPort}"),
                 ("Keycloak__TokenEndpoint", $"{authority}/protocol/openid-connect/token"),
-                ("Samples__ThirdPartyIdentity__GraphOnly", "true"),
                 ("Samples__ThirdPartyIdentity__GraphApiEndpoint", $"http://localhost:{graphApiPort}"),
                 ("Samples__ThirdPartyIdentity__GraphConfigurationServiceEndpoint", graphConfigurationEndpoint)
             ]);
@@ -4466,7 +4464,6 @@ public sealed class SampleSmokeTests
             "samples/ReplicatedContainerHealth/CloudShell.ReplicatedContainerHealth.csproj",
             await GetFreePortAsync(),
             [
-                ("ReplicatedContainerHealth__GraphOnly", "true"),
                 ("ReplicatedContainerHealth__ApiPort", apiPort.ToString(CultureInfo.InvariantCulture)),
                 ("ReplicatedContainerHealth__GraphOnlyStatusCacheMilliseconds", "25"),
                 ("ReplicatedContainerHealth__GraphOnlyReplicaCleanupLimit", "3")

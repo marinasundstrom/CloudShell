@@ -123,6 +123,10 @@ on `git blame --follow`, and then by the broad type of change.
   Side-by-side identity/configuration/application smoke coverage explicitly
   opts back into the old provider path so the Keycloak-protected graph
   Configuration Store and graph ASP.NET Core API path is the default.
+- ApplicationTopology, ThirdPartyIdentity, and ReplicatedContainerHealth
+  Docker-backed graph-only smoke tests now rely on the sample appsettings
+  defaults instead of forcing `GraphOnly=true`, so those heavier switch gates
+  validate the same default path used by local sample runs.
 - SettingsAndSecrets now defaults to graph-only mode for the sample host.
   Side-by-side smoke coverage explicitly opts back into the old
   application/configuration/secrets provider path so the graph Configuration
