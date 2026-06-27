@@ -4080,7 +4080,10 @@ public sealed class SampleSmokeTests
     {
         using var host = await SampleProcess.StartAsync(
             "samples/ReplicatedContainerHealth/CloudShell.ReplicatedContainerHealth.csproj",
-            await GetFreePortAsync());
+            await GetFreePortAsync(),
+            [
+                ("ReplicatedContainerHealth__GraphOnly", "false")
+            ]);
 
         await host.WaitForHttpOkAsync("/", StartupTimeout);
 
@@ -4302,7 +4305,6 @@ public sealed class SampleSmokeTests
             "samples/ReplicatedContainerHealth/CloudShell.ReplicatedContainerHealth.csproj",
             await GetFreePortAsync(),
             [
-                ("ReplicatedContainerHealth__GraphOnly", "true"),
                 ("ReplicatedContainerHealth__ApiPort", apiPort.ToString(CultureInfo.InvariantCulture))
             ]);
 
@@ -4349,7 +4351,10 @@ public sealed class SampleSmokeTests
         const string updatedImage = "cloudshell-application-api:20260622.3";
         using var host = await SampleProcess.StartAsync(
             "samples/ReplicatedContainerHealth/CloudShell.ReplicatedContainerHealth.csproj",
-            await GetFreePortAsync());
+            await GetFreePortAsync(),
+            [
+                ("ReplicatedContainerHealth__GraphOnly", "false")
+            ]);
 
         await host.WaitForHttpOkAsync("/", StartupTimeout);
 
@@ -4642,6 +4647,7 @@ public sealed class SampleSmokeTests
             "samples/ReplicatedContainerHealth/CloudShell.ReplicatedContainerHealth.csproj",
             await GetFreePortAsync(),
             [
+                ("ReplicatedContainerHealth__GraphOnly", "false"),
                 ("ReplicatedContainerHealth__ApiPort", apiPort.ToString(CultureInfo.InvariantCulture))
             ]);
 

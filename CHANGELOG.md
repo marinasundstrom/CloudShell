@@ -111,6 +111,10 @@ on `git blame --follow`, and then by the broad type of change.
   runtime-scope health aggregation to converge instead of treating the first
   full health refresh as final, and sample GET timeout diagnostics now include
   captured host output for runtime-route failures.
+- ReplicatedContainerHealth now defaults to graph-only mode for the sample
+  host. Side-by-side smoke coverage explicitly opts back into the old
+  application/Docker provider path so it remains a comparison baseline rather
+  than the default runtime path.
 - The Resource Manager host integration now exposes `DefineResources(...)` for
   Aspire-compatible in-memory resource declarations and
   `DefineInitialDeployment(...)` for seed-like deployment declarations with

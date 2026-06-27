@@ -39,8 +39,8 @@ the sample should publish the app ingress on a different local port.
 
 ## Resource Graph POC coverage
 
-The sample also declares side-by-side graph-backed resources through the
-Resource Definitions bridge:
+The sample declares graph-backed resources through the Resource Definitions
+bridge:
 
 - `docker:graph-sample`: graph-backed Docker host.
 - `application.container-app:graph-api`: graph-backed replicated container app
@@ -49,32 +49,33 @@ Resource Definitions bridge:
   health and liveness checks for `/health` and `/alive`.
 
 Those resources prove projection, replica-count attributes, endpoint mapping,
-health/liveness declarations, and dependency shape while the existing
-application/Docker provider path remains responsible for replica
-materialization, runtime health aggregation, logs, traces, and metrics.
+health/liveness declarations, and dependency shape. The graph-only provider
+path is now the default for the sample. Set
+`ReplicatedContainerHealth:GraphOnly` to `false` only when running the
+side-by-side comparison path against the old application/Docker providers.
 The sample now wires the graph container-app lifecycle operation to a
 sample-local bridge contract, so starting
 `application.container-app:graph-api` delegates to the current bridge
-implementation. The current bridge still targets the existing `application:api`
-runtime app while the graph-only container runtime is being refined, but the
-graph handler itself is no longer coupled directly to old application-provider
-services. The graph container app projects its Resource Manager state through
-the container-app runtime handler/status seam and the Resource Manager bridge
-so graph stop and restart can be evaluated and delegated as well. The Docker
-smoke also verifies that graph stop removes the revision-scoped runtime
-containers created by graph start. The sample exposes a sample-local graph
-image update endpoint used by smoke coverage to apply a `ResourceDefinition`
-overlay and then delegate the graph `container.image.update` operation into the
-existing runtime app configuration.
+implementation. In the side-by-side comparison path, the current bridge still
+targets the existing `application:api` runtime app while the graph-only
+container runtime is being refined, but the graph handler itself is no longer
+coupled directly to old application-provider services. The graph container app
+projects its Resource Manager state through the container-app runtime
+handler/status seam and the Resource Manager bridge so graph stop and restart
+can be evaluated and delegated as well. The Docker smoke also verifies that
+graph stop removes the revision-scoped runtime containers created by graph
+start. The sample exposes a sample-local graph image update endpoint used by
+smoke coverage to apply a `ResourceDefinition` overlay and then delegate the
+graph `container.image.update` operation.
 
-Set `ReplicatedContainerHealth:GraphOnly` to `true` to declare only the
-graph-backed Docker host and container-app resources. In this mode the sample
-does not register the old application or Docker provider path and does not
-declare `application:api` or `docker:sample`. This is a switch-readiness gate:
-it proves the graph resource shape without the old provider records, and it
-wires the graph container app to a sample-local Docker bridge that publishes
-the API container image, starts/removes the graph-owned replica containers, and
-restarts those replicas when graph image or replica attributes are applied.
+In graph-only mode the sample declares only the graph-backed Docker host and
+container-app resources. It does not register the old application or Docker
+provider path and does not declare `application:api` or `docker:sample`. This
+is the current switch-readiness gate: it proves the graph resource shape
+without the old provider records, and it wires the graph container app to a
+sample-local Docker bridge that publishes the API container image,
+starts/removes the graph-owned replica containers, and restarts those replicas
+when graph image or replica attributes are applied.
 The same bridge removes a bounded range of graph-owned replica containers
 during cleanup so scale-down does not leave stale higher-ordinal replicas
 running, projects basic running/stopped state by inspecting the graph-owned
