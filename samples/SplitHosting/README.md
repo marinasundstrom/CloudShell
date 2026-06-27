@@ -41,3 +41,10 @@ graph-backed network resource projected through the Resource Definitions
 bridge. The separate UI host renders it through the remote Control Plane
 client, which keeps this sample useful for validating graph-backed Resource
 Manager projections before changing public API or client contracts.
+
+Set `SplitHosting:GraphOnly` to `true` on the Control Plane host to omit the
+old persisted `network:split-sample` record and expose only the graph-backed
+network resource. The smoke test uses this mode as a remote-client
+switch-readiness gate: the UI must render the graph resource through the remote
+adapter, and the Control Plane API must not need a legacy Resource Manager
+network record for the graph projection to appear.

@@ -3367,7 +3367,7 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
-    public async Task SplitHostingSample_RendersUiThroughRemoteControlPlane()
+    public async Task SplitHostingSample_GraphOnlyModeRendersUiThroughRemoteControlPlane()
     {
         var controlPlanePort = await GetFreePortAsync();
         var uiPort = await GetFreePortAsync();
@@ -3377,7 +3377,8 @@ public sealed class SampleSmokeTests
             controlPlanePort,
             environment:
             [
-                ("Authentication__BuiltInAuthority__Issuer", $"http://localhost:{controlPlanePort}")
+                ("Authentication__BuiltInAuthority__Issuer", $"http://localhost:{controlPlanePort}"),
+                ("SplitHosting__GraphOnly", "true")
             ]);
         await controlPlane.WaitForHttpOkAsync("/openapi/control-plane-v1.json", StartupTimeout);
 
@@ -3391,7 +3392,6 @@ public sealed class SampleSmokeTests
         await ui.WaitForHttpOkAsync("/", StartupTimeout);
 
         var resourcesHtml = await ui.GetStringAsync("/resources");
-        Assert.Contains("Split Sample Network", resourcesHtml);
         Assert.Contains("Graph Split Sample Network", resourcesHtml);
 
         var token = await controlPlane.GetClientCredentialsTokenAsync(
@@ -3403,11 +3403,10 @@ public sealed class SampleSmokeTests
             token);
         using var document = JsonDocument.Parse(apiJson);
         var resources = document.RootElement.EnumerateArray().ToArray();
-        var network = Assert.Single(resources, resource =>
+        Assert.DoesNotContain(resources, resource =>
             resource.GetProperty("id").GetString() == "network:split-sample");
         var graphNetwork = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "network:graph-split-sample");
-        Assert.Equal("cloudshell.network", network.GetProperty("typeId").GetString());
         Assert.Equal("cloudshell.network", graphNetwork.GetProperty("typeId").GetString());
         Assert.Equal("Logical", graphNetwork.GetProperty("attributes").GetProperty("network.kind").GetString());
         Assert.Equal("logicalOnly", graphNetwork.GetProperty("attributes").GetProperty("network.hostReadiness").GetString());

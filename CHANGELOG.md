@@ -135,6 +135,9 @@ on `git blame --follow`, and then by the broad type of change.
   and virtual-network resource records while keeping the graph endpoint-mapping
   runtime bridge active through the Control Plane local-host endpoint
   provisioner.
+- SplitHosting now has an opt-in Control Plane graph-only mode that omits the
+  old persisted network record while keeping the remote UI and Control Plane
+  API graph resource projection path covered.
 - The LoadBalancer sample now declares side-by-side graph-backed DNS zone and
   name-mapping resources that target the graph-backed load balancer frontend,
   extending the networking POC coverage from route projection into declarative
