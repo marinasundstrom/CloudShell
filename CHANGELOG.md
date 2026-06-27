@@ -131,6 +131,10 @@ on `git blame --follow`, and then by the broad type of change.
   Side-by-side observability and UI smoke coverage explicitly opts back into
   the old application provider path so the graph ASP.NET Core project
   discovery path is the default.
+- HostVirtualNetwork now defaults to graph-only mode for the sample host.
+  Side-by-side projection coverage explicitly opts back into the old
+  application-provider host networking path so graph endpoint-mapping
+  reconciliation is the default path.
 - The Resource Manager host integration now exposes `DefineResources(...)` for
   Aspire-compatible in-memory resource declarations and
   `DefineInitialDeployment(...)` for seed-like deployment declarations with

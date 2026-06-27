@@ -4747,6 +4747,7 @@ public sealed class SampleSmokeTests
             "samples/HostVirtualNetwork/CloudShell.HostVirtualNetwork.csproj",
             await GetFreePortAsync(),
             [
+                ("HostVirtualNetwork__GraphOnly", "false"),
                 ("HostVirtualNetwork__TargetPort", targetPort.ToString(CultureInfo.InvariantCulture)),
                 ("HostVirtualNetwork__VirtualNetworkPort", virtualNetworkPort.ToString(CultureInfo.InvariantCulture)),
                 ("HostVirtualNetwork__GraphVirtualNetworkPort", graphVirtualNetworkPort.ToString(CultureInfo.InvariantCulture))
@@ -4859,8 +4860,7 @@ public sealed class SampleSmokeTests
             [
                 ("HostVirtualNetwork__TargetPort", targetPort.ToString(CultureInfo.InvariantCulture)),
                 ("HostVirtualNetwork__VirtualNetworkPort", virtualNetworkPort.ToString(CultureInfo.InvariantCulture)),
-                ("HostVirtualNetwork__GraphVirtualNetworkPort", graphVirtualNetworkPort.ToString(CultureInfo.InvariantCulture)),
-                ("HostVirtualNetwork__GraphOnly", "true")
+                ("HostVirtualNetwork__GraphVirtualNetworkPort", graphVirtualNetworkPort.ToString(CultureInfo.InvariantCulture))
             ]);
 
         await host.WaitForHttpOkAsync("/", StartupTimeout);

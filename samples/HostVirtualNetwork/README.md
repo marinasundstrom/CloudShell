@@ -28,15 +28,16 @@ Optional endpoint-port settings:
   endpoint port. Defaults to `5292`.
 - `HostVirtualNetwork:GraphOnly`: when `true`, omits the old application
   provider registration and old `networking:host-local`, `application:vnet-api`,
-  and `network:sample-vnet` records. Defaults to `false`.
+  and `network:sample-vnet` records. Defaults to `true`; set it to `false`
+  only when running the side-by-side comparison path against the old providers.
 
 `networking:host-local` is projected as an active host networking resource on
 macOS, Linux, and Windows. Use the virtual network's
 `Reconcile endpoint mappings` action to start a local TCP proxy from
 `localhost:5290` to `localhost:5291`.
 
-The sample also carries side-by-side graph-backed POC resources through the
-Resource Definitions bridge:
+The sample carries graph-backed POC resources through the Resource Definitions
+bridge:
 
 - `networking:graph-host-local`: graph-backed local host networking.
 - `application.aspnet-core-project:graph-vnet-api`: graph-backed ASP.NET Core
